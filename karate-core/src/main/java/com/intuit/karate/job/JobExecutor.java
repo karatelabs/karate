@@ -186,12 +186,12 @@ public class JobExecutor {
             if (jc.isBackground()) {
                 Logger silentLogger = new Logger(executorId);
                 silentLogger.setAppendOnly(true);
-                Command command = new Command(silentLogger, executorId, null, commandWorkingDir, args);
+                Command command = new Command(false, silentLogger, executorId, null, commandWorkingDir, args);
                 command.setEnvironment(environment);
                 command.start();
                 backgroundCommands.add(command);
             } else {
-                Command command = new Command(logger, executorId, null, commandWorkingDir, args);
+                Command command = new Command(false, logger, executorId, null, commandWorkingDir, args);
                 command.setEnvironment(environment);
                 command.start();
                 command.waitSync();

@@ -33,8 +33,8 @@ import java.util.List;
  */
 public class MavenChromeJobConfig extends MavenJobConfig {
     
-    private int width = 1366;
-    private int height = 768;
+    private int width = 1280;
+    private int height = 720;
     
     public MavenChromeJobConfig(int executorCount, String host, int port) {
         super(executorCount, host, port);

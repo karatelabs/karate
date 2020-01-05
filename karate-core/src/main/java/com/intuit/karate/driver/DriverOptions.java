@@ -207,7 +207,7 @@ public class DriverOptions {
             if (addOptions != null) {
                 args.addAll(addOptions);
             }
-            command = new Command(processLogger, uniqueName, processLogFile, workingDir, args.toArray(new String[]{}));
+            command = new Command(false, processLogger, uniqueName, processLogFile, workingDir, args.toArray(new String[]{}));
             command.start();
         }
         // try to wait for a slow booting browser / driver process

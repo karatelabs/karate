@@ -52,33 +52,27 @@ public class Command extends Thread {
     private final boolean sharedAppender;
     private final LogAppender appender;
 
-    private boolean useLineFeed;
     private Map<String, String> environment;
     private Process process;
     private int exitCode = -1;
 
     public void setEnvironment(Map<String, String> environment) {
         this.environment = environment;
-    }        
-
-    public void setUseLineFeed(boolean useLineFeed) {
-        this.useLineFeed = useLineFeed;
-    }        
+    }
 
     public static String exec(boolean useLineFeed, File workingDir, String... args) {
-        Command command = new Command(workingDir, args);
-        command.setUseLineFeed(useLineFeed);
+        Command command = new Command(useLineFeed, workingDir, args);        
         command.start();
         command.waitSync();
         return command.appender.collect();
     }
-    
+
     public static String[] tokenize(String command) {
         StringTokenizer st = new StringTokenizer(command);
         String[] args = new String[st.countTokens()];
         for (int i = 0; st.hasMoreTokens(); i++) {
             args[i] = st.nextToken();
-        } 
+        }
         return args;
     }
 
@@ -145,14 +139,14 @@ public class Command extends Thread {
     }
 
     public Command(String... args) {
-        this(null, null, null, null, args);
+        this(false, null, null, null, null, args);
     }
 
-    public Command(File workingDir, String... args) {
-        this(null, null, null, workingDir, args);
+    public Command(boolean useLineFeed, File workingDir, String... args) {
+        this(useLineFeed, null, null, null, workingDir, args);
     }
 
-    public Command(Logger logger, String uniqueName, String logFile, File workingDir, String... args) {
+    public Command(boolean useLineFeed, Logger logger, String uniqueName, String logFile, File workingDir, String... args) {
         setDaemon(true);
         this.uniqueName = uniqueName == null ? System.currentTimeMillis() + "" : uniqueName;
         setName(this.uniqueName);
@@ -177,18 +171,18 @@ public class Command extends Thread {
             }
         }
     }
-    
+
     public Map<String, String> getEnvironment() {
         return environment;
     }
 
     public File getWorkingDir() {
         return workingDir;
-    }       
+    }
 
     public List getArgList() {
         return argList;
-    }       
+    }
 
     public Logger getLogger() {
         return logger;
@@ -221,7 +215,7 @@ public class Command extends Thread {
             process.destroyForcibly();
         } else {
             process.destroy();
-        }        
+        }
     }
 
     @Override
@@ -236,7 +230,7 @@ public class Command extends Thread {
             logger.trace("env PATH: {}", pb.environment().get("PATH"));
             if (workingDir != null) {
                 pb.directory(workingDir);
-            }            
+            }
             pb.redirectErrorStream(true);
             process = pb.start();
             BufferedReader in = new BufferedReader(new InputStreamReader(process.getInputStream()));

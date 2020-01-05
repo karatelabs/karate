@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2019 Intuit Inc.
+ * Copyright 2020 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,40 +21,28 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.job;
-
-import com.intuit.karate.Http;
-import java.util.Timer;
-import java.util.TimerTask;
+package com.intuit.karate.robot;
 
 /**
  *
  * @author pthomas3
  */
-public class JobExecutorPulse extends TimerTask {
+public class Location {
 
-    private final JobExecutor executor;
-    private final Http http;
-    private static final int PERIOD = 15000; // fifteen seconds
+    public final Robot robot;
+    public final int x;
+    public final int y;
 
-    public JobExecutorPulse(JobExecutor executor) {
-        this.executor = executor;
-        http = Http.forUrl(executor.appender, executor.serverUrl);
+    public Location(Robot robot, int x, int y) {
+        this.robot = robot;
+        this.x = x;
+        this.y = y;
     }
-
-    public void start() {
-        Timer timer = new Timer(true);
-        timer.schedule(this, PERIOD, PERIOD);
-    }
-
-    @Override
-    public void run() {
-        String chunkId = executor.chunkId;
-        JobMessage jm = new JobMessage("heartbeat");
-        jm.setChunkId(chunkId);
-        String jobId = executor.jobId;
-        String executorId = executor.executorId;        
-        JobExecutor.invokeServer(http, jobId, executorId, jm);
+    
+    public Location click() {
+        robot.move(x, y);
+        robot.click();
+        return this;
     }
 
 }

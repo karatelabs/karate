@@ -77,7 +77,7 @@ public class Logger {
     }
 
     public Logger() {
-        LOGGER = LoggerFactory.getLogger(DEFAULT_PACKAGE);
+        this(DEFAULT_PACKAGE);
     }
 
     public void trace(String format, Object... arguments) {

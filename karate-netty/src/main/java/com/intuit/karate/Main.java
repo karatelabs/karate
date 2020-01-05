@@ -174,7 +174,7 @@ public class Main implements Callable<Void> {
                     .path(fixed).tags(tags).scenarioName(name)
                     .reportDir(jsonOutputDir).hook(hook).parallel(threads);
             Collection<File> jsonFiles = org.apache.commons.io.FileUtils.listFiles(new File(jsonOutputDir), new String[]{"json"}, true);
-            List<String> jsonPaths = new ArrayList<>(jsonFiles.size());
+            List<String> jsonPaths = new ArrayList(jsonFiles.size());
             jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));
             Configuration config = new Configuration(new File(output), new Date() + "");
             ReportBuilder reportBuilder = new ReportBuilder(jsonPaths, config);
@@ -190,7 +190,7 @@ public class Main implements Callable<Void> {
             return null;
         }
         if (importFile != null) {
-            new PostmanConverter().convert(importFile, System.getProperty("karate.output.dir"));
+            new PostmanConverter().convert(importFile, output);
             return null;
         }
         if (clean) {

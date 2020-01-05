@@ -45,7 +45,7 @@ public class AllKarateFeaturesTest {
         logger.debug("found files count: {}", files.size());
         assertTrue(files.size() > 200);
         for (Resource file : files) {
-            logger.debug("parsing: {}", file.getRelativePath());
+            logger.trace("parsing: {}", file.getRelativePath());
             FeatureParser.parse(file);
         }
     }

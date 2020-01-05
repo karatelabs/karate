@@ -4,4 +4,4 @@ cache:
   - "$HOME/.m2"
 jdk:
   - openjdk8
-script: mvn install -P pre-release -Dmaven.javadoc.skip=true -B -V
+script: mvn install -P pre-release -Dmaven.javadoc.skip=true -B -V -Djavacpp.platform=linux-x86_64

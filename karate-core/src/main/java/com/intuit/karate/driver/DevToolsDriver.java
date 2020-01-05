@@ -455,13 +455,14 @@ public abstract class DevToolsDriver implements Driver {
         while (input.hasNext()) {
             char c = input.next();
             int modifier = input.getModifier();
-            Integer keyCode = Key.INSTANCE.CODES.get(c);
-            if (c < Key.INSTANCE.NULL) { // normal character
+            Integer keyCode = Keys.code(c);
+            if (Keys.isNormal(c)) {
                 if (keyCode != null) {
                     // sendKey(c, modifier, "rawKeyDown", keyCode);
                     sendKey(c, modifier, "keyDown", null);
                     sendKey(c, modifier, "keyUp", keyCode);
                 } else {
+                    logger.warn("unknown character / key code: {}", c);
                     sendKey(c, modifier, "char", null);
                 }
             } else {

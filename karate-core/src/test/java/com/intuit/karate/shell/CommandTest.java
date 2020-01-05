@@ -19,7 +19,7 @@ public class CommandTest {
     @Test
     public void testCommand() {
         String cmd = FileUtils.isOsWindows() ? "print \"hello\"" : "ls";
-        Command command = new Command(null, null, "target/command.log", new File("src"), cmd, "-al");
+        Command command = new Command(false, null, null, "target/command.log", new File("src"), cmd, "-al");
         command.start();
         int exitCode = command.waitSync();
         assertEquals(exitCode, 0);
@@ -27,10 +27,9 @@ public class CommandTest {
 
     @Test
     public void testCommandReturn() {
-        String cmd = FileUtils.isOsWindows() ? "print \"karate\"" : "ls";
+        String cmd = FileUtils.isOsWindows() ? "cmd /c dir" : "ls";
         String result = Command.execLine(new File("target"), cmd);
-        // will be "No file to print" on windows
-        assertTrue(FileUtils.isOsWindows() ? result.contains("print") : result.contains("karate"));
+        assertTrue(result.contains("karate"));
     }
 
 }
