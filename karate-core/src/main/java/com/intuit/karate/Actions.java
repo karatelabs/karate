@@ -136,6 +136,8 @@ public interface Actions {
     
     //==========================================================================
     //
-    void driver(String expression);        
+    void driver(String expression);
+    
+    void robot(String expression);
 
 }

@@ -1,7 +1,10 @@
 Feature:
 
 Background:
-* def Runtime = Java.type('java.lang.Runtime').getRuntime()
+* print 'background'
 
 Scenario:
-* Runtime.exec('Chrome')
+# * karate.exec('Chrome')
+* robot '^Chrome'
+* robot.input(Key.META, 't')
+* robot.input('karate dsl' + Key.ENTER)

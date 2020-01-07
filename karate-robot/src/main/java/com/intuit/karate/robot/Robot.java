@@ -32,6 +32,8 @@ import java.awt.Toolkit;
 import java.awt.event.InputEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.Collections;
+import java.util.Map;
 import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,14 +49,27 @@ public class Robot {
     public final java.awt.Robot robot;
     public final Toolkit toolkit;
     public final Dimension dimension;
-
+    
     public Robot() {
+        this(Collections.EMPTY_MAP);
+    }
+
+    public Robot(Map<String, Object> config) {
         try {
             toolkit = Toolkit.getDefaultToolkit();
             dimension = toolkit.getScreenSize();
             robot = new java.awt.Robot();
             robot.setAutoDelay(40);
             robot.setAutoWaitForIdle(true);
+            String app = (String) config.get("app");
+            if (app != null) {
+                if (app.startsWith("^")) {
+                    final String temp = app.substring(1);
+                    switchTo(t -> t.contains(temp));
+                } else {
+                    switchTo(app);
+                }
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

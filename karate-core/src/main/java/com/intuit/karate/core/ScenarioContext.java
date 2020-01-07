@@ -57,6 +57,7 @@ import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.File;
 import java.io.InputStream;
+import java.lang.reflect.Constructor;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -75,7 +76,7 @@ public class ScenarioContext {
     // public but mutable, just for dynamic scenario outline, see who calls setLogger()
     public Logger logger;
     public LogAppender appender;
-    
+
     public final ScriptBindings bindings;
     public final int callDepth;
     public final boolean reuseParentContext;
@@ -132,7 +133,7 @@ public class ScenarioContext {
     public void setLogger(Logger logger) {
         this.logger = logger;
         this.appender = logger.getAppender();
-    }        
+    }
 
     public void logLastPerfEvent(String failureMessage) {
         if (prevPerfEvent != null && executionHooks != null) {
@@ -193,7 +194,7 @@ public class ScenarioContext {
 
     public HttpResponse getPrevResponse() {
         return prevResponse;
-    }        
+    }
 
     public HttpClient getHttpClient() {
         return client;
@@ -968,6 +969,30 @@ public class ScenarioContext {
         if (sv.isString()) {
             driver.setUrl(sv.getAsString());
         }
+    }
+
+    public void robot(String expression) {
+        ScriptValue sv = Script.evalKarateExpression(expression, this);
+        Map<String, Object> config;
+        if (sv.isMapLike()) {
+            config = sv.getAsMap();
+        } else if (sv.isString()) {
+            config = Collections.singletonMap("app", sv.getAsString());
+        } else {
+            config = Collections.EMPTY_MAP;
+        }
+        Object robot;
+        try {
+            Class clazz = Class.forName("com.intuit.karate.robot.Robot");
+            Constructor constructor = clazz.getDeclaredConstructor(Map.class);
+            robot = constructor.newInstance(config);
+        } catch (Exception e) {
+            String message = "cannot instantiate robot, is 'karate-robot' included as a maven / gradle dependency ? - " + e.getMessage();
+            logger.error(message);
+            throw new RuntimeException(message, e);
+        }
+        bindings.putAdditionalVariable("robot", robot);
+        bindings.putAdditionalVariable("Key", Key.INSTANCE);
     }
 
     public void stop(StepResult lastStepResult) {

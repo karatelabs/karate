@@ -383,12 +383,19 @@ public class StepActions implements Actions {
     public void evalIf(String exp) {
         context.eval("if " + exp);
     }
+
     //==========================================================================
     //
-
     @Override
     @When("^driver (.+)")
     public void driver(String expression) {
         context.driver(expression);
     }
+    
+    @Override
+    @When("^robot (.+)")
+    public void robot(String expression) {
+        context.robot(expression);
+    }     
+
 }
