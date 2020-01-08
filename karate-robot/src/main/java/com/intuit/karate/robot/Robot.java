@@ -159,9 +159,12 @@ public class Robot {
         return bi;
     }
     
-    public Location find(File file) {
-        int[] loc = RobotUtils.find(capture(), file);
-        return new Location(this, loc[0], loc[1]);
+    public Region find(String path) {
+        return find(new File(path)).with(this);
+    }
+    
+    public Region find(File file) {
+        return RobotUtils.find(capture(), file).with(this);
     }
     
     public boolean switchTo(String title) {

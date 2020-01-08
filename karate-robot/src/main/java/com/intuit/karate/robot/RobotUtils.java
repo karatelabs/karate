@@ -43,6 +43,7 @@ import org.bytedeco.opencv.opencv_core.Rect;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinDef.HWND;
+import java.awt.Color;
 import java.awt.event.KeyEvent;
 import java.util.HashMap;
 import java.util.List;
@@ -50,6 +51,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import javax.imageio.ImageIO;
+import javax.swing.BorderFactory;
+import javax.swing.JFrame;
 import org.bytedeco.javacpp.DoublePointer;
 import org.bytedeco.javacv.Java2DFrameUtils;
 import org.bytedeco.javacv.OpenCVFrameConverter;
@@ -65,17 +68,17 @@ public class RobotUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(RobotUtils.class);
 
-    public static int[] find(File source, File target) {
+    public static Region find(File source, File target) {
         return find(read(source), read(target));
     }
 
-    public static int[] find(BufferedImage source, File target) {
+    public static Region find(BufferedImage source, File target) {
         Mat tgtMat = read(target);
         Mat srcMat = Java2DFrameUtils.toMat(source);
         return find(srcMat, tgtMat);
     }
 
-    public static int[] find(Mat source, Mat target) {
+    public static Region find(Mat source, Mat target) {
         Mat result = new Mat();
         matchTemplate(source, target, result, CV_TM_SQDIFF);
         DoublePointer minVal = new DoublePointer(1);
@@ -85,7 +88,7 @@ public class RobotUtils {
         minMaxLoc(result, minVal, maxVal, minPt, maxPt, null);
         int cols = target.cols();
         int rows = target.rows();
-        return new int[]{minPt.x() + cols / 2, minPt.y() + rows / 2};
+        return new Region(minPt.x(), minPt.y(), cols, rows);
     }
 
     public static Mat loadAndShowOrExit(File file, int flags) {
@@ -249,9 +252,35 @@ public class RobotUtils {
             }
         }
         return false;
+    }    
+
+    public static void highlight(int x, int y, int width, int height, int time) {
+        JFrame f = new JFrame();
+        f.setUndecorated(true);
+        f.setBackground(new Color(0, 0, 0, 0));
+        f.setAlwaysOnTop(true);
+        f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        f.setType(JFrame.Type.UTILITY);
+        f.setFocusableWindowState(false);
+        f.setAutoRequestFocus(false);
+        f.setLocation(x, y);
+        f.setSize(width, height);
+        f.getRootPane().setBorder(BorderFactory.createLineBorder(Color.RED, 3));  
+        f.setVisible(true);    
+        delay(time);
+        f.dispose();
     }
 
-    //==========================================================================        
+    public static void delay(int millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    //==========================================================================
+    //
     public static final Map<Character, int[]> KEY_CODES = new HashMap();
 
     private static void key(char c, int... i) {

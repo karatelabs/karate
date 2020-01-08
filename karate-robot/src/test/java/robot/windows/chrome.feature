@@ -8,3 +8,4 @@ Scenario:
 * robot '^Chrome'
 * robot.input(Key.META, 't')
 * robot.input('karate dsl' + Key.ENTER)
+* robot.find('src/test/resources/tams.png').click()

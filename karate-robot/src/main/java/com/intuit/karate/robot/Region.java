@@ -27,27 +27,33 @@ package com.intuit.karate.robot;
  *
  * @author pthomas3
  */
-public class Location {
-
-    public Robot robot;
+public class Region {
+    
+    private Robot robot;
     
     public final int x;
     public final int y;
-
-    public Location(int x, int y) {
+    public final int width;
+    public final int height;
+    
+    public Region(int x, int y, int width, int height) {
         this.x = x;
         this.y = y;
+        this.width = width;
+        this.height = height;        
     }
     
-    public Location with(Robot robot) {
+    public Region with(Robot robot) {
         this.robot = robot;
         return this;
-    }        
-    
-    public Location click() {
-        robot.move(x, y);
-        robot.click();
-        return this;
     }
-
+    
+    public Location center() {
+        return new Location(x + width / 2, y + height / 2).with(robot);
+    }
+    
+    public void highlight(int millis) {
+        RobotUtils.highlight(x, y, width, height, millis);
+    }
+    
 }
