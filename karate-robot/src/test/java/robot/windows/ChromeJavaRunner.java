@@ -18,8 +18,10 @@ public class ChromeJavaRunner {
         bot.switchTo(t -> t.contains("Chrome"));
         bot.input(Keys.META, "t");
         bot.input("karate dsl" + Keys.ENTER);
-        Region region = bot.find("src/test/resources/vid.png");        
+        bot.delay(1000);
+        Region region = bot.find("src/test/resources/tams.png");        
         region.highlight(2000);
+        region.click();
     }
 
 }

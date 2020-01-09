@@ -56,4 +56,9 @@ public class Region {
         RobotUtils.highlight(x, y, width, height, millis);
     }
     
+    public Region click() {
+        center().click();
+        return this;
+    }
+    
 }
