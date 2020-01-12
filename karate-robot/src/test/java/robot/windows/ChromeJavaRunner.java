@@ -22,6 +22,6 @@ public class ChromeJavaRunner {
         Region region = bot.find("src/test/resources/tams.png");        
         region.highlight(2000);
         region.click();
-    }
+    }    
 
 }

@@ -16,10 +16,14 @@ public class RobotUtilsTest {
 
     @Test
     public void testOpenCv() {
-        System.setProperty("org.bytedeco.javacpp.logger.debug", "true");
+        // System.setProperty("org.bytedeco.javacpp.logger.debug", "true");
         File target = new File("src/test/resources/search.png");
         File source = new File("src/test/resources/desktop01.png");
-        Region region = RobotUtils.find(source, target);
+        Region region = RobotUtils.find(source, target, false);
+        assertEquals(1605, region.x);
+        assertEquals(1, region.y);
+        target = new File("src/test/resources/search-1_5.png");
+        region = RobotUtils.find(source, target, true);
         assertEquals(1605, region.x);
         assertEquals(1, region.y);
     }

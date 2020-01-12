@@ -27,24 +27,13 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.driver.Keys;
 import com.intuit.karate.shell.Command;
 import com.sun.jna.Native;
-import java.awt.Image;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import javax.swing.WindowConstants;
-import org.bytedeco.javacv.CanvasFrame;
-import org.bytedeco.javacv.Java2DFrameConverter;
-import static org.bytedeco.opencv.global.opencv_imgcodecs.*;
-import static org.bytedeco.opencv.global.opencv_imgproc.*;
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.Point;
-import org.bytedeco.opencv.opencv_core.Point2f;
-import org.bytedeco.opencv.opencv_core.Point2fVector;
-import org.bytedeco.opencv.opencv_core.Rect;
-import org.bytedeco.opencv.opencv_core.Scalar;
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinDef.HWND;
 import java.awt.Color;
+import java.awt.Image;
 import java.awt.event.KeyEvent;
+import java.awt.image.BufferedImage;
+import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,10 +42,22 @@ import java.util.function.Predicate;
 import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.JFrame;
+import javax.swing.WindowConstants;
 import org.bytedeco.javacpp.DoublePointer;
+import org.bytedeco.javacv.CanvasFrame;
+import org.bytedeco.javacv.Java2DFrameConverter;
 import org.bytedeco.javacv.Java2DFrameUtils;
 import org.bytedeco.javacv.OpenCVFrameConverter;
 import static org.bytedeco.opencv.global.opencv_core.minMaxLoc;
+import static org.bytedeco.opencv.global.opencv_imgcodecs.*;
+import static org.bytedeco.opencv.global.opencv_imgproc.*;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Point;
+import org.bytedeco.opencv.opencv_core.Point2f;
+import org.bytedeco.opencv.opencv_core.Point2fVector;
+import org.bytedeco.opencv.opencv_core.Rect;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.Size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,29 +67,68 @@ import org.slf4j.LoggerFactory;
  */
 public class RobotUtils {
 
-    private static final Logger logger = LoggerFactory.getLogger(RobotUtils.class);
+    private static final Logger logger = LoggerFactory.getLogger(RobotUtils.class);   
 
-    public static Region find(File source, File target) {
-        return find(read(source), read(target));
+    public static Region find(File source, File target, boolean resize) {
+        return find(read(source), read(target), resize);
     }
 
-    public static Region find(BufferedImage source, File target) {
+    public static Region find(BufferedImage source, File target, boolean resize) {
         Mat tgtMat = read(target);
         Mat srcMat = Java2DFrameUtils.toMat(source);
-        return find(srcMat, tgtMat);
+        return find(srcMat, tgtMat, resize);
     }
 
-    public static Region find(Mat source, Mat target) {
-        Mat result = new Mat();
-        matchTemplate(source, target, result, CV_TM_SQDIFF);
-        DoublePointer minVal = new DoublePointer(1);
-        DoublePointer maxVal = new DoublePointer(1);
-        org.bytedeco.opencv.opencv_core.Point minPt = new org.bytedeco.opencv.opencv_core.Point();
-        org.bytedeco.opencv.opencv_core.Point maxPt = new org.bytedeco.opencv.opencv_core.Point();
-        minMaxLoc(result, minVal, maxVal, minPt, maxPt, null);
-        int cols = target.cols();
-        int rows = target.rows();
-        return new Region(minPt.x(), minPt.y(), cols, rows);
+    public static Mat rescale(Mat mat, double scale) {
+        Mat resized = new Mat();
+        resize(mat, resized, new Size(), scale, scale, CV_INTER_AREA);
+        return resized;
+    }
+
+    public static Region find(Mat source, Mat target, boolean resize) {
+        Double prevMinVal = null;
+        double prevRatio = -1;
+        Point prevMinPt = null;
+        double prevScore = -1;
+        //=====================
+        double step = 0.1;
+        int count = resize ? 5 : 0;
+        int targetScore = target.size().area() * 300; // magic number
+        for (int i = -count; i <= count; i++) {            
+            double scale = 1 + step * i;
+            Mat resized = scale == 1 ? source : rescale(source, scale);
+            Size temp = resized.size();
+            logger.debug("scale: {} - {}:{} - target: {}", scale, temp.width(), temp.height(), targetScore);
+            Mat result = new Mat();
+            matchTemplate(resized, target, result, CV_TM_SQDIFF);
+            DoublePointer minVal = new DoublePointer(1);
+            DoublePointer maxVal = new DoublePointer(1);
+            Point minPt = new Point();
+            Point maxPt = new Point();
+            minMaxLoc(result, minVal, maxVal, minPt, maxPt, null);
+            double tempMinVal = minVal.get();
+            double ratio = (double) 1 / scale;
+            double score = tempMinVal / targetScore;
+            String minValString = String.format("%.1f", tempMinVal);            
+            if (prevMinVal == null || tempMinVal < prevMinVal) {
+                prevMinVal = tempMinVal;
+                prevRatio = ratio;
+                prevMinPt = minPt;
+                prevScore = score;
+                logger.debug("found minVal: {}, score: {}, ratio: {}", minValString, score, ratio);
+            } else {
+                logger.debug("ignore minVal: {}, score: {}, ratio: {}", minValString, score, ratio);
+            }
+        }
+        if (prevScore > 1) {
+            logger.debug("match quality insufficient: {}", prevScore);
+            return null;
+        }
+        int x = (int) Math.round(prevMinPt.x() * prevRatio);
+        int y = (int) Math.round(prevMinPt.y() * prevRatio);
+        int width = (int) Math.round(target.cols() * prevRatio);
+        int height = (int) Math.round(target.rows() * prevRatio);
+        return new Region(x, y, width, height);
     }
 
     public static Mat loadAndShowOrExit(File file, int flags) {
@@ -252,7 +292,7 @@ public class RobotUtils {
             }
         }
         return false;
-    }    
+    }
 
     public static void highlight(int x, int y, int width, int height, int time) {
         JFrame f = new JFrame();
@@ -265,8 +305,8 @@ public class RobotUtils {
         f.setAutoRequestFocus(false);
         f.setLocation(x, y);
         f.setSize(width, height);
-        f.getRootPane().setBorder(BorderFactory.createLineBorder(Color.RED, 3));  
-        f.setVisible(true);    
+        f.getRootPane().setBorder(BorderFactory.createLineBorder(Color.RED, 3));
+        f.setVisible(true);
         delay(time);
         f.dispose();
     }
