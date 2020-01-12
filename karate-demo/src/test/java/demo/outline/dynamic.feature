@@ -7,10 +7,10 @@ Background:
 Scenario Outline: cat name: <name>
     Given url demoBaseUrl
     And path 'cats'
-    And request { name: '<name>' }
+    And request { name: '#(name)' }
     When method post
     Then status 200
-    And match response == { id: '#number', name: '<name>' }
+    And match response == { id: '#number', name: '#(name)' }
 
     # the single cell can be any valid karate expression
     # and even reference a variable defined in the Background

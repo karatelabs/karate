@@ -3717,7 +3717,7 @@ A little-known capability of the Cucumber / Gherkin syntax is to be able to tag 
 ```cucumber
 Scenario Outline: examples partitioned by tag
 * def vals = karate.tagValues
-* match vals.region[0] == '<expected>'
+* match vals.region[0] == expected
 
   @region=US
   Examples:
