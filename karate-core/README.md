@@ -247,7 +247,7 @@ key | description
 `host` | optional, will default to `localhost` and you normally never need to change this
 `pollAttempts` | optional, will default to `20`, you normally never need to change this (and changing `pollInterval` is preferred), and this is the number of attempts Karate will make to wait for the `port` to be ready and accepting connections before proceeding
 `pollInterval` | optional, will default to `250` (milliseconds) and you normally never need to change this (see `pollAttempts`) unless the driver `executable` takes a *very* long time to start
-`headless` | [headless mode](https://developers.google.com/web/updates/2017/04/headless-chrome) only applies to `{ type: 'chrome' }` for now, also see [`DockerTarget`](#dockertarget)
+`headless` | [headless mode](https://developers.google.com/web/updates/2017/04/headless-chrome) only applies to `{ type: 'chrome' }` and `{ type: 'geckodriver' }` for now, also see [`DockerTarget`](#dockertarget)
 `showDriverLog` | default `false`, will include webdriver HTTP traffic in Karate report, useful for troubleshooting or bug reports
 `showProcessLog` | default `false`, will include even executable (webdriver or browser) logs in the Karate report
 `addOptions` | default `null`, has to be a list / JSON array that will be appended as additional CLI arguments to the `executable`, e.g. `['--no-sandbox', '--windows-size=1920,1080']`
