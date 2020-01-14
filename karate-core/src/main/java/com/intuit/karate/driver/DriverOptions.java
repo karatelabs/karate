@@ -266,10 +266,15 @@ public class DriverOptions {
     }
     
     private Map<String, Object> getCapabilities(String browserName) {
-        Map<String, Object> map = new LinkedHashMap();
+        Map<String, Object> map = new LinkedHashMap<>();
         map.put("browserName", browserName);
         if (proxy != null) {
             map.put("proxy", proxy);
+        }
+        if (headless && browserName.equals("firefox")) {
+            map.put("moz:firefoxOptions",
+                    Collections.singletonMap("args", Collections.singletonList("-headless")));
+            map = Collections.singletonMap("alwaysMatch", map);
         }
         return Collections.singletonMap("capabilities", map);
     }
@@ -277,13 +282,13 @@ public class DriverOptions {
     public Map<String, Object> getCapabilities() {
         switch (type) {
             case "chromedriver":
-                return getCapabilities("Chrome");
+                return getCapabilities("chrome");
             case "geckodriver":
-                return getCapabilities("Firefox");
+                return getCapabilities("firefox");
             case "safaridriver":
-                return getCapabilities("Safari");
+                return getCapabilities("safari");
             case "mswebdriver":
-                return getCapabilities("Edge");
+                return getCapabilities("edge");
             default:
                 return null;
         }
