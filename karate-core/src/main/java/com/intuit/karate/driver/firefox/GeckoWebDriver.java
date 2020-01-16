@@ -81,6 +81,13 @@ public class GeckoWebDriver extends WebDriver {
                 logger.warn("native window switch failed: {}", e.getMessage());
             }
         }
-    }        
+    }
+
+    @Override
+    public void quit() {
+        // geckodriver already closes all windows on delete session
+        open = false;
+        super.quit();
+    }
 
 }
