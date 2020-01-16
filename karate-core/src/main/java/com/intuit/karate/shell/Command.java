@@ -86,7 +86,7 @@ public class Command extends Thread {
 
     private static final Set<Integer> PORTS_IN_USE = ConcurrentHashMap.newKeySet();
 
-    public static int getFreePort(int preferred) {
+    public static synchronized int getFreePort(int preferred) {
         if (preferred != 0 && PORTS_IN_USE.contains(preferred)) {
             LOGGER.trace("preferred port {} in use (karate), will attempt to find free port ...", preferred);
             preferred = 0;
