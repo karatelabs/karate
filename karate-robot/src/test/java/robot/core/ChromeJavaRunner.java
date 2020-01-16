@@ -1,4 +1,4 @@
-package robot.windows;
+package robot.core;
 
 import com.intuit.karate.driver.Keys;
 import com.intuit.karate.robot.Region;

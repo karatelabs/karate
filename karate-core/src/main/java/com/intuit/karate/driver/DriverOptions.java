@@ -266,7 +266,7 @@ public class DriverOptions {
     }
     
     private Map<String, Object> getCapabilities(String browserName) {
-        Map<String, Object> map = new LinkedHashMap<>();
+        Map<String, Object> map = new LinkedHashMap();
         map.put("browserName", browserName);
         if (proxy != null) {
             map.put("proxy", proxy);

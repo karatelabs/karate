@@ -120,7 +120,7 @@ public class RobotUtils {
                 logger.debug("ignore minVal: {}, score: {}, ratio: {}", minValString, score, ratio);
             }
         }
-        if (prevScore > 1) {
+        if (prevScore > 1.5) {
             logger.debug("match quality insufficient: {}", prevScore);
             return null;
         }
