@@ -159,6 +159,19 @@ public class HttpRequestBuilder {
         this.headers = headers;
     }
 
+    public void setHeader(String name, Object value) {
+        if (value instanceof List) {
+            setHeader(name, (List) value);
+        } else if (value != null) {
+            setHeader(name, value.toString());
+        } else { // unlikely null
+            if (headers == null) {
+                headers = new MultiValuedMap();
+            }
+            headers.put(name, null);
+        }
+    }
+
     public void setHeader(String name, String value) {
         setHeader(name, Collections.singletonList(value));
     }

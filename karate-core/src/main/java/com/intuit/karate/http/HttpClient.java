@@ -171,6 +171,7 @@ public abstract class HttpClient<T> {
         Map<String, Object> configHeaders = config.getHeaders().evalAsMap(context);
         if (configHeaders != null) {
             for (Map.Entry<String, Object> entry : configHeaders.entrySet()) {
+                request.setHeader(entry.getKey(), entry.getValue()); // update request for hooks, etc.
                 buildHeader(entry.getKey(), entry.getValue(), true);
             }
         }
@@ -181,6 +182,7 @@ public abstract class HttpClient<T> {
         }
         Map<String, Object> configCookies = config.getCookies().evalAsMap(context);
         for (Cookie cookie : Cookie.toCookies(configCookies)) {
+            request.setCookie(cookie); // update request for hooks, etc.
             buildCookie(cookie);
         }
         if (methodRequiresBody) {
@@ -226,7 +228,7 @@ public abstract class HttpClient<T> {
     public HttpResponse invoke(HttpRequestBuilder request, ScenarioContext context) {
         T body = buildRequestInternal(request, context);
         String perfEventName = null; // acts as a flag to report perf if not null
-        if (context.executionHooks != null && perfEventName == null) {
+        if (context.executionHooks != null) {
             for (ExecutionHook h : context.executionHooks) {
                 perfEventName = h.getPerfEventName(request, context);
             }
