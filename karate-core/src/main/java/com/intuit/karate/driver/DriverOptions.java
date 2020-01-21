@@ -266,7 +266,7 @@ public class DriverOptions {
     }
     
     private Map<String, Object> getCapabilities(String browserName) {
-        Map<String, Object> map = new LinkedHashMap();
+        Map<String, Object> map = new LinkedHashMap<>();
         map.put("browserName", browserName);
         if (proxy != null) {
             map.put("proxy", proxy);
@@ -274,8 +274,8 @@ public class DriverOptions {
         if (headless && browserName.equals("firefox")) {
             map.put("moz:firefoxOptions",
                     Collections.singletonMap("args", Collections.singletonList("-headless")));
-            map = Collections.singletonMap("alwaysMatch", map);
         }
+        map = Collections.singletonMap("alwaysMatch", map);
         return Collections.singletonMap("capabilities", map);
     }
 
