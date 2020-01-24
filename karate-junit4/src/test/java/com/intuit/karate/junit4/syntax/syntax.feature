@@ -418,6 +418,9 @@ Then match pdf == read('test.pdf')
 * match each data.foo contains { baz: "#? _ != 'z'" }
 * def isAbc = function(x) { return x == 'a' || x == 'b' || x == 'c' }
 * match each data.foo contains { baz: '#? isAbc(_)' }
+# this is also possible, see the subtle difference from the above
+* def isXabc = function(x) { return x.baz == 'a' || x.baz == 'b' || x.baz == 'c' }
+* match each data.foo == '#? isXabc(_)'
 
 # match each not contains
 * match each data.foo !contains { bar: 4 }

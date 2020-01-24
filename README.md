@@ -2627,6 +2627,10 @@ The `match` keyword can be made to iterate over all elements in a JSON array usi
 * match each data.foo contains { baz: "#? _ != 'z'" }
 * def isAbc = function(x) { return x == 'a' || x == 'b' || x == 'c' }
 * match each data.foo contains { baz: '#? isAbc(_)' }
+
+# this is also possible, see the subtle difference from the above
+* def isXabc = function(x) { return x.baz == 'a' || x.baz == 'b' || x.baz == 'c' }
+* match each data.foo == '#? isXabc(_)'
 ``` 
 
 Here is a contrived example that uses `match each`, [`contains`](#match-contains) and the [`#?`](#self-validation-expressions) 'predicate' marker to validate that the value of `totalPrice` is always equal to the `roomPrice` of the first item in the `roomInformation` array.
@@ -3115,7 +3119,7 @@ This makes setting up of complex authentication schemes for your test-flows real
  
 Here is an example JavaScript function that uses some variables in the context (which have been possibly set as the result of a sign-in) to build the `Authorization` header. Note how even [calls to Java code](#calling-java) can be made if needed.
 
-> In the example below, note the use of the [`karate.get()`](#karate-get) helper for getting the value of a dynamic variable. This is preferred because it takes care of situations such as if the value is `undefined` in JavaScript. In rare cases you may need to *set* a variable from this routine, and a good example is to make the generated UUID "visible" to the currently executing script or feature. You can easily do this via [`karate.set('someVarName', value)`](#karate-set).
+> In the example below, note the use of the [`karate.get()`](#karate-get) helper for getting the value of a dynamic variable (which was *not set* at the time this JS `function` was *declared*). This is preferred because it takes care of situations such as if the value is `undefined` in JavaScript. In rare cases you may need to *set* a variable from this routine, and a good example is to make the generated UUID "visible" to the currently executing script or feature. You can easily do this via [`karate.set('someVarName', value)`](#karate-set).
 
 ```javascript
 function fn() {
