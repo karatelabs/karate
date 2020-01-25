@@ -2111,13 +2111,15 @@ Example:
 
 ```
 # trust all server certificates, in the feature file
-* configure ssl = { trustAll: true };
+* configure ssl = { trustAll: true }
 ```
 
 ```
 # trust all server certificates, global configuration in 'karate-config.js'
 karate.configure('ssl', { trustAll: true });
 ```
+
+For end-to-end examples in the Karate demos, look at the files in [this folder](karate-demo/src/test/java/ssl).
 
 # Payload Assertions
 ## Prepare, Mutate, Assert.
