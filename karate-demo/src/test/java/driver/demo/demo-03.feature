@@ -25,7 +25,7 @@ Feature: 3 scenarios
     When click('input[name=btnI]')
     Then waitForUrl('https://github.com/intuit/karate')
 
-    When click('{a}Find File')
+    When click('{a}Find file')
     And def searchField = waitFor('input[name=query]')
     Then match driver.url == 'https://github.com/intuit/karate/find/master'
 

@@ -2106,7 +2106,7 @@ Key | Type | Required? | Description
 Example:  
 ```
 # enable X509 certificate authentication with PKCS12 file 'certstore.pfx' and password 'certpassword'
-* configure ssl = { keyStore: 'classpath:certstore.pfx', keyStorePassword: 'certpassword', keyStoreType: 'pkcs12' };
+* configure ssl = { keyStore: 'classpath:certstore.pfx', keyStorePassword: 'certpassword', keyStoreType: 'pkcs12' }
 ```
 
 ```
