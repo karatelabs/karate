@@ -80,6 +80,20 @@ public class StepResult {
         map.put("value", text);
         return map;
     }
+    
+    private static List<Map> tableToMap(Table table) {
+        List<List<String>> rows = table.getRows();
+        List<Map> list = new ArrayList(rows.size());
+        int count = rows.size();
+        for (int i = 0; i < count; i++) {
+            List<String> row = rows.get(i);
+            Map<String, Object> map = new HashMap(2);
+            map.put("cells", row);
+            map.put("line", table.getLineNumberForRow(i));
+            list.add(map);
+        }
+        return list;
+    }
 
     public StepResult(Map<String, Object> map) {
         json = map;
@@ -95,7 +109,7 @@ public class StepResult {
         if (json != null) {
             return json;
         }
-        Map<String, Object> map = new HashMap(7);
+        Map<String, Object> map = new HashMap(8);
         map.put("line", step.getLine());
         map.put("keyword", step.getPrefix());
         map.put("name", step.getText());
@@ -113,6 +127,9 @@ public class StepResult {
         }
         if (sb.length() > 0) {
             map.put("doc_string", docStringToMap(step.getLine(), sb.toString()));
+        }
+        if (step.getTable() != null) {
+            map.put("rows", tableToMap(step.getTable()));
         }
         if (embeds != null) {
             List<Map> embedList = new ArrayList(embeds.size());
