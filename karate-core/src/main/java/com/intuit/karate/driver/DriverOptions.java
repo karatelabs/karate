@@ -268,9 +268,9 @@ public class DriverOptions {
     private Map<String, Object> getCapabilities(String browserName) {
         Map<String, Object> map = webDriverCapabilities;
         if (map == null) {
-            map = new HashMap();
-            map.put("browserName", browserName);
+            map = new HashMap();           
         }
+        map.putIfAbsent("browserName", browserName);
         return Collections.singletonMap("capabilities", map);
     }
 
