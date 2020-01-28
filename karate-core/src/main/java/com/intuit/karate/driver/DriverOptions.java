@@ -270,6 +270,9 @@ public class DriverOptions {
             map = new HashMap();           
         }
         map.putIfAbsent("browserName", browserName);
+        if (!map.containsKey("alwaysMatch")) {
+            map = Collections.singletonMap("alwaysMatch", map);
+        }
         return Collections.singletonMap("capabilities", map);
     }
 

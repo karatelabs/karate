@@ -25,7 +25,6 @@ package com.intuit.karate.driver.chrome;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
-import com.intuit.karate.Json;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.core.ScenarioContext;
@@ -64,26 +63,6 @@ public class ChromeWebDriver extends WebDriver {
     }
 
     @Override
-    protected String getElementKey() {
-        return "ELEMENT";
-    }
-
-    @Override
-    protected String getJsonForInput(String text) {
-        return "{ value: ['" + text + "'] }";
-    }
-
-    @Override
-    protected String getJsonForHandle(String text) {
-        return new Json().set("name", text).toString();
-    }
-
-    @Override
-    protected String getJsonForFrame(String text) {
-        return new Json().set("id.ELEMENT", text).toString();
-    }
-
-    @Override
     public void activate() {
         if (!options.headless) {
             try {
@@ -98,19 +77,6 @@ public class ChromeWebDriver extends WebDriver {
                 logger.warn("native window switch failed: {}", e.getMessage());
             }
         }
-    }
-
-    @Override
-    public void switchFrame(String locator) {
-        if (locator == null) { // reset to parent frame
-            http.path("frame", "parent").post("{}");
-            return;
-        }
-        retryIfEnabled(locator, () -> {
-            String id = elementId(locator);
-            http.path("frame").post(getJsonForFrame(id));
-            return null;
-        });
     }
 
     @Override
