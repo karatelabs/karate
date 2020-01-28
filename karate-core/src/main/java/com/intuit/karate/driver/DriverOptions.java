@@ -265,15 +265,17 @@ public class DriverOptions {
     }
 
     private Map<String, Object> getCapabilities(String browserName) {
-        Map<String, Object> map = webDriverCapabilities;
-        if (map == null) {
-            map = new HashMap();           
+        Map<String, Object> capabilities = webDriverCapabilities;
+        if (capabilities == null) {
+            capabilities = new HashMap();
         }
-        map.putIfAbsent("browserName", browserName);
-        if (!map.containsKey("alwaysMatch")) {
-            map = Collections.singletonMap("alwaysMatch", map);
+        Map<String, Object> alwaysMatch = (Map) capabilities.get("alwaysMatch");
+        if (alwaysMatch == null) {
+            alwaysMatch = new HashMap();
+            capabilities.put("alwaysMatch", alwaysMatch);
         }
-        return Collections.singletonMap("capabilities", map);
+        alwaysMatch.putIfAbsent("browserName", browserName);
+        return Collections.singletonMap("capabilities", capabilities);
     }
 
     public Map<String, Object> getCapabilities() {
