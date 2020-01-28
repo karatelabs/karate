@@ -6,13 +6,18 @@ function fn() {
   }
   var config = {
     env: env,
-	myVarName: 'someValue'
+	myVarName: 'someValue',
+	data: read("classpath:data.json")[this_env]
   }
   if (env == 'dev') {
     // customize
     // e.g. config.foo = 'bar';
   } else if (env == 'e2e') {
     // customize
+  }
+
+  for (p in config) {
+    karate.log ("##### config - " + p, ": " + config[p])
   }
   return config;
 }

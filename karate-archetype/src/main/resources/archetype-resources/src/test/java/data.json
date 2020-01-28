@@ -1,0 +1,8 @@
+{
+  "dev": {
+    "test1": { "data1": "val1", "data2": "val2"}
+  },
+  "e2e": {
+    "test1": { "data1": "val1", "data2": "val2"}
+  }
+}
