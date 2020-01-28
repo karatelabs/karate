@@ -78,7 +78,6 @@ public class DriverOptions {
     public final int pollAttempts;
     public final int pollInterval;
     public final boolean headless;
-    public final boolean acceptInsecureCerts;
     public final boolean showProcessLog;
     public final boolean showDriverLog;
     public final Logger logger;
@@ -92,7 +91,7 @@ public class DriverOptions {
     public final int maxPayloadSize;
     public final List<String> addOptions;
     public final List<String> args = new ArrayList<>();
-    public final Map<String, Object> proxy;
+    public final Map<String, Object> webDriverCapabilities;
     public final Target target;
     public final String beforeStart;
     public final String afterStop;
@@ -151,7 +150,6 @@ public class DriverOptions {
         start = get("start", true);
         executable = get("executable", defaultExecutable);
         headless = get("headless", false);
-        acceptInsecureCerts = get("acceptInsecureCerts", false);
         showProcessLog = get("showProcessLog", false);
         addOptions = get("addOptions", null);
         uniqueName = type + "_" + System.currentTimeMillis();
@@ -172,7 +170,7 @@ public class DriverOptions {
         maxPayloadSize = get("maxPayloadSize", 4194304);
         target = get("target", null);
         host = get("host", "localhost");
-        proxy = get("proxy", null);
+        webDriverCapabilities = get("webDriverCapabilities", null);
         beforeStart = get("beforeStart", null);
         afterStop = get("afterStop", null);
         videoFile = get("videoFile", null);
@@ -266,21 +264,13 @@ public class DriverOptions {
             throw new RuntimeException(message, e);
         }
     }
-    
+
     private Map<String, Object> getCapabilities(String browserName) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("browserName", browserName);
-        if (proxy != null) {
-            map.put("proxy", proxy);
+        Map<String, Object> map = webDriverCapabilities;
+        if (map == null) {
+            map = new HashMap();
+            map.put("browserName", browserName);
         }
-        if (headless && browserName.equals("firefox")) {
-            map.put("moz:firefoxOptions",
-                    Collections.singletonMap("args", Collections.singletonList("-headless")));
-        }
-        if (acceptInsecureCerts) {
-            map.put("acceptInsecureCerts", true);
-        }
-        map = Collections.singletonMap("alwaysMatch", map);
         return Collections.singletonMap("capabilities", map);
     }
 
@@ -298,7 +288,7 @@ public class DriverOptions {
                 return null;
         }
     }
-    
+
     public static String preProcessWildCard(String locator) {
         boolean contains;
         String tag, prefix, text;

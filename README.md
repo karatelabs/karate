@@ -210,8 +210,8 @@ And you don't need to create additional Java classes for any of the payloads tha
 * Tests are super-readable - as scenario data can be expressed in-line, in human-friendly [JSON](#json), [XML](#xml), Cucumber [Scenario](#the-cucumber-way) Outline [tables](#table), or a [payload builder](#set-multiple) approach [unique to Karate](https://gist.github.com/ptrthomas/d6beb17e92a43220d254af942e3ed3d9)
 * Express expected results as readable, well-formed JSON or XML, and [assert in a single step](#match) that the entire response payload (no matter how complex or deeply nested) - is as expected
 * Comprehensive [assertion capabilities](#fuzzy-matching) - and failures clearly report which data element (and path) is not as expected, for easy troubleshooting of even large payloads
-* [Fully featured debugger](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) that can even [re-play a step while editing it](https://twitter.com/KarateDSL/status/1167533484560142336) - a *huge* time-saver
-* Simpler and more [powerful alternative](https://twitter.com/KarateDSL/status/878984854012022784) to JSON-schema for [validating payload structure](#schema-validation) and format - that even supports cross-field / domain validation logic
+* [Fully featured debugger](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) that can step *backwards* and even [re-play a step while editing it](https://twitter.com/KarateDSL/status/1167533484560142336) - a *huge* time-saver
+* Simpler and more [powerful alternative](https://twitter.com/KarateDSL/status/878984854012022784) to JSON-schema for [validating payload structure](#schema-validation) and format - that even supports [cross-field](#referring-to-the-json-root) / domain validation logic
 * Scripts can [call other scripts](#calling-other-feature-files) - which means that you can easily re-use and maintain authentication and 'set up' flows efficiently, across multiple tests
 * Embedded JavaScript engine that allows you to build a library of [re-usable functions](#calling-javascript-functions) that suit your specific environment or organization
 * Re-use of payload-data and user-defined functions across tests is [so easy](#reading-files) - that it becomes a natural habit for the test-developer
@@ -220,9 +220,9 @@ And you don't need to create additional Java classes for any of the payloads tha
 * Native support for reading [YAML](#yaml) and even [CSV](#csv-files) files - and you can use them for data-driven tests
 * Standard Java / Maven project structure, and [seamless integration](#command-line) into CI / CD pipelines - and support for [JUnit 5](#junit-5)
 * Option to use as a light-weight [stand-alone executable](https://github.com/intuit/karate/tree/master/karate-netty#standalone-jar) - convenient for teams not comfortable with Java
-* Support for multi-threaded [parallel execution](#parallel-execution), which is a huge time-saver, especially for integration and end-to-end tests
+* Multi-threaded [parallel execution](#parallel-execution), which is a huge time-saver, especially for integration and end-to-end tests
 * Built-in [test-reports](#test-reports) compatible with Cucumber so that you have the option of using third-party (open-source) maven-plugins for even [better-looking reports](karate-demo#example-report)
-* Reports include HTTP request and response [logs in-line](#test-reports), which makes [troubleshooting](https://twitter.com/KarateDSL/status/899671441221623809) and [debugging a test](https://twitter.com/KarateDSL/status/935029435140489216) a lot easier
+* Reports include HTTP request and response [logs *in-line*](#test-reports), which makes [troubleshooting](https://twitter.com/KarateDSL/status/899671441221623809) and [debugging](https://twitter.com/KarateDSL/status/935029435140489216) easier
 * Easily invoke JDK classes, Java libraries, or re-use custom Java code if needed, for [ultimate extensibility](#calling-java)
 * Simple plug-in system for [authentication](#http-basic-authentication-example) and HTTP [header management](#configure-headers) that will handle any complex, real-world scenario
 * Future-proof 'pluggable' HTTP client abstraction supports both Apache and Jersey so that you can [choose](#maven) what works best in your project, and not be blocked by library or dependency conflicts
@@ -253,8 +253,9 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 
 ## References
 * [Karate entered the ThoughtWorks Tech Radar](https://twitter.com/KarateDSL/status/1120985060843249664) in April 2019
-* [9 great open-source API testing tools: how to choose](https://techbeacon.com/9-great-open-source-api-testing-tools-how-choose) - [TechBeacon](https://techbeacon.com) article by [Joe Colantonio](https://twitter.com/jcolantonio)
-* [Karate, the black belt of HTTP API testing ? - Video / Slides](https://adapt.to/2018/en/schedule/karate-the-black-belt-of-http-api-testing.html) / [Photo](https://twitter.com/bdelacretaz/status/1039444256572751873) / [Code](http://tinyurl.com/potsdam2018) - [adaptTo() 2018](https://adapt.to/2018/en.html) talk by [Bertrand Delacretaz](https://twitter.com/bdelacretaz) of Adobe & the Apache Software Foundation ([Board of Directors](http://www.apache.org/foundation/#who-runs-the-asf))
+* [11 top open-source API testing tools](https://techbeacon.com/app-dev-testing/11-top-open-source-api-testing-tools-what-your-team-needs-know) - [TechBeacon](https://techbeacon.com) article by [Joe Colantonio](https://twitter.com/jcolantonio)
+* [Why the heck is not everyone using Karate <br/>for their automated API testing in 2019 ?](https://testing.richardd.nl/why-the-heck-is-not-everyone-using-karate-for-their-automated-api-testing-in-2019) - blog post by [Richard Duinmaijer](https://twitter.com/RichardTheQAguy)
+* [マイクロサービスにおけるテスト自動化 with Karate](https://www.slideshare.net/takanorig/microservices-test-automation-with-karate/) - (*Microservices Test Automation with Karate*) presentation by [Takanori Suzuki](https://twitter.com/takanorig)
 * [Testing Web Services with Karate](https://automationpanda.com/2018/12/10/testing-web-services-with-karate/) - quick start guide and review by [Andrew Knight](https://twitter.com/automationpanda) at the *Automation Panda* blog
 
 
