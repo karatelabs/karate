@@ -78,6 +78,7 @@ public class DriverOptions {
     public final int pollAttempts;
     public final int pollInterval;
     public final boolean headless;
+    public final boolean acceptInsecureCerts;
     public final boolean showProcessLog;
     public final boolean showDriverLog;
     public final Logger logger;
@@ -90,7 +91,7 @@ public class DriverOptions {
     public final String processLogFile;
     public final int maxPayloadSize;
     public final List<String> addOptions;
-    public final List<String> args = new ArrayList();
+    public final List<String> args = new ArrayList<>();
     public final Map<String, Object> proxy;
     public final Target target;
     public final String beforeStart;
@@ -150,6 +151,7 @@ public class DriverOptions {
         start = get("start", true);
         executable = get("executable", defaultExecutable);
         headless = get("headless", false);
+        acceptInsecureCerts = get("acceptInsecureCerts", false);
         showProcessLog = get("showProcessLog", false);
         addOptions = get("addOptions", null);
         uniqueName = type + "_" + System.currentTimeMillis();
@@ -274,6 +276,9 @@ public class DriverOptions {
         if (headless && browserName.equals("firefox")) {
             map.put("moz:firefoxOptions",
                     Collections.singletonMap("args", Collections.singletonList("-headless")));
+        }
+        if (acceptInsecureCerts) {
+            map.put("acceptInsecureCerts", true);
         }
         map = Collections.singletonMap("alwaysMatch", map);
         return Collections.singletonMap("capabilities", map);
