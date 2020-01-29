@@ -12,7 +12,7 @@ Feature: web 1
     Given driver 'https://google.com'
     And input("input[name=q]", 'karate dsl')
     When submit().click("input[name=btnI]")
-    Then match driver.url == 'https://github.com/intuit/karate'
+    Then waitForUrl('https://github.com/intuit/karate')
 
   Scenario: google search, land on the karate github page, and search for a file
 
