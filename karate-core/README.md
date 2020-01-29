@@ -261,7 +261,7 @@ key | description
 For more advanced options such as for Docker, CI, headless, cloud-environments or custom needs, see [`configure driverTarget`](#configure-drivertarget).
 
 ## webDriverUrl
-Karate implements the W3C WebDriver spec, which mean you can point Karate to a remote "grid" such as [Zalenium](https://opensource.zalando.com/zalenium/) or SaaS provider such as [AWS Device Farm](https://docs.aws.amazon.com/devicefarm/latest/testgrid/what-is-testgrid.html). The `webDriverUrl` driver configuration key is optional, but if specified, will be used as the W3C WebDriver remote server. Note that you typically would set `start: false` as well, or use a [Custom `Target`](#custom-target).
+Karate implements the [W3C WebDriver spec](https://w3c.github.io/webdriver), which means that you can point Karate to a remote "grid" such as [Zalenium](https://opensource.zalando.com/zalenium/) or SaaS provider such as [the AWS Device Farm](https://docs.aws.amazon.com/devicefarm/latest/testgrid/what-is-testgrid.html). The `webDriverUrl` driver configuration key is optional, but if specified, will be used as the W3C WebDriver remote server. Note that you typically would set `start: false` as well, or use a [Custom `Target`](#custom-target).
 
 For example, once you run the [couple of Docker commands](https://opensource.zalando.com/zalenium/#try-it) to get Zalenium running, you can do this (add `{ showDriverLog: true }` for troubleshooting if needed):
 
