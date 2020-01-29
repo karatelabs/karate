@@ -90,6 +90,8 @@ public class DriverOptions {
     public final int maxPayloadSize;
     public final List<String> addOptions;
     public final List<String> args = new ArrayList<>();
+    public final String webDriverUrl;
+    public final String webDriverPath;
     public final Map<String, Object> webDriverCapabilities;
     public final Target target;
     public final String beforeStart;
@@ -169,17 +171,22 @@ public class DriverOptions {
         maxPayloadSize = get("maxPayloadSize", 4194304);
         target = get("target", null);
         host = get("host", "localhost");
+        webDriverUrl = get("webDriverUrl", null);
+        webDriverPath = get("webDriverPath", null);
         webDriverCapabilities = get("webDriverCapabilities", null);
         beforeStart = get("beforeStart", null);
         afterStop = get("afterStop", null);
         videoFile = get("videoFile", null);
         pollAttempts = get("pollAttempts", 20);
         pollInterval = get("pollInterval", 250);
-        // do this last to ensure things like logger, start-flag and all are set
+        // do this last to ensure things like logger, start-flag, webDriverUrl etc. are set
         port = resolvePort(defaultPort);
     }
 
     private int resolvePort(int defaultPort) {
+        if (webDriverUrl != null) {
+            return 0;
+        }
         int preferredPort = get("port", defaultPort);
         if (start) {
             int freePort = Command.getFreePort(preferredPort);
@@ -189,6 +196,17 @@ public class DriverOptions {
             return freePort;
         }
         return preferredPort;
+    }
+    
+    public String getUrlBase() {
+        if (webDriverUrl != null) {
+            return webDriverUrl;
+        }
+        String urlBase = "http://" + host + ":" + port;
+        if (webDriverPath != null) {
+            return urlBase + webDriverPath;
+        }
+        return urlBase;
     }
 
     public void arg(String arg) {

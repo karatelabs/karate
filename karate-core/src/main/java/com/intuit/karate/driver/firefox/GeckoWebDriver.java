@@ -47,7 +47,7 @@ public class GeckoWebDriver extends WebDriver {
         DriverOptions options = new DriverOptions(context, map, appender, 4444, "geckodriver");
         options.arg("--port=" + options.port);
         Command command = options.startProcess();
-        String urlBase = "http://" + options.host + ":" + options.port;
+        String urlBase = options.getUrlBase();
         Http http = Http.forUrl(options.driverLogger.getAppender(), urlBase);
         String sessionId = http.path("session")
                 .post(options.getCapabilities())

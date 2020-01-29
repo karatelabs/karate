@@ -247,16 +247,27 @@ key | description
 `host` | optional, will default to `localhost` and you normally never need to change this
 `pollAttempts` | optional, will default to `20`, you normally never need to change this (and changing `pollInterval` is preferred), and this is the number of attempts Karate will make to wait for the `port` to be ready and accepting connections before proceeding
 `pollInterval` | optional, will default to `250` (milliseconds) and you normally never need to change this (see `pollAttempts`) unless the driver `executable` takes a *very* long time to start
-`headless` | [headless mode](https://developers.google.com/web/updates/2017/04/headless-chrome) only applies to `{ type: 'chrome' }` for now, also see [`DockerTarget`](#dockertarget) and the `webDriverCapabilities` key (see next row below)
-`webDriverCapabilities` | see [`webDriverCapabilities`](#webdrivercapabilities)
+`headless` | [headless mode](https://developers.google.com/web/updates/2017/04/headless-chrome) only applies to `{ type: 'chrome' }` for now, also see [`DockerTarget`](#dockertarget) and the `webDriverCapabilities` key
 `showDriverLog` | default `false`, will include webdriver HTTP traffic in Karate report, useful for troubleshooting or bug reports
 `showProcessLog` | default `false`, will include even executable (webdriver or browser) logs in the Karate report
 `addOptions` | default `null`, has to be a list / JSON array that will be appended as additional CLI arguments to the `executable`, e.g. `['--no-sandbox', '--windows-size=1920,1080']`
 `beforeStart` | default `null`, an OS command that will be executed before commencing a `Scenario` (and before the `executable` is invoked if applicable) typically used to start video-recording
 `afterStart` | default `null`, an OS command that will be executed after a `Scenario` completes, typically used to stop video-recording and save the video file to an output folder
 `videoFile` | default `null`, the path to the video file that will be added to the end of the test report, if it does not exist, it will be ignored
+`webDriverUrl` | see [`webDriverUrl`](#webdriverurl)
+`webDriverCapabilities` | see [`webDriverCapabilities`](#webdrivercapabilities)
+`webDriverPath` | optional, and rarely used only in case you need to append a path such as `/wd/hub` - typically needed for Appium (or a Selenium Grid) on `localhost`, where `host`, `port` / `executable` etc. are involved.
 
 For more advanced options such as for Docker, CI, headless, cloud-environments or custom needs, see [`configure driverTarget`](#configure-drivertarget).
+
+## webDriverUrl
+Karate implements the W3C WebDriver spec, which mean you can point Karate to a remote "grid" such as [Zalenium](https://opensource.zalando.com/zalenium/) or SaaS provider such as [AWS Device Farm](https://docs.aws.amazon.com/devicefarm/latest/testgrid/what-is-testgrid.html). The `webDriverUrl` driver configuration key is optional, but if specified, will be used as the W3C WebDriver remote server. Note that you typically would set `start: false` as well, or use a [Custom `Target`](#custom-target).
+
+For example, once you run the [couple of Docker commands](https://opensource.zalando.com/zalenium/#try-it) to get Zalenium running, you can do this (add `{ showDriverLog: true }` for troubleshooting if needed):
+
+```cucumber
+* configure driver = { type: 'chromedriver', start: false, webDriverUrl: 'http://localhost:4444/wd/hub' }
+```
 
 ## `webDriverCapabilities`
 When targeting a W3C WebDriver implementation, either as a local executable or [Remote WebDriver](https://selenium.dev/documentation/en/remote_webdriver/remote_webdriver_client/), you can specify the JSON that will be passed to the [`capabilities`](https://w3c.github.io/webdriver/#capabilities) when a session is created. It will default to `{ browserName: '<name>' }` for convenience where `<name>` will be `chrome`, `firefox` etc. 
@@ -267,7 +278,7 @@ Here are some of the things that you can customize, but note that these depend o
 * [`acceptInsecureCerts`](https://w3c.github.io/webdriver/#dfn-insecure-tls-certificates)
 * [`moz:firefoxOptions`](https://developer.mozilla.org/en-US/docs/Web/WebDriver/Capabilities/firefoxOptions#firefoxOptions) - e.g. for headless FireFox
 
-Note that some capabilities such as "headless" may be possible via the command-line to the local executable, so using [`addOptions`](#configure-driver) may work.
+Note that some capabilities such as "headless" may be possible via the command-line to the local executable, so using [`addOptions`](#configure-driver) may work instead.
 
 ## `configure driverTarget`
 The [`configure driver`](#configure-driver) options are fine for testing on "`localhost`" and when not in `headless` mode. But when the time comes for running your web-UI automation tests on a continuous integration server, things get interesting. To support all the various options such as Docker, headless Chrome, cloud-providers etc., Karate introduces the concept of a pluggable [`Target`](src/main/java/com/intuit/karate/driver/Target.java) where you just have to implement two methods:

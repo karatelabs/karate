@@ -48,7 +48,7 @@ public class ChromeWebDriver extends WebDriver {
         options.arg("--port=" + options.port);
         options.arg("--user-data-dir=" + options.workingDirPath);
         Command command = options.startProcess();
-        String urlBase = "http://" + options.host + ":" + options.port;
+        String urlBase = options.getUrlBase();
         Http http = Http.forUrl(options.driverLogger.getAppender(), urlBase);
         String sessionId = http.path("session")
                 .post(options.getCapabilities())

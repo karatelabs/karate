@@ -46,7 +46,7 @@ public class MicrosoftWebDriver extends WebDriver {
         DriverOptions options = new DriverOptions(context, map, appender, 17556, "MicrosoftWebDriver");
         options.arg("--port=" + options.port);
         Command command = options.startProcess();
-        String urlBase = "http://" + options.host + ":" + options.port;
+        String urlBase = options.getUrlBase();
         Http http = Http.forUrl(options.driverLogger.getAppender(), urlBase);
         String sessionId = http.path("session")
                 .post(options.getCapabilities())

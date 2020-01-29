@@ -50,7 +50,7 @@ public class WinAppDriver extends WebDriver {
                 "C:/Program Files (x86)/Windows Application Driver/WinAppDriver");
         options.arg(options.port + "");
         Command command = options.startProcess();
-        String urlBase = "http://" + options.host + ":" + options.port;
+        String urlBase = options.getUrlBase();
         Http http = Http.forUrl(options.driverLogger.getAppender(), urlBase);
         Map<String, Object> capabilities = options.newMapWithSelectedKeys(map, "app", "appArguments", "appTopLevelWindow", "appWorkingDir");
         String sessionId = http.path("session")
