@@ -256,7 +256,7 @@ key | description
 `videoFile` | default `null`, the path to the video file that will be added to the end of the test report, if it does not exist, it will be ignored
 `httpConfig` | optional, and typically only used for remote WebDriver usage where the HTTP client [configuration](https://github.com/intuit/karate#configure) needs to be tweaked, e.g. `{ readTimeout: 120000 }`
 `webDriverUrl` | see [`webDriverUrl`](#webdriverurl)
-`webDriverCapabilities` | see [`webDriverCapabilities`](#webdrivercapabilities)
+`webDriverSession` | see [`webDriverSession`](#webdriversession)
 `webDriverPath` | optional, and rarely used only in case you need to append a path such as `/wd/hub` - typically needed for Appium (or a Selenium Grid) on `localhost`, where `host`, `port` / `executable` etc. are involved.
 
 For more advanced options such as for Docker, CI, headless, cloud-environments or custom needs, see [`configure driverTarget`](#configure-drivertarget).
