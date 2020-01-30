@@ -250,5 +250,10 @@ public class Match {
         context.configure(key, value);
         return this;
     }
+    
+    public Match config(Map<String, Object> config) {
+        config.forEach((k, v) -> context.configure(k, new ScriptValue(v)));
+        return this;
+    }
 
 }

@@ -62,14 +62,13 @@ public class Chrome extends DevToolsDriver {
             options.arg("--headless");
         }
         Command command = options.startProcess();
-        String urlBase = options.getUrlBase();
-        Http http = Http.forUrl(options.driverLogger.getAppender(), urlBase);
+        Http http = options.getHttp();
         Http.Response res = http.path("json").get();
         if (res.body().asList().isEmpty()) {
             if (command != null) {
                 command.close(true);    
             }            
-            throw new RuntimeException("chrome server returned empty list from " + urlBase);
+            throw new RuntimeException("chrome server returned empty list from " + http.urlBase);
         }
         String webSocketUrl = res.jsonPath("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();        
         Chrome chrome = new Chrome(options, command, webSocketUrl);

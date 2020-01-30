@@ -25,6 +25,7 @@ package com.intuit.karate.driver;
 
 import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Http;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.Embed;
@@ -48,7 +49,6 @@ import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -92,7 +92,8 @@ public class DriverOptions {
     public final List<String> args = new ArrayList<>();
     public final String webDriverUrl;
     public final String webDriverPath;
-    public final Map<String, Object> webDriverCapabilities;
+    public final Map<String, Object> webDriverSession;
+    public final Map<String, Object> httpConfig;
     public final Target target;
     public final String beforeStart;
     public final String afterStop;
@@ -173,7 +174,8 @@ public class DriverOptions {
         host = get("host", "localhost");
         webDriverUrl = get("webDriverUrl", null);
         webDriverPath = get("webDriverPath", null);
-        webDriverCapabilities = get("webDriverCapabilities", null);
+        webDriverSession = get("webDriverSession", null);
+        httpConfig = get("httpConfig", null);
         beforeStart = get("beforeStart", null);
         afterStop = get("afterStop", null);
         videoFile = get("videoFile", null);
@@ -197,8 +199,16 @@ public class DriverOptions {
         }
         return preferredPort;
     }
-    
-    public String getUrlBase() {
+
+    public Http getHttp() {
+        Http http = Http.forUrl(driverLogger.getAppender(), getUrlBase());
+        if (httpConfig != null) {
+            http.config(httpConfig);
+        }
+        return http;
+    }
+
+    private String getUrlBase() {
         if (webDriverUrl != null) {
             return webDriverUrl;
         }
@@ -226,9 +236,10 @@ public class DriverOptions {
             }
             command = new Command(false, processLogger, uniqueName, processLogFile, workingDir, args.toArray(new String[]{}));
             command.start();
+        }        
+        if (start) { // wait for a slow booting browser / driver process
+            waitForPort(host, port);
         }
-        // try to wait for a slow booting browser / driver process
-        waitForPort(host, port);
         return command;
     }
 
@@ -274,7 +285,7 @@ public class DriverOptions {
             }
         } catch (Exception e) {
             String message = "driver config / start failed: " + e.getMessage() + ", options: " + options;
-            logger.error(message);
+            logger.error(message, e);
             if (target != null) {
                 target.stop(logger);
             }
@@ -282,32 +293,38 @@ public class DriverOptions {
         }
     }
 
-    private Map<String, Object> getCapabilities(String browserName) {
-        Map<String, Object> capabilities = webDriverCapabilities;
+    private Map<String, Object> getSession(String browserName) {
+        Map<String, Object> session = webDriverSession;
+        if (session == null) {
+            session = new HashMap();
+        }
+        Map<String, Object> capabilities = (Map) session.get("capabilities");
+        if (capabilities == null) {
+            capabilities = (Map) session.get("desiredCapabilities");
+        }
         if (capabilities == null) {
             capabilities = new HashMap();
+            session.put("capabilities", capabilities);
+            Map<String, Object> alwaysMatch = new HashMap();
+            capabilities.put("alwaysMatch", alwaysMatch);            
+            alwaysMatch.put("browserName", browserName);            
         }
-        Map<String, Object> alwaysMatch = (Map) capabilities.get("alwaysMatch");
-        if (alwaysMatch == null) {
-            alwaysMatch = new HashMap();
-            capabilities.put("alwaysMatch", alwaysMatch);
-        }
-        alwaysMatch.putIfAbsent("browserName", browserName);
-        return Collections.singletonMap("capabilities", capabilities);
+        return session;
     }
 
-    public Map<String, Object> getCapabilities() {
+    public Map<String, Object> getWebDriverSessionPayload() {
         switch (type) {
             case "chromedriver":
-                return getCapabilities("chrome");
+                return getSession("chrome");
             case "geckodriver":
-                return getCapabilities("firefox");
+                return getSession("firefox");
             case "safaridriver":
-                return getCapabilities("safari");
+                return getSession("safari");
             case "mswebdriver":
-                return getCapabilities("edge");
+                return getSession("edge");
             default:
-                return null;
+                // may work for remote "internet explorer" for e.g.
+                return getSession(type);
         }
     }
 

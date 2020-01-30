@@ -35,6 +35,7 @@ import java.util.Map;
 public class Http {
 
     private final Match match;
+    public final String urlBase;
 
     public class Response {
 
@@ -65,11 +66,15 @@ public class Http {
 
     }
 
-    private Http(Match match) {
+    private Http(Match match, String urlBase) {
         this.match = match;
+        this.urlBase = urlBase;
     }
 
     public Http url(String url) {
+        if (url.startsWith("/") && urlBase != null) {
+            url = urlBase + url;
+        }
         match.context.url(Match.quote(url));
         return this;
     }
@@ -131,12 +136,16 @@ public class Http {
     }
 
     public static Http forUrl(LogAppender appender, String url) {
-        Http http = new Http(Match.forHttp(appender));
+        Http http = new Http(Match.forHttp(appender), url);
         return http.url(url);
     }
 
     public Match config(String key, String value) {
         return match.config(key, value);
+    }
+    
+    public Match config(Map<String, Object> config) {
+        return match.config(config);
     }
 
 }

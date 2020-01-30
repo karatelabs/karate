@@ -24,14 +24,13 @@ public class IosDriver extends AppiumDriver {
         DriverOptions options = new DriverOptions(context, map, appender, 4723, "appium");
         options.arg("--port=" + options.port);
         Command command = options.startProcess();
-        String urlBase = options.getUrlBase();
-        Http http = Http.forUrl(options.driverLogger.getAppender(), urlBase);
+        Http http = options.getHttp();
         http.config("readTimeout","120000");
         String sessionId = http.path("session")
                 .post(Collections.singletonMap("desiredCapabilities", map))
                 .jsonPath("get[0] response..sessionId").asString();
         options.driverLogger.debug("init session id: {}", sessionId);
-        http.url(urlBase + "/session/" + sessionId);
+        http.url("/session/" + sessionId);
         IosDriver driver = new IosDriver(options, command, http, sessionId, null);
         driver.activate();
         return driver;

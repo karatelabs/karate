@@ -167,7 +167,7 @@
 * No need to learn complicated programming concepts such as "callbacks" "`await`" and "promises"
 * Option to use [wildcard](#wildcard-locators) and ["friendly" locators](#friendly-locators) without needing to inspect the HTML-page source, CSS, or internal XPath structure
 * Chrome-native automation using the [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) (equivalent to [Puppeteer](https://pptr.dev))
-* [W3C WebDriver](https://w3c.github.io/webdriver/) support without needing any intermediate server
+* [W3C WebDriver](https://w3c.github.io/webdriver/) support built-in, which can also use [remote / grid providers](https://twitter.com/ptrthomas/status/1222790566598991873)
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
 * [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI environment or [Docker](#configure-drivertarget) - without needing a "master node" or "grid"
 * You can even run tests in parallel across [different machines](#distributed-testing) - and Karate will aggregate the results
@@ -254,6 +254,7 @@ key | description
 `beforeStart` | default `null`, an OS command that will be executed before commencing a `Scenario` (and before the `executable` is invoked if applicable) typically used to start video-recording
 `afterStart` | default `null`, an OS command that will be executed after a `Scenario` completes, typically used to stop video-recording and save the video file to an output folder
 `videoFile` | default `null`, the path to the video file that will be added to the end of the test report, if it does not exist, it will be ignored
+`httpConfig` | optional, and typically only used for remote WebDriver usage where the HTTP client [configuration](https://github.com/intuit/karate#configure) needs to be tweaked, e.g. `{ readTimeout: 120000 }`
 `webDriverUrl` | see [`webDriverUrl`](#webdriverurl)
 `webDriverCapabilities` | see [`webDriverCapabilities`](#webdrivercapabilities)
 `webDriverPath` | optional, and rarely used only in case you need to append a path such as `/wd/hub` - typically needed for Appium (or a Selenium Grid) on `localhost`, where `host`, `port` / `executable` etc. are involved.
@@ -261,16 +262,37 @@ key | description
 For more advanced options such as for Docker, CI, headless, cloud-environments or custom needs, see [`configure driverTarget`](#configure-drivertarget).
 
 ## webDriverUrl
-Karate implements the [W3C WebDriver spec](https://w3c.github.io/webdriver), which means that you can point Karate to a remote "grid" such as [Zalenium](https://opensource.zalando.com/zalenium/) or SaaS provider such as [the AWS Device Farm](https://docs.aws.amazon.com/devicefarm/latest/testgrid/what-is-testgrid.html). The `webDriverUrl` driver configuration key is optional, but if specified, will be used as the W3C WebDriver remote server. Note that you typically would set `start: false` as well, or use a [Custom `Target`](#custom-target).
+Karate implements the [W3C WebDriver spec](https://w3c.github.io/webdriver), which means that you can point Karate to a remote "grid" such as [Zalenium](https://opensource.zalando.com/zalenium/) or a SaaS provider such as [the AWS Device Farm](https://docs.aws.amazon.com/devicefarm/latest/testgrid/what-is-testgrid.html). The `webDriverUrl` driver configuration key is optional, but if specified, will be used as the W3C WebDriver remote server. Note that you typically would set `start: false` as well, or use a [Custom `Target`](#custom-target).
 
-For example, once you run the [couple of Docker commands](https://opensource.zalando.com/zalenium/#try-it) to get Zalenium running, you can do this (add `{ showDriverLog: true }` for troubleshooting if needed):
+For example, once you run the [couple of Docker commands](https://opensource.zalando.com/zalenium/#try-it) to get Zalenium running, you can do this:
 
 ```cucumber
 * configure driver = { type: 'chromedriver', start: false, webDriverUrl: 'http://localhost:4444/wd/hub' }
 ```
 
-## `webDriverCapabilities`
-When targeting a W3C WebDriver implementation, either as a local executable or [Remote WebDriver](https://selenium.dev/documentation/en/remote_webdriver/remote_webdriver_client/), you can specify the JSON that will be passed to the [`capabilities`](https://w3c.github.io/webdriver/#capabilities) when a session is created. It will default to `{ browserName: '<name>' }` for convenience where `<name>` will be `chrome`, `firefox` etc. 
+Note that you can add `showDriverLog: true` to the above for troubleshooting if needed. You should be able to [run tests in parallel](https://github.com/intuit/karate#parallel-execution) with ease !
+
+## `webDriverSession`
+When targeting a W3C WebDriver implementation, either as a local executable or [Remote WebDriver](https://selenium.dev/documentation/en/remote_webdriver/remote_webdriver_client/), you can specify the JSON that will be passed as the payload to the [Create Session](https://w3c.github.io/webdriver/#new-session) API. The most important part of this payload is the [`capabilities`](https://w3c.github.io/webdriver/#capabilities). It will default to `{ browserName: '<name>' }` for convenience where `<name>` will be `chrome`, `firefox` etc.
+
+So most of the time this would be sufficient:
+
+```cucumber
+* configure driver = { type: 'chromedriver' }
+```
+
+Since it will result in the following request to the WebDriver `/session`:
+
+```js
+{"capabilities":{"alwaysMatch":{"browserName":"chrome"}}}
+```
+
+But in some cases, especially when you need to talk to remote driver instances, you need to pass specific "shapes" of JSON expected by the particular implementation - or you may need to pass custom data or "extension" properties. Use the `webDriverSession` property in those cases. For example:
+
+```cucumber
+* def session = { capabilities: { browserName: 'chrome' }, desiredCapabilities: { browserName: 'chrome' } }
+* configure driver = { type: 'chromedriver', webDriverSession: '#(session)', start: false, webDriverUrl: 'http://localhost:9515/wd/hub' }
+```
 
 Here are some of the things that you can customize, but note that these depend on the driver implementation.
 

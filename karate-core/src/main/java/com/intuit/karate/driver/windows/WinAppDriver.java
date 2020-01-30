@@ -50,14 +50,13 @@ public class WinAppDriver extends WebDriver {
                 "C:/Program Files (x86)/Windows Application Driver/WinAppDriver");
         options.arg(options.port + "");
         Command command = options.startProcess();
-        String urlBase = options.getUrlBase();
-        Http http = Http.forUrl(options.driverLogger.getAppender(), urlBase);
+        Http http = options.getHttp();
         Map<String, Object> capabilities = options.newMapWithSelectedKeys(map, "app", "appArguments", "appTopLevelWindow", "appWorkingDir");
         String sessionId = http.path("session")
                 .post(Collections.singletonMap("desiredCapabilities", capabilities))
                 .jsonPath("get[0] response..sessionId").asString();
         options.driverLogger.debug("init session id: {}", sessionId);
-        http.url(urlBase + "/session/" + sessionId);
+        http.url("/session/" + sessionId);
         String windowId = http.path("window").get().jsonPath("$.value").asString();
         options.driverLogger.debug("init window id: {}", windowId);
         WinAppDriver driver = new WinAppDriver(options, command, http, sessionId, windowId);

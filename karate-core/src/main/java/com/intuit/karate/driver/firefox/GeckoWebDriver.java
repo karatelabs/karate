@@ -47,13 +47,12 @@ public class GeckoWebDriver extends WebDriver {
         DriverOptions options = new DriverOptions(context, map, appender, 4444, "geckodriver");
         options.arg("--port=" + options.port);
         Command command = options.startProcess();
-        String urlBase = options.getUrlBase();
-        Http http = Http.forUrl(options.driverLogger.getAppender(), urlBase);
+        Http http = options.getHttp();
         String sessionId = http.path("session")
-                .post(options.getCapabilities())
+                .post(options.getWebDriverSessionPayload())
                 .jsonPath("get[0] response..sessionId").asString();
         options.driverLogger.debug("init session id: {}", sessionId);
-        http.url(urlBase + "/session/" + sessionId);
+        http.url("/session/" + sessionId);
         String windowId = http.path("window").get().jsonPath("$.value").asString();
         options.driverLogger.debug("init window id: {}", windowId);
         GeckoWebDriver driver = new GeckoWebDriver(options, command, http, sessionId, windowId);
