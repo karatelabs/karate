@@ -10,7 +10,12 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.json.JSONException;
+import org.xmlunit.diff.DefaultNodeMatcher;
+import org.xmlunit.diff.ElementSelectors;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.xmlunit.matchers.CompareMatcher.isSimilarTo;
 /**
  *
  * @author pthomas3
@@ -142,9 +147,11 @@ public class JsonUtilsTest {
                 + "}\n";
         assertEquals(temp, expected);
     }
-    
+    public void assertJSONequals(String s1, String s2) throws JSONException{
+        JSONAssert.assertEquals(s1, s2, false);
+    } 
     @Test
-    public void testPojoConversion() {
+    public void testPojoConversion() throws JSONException{
         ComplexPojo pojo = new ComplexPojo();
         pojo.setFoo("testFoo");
         pojo.setBar(1);
@@ -155,7 +162,7 @@ public class JsonUtilsTest {
         pojo.setBan(Arrays.asList(p1, p2));
         String s = JsonUtils.toJson(pojo);
         String expected = "{\"bar\":1,\"foo\":\"testFoo\",\"baz\":null,\"ban\":[{\"bar\":0,\"foo\":\"p1\",\"baz\":null,\"ban\":null},{\"bar\":0,\"foo\":\"p2\",\"baz\":null,\"ban\":null}]}";
-        assertEquals(s, expected);
+        assertJSONequals(s, expected);
         ComplexPojo temp = (ComplexPojo) JsonUtils.fromJson(s, ComplexPojo.class.getName());
         assertEquals(temp.getFoo(), "testFoo");
         assertEquals(2, temp.getBan().size());
@@ -163,8 +170,10 @@ public class JsonUtilsTest {
         assertEquals(temp.getFoo(), "testFoo");
         assertEquals(2, temp.getBan().size());        
         s = XmlUtils.toXml(pojo);
-        assertEquals(s, "<root><bar>1</bar><foo>testFoo</foo><baz/><ban><bar>0</bar><foo>p1</foo><baz/><ban/></ban><ban><bar>0</bar><foo>p2</foo><baz/><ban/></ban></root>");
-    }
+        String expectedXML="<root><bar>1</bar><foo>testFoo</foo><baz/><ban><bar>0</bar><foo>p1</foo><baz/><ban/></ban><ban><bar>0</bar><foo>p2</foo><baz/><ban/></ban></root>";
+	assertThat(s, isSimilarTo(expectedXML).ignoreWhitespace()
+             .withNodeMatcher(new DefaultNodeMatcher(ElementSelectors.byNameAndText)));
+      }
     
     @Test
     public void testEmptyJsonObject() {
