@@ -82,6 +82,12 @@ public class WinAppDriver extends WebDriver {
     }
 
     @Override
+    public String text(String locator) {
+        String id = elementId(locator);
+        return http.path("element", id, "text").get().jsonPath("$.value").asString();
+    }
+
+    @Override
     protected String getJsonForInput(String text) {
         return new Json().set("value[0]", text).toString();
     }
