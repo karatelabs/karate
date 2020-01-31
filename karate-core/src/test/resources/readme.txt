@@ -32,7 +32,7 @@ rm -rf target
 ./build.sh
 docker tag karate-chrome ptrthomas/karate-chrome:latest
 
-(run WebDockerJobRunner to test that docker chrome is ok locally)
+(run WebDockerJobRunner and Test03DockerRunner to test that docker chrome is ok locally)
 
 docker tag karate-chrome ptrthomas/karate-chrome:@@@
 docker push ptrthomas/karate-chrome

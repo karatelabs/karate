@@ -43,6 +43,7 @@ public class DockerTarget implements Target {
     private String containerId;
     private Function<Integer, String> command;
     private final Map<String, Object> options;
+    private boolean pull = false;
     
     private boolean karateChrome = false;
 
@@ -56,6 +57,8 @@ public class DockerTarget implements Target {
             imageId = (String) options.get("docker");
             Integer vncPort = (Integer) options.get("vncPort");
             String secComp = (String) options.get("secComp");
+            Boolean temp = (Boolean) options.get("pull");
+            pull = temp == null ? false : temp;
             StringBuilder sb = new StringBuilder();
             sb.append("docker run -d -e KARATE_SOCAT_START=true");
             if (secComp == null) {
@@ -92,7 +95,7 @@ public class DockerTarget implements Target {
         if (command == null) {
             throw new RuntimeException("docker target command (function) not set");
         }
-        if (imageId != null) {
+        if (imageId != null && pull) {
             logger.debug("attempting to pull docker image: {}", imageId);
             Command.execLine(null, "docker pull " + imageId);
         }
@@ -113,12 +116,14 @@ public class DockerTarget implements Target {
     public Map<String, Object> stop(Logger logger) {
         Command.execLine(null, "docker stop " + containerId);
         if (!karateChrome) { // no video
+            Command.execLine(null, "docker rm " + containerId);
             return Collections.EMPTY_MAP;
         }        
         String shortName = containerId.contains("_") ? containerId : StringUtils.truncate(containerId, 12, false);
         String dirName = "karate-chrome_" + shortName;
         String resultsDir = Command.getBuildDir() + File.separator + dirName;
         Command.execLine(null, "docker cp " + containerId + ":/tmp " + resultsDir);
+        Command.execLine(null, "docker rm " + containerId);
         String video = resultsDir + File.separator + "karate.mp4";
         File file = new File(video);
         if (!file.exists()) {
