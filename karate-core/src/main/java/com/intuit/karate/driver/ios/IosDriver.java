@@ -1,14 +1,9 @@
 package com.intuit.karate.driver.ios;
 
-import com.intuit.karate.Http;
 import com.intuit.karate.LogAppender;
-import com.intuit.karate.Logger;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.AppiumDriver;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.shell.Command;
-
-import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -16,24 +11,14 @@ import java.util.Map;
  */
 public class IosDriver extends AppiumDriver {
 
-    public IosDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
-        super(options, command, http, sessionId, windowId);
+    public IosDriver(DriverOptions options) {
+        super(options);
     }
 
     public static IosDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
         DriverOptions options = new DriverOptions(context, map, appender, 4723, "appium");
         options.arg("--port=" + options.port);
-        Command command = options.startProcess();
-        Http http = options.getHttp();
-        http.config("readTimeout","120000");
-        String sessionId = http.path("session")
-                .post(Collections.singletonMap("desiredCapabilities", map))
-                .jsonPath("get[0] response..sessionId").asString();
-        options.driverLogger.debug("init session id: {}", sessionId);
-        http.url("/session/" + sessionId);
-        IosDriver driver = new IosDriver(options, command, http, sessionId, null);
-        driver.activate();
-        return driver;
+        return new IosDriver(options);
     }
 
     @Override

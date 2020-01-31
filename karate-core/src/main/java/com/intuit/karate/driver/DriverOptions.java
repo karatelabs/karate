@@ -312,6 +312,7 @@ public class DriverOptions {
         return session;
     }
 
+    // TODO abstract as method per implementation
     public Map<String, Object> getWebDriverSessionPayload() {
         switch (type) {
             case "chromedriver":
@@ -324,6 +325,7 @@ public class DriverOptions {
                 return getSession("edge");
             default:
                 // may work for remote "internet explorer" for e.g.
+                // else user has to specify full payload via webDriverSession
                 return getSession(type);
         }
     }

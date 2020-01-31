@@ -545,11 +545,22 @@ And yes, you can use [variable expressions](https://github.com/intuit/karate#kar
 > As seen above, you don't have to force all your steps to use the `Given`, `When`, `Then` BDD convention, and you can [just use "`*`" instead](https://github.com/intuit/karate#given-when-then).
 
 ### `driver` JSON
-A variation where the argument is JSON instead of a URL / address-string, used only if you are testing a desktop (or mobile) application, and for Windows, you can provide the `app`, `appArguments` and other parameters expected by the [WinAppDriver](https://github.com/Microsoft/WinAppDriver). For example:
+A variation where the argument is JSON instead of a URL / address-string, used typically if you are testing a desktop (or mobile) application. This example is for Windows, and you can provide the `app`, `appArguments` and other parameters expected by the [WinAppDriver](https://github.com/Microsoft/WinAppDriver) via the [`webDriverSession`](#webdriversession). For example:
 
 ```cucumber
-Given driver { app: 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App' }
+* def session = { desiredCapabilities: { app: 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App' } }
+Given driver { webDriverSession: '#(session)' }
 ```
+
+So this is just for convenience and readability, using [`configure driver`](#configure-driver) can do the same thing like this:
+
+```cucumber
+* def session = { desiredCapabilities: { app: 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App' } }
+* configure driver = { webDriverSession: '#(session)' }
+Given driver {}
+```
+
+This design is so that you can use (and data-drive) all the capabilities supported by the target driver - which can vary a lot depending on whether it is local, remote, for desktop or mobile etc.
 
 # Syntax
 The built-in `driver` JS object is where you script UI automation. It will be initialized only after the [`driver`](#driver) keyword has been used to navigate to a web-page (or application).

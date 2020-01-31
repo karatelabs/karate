@@ -1,14 +1,10 @@
 package com.intuit.karate.driver.android;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.Http;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.AppiumDriver;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.shell.Command;
-
-import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -16,8 +12,8 @@ import java.util.Map;
  */
 public class AndroidDriver extends AppiumDriver {
 
-    protected AndroidDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
-        super(options, command, http, sessionId, windowId);
+    protected AndroidDriver(DriverOptions options) {
+        super(options);
     }
 
     public static AndroidDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
@@ -30,17 +26,7 @@ public class AndroidDriver extends AppiumDriver {
             options.arg("appium");
         }
         options.arg("--port=" + options.port);
-        Command command = options.startProcess();
-        Http http = options.getHttp();
-        http.config("readTimeout","120000");
-        String sessionId = http.path("session")
-                .post(Collections.singletonMap("desiredCapabilities", map))
-                .jsonPath("get[0] response..sessionId").asString();
-        options.driverLogger.debug("init session id: {}", sessionId);
-        http.url("/session/" + sessionId);
-        AndroidDriver driver = new AndroidDriver(options, command, http, sessionId, null);
-        driver.activate();
-        return driver;
+        return new AndroidDriver(options);
     }
 
     @Override

@@ -50,13 +50,23 @@ public abstract class WebDriver implements Driver {
 
     protected final Logger logger;
 
-    protected WebDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
+    protected WebDriver(DriverOptions options) {
         this.options = options;
         this.logger = options.driverLogger;
-        this.command = command;
-        this.http = http;
-        this.sessionId = sessionId;
-        this.windowId = windowId;
+        command = options.startProcess();
+        http = options.getHttp();
+        Http.Response response = http.path("session").post(options.getWebDriverSessionPayload());
+        if (response.status() != 200) {
+            String message = "webdriver session create status " + response.status() + ", " + response.body().asString();
+            logger.error(message);
+            throw new RuntimeException(message);
+        }
+        sessionId = response.jsonPath("get[0] response..sessionId").asString();
+        logger.debug("init session id: {}", sessionId);
+        http.url("/session/" + sessionId);
+        windowId = http.path("window").get().jsonPath("$.value").asString();
+        logger.debug("init window id: {}", windowId);
+        activate();
     }
 
     private String getSubmitHash() {
@@ -92,21 +102,21 @@ public abstract class WebDriver implements Driver {
     protected boolean isLocatorError(Http.Response res) {
         return res.status() != 200;
     }
-    
+
     protected boolean isCookieError(Http.Response res) {
         return res.status() != 200;
-    }    
+    }
 
     private Element evalLocator(String locator, String dotExpression) {
         eval(prefixReturn(options.selector(locator) + "." + dotExpression));
         // if the js above did not throw an exception, the element exists
         return DriverElement.locatorExists(this, locator);
     }
-    
+
     private Element evalFocus(String locator) {
         eval(options.focusJs(locator));
         // if the js above did not throw an exception, the element exists
-        return DriverElement.locatorExists(this, locator);       
+        return DriverElement.locatorExists(this, locator);
     }
 
     private ScriptValue eval(String expression) {
@@ -285,7 +295,7 @@ public abstract class WebDriver implements Driver {
         return retryIfEnabled(locator, () -> {
             eval(options.optionSelector(locator, index));
             // if the js above did not throw an exception, the element exists
-            return DriverElement.locatorExists(this, locator);            
+            return DriverElement.locatorExists(this, locator);
         });
     }
 

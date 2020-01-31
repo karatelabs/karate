@@ -23,16 +23,13 @@
  */
 package com.intuit.karate.driver.windows;
 
-import com.intuit.karate.Http;
 import com.intuit.karate.Json;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverElement;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Element;
-import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.WebDriver;
-import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -41,27 +38,15 @@ import java.util.Map;
  */
 public class WinAppDriver extends WebDriver {
 
-    public WinAppDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
-        super(options, command, http, sessionId, windowId);
+    public WinAppDriver(DriverOptions options) {
+        super(options);
     }
 
     public static WinAppDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
         DriverOptions options = new DriverOptions(context, map, appender, 4727, 
                 "C:/Program Files (x86)/Windows Application Driver/WinAppDriver");
         options.arg(options.port + "");
-        Command command = options.startProcess();
-        Http http = options.getHttp();
-        Map<String, Object> capabilities = options.newMapWithSelectedKeys(map, "app", "appArguments", "appTopLevelWindow", "appWorkingDir");
-        String sessionId = http.path("session")
-                .post(Collections.singletonMap("desiredCapabilities", capabilities))
-                .jsonPath("get[0] response..sessionId").asString();
-        options.driverLogger.debug("init session id: {}", sessionId);
-        http.url("/session/" + sessionId);
-        String windowId = http.path("window").get().jsonPath("$.value").asString();
-        options.driverLogger.debug("init window id: {}", windowId);
-        WinAppDriver driver = new WinAppDriver(options, command, http, sessionId, windowId);
-        // driver.activate();
-        return driver;
+        return new WinAppDriver(options);
     }
 
     @Override

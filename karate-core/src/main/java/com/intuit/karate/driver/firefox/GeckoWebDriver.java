@@ -24,12 +24,10 @@
 package com.intuit.karate.driver.firefox;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.Http;
 import com.intuit.karate.Json;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Map;
 
@@ -39,25 +37,14 @@ import java.util.Map;
  */
 public class GeckoWebDriver extends WebDriver {
 
-    public GeckoWebDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
-        super(options, command, http, sessionId, windowId);
+    public GeckoWebDriver(DriverOptions options) {
+        super(options);
     }
 
     public static GeckoWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
         DriverOptions options = new DriverOptions(context, map, appender, 4444, "geckodriver");
         options.arg("--port=" + options.port);
-        Command command = options.startProcess();
-        Http http = options.getHttp();
-        String sessionId = http.path("session")
-                .post(options.getWebDriverSessionPayload())
-                .jsonPath("get[0] response..sessionId").asString();
-        options.driverLogger.debug("init session id: {}", sessionId);
-        http.url("/session/" + sessionId);
-        String windowId = http.path("window").get().jsonPath("$.value").asString();
-        options.driverLogger.debug("init window id: {}", windowId);
-        GeckoWebDriver driver = new GeckoWebDriver(options, command, http, sessionId, windowId);
-        driver.activate();
-        return driver;
+        return new GeckoWebDriver(options);
     }
     
     @Override

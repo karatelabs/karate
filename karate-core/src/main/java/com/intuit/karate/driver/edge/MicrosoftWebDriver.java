@@ -23,12 +23,10 @@
  */
 package com.intuit.karate.driver.edge;
 
-import com.intuit.karate.Http;
 import com.intuit.karate.Json;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Map;
 
@@ -38,25 +36,14 @@ import java.util.Map;
  */
 public class MicrosoftWebDriver extends WebDriver {
 
-    public MicrosoftWebDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
-        super(options, command, http, sessionId, windowId);
+    public MicrosoftWebDriver(DriverOptions options) {
+        super(options);
     }
 
     public static MicrosoftWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
         DriverOptions options = new DriverOptions(context, map, appender, 17556, "MicrosoftWebDriver");
         options.arg("--port=" + options.port);
-        Command command = options.startProcess();
-        Http http = options.getHttp();
-        String sessionId = http.path("session")
-                .post(options.getWebDriverSessionPayload())
-                .jsonPath("get[0] response..sessionId").asString();
-        options.driverLogger.debug("init session id: {}", sessionId);
-        http.url("/session/" + sessionId);
-        String windowId = http.path("window").get().jsonPath("$.value").asString();
-        options.driverLogger.debug("init window id: {}", windowId);
-        MicrosoftWebDriver driver = new MicrosoftWebDriver(options, command, http, sessionId, windowId);
-        driver.activate();
-        return driver;
+        return new MicrosoftWebDriver(options);
     }
 
     @Override

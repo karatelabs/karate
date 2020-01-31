@@ -25,7 +25,6 @@ package com.intuit.karate.driver;
 
 import com.intuit.karate.*;
 import com.intuit.karate.core.Embed;
-import com.intuit.karate.shell.Command;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -38,8 +37,8 @@ import java.util.Map;
  */
 public abstract class AppiumDriver extends WebDriver {
 
-    protected AppiumDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
-        super(options, command, http, sessionId, windowId);
+    protected AppiumDriver(DriverOptions options) {
+        super(options);
     }
 
     @Override
