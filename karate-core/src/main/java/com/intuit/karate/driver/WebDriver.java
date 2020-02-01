@@ -66,7 +66,9 @@ public abstract class WebDriver implements Driver {
         http.url("/session/" + sessionId);
         windowId = http.path("window").get().jsonPath("$.value").asString();
         logger.debug("init window id: {}", windowId);
-        activate();
+        if (options.start) {
+            activate();
+        }
     }
 
     private String getSubmitHash() {
