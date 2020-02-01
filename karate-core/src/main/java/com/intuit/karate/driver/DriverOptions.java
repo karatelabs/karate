@@ -34,6 +34,7 @@ import com.intuit.karate.driver.android.AndroidDriver;
 import com.intuit.karate.driver.chrome.Chrome;
 import com.intuit.karate.driver.chrome.ChromeWebDriver;
 import com.intuit.karate.driver.iexplorer.EdgeDevToolsDriver;
+import com.intuit.karate.driver.iexplorer.IeWebDriver;
 import com.intuit.karate.driver.iexplorer.MicrosoftWebDriver;
 import com.intuit.karate.driver.firefox.GeckoWebDriver;
 import com.intuit.karate.driver.ios.IosDriver;
@@ -272,6 +273,8 @@ public class DriverOptions {
                     return SafariWebDriver.start(context, options, appender);
                 case "mswebdriver":
                     return MicrosoftWebDriver.start(context, options, appender);
+                case "iedriver":
+                    return IeWebDriver.start(context, options, appender);
                 case "winappdriver":
                     return WinAppDriver.start(context, options, appender);
                 case "android":
@@ -323,8 +326,9 @@ public class DriverOptions {
                 return getSession("safari");
             case "mswebdriver":
                 return getSession("edge");
+            case "iedriver":
+                return getSession("internet explorer");
             default:
-                // may work for remote "internet explorer" for e.g.
                 // else user has to specify full payload via webDriverSession
                 return getSession(type);
         }
