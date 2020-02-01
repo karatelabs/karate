@@ -21,10 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.driver;
+package com.intuit.karate.driver.appium;
 
 import com.intuit.karate.*;
 import com.intuit.karate.core.Embed;
+import com.intuit.karate.driver.DriverElement;
+import com.intuit.karate.driver.DriverOptions;
+import com.intuit.karate.driver.Element;
+import com.intuit.karate.driver.WebDriver;
 
 import java.io.File;
 import java.io.FileOutputStream;

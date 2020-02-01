@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.driver.windows;
+package com.intuit.karate.driver.microsoft;
 
 import com.intuit.karate.Json;
 import com.intuit.karate.LogAppender;

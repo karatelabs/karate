@@ -1,8 +1,7 @@
-package com.intuit.karate.driver.ios;
+package com.intuit.karate.driver.appium;
 
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.driver.AppiumDriver;
 import com.intuit.karate.driver.DriverOptions;
 import java.util.Map;
 

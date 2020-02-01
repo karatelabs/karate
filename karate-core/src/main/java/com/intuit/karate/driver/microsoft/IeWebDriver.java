@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2018 Intuit Inc.
+ * Copyright 2020 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,9 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.driver.iexplorer;
+package com.intuit.karate.driver.microsoft;
 
-import com.intuit.karate.Json;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
@@ -34,26 +33,21 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class MicrosoftWebDriver extends WebDriver {
-
-    public MicrosoftWebDriver(DriverOptions options) {
+public class IeWebDriver extends WebDriver {
+    
+    public IeWebDriver(DriverOptions options) {
         super(options);
     }
 
-    public static MicrosoftWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(context, map, appender, 17556, "MicrosoftWebDriver");
-        options.arg("--port=" + options.port);
-        return new MicrosoftWebDriver(options);
+    public static IeWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(context, map, appender, 5555, "IEDriverServer");
+        options.arg("port=" + options.port);
+        return new IeWebDriver(options);
     }
-
-    @Override
-    protected String getJsonForInput(String text) {
-        return new Json().set("keysToSend[0]", text).toString();
-    }
-
+    
     @Override
     public void activate() {
-        logger.warn("activate not implemented for mswebdriver");
-    }
-
+        logger.warn("activate not implemented for iewebdriver");
+    }    
+    
 }
