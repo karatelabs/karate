@@ -254,7 +254,7 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 ## References
 * [Karate entered the ThoughtWorks Tech Radar](https://twitter.com/KarateDSL/status/1120985060843249664) in April 2019
 * [11 top open-source API testing tools](https://techbeacon.com/app-dev-testing/11-top-open-source-api-testing-tools-what-your-team-needs-know) - [TechBeacon](https://techbeacon.com) article by [Joe Colantonio](https://twitter.com/jcolantonio)
-* [Why the heck is not everyone using Karate <br/>for their automated API testing in 2019 ?](https://testing.richardd.nl/why-the-heck-is-not-everyone-using-karate-for-their-automated-api-testing-in-2019) - blog post by [Richard Duinmaijer](https://twitter.com/RichardTheQAguy)
+* [Why the heck is not everyone using Karate for their automated API testing in 2019 ?](https://testing.richardd.nl/why-the-heck-is-not-everyone-using-karate-for-their-automated-api-testing-in-2019) - blog post by [Richard Duinmaijer](https://twitter.com/RichardTheQAguy)
 * [マイクロサービスにおけるテスト自動化 with Karate](https://www.slideshare.net/takanorig/microservices-test-automation-with-karate/) - (*Microservices Test Automation with Karate*) presentation by [Takanori Suzuki](https://twitter.com/takanorig)
 * [Testing Web Services with Karate](https://automationpanda.com/2018/12/10/testing-web-services-with-karate/) - quick start guide and review by [Andrew Knight](https://twitter.com/automationpanda) at the *Automation Panda* blog
 

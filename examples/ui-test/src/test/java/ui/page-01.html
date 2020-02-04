@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Page One</title>
+    <style>
+        .foo { color: blue };
+    </style>
+    <script src="karate.js"></script>
+    <script>       
+        function setPlaceholder(){ karate.setHtml('placeholder', 'After') }
+        // simulate an element that appears in the DOM only after 5 seconds
+        setTimeout(function(){ karate.setHtml('slowparent', '<div id="slowelement">APPEARED!</div>') }, 5000);
+    </script>
+  </head>
+  <body>
+      <button onclick="setPlaceholder()">Click Me</button>
+      <div id="placeholder" class="foo">Before</div>
+      <div id="slowparent">Waiting</div>
+  </body>
+</html>
