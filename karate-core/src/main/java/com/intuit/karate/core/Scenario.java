@@ -107,6 +107,12 @@ public class Scenario {
     }
 
     public void replace(String token, String value) {
+        if (value == null) {
+            // this can happen for a dynamic scenario outline !
+            // give up trying a cucumber-style placeholder sub
+            // user should be fine with karate-style plain-old variables
+            return;
+        }
         name = name.replace(token, value);
         description = description.replace(token, value);
         for (Step step : steps) {

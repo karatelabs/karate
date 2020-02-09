@@ -3599,6 +3599,14 @@ In some rare cases you need to exit a `Scenario` based on some condition. You ca
 * if (responseStatus == 404) karate.abort()
 ```
 
+Using `karate.abort()` will *not* fail the test. Conditionally making a test fail is easy with JavaScript:
+
+```cucumber
+* if (condition) throw 'a custom message'
+```
+
+But normally a [`match`](#match) statement is preferred unless you want a really descriptive error message.
+
 Also refer to [polling](#polling) for more ideas.
 
 ## Commonly Needed Utilities
