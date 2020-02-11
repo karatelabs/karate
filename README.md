@@ -366,6 +366,9 @@ With the above in place, you don't have to keep switching between your `src/test
 
 Once you get used to this, you may even start wondering why projects need a `src/test/resources` folder at all !
 
+### Spring Boot Example
+Soumendra Daas has created a nice example and guide that you can use as a reference here: [`hello-karate`](https://github.com/Sdaas/hello-karate). This demonstrates a Java Maven + JUnit4 project set up to test a [Spring Boot](http://projects.spring.io/spring-boot/) app.
+
 ## Naming Conventions
 
 Since these are tests and not production Java code, you don't need to be bound by the `com.mycompany.foo.bar` convention and the un-necessary explosion of sub-folders that ensues. We suggest that you have a folder hierarchy only one or two levels deep - where the folder names clearly identify which 'resource', 'entity' or API is the web-service under test.
