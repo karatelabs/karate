@@ -236,14 +236,16 @@ public class JsonUtils {
     public static void removeKeysWithNullValues(Object o) {
         if (o instanceof Map) {
             Map<String, Object> map = (Map) o;
+            List<String> toRemove = new ArrayList();
             for (Map.Entry<String, Object> entry : map.entrySet()) {
                 Object v = entry.getValue();
                 if (v == null) {
-                    map.remove(entry.getKey());
+                    toRemove.add(entry.getKey());
                 } else {
                     removeKeysWithNullValues(v);
                 }
             }
+            toRemove.forEach(key -> map.remove(key));
         } else if (o instanceof List) {
             List list = (List) o;
             for (Object v : list) {
