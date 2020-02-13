@@ -2011,6 +2011,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `driver` | JSON | See [UI Automation](karate-core)
 `driverTarget` | JSON / Java Object | See [`configure driverTarget`](karate-core#configure-drivertarget)
 
+> If you are mixing Karate into an existing Java project via Maven or Gradle, it can happen that the version of the Apache HTTP client used by Karate conflicts with something in the existing classpath. This can cause `* configure ssl = false` to fail. Read [this answer on Stack Overflow](https://stackoverflow.com/a/52396293/143475) for more details.
 
 Examples:
 ```cucumber
