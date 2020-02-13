@@ -11,7 +11,7 @@
     <packaging>jar</packaging>
     
     <properties>
-        <jersey.version>2.26</jersey.version>
+        <jersey.version>2.30</jersey.version>
     </properties>          
 
     <dependencies>        
