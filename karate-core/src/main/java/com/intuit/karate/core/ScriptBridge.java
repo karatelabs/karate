@@ -754,7 +754,8 @@ public class ScriptBridge implements PerfContext {
         public String toString() {
             StringBuilder sb = new StringBuilder();
             for (Object o : objects) {
-                sb.append(o).append(' ');
+                ScriptValue sv = new ScriptValue(o);
+                sb.append(sv.getAsPrettyString()).append(' ');
             }
             return sb.toString();
         }

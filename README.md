@@ -2011,7 +2011,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `driver` | JSON | See [UI Automation](karate-core)
 `driverTarget` | JSON / Java Object | See [`configure driverTarget`](karate-core#configure-drivertarget)
 
-> If you are mixing Karate into an existing Java project via Maven or Gradle, it can happen that the version of the Apache HTTP client used by Karate conflicts with something in the existing classpath. This can cause `* configure ssl = false` to fail. Read [this answer on Stack Overflow](https://stackoverflow.com/a/52396293/143475) for more details.
+> If you are mixing Karate into an existing Java project via Maven or Gradle, it can happen that the version of the Apache HTTP client used by Karate conflicts with something in the existing classpath. This can cause `* configure ssl = true` to fail. Read [this answer on Stack Overflow](https://stackoverflow.com/a/52396293/143475) for more details.
 
 Examples:
 ```cucumber
@@ -3179,7 +3179,7 @@ Operation | Description
 <a name="karate-jsonpath"><code>karate.jsonPath(json, expression)</code></a> | brings the power of [JsonPath](https://github.com/json-path/JsonPath) into JavaScript, and you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
 <a name="karate-keysof"><code>karate.keysOf(object)</code></a> | returns only the keys of a map-like object
 <a name="karate-listen"><code>karate.listen(timeout)</code></a> | wait until [`karate.signal(result)`](#karate-signal) has been called or time-out after `timeout` milliseconds, see [async](#async)
-<a name="karate-log"><code>karate.log(... args)</code></a> | log to the same logger (and log file) being used by the parent process, logging can be suppressed with [`configure printEnabled`](#configure) set to `false`
+<a name="karate-log"><code>karate.log(... args)</code></a> | log to the same logger (and log file) being used by the parent process, logging can be suppressed with [`configure printEnabled`](#configure) set to `false`, and just like [`print`](#print) - use comma-separated values to "pretty print" JSON or XML
 <a name="karate-lowercase"><code>karate.lowerCase(object)</code></a> | useful to brute-force all keys and values in a JSON or XML payload to lower-case, useful in some cases, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/lower-case.feature)
 <a name="karate-map"><code>karate.map(list, function)</code></a> | functional-style 'map' operation useful to transform list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index])
 <a name="karate-mapwithkey"><code>karate.mapWithKey(list, string)</code></a> | convenient for the common case of transforming an array of primitives into an array of objects, see [JSON transforms](#json-transforms)

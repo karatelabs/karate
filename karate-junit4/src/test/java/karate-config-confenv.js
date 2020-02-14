@@ -1,3 +1,5 @@
 function fn() {
-  return { confoverride: 'yes' };
+  var temp = { confoverride: 'yes' };
+  karate.log('temp:', temp);
+  return temp;
 }
