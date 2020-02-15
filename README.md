@@ -192,6 +192,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="karate-netty">Test Doubles</a>
     | <a href="karate-gatling">Performance Testing</a>
     | <a href="karate-core">UI Testing</a>
+    | <a href="karate-robot">Desktop Automation</a>
     | <a href="https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin">VS Code / Debug</a>
     | <a href="#comparison-with-rest-assured">Karate vs REST-assured</a>
     | <a href="#cucumber-vs-karate">Karate vs Cucumber</a>
@@ -227,6 +228,7 @@ And you don't need to create additional Java classes for any of the payloads tha
 * Simple plug-in system for [authentication](#http-basic-authentication-example) and HTTP [header management](#configure-headers) that will handle any complex, real-world scenario
 * Future-proof 'pluggable' HTTP client abstraction supports both Apache and Jersey so that you can [choose](#maven) what works best in your project, and not be blocked by library or dependency conflicts
 * [Cross-browser Web UI automation](karate-core) so that you can test *all* layers of your application with the same framework
+* Cross platform [Desktop Automation](karate-robot) (experimental) that can be [mixed into Web Automation flows](https://twitter.com/ptrthomas/status/1215534821234995200) if needed
 * Option to invoke via a [Java API](#java-api),  which means that you can easily [mix Karate into Java projects or legacy UI-automation suites](https://stackoverflow.com/q/47795762/143475)
 * [Save significant effort](https://twitter.com/ptrthomas/status/986463717465391104) by re-using Karate test-suites as [Gatling performance tests](karate-gatling) that *deeply* assert that server responses are accurate under load
 * Gatling integration can hook into [*any* custom Java code](https://github.com/intuit/karate/tree/master/karate-gatling#custom) - which means that you can perf-test even non-HTTP protocols such as [gRPC](https://github.com/thinkerou/karate-grpc)

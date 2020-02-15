@@ -984,8 +984,8 @@ public class ScenarioContext {
         Object robot;
         try {
             Class clazz = Class.forName("com.intuit.karate.robot.Robot");
-            Constructor constructor = clazz.getDeclaredConstructor(Map.class);
-            robot = constructor.newInstance(config);
+            Constructor constructor = clazz.getDeclaredConstructor(ScenarioContext.class, Map.class);
+            robot = constructor.newInstance(this, config);
         } catch (Exception e) {
             String message = "cannot instantiate robot, is 'karate-robot' included as a maven / gradle dependency ? - " + e.getMessage();
             logger.error(message);

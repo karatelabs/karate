@@ -11,7 +11,7 @@ public class CaptureRunner {
     
     @Test
     public void testCapture() {
-        Robot bot = new Robot();
+        Robot bot = new Robot(ChromeJavaRunner.getContext());
         // make sure Chrome is open
         bot.switchTo(t -> t.contains("Chrome"));
         bot.delay(1000);

@@ -72,11 +72,15 @@ public class RobotUtils {
     public static Region find(File source, File target, boolean resize) {
         return find(read(source), read(target), resize);
     }
+    
+    public static Region find(BufferedImage source, byte[] bytes, boolean resize) {
+        Mat srcMat = Java2DFrameUtils.toMat(source);
+        return find(srcMat, read(bytes), resize);
+    }    
 
     public static Region find(BufferedImage source, File target, boolean resize) {
-        Mat tgtMat = read(target);
         Mat srcMat = Java2DFrameUtils.toMat(source);
-        return find(srcMat, tgtMat, resize);
+        return find(srcMat, read(target), resize);
     }
 
     public static Mat rescale(Mat mat, double scale) {
@@ -145,6 +149,18 @@ public class RobotUtils {
     public static Mat read(File file) {
         return read(file, IMREAD_GRAYSCALE);
     }
+    
+    public static Mat read(byte[] bytes) {
+        return read(bytes, IMREAD_GRAYSCALE);
+    }    
+    
+    public static Mat read(byte[] bytes, int flags) {
+        Mat image = imdecode(new Mat(bytes), flags);
+        if (image.empty()) {
+            throw new RuntimeException("image decode failed");
+        }
+        return image;
+    }    
 
     public static Mat read(File file, int flags) {
         Mat image = imread(file.getAbsolutePath(), flags);

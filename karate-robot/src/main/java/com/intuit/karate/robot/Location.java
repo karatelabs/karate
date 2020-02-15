@@ -42,11 +42,19 @@ public class Location {
     public Location with(Robot robot) {
         this.robot = robot;
         return this;
-    }        
+    }
+    
+    public Location move() {
+        robot.move(x, y);
+        return this;
+    }   
     
     public Location click() {
-        robot.move(x, y);
-        robot.click();
+        return click(1);
+    }
+    
+    public Location click(int num) {
+        robot.move(x, y).click(num);
         return this;
     }
 

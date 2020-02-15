@@ -36,6 +36,10 @@ public class Region {
     public final int width;
     public final int height;
     
+    public Region(int x, int y) {
+        this(x, y, 0, 0);
+    }
+    
     public Region(int x, int y, int width, int height) {
         this.x = x;
         this.y = y;
@@ -57,8 +61,17 @@ public class Region {
     }
     
     public Region click() {
-        center().click();
+        return click(1);
+    }    
+    
+    public Region click(int num) {
+        center().click(num);
         return this;
     }
+    
+    public Region move() {
+        center().move();
+        return this;
+    }    
     
 }

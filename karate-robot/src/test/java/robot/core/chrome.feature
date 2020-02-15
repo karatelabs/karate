@@ -5,4 +5,4 @@ Scenario:
 * robot { app: '^Chrome', highlight: true }
 * robot.input(Key.META, 't')
 * robot.input('karate dsl' + Key.ENTER)
-* robot.click('src/test/resources/tams.png')
+* robot.click('tams.png')
