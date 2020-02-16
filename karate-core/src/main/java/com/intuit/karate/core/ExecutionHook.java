@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.Results;
 import com.intuit.karate.http.HttpRequestBuilder;
 
 /**
@@ -35,12 +36,24 @@ public interface ExecutionHook {
      * 
      * @param scenario
      * @param context 
-     * @return false if the scenario should be excluded from the test-run
+     * @return false if the scenario / feature should be excluded from the test-run
      * @throws RuntimeException (any) to abort the scenario
      */
     boolean beforeScenario(Scenario scenario, ScenarioContext context);
     
     void afterScenario(ScenarioResult result, ScenarioContext context);
+    
+    boolean beforeFeature(Feature feature, ExecutionContext context);
+    
+    void afterFeature(FeatureResult result, ExecutionContext context);
+    
+    void beforeAll(Results results);
+    
+    void afterAll(Results results);
+    
+    boolean beforeStep(Step step, ScenarioContext context);
+    
+    void afterStep(StepResult result, ScenarioContext context);
     
     String getPerfEventName(HttpRequestBuilder req, ScenarioContext context);
     

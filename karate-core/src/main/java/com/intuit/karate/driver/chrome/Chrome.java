@@ -25,14 +25,13 @@ package com.intuit.karate.driver.chrome;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
-import com.intuit.karate.Logger;
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -46,14 +45,15 @@ public class Chrome extends DevToolsDriver {
 
     public static final String DEFAULT_PATH_MAC = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
     public static final String DEFAULT_PATH_WIN = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
+    public static final String DEFAULT_PATH_LINUX = "/usr/bin/google-chrome";
 
-    public Chrome(DriverOptions options, CommandThread command, String webSocketUrl) {
+    public Chrome(DriverOptions options, Command command, String webSocketUrl) {
         super(options, command, webSocketUrl);
     }    
 
-    public static Chrome start(ScenarioContext context, Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(context, map, logger, 9222, 
-                FileUtils.isOsWindows() ? DEFAULT_PATH_WIN : DEFAULT_PATH_MAC);
+    public static Chrome start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(context, map, appender, 9222, 
+                FileUtils.isOsWindows() ? DEFAULT_PATH_WIN : FileUtils.isOsMacOsX() ? DEFAULT_PATH_MAC : DEFAULT_PATH_LINUX);
         options.arg("--remote-debugging-port=" + options.port);
         options.arg("--no-first-run");
         options.arg("--user-data-dir=" + options.workingDirPath);
@@ -61,13 +61,22 @@ public class Chrome extends DevToolsDriver {
         if (options.headless) {
             options.arg("--headless");
         }
-        CommandThread command = options.startProcess();
-        Http http = Http.forUrl(options.driverLogger, "http://" + options.host + ":" + options.port);
-        String webSocketUrl = http.path("json").get()
-                .jsonPath("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();        
+        Command command = options.startProcess();
+        Http http = options.getHttp();
+        Command.waitForHttp(http.urlBase);
+        Http.Response res = http.path("json").get();
+        if (res.body().asList().isEmpty()) {
+            if (command != null) {
+                command.close(true);    
+            }            
+            throw new RuntimeException("chrome server returned empty list from " + http.urlBase);
+        }
+        String webSocketUrl = res.jsonPath("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();        
         Chrome chrome = new Chrome(options, command, webSocketUrl);
         chrome.activate();
         chrome.enablePageEvents();
+        chrome.enableRuntimeEvents();
+        chrome.enableTargetEvents();
         if (!options.headless) {
             chrome.initWindowIdAndState();
         }
@@ -94,11 +103,6 @@ public class Chrome extends DevToolsDriver {
     
     public static Chrome startHeadless() {
         return start(Collections.singletonMap("headless", true));
-    }
-
-    @Override
-    public List<String> getWindowHandles() {
-        return null;
     }
 
 }

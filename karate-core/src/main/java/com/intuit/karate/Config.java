@@ -23,11 +23,13 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.driver.DockerTarget;
+import com.intuit.karate.driver.Target;
 import com.intuit.karate.http.HttpClient;
+import com.intuit.karate.http.HttpLogModifier;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
 
 /**
  *
@@ -36,7 +38,7 @@ import jdk.nashorn.api.scripting.ScriptObjectMirror;
 public class Config {
 
     public static final int DEFAULT_RETRY_INTERVAL = 3000;
-    public static final int DEFAULT_RETRY_COUNT = 3;    
+    public static final int DEFAULT_RETRY_COUNT = 3;
 
     private boolean sslEnabled = false;
     private String sslAlgorithm = "TLS";
@@ -55,6 +57,7 @@ public class Config {
     private String proxyUsername;
     private String proxyPassword;
     private List<String> nonProxyHosts;
+    private String localAddress;
     private ScriptValue headers = ScriptValue.NULL;
     private ScriptValue cookies = ScriptValue.NULL;
     private ScriptValue responseHeaders = ScriptValue.NULL;
@@ -64,12 +67,15 @@ public class Config {
     private boolean logPrettyResponse;
     private boolean printEnabled = true;
     private boolean outlineVariablesAuto = true;
+    private boolean abortedStepsShouldPass = false;
     private String clientClass;
     private HttpClient clientInstance;
     private Map<String, Object> userDefined;
+    private Target driverTarget;
     private Map<String, Object> driverOptions;
     private ScriptValue afterScenario = ScriptValue.NULL;
     private ScriptValue afterFeature = ScriptValue.NULL;
+    private HttpLogModifier logModifier;
 
     // retry config
     private int retryInterval = DEFAULT_RETRY_INTERVAL;
@@ -82,7 +88,7 @@ public class Config {
     public Config() {
         // zero arg constructor
     }
-    
+
     private static <T> T get(Map<String, Object> map, String key, T defaultValue) {
         Object o = map.get(key);
         return o == null ? defaultValue : (T) o;
@@ -137,19 +143,37 @@ public class Config {
             case "driver":
                 driverOptions = value.getAsMap();
                 return false;
+            case "driverTarget":
+                if (value.isMapLike()) {
+                    Map<String, Object> map = value.getAsMap();
+                    if (map.containsKey("docker")) {
+                        driverTarget = new DockerTarget(map);
+                    } else {
+                        throw new RuntimeException("bad driverTarget config, expected key 'docker': " + map);
+                    }
+                } else {
+                    driverTarget = value.getValue(Target.class);
+                }
+                return false;
             case "retry":
                 if (value.isMapLike()) {
                     Map<String, Object> map = value.getAsMap();
                     retryInterval = get(map, "interval", retryInterval);
-                    retryCount = get(map, "count", retryCount);                    
+                    retryCount = get(map, "count", retryCount);
                 }
                 return false;
             case "outlineVariablesAuto":
                 outlineVariablesAuto = value.isBooleanTrue();
                 return false;
+            case "abortedStepsShouldPass":
+                abortedStepsShouldPass = value.isBooleanTrue();
+                return false;
             // here on the http client has to be re-constructed ================
             case "httpClientClass":
                 clientClass = value.getAsString();
+                return true;
+            case "logModifier":
+                logModifier = value.getValue(HttpLogModifier.class);
                 return true;
             case "httpClientInstance":
                 clientInstance = value.getValue(HttpClient.class);
@@ -201,6 +225,9 @@ public class Config {
                     nonProxyHosts = (List) map.get("nonProxyHosts");
                 }
                 return true;
+            case "localAddress":
+                localAddress = value.getAsString();
+                return true;
             case "userDefined":
                 userDefined = value.getAsMap();
                 return true;
@@ -227,6 +254,7 @@ public class Config {
         proxyUsername = parent.proxyUsername;
         proxyPassword = parent.proxyPassword;
         nonProxyHosts = parent.nonProxyHosts;
+        localAddress = parent.localAddress;
         headers = parent.headers;
         cookies = parent.cookies;
         responseHeaders = parent.responseHeaders;
@@ -239,6 +267,7 @@ public class Config {
         clientInstance = parent.clientInstance;
         userDefined = parent.userDefined;
         driverOptions = parent.driverOptions;
+        driverTarget = parent.driverTarget;
         afterScenario = parent.afterScenario;
         afterFeature = parent.afterFeature;
         showLog = parent.showLog;
@@ -246,15 +275,17 @@ public class Config {
         retryInterval = parent.retryInterval;
         retryCount = parent.retryCount;
         outlineVariablesAuto = parent.outlineVariablesAuto;
+        abortedStepsShouldPass = parent.abortedStepsShouldPass;
+        logModifier = parent.logModifier;
     }
-        
+
     public void setCookies(ScriptValue cookies) {
         this.cookies = cookies;
-    }   
-    
+    }
+
     public void setClientClass(String clientClass) {
         this.clientClass = clientClass;
-    }    
+    }
 
     //==========================================================================
     //
@@ -325,7 +356,11 @@ public class Config {
     public List<String> getNonProxyHosts() {
         return nonProxyHosts;
     }
-    
+
+    public String getLocalAddress() {
+        return localAddress;
+    }
+
     public ScriptValue getHeaders() {
         return headers;
     }
@@ -428,6 +463,22 @@ public class Config {
 
     public boolean isOutlineVariablesAuto() {
         return outlineVariablesAuto;
-    }        
+    }
+
+    public boolean isAbortedStepsShouldPass() {
+        return abortedStepsShouldPass;
+    }
+
+    public Target getDriverTarget() {
+        return driverTarget;
+    }
+
+    public void setDriverTarget(Target driverTarget) {
+        this.driverTarget = driverTarget;
+    }
+
+    public HttpLogModifier getLogModifier() {
+        return logModifier;
+    }
 
 }

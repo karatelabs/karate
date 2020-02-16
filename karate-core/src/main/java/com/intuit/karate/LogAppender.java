@@ -34,7 +34,7 @@ public interface LogAppender {
     void append(String text);
 
     void close();
-    
+
     public static final LogAppender NO_OP = new LogAppender() {
         @Override
         public String collect() {
@@ -50,6 +50,6 @@ public interface LogAppender {
         public void close() {
 
         }
-    };    
+    };
 
 }

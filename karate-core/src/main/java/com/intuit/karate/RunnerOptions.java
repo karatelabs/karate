@@ -32,6 +32,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
 /**
  *
@@ -44,42 +46,61 @@ public class RunnerOptions {
 
     private static final Pattern COMMAND_NAME = Pattern.compile("--name (\\^.+?\\$)");
 
-    @CommandLine.Option(names = {"-h", "--help"}, usageHelp = true, description = "display this help message")
+    @Option(names = {"-h", "--help"}, usageHelp = true, description = "display this help message")
     boolean help;
 
-    @CommandLine.Option(names = {"-m", "--monochrome"}, description = "monochrome (not supported)")
-    boolean monochrome;
-
-    @CommandLine.Option(names = {"-g", "--glue"}, description = "glue (not supported)")
-    String glue;
-
-    @CommandLine.Option(names = {"-t", "--tags"}, description = "tags")
+    @Option(names = {"-t", "--tags"}, description = "tags")
     List<String> tags;
 
-    @CommandLine.Option(names = {"-", "--plugin"}, description = "plugin (not supported)")
-    List<String> plugins;
+    @Option(names = {"-T", "--threads"}, description = "threads")
+    int threads = 1;
 
-    @CommandLine.Option(names = {"-n", "--name"}, description = "name of scenario to run")
+    @Option(names = {"-n", "--name"}, description = "name of scenario to run")
     String name;
+    
+    @Option(names = {"-d", "--debug"}, arity = "0..1", defaultValue = "-1", fallbackValue = "0",
+            description = "debug mode (optional port else dynamically chosen)")
+    int debugPort;    
 
-    @CommandLine.Parameters(description = "one or more tests (features) or search-paths to run")
+    @Parameters(description = "one or more tests (features) or search-paths to run")
     List<String> features;
+
+    // these 3 are here purely to keep ide-s that send these happy, but will be ignored
+    @Option(names = {"-m", "--monochrome"}, description = "monochrome (not supported)")
+    boolean monochrome;
+
+    @Option(names = {"-g", "--glue"}, description = "glue (not supported)")
+    String glue;
+
+    @Option(names = {"-", "--plugin"}, description = "plugin (not supported)")
+    List<String> plugins;
 
     public List<String> getTags() {
         return tags;
-    }
-
-    public List<String> getPlugins() {
-        return plugins;
     }
 
     public String getName() {
         return name;
     }
 
+    public void addFeature(String feature) {
+        if (features == null) {
+            features = new ArrayList(1);
+        }
+        features.add(feature);
+    }
+    
     public List<String> getFeatures() {
         return features;
     }
+
+    public int getThreads() {
+        return threads;
+    }
+
+    public int getDebugPort() {
+        return debugPort;
+    }        
 
     public static RunnerOptions parseStringArgs(String[] args) {
         RunnerOptions options = CommandLine.populateCommand(new RunnerOptions(), args);
@@ -154,7 +175,7 @@ public class RunnerOptions {
                 options.features = features;
             }
         }
-        return options;        
+        return options;
     }
 
 }

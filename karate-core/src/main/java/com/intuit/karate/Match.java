@@ -28,7 +28,6 @@ import com.intuit.karate.core.FeatureContext;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.http.DummyHttpClient;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import net.minidev.json.JSONValue;
@@ -42,11 +41,8 @@ public class Match {
     protected final ScenarioContext context;
     private ScriptValue prevValue = ScriptValue.NULL;
 
-    public static Match withHttp(Logger logger) {
-        if (logger == null) {
-            logger = new Logger();
-        }
-        return new Match(logger, null);
+    public static Match forHttp(LogAppender appender) {
+        return new Match(appender, null);
     }
 
     public Match(String exp) {
@@ -56,19 +52,23 @@ public class Match {
     public Match() {
         this(null, null);
     }
-    
+
+    public void clear() {
+        prevValue = ScriptValue.NULL;
+    }
+
     public static Match init(Object o) {
         Match match = new Match(null, null);
         match.prevValue = new ScriptValue(o);
         return match;
     }
 
-    private Match(Logger logger, String exp) {
+    private Match(LogAppender appender, String exp) {
         FeatureContext featureContext = FeatureContext.forEnv();
-        String httpClass = logger == null ? DummyHttpClient.class.getName() : null;
+        String httpClass = appender == null ? DummyHttpClient.class.getName() : null;
         CallContext callContext = new CallContext(null, null, 0, null, -1, null, false, false,
-                httpClass, null, false);
-        context = new ScenarioContext(featureContext, callContext, null, logger);
+                httpClass, null, null, false);
+        context = new ScenarioContext(featureContext, callContext, null, appender);
         if (exp != null) {
             prevValue = Script.evalKarateExpression(exp, context);
             if (prevValue.isMapLike()) {
@@ -110,19 +110,19 @@ public class Match {
         prevValue = context.vars.put(name, o);
         return this;
     }
+    
+    public Match get(String key) {
+        prevValue = context.vars.get(key);
+        return this;
+    }
 
     public Match jsonPath(String exp) {
         prevValue = Script.evalKarateExpression(exp, context);
         return this;
-    }
+    }  
 
     public ScriptValue value() {
         return prevValue;
-    }
-
-    public boolean statusIs(Integer expected) {
-        prevValue = Script.evalKarateExpression("responseStatus", context);
-        return expected.equals(prevValue.getValue());
     }
 
     public boolean isBooleanTrue() {
@@ -132,6 +132,10 @@ public class Match {
     public String asString() {
         return prevValue.getAsString();
     }
+    
+    public int asInt() {
+        return prevValue.getAsInt();
+    }    
 
     public <T> T asType(Class<T> clazz) {
         return prevValue.getValue(clazz);
@@ -175,7 +179,7 @@ public class Match {
         return matchText(exp, MatchType.EQUALS);
     }
 
-    private static String quote(String exp) {
+    public static String quote(String exp) {
         return exp == null ? "null" : "\"" + JSONValue.escape(exp) + "\"";
     }
 
@@ -212,53 +216,6 @@ public class Match {
         return this;
     }
 
-    // http ====================================================================
-    //
-    public Http http() {
-        return new Http(this);
-    }
-
-    public Match url(String url) {
-        context.url(quote(url));
-        return this;
-    }
-
-    public Match path(String... paths) {
-        List<String> list = new ArrayList(paths.length);
-        for (String p : paths) {
-            list.add(quote(p));
-        }
-        context.path(list);
-        return this;
-    }
-
-    public Match httpGet() {
-        context.method("get");
-        return this;
-    }
-
-    public Match httpPost(ScriptValue body) {
-        context.request(body);
-        context.method("post");
-        return this;
-    }
-
-    public Match httpPost(Object body) {
-        context.request(new ScriptValue(body).getAsString());
-        context.method("post");
-        return this;
-    }
-
-    public Match httpDelete() {
-        context.method("delete");
-        return this;
-    }
-
-    public Match response() {
-        jsonPath("response");
-        return this;
-    }
-
     // static ==================================================================
     //
     public static Match equals(Object o, String exp) {
@@ -289,8 +246,13 @@ public class Match {
         return m.matchText(exp, matchType);
     }
 
-    public Match config(String key, String value){
-        context.configure(key,value);
+    public Match config(String key, String value) {
+        context.configure(key, value);
+        return this;
+    }
+    
+    public Match config(Map<String, Object> config) {
+        config.forEach((k, v) -> context.configure(k, new ScriptValue(v)));
         return this;
     }
 

@@ -10,7 +10,7 @@ import java.lang.annotation.Target;
  * 
  * @author pthomas3
  */
-// @Deprecated
+@Deprecated
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE})
 public @interface CucumberOptions {

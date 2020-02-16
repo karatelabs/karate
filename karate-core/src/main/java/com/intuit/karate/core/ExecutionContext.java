@@ -25,9 +25,7 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.shell.FileLogAppender;
-import com.intuit.karate.LogAppender;
-import com.intuit.karate.Logger;
+import com.intuit.karate.Results;
 import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
@@ -36,24 +34,33 @@ import java.util.function.Consumer;
  *
  * @author pthomas3
  */
-public class ExecutionContext {
+public class ExecutionContext {      
 
+    public final Results results;
     public final long startTime;
     public final FeatureContext featureContext;
     public final CallContext callContext;
     public final FeatureResult result;
     public final Consumer<Runnable> system;
     public final ExecutorService scenarioExecutor;
+    public final ClassLoader classLoader;
 
     private final File reportDir;
 
-    public ExecutionContext(long startTime, FeatureContext featureContext, CallContext callContext, String reportDirString,
-            Consumer<Runnable> system, ExecutorService scenarioExecutor) {
+    public ExecutionContext(Results results, long startTime, FeatureContext featureContext, CallContext callContext, String reportDirString,
+                            Consumer<Runnable> system, ExecutorService scenarioExecutor) {
+        this(results, startTime, featureContext, callContext, reportDirString, system, scenarioExecutor, null);
+    }
+
+    public ExecutionContext(Results results, long startTime, FeatureContext featureContext, CallContext callContext, String reportDirString,
+                            Consumer<Runnable> system, ExecutorService scenarioExecutor, ClassLoader classLoader) {
+        this.results = results;
         this.scenarioExecutor = scenarioExecutor;
         this.startTime = startTime;
-        result = new FeatureResult(featureContext.feature);
+        result = new FeatureResult(results, featureContext.feature);
         this.featureContext = featureContext;
         this.callContext = callContext;
+        this.classLoader = classLoader;
         if (callContext.perfMode) {
             reportDir = null;
         } else {
@@ -70,14 +77,6 @@ public class ExecutionContext {
         } else {
             this.system = system;
         }
-    }
-
-    public LogAppender getLogAppender(String suffix, Logger logger) {
-        if (reportDir == null) {
-            return LogAppender.NO_OP;
-        }
-        String basePath = featureContext.packageQualifiedName;
-        return new FileLogAppender(reportDir + File.separator + basePath + suffix + ".log", logger);
     }
 
 }

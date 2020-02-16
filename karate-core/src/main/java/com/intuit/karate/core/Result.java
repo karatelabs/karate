@@ -52,6 +52,16 @@ public class Result {
         }
         return map;
     }
+    
+    public Result(Map<String, Object> map) {
+        status = (String) map.get("status");
+        Number num = (Number) map.get("duration");
+        durationNanos = num == null ? 0 : num.longValue();
+        String errorMessage = (String) map.get("error_message");
+        error = errorMessage == null ? null : new KarateException(errorMessage);
+        aborted = false;
+        skipped = false;
+    }
 
     private Result(String status, long nanos, Throwable error, boolean aborted) {
         this.status = status;
@@ -96,7 +106,7 @@ public class Result {
     }
 
     public static Result aborted(long nanos) {
-        return new Result(SKIPPED, nanos, null, true);
+        return new Result(PASSED, nanos, null, true);
     }
 
     public String getStatus() {

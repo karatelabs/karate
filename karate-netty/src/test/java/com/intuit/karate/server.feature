@@ -9,7 +9,7 @@ Background:
 Scenario: pathMatches('/v1/cats') && methodIs('post')
     * def cat = request
     * def id = ~~(id + 1)
-    * set cat.id = id
+    * cat.id = id
     * cats[id + ''] = cat
     * def response = cat
 
@@ -31,3 +31,8 @@ Scenario: pathMatches('/v1/abort')
     * if (response.success) karate.abort()
     # the next line will not be executed
     * def response = { success: false }
+
+Scenario:
+    * def responseStatus = 404
+    * def responseHeaders = { 'Content-Type': 'text/html; charset=utf-8' }
+    * def response = <html><body>Not Found</body></html>

@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http.apache;
 
+import com.intuit.karate.http.HttpLogModifier;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpUtils;
 import java.util.ArrayList;
@@ -52,34 +53,42 @@ public class LoggingUtils {
         return keys;
     }
 
-    private static void logHeaderLine(StringBuilder sb, int id, char prefix, String key, Header[] headers) {
+    private static void logHeaderLine(HttpLogModifier logModifier, StringBuilder sb, int id, char prefix, String key, Header[] headers) {
         sb.append(id).append(' ').append(prefix).append(' ').append(key).append(": ");
         if (headers.length == 1) {
-            sb.append(headers[0].getValue());
+            if (logModifier == null) {
+                sb.append(headers[0].getValue());
+            } else {
+                sb.append(logModifier.header(key, headers[0].getValue()));
+            }
         } else {
             List<String> list = new ArrayList(headers.length);
             for (Header header : headers) {
-                list.add(header.getValue());
+                if (logModifier == null) {
+                    list.add(header.getValue());
+                } else {
+                    list.add(logModifier.header(key, header.getValue()));
+                }
             }
             sb.append(list);
         }
         sb.append('\n');       
     }
     
-    public static void logHeaders(StringBuilder sb, int id, char prefix, org.apache.http.HttpRequest request, HttpRequest actual) {
+    public static void logHeaders(HttpLogModifier logModifier, StringBuilder sb, int id, char prefix, org.apache.http.HttpRequest request, HttpRequest actual) {
         for (String key : sortKeys(request.getAllHeaders())) {
             Header[] headers = request.getHeaders(key);
-            logHeaderLine(sb, id, prefix, key, headers);
+            logHeaderLine(logModifier, sb, id, prefix, key, headers);
             for (Header header : headers) {
                 actual.addHeader(header.getName(), header.getValue());
             }
         }
     }
     
-    public static void logHeaders(StringBuilder sb, int id, char prefix, HttpResponse response) {
+    public static void logHeaders(HttpLogModifier logModifier, StringBuilder sb, int id, char prefix, HttpResponse response) {
         for (String key : sortKeys(response.getAllHeaders())) {
             Header[] headers = response.getHeaders(key);
-            logHeaderLine(sb, id, prefix, key, headers);
+            logHeaderLine(logModifier, sb, id, prefix, key, headers);
         }
     } 
     

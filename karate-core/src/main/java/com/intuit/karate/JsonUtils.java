@@ -24,6 +24,8 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.driver.DriverElement;
+import com.intuit.karate.driver.Element;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
@@ -50,6 +52,8 @@ import java.util.Set;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import net.minidev.json.JSONStyle;
 import net.minidev.json.JSONValue;
+import net.minidev.json.parser.JSONParser;
+import net.minidev.json.parser.ParseException;
 import net.minidev.json.reader.JsonWriter;
 import net.minidev.json.reader.JsonWriterI;
 import org.yaml.snakeyaml.Yaml;
@@ -89,11 +93,21 @@ public class JsonUtils {
         }
 
     }
+    
+    private static class ElementJsonWriter implements JsonWriterI<Element> {
+
+        @Override
+        public <E extends Element> void writeJSONString(E value, Appendable out, JSONStyle compression) throws IOException {
+            JsonWriter.toStringWriter.writeJSONString("\"" + value.getLocator() + "\"", out, compression);                    
+        }
+        
+    }
 
     static {
         // prevent things like the karate script bridge getting serialized (especially in the javafx ui)
         JSONValue.registerWriter(ScriptObjectMirror.class, new NashornObjectJsonWriter());
         JSONValue.registerWriter(Feature.class, new FeatureJsonWriter());
+        JSONValue.registerWriter(DriverElement.class, new ElementJsonWriter());
         // ensure that even if jackson (databind?) is on the classpath, don't switch provider
         Configuration.setDefaults(new Configuration.Defaults() {
 
@@ -116,6 +130,16 @@ public class JsonUtils {
             }
         });
     }
+    
+    public static DocumentContext toJsonDocStrict(String raw) {
+        try {
+            JSONParser parser = new JSONParser(JSONParser.MODE_RFC4627);
+            Object o = parser.parse(raw.trim());
+            return JsonPath.parse(o);
+        } catch (ParseException e) {
+            throw new RuntimeException(e);
+        }
+    }    
 
     public static DocumentContext toJsonDoc(String raw) {
         return JsonPath.parse(raw);
@@ -212,14 +236,16 @@ public class JsonUtils {
     public static void removeKeysWithNullValues(Object o) {
         if (o instanceof Map) {
             Map<String, Object> map = (Map) o;
+            List<String> toRemove = new ArrayList();
             for (Map.Entry<String, Object> entry : map.entrySet()) {
                 Object v = entry.getValue();
                 if (v == null) {
-                    map.remove(entry.getKey());
+                    toRemove.add(entry.getKey());
                 } else {
                     removeKeysWithNullValues(v);
                 }
             }
+            toRemove.forEach(key -> map.remove(key));
         } else if (o instanceof List) {
             List list = (List) o;
             for (Object v : list) {

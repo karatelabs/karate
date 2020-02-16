@@ -171,6 +171,7 @@ public abstract class HttpClient<T> {
         Map<String, Object> configHeaders = config.getHeaders().evalAsMap(context);
         if (configHeaders != null) {
             for (Map.Entry<String, Object> entry : configHeaders.entrySet()) {
+                request.setHeader(entry.getKey(), entry.getValue()); // update request for hooks, etc.
                 buildHeader(entry.getKey(), entry.getValue(), true);
             }
         }
@@ -181,6 +182,7 @@ public abstract class HttpClient<T> {
         }
         Map<String, Object> configCookies = config.getCookies().evalAsMap(context);
         for (Cookie cookie : Cookie.toCookies(configCookies)) {
+            request.setCookie(cookie); // update request for hooks, etc.
             buildCookie(cookie);
         }
         if (methodRequiresBody) {
@@ -191,6 +193,14 @@ public abstract class HttpClient<T> {
             if (request.getMultiPartItems() != null) {
                 if (mediaType == null) {
                     mediaType = MULTIPART_FORM_DATA;
+                }
+                if (request.isRetry()) { // make streams re-readable
+                    for (MultiPartItem item : request.getMultiPartItems()) {
+                        ScriptValue sv = item.getValue();
+                        if (sv.isStream()) {
+                            item.setValue(new ScriptValue(sv.getAsByteArray()));
+                        }
+                    }
                 }
                 return getEntity(request.getMultiPartItems(), mediaType);
             } else if (request.getFormFields() != null) {
@@ -218,7 +228,7 @@ public abstract class HttpClient<T> {
     public HttpResponse invoke(HttpRequestBuilder request, ScenarioContext context) {
         T body = buildRequestInternal(request, context);
         String perfEventName = null; // acts as a flag to report perf if not null
-        if (context.executionHooks != null && perfEventName == null) {
+        if (context.executionHooks != null) {
             for (ExecutionHook h : context.executionHooks) {
                 perfEventName = h.getPerfEventName(request, context);
             }
@@ -265,7 +275,7 @@ public abstract class HttpClient<T> {
             if (config.getClientClass() != null) {
                 className = config.getClientClass();
             } else {
-                InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(KARATE_HTTP_PROPERTIES);
+                InputStream is = context.getResourceAsStream(KARATE_HTTP_PROPERTIES);
                 if (is == null) {
                     String msg = KARATE_HTTP_PROPERTIES + " not found";
                     throw new RuntimeException(msg);

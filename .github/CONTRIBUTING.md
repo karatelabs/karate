@@ -1,22 +1,12 @@
 # Contribution Guidelines
 
-First of all, thanks for thinking of contributing to this project. :smile:
+First of all, thank you for your interest in contributing to this project !
 
-- Before sending a Pull Request, please make sure that you have had a discussion with the project admins.
-    - If a relevant issue already exists, discuss on the issue and make sure that the admins are okay with your approach
-    - If no relevant issue exists, open a new issue and discuss
+* Before submitting a [Pull Request](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests) (PR), please make sure that you have had a discussion with the project-leads
+* If a [relevant issue](https://github.com/intuit/karate/issues) already exists, have a discussion within that issue (by commenting) - and make sure that the project-leads are okay with your approach
+* If no relevant issue exists, please [open a new issue](https://github.com/intuit/karate/issues) to start a discussion
+* Please proceed with a PR only *after* the project admins or owners are okay with your approach. We don't want you to spend time and effort working on something - only to find out later that it was not aligned with how the project developers were thinking about it !
+* You can refer to the [Developer Guide](https://github.com/intuit/karate/wiki/Developer-Guide) for information on how to build and test the project on your local / developer machine
+* **IMPORTANT**: Submit your PR(s) against the [`develop`](https://github.com/intuit/karate/tree/develop) branch of this repository
 
-    Please proceed with a Pull Request only after the project admins or owners are okay with your approach. It'd be sad if your Pull Request (and your hard work) isn't accepted just because it isn't ideologically compatible.
-
-- Install the required dependencies.
-    - Install Git so that you can clone and later submit a PR for this project.
-    - Install Java JDK (>= 1.8.0_112) installed, from [this link](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html).
-    - Install Eclipse from [this link](http://www.eclipse.org/downloads/).
-    - (optional) Install Maven from [this link](http://maven.apache.org), if you need to build the project from the command-line.
-
-- Have some issue with setting up the project?
-    - [How to open the project in Eclipse as a Maven project?](https://stackoverflow.com/a/36242422/143475)
-    - [Maven is not able to install the dependencies behind proxy!]()
-    - Not listed here? Kindly search on Google / Stack Overflow. If you don't find a solution, feel free to open up a new issue in the issue tracker and maybe subsequently add it here.
-
-- Send in your Pull Request(s) to the `develop` branch of this repository.
+If you are interested in project road-map items that you can potentially contribute to, please refer to the [Project Board](https://github.com/intuit/karate/projects/3).

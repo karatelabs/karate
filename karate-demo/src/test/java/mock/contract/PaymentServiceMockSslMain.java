@@ -15,7 +15,7 @@ public class PaymentServiceMockSslMain {
         File mockFeatureFile = FileUtils.getFileRelativeTo(PaymentServiceMockSslMain.class, "payment-service-mock.feature");
         File certFile = new File("src/test/java/mock-cert.pem");
         File privateKeyFile = new File("src/test/java/mock-key.pem");
-        FeatureServer server = FeatureServer.start(mockFeatureFile, 8443, certFile, privateKeyFile, Collections.singletonMap("queueName", "DEMO.MOCK.8443"));
+        FeatureServer server = FeatureServer.start(mockFeatureFile, 8443, true, certFile, privateKeyFile, Collections.singletonMap("queueName", "DEMO.MOCK.8443"));
         server.waitSync();
     }
     

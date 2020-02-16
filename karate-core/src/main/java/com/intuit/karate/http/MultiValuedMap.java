@@ -32,15 +32,15 @@ import java.util.List;
  * @author pthomas3
  */
 public class MultiValuedMap extends LinkedHashMap<String, List> {
-    
+
     public MultiValuedMap() {
         super();
-    }    
-    
+    }
+
     public MultiValuedMap(LinkedHashMap<String, List> map) {
         super(map);
     }
-    
+
     public void add(String key, Object value) {
         List list = get(key);
         if (list == null) {
@@ -49,7 +49,7 @@ public class MultiValuedMap extends LinkedHashMap<String, List> {
         }
         list.add(value);
     }
-    
+
     public Object getFirst(String key) {
         List list = get(key);
         if (list == null) {
@@ -60,5 +60,11 @@ public class MultiValuedMap extends LinkedHashMap<String, List> {
         }
         return list.get(0);
     }
-    
+
+    public MultiValuedMap tolowerCaseKeys() {
+        MultiValuedMap map = new MultiValuedMap();
+        forEach((k, v) -> map.put(k.toLowerCase(), v));
+        return map;
+    }
+
 }

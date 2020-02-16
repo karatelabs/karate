@@ -44,20 +44,30 @@ public class Logger {
     // not static, has to be per thread
     private final DateFormat dateFormatter = new SimpleDateFormat("HH:mm:ss.SSS");
 
-    private LogAppender logAppender;
+    private LogAppender appender = LogAppender.NO_OP;
 
-    public void setLogAppender(LogAppender logAppender) {
-        this.logAppender = logAppender;
+    private boolean appendOnly;
+
+    public void setAppender(LogAppender appender) {
+        this.appender = appender;
     }
 
-    public LogAppender getLogAppender() {
-        return logAppender;
+    public LogAppender getAppender() {
+        return appender;
     }
 
     public boolean isTraceEnabled() {
         return LOGGER.isTraceEnabled();
     }
-    
+
+    public void setAppendOnly(boolean appendOnly) {
+        this.appendOnly = appendOnly;
+    }
+
+    public boolean isAppendOnly() {
+        return appendOnly;
+    }
+
     public Logger(Class clazz) {
         LOGGER = LoggerFactory.getLogger(clazz);
     }
@@ -67,40 +77,50 @@ public class Logger {
     }
 
     public Logger() {
-        LOGGER = LoggerFactory.getLogger(DEFAULT_PACKAGE);
+        this(DEFAULT_PACKAGE);
     }
 
     public void trace(String format, Object... arguments) {
         if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace(format, arguments);
+            if (!appendOnly) {
+                LOGGER.trace(format, arguments);
+            }
             formatAndAppend(format, arguments);
         }
     }
 
     public void debug(String format, Object... arguments) {
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug(format, arguments);
+            if (!appendOnly) {
+                LOGGER.debug(format, arguments);
+            }
             formatAndAppend(format, arguments);
         }
     }
 
     public void info(String format, Object... arguments) {
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info(format, arguments);
+            if (!appendOnly) {
+                LOGGER.info(format, arguments);
+            }
             formatAndAppend(format, arguments);
         }
     }
 
     public void warn(String format, Object... arguments) {
         if (LOGGER.isWarnEnabled()) {
-            LOGGER.warn(format, arguments);
+            if (!appendOnly) {
+                LOGGER.warn(format, arguments);
+            }
             formatAndAppend(format, arguments);
         }
     }
 
     public void error(String format, Object... arguments) {
         if (LOGGER.isErrorEnabled()) {
-            LOGGER.error(format, arguments);
+            if (!appendOnly) {
+                LOGGER.error(format, arguments);
+            }
             formatAndAppend(format, arguments);
         }
     }
@@ -113,7 +133,7 @@ public class Logger {
     }
 
     private void formatAndAppend(String format, Object... arguments) {
-        if (logAppender == null) {
+        if (appender == null) {
             return;
         }
         FormattingTuple tp = MessageFormatter.arrayFormat(format, arguments);
@@ -123,7 +143,7 @@ public class Logger {
     private void append(String message) {
         StringBuilder buf = new StringBuilder();
         buf.append(getFormattedDate()).append(' ').append(message).append('\n');
-        logAppender.append(buf.toString());
+        appender.append(buf.toString());
     }
 
 }

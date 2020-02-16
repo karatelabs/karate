@@ -5,13 +5,13 @@
     <parent>
         <groupId>com.intuit.karate</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>1.0.0</version>
+        <version>0.9.5</version>
     </parent>
     <artifactId>karate-apache</artifactId>
     <packaging>jar</packaging>
     
     <properties>
-        <apache.httpcomponents.version>4.5.5</apache.httpcomponents.version>
+        <apache.httpcomponents.version>4.5.11</apache.httpcomponents.version>
     </properties>                              
 
     <dependencies>

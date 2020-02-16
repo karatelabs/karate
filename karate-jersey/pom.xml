@@ -5,13 +5,13 @@
     <parent>
         <groupId>com.intuit.karate</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>1.0.0</version>
+        <version>0.9.5</version>
     </parent>
     <artifactId>karate-jersey</artifactId>
     <packaging>jar</packaging>
     
     <properties>
-        <jersey.version>2.26</jersey.version>
+        <jersey.version>2.30</jersey.version>
     </properties>          
 
     <dependencies>        

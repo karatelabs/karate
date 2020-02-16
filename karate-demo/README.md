@@ -1,5 +1,10 @@
 # Karate Demo
-This is a sample [Spring Boot](http://projects.spring.io/spring-boot/) web-application that exposes some functionality as web-service end-points. And includes a set of Karate examples that test these services as well as demonstrate various Karate features and best-practices.
+This is a sample [Spring Boot](http://projects.spring.io/spring-boot/) web-application that exposes some functionality as web-service end-points. And includes a set of Karate examples that test these services as well as demonstrate various Karate features and best-practices. 
+
+Note that this is *not* the best example of a skeleton Java / Maven project, as it is designed to be part of the Karate code-base and act as a suite of regression tests. For a good "starter" project, please use one of these:
+* the [Quickstart](https://github.com/intuit/karate#quickstart)
+* the sample [Spring Boot Example](https://github.com/intuit/karate#spring-boot-example)
+* the [examples/jobserver](../examples/jobserver) project
 
 | Example | Demonstrates
 ----------| --------
@@ -28,7 +33,6 @@ This is a sample [Spring Boot](http://projects.spring.io/spring-boot/) web-appli
 [`polling.feature`](src/test/java/demo/polling/polling.feature) | [Retry support](https://github.com/intuit/karate#retry-until) is built-in to Karate, but you can also achieve this by combining JavaScript functions with a [`call` to another `*.feature` file](https://github.com/intuit/karate#calling-other-feature-files).
 [`websocket.feature`](src/test/java/demo/websocket/websocket.feature) | How to write [websocket](https://github.com/intuit/karate#websocket) tests, also see [`echo.feature`](src/test/java/demo/websocket/echo.feature).
 [`JavaApiTest.java`](src/test/java/demo/java/JavaApiTest.java) | If you need to call a Karate test from Java code you can do so using the [Java API](https://github.com/intuit/karate#java-api). This is useful in some situations, for example if you want to mix API-calls into a Selenium / WebDriver test.
-[`CatsUiRunner.java`](src/test/java/demo/cats/CatsUiRunner.java) | You can use the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI) to debug and step-through (and even re-play) each step of a test. Here is a video that shows the possibilities: [link](https://twitter.com/KarateDSL/status/1055148362477891584)
 
 ## Configuration and Best Practices
 | File | Demonstrates
@@ -84,11 +88,11 @@ Refer to the code in the demo: [`DemoTestParallel.java`](src/test/java/demo/Demo
 
 And here is the output, which goes into `target/cucumber-html-reports` if you follow the above steps:
 
-![Karate and Maven Cucumber Reporting](src/test/resources/karate-maven-report.jpg)
+<img src="src/test/resources/karate-maven-report.jpg" height="600px"/>
 
 This report is recommended especially because the HTTP request and response payloads are embedded. You can even see the results of [`print`](https://github.com/intuit/karate#print) statements in-line.
 
-![Report includes HTTP logs](src/test/resources/karate-maven-report-http.jpg)
+<img src="src/test/resources/karate-maven-report-http.jpg" height="600px"/>
 
 ## Code Coverage using Jacoco
 In the [`pom.xml`](pom.xml#L160), code coverage using [Jacoco](http://www.baeldung.com/jacoco) is also demonstrated. Since this is set-up as a [Maven profile](http://maven.apache.org/guides/introduction/introduction-to-profiles.html), instrumentation and code-coverage reporting would be performed only when you use the `coverage` profile. Note that code-coverage data (binary) would be saved to this file: `target/jacoco.exec`.
@@ -101,6 +105,12 @@ mvn clean test -Pcoverage
 
  And the HTML reports would be output to `target/site/jacoco/index.html`.
 
-![Jacoco Code Coverage Report](src/test/resources/karate-jacoco.jpg) 
+<img src="src/test/resources/karate-jacoco.jpg" height="300px"/>
 
 As this demo example shows - if you are able to start your app-server and run Karate tests in the same JVM process, code-coverage reports for even HTTP integration tests will be very easy to generate. This is even easier with the [karate-mock-servlet](../karate-mock-servlet) as you don't even need to boot an app-server.
+
+## Code Coverage for non-Java Projects
+This has been demonstrated for JavaScript by [Kirk Slota](https://twitter.com/kirk_slota). You can find a working sample here: [`karate-istanbul`](https://github.com/kirksl/karate-istanbul) - and you can read the [discussion at Stack Overflow](https://stackoverflow.com/q/59977566/143475) for more details.
+
+You should be able to use the same approach for other platforms. Note that there are plenty of ways to start a Karate test via the command-line, such as the [standalone JAR](https://github.com/intuit/karate/tree/master/karate-netty#standalone-jar).
+

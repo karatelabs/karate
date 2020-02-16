@@ -23,12 +23,15 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.shell.FileLogAppender;
+import java.io.File;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -39,64 +42,52 @@ import java.util.Map;
 public class ScenarioExecutionUnit implements Runnable {
 
     public final Scenario scenario;
-    private final ExecutionContext exec;
+    private final ExecutionContext exec;    
     public final ScenarioResult result;
-    private final LogAppender appender;
-    public final Logger logger;
     private boolean executed = false;
 
+    private Collection<ExecutionHook> hooks;
     private List<Step> steps;
     private StepActions actions;
     private boolean stopped = false;
+    private boolean aborted = false;
     private StepResult lastStepResult;
     private Runnable next;
     private boolean last;
+    private Step currentStep;
 
-    public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec, Logger logger) {
-        this(scenario, results, exec, null, logger);
+    private LogAppender appender;
+
+    // for debug
+    public Step getCurrentStep() {
+        return currentStep;
     }
-    
-    private static final Map<String, Integer> FILE_HANDLE_COUNT = new HashMap();    
+
+    private static final ThreadLocal<LogAppender> APPENDER = new ThreadLocal<LogAppender>() {
+        @Override
+        protected LogAppender initialValue() {
+            String fileName = FileUtils.getBuildDir() + File.separator + Thread.currentThread().getName() + ".log";
+            return new FileLogAppender(new File(fileName));
+        }
+    };
+
+    public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec) {
+        this(scenario, results, exec, null);
+    }
 
     public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results,
-            ExecutionContext exec, ScenarioContext backgroundContext, Logger logger) {
+            ExecutionContext exec, ScenarioContext backgroundContext) {
         this.scenario = scenario;
         this.exec = exec;
         result = new ScenarioResult(scenario, results);
-        if (logger == null) {
-            logger = new Logger();
-            if (scenario.getIndex() < 500) {
-                if (exec.callContext.isCalled()) {                    
-                    String featureName = exec.featureContext.packageQualifiedName;                    
-                    Integer count = FILE_HANDLE_COUNT.get(featureName);
-                    if (count == null) {
-                        count = 0;                        
-                    }
-                    count = count + 1;                    
-                    FILE_HANDLE_COUNT.put(featureName, count);                    
-                    if (count < 500) {
-                        // ensure no collisions for called features that are re-used across scenarios executing in parallel
-                        appender = exec.getLogAppender(scenario.getUniqueId() + "_" + Thread.currentThread().getName(), logger);
-                    } else { // this is a super-re-used feature, don't open any more files, same trade-off see below                        
-                        appender = LogAppender.NO_OP;
-                    }                    
-                } else {
-                    appender = exec.getLogAppender(scenario.getUniqueId(), logger);
-                }                
-            } else {
-                // avoid creating log-files for scenario outlines beyond a limit
-                // trade-off is we won't see inline logs in the html report                 
-                appender = LogAppender.NO_OP;
-            }
-        } else {
-            appender = LogAppender.NO_OP;
-        }
-        this.logger = logger;
         if (backgroundContext != null) { // re-build for dynamic scenario
             ScenarioInfo info = scenario.toInfo(exec.featureContext.feature.getPath());
-            ScenarioContext context = backgroundContext.copy(info, logger);
+            ScenarioContext context = backgroundContext.copy(info);
             actions = new StepActions(context);
         }
+        if (exec.callContext.perfMode) {
+            appender = LogAppender.NO_OP;
+        }        
     }
 
     public ScenarioContext getContext() {
@@ -138,19 +129,22 @@ public class ScenarioExecutionUnit implements Runnable {
             // karate-config.js will be processed here 
             // when the script-context constructor is called
             try {
-                actions = new StepActions(exec.featureContext, exec.callContext, scenario, logger);
+                actions = new StepActions(exec.featureContext, exec.callContext, exec.classLoader, scenario, appender);
             } catch (Exception e) {
                 initFailed = true;
                 result.addError("scenario init failed", e);
             }
+        } else { // dynamic scenario outline, hack to swap logger for current thread
+            Logger logger = new Logger();
+            logger.setAppender(appender);
+            actions.context.setLogger(logger);
         }
-        ScenarioContext context = actions.context;
-        // before-scenario hook        
-        if (!initFailed && context.executionHooks != null) {
+        // this is not done in the constructor as we need to be on the "executor" thread
+        hooks = exec.callContext.resolveHooks();
+        // before-scenario hook, important: actions.context will be null if initFailed
+        if (!initFailed && hooks != null) {
             try {
-                for (ExecutionHook h : context.executionHooks) {
-                    h.beforeScenario(scenario, context);
-                }
+                hooks.forEach(h -> h.beforeScenario(scenario, actions.context));
             } catch (Exception e) {
                 initFailed = true;
                 result.addError("beforeScenario hook failed", e);
@@ -169,10 +163,10 @@ public class ScenarioExecutionUnit implements Runnable {
                 }
                 if (scenario.isOutline()) { // init examples row magic variables
                     Map<String, Object> exampleData = scenario.getExampleData();
-                    context.vars.put("__row", exampleData);
-                    context.vars.put("__num", scenario.getExampleIndex());
-                    if (context.getConfig().isOutlineVariablesAuto()) {
-                        exampleData.forEach((k, v) -> context.vars.put(k, v));
+                    actions.context.vars.put("__row", exampleData);
+                    actions.context.vars.put("__num", scenario.getExampleIndex());
+                    if (actions.context.getConfig().isOutlineVariablesAuto()) {
+                        exampleData.forEach((k, v) -> actions.context.vars.put(k, v));
                     }
                 }
             }
@@ -188,17 +182,46 @@ public class ScenarioExecutionUnit implements Runnable {
         actions = new StepActions(context);
     }
 
-    // extracted for karate UI
+    private StepResult afterStep(StepResult result) {
+        if (hooks != null) {
+            hooks.forEach(h -> h.afterStep(result, actions.context));
+        }
+        return result;
+    }
+
+    // extracted for debug
     public StepResult execute(Step step) {
+        currentStep = step;
+        actions.context.setExecutionUnit(this);// just for deriving call stack        
+        if (hooks != null) {
+            boolean shouldExecute = true;
+            for (ExecutionHook hook : hooks) {
+                if (!hook.beforeStep(step, actions.context)) {
+                    shouldExecute = false;
+                }
+            }
+            if (!shouldExecute) {
+                return null;
+            }
+        }
         boolean hidden = step.isPrefixStar() && !step.isPrint() && !actions.context.getConfig().isShowAllSteps();
         if (stopped) {
-            return new StepResult(hidden, step, Result.skipped(), null, null, null);
+            Result stepResult;
+            if (aborted && actions.context.getConfig().isAbortedStepsShouldPass()) {
+                stepResult = Result.passed(0);
+            } else {
+                stepResult = Result.skipped();
+            }
+            StepResult sr = new StepResult(step, stepResult, null, null, null);
+            sr.setHidden(hidden);
+            return afterStep(sr);
         } else {
             Result execResult = Engine.executeStep(step, actions);
             List<FeatureResult> callResults = actions.context.getAndClearCallResults();
             // embed collection for each step happens here
-            Embed embed = actions.context.getAndClearEmbed();
+            List<Embed> embeds = actions.context.getAndClearEmbeds();
             if (execResult.isAborted()) { // we log only aborts for visibility
+                aborted = true;
                 actions.context.logger.debug("abort at {}", step.getDebugInfo());
             } else if (execResult.isFailed()) {
                 actions.context.setScenarioError(execResult.getError());
@@ -206,7 +229,10 @@ public class ScenarioExecutionUnit implements Runnable {
             // log appender collection for each step happens here
             String stepLog = StringUtils.trimToNull(appender.collect());
             boolean showLog = actions.context.getConfig().isShowLog();
-            return new StepResult(hidden, step, execResult, showLog ? stepLog : null, embed, callResults);
+            StepResult sr = new StepResult(step, execResult, stepLog, embeds, callResults);
+            sr.setHidden(hidden);
+            sr.setShowLog(showLog);
+            return afterStep(sr);
         }
     }
 
@@ -217,26 +243,61 @@ public class ScenarioExecutionUnit implements Runnable {
             actions.context.logLastPerfEvent(result.getFailureMessageForDisplay());
             // after-scenario hook
             actions.context.invokeAfterHookIfConfigured(false);
-            if (actions.context.executionHooks != null) {
-                actions.context.executionHooks.forEach(h -> h.afterScenario(result, actions.context));
+            if (hooks != null) {
+                hooks.forEach(h -> h.afterScenario(result, actions.context));
+            }
+            // embed collection for afterScenario
+            List<Embed> embeds = actions.context.getAndClearEmbeds();
+            if (embeds != null) {
+                embeds.forEach(embed -> lastStepResult.addEmbed(embed));
             }
             // stop browser automation if running
-            actions.context.stop();
+            actions.context.stop(lastStepResult);
         }
         if (lastStepResult != null) {
             String stepLog = StringUtils.trimToNull(appender.collect());
             lastStepResult.appendToStepLog(stepLog);
         }
-        appender.close();
+    }
+
+    private int stepIndex;
+
+    public void stepBack() {
+        stopped = false;
+        stepIndex -= 2;
+        if (stepIndex < 0) {
+            stepIndex = 0;
+        }
+    }
+    
+    public void stepReset() {
+        stopped = false;
+        stepIndex--;
+        if (stepIndex < 0) {
+            stepIndex = 0;
+        }        
+    }    
+
+    private int nextStepIndex() {
+        return stepIndex++;
     }
 
     @Override
     public void run() {
+        if (appender == null) { // not perf, not ui
+            appender = APPENDER.get();
+        }
         if (steps == null) {
             init();
         }
-        for (Step step : steps) {
+        int count = steps.size();
+        int index = 0;
+        while ((index = nextStepIndex()) < count) {
+            Step step = steps.get(index);
             lastStepResult = execute(step);
+            if (lastStepResult == null) { // debug step-back !
+                continue;
+            }
             result.addStepResult(lastStepResult);
             if (lastStepResult.isStopped()) {
                 stopped = true;

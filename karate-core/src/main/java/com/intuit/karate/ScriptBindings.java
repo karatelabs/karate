@@ -50,29 +50,30 @@ public class ScriptBindings implements Bindings {
 
     // all threads will share this ! thread isolation is via Bindings (this class)
     private static final ScriptEngine NASHORN = new ScriptEngineManager(null).getEngineByName("nashorn");
-    
-    protected final ScriptBridge bridge;
+
+    public final ScriptBridge bridge;
 
     private final ScriptValueMap vars;
-    private final Map<String, Object> adds;
+    public final Map<String, Object> adds;
 
     public static final String KARATE = "karate";
     public static final String KARATE_ENV = "karate.env";
     public static final String KARATE_CONFIG_DIR = "karate.config.dir";
     private static final String KARATE_DASH_CONFIG = "karate-config";
-    private static final String KARATE_DASH_BASE = "karate-base";    
+    private static final String KARATE_DASH_BASE = "karate-base";
     private static final String DOT_JS = ".js";
     public static final String KARATE_CONFIG_JS = KARATE_DASH_CONFIG + DOT_JS;
     private static final String KARATE_BASE_JS = KARATE_DASH_BASE + DOT_JS;
     public static final String READ = "read";
     public static final String DRIVER = "driver";
     public static final String SUREFIRE_REPORTS = "surefire-reports";
-    
+
     // netty / test-doubles
     public static final String PATH_MATCHES = "pathMatches";
     public static final String METHOD_IS = "methodIs";
     public static final String TYPE_CONTAINS = "typeContains";
     public static final String ACCEPT_CONTAINS = "acceptContains";
+    public static final String HEADER_CONTAINS = "headerContains";
     public static final String PARAM_VALUE = "paramValue";
     public static final String PATH_PARAMS = "pathParams";
     public static final String BODY_PATH = "bodyPath";
@@ -105,7 +106,7 @@ public class ScriptBindings implements Bindings {
             }
         } else {
             if (configDir == null) { // look for classpath:karate-config-<env>.js
-                return String.format(READ_INVOKE, READ, FileUtils.CLASSPATH_COLON, KARATE_DASH_CONFIG + "-" + env + DOT_JS); 
+                return String.format(READ_INVOKE, READ, FileUtils.CLASSPATH_COLON, KARATE_DASH_CONFIG + "-" + env + DOT_JS);
             } else { // look for file:<karate.config.dir>/karate-config-<env>.js
                 File configFile = new File(configDir + "/" + KARATE_DASH_CONFIG + "-" + env + DOT_JS);
                 return String.format(READ_INVOKE, READ, FileUtils.FILE_COLON, configFile.getPath().replace('\\', '/'));
@@ -142,18 +143,19 @@ public class ScriptBindings implements Bindings {
         } catch (KarateAbortException | KarateFileNotFoundException ke) {
             throw ke; // reduce log bloat for common file-not-found situation / handle karate.abort()
         } catch (Exception e) {
-            throw new RuntimeException("javascript evaluation failed: " + exp + ", " + e.getMessage(), e);
+            String append = e.getMessage() == null ? exp : e.getMessage();
+            throw new RuntimeException("javascript evaluation failed: " + exp + ", " + append, e);
         }
     }
-    
+
     public static Bindings createBindings() {
         return NASHORN.createBindings();
     }
-    
+
     public void putAdditionalVariable(String name, Object value) {
         adds.put(name, value);
-    }   
-    
+    }
+
     @Override
     public Object get(Object key) {
         ScriptValue sv = vars.get(key);

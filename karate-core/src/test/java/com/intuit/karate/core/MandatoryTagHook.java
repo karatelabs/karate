@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.Results;
 import com.intuit.karate.http.HttpRequestBuilder;
 
 /**
@@ -54,7 +55,37 @@ public class MandatoryTagHook implements ExecutionHook {
     public void afterScenario(ScenarioResult result, ScenarioContext context) {
 
     }    
-    
+
+    @Override
+    public boolean beforeFeature(Feature feature, ExecutionContext context) {
+        return true;
+    }
+
+    @Override
+    public void afterFeature(FeatureResult result, ExecutionContext context) {
+        
+    }    
+
+    @Override
+    public void beforeAll(Results results) {
+
+    }
+
+    @Override
+    public void afterAll(Results results) {
+
+    }        
+
+    @Override
+    public boolean beforeStep(Step step, ScenarioContext context) {
+        return true;
+    }
+
+    @Override
+    public void afterStep(StepResult result, ScenarioContext context) {
+
+    }        
+        
     @Override
     public String getPerfEventName(HttpRequestBuilder req, ScenarioContext context) {
         return null;

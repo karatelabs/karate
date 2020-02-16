@@ -9,6 +9,18 @@ This can be a huge time-saver as you don't have to spend time waiting for your a
 
 So yes, you can test HTTP web-services with the same ease that you expect from traditional unit-tests. Especially for micro-services - when you combine this approach with Karate's data-driven and data-matching capabilities, you can lean towards having more integration tests without losing any of the benefits of unit-tests.
 
+## Using
+### Maven
+
+```xml
+    <dependency>
+        <groupId>com.intuit.karate</groupId>
+        <artifactId>karate-mock-servlet</artifactId>
+        <version>${karate.version}</version>
+        <scope>test</scope>
+    </dependency> 
+```
+
 ## Switching the HTTP Client
 Karate actually allows you to switch the implementation of the Karate [`HttpClient`](../karate-core/src/main/java/com/intuit/karate/http/HttpClient.java) even *during* a test. For mocking a servlet container, you don't need to implement it from scratch and you just need to over-ride one or two methods of the mock-implementation that Karate provides.
 
@@ -41,7 +53,6 @@ Use the test configuration for this `karate-mock-servlet` project as a reference
 ## Limitations
 Most teams would not run into these, but if you do, please [consider contributing](https://github.com/intuit/karate/projects/3#card-22529274) !
 
-* Servlet filters that may be "default" in "real" spring / boot apps etc will be missing, for e.g. encoding and error handling. Currently we lack a way to add custom filters to the "fake" servlet.
 * File Upload is not supported.
 * Other similar edge-cases (such as redirects) are not supported.
 

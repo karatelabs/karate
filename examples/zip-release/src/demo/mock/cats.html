@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Cats</title>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+  </head>
+  <body>
+    <div>
+      <a href="http://localhost:8080/cats">GET /cats</a> | <a href="http://localhost:8080/hardcoded">GET /hardcoded</a>
+    </div>
+    <p/>    
+    <div>
+      <label for="catName">Name: <input id="catName" value="Billie"/></label>
+      <button onclick="createCat()">Create Cat</button>
+    </div>    
+    <p/>
+    <div id="response"></div>
+    <script>
+      var createCat = function() {
+        var name = $('#catName').val();
+        $.ajax({          
+          url: 'http://localhost:8080/cats',
+          data: JSON.stringify({ name: name }),
+          method: 'POST',
+          success: function(result) {
+            $('#response').html('created cat: ' + JSON.stringify(result));
+          }
+        });
+      };
+    </script>    
+  </body>
+</html>
+

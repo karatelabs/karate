@@ -24,10 +24,6 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.core.Engine;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.core.FeatureResult;
 import java.io.File;
 import org.junit.Test;
 import static org.junit.Assert.*;

@@ -25,11 +25,10 @@ package com.intuit.karate.driver.chrome;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
-import com.intuit.karate.Json;
-import com.intuit.karate.Logger;
+import com.intuit.karate.LogAppender;
+import com.intuit.karate.ScriptValue;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Map;
 
@@ -39,58 +38,16 @@ import java.util.Map;
  */
 public class ChromeWebDriver extends WebDriver {
 
-    public ChromeWebDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
-        super(options, command, http, sessionId, windowId);
+    public ChromeWebDriver(DriverOptions options) {
+        super(options);
     }
 
-    public static ChromeWebDriver start(ScenarioContext context, Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(context, map, logger, 9515, "chromedriver");
+    public static ChromeWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(context, map, appender, 9515, "chromedriver");
         options.arg("--port=" + options.port);
         options.arg("--user-data-dir=" + options.workingDirPath);
-        CommandThread command = options.startProcess();
-        String urlBase = "http://" + options.host + ":" + options.port;
-        Http http = Http.forUrl(options.driverLogger, urlBase);
-        String sessionId = http.path("session")
-                .post("{ desiredCapabilities: { browserName: 'Chrome' } }")
-                .jsonPath("get[0] response..sessionId").asString();
-        options.driverLogger.debug("init session id: {}", sessionId);
-        http.url(urlBase + "/session/" + sessionId);
-        String windowId = http.path("window").get().jsonPath("$.value").asString();
-        options.driverLogger.debug("init window id: {}", windowId);
-        ChromeWebDriver driver = new ChromeWebDriver(options, command, http, sessionId, windowId);
-        driver.activate();
-        return driver;
+        return new ChromeWebDriver(options);
     }
-
-    @Override
-    protected String getJsonPathForElementId() {
-        return "$.value.ELEMENT";
-    }
-
-    @Override
-    protected String getJsonForInput(String text) {
-        return "{ value: ['" + text + "'] }";
-    }
-
-    @Override
-    protected String getJsonForHandle(String text) {
-        return new Json().set("name", text).toString();
-    }    
-    
-    @Override
-    public String html(String locator) {
-        return attribute(locator, "innerHTML");
-    }
-
-    @Override
-    public String value(String locator) {
-        return attribute(locator, "value");
-    }
-    
-    @Override
-    public String name(String locator) {
-        return attribute(locator, "tagName");
-    }    
 
     @Override
     public void activate() {
@@ -108,5 +65,23 @@ public class ChromeWebDriver extends WebDriver {
             }
         }
     }
+
+    @Override
+    protected boolean isJavaScriptError(Http.Response res) {
+        ScriptValue value = res.jsonPath("$.value").value();
+        return !value.isNull() && value.getAsString().contains("javascript error");
+    }        
+
+    @Override
+    protected boolean isLocatorError(Http.Response res) {
+        ScriptValue value = res.jsonPath("$.value").value();
+        return value.getAsString().contains("no such element");
+    }  
+
+    @Override
+    protected boolean isCookieError(Http.Response res) {
+        ScriptValue value = res.jsonPath("$.value").value();
+        return !value.isNull() && value.getAsString().contains("unable to set cookie");
+    }        
 
 }

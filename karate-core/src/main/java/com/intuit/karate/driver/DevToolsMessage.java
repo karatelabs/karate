@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.driver;
 
+import com.intuit.karate.Json;
 import com.intuit.karate.ScriptValue;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -36,12 +37,15 @@ import java.util.function.Predicate;
  */
 public class DevToolsMessage {
 
-    private final DevToolsDriver driver;
+    protected final DevToolsDriver driver;
 
     private Integer id;
+    private String sessionId;
     private final String method;
     private Map<String, Object> params;
+    private Map<String, Object> error;
     private ScriptValue result;
+    private Integer timeout;
 
     public Integer getId() {
         return id;
@@ -51,23 +55,36 @@ public class DevToolsMessage {
         this.id = id;
     }
 
+    public Integer getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(Integer timeout) {
+        this.timeout = timeout;
+    }
+
+    public String getSessionId() {
+        return sessionId;
+    }
+
+    public void setSessionId(String sessionId) {
+        this.sessionId = sessionId;
+    }
+
     public String getMethod() {
         return method;
     }
 
-    public boolean isMethod(String method) {
+    public boolean methodIs(String method) {
         return method.equals(this.method);
     }
 
-    public String getFrameUrl() {
+    public <T> T get(String path, Class<T> clazz) {
         if (params == null) {
             return null;
         }
-        Map<String, Object> frame = (Map) params.get("frame");
-        if (frame == null) {
-            return null;
-        }
-        return (String) frame.get("url");
+        Json json = new Json(params);
+        return json.get(path, clazz);
     }
 
     public Map<String, Object> getParams() {
@@ -78,8 +95,20 @@ public class DevToolsMessage {
         this.params = params;
     }
 
+    public boolean isResultPresent() {
+        return result != null;
+    }
+
     public ScriptValue getResult() {
         return result;
+    }
+
+    public <T> T getResult(String path, Class<T> clazz) {
+        if (result == null) {
+            return null;
+        }
+        Json json = new Json(result.getValue());
+        return json.get(path, clazz);
     }
 
     public void setResult(ScriptValue result) {
@@ -97,11 +126,14 @@ public class DevToolsMessage {
     }
 
     public boolean isResultError() {
+        if (error != null) {
+            return true;
+        }
         if (result == null || !result.isMapLike()) {
             return false;
         }
-        String error = (String) result.getAsMap().get("subtype");
-        return "error".equals(error);
+        String resultError = (String) result.getAsMap().get("subtype");
+        return "error".equals(resultError);
     }
 
     public ScriptValue getResult(String key) {
@@ -120,8 +152,9 @@ public class DevToolsMessage {
 
     public DevToolsMessage(DevToolsDriver driver, String method) {
         this.driver = driver;
-        id = driver.getNextId();
+        id = driver.nextId();
         this.method = method;
+        sessionId = driver.sessionId;
     }
 
     public DevToolsMessage(DevToolsDriver driver, Map<String, Object> map) {
@@ -134,19 +167,19 @@ public class DevToolsMessage {
             Object inner = temp.get("result");
             if (inner instanceof List) {
                 result = new ScriptValue(toMap((List) inner));
-            } else { // TODO improve this logic
+            } else {
                 Map innerMap = (Map) inner;
-                String type = (String) innerMap.get("type");
                 String subtype = (String) innerMap.get("subtype");
-                if ("object".equals(type) || "error".equals(subtype)) {
+                if ("error".equals(subtype) || innerMap.containsKey("objectId")) {
                     result = new ScriptValue(innerMap);
-                } else {
+                } else { // Runtime.evaluate "returnByValue" is true
                     result = new ScriptValue(innerMap.get("value"));
                 }
             }
         } else {
             result = new ScriptValue(temp);
         }
+        error = (Map) map.get("error");
     }
 
     public DevToolsMessage param(String key, Object value) {
@@ -165,6 +198,9 @@ public class DevToolsMessage {
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap(4);
         map.put("id", id);
+        if (sessionId != null) {
+            map.put("sessionId", sessionId);
+        }
         map.put("method", method);
         if (params != null) {
             map.put("params", params);
@@ -173,6 +209,10 @@ public class DevToolsMessage {
             map.put("result", result);
         }
         return map;
+    }
+
+    public void sendWithoutWaiting() {
+        driver.send(this);
     }
 
     public DevToolsMessage send() {
@@ -187,6 +227,9 @@ public class DevToolsMessage {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("[id: ").append(id);
+        if (sessionId != null) {
+            sb.append(", sessionId: ").append(sessionId);
+        }
         if (method != null) {
             sb.append(", method: ").append(method);
         }
@@ -195,6 +238,9 @@ public class DevToolsMessage {
         }
         if (result != null) {
             sb.append(", result: ").append(result);
+        }
+        if (error != null) {
+            sb.append(", error: ").append(error);
         }
         sb.append("]");
         return sb.toString();

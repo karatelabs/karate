@@ -24,10 +24,14 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.ExecutionHook;
+import com.intuit.karate.core.ExecutionHookFactory;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.ScenarioContext;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -36,7 +40,7 @@ import java.util.Map;
  */
 public class CallContext {
 
-    public final Feature feature;    
+    public final Feature feature;
     public final ScenarioContext context;
     public final ScenarioContext reportContext;
     public final int callDepth;
@@ -45,28 +49,42 @@ public class CallContext {
     public final boolean evalKarateConfig;
     public final int loopIndex;
     public final String httpClientClass;
-    public final Collection<ExecutionHook> executionHooks;
+    public final Collection<ExecutionHook> executionHooks = new ArrayList();
+    public final ExecutionHookFactory hookFactory;
     public final boolean perfMode;
 
-    public static CallContext forCall(Feature feature, ScenarioContext context, Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig, ScenarioContext reportContext) {
-        return new CallContext(feature, context, context.callDepth + 1, callArg, loopIndex, reportContext, reuseParentConfig, false, null, context.executionHooks, context.perfMode);
+    public static CallContext forCall(Feature feature, ScenarioContext context, Map<String, Object> callArg,
+            int loopIndex, boolean reuseParentConfig, ScenarioContext reportContext) {
+        return new CallContext(feature, context, context.callDepth + 1, callArg, loopIndex,
+                reportContext, reuseParentConfig, false, null, context.executionHooks, null, context.perfMode);
     }
 
-    public static CallContext forAsync(Feature feature, Collection<ExecutionHook> hooks, Map<String, Object> arg, boolean perfMode) {
-        return new CallContext(feature, null, 0, arg, -1, null, false, true, null, hooks, perfMode);
+    public static CallContext forAsync(Feature feature, Collection<ExecutionHook> hooks, ExecutionHookFactory hookFactory, Map<String, Object> arg, boolean perfMode) {
+        return new CallContext(feature, null, 0, arg, -1, null, false, true, null, hooks, hookFactory, perfMode);
     }
 
     public boolean isCalled() {
         return callDepth > 0;
     }
 
-    public CallContext(Map<String, Object> callArg, boolean evalKarateConfig, ExecutionHook ... hooks) {
-        this(null, null, 0, callArg, -1, null, false, evalKarateConfig, null, hooks.length == 0 ? null : Arrays.asList(hooks), false);
-    }    
+    private boolean resolved;
+
+    public Collection<ExecutionHook> resolveHooks() {
+        if (hookFactory == null || resolved) {
+            return executionHooks;
+        }
+        resolved = true;
+        executionHooks.add(hookFactory.create());
+        return executionHooks;
+    }
+
+    public CallContext(Map<String, Object> callArg, boolean evalKarateConfig, ExecutionHook... hooks) {
+        this(null, null, 0, callArg, -1, null, false, evalKarateConfig, null, hooks.length == 0 ? null : Arrays.asList(hooks), null, false);
+    }
 
     public CallContext(Feature feature, ScenarioContext context, int callDepth, Map<String, Object> callArg, int loopIndex,
             ScenarioContext reportContext, boolean reuseParentContext, boolean evalKarateConfig, String httpClientClass,
-            Collection<ExecutionHook> executionHooks, boolean perfMode) {
+            Collection<ExecutionHook> executionHooks, ExecutionHookFactory hookFactory, boolean perfMode) {
         this.feature = feature;
         this.context = context;
         this.reportContext = reportContext == null ? context : reportContext;
@@ -76,7 +94,10 @@ public class CallContext {
         this.reuseParentContext = reuseParentContext;
         this.evalKarateConfig = evalKarateConfig;
         this.httpClientClass = httpClientClass;
-        this.executionHooks = executionHooks;
+        if (executionHooks != null) {
+            this.executionHooks.addAll(executionHooks);
+        }
+        this.hookFactory = hookFactory;
         this.perfMode = perfMode;
     }
 

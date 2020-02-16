@@ -23,21 +23,36 @@
  */
 package com.intuit.karate.netty;
 
+import com.intuit.karate.Logger;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.http.DefaultHttpHeaders;
+import io.netty.handler.codec.http.HttpClientCodec;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketClientHandshaker;
+import io.netty.handler.codec.http.websocketx.WebSocketClientHandshakerFactory;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketVersion;
+import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketClientCompressionHandler;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import java.net.URI;
+import java.util.Map;
 import java.util.function.Function;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import javax.net.ssl.SSLException;
 
 /**
  *
@@ -45,10 +60,16 @@ import org.slf4j.LoggerFactory;
  */
 public class WebSocketClient implements WebSocketListener {
 
-    private static final Logger logger = LoggerFactory.getLogger(WebSocketClient.class);
+    // mutable
+    private Logger logger;
 
     private final Channel channel;
     private final EventLoopGroup group;
+
+    private final URI uri;
+    private final int port;
+    private final SslContext sslContext;
+    private final WebSocketClientHandler handler;
 
     private Function<String, Boolean> textHandler;
     private Function<byte[], Boolean> binaryHandler;
@@ -71,18 +92,53 @@ public class WebSocketClient implements WebSocketListener {
         }
     }
 
-    public WebSocketClient(WebSocketOptions options) {
-        this.textHandler = options.getTextHandler();
-        this.binaryHandler = options.getBinaryHandler();
+    public void setLogger(Logger logger) {
+        this.logger = logger;
+    }
+
+    public WebSocketClient(WebSocketOptions options, Logger logger) {
+        this.logger = logger;
+        textHandler = options.getTextHandler();
+        binaryHandler = options.getBinaryHandler();
+        uri = options.getUri();
+        port = options.getPort();
         group = new NioEventLoopGroup();
+        if (options.isSsl()) {
+            try {
+                sslContext = SslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).build();
+            } catch (SSLException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            sslContext = null;
+        }
+        HttpHeaders nettyHeaders = new DefaultHttpHeaders();
+        Map<String, Object> headers = options.getHeaders();
+        if (headers != null) {
+            headers.forEach((k, v) -> nettyHeaders.add(k, v));
+        }
+        WebSocketClientHandshaker handShaker = WebSocketClientHandshakerFactory.newHandshaker(
+                uri, WebSocketVersion.V13, options.getSubProtocol(), true, nettyHeaders, options.getMaxPayloadSize());
+        handler = new WebSocketClientHandler(handShaker, this);
         try {
-            WebSocketClientInitializer initializer = new WebSocketClientInitializer(options, this);
             Bootstrap b = new Bootstrap();
             b.group(group)
                     .channel(NioSocketChannel.class)
-                    .handler(initializer);
+                    .handler(new ChannelInitializer() {
+                        @Override
+                        protected void initChannel(Channel c) {
+                            ChannelPipeline p = c.pipeline();
+                            if (sslContext != null) {
+                                p.addLast(sslContext.newHandler(c.alloc(), uri.getHost(), port));
+                            }
+                            p.addLast(new HttpClientCodec());
+                            p.addLast(new HttpObjectAggregator(8192));
+                            p.addLast(WebSocketClientCompressionHandler.INSTANCE);
+                            p.addLast(handler);
+                        }
+                    });
             channel = b.connect(options.getUri().getHost(), options.getPort()).sync().channel();
-            initializer.getHandler().handshakeFuture().sync();
+            handler.handshakeFuture().sync();
         } catch (Exception e) {
             logger.error("websocket server init failed: {}", e.getMessage());
             throw new RuntimeException(e);
@@ -95,8 +151,8 @@ public class WebSocketClient implements WebSocketListener {
 
     public void setTextHandler(Function<String, Boolean> textHandler) {
         this.textHandler = textHandler;
-    }       
-    
+    }
+
     private boolean waiting;
 
     public void waitSync() {

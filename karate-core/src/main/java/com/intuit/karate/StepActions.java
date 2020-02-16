@@ -49,8 +49,12 @@ public class StepActions implements Actions {
 
     public final ScenarioContext context;
 
-    public StepActions(FeatureContext featureContext, CallContext callContext, Scenario scenario, Logger logger) {
-        context = new ScenarioContext(featureContext, callContext, scenario, logger);
+    public StepActions(FeatureContext featureContext, CallContext callContext, Scenario scenario, LogAppender appender) {
+        this(featureContext, callContext, null, scenario, appender);
+    }
+
+    public StepActions(FeatureContext featureContext, CallContext callContext, ClassLoader classLoader, Scenario scenario, LogAppender appender) {
+        context = new ScenarioContext(featureContext, callContext, classLoader, scenario, appender);
     }
 
     public StepActions(ScenarioContext context) {
@@ -367,18 +371,18 @@ public class StepActions implements Actions {
     public void evalDocstring(String exp) {
         context.eval(exp);
     }
-    
+
     @Override
     @When("^([\\w]+)([^\\s^\\w])(.+)")
     public void eval(String name, String dotOrParen, String expression) {
         context.eval(name + dotOrParen + expression);
-    } 
-    
+    }
+
     @Override
     @When("^if (.+)")
     public void evalIf(String exp) {
         context.eval("if " + exp);
-    }    
+    }
 
     //==========================================================================
     //
@@ -387,5 +391,11 @@ public class StepActions implements Actions {
     public void driver(String expression) {
         context.driver(expression);
     }
+    
+    @Override
+    @When("^robot (.+)")
+    public void robot(String expression) {
+        context.robot(expression);
+    }     
 
 }

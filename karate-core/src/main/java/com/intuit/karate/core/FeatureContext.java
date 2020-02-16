@@ -56,7 +56,7 @@ public class FeatureContext {
         this.env = getEnv(envString);        
         this.tagSelector = tagSelector;
         this.feature = feature;
-        this.callCache = new HashMap(1);       
+        this.callCache = new HashMap(1);
         this.parentPath = workingDir == null ? feature.getPath().getParent() : workingDir.toPath();
         this.packageQualifiedName = workingDir == null ? feature.getResource().getPackageQualifiedName() : "";
     }

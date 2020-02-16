@@ -152,6 +152,11 @@ public class ScriptBridge implements PerfContext {
         }
     }
     
+    public Object get(String exp, Object defaultValue) {
+        Object result = get(exp);
+        return result == null ? defaultValue : result;
+    }
+    
     public int sizeOf(List list) {
         return list.size();
     }
@@ -395,6 +400,22 @@ public class ScriptBridge implements PerfContext {
         return JsonUtils.fromJson(doc.jsonString(), className);
     }
     
+    public Object toMap(Object o) {
+        if (o instanceof Map) {
+            Map<String, Object> src = (Map) o;
+            return new LinkedHashMap(src);
+        }
+        return o;
+    }
+    
+    public Object toList(Object o) {
+        if (o instanceof List) {
+            List src = (List) o;
+            return new ArrayList(src);
+        }
+        return o;
+    }    
+    
     public Object toJson(Object o) {
         return toJson(o, false);
     }
@@ -514,10 +535,7 @@ public class ScriptBridge implements PerfContext {
         if (contentType == null) {
             contentType = HttpUtils.getContentType(sv);
         }
-        Embed embed = new Embed();
-        embed.setBytes(sv.getAsByteArray());
-        embed.setMimeType(contentType);
-        context.prevEmbed = embed;
+        context.embed(sv.getAsByteArray(), contentType);
     }
     
     public File write(Object o, String path) {
@@ -684,7 +702,7 @@ public class ScriptBridge implements PerfContext {
             if (!keySv.isStream()) {
                 throw new RuntimeException("'key' is not valid: " + config + ", " + keySv);
             }
-            return new FeatureServer(feature, port, certSv.getAsStream(), keySv.getAsStream(), arg);
+            return new FeatureServer(feature, port, ssl, certSv.getAsStream(), keySv.getAsStream(), arg);
         } else {
             return new FeatureServer(feature, port, ssl, arg);
         }
@@ -705,10 +723,10 @@ public class ScriptBridge implements PerfContext {
     
     public Properties getProperties() {
         return System.getProperties();
-    }
+    }    
     
-    public void setLocation(String expression) {
-        context.driver(expression);
+    public void stop() {
+        FileUtils.waitForSocket(0);
     }
     
     public void log(Object... objects) {
@@ -736,7 +754,8 @@ public class ScriptBridge implements PerfContext {
         public String toString() {
             StringBuilder sb = new StringBuilder();
             for (Object o : objects) {
-                sb.append(o).append(' ');
+                ScriptValue sv = new ScriptValue(o);
+                sb.append(sv.getAsPrettyString()).append(' ');
             }
             return sb.toString();
         }

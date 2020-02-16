@@ -25,15 +25,25 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  *
  * @author pthomas3
  */
 public class Embed {
-    
+
     private String mimeType;
     private byte[] bytes;
+
+    public static Embed forVideoFile(String fileName) {
+        String html = "<video controls=\"true\" width=\"100%\"><source src=\"" + fileName + "\" type=\"video/mp4\"/></video>";
+        Embed embed = new Embed();
+        embed.setBytes(html.getBytes());
+        embed.setMimeType("text/html");
+        return embed;
+    }
 
     public String getMimeType() {
         return mimeType;
@@ -50,13 +60,20 @@ public class Embed {
     public void setBytes(byte[] bytes) {
         this.bytes = bytes;
     }
-    
+
     public String getBase64() {
         return Base64.getEncoder().encodeToString(bytes);
     }
-    
+
     public String getAsString() {
         return FileUtils.toString(bytes);
     }
-    
+
+    public Map toMap() {
+        Map map = new HashMap(2);
+        map.put("data", getBase64());
+        map.put("mime_type", mimeType);
+        return map;
+    }
+
 }

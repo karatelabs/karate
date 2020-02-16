@@ -52,11 +52,23 @@ public class Scenario {
     private int exampleIndex = -1;
     private String dynamicExpression;
     private boolean backgroundDone;
+    
+    protected Scenario() {
+        this(null, null, -1);
+    }
 
     public Scenario(Feature feature, FeatureSection section, int index) {
         this.feature = feature;
         this.section = section;
         this.index = index;
+    }
+
+    public String getNameForReport() {
+        if (name == null) {
+            return getDisplayMeta();
+        } else {
+            return getDisplayMeta() + " " + name;
+        }
     }
 
     public ScenarioInfo toInfo(Path featurePath) {
@@ -95,6 +107,12 @@ public class Scenario {
     }
 
     public void replace(String token, String value) {
+        if (value == null) {
+            // this can happen for a dynamic scenario outline !
+            // give up trying a cucumber-style placeholder sub
+            // user should be fine with karate-style plain-old variables
+            return;
+        }
         name = name.replace(token, value);
         description = description.replace(token, value);
         for (Step step : steps) {
@@ -110,6 +128,15 @@ public class Scenario {
             }
         }
     }
+    
+    public Step getStepByLine(int line) {
+        for (Step step : getStepsIncludingBackground()) {
+            if (step.getLine() == line) {
+                return step;
+            }
+        }
+        return null;
+    }
 
     public String getDisplayMeta() {
         int num = section.getIndex() + 1;
@@ -119,7 +146,7 @@ public class Scenario {
         }
         return meta + ":" + line + "]";
     }
-    
+
     public String getUniqueId() {
         int num = section.getIndex() + 1;
         String meta = "-" + num;
@@ -127,7 +154,7 @@ public class Scenario {
             meta = meta + "_" + (index + 1);
         }
         return meta;
-    }    
+    }
 
     public List<Step> getBackgroundSteps() {
         return feature.isBackgroundPresent() ? feature.getBackground().getSteps() : Collections.EMPTY_LIST;
@@ -251,6 +278,11 @@ public class Scenario {
 
     public void setExampleIndex(int exampleIndex) {
         this.exampleIndex = exampleIndex;
+    }
+
+    @Override
+    public String toString() {
+        return feature.toString() + getDisplayMeta();
     }        
 
 }

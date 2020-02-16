@@ -1,11 +1,7 @@
 language: java
+cache:
+  directories:
+  - "$HOME/.m2"
 jdk:
-  - oraclejdk8
-sudo: false
-addons:
-  apt:
-    packages:
-      - oracle-java8-installer
-install: true
-script: mvn install -P pre-release -Dmaven.javadoc.skip=true -B -V
-
+  - openjdk8
+script: mvn install -P pre-release -Dmaven.javadoc.skip=true -B -V -Djavacpp.platform=linux-x86_64

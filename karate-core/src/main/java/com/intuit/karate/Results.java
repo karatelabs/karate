@@ -119,6 +119,10 @@ public class Results {
     public void addToScenarioCount(int count) {
         scenarioCount += count;
     }
+    
+    public void incrementFeatureCount() {
+        featureCount++;
+    }    
 
     public void addToFailCount(int count) {
         failCount += count;
@@ -169,10 +173,6 @@ public class Results {
 
     public int getThreadCount() {
         return threadCount;
-    }
-
-    public void setFeatureCount(int featureCount) {
-        this.featureCount = featureCount;
     }
 
     public int getFeatureCount() {

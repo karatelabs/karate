@@ -33,37 +33,71 @@ import java.util.function.Predicate;
 public class WaitState {
 
     private final DriverOptions options;
-    private final Logger logger;
 
     private DevToolsMessage lastSent;
     private Predicate<DevToolsMessage> condition;
     private DevToolsMessage lastReceived;
 
-    private final Predicate<DevToolsMessage> DEFAULT = m -> lastSent.getId().equals(m.getId()) && m.getResult() != null;
-    public static final Predicate<DevToolsMessage> CHROME_FRAME_RESIZED = forEvent("Page.frameResized");
-    public static final Predicate<DevToolsMessage> CHROME_INSPECTOR_DETACHED = forEvent("Inspector.detached");
-    public static final Predicate<DevToolsMessage> CHROME_DIALOG_OPENING = forEvent("Page.javascriptDialogOpening");
-    public static final Predicate<DevToolsMessage> CHROME_DOM_CONTENT = forEvent("Page.domContentEventFired");
+    private final Predicate<DevToolsMessage> DEFAULT = m -> lastSent.getId().equals(m.getId()) && m.isResultPresent();
+    public static final Predicate<DevToolsMessage> FRAME_RESIZED = forEvent("Page.frameResized");
+    public static final Predicate<DevToolsMessage> INSPECTOR_DETACHED = forEvent("Inspector.detached");
+    public static final Predicate<DevToolsMessage> DIALOG_OPENING = forEvent("Page.javascriptDialogOpening");
+    public static final Predicate<DevToolsMessage> ALL_FRAMES_LOADED = m -> {
+        // page is considered ready only when the dom is ready
+        // AND all child frames that STARTED loading BEFORE the dom became ready
+        if (m.methodIs("Page.domContentEventFired")) {
+            if (m.driver.framesStillLoading.isEmpty()) {
+                m.driver.logger.trace("** dom ready, and no frames loading, wait done");
+                return true;
+            } else {
+                m.driver.logger.trace("** dom ready, but frames still loading, will wait: {}", m.driver.framesStillLoading);
+                return false;
+            }
+        }
+        if (m.methodIs("Page.frameStoppedLoading")) {
+            if (!m.driver.domContentEventFired) {
+                m.driver.logger.trace("** dom not ready, will wait, and frames loading: {}", m.driver.framesStillLoading);
+                return false;
+            }
+            if (m.driver.framesStillLoading.isEmpty()) {
+                m.driver.logger.trace("** dom ready, and no frames loading, wait done");
+                return true;
+            } else {
+                m.driver.logger.trace("** dom ready, but frames still loading, will wait: {}", m.driver.framesStillLoading);
+            }
+        }
+        return false;
+    };
 
     public static Predicate<DevToolsMessage> forEvent(String name) {
         return m -> name.equals(m.getMethod());
     }
-
-    public static final Predicate<DevToolsMessage> NO_WAIT = m -> true;
 
     public WaitState(DriverOptions options) {
         this.options = options;
         logger = options.driverLogger;
     }
 
+    // mutable when driver logger is swapped
+    private Logger logger;
+
+    public void setLogger(Logger logger) {
+        this.logger = logger;
+    }
+
+    public void setCondition(Predicate<DevToolsMessage> condition) {
+        this.condition = condition;
+    }
+
     public DevToolsMessage waitAfterSend(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
         lastReceived = null;
         lastSent = dtm;
-        this.condition = condition == null ? DEFAULT : condition;
+        this.condition = condition == null ? DEFAULT : condition;        
+        long timeout = dtm.getTimeout() == null ? options.timeout : dtm.getTimeout();
         synchronized (this) {
             logger.trace(">> wait: {}", dtm);
             try {
-                wait(options.timeout);
+                wait(timeout);
             } catch (InterruptedException e) {
                 logger.error("interrupted: {} wait: {}", e.getMessage(), dtm);
             }
@@ -71,7 +105,8 @@ public class WaitState {
         if (lastReceived != null) {
             logger.trace("<< notified: {}", dtm);
         } else {
-            logger.warn("<< timed out: {}", dtm);
+            logger.error("<< timed out after milliseconds: {} - {}", timeout, dtm);
+            return null;
         }
         return lastReceived;
     }

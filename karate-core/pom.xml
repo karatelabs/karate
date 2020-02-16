@@ -5,14 +5,14 @@
     <parent>
         <groupId>com.intuit.karate</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>1.0.0</version>
+        <version>0.9.5</version>
     </parent>
     <artifactId>karate-core</artifactId>
     <packaging>jar</packaging>   
     
     <properties>
         <antlr.version>4.7.1</antlr.version>
-        <netty.version>4.1.18.Final</netty.version>
+        <netty.version>4.1.37.Final</netty.version>
     </properties>    
 
     <dependencies>
@@ -34,7 +34,7 @@
         <dependency>
             <groupId>com.jayway.jsonpath</groupId>
             <artifactId>json-path</artifactId>
-            <version>2.1.0</version>
+            <version>2.4.0</version>
         </dependency>                                                                                                                                                   													                
         <dependency>
             <groupId>info.cukes</groupId>
@@ -68,7 +68,7 @@
         <dependency>
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
-            <version>3.0.1</version>
+            <version>4.0.3</version>
         </dependency>                     
         <dependency>
             <groupId>junit</groupId>

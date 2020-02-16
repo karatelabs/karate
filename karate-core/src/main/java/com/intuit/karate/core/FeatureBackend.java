@@ -28,7 +28,6 @@ import com.intuit.karate.Script;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.Logger;
 import com.intuit.karate.Match;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
@@ -57,9 +56,14 @@ public class FeatureBackend {
     private final String featureName;
 
     private static void putBinding(String name, ScenarioContext context) {
-        String function = "function(s){ return " + ScriptBindings.KARATE + "." + name + "(s) }";
+        String function = "function(a){ return " + ScriptBindings.KARATE + "." + name + "(a) }";
         context.vars.put(name, Script.evalJsExpression(function, context));
     }
+    
+    private static void putBinding2(String name, ScenarioContext context) {
+        String function = "function(a, b){ return " + ScriptBindings.KARATE + "." + name + "(a, b) }";
+        context.vars.put(name, Script.evalJsExpression(function, context));
+    }    
 
     public boolean isCorsEnabled() {
         return corsEnabled;
@@ -78,13 +82,14 @@ public class FeatureBackend {
         featureName = feature.getPath().toFile().getName();
         CallContext callContext = new CallContext(null, false);
         FeatureContext featureContext = new FeatureContext(null, feature, null);
-        actions = new StepActions(featureContext, callContext, null, new Logger());
+        actions = new StepActions(featureContext, callContext, null, null);
         context = actions.context;
         putBinding(ScriptBindings.PATH_MATCHES, context);
         putBinding(ScriptBindings.METHOD_IS, context);
         putBinding(ScriptBindings.PARAM_VALUE, context);
         putBinding(ScriptBindings.TYPE_CONTAINS, context);
         putBinding(ScriptBindings.ACCEPT_CONTAINS, context);
+        putBinding2(ScriptBindings.HEADER_CONTAINS, context);
         putBinding(ScriptBindings.BODY_PATH, context);
         if (arg != null) {
             arg.forEach((k, v) -> context.vars.put(k, v));
@@ -228,7 +233,11 @@ public class FeatureBackend {
         // trying to avoid creating a map unless absolutely necessary
         if (responseHeadersMap != null) {
             if (configResponseHeadersMap != null) {
-                responseHeadersMap.putAll(configResponseHeadersMap);
+                // this is slightly different from how the client-side configure headers works
+                // here, scenarios can over-ride what the "global" hook does
+                for (Map.Entry<String, Object> e : configResponseHeadersMap.entrySet()) {
+                    responseHeadersMap.putIfAbsent(e.getKey(), e.getValue());
+                }
             }
         } else if (configResponseHeadersMap != null) {
             responseHeadersMap = configResponseHeadersMap;

@@ -34,6 +34,8 @@ import javax.net.ssl.X509ExtendedTrustManager;
  * @author pthomas3
  */
 public class LenientTrustManager extends X509ExtendedTrustManager {
+    
+    public static final LenientTrustManager INSTANCE = new LenientTrustManager();
 
     @Override
     public void checkClientTrusted(X509Certificate[] xcs, String string, Socket socket) throws CertificateException {

@@ -58,12 +58,7 @@ public class ServerStart {
         if (wait) {
             int stopPort = port + 1;
             logger.info("will use stop port as {}", stopPort);
-            monitor = new MonitorThread(stopPort, new Stoppable() {
-                @Override
-                public void stop() throws Exception {
-                    context.close();
-                }
-            });
+            monitor = new MonitorThread(stopPort, () -> context.close());
             monitor.start();
             monitor.join();
         }

@@ -472,10 +472,10 @@ public class Script {
                         } else if (!sv.isJsonLike()) {
                             // only substitute primitives ! 
                             // preserve optional JSON chunk schema-like references as-is, they are needed for future match attempts
-                            root.set(path, sv.getValue());
+                            root.set(path, sv.isStream() ? sv.getAsString() : sv.getValue());
                         }
                     } else {
-                        root.set(path, sv.getValue());
+                        root.set(path, sv.isStream() ? sv.getAsString() : sv.getValue());
                     }
                 } catch (Exception e) {
                     context.logger.trace("embedded json eval failed, path: {}, reason: {}", path, e.getMessage());
@@ -589,6 +589,9 @@ public class Script {
         name = StringUtils.trimToEmpty(name);
         if (validateName) {
             validateVariableName(name);
+            if (context.bindings.adds.containsKey(name)) {
+                context.logger.warn("over-writing built-in variable named: {} - with new value: {}", name, exp);
+            }
         }
         ScriptValue sv;
         switch (assignType) {
@@ -686,8 +689,9 @@ public class Script {
         path = StringUtils.trimToNull(path);
         if (path == null) {
             int pos = name.lastIndexOf(')');
+            // unfortunate edge-case to support "driver.location" and the like
             // if the LHS ends with a right-paren (function invoke) or involves a function-invoke + property accessor
-            if (pos != -1 && (pos == name.length() - 1 || name.charAt(pos + 1) == '.')) {
+            if (name.startsWith("driver.") || (pos != -1 && (pos == name.length() - 1 || name.charAt(pos + 1) == '.'))) {
                 ScriptValue actual = evalKarateExpression(expression, context); // attempt to evaluate LHS as-is
                 return matchScriptValue(matchType, actual, VAR_ROOT, expected, context);
             }
@@ -877,6 +881,9 @@ public class Script {
                         if (expression.startsWith("?")) {
                             expression = "'#" + expression + "'";
                         } else if (expression.startsWith("#")) {
+                            if (expression.startsWith("#regex")) { // hack for horrible edge case
+                                expression = expression.replaceAll("\\\\", "\\\\\\\\");
+                            }
                             expression = "'" + expression + "'";
                         } else {
                             if (isWithinParentheses(expression)) {
@@ -1328,10 +1335,20 @@ public class Script {
                     continue; // end edge case for key not present
                 }
                 Object childAct = actMap.get(key);
-                AssertionResult ar = matchNestedObject(delimiter, childPath, MatchType.EQUALS, actRoot, actMap, childAct, childExp, context);
+                ScriptValue childActValue = new ScriptValue(childAct);
+                MatchType childMatchType = childActValue.isJsonLike() ? matchType : MatchType.EQUALS;
+                AssertionResult ar = matchNestedObject(delimiter, childPath, childMatchType, actRoot, actMap, childAct, childExp, context);
                 if (ar.pass) { // values for this key match                    
                     if (matchType == MatchType.CONTAINS_ANY) {
                         return AssertionResult.PASS; // exit early
+                    }
+                    if (matchType == MatchType.NOT_CONTAINS) {
+                        // did we just bubble-up from a map
+                        ScriptValue childExpValue = new ScriptValue(childExp);
+                        if (childExpValue.isMapLike()) {
+                            // a nested map already fulfilled the NOT_CONTAINS
+                            return AssertionResult.PASS; // exit early
+                        }
                     }
                     unMatchedKeysExp.remove(key);
                     unMatchedKeysAct.remove(key);
@@ -1546,7 +1563,9 @@ public class Script {
                 }
             }
         } else if (!expObject.equals(actObject)) { // same data type, but not equal
-            if (matchType != MatchType.NOT_EQUALS) {
+            if (matchType == MatchType.NOT_EQUALS) {
+                return AssertionResult.PASS;
+            } else {
                 return matchFailed(matchType, path, actObject, expObject, "not equal (" + actObject.getClass().getSimpleName() + ")");
             }
         }
@@ -1757,17 +1776,7 @@ public class Script {
 
     private static ScriptValue evalFeatureCall(CallContext callContext) {
         // the call is always going to execute synchronously ! TODO improve  
-        FeatureResult result;
-        Function<CallContext, FeatureResult> callable = callContext.context.getCallable();
-        if (callable != null) { // only for ui called feature support
-            try {
-                result = callable.apply(callContext);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            result = Engine.executeFeatureSync(null, callContext.feature, null, callContext);
-        }
+        FeatureResult result = Engine.executeFeatureSync(null, callContext.feature, null, callContext);
         // hack to pass call result back to caller step
         callContext.reportContext.addCallResult(result);
         result.setCallArg(callContext.callArg);

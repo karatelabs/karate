@@ -23,10 +23,21 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.cli.CliExecutionHook;
+import com.intuit.karate.debug.DapServer;
 import com.intuit.karate.exception.KarateException;
+import com.intuit.karate.formats.postman.PostmanConverter;
+import com.intuit.karate.job.JobExecutor;
 import com.intuit.karate.netty.FeatureServer;
-import com.intuit.karate.netty.NettyUtils;
-import com.intuit.karate.ui.App;
+import com.intuit.karate.netty.FileChangedWatcher;
+import net.masterthought.cucumber.Configuration;
+import net.masterthought.cucumber.ReportBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -34,17 +45,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
-import net.masterthought.cucumber.Configuration;
-import net.masterthought.cucumber.ReportBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import picocli.CommandLine;
-import picocli.CommandLine.DefaultExceptionHandler;
-import picocli.CommandLine.ExecutionException;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.Parameters;
-import picocli.CommandLine.ParseResult;
-import picocli.CommandLine.RunLast;
 
 /**
  *
@@ -54,8 +54,6 @@ public class Main implements Callable<Void> {
 
     private static final String DEFAULT_OUTPUT_DIR = "target";
     private static final String LOGBACK_CONFIG = "logback.configurationFile";
-    private static final String CERT_FILE = "cert.pem";
-    private static final String KEY_FILE = "key.pem";
 
     private static Logger logger;
 
@@ -68,14 +66,18 @@ public class Main implements Callable<Void> {
     @Option(names = {"-p", "--port"}, description = "mock server port (required for --mock)")
     Integer port;
 
+    @Option(names = {"-w", "--watch"}, description = "watch (and hot-reload) mock server file for changes")
+    boolean watch;
+
     @Option(names = {"-s", "--ssl"}, description = "use ssl / https, will use '"
-            + CERT_FILE + "' and '" + KEY_FILE + "' if they exist in the working directory, or generate them")
+            + FeatureServer.DEFAULT_CERT_NAME + "' and '" + FeatureServer.DEFAULT_KEY_NAME
+            + "' if they exist in the working directory, or generate them")
     boolean ssl;
 
-    @Option(names = {"-c", "--cert"}, description = "ssl certificate (default: " + CERT_FILE + ")")
+    @Option(names = {"-c", "--cert"}, description = "ssl certificate (default: " + FeatureServer.DEFAULT_CERT_NAME + ")")
     File cert;
 
-    @Option(names = {"-k", "--key"}, description = "ssl private key (default: " + KEY_FILE + ")")
+    @Option(names = {"-k", "--key"}, description = "ssl private key (default: " + FeatureServer.DEFAULT_KEY_NAME + ")")
     File key;
 
     @Option(names = {"-t", "--tags"}, description = "cucumber tags - e.g. '@smoke,~@ignore'")
@@ -89,15 +91,25 @@ public class Main implements Callable<Void> {
 
     @Parameters(description = "one or more tests (features) or search-paths to run")
     List<String> tests;
-    
+
     @Option(names = {"-n", "--name"}, description = "scenario name")
-    String name;    
+    String name;
 
     @Option(names = {"-e", "--env"}, description = "value of 'karate.env'")
     String env;
 
-    @Option(names = {"-u", "--ui"}, description = "show user interface")
-    boolean ui;   
+    @Option(names = {"-C", "--clean"}, description = "clean output directory")
+    boolean clean;
+
+    @Option(names = {"-d", "--debug"}, arity = "0..1", defaultValue = "-1", fallbackValue = "0",
+            description = "debug mode (optional port else dynamically chosen)")
+    int debugPort;
+
+    @Option(names = {"-j", "--jobserver"}, description = "job server url")
+    String jobServerUrl;
+
+    @Option(names = {"-i", "--import"}, description = "import and convert a file")
+    String importFile;
 
     public static void main(String[] args) {
         boolean isOutputArg = false;
@@ -126,85 +138,86 @@ public class Main implements Callable<Void> {
         logger = LoggerFactory.getLogger(Main.class);
         logger.info("Karate version: {}", FileUtils.getKarateVersion());
         CommandLine cmd = new CommandLine(new Main());
-        DefaultExceptionHandler<List<Object>> exceptionHandler = new DefaultExceptionHandler() {
-            @Override
-            public Object handleExecutionException(ExecutionException ex, ParseResult parseResult) {
-                if (ex.getCause() instanceof KarateException) {
-                    throw new ExecutionException(cmd, ex.getCause().getMessage()); // minimum possible stack trace but exit code 1
-                } else {
-                    throw ex;
-                }
-            }
-        };
-        cmd.parseWithHandlers(new RunLast(), exceptionHandler, args);
-        System.exit(0);
+        int returnCode = cmd.execute(args);
+        System.exit(returnCode);
     }
 
     @Override
     public Void call() throws Exception {
+        if (clean) {
+            org.apache.commons.io.FileUtils.deleteDirectory(new File(output));
+            logger.info("deleted directory: {}", output);
+        }
+        if (jobServerUrl != null) {
+            JobExecutor.run(jobServerUrl);
+            return null;
+        }
+        if (debugPort != -1) {
+            DapServer server = new DapServer(debugPort);
+            server.waitSync();
+            return null;
+        }
         if (tests != null) {
-            if (ui) {
-                App.main(new String[]{new File(tests.get(0)).getAbsolutePath(), env});
-            } else {
-                if (env != null) {
-                    System.setProperty(ScriptBindings.KARATE_ENV, env);
-                }
-                String configDir = System.getProperty(ScriptBindings.KARATE_CONFIG_DIR);
-                configDir = StringUtils.trimToNull(configDir);
-                if (configDir == null) {
-                    System.setProperty(ScriptBindings.KARATE_CONFIG_DIR, new File("").getAbsolutePath());
-                }
-                List<String> fixed = tests.stream().map(f -> new File(f).getAbsolutePath()).collect(Collectors.toList());
-                // this avoids mixing json created by other means which will break the cucumber report
-                String jsonOutputDir = output + File.separator + ScriptBindings.SUREFIRE_REPORTS;
-                Results results = Runner.parallel(tags, fixed, name, null, threads, jsonOutputDir);
-                Collection<File> jsonFiles = org.apache.commons.io.FileUtils.listFiles(new File(jsonOutputDir), new String[]{"json"}, true);
-                List<String> jsonPaths = new ArrayList(jsonFiles.size());
-                jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));
-                Configuration config = new Configuration(new File(output), new Date() + "");
-                ReportBuilder reportBuilder = new ReportBuilder(jsonPaths, config);
-                reportBuilder.generateReports();
-                if (results.getFailCount() > 0) {
-                    throw new KarateException("there are test failures");
-                }
+            if (env != null) {
+                System.setProperty(ScriptBindings.KARATE_ENV, env);
+            }
+            String configDir = System.getProperty(ScriptBindings.KARATE_CONFIG_DIR);
+            configDir = StringUtils.trimToNull(configDir);
+            if (configDir == null) {
+                System.setProperty(ScriptBindings.KARATE_CONFIG_DIR, new File("").getAbsolutePath());
+            }
+            List<String> fixed = tests.stream().map(f -> new File(f).getAbsolutePath()).collect(Collectors.toList());
+            // this avoids mixing json created by other means which will break the cucumber report
+            String jsonOutputDir = output + File.separator + ScriptBindings.SUREFIRE_REPORTS;
+            CliExecutionHook hook = new CliExecutionHook(false, jsonOutputDir, false);
+            Results results = Runner
+                    .path(fixed).tags(tags).scenarioName(name)
+                    .reportDir(jsonOutputDir).hook(hook).parallel(threads);
+            Collection<File> jsonFiles = org.apache.commons.io.FileUtils.listFiles(new File(jsonOutputDir), new String[]{"json"}, true);
+            List<String> jsonPaths = new ArrayList(jsonFiles.size());
+            jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));
+            Configuration config = new Configuration(new File(output), new Date() + "");
+            ReportBuilder reportBuilder = new ReportBuilder(jsonPaths, config);
+            reportBuilder.generateReports();
+            if (results.getFailCount() > 0) {
+                Exception ke = new KarateException("there are test failures !");
+                StackTraceElement[] newTrace = new StackTraceElement[]{
+                    new StackTraceElement(".", ".", ".", -1)
+                };
+                ke.setStackTrace(newTrace);
+                throw ke;
             }
             return null;
-        } else if (ui || mock == null) {
-            App.main(new String[]{});
+        }
+        if (importFile != null) {
+            new PostmanConverter().convert(importFile, output);
             return null;
         }
-        if (mock != null) {
-            if (port == null) {
-                System.err.println("--port required for --mock option");
-                CommandLine.usage(this, System.err);
-                return null;
-            }
+        if (clean) {
+            return null;
         }
-        FeatureServer server;
-        if (cert != null) {
-            ssl = true;
+        if (mock == null) {
+            CommandLine.usage(this, System.err);
+            return null;
         }
-        if (ssl) {
-            if (cert == null) {
-                cert = new File(CERT_FILE);
-                key = new File(KEY_FILE);
-            }
-            if (!cert.exists() || !key.exists()) {
-                logger.warn("ssl requested, but " + CERT_FILE + " and/or " + KEY_FILE + " not found in working directory, will create");
-                try {
-                    NettyUtils.createSelfSignedCertificate(cert, key);
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            } else {
-                logger.info("ssl on, using existing files: {} and {}", CERT_FILE, KEY_FILE);
-            }
-            server = FeatureServer.start(mock, port, cert, key, null);
-        } else {
-            server = FeatureServer.start(mock, port, false, null);
+        if (port == null) {
+            System.err.println("--port required for --mock option");
+            CommandLine.usage(this, System.err);
+            return null;
+        }
+        // these files will not be created, unless ssl or ssl proxying happens
+        // and then they will be lazy-initialized
+        if (cert == null || key == null) {
+            cert = new File(FeatureServer.DEFAULT_CERT_NAME);
+            key = new File(FeatureServer.DEFAULT_KEY_NAME);
+        }
+        FeatureServer server = FeatureServer.start(mock, port, ssl, cert, key, null);
+        if (watch) {
+            logger.info("--watch enabled, will hot-reload: {}", mock.getName());
+            FileChangedWatcher watcher = new FileChangedWatcher(mock, server, port, ssl, cert, key);
+            watcher.watch();
         }
         server.waitSync();
         return null;
     }
-
 }

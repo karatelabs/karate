@@ -23,78 +23,79 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Engine;
 import java.util.List;
 
 /**
  * this is only for capturing what was actually sent on the wire, read-only
- * 
+ *
  * @author pthomas3
  */
 public class HttpRequest {
-    
+
     private long startTime;
     private long endTime;
     private double responseTime;
     private String urlBase; // used in mock since uri may start with '/'
     private String uri; // will be full uri including query string
-    private String method;    
+    private String method;
     private MultiValuedMap headers = new MultiValuedMap();
     private MultiValuedMap params; // only used in mock
     private byte[] body;
-    
+
     private long startTimeNanos;
 
     public long getStartTime() {
         return startTime;
     }
-    
+
     public void startTimer() {
         startTime = System.currentTimeMillis();
         startTimeNanos = System.nanoTime();
-    }    
+    }
 
     public long getEndTime() {
         return endTime;
-    }    
+    }
 
     public double getResponseTime() {
         return responseTime;
-    }        
-    
+    }
+
     public String getResponseTimeFormatted() {
         return String.format("%.2f", responseTime);
     }
-    
-    public void stopTimer() {        
+
+    public void stopTimer() {
         responseTime = Engine.nanosToMillis(System.nanoTime() - startTimeNanos);
         endTime = startTime + Math.round(responseTime);
-    }    
-    
+    }
+
     public String getUrlBase() {
         return urlBase;
     }
 
     public void setUrlBase(String urlBase) {
         this.urlBase = urlBase;
-    }        
-    
+    }
+
     public void addHeader(String key, String value) {
         headers.add(key, value);
     }
-    
+
     public void putHeader(String key, List<String> values) {
         headers.put(key, values);
     }
 
     public void setParams(MultiValuedMap params) {
         this.params = params;
-    }        
+    }
 
     public MultiValuedMap getParams() {
         return params;
-    }        
-    
+    }
+
     public void putParam(String key, List<String> values) {
         if (params == null) {
             params = new MultiValuedMap();
@@ -132,6 +133,18 @@ public class HttpRequest {
 
     public void setBody(byte[] body) {
         this.body = body;
-    }        
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[method: ").append(method);
+        sb.append(", responseTime: ").append(responseTime);
+        if (body != null) {
+            sb.append(", body: ").append(FileUtils.toString(body));
+        }
+        sb.append("]");
+        return sb.toString();        
+    }    
     
 }

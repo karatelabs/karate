@@ -4,9 +4,12 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 
 ### Capabilities
 * Everything on `localhost` or within your network, no need to worry about your data leaking into the cloud
-* Super-easy 'hard-coded' mocks ([example](src/test/java/com/intuit/karate/mock/_mock.feature))
+* Super-easy 'hard-coded' mocks ([example](../karate-junit4/src/test/java/com/intuit/karate/mock/_mock.feature))
 * Stateful mocks that can fully simulate CRUD for a micro-service ([example](../karate-demo/src/test/java/mock/proxy/demo-mock.feature))
 * Not only JSON but first-class support for XML, plain-text, binary, etc.
+* Convert JSON or XML into dynamic responses with ease
+* Maintain and read large payloads from the file-system if needed
+* Mocks are plain-text files - easily collaborate within or across teams using Git / SCM
 * Easy HTTP request matching by path, method, headers, body etc.
 * Use the full power of JavaScript expressions for HTTP request matching
 * SSL / HTTPS with built-in self-signed certificate
@@ -41,9 +44,9 @@ The [Netty](https://netty.io) based capabilities are included when you use `kara
 
 We use a simplified example of a Java 'consumer' which makes HTTP calls to a Payment Service (provider) where `GET`, `POST`, `PUT` and `DELETE` have been implemented. The 'provider' implements CRUD for the [`Payment.java`](../karate-demo/src/test/java/mock/contract/Payment.java) 'POJO', and the `POST` (or create) results in a message ([`Shipment.java`](../karate-demo/src/test/java/mock/contract/Shipment.java) as JSON) being placed on a queue, which the consumer is listening to.
 
-[ActiveMQ](http://activemq.apache.org) is being used for the sake of mixing an asynchronous flow into this example, and with the help of some [simple](../karate-demo/src/test/java/mock/contract/QueueUtils.java) [utilities](../karate-demo/src/test/java/mock/contract/QueueConsumer.java), we are able to mix asynchronous messaging into a Karate test *as well as* the test-double.
+[ActiveMQ](http://activemq.apache.org) is being used for the sake of mixing an asynchronous flow into this example, and with the help of some [simple](../karate-demo/src/test/java/mock/contract/QueueUtils.java) [utilities](../karate-demo/src/test/java/mock/contract/QueueConsumer.java), we are able to mix asynchronous messaging into a Karate test *as well as* the test-double. Also refer to the documentation on [handling async flows in Karate](https://github.com/intuit/karate#async).
 
-A simpler stand-alone example (without ActiveMQ / messaging) is also available here: [`payment-service`](https://github.com/ptrthomas/payment-service). You should be able to clone and run this project - and compare and contrast this with how other frameworks approach [Consumer Driven Contract](https://www.thoughtworks.com/radar/techniques/consumer-driven-contract-testing) testing.
+A simpler stand-alone example (without ActiveMQ / messaging) is also available here: [`examples/consumer-driven-contracts`](../examples/consumer-driven-contracts). This is a stand-alone Maven project for convenience, and you just need to clone or download a ZIP of the Karate source code to get it. You can compare and contrast this example with how other frameworks approach [Consumer Driven Contract](https://www.thoughtworks.com/radar/techniques/consumer-driven-contract-testing) testing.
 
 | Key    | Source Code | Description |
 | ------ | ----------- | ----------- |
@@ -80,25 +83,12 @@ It is worth calling out *why* Karate on the 'other side of the fence' (*handling
 If you think about it, all the above are *sufficient* to implement *any* micro-service. Karate's DSL syntax is *focused* on exactly these aspects, thus opening up interesting possibilities. It may be hard to believe that you can spin-up a 'usable' micro-service in minutes with Karate - but do try it and see !
 
 # Standalone JAR
-*All* of Karate (core, parallel / HTML reports, the UI and mocks) is available as a single, executable JAR file, which includes even the [`karate-apache`](https://mvnrepository.com/artifact/com.intuit.karate/karate-apache) dependency. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE.
+*All* of Karate (core API testing, parallel-runner / HTML reports, the debugger-UI, mocks and web / UI automation) is available as a *single*, executable JAR file, which includes even the [`karate-apache`](https://mvnrepository.com/artifact/com.intuit.karate/karate-apache) dependency. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE. And there is a [Visual Studio Code plugin](https://marketplace.visualstudio.com/items?itemName=kirkslota.karate-runner) that supports the Karate standalone JAR.
 
 The only pre-requisite is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the JDK / Java Development Kit. At least version 1.8.0_112 or greater is required, and there's a good chance you already have Java installed. Check by typing `java -version` on the command line.
 
 ## Quick Start
-It will take you only 2 minutes to see Karate's mock-server capabilities in action ! And you can run tests as well.
-
-> Tip: Rename the file to `karate.jar` to make the commands below easier to type !
-
-* Download the latest version of the JAR file from [Bintray](https://dl.bintray.com/ptrthomas/karate/), and it will have the name: `karate-<version>.jar`
-* Download this file: [`cats-mock.feature`](../karate-demo/src/test/java/mock/web/cats-mock.feature) (or copy the text) to a local file next to the above JAR file
-* In the same directory, start the mock server with the command:
-  * `java -jar karate.jar -m cats-mock.feature -p 8080`
-* To see how this is capable of backing an HTML front-end, download this file: [`cats.html`](../karate-demo/src/test/java/mock/web/cats.html). Open it in a browser and you will be able to `POST` data. Browse to [`http://localhost:8080/cats`](http://localhost:8080/cats) - to see the saved data (state).
-* You can also run a "normal" Karate test using the stand-alone JAR. Download this file: [`cats-test.feature`](../karate-demo/src/test/java/mock/web/cats-test.feature) - and run the command (in a separate console / terminal):
-  * `java -jar karate.jar cats-test.feature`
-* You will see HTML reports in the `target/cucumber-html-reports` directory
-
-Another (possibly simpler) version of the above example is included in this demo project: [`karate-sikulix-demo`](https://github.com/ptrthomas/karate-sikulix-demo) - and you can skip the step of downloading the "sikulix" JAR. This project is quite handy if you need to demo Karate (tests, mocks and UI) to others !
+Just use the [ZIP release](https://github.com/intuit/karate/wiki/ZIP-Release) and follow the insructions under the heading: [API Mocks](https://github.com/intuit/karate/wiki/ZIP-Release#api-mocks).
 
 Also try the ["World's Smallest MicroService"](#the-worlds-smallest-microservice-) !
 
@@ -116,6 +106,8 @@ To start a mock server, the 2 mandatory arguments are the path of the feature fi
 java -jar karate.jar -m my-mock.feature -p 8080
 ```
 
+Note that this server will be able to act as an HTTPS proxy server if needed. If you need to specify a custom certificate and key combination, see below.
+
 #### SSL
 For SSL, use the `-s` flag. If you don't provide a certificate and key (see next section), it will automatically create `cert.pem` and `key.pem` in the current working directory, and the next time you re-start the mock server - these will be re-used. This is convenient for web / UI developers because you then need to set the certificate 'exception' only once in the browser.
 
@@ -123,11 +115,20 @@ For SSL, use the `-s` flag. If you don't provide a certificate and key (see next
 java -jar karate.jar -m my-mock.feature -p 8443 -s
 ```
 
-If you have a custom certificate and private-key (in PEM format) you can specify them, perhaps because these are your actual certificates or because they are trusted within your organization:
+If you have a custom certificate and private-key (in PEM format) you can specify them, perhaps because these are your actual certificates or because they are trusted within your organization.
 
 ```
-java -jar karate.jar -m my-mock.feature -p 8443 -c my-cert.crt -k my-key.key
+java -jar karate.jar -m my-mock.feature -p 8443 -s -c my-cert.crt -k my-key.key
 ```
+
+If you *don't* enable SSL, the proxy server will still be able to tunnel HTTPS traffic - and will use the certificate / key combination you specify or auto-create `cert.pem` and `key.pem` as described above.
+
+```
+java -jar karate.jar -m my-mock.feature -p 8090 -c my-cert.crt -k my-key.key
+```
+
+#### Hot Reload
+You can hot-reload a mock feature file for changes by adding the `-w` or `--watch` option.
 
 ### Running Tests
 Convenient to run standard [Karate](https://github.com/intuit/karate) tests on the command-line without needing to mess around with Java or the IDE ! Great for demos or exploratory testing. Even HTML reports are generated !
@@ -181,7 +182,19 @@ java -jar karate.jar -e e2e my-test.feature
 If [`karate-config.js`](https://github.com/intuit/karate#configuration) exists in the current working directory, it will be used. You can specify a full path by setting the system property `karate.config.dir`. Note that this is an easy way to set a bunch of variables, just return a JSON with the keys and values you need.
 
 ```
-java -jar -Dkarate.config.dir=parentdir/somedir karate.jar my-test.feature
+java -Dkarate.config.dir=parentdir/somedir -jar karate.jar my-test.feature
+```
+
+If you want to pass any custom or environment variables, make sure they are *before* the `-jar` part else they will not be passed to the JVM. For example:
+
+```cucumber
+java -Dfoo=bar -Dbaz=ban -jar karate.jar my-test.feature
+```
+
+And now you can get the value of `foo` from JavaScript or a [Karate expression](https://github.com/intuit/karate#karate-expressions) as follows:
+
+```javascript
+var foo = karate.properties['foo']
 ```
 
 #### Parallel Execution
@@ -198,16 +211,16 @@ The output directory where the `karate.log` file, JUnit XML and Cucumber report 
 java -jar karate.jar -T 5 -t ~@ignore -o /my/custom/dir src/features
 ```
 
-#### UI
-The 'default' command actually brings up the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI). So you can 'double-click' on the JAR or use this on the command-line:
+#### Clean
+The [output directory](#output-directory) will be deleted before the test runs if you use the `-C` or `--clean` option.
+
 ```
-java -jar karate.jar
+java -jar karate.jar -T 5 -t ~@ignore -C src/features
 ```
 
-You can also open an existing Karate test in the UI via the command-line:
-```
-java -jar karate.jar -u my-test.feature
-```
+#### Debug Server
+The `-d` or `--debug` option will start a debug server. See the [Debug Server wiki](https://github.com/intuit/karate/wiki/Debug-Server#standalone-jar) for more details.
+
 
 ## Logging
 A default [logback configuration file](https://logback.qos.ch/manual/configuration.html) (named [`logback-netty.xml`](src/main/resources/logback-netty.xml)) is present within the stand-alone JAR. If you need to customize logging, set the system property `logback.configurationFile` to point to your custom config:
@@ -259,6 +272,13 @@ The static `start()` method returns a `FeatureServer` object on which you can ca
 And a `FeatureServer` instance has a `stop()` method that will [stop](#stopping) the server.
 
 You can look at this demo example for reference: [ConsumerUsingMockTest.java](../karate-demo/src/test/java/mock/contract/ConsumerUsingMockTest.java) - note how the dynamic port number can be retrieved and passed to other elements in your test set-up.
+
+## Continuous Integration
+To include mocks into a test-suite that consists mostly of Karate tests, the easiest way is to use JUnit with the above approach, and ensure that the JUnit class is "included" in your test run. One way is to ensure that the JUnit "runner" follows the naming convention (`*Test.java`) or you can explicity include the mock "runners" in your Maven setup.
+
+You will also need to ensure that your mock feature is *not* picked up by the regular test-runners, and an `@ignore` [tag](https://github.com/intuit/karate#tags) typically does the job.
+
+For more details, refer to this [answer on Stack Overflow](https://stackoverflow.com/a/57746457/143475).
 
 ## Within a Karate Test
 Teams that are using the [standalone JAR](#standalone-jar) and *don't* want to use Java at all can directly start a mock from within a Karate test script using the `karate.start()` API. The argument can be a string or JSON. If a string, it is processed as the path to the mock feature file, and behaves like the [`read()`](https://github.com/intuit/karate#reading-files) function.
@@ -426,12 +446,18 @@ Scenario: pathMatches('/v1/headers') && headerContains('val', 'foo')
 ```
 
 ## `bodyPath()`
-A very powerful helper function that can run JsonPath or XPath expressions agains the request body or payload.
+A very powerful helper function that can run JsonPath or XPath expressions against the request body or payload.
 
 JSON example:
 
 ```cucumber
 Scenario: pathMatches('/v1/body/json') && bodyPath('$.name') == 'Scooby'
+```
+
+It is worth mentioning that because of Karate's "native" support for JSON, you don't need it most of the time as the below is equivalent to the above. You just use the [`request`](#request) object directly:
+
+```cucumber
+Scenario: pathMatches('/v1/body/json') && request.name == 'Scooby'
 ```
 
 XML example:
@@ -466,6 +492,22 @@ Scenario: pathMatches('/v1/cats')
 
 See the [`Background`](#background) example for how the `uuid` function can be defined.
 
+One of the great things about Karate is how easy it is to [read JSON or XML from files](https://github.com/intuit/karate#reading-files). So when you have large complex responses, you can easily do this:
+
+```cucumber
+    * def response = read('get-cats-response.json')
+```
+
+Note that [embedded expressions](https://github.com/intuit/karate#embedded-expressions) work even for content loaded using `read()` !
+
+To give you some interesting ideas, say you had a program written in a different language (e.g. Python) and it happened to be invoke-able on the command line. And if it returns a JSON string on the console output - then using the [`karate.exec()`](https://github.com/intuit/karate#karate-exec) API you can actually do this:
+
+```cucumber
+    * def response = karate.exec('some os command')
+```
+
+Because of Karate's [Java interop capabilities](https://github.com/intuit/karate#calling-java) there is no limit to what you can do. Need to call a database and return data ? No problem ! Of course at this point you may need to stop and think if you need to use a *real* app server. But that said, Karate gives you a way to create full fledged micro-services in minutes - far faster than how you would using traditional technologies such as Tomcat, Node / Express, Flask / Django and the like.
+
 ## `responseHeaders`
 You can easily set multiple headers as JSON in one step as follows:
 
@@ -481,6 +523,8 @@ Many times you want a set of "common" headers to be returned for *every* end-poi
 Background:
     * configure responseHeaders = { 'Content-Type': 'application/json' }
 ```
+
+Note that `Scenario` level [`responseHeaders`](#responseheaders) can over-ride anything set by the "global" `configure responseHeaders`. This is convenient, as you may have a majority of end-points with the same `Content-Type`, and only one or two exceptions such as `text/html` or `text/javascript`.
 
 ## `configure cors`
 This allows a wide range of browsers or HTTP clients to make requests to a Karate server without running into [CORS issues](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS). And this is perfect for UI / Front-End teams who can even work off an HTML file on the file-system.
@@ -535,7 +579,7 @@ Scenario: pathMatches('/v1/abort')
 
 # Proxy Mode
 ## `karate.proceed()`
-It is easy to set up a Karate server to "intercept" HTTP requests and then delegate them to a target server only if needed. Think of this as "[AOP](https://en.wikipedia.org/wiki/Aspect-oriented_programming)" for web services !
+It is easy to set up a Karate server to "intercept" HTTP and even HTTPS requests and then delegate them to a target server only if needed. Think of this as "[AOP](https://en.wikipedia.org/wiki/Aspect-oriented_programming)" for web services !
 
 If you invoke the built in Karate function `karate.proceed(url)` - Karate will make an HTTP request to the URL using the current values of the [`request`](#request) and [`requestHeaders`](#requestheaders). Since the [request](#request-handling) is *mutable* this gives rise to some very interesting possibilities. For example, you can modify the request or decide to return a response without calling a downstream service.
 
@@ -545,14 +589,14 @@ Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test
 
 If not-null, the parameter has to be a URL that starts with `http` or `https`.
 
-> Karate cannot act as an HTTPS proxy yet (do consider contributing !). But most teams are able to configure the "consumer" application to use HTTP and if you set the target URL for e.g. like this: `karate.proceed('https://myhost.com:8080')` Karate will proxy the current request to the server. For example, you can set up Karate to log all requests and responses - which is great for troubleshooting complex service interactions.
-
 After the execution of `karate.proceed()` completes, the values of [`response`](#response) and [`responseHeaders`](#responseheaders) would be ready for returning to the consumer. And you again have the option of mutating the [response](#response-building).
 
 So you have control before and after the actual call, and you can modify the request or response - or introduce a time-delay using [`afterScenario`](#afterscenario).
 
 # Stopping
 A simple HTTP `GET` to `/__admin/stop` is sufficient to stop a running server gracefully. So you don't need to resort to killing the process, which can lead to issues especially on Windows - such as the port not being released.
+
+> Tip: for stopping HTTPS servers, you can use [curl](https://curl.haxx.se) like this: `curl -k https://localhost:8443/__admin/stop`
 
 If you have started the server programmatically via Java, you can keep a reference to the `FeatureServer` instance and call the `stop()` method. Here is an example: [ConsumerUsingMockTest.java](../karate-demo/src/test/java/mock/contract/ConsumerUsingMockTest.java).
 

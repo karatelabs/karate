@@ -6,19 +6,22 @@ class SampleTest {
 
     @Karate.Test
     Karate testSample() {
-        return new Karate().feature("sample").relativeTo(getClass());
+        return Karate.run("sample").relativeTo(getClass());
     }
     
     @Karate.Test
     Karate testTags() {
-        return new Karate().feature("tags").tags("@second").relativeTo(getClass());
+        return Karate.run("tags").tags("@second").relativeTo(getClass());
     }
 
     @Karate.Test
     Karate testFullPath() {
-        return new Karate()
-                .feature("classpath:karate/tags.feature")
-                .tags("@first");
+        return Karate.run("classpath:karate/tags.feature").tags("@first");
     }
+    
+    @Karate.Test
+    Karate testAll() {
+        return Karate.run().relativeTo(getClass());
+    }    
 
 }

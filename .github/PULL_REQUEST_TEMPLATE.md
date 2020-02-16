@@ -1,6 +1,6 @@
 ### Description
 
-Thanks for contributing this Pull Request. Make sure that you send in this Pull Request to the `develop` branch of this repository, add a brief description, and tag the relevant issue(s) and PR(s) below.
+Thanks for contributing this Pull Request. Make sure that you submit this Pull Request against the `develop` branch of this repository, add a brief description, and tag the relevant issue(s) and PR(s) below.
 
 - Relevant Issues : (compulsory)
 - Relevant PRs : (optional)

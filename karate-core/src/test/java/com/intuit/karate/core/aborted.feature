@@ -14,3 +14,8 @@ Scenario: skip-fail
 Scenario: noskip
 Then assert a != 3
 And assert a != 4
+
+Scenario: skip-pass-config
+* configure abortedStepsShouldPass = true
+* karate.abort()
+* assert a == 5

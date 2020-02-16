@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.intuit.karate</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>1.0.0</version>
+        <version>0.9.5</version>
     </parent>
     
     <artifactId>karate-demo</artifactId>
@@ -13,6 +13,7 @@
     
     <properties>
         <activemq.version>5.15.6</activemq.version>
+        <jaxb.version>2.3.0</jaxb.version>
     </properties>
 
     <!-- you will not need all these dependencies for a typical karate project !-->
@@ -67,13 +68,7 @@
             <artifactId>karate-junit4</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-ui</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>                
+        </dependency>               
         <dependency>
             <groupId>net.masterthought</groupId>
             <artifactId>cucumber-reporting</artifactId>
@@ -103,7 +98,22 @@
             <artifactId>geronimo-jms_1.1_spec</artifactId>
             <version>1.1.1</version>
             <scope>test</scope>
-        </dependency>                                                           		
+        </dependency>
+        <dependency>
+            <groupId>javax.xml.bind</groupId>
+            <artifactId>jaxb-api</artifactId>
+            <version>${jaxb.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.sun.xml.bind</groupId>
+            <artifactId>jaxb-core</artifactId>
+            <version>${jaxb.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.sun.xml.bind</groupId>
+            <artifactId>jaxb-impl</artifactId>
+            <version>${jaxb.version}</version>
+        </dependency>                                                                             		
     </dependencies>
 
     <build>

@@ -1,9 +1,8 @@
 package com.intuit.karate.netty;
 
+import com.intuit.karate.Logger;
 import org.junit.Test;
 import static org.junit.Assert.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -11,7 +10,7 @@ import org.slf4j.LoggerFactory;
  */
 public class WebSocketClientRunner {
 
-    private static final Logger logger = LoggerFactory.getLogger(WebSocketClientRunner.class);
+    private static final Logger logger = new Logger();
     private String result;
 
     @Test
@@ -24,7 +23,7 @@ public class WebSocketClientRunner {
                 notify();
             }
         });
-        WebSocketClient client = new WebSocketClient(options);
+        WebSocketClient client = new WebSocketClient(options, logger);
         client.send("hello world !");
         synchronized (this) {
             wait();

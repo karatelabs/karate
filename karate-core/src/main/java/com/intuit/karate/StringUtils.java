@@ -56,7 +56,7 @@ public class StringUtils {
             this.right = right;
         }
 
-        @Override // only needed for unit test, so no validation and null checks
+        @Override // only needed for unit tests, so no validation and null checks
         public boolean equals(Object obj) {
             Pair o = (Pair) obj;
             return left.equals(o.left) && right.equals(o.right);

@@ -53,6 +53,10 @@ public class StopListenerThread extends Thread {
             throw new RuntimeException(e);
         }
     }
+    
+    public int getPort() {
+        return socket.getLocalPort();
+    }
 
     @Override
     public void run() {
