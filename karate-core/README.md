@@ -1,8 +1,6 @@
 # Karate UI
 ## UI Test Automation Made `Simple.`
 
-> 0.9.5.RC5 is available ! There will be no more API changes. 0.9.5 will be "production ready".
-
 # Hello World
 
 <a href="https://twitter.com/ptrthomas/status/1160680107784036353"><img src="src/test/resources/driver-hello-world.jpg" height="230"/></a>

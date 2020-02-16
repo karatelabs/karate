@@ -105,3 +105,9 @@ mvn clean test -Pcoverage
 ![Jacoco Code Coverage Report](src/test/resources/karate-jacoco.jpg) 
 
 As this demo example shows - if you are able to start your app-server and run Karate tests in the same JVM process, code-coverage reports for even HTTP integration tests will be very easy to generate. This is even easier with the [karate-mock-servlet](../karate-mock-servlet) as you don't even need to boot an app-server.
+
+## Code Coverage for non-Java Projects
+This has been demonstrated for JavaScript by [Kirk Slota](https://twitter.com/kirk_slota). You can find a working sample here: [`karate-istanbul`](https://github.com/kirksl/karate-istanbul) - and you can read the [discussion at Stack Overflow](https://stackoverflow.com/q/59977566/143475) for more details.
+
+You should be able to use the same approach for other platforms. Note that there are plenty of ways to start a Karate test via the command-line, such as the [standalone JAR](https://github.com/intuit/karate/tree/master/karate-netty#standalone-jar).
+
