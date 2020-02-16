@@ -1,5 +1,5 @@
 dev:
-mvn versions:set -DnewVersion=1.0.0
+mvn versions:set -DnewVersion=2.0.0
 mvn versions:commit
 (edit examples/jobserver/pom.xml)
 (edit examples/gatling/pom.xml)
