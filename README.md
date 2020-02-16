@@ -731,7 +731,7 @@ This report is recommended especially because Karate's integration includes the 
 
 <img src="karate-demo/src/test/resources/karate-maven-report-http.jpg" height="600px"/>
 
-The demo also features [code-coverage using Jacoco](karate-demo#code-coverage-using-jacoco). Some third-party report-server solutions integrate with Karate such as [ReportPortal.io](https://github.com/reportportal/agent-java-karate).
+The demo also features [code-coverage using Jacoco](karate-demo#code-coverage-using-jacoco), and some tips for even non-Java back-ends. Some third-party report-server solutions integrate with Karate such as [ReportPortal.io](https://github.com/reportportal/agent-java-karate).
 
 ## Logging
 > This is optional, and Karate will work without the logging config in place, but the default console logging may be too verbose for your needs.
@@ -3202,7 +3202,7 @@ Operation | Description
 <a name="karate-setxml"><code>karate.setXml(name, xmlString)</code></a> | rarely used, refer to the example above
 <a name="karate-signal"><code>karate.signal(result)</code></a> | trigger an event that [`karate.listen(timeout)`](#karate-listen) is waiting for, and pass the data, see [async](#async)
 <a name="karate-sizeof"><code>karate.sizeOf(object)</code></a> | returns the size of the map-like or list-like object
-<a name="karate-stop"><code>karate.stop()</code></a> | will pause the test execution until a socket connection is made to the port logged to the console, useful for troubleshooting UI tests without using a [de-bugger](https://github.com/intuit/karate/wiki/Karate-UI), of course - *NEVER* forget to remove this after use ! 
+<a name="karate-stop"><code>karate.stop()</code></a> | will pause the test execution until a socket connection is made to the port logged to the console, useful for troubleshooting UI tests without using a [de-bugger](https://twitter.com/KarateDSL/status/1167533484560142336), of course - *NEVER* forget to remove this after use ! 
 <a name="karate-target"><code>karate.target(object)</code></a> | currently for web-ui automation only, see [target lifecycle](karate-core#target-lifecycle)
 <a name="karate-tags"><code>karate.tags</code></a> | for advanced users - scripts can introspect the tags that apply to the current scope, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
 <a name="karate-tagvalues"><code>karate.tagValues</code></a> | for even more advanced users - Karate natively supports tags in a `@name=val1,val2` format, and there is an inheritance mechanism where `Scenario` level tags can over-ride `Feature` level tags, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)

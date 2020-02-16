@@ -85,11 +85,11 @@ Refer to the code in the demo: [`DemoTestParallel.java`](src/test/java/demo/Demo
 
 And here is the output, which goes into `target/cucumber-html-reports` if you follow the above steps:
 
-![Karate and Maven Cucumber Reporting](src/test/resources/karate-maven-report.jpg)
+<img src="src/test/resources/karate-maven-report.jpg" height="600px"/>
 
 This report is recommended especially because the HTTP request and response payloads are embedded. You can even see the results of [`print`](https://github.com/intuit/karate#print) statements in-line.
 
-![Report includes HTTP logs](src/test/resources/karate-maven-report-http.jpg)
+<img src="src/test/resources/karate-maven-report-http.jpg" height="600px"/>
 
 ## Code Coverage using Jacoco
 In the [`pom.xml`](pom.xml#L160), code coverage using [Jacoco](http://www.baeldung.com/jacoco) is also demonstrated. Since this is set-up as a [Maven profile](http://maven.apache.org/guides/introduction/introduction-to-profiles.html), instrumentation and code-coverage reporting would be performed only when you use the `coverage` profile. Note that code-coverage data (binary) would be saved to this file: `target/jacoco.exec`.
@@ -102,7 +102,7 @@ mvn clean test -Pcoverage
 
  And the HTML reports would be output to `target/site/jacoco/index.html`.
 
-![Jacoco Code Coverage Report](src/test/resources/karate-jacoco.jpg) 
+<img src="src/test/resources/karate-jacoco.jpg" height="300px"/>
 
 As this demo example shows - if you are able to start your app-server and run Karate tests in the same JVM process, code-coverage reports for even HTTP integration tests will be very easy to generate. This is even easier with the [karate-mock-servlet](../karate-mock-servlet) as you don't even need to boot an app-server.
 
