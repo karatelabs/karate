@@ -1,7 +1,7 @@
 # Karate UI
 ## UI Test Automation Made `Simple.`
 
-# Hello World
+### Hello World
 
 <a href="https://twitter.com/ptrthomas/status/1160680107784036353"><img src="src/test/resources/driver-hello-world.jpg" height="230"/></a>
 
@@ -200,7 +200,7 @@ To understand how Karate compares to other UI automation frameworks, this articl
 * [Example 3](../karate-demo/src/test/java/driver/core/test-01.feature) - which is a single script that exercises *all* capabilities of Karate Driver, so is a handy reference
 
 ## Windows
-* [Example](../karate-demo/src/test/java/driver/windows/calc.feature) - but also see the [`karate-sikulix-demo`](https://github.com/ptrthomas/karate-sikulix-demo) for an alternative approach.
+* [Example](../karate-demo/src/test/java/driver/windows/calc.feature) - but also see the [`karate-robot`](https://github.com/intuit/karate/tree/master/karate-robot) for an alternative approach.
 
 # Driver Configuration
 
@@ -400,8 +400,10 @@ To try this or especially when you need to investigate why a test is not behavin
 For more information on the Docker containers for Karate and how to use them, refer to the wiki: [Docker](https://github.com/intuit/karate/wiki/Docker).
 
 ## Driver Types
+The recommendation is that you prefer `chrome` for development, and once you have the tests running smoothly - you can switch to a different WebDriver implementation.
+
 type | default port | default executable | description
----- | ---------------- | ---------------------- | -----------
+---- | ------------ | ------------------ | -----------
 [`chrome`](https://chromedevtools.github.io/devtools-protocol/) | 9222 | mac: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`<br/>win: `C:/Program Files (x86)/Google/Chrome/Application/chrome.exe` | "native" Chrome automation via the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/)
 [`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) | 9515 | `chromedriver` | W3C Chrome Driver
 [`geckodriver`](https://github.com/mozilla/geckodriver) | 4444 | `geckodriver` | W3C Gecko Driver (Firefox)
