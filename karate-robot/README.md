@@ -34,7 +34,7 @@ This may result in a few large JAR files getting downloaded by default because o
 ## `robot`
 Karate Robot is designed to only activate when you use the `robot` keyword, and if the `karate-robot` Java / JAR dependency is present in the project classpath.
 
-Here Karate will look for an application window called `Chrome` and will "focus" it so that it becomes the top-most window, and be visible. This will work on Mac, Windows and Linux (X Windows).
+Here Karate will look for an application window called `Chrome` and will "focus" it so that it becomes the top-most window, and be visible. This will work on Mac, Windows and Linux (X Window System / X11).
 
 ```cucumber
 * robot { app: 'Chrome' }
@@ -50,7 +50,7 @@ Note that you can use [`karate.exec()`](https://github.com/intuit/karate#karate-
 
 > If you want to do conditional logic depending on the OS, you can use [`karate.os`](https://github.com/intuit/karate#karate-os) - for e.g. `* if (karate.os.type == 'windows') karate.set('filename', 'start.bat')`
 
-The keys that the `robot` keyword support are the below.
+The keys that the `robot` keyword supports are the following:
 
 key | description
 --- | -----------

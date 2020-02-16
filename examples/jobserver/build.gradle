@@ -3,7 +3,7 @@ plugins {
 }
 
 ext {
-    karateVersion = '1.0.0'
+    karateVersion = '0.9.5'
 }
 
 dependencies {
@@ -29,8 +29,8 @@ test {
 }
 
 repositories {
-    // mavenCentral()
-    mavenLocal()
+    mavenCentral()
+    // mavenLocal()
 }
 
 task karateDebug(type: JavaExec) {

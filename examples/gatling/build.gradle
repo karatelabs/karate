@@ -1,0 +1,48 @@
+plugins {
+    id 'scala'
+}
+
+ext {
+    karateVersion = '0.9.5'
+}
+
+dependencies {
+    testCompile "com.intuit.karate:karate-apache:${karateVersion}"
+    testCompile "com.intuit.karate:karate-gatling:${karateVersion}"
+}
+
+repositories {
+    mavenCentral()
+    // mavenLocal()
+}
+
+test {
+    systemProperty "karate.options", System.properties.getProperty("karate.options")
+    systemProperty "karate.env", System.properties.getProperty("karate.env")
+    outputs.upToDateWhen { false }
+}
+
+sourceSets {
+    test {
+        resources {
+            srcDir file('src/test/java')
+            exclude '**/*.java'
+            exclude '**/*.scala'
+        }
+    }
+}
+
+// to run, type: "gradle gatling"
+task gatlingRun(type: JavaExec) {
+    group = 'Web Tests'
+    description = 'Run Gatling Tests'
+    new File("${buildDir}/reports/gatling").mkdirs()
+    classpath = sourceSets.test.runtimeClasspath
+    main = "io.gatling.app.Gatling"
+    args = [
+        // change this to suit your simulation entry-point
+        '-s', 'mock.CatsKarateSimulation',
+        '-rf', "${buildDir}/reports/gatling"
+    ]
+    systemProperties System.properties
+}

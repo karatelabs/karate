@@ -65,7 +65,7 @@ It is worth calling out that in the sample project, we are perf-testing [Karate 
 
 ### Gradle
 
-For those who use [Gradle](https://gradle.org), this sample [`build.gradle`](build.gradle) provides a `gatlingRun` task that executes the Gatling test of the `karate-netty` project - which you can use as a reference. The approach is fairly simple, and does not require the use of any Gradle Gatling plugins.
+For those who use [Gradle](https://gradle.org), this sample [`build.gradle`](../examples/gatling/build.gradle) provides a `gatlingRun` task that executes the Gatling test of the `karate-netty` project - which you can use as a reference. The approach is fairly simple, and does not require the use of any Gradle Gatling plugins.
 
 Most problems when using Karate with Gradle occur when "test-resources" are not configured properly. So make sure that all your `*.js` and `*.feature` files are copied to the "resources" folder - when you build the project.
 

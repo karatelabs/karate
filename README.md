@@ -261,7 +261,7 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 * [Testing Web Services with Karate](https://automationpanda.com/2018/12/10/testing-web-services-with-karate/) - quick start guide and review by [Andrew Knight](https://twitter.com/automationpanda) at the *Automation Panda* blog
 
 
-You can find a lot more references [in the wiki](https://github.com/intuit/karate/wiki/Community-News). Karate also has its own 'tag' and a very active and supportive community at [Stack Overflow](https://stackoverflow.com/questions/tagged/karate).
+You can find a lot more references [in the wiki](https://github.com/intuit/karate/wiki/Community-News). Karate also has its own "tag" and a very active and supportive community at [Stack Overflow](https://stackoverflow.com/questions/tagged/karate).
 
 # Getting Started
 If you are a Java developer - Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 (at least version 1.8.0_112 or greater) and then either [Maven](http://maven.apache.org), [Gradle](https://gradle.org), [Eclipse](#eclipse-quickstart) or [IntelliJ](https://github.com/intuit/karate/wiki/IDE-Support#intellij-community-edition) to be installed. Note that Karate works fine on OpenJDK. Any Java version from 8-12 is supported.
@@ -281,13 +281,13 @@ So you need two `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-apache</artifactId>
-    <version>0.9.4</version>
+    <version>0.9.5</version>
     <scope>test</scope>
 </dependency>
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit5</artifactId>
-    <version>0.9.4</version>
+    <version>0.9.5</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -300,8 +300,8 @@ If you want to use [JUnit 4](#junit-4), use `karate-junit4` instead of `karate-j
 Alternatively for [Gradle](https://gradle.org) you need these two entries:
 
 ```yml
-    testCompile 'com.intuit.karate:karate-junit5:0.9.4'
-    testCompile 'com.intuit.karate:karate-apache:0.9.4'
+    testCompile 'com.intuit.karate:karate-junit5:0.9.5'
+    testCompile 'com.intuit.karate:karate-apache:0.9.5'
 ```
 
 Also refer to the wiki for using [Karate with Gradle](https://github.com/intuit/karate/wiki/Gradle).
@@ -317,7 +317,7 @@ You can replace the values of `com.mycompany` and `myproject` as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.9.4 \
+-DarchetypeVersion=0.9.5 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -369,7 +369,7 @@ With the above in place, you don't have to keep switching between your `src/test
 Once you get used to this, you may even start wondering why projects need a `src/test/resources` folder at all !
 
 ### Spring Boot Example
-Soumendra Daas has created a nice example and guide that you can use as a reference here: [`hello-karate`](https://github.com/Sdaas/hello-karate). This demonstrates a Java Maven + JUnit4 project set up to test a [Spring Boot](http://projects.spring.io/spring-boot/) app.
+[Soumendra Daas](https://twitter.com/sdaas) has created a nice example and guide that you can use as a reference here: [`hello-karate`](https://github.com/Sdaas/hello-karate). This demonstrates a Java Maven + JUnit4 project set up to test a [Spring Boot](http://projects.spring.io/spring-boot/) app.
 
 ## Naming Conventions
 

@@ -1,7 +1,10 @@
 # Karate Demo
 This is a sample [Spring Boot](http://projects.spring.io/spring-boot/) web-application that exposes some functionality as web-service end-points. And includes a set of Karate examples that test these services as well as demonstrate various Karate features and best-practices. 
 
-Note that this is *not* the best example of a skeleton Java / Maven project, as it is designed to be part of the Karate code-base and act as a suite of regression tests. For a good "starter" project, please use the [Quickstart](https://github.com/intuit/karate#quickstart) or the sample [Spring Boot Example](https://github.com/intuit/karate#spring-boot-example).
+Note that this is *not* the best example of a skeleton Java / Maven project, as it is designed to be part of the Karate code-base and act as a suite of regression tests. For a good "starter" project, please use one of these:
+* the [Quickstart](https://github.com/intuit/karate#quickstart)
+* the sample [Spring Boot Example](https://github.com/intuit/karate#spring-boot-example)
+* the [examples/jobserver](../examples/jobserver) project
 
 | Example | Demonstrates
 ----------| --------
