@@ -581,7 +581,7 @@ public class Script {
             throw new RuntimeException("'karate' is a reserved name");
         }
         if (ScriptValueMap.VAR_REQUEST.equals(name) || "url".equals(name)) {
-            throw new RuntimeException("'" + name + "' is not a variable, use the form '* " + name + " <expression>' instead");
+            throw new RuntimeException("'" + name + "' is a reserved name, also use the form '* " + name + " <expression>' instead");
         }
     }
 
