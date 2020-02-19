@@ -19,6 +19,7 @@ jar:
 cd karate-netty
 mvn install -P fatjar
 https://bintray.com/ptrthomas/karate
+(upload to github release notes)
 
 docker:
 (double check if the below pom files are updated for the version
