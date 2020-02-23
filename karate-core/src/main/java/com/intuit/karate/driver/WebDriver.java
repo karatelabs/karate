@@ -59,6 +59,9 @@ public abstract class WebDriver implements Driver {
         if (response.status() != 200) {
             String message = "webdriver session create status " + response.status() + ", " + response.body().asString();
             logger.error(message);
+            if (command != null) {
+                command.close(true);
+            }
             throw new RuntimeException(message);
         }
         sessionId = response.jsonPath("get[0] response..sessionId").asString();

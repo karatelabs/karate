@@ -514,7 +514,7 @@ You can easily select (double-click), copy and paste this `file:` URL into your 
 ## Karate Options
 To run only a specific feature file from a JUnit 4 test even if there are multiple `*.feature` files in the same folder (or sub-folders), use the `@KarateOptions` annotation.
 
-> > If you want to use JUnit 4, use the [`karate-junit4` Maven dependency](#maven) instead of `karate-junit5`. The [JUnit 5 support](#junit-5) does not require a class-level annotation to specify the feature(s) and tags to use.
+> If you want to use JUnit 4, use the [`karate-junit4` Maven dependency](#maven) instead of `karate-junit5`. The [JUnit 5 support](#junit-5) does not require a class-level annotation to specify the feature(s) and tags to use.
 
 ```java
 package animals.cats;
@@ -2521,7 +2521,7 @@ Note that `match contains` will "recurse", so any nested JSON chunks will also b
 * match original contains expected
 ```
 
-Also note that [`match contains any`](#match-contains-any) is possible for JSON objects as well as JSON arrays.
+Also note that [`match contains any`](#match-contains-any) is possible for JSON objects as well as [JSON arrays](#json-arrays).
 
 ### (not) `!contains`
 It is sometimes useful to be able to check if a key-value-pair does **not** exist. This is possible by prefixing `contains` with a `!` (with no space in between).
