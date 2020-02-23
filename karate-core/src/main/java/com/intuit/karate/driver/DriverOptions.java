@@ -38,6 +38,7 @@ import com.intuit.karate.driver.microsoft.IeWebDriver;
 import com.intuit.karate.driver.microsoft.MsWebDriver;
 import com.intuit.karate.driver.firefox.GeckoWebDriver;
 import com.intuit.karate.driver.appium.IosDriver;
+import com.intuit.karate.driver.microsoft.MsEdgeDriver;
 import com.intuit.karate.driver.safari.SafariWebDriver;
 import com.intuit.karate.driver.microsoft.WinAppDriver;
 import com.intuit.karate.shell.Command;
@@ -271,6 +272,8 @@ public class DriverOptions {
                     return GeckoWebDriver.start(context, options, appender);
                 case "safaridriver":
                     return SafariWebDriver.start(context, options, appender);
+                case "msedgedriver":
+                    return MsEdgeDriver.start(context, options, appender);                    
                 case "mswebdriver":
                     return MsWebDriver.start(context, options, appender);
                 case "iedriver":
