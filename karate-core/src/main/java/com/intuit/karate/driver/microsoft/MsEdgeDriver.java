@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2018 Intuit Inc.
+ * Copyright 2020 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.driver.microsoft;
 
-import com.intuit.karate.Json;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
@@ -34,21 +33,16 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class MicrosoftWebDriver extends WebDriver {
+public class MsEdgeDriver extends WebDriver {
 
-    public MicrosoftWebDriver(DriverOptions options) {
+    public MsEdgeDriver(DriverOptions options) {
         super(options);
     }
 
-    public static MicrosoftWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(context, map, appender, 17556, "MicrosoftWebDriver");
+    public static MsEdgeDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(context, map, appender, 9515, "msedgedriver");
         options.arg("--port=" + options.port);
-        return new MicrosoftWebDriver(options);
-    }
-
-    @Override
-    protected String getJsonForInput(String text) {
-        return new Json().set("keysToSend[0]", text).toString();
+        return new MsEdgeDriver(options);
     }
 
     @Override
