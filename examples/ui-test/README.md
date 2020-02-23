@@ -13,3 +13,18 @@ The `test.feature` is a simple [Karate UI test](https://github.com/intuit/karate
 
 ## Debugging
 You should be able to use the [Karate extension for Visual Studio Code](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) for stepping-through a test for troubleshooting.
+
+## Advanced
+If you are targeting a WebDriver implementation, you may need to experiment with HTTP calls. Don't forget that that is Karate's core competency ! So you can use a "scratchpad" Karate test on the side, like this:
+
+```cucumber
+Feature:
+
+Scenario:
+* url 'http://localhost:9515'
+* path 'session'
+* request {"capabilities":{"browserName":"msedge"}}
+* method post
+```
+
+And note that the [VS Code "Karate Runner"](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) plugin is really convenient for re-running the above, once you have say - started the driver executable manually.

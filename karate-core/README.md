@@ -292,6 +292,12 @@ But in some cases, especially when you need to talk to remote driver instances, 
 * configure driver = { type: 'chromedriver', webDriverSession: '#(session)', start: false, webDriverUrl: 'http://localhost:9515/wd/hub' }
 ```
 
+Another example is that for the new Microsoft Edge browser (based on Chromium), the Karate default `alwaysMatch` is not supported, so this is what works:
+
+```cucumber
+* configure driver = { type: 'msedgedriver', webDriverSession: { capabilities: { browserName: 'edge' } } }
+```
+
 Here are some of the things that you can customize, but note that these depend on the driver implementation.
 
 * [`proxy`](#proxy)
@@ -408,7 +414,7 @@ type | default port | default executable | description
 [`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) | 9515 | `chromedriver` | W3C Chrome Driver
 [`geckodriver`](https://github.com/mozilla/geckodriver) | 4444 | `geckodriver` | W3C Gecko Driver (Firefox)
 [`safaridriver`](https://webkit.org/blog/6900/webdriver-support-in-safari-10/) | 5555 | `safaridriver` | W3C Safari Driver
-[`msedgedriver`](https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/) | 9515 | `msedgedriver` | W3C Microsoft Edge WebDriver (the new one based on Chromium)
+[`msedgedriver`](https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/) | 9515 | `msedgedriver` | W3C Microsoft Edge WebDriver (the new one based on Chromium), also see [`webDriverSession`](#webdriversession)
 [`mswebdriver`](https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/) | 17556 | `MicrosoftWebDriver` | Microsoft Edge "Legacy" WebDriver
 [`iedriver`](https://github.com/SeleniumHQ/selenium/wiki/InternetExplorerDriver) | 5555 | `IEDriverServer` | IE (11 only) Driver
 [`msedge`](https://docs.microsoft.com/en-us/microsoft-edge/devtools-protocol/) | 9222 | `MicrosoftEdge` | *very* experimental - using the DevTools protocol
