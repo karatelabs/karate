@@ -327,6 +327,7 @@ public class DriverOptions {
                 return getSession("firefox");
             case "safaridriver":
                 return getSession("safari");
+            case "msedgedriver":               
             case "mswebdriver":
                 return getSession("edge");
             case "iedriver":
