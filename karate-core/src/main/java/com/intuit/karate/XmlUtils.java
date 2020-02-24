@@ -301,7 +301,7 @@ public class XmlUtils {
         return childElementCount;
     }
 
-    private static Object getElementAsObject(Node node) {
+    private static Object getElementAsObject(Node node, boolean removeNamespace) {
         int childElementCount = getChildElementCount(node);
         if (childElementCount == 0) {
             return StringUtils.trimToNull(node.getTextContent());
@@ -314,8 +314,9 @@ public class XmlUtils {
             if (child.getNodeType() != Node.ELEMENT_NODE) {
                 continue;
             }
-            String childName = child.getNodeName();
-            Object childValue = toObject(child);
+            String childName = removeNamespace
+                    ? child.getNodeName().replaceFirst("(^.*:)", "") : child.getNodeName();
+            Object childValue = toObject(child, removeNamespace);
             // auto detect repeating elements
             if (map.containsKey(childName)) {
                 Object temp = map.get(childName);
@@ -369,18 +370,33 @@ public class XmlUtils {
     }
 
     public static Object toObject(Node node) {
+        return toObject(node, false);
+    }
+
+    public static Object toObject(Node node, boolean removeNamespace) {
         if (node.getNodeType() == Node.DOCUMENT_NODE) {
             node = node.getFirstChild();
+            String name = removeNamespace
+                    ? node.getNodeName().replaceFirst("(^.*:)", "") : node.getNodeName();
             Map<String, Object> map = new LinkedHashMap<>(1);
-            map.put(node.getNodeName(), toObject(node));
+            map.put(name, toObject(node, removeNamespace));
             return map;
         }
-        Object value = getElementAsObject(node);
+        Object value = getElementAsObject(node, removeNamespace);
         if (node.hasAttributes()) {
-            Map<String, Object> wrapper = new LinkedHashMap<>(2);
-            wrapper.put("_", value);
-            wrapper.put("@", getAttributes(node));
-            return wrapper;
+            Map<String, Object> attribs = getAttributes(node);
+            if(removeNamespace) {
+                attribs.keySet().removeIf(key -> "xmlns".equals(key) || key.startsWith("xmlns:"));
+            }
+            if(attribs.size() > 0) {
+                Map<String, Object> wrapper = new LinkedHashMap<>(2);
+                wrapper.put("_", value);
+                wrapper.put("@", attribs);
+                return wrapper;
+            }else {
+                //namespaces were the only attributes
+                return value;
+            }
         } else {
             return value;
         }
