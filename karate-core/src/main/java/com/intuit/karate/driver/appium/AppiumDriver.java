@@ -51,7 +51,8 @@ public abstract class AppiumDriver extends WebDriver {
         return http.path("element", id, "attribute", name).get().jsonPath("$.value").asString();
     }
 
-    private String getElementSelector(String id) {
+    @Override
+    protected String selectorPayload(String id) {
         Json json = new Json();
         if (id.startsWith("/")) {
             json.set("using", "xpath").set("value", id);
@@ -69,12 +70,6 @@ public abstract class AppiumDriver extends WebDriver {
             json.set("using", "name").set("value", id);
         }
         return json.toString();
-    }
-
-    @Override
-    public String elementId(String id) {
-        String body = getElementSelector(id);
-        return http.path("element").post(body).jsonPath("get[0] $..ELEMENT").asString();
     }
 
     @Override
