@@ -1010,8 +1010,8 @@ public class Script {
         switch (expected.getType()) {
             case XML: // convert to map and then compare               
                 Node expNode = expected.getValue(Node.class);
-                expObject = XmlUtils.toObject(expNode);
-                actObject = XmlUtils.toObject(actual.getValue(Node.class));
+                expObject = XmlUtils.toObjectWithoutNamespace(expNode);
+                actObject = XmlUtils.toObjectWithoutNamespace(actual.getValue(Node.class));
                 break;
             case MAP: // expected is already in map form, convert the actual also
                 expObject = expected.getValue(Map.class);
