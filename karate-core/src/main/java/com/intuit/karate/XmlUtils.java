@@ -335,39 +335,6 @@ public class XmlUtils {
         }
         return map;
     }
-    private static Object getElementAsObjectWithoutNamespace(Node node) {
-        int childElementCount = getChildElementCount(node);
-        if (childElementCount == 0) {
-            return StringUtils.trimToNull(node.getTextContent());
-        }
-        Map<String, Object> map = new LinkedHashMap<>(childElementCount);
-        NodeList nodes = node.getChildNodes();
-        int childCount = nodes.getLength();
-        for (int i = 0; i < childCount; i++) {
-            Node child = nodes.item(i);
-            if (child.getNodeType() != Node.ELEMENT_NODE) {
-                continue;
-            }
-            String childName = child.getNodeName().replaceFirst("(^.*:)", "");
-            Object childValue = toObjectWithoutNamespace(child);
-            // auto detect repeating elements
-            if (map.containsKey(childName)) {
-                Object temp = map.get(childName);
-                if (temp instanceof List) {
-                    List list = (List) temp;
-                    list.add(childValue);
-                } else {
-                    List list = new ArrayList(childCount);
-                    map.put(childName, list);
-                    list.add(temp);
-                    list.add(childValue);
-                }
-            } else {
-                map.put(childName, childValue);
-            }
-        }
-        return map;
-    }
 
     public static Object toObject(Node node) {
         return toObject(node, false);
@@ -388,34 +355,6 @@ public class XmlUtils {
             if(removeNamespace) {
                 attribs.keySet().removeIf(key -> "xmlns".equals(key) || key.startsWith("xmlns:"));
             }
-            if(attribs.size() > 0) {
-                Map<String, Object> wrapper = new LinkedHashMap<>(2);
-                wrapper.put("_", value);
-                wrapper.put("@", attribs);
-                return wrapper;
-            }else {
-                //namespaces were the only attributes
-                return value;
-            }
-        } else {
-            return value;
-        }
-    }
-
-    //Strip prefix and any "xmlns" attributes for matching purposes
-    public static Object toObjectWithoutNamespace(Node node) {
-
-        if (node.getNodeType() == Node.DOCUMENT_NODE) {
-            node = node.getFirstChild();
-            String name = node.getNodeName().replaceFirst("(^.*:)", "");
-            Map<String, Object> map = new LinkedHashMap<>(1);
-            map.put(name, toObjectWithoutNamespace(node));
-            return map;
-        }
-        Object value = getElementAsObjectWithoutNamespace(node);
-        if (node.hasAttributes()) {
-            Map<String, Object> attribs = getAttributes(node);
-            attribs.keySet().removeIf(key -> "xmlns".equals(key) || key.startsWith("xmlns:"));
             if(attribs.size() > 0) {
                 Map<String, Object> wrapper = new LinkedHashMap<>(2);
                 wrapper.put("_", value);
