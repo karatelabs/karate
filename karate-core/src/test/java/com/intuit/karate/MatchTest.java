@@ -53,6 +53,14 @@ public class MatchTest {
     }
 
     @Test
+    public void testXmlNamespaced() {
+        new Match("<foo:cat xmlns:foo=\"foobar\">a</foo:cat>").equals("<bar:cat xmlns:bar=\"foobar\">a</bar:cat>");
+        new Match("<foo:cat xmlns:foo=\"foobar\" xmlns:bar=\"https:github.com\"><bar:dog>a</bar:dog></foo:cat>")
+                .equals("<foo2:cat xmlns:foo2=\"foobar\" xmlns:bar2=\"https:github.com\"><bar2:dog>a</bar2:dog></foo2:cat>");
+
+    }
+
+    @Test
     public void testString() {
         Match.equalsText("foo", "foo");
         Match.containsText("foo", "foo");

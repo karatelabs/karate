@@ -442,3 +442,17 @@ Scenario: repeated xml elements and fuzzy matching
     * match response == { response: { foo: { bar: '#[] bar.bar' } } }
     # so yes, we can express expected data in xml
     * match response == <response><foo><bar>#[] bar.bar</bar></foo></response>
+
+Scenario: matching ignores xml prefixes
+    * def search = { number: '123456', wireless: true, voip: false, tollFree: false }
+    * def xml = read('soap1.xml')
+
+    * def phoneNumberSearchOption =
+    """
+    <foo:phoneNumberSearchOption xmlns:foo="http://foo/bar">
+        <foo:searchWirelessInd>#(search.wireless)</foo:searchWirelessInd>
+        <foo:searchVoipInd>#(search.voip)</foo:searchVoipInd>
+        <foo:searchTollFreeInd>#(search.tollFree)</foo:searchTollFreeInd>
+    </foo:phoneNumberSearchOption>
+    """
+    * match xml /Envelope/Body/getAccountByPhoneNumber/phoneNumberSearchOption == phoneNumberSearchOption

@@ -49,6 +49,16 @@ public class XmlUtilsTest {
     }
 
     @Test
+    public void testConvertingToMapWithoutNamespace() {
+        String xml = "<foo xmlns=\"foobar\"><a:bar xmlns:a=\"test\">baz</a:bar></foo>";
+        Document doc = XmlUtils.toXmlDoc(xml);
+        Map<String, Object> map = (Map) XmlUtils.toObject(doc, true);
+        logger.trace("map: {}", map);
+        Map inner = (Map) map.get("foo");
+        assertEquals("baz", inner.get("bar"));
+    }
+
+    @Test
     public void testComplexConversionToMap() {
         Document doc = XmlUtils.toXmlDoc(ACTUAL);
         Map<String, Object> map = (Map) XmlUtils.toObject(doc);
