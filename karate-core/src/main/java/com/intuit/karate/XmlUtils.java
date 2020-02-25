@@ -25,6 +25,7 @@ package com.intuit.karate;
 
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
@@ -47,6 +48,7 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
+
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -58,7 +60,6 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 /**
- *
  * @author pthomas3
  */
 public class XmlUtils {
@@ -352,15 +353,15 @@ public class XmlUtils {
         Object value = getElementAsObject(node, removeNamespace);
         if (node.hasAttributes()) {
             Map<String, Object> attribs = getAttributes(node);
-            if(removeNamespace) {
+            if (removeNamespace) {
                 attribs.keySet().removeIf(key -> "xmlns".equals(key) || key.startsWith("xmlns:"));
             }
-            if(attribs.size() > 0) {
+            if (attribs.size() > 0) {
                 Map<String, Object> wrapper = new LinkedHashMap<>(2);
                 wrapper.put("_", value);
                 wrapper.put("@", attribs);
                 return wrapper;
-            }else {
+            } else {
                 //namespaces were the only attributes
                 return value;
             }
