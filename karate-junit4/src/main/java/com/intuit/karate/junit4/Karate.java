@@ -65,7 +65,7 @@ public class Karate extends ParentRunner<Feature> {
         if (!testMethods.isEmpty()) {
             logger.warn("WARNING: there are methods annotated with '@Test', they will NOT be run when using '@RunWith(Karate.class)'");
         }
-        RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(clazz);
+        RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(null, null, clazz);
         List<Resource> resources = FileUtils.scanForFeatureFiles(options.getFeatures(), clazz.getClassLoader());
         children = new ArrayList(resources.size());
         featureMap = new HashMap(resources.size());

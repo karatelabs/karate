@@ -23,7 +23,6 @@
  */
 package com.intuit.karate;
 
-import cucumber.api.CucumberOptions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -132,24 +131,16 @@ public class RunnerOptions {
         return options;
     }
 
-    public static RunnerOptions fromAnnotationAndSystemProperties(Class<?> clazz) {
-        List<String> tags = null;
-        List<String> features = null;
-        KarateOptions ko = clazz.getAnnotation(KarateOptions.class);
-        if (ko == null) {
-            CucumberOptions co = clazz.getAnnotation(CucumberOptions.class);
-            if (co != null) {
-                tags = Arrays.asList(co.tags());
-                features = Arrays.asList(co.features());
+    public static RunnerOptions fromAnnotationAndSystemProperties(List<String> features, List<String> tags, Class<?> clazz) {
+        KarateOptions ko = clazz == null ? null : clazz.getAnnotation(KarateOptions.class);
+        if (ko != null) {
+            if (ko.tags().length > 0) {
+                tags = Arrays.asList(ko.tags());
             }
-        } else {
-            tags = Arrays.asList(ko.tags());
-            features = Arrays.asList(ko.features());
+            if (ko.features().length > 0) {
+                features = Arrays.asList(ko.features());
+            }            
         }
-        return fromAnnotationAndSystemProperties(features, tags, clazz);
-    }
-
-    public static RunnerOptions fromAnnotationAndSystemProperties(List<String> features, List<String> tags, Class clazz) {
         if (clazz != null && (features == null || features.isEmpty())) {
             String relative = FileUtils.toRelativeClassPath(clazz);
             features = Collections.singletonList(relative);

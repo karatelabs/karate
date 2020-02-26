@@ -78,6 +78,10 @@ public class Runner {
         }
 
         List<Resource> resolveResources() {
+            RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(paths, tags, optionsClass);
+            paths = options.features;
+            tags = options.tags;     
+            scenarioName = options.name;
             if (resources == null) {
                 return FileUtils.scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
             }
@@ -206,8 +210,7 @@ public class Runner {
     }
 
     public static Results parallel(Class<?> clazz, int threadCount, String reportDir) {
-        RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(clazz);
-        return parallel(options.getTags(), options.getFeatures(), options.getName(), null, threadCount, reportDir);
+        return new Builder().forClass(clazz).reportDir(reportDir).parallel(threadCount);
     }
 
     public static Results parallel(List<String> tags, List<String> paths, int threadCount, String reportDir) {
