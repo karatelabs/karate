@@ -147,10 +147,6 @@ public class RunnerOptions {
         }
         String line = System.getProperty("karate.options");
         line = StringUtils.trimToNull(line);
-        if (line == null) {
-            line = System.getProperty("cucumber.options");
-            line = StringUtils.trimToNull(line);
-        }
         RunnerOptions options;
         if (line == null) {
             options = new RunnerOptions();
