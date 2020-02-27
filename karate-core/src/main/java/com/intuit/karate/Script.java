@@ -648,15 +648,12 @@ public class Script {
             return JsonPath.parse(sv.getAsMap());
         } else if (sv.isUnknown()) { // POJO
             return JsonUtils.toJsonDoc(sv.getValue());
-        } else if (sv.isStringOrStream()) {
-            ScriptValue temp = evalKarateExpression(sv.getAsString(), context);
-            if (!temp.isJson()) {
-                throw new RuntimeException("cannot convert, not a json string: " + sv);
-            }
-            return temp.getValue(DocumentContext.class);
-        } else {
-            throw new RuntimeException("cannot convert to json: " + sv);
         }
+        ScriptValue temp = evalKarateExpression(sv.getAsString(), context);
+        if (!temp.isJson()) {
+            throw new RuntimeException("cannot convert, not a json string: " + sv);
+        }
+        return temp.getValue(DocumentContext.class);
     }
 
     private static Node toXmlDoc(ScriptValue sv, ScenarioContext context) {
