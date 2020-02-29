@@ -396,13 +396,13 @@ public class Engine {
         formatter.applyPattern("0.######");
         String html = getClasspathResource("report-template.html");
         String img = getClasspathResource("karate-logo.svg");
-        Node svg = XmlUtils.toXmlDoc(img);
-        String js = getClasspathResource("report-template-js.txt");
+        String js = getClasspathResource("report-template-js.html");
+        js = js.replace("<script>", "").replace("</script>", "");
         Document doc = XmlUtils.toXmlDoc(html);
-        XmlUtils.setByPath(doc, "/html/body/img", svg);
         String baseName = result.getPackageQualifiedName();
         set(doc, "/html/head/title", baseName);
         set(doc, "/html/head/script", js);
+        set(doc, "/html/body/img", img);
         for (ScenarioResult sr : result.getScenarioResults()) {
             Node scenarioDiv = div(doc, "scenario");
             append(doc, "/html/body/div", scenarioDiv);
