@@ -44,7 +44,7 @@ public class Table {
 
     enum ColumnType {
         STRING,
-        NUMBER
+        EVALUATED
     }
 
     class Column {
@@ -120,7 +120,7 @@ public class Table {
             ColumnType type;
             if (key.endsWith("!")) {
                 key = key.substring(0, key.length() - 1);
-                type = ColumnType.NUMBER;
+                type = ColumnType.EVALUATED;
             } else {
                 type = ColumnType.STRING;
             }
@@ -155,7 +155,7 @@ public class Table {
     private static Object convert(String raw, Column col) {
         try {
             switch (col.type) {
-                case NUMBER:
+                case EVALUATED:
                     if (Script.isJson(raw)) {
                         raw = '(' + raw + ')';
                     }
