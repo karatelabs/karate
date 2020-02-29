@@ -49,7 +49,7 @@ public abstract class DevToolsDriver implements Driver {
     protected final Command command;
     protected final WebSocketClient client;
 
-    private final WaitState waitState;
+    private final DevToolsWait wait;
     protected final String rootFrameId;
 
     private Integer windowId;
@@ -79,7 +79,7 @@ public abstract class DevToolsDriver implements Driver {
         logger = options.driverLogger;
         this.options = options;
         this.command = command;
-        this.waitState = new WaitState(options);
+        this.wait = new DevToolsWait(options);
         int pos = webSocketUrl.lastIndexOf('/');
         rootFrameId = webSocketUrl.substring(pos + 1);
         logger.debug("root frame id: {}", rootFrameId);
@@ -121,9 +121,9 @@ public abstract class DevToolsDriver implements Driver {
         boolean wasSubmit = submit;
         if (condition == null && submit) {
             submit = false;
-            condition = WaitState.ALL_FRAMES_LOADED;
+            condition = DevToolsWait.ALL_FRAMES_LOADED;
         }
-        DevToolsMessage result = waitState.waitAfterSend(dtm, condition);
+        DevToolsMessage result = wait.send(dtm, condition);
         if (result == null && !wasSubmit) {
             throw new RuntimeException("failed to get reply for: " + dtm);
         }
@@ -138,7 +138,7 @@ public abstract class DevToolsDriver implements Driver {
         if (dtm.methodIs("Page.javascriptDialogOpening")) {
             currentDialogText = dtm.getParam("message").getAsString();
             // this will stop waiting NOW
-            waitState.setCondition(WaitState.DIALOG_OPENING);
+            wait.setCondition(DevToolsWait.DIALOG_OPENING);
         }
         if (dtm.methodIs("Page.frameNavigated")) {
             String frameNavId = dtm.get("frame.id", String.class);
@@ -176,7 +176,7 @@ public abstract class DevToolsDriver implements Driver {
             logger.trace("** added frame session: {}", frameSessions);
         }
         // all needed state is set above before we get into conditional checks
-        waitState.receive(dtm);
+        wait.receive(dtm);
     }
 
     //==========================================================================
@@ -317,12 +317,12 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void setUrl(String url) {
         method("Page.navigate").param("url", url)
-                .send(WaitState.ALL_FRAMES_LOADED);
+                .send(DevToolsWait.ALL_FRAMES_LOADED);
     }
 
     @Override
     public void refresh() {
-        method("Page.reload").send(WaitState.ALL_FRAMES_LOADED);
+        method("Page.reload").send(DevToolsWait.ALL_FRAMES_LOADED);
     }
 
     @Override
@@ -340,7 +340,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         Map<String, Object> entry = list.get(targetIndex);
         Integer id = (Integer) entry.get("id");
-        method("Page.navigateToHistoryEntry").param("entryId", id).send(WaitState.ALL_FRAMES_LOADED);
+        method("Page.navigateToHistoryEntry").param("entryId", id).send(DevToolsWait.ALL_FRAMES_LOADED);
     }
 
     @Override

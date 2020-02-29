@@ -30,7 +30,7 @@ import java.util.function.Predicate;
  *
  * @author pthomas3
  */
-public class WaitState {
+public class DevToolsWait {
 
     private final DriverOptions options;
 
@@ -73,7 +73,7 @@ public class WaitState {
         return m -> name.equals(m.getMethod());
     }
 
-    public WaitState(DriverOptions options) {
+    public DevToolsWait(DriverOptions options) {
         this.options = options;
         logger = options.driverLogger;
     }
@@ -89,7 +89,7 @@ public class WaitState {
         this.condition = condition;
     }
 
-    public DevToolsMessage waitAfterSend(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
+    public DevToolsMessage send(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
         lastReceived = null;
         lastSent = dtm;
         this.condition = condition == null ? DEFAULT : condition;        
