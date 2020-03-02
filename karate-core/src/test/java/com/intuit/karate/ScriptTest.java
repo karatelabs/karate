@@ -1685,8 +1685,8 @@ public class ScriptTest {
     @Test
     public void testBinaryMatching() {
         ScenarioContext ctx = getContext();
-        Script.assign(AssignType.BYTE_ARRAY, "data", "read('file:src/main/resources/karate-logo.png')", ctx, true);
-        assertTrue(Script.matchNamed(MatchType.EQUALS, "data", null, "read('file:src/main/resources/karate-logo.png')", ctx).pass);
+        Script.assign(AssignType.BYTE_ARRAY, "data", "read('file:src/main/resources/res/karate-logo.png')", ctx, true);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "data", null, "read('file:src/main/resources/res/karate-logo.png')", ctx).pass);
     }
 
     @Test

@@ -1,0 +1,19 @@
+#root-container { display: flex; align-items: stretch; }
+#leftnav { min-width: 250px; max-width: 250px; min-height: 100vh; background: #000; color: #fff; }
+#leftnav .logo { width: 120px; padding: 1em; }
+
+#content { padding: 0.5em; }
+.scenario { border: 1px solid gray; margin-bottom: 1em; }
+.scenario-heading { background-color: #F5F28F; padding: 0.2em 0.5em; border-bottom: 1px solid gray; }
+.scenario-name { font-weight: bold; padding-left: 0.2em; }
+
+.step-container { width: 90%; display: flex; }
+.step-indent { display: inline-block; width: 1em; }
+.step-row { display: flex; } 
+.step-cell { display: flex; width: 100%; } 
+.time-cell { background-color: #92DD96; display: flex; width: 10%; } 
+.preformatted { white-space: pre-wrap; font-family: monospace; } 
+
+.passed { background-color: #92DD96; } 
+.failed { background-color: #F2928C; } 
+.skipped { background-color: #f5f28f; }

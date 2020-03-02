@@ -68,6 +68,10 @@ public class Embed {
     public String getAsString() {
         return FileUtils.toString(bytes);
     }
+    
+    public String getAsHtmlData() {
+        return "data:" + getMimeType() + ";base64," + getBase64();
+    }
 
     public Map toMap() {
         Map map = new HashMap(2);

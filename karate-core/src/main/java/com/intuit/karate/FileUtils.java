@@ -317,8 +317,9 @@ public class FileUtils {
             if (file.getParentFile() != null) {
                 file.getParentFile().mkdirs();
             }
+            // try with resources, so will be closed automatically
             try (FileOutputStream fos = new FileOutputStream(file)) {
-                fos.write(data);
+                fos.write(data);                
             }
         } catch (IOException e) {
             throw new RuntimeException(e);

@@ -31,6 +31,7 @@ import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.PerfEvent;
+import com.intuit.karate.core.Reports;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScenarioResult;
@@ -125,7 +126,7 @@ public class CliExecutionHook implements ExecutionHook {
             return;
         }
         if (htmlReport) {
-            Engine.saveResultHtml(targetDir, result, null);
+            Reports.saveResultHtml(targetDir, result, null);
         }
         if (LOCK.tryLock()) {
             Engine.saveStatsJson(targetDir, context.results, null);

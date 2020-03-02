@@ -47,15 +47,10 @@ import java.util.Locale;
 import java.util.Map;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 import com.intuit.karate.StepActions;
 import cucumber.api.java.en.When;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 
 /**
  *
@@ -146,7 +141,7 @@ public class Engine {
             args = match.convertArgs(last);
         } catch (Exception ee) { // edge case where user error causes [request =] to match [request docstring]
             KarateException e = new KarateException("no step-definition method match found for: " + text);
-            return Result.failed(0, e, step);            
+            return Result.failed(0, e, step);
         }
         long startTime = System.nanoTime();
         try {
@@ -174,11 +169,11 @@ public class Engine {
         return file;
     }
 
-    private static String formatNanos(long nanos, DecimalFormat formatter) {
+    public static String formatNanos(long nanos, DecimalFormat formatter) {
         return formatter.format(nanosToSeconds(nanos));
     }
 
-    private static String formatMillis(double millis, DecimalFormat formatter) {
+    public static String formatMillis(double millis, DecimalFormat formatter) {
         return formatter.format(millis / 1000);
     }
 
@@ -263,174 +258,6 @@ public class Engine {
         return file;
     }
 
-    public static String getClasspathResource(String name) {
-        return FileUtils.toString(Engine.class.getClassLoader().getResourceAsStream(name));
-    }
-
-    private static void set(Document doc, String path, String value) {
-        XmlUtils.setByPath(doc, path, value);
-    }
-
-    private static void append(Document doc, String path, Node node) {
-        Node temp = XmlUtils.getNodeByPath(doc, path, true);
-        temp.appendChild(node);
-    }
-
-    private static Node div(Document doc, String clazz, String value) {
-        return node(doc, "div", clazz, value);
-    }
-
-    private static Node div(Document doc, String clazz, Node... childNodes) {
-        Node parent = node(doc, "div", clazz);
-        for (Node child : childNodes) {
-            parent.appendChild(child);
-        }
-        return parent;
-    }
-
-    private static Node node(Document doc, String name, String clazz, String text) {
-        return XmlUtils.createElement(doc, name, text, clazz == null ? null : Collections.singletonMap("class", clazz));
-    }
-
-    private static Node node(Document doc, String name, String clazz) {
-        return node(doc, name, clazz, null);
-    }
-
-    private static void callHtml(Document doc, DecimalFormat formatter, FeatureResult featureResult, Node parent) {
-        String extraClass = featureResult.isFailed() ? "failed" : "passed";
-        Node stepRow = div(doc, "step-row",
-                div(doc, "step-cell " + extraClass, featureResult.getCallName()),
-                div(doc, "time-cell " + extraClass, formatMillis(featureResult.getDurationMillis(), formatter)));
-        parent.appendChild(stepRow);
-        String callArg = featureResult.getCallArgPretty();
-        if (callArg != null) {
-            parent.appendChild(node(doc, "div", "preformatted", callArg));
-        }
-    }
-
-    private static void stepHtml(Document doc, DecimalFormat formatter, StepResult stepResult, Node parent) {
-        Step step = stepResult.getStep();
-        Result result = stepResult.getResult();
-        String extraClass;
-        if (result.isFailed()) {
-            extraClass = "failed";
-        } else if (result.isSkipped()) {
-            extraClass = "skipped";
-        } else {
-            extraClass = "passed";
-        }
-        Node stepRow = div(doc, "step-row",
-                div(doc, "step-cell " + extraClass, step.getPrefix() + ' ' + step.getText()),
-                div(doc, "time-cell " + extraClass, formatNanos(result.getDurationNanos(), formatter)));
-        parent.appendChild(stepRow);
-        if (step.getTable() != null) {
-            Node table = node(doc, "table", null);
-            parent.appendChild(table);
-            for (List<String> row : step.getTable().getRows()) {
-                Node tr = node(doc, "tr", null);
-                table.appendChild(tr);
-                for (String cell : row) {
-                    tr.appendChild(node(doc, "td", null, cell));
-                }
-            }
-        }
-        StringBuilder sb = new StringBuilder();
-        if (step.getDocString() != null) {
-            sb.append(step.getDocString());
-        }
-        if (stepResult.isShowLog() && stepResult.getStepLog() != null) {
-            if (sb.length() > 0) {
-                sb.append('\n');
-            }
-            sb.append(stepResult.getStepLog());
-        }
-        if (result.isFailed()) {
-            if (sb.length() > 0) {
-                sb.append('\n');
-            }
-            sb.append(result.getError().getMessage());
-        }
-        if (sb.length() > 0) {
-            parent.appendChild(node(doc, "div", "preformatted", sb.toString()));
-        }
-        List<Embed> embeds = stepResult.getEmbeds();
-        if (embeds != null) {
-            for (Embed embed : embeds) {
-                Node embedNode;
-                String mimeType = embed.getMimeType().toLowerCase();
-                if (mimeType.contains("image")) {
-                    embedNode = node(doc, "img", null);
-                    String src = "data:" + embed.getMimeType() + ";base64," + embed.getBase64();
-                    XmlUtils.addAttributes((Element) embedNode, Collections.singletonMap("src", src));
-                } else if (mimeType.contains("html")) {
-                    Node html;
-                    try {
-                        html = XmlUtils.toXmlDoc(embed.getAsString()).getDocumentElement();
-                    } catch (Exception e) {
-                        html = div(doc, null, e.getMessage());
-                    }
-                    html = doc.importNode(html, true);
-                    embedNode = div(doc, null, html);
-                } else {
-                    embedNode = div(doc, null);
-                    embedNode.setTextContent(embed.getAsString());
-                }
-                parent.appendChild(div(doc, "embed", embedNode));
-            }
-        }
-        List<FeatureResult> callResults = stepResult.getCallResults();
-        if (callResults != null) { // this is a 'call'
-            for (FeatureResult callResult : callResults) {
-                callHtml(doc, formatter, callResult, parent);
-                Node calledStepsDiv = div(doc, "scenario-steps-nested");
-                parent.appendChild(calledStepsDiv);
-                for (StepResult sr : callResult.getStepResults()) { // flattens all steps in called feature
-                    stepHtml(doc, formatter, sr, calledStepsDiv);
-                }
-            }
-        }
-    }
-
-    public static File saveResultHtml(String targetDir, FeatureResult result, String fileName) {
-        DecimalFormat formatter = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
-        formatter.applyPattern("0.######");
-        String html = getClasspathResource("report-template.html");
-        String img = getClasspathResource("karate-logo.svg");
-        String js = getClasspathResource("report-template-js.html");
-        js = js.replace("<script>", "").replace("</script>", "");
-        Document doc = XmlUtils.toXmlDoc(html);
-        String baseName = result.getPackageQualifiedName();
-        set(doc, "/html/head/title", baseName);
-        set(doc, "/html/head/script", js);
-        set(doc, "/html/body/img", img);
-        for (ScenarioResult sr : result.getScenarioResults()) {
-            Node scenarioDiv = div(doc, "scenario");
-            append(doc, "/html/body/div", scenarioDiv);
-            Node scenarioHeadingDiv = div(doc, "scenario-heading",
-                    node(doc, "span", "scenario-keyword", sr.getScenario().getKeyword() + ": " + sr.getScenario().getDisplayMeta()),
-                    node(doc, "span", "scenario-name", sr.getScenario().getName()));
-            scenarioDiv.appendChild(scenarioHeadingDiv);
-            for (StepResult stepResult : sr.getStepResults()) {
-                stepHtml(doc, formatter, stepResult, scenarioDiv);
-            }
-        }
-        if (fileName == null) {
-            fileName = baseName + ".html";
-        }
-        File file = new File(targetDir + File.separator + fileName);
-        String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, false);
-        try {
-            FileUtils.writeToFile(file, xml);
-            System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
-                    + FileUtils.getKarateVersion() + "\n"
-                    + file.toURI()
-                    + "\n---------------------------------------------------------\n");
-        } catch (Exception e) {
-            System.out.println("html report output failed: " + e.getMessage());
-        }
-        return file;
-    }
-
     private static long getElapsedTime(long startTime) {
         return System.nanoTime() - startTime;
     }
@@ -443,63 +270,6 @@ public class Engine {
         File file = new File(targetDir + File.separator + fileName);
         FileUtils.writeToFile(file, json);
         return file;
-    }
-
-    public static File saveTimelineHtml(String targetDir, Results results, String fileName) {
-        Map<String, Integer> groupsMap = new LinkedHashMap();
-        List<ScenarioResult> scenarioResults = results.getScenarioResults();
-        List<Map> items = new ArrayList(scenarioResults.size());
-        int id = 1;
-        DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss.SSS");
-        for (ScenarioResult sr : scenarioResults) {
-            String threadName = sr.getThreadName();
-            Integer groupId = groupsMap.get(threadName);
-            if (groupId == null) {
-                groupId = groupsMap.size() + 1;
-                groupsMap.put(threadName, groupId);
-            }
-            Map<String, Object> item = new LinkedHashMap(7);
-            items.add(item);
-            item.put("id", id++);
-            item.put("group", groupId);
-            Scenario s = sr.getScenario();
-            String featureName = s.getFeature().getResource().getFileNameWithoutExtension();
-            String content = featureName + s.getDisplayMeta();
-            item.put("content", content);
-            item.put("start", sr.getStartTime());
-            item.put("end", sr.getEndTime());
-            String startTime = dateFormat.format(new Date(sr.getStartTime()));
-            String endTime = dateFormat.format(new Date(sr.getEndTime()));
-            content = content + " " + startTime + "-" + endTime;
-            String scenarioTitle = StringUtils.trimToEmpty(s.getName());
-            if (!scenarioTitle.isEmpty()) {
-                content = content + " " + scenarioTitle;
-            }
-            item.put("title", content);
-        }
-        List<Map> groups = new ArrayList(groupsMap.size());
-        groupsMap.forEach((k, v) -> {
-            Map<String, Object> group = new LinkedHashMap(2);
-            groups.add(group);
-            group.put("id", v);
-            group.put("content", k);
-        });
-        StringBuilder sb = new StringBuilder();
-        sb.append("\nvar groups = new vis.DataSet(").append(JsonUtils.toJson(groups)).append(");").append('\n');
-        sb.append("var items = new vis.DataSet(").append(JsonUtils.toJson(items)).append(");").append('\n');
-        sb.append("var container = document.getElementById('visualization');\n"
-                + "var timeline = new vis.Timeline(container);\n"
-                + "timeline.setOptions({ groupOrder: 'content' });\n"
-                + "timeline.setGroups(groups);\n"
-                + "timeline.setItems(items);\n");
-        if (fileName == null) {
-            fileName = File.separator + "timeline.html";
-        }
-        File htmlFile = new File(targetDir + fileName);
-        String html = getClasspathResource("timeline-template.html");
-        html = html.replaceFirst("//timeline//", sb.toString());
-        FileUtils.writeToFile(htmlFile, html);
-        return htmlFile;
     }
 
     private static List<MethodMatch> findMethodsMatching(String text) {

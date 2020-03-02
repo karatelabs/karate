@@ -25,11 +25,11 @@ package com.intuit.karate.junit5;
 
 import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureContext;
 import com.intuit.karate.core.FeatureExecutionUnit;
+import com.intuit.karate.core.Reports;
 import com.intuit.karate.core.ScenarioExecutionUnit;
 import java.io.File;
 import java.util.ArrayList;
@@ -82,7 +82,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
             if (unit.isLast() || failed) {
                 featureUnit.stop();
                 exec.result.printStats(null);
-                Engine.saveResultHtml(FileUtils.getBuildDir() + File.separator + "surefire-reports", exec.result, null);
+                Reports.saveResultHtml(FileUtils.getBuildDir() + File.separator + "surefire-reports", exec.result, null);
             }
             if (failed) {
                 Assertions.fail(unit.result.getError().getMessage());

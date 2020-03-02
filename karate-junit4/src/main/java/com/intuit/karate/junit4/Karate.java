@@ -26,10 +26,10 @@ package com.intuit.karate.junit4;
 import com.intuit.karate.Resource;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.RunnerOptions;
-import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
+import com.intuit.karate.core.Reports;
 import com.intuit.karate.core.Tags;
 import java.io.File;
 import java.io.IOException;
@@ -123,7 +123,7 @@ public class Karate extends ParentRunner<Feature> {
         info.unit.run();
         FeatureResult result = info.exec.result;
         result.printStats(null);
-        Engine.saveResultHtml(FileUtils.getBuildDir() + File.separator + "surefire-reports", result, null);
+        Reports.saveResultHtml(FileUtils.getBuildDir() + File.separator + "surefire-reports", result, null);
     }
 
     @Override
