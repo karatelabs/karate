@@ -56,10 +56,13 @@ public class RunnerOptions {
 
     @Option(names = {"-n", "--name"}, description = "name of scenario to run")
     String name;
-    
+
+    @Option(names = {"-e", "--env"}, description = "value of 'karate.env'")
+    String env;
+
     @Option(names = {"-d", "--debug"}, arity = "0..1", defaultValue = "-1", fallbackValue = "0",
             description = "debug mode (optional port else dynamically chosen)")
-    int debugPort;    
+    int debugPort;
 
     @Parameters(description = "one or more tests (features) or search-paths to run")
     List<String> features;
@@ -88,7 +91,7 @@ public class RunnerOptions {
         }
         features.add(feature);
     }
-    
+
     public List<String> getFeatures() {
         return features;
     }
@@ -99,7 +102,7 @@ public class RunnerOptions {
 
     public int getDebugPort() {
         return debugPort;
-    }        
+    }
 
     public static RunnerOptions parseStringArgs(String[] args) {
         RunnerOptions options = CommandLine.populateCommand(new RunnerOptions(), args);
@@ -128,6 +131,10 @@ public class RunnerOptions {
         String[] args = line.split("\\s+");
         RunnerOptions options = parseStringArgs(args);
         options.name = nameTemp;
+        // a little easier for things like the vs code ide to say "-e smoke" etc
+        if (options.env != null) { 
+            System.setProperty("karate.env", options.env);
+        }
         return options;
     }
 
@@ -139,7 +146,7 @@ public class RunnerOptions {
             }
             if (ko.features().length > 0) {
                 features = Arrays.asList(ko.features());
-            }            
+            }
         }
         if (clazz != null && (features == null || features.isEmpty())) {
             String relative = FileUtils.toRelativeClassPath(clazz);
