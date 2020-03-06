@@ -1,5 +1,6 @@
 #root-container { display: flex; align-items: stretch; }
-#leftnav { min-width: 250px; max-width: 250px; min-height: 100vh; background: #000; color: #fff; position: fixed; }
+#leftnav { min-width: 250px; max-width: 250px; min-height: 100vh; background: #000; color: #fff;
+    position: fixed; overflow-y: scroll; top: 0; bottom: 0; }
 #leftnav .logo { width: 120px; padding: 1em; }
 
 .scenario-nav { margin: 1em; padding: 0.2em; }
