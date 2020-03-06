@@ -48,54 +48,16 @@ import org.w3c.dom.Node;
  *
  * @author pthomas3
  */
-public class Reports {
+public class HtmlReport {
 
-    private static String getResourceAsString(String name) {
-        return FileUtils.toString(Reports.class.getClassLoader().getResourceAsStream(name));
-    }
+    private final Document doc;
+    private final DecimalFormat formatter;
+    private final String baseName;
+    private final Node navContainer;
 
-    private static void set(Document doc, String path, String value) {
-        XmlUtils.setByPath(doc, path, value);
-    } 
+    private int stepCounter;
 
-    private static Node div(Document doc, String clazz, String value) {
-        return node(doc, "div", clazz, value);
-    }
-
-    private static Node div(Document doc, String clazz, Node... childNodes) {
-        Node parent = node(doc, "div", clazz);
-        for (Node child : childNodes) {
-            parent.appendChild(child);
-        }
-        return parent;
-    }
-
-    private static Node node(Document doc, String name, String clazz, String text) {
-        return XmlUtils.createElement(doc, name, text, clazz == null ? null : Collections.singletonMap("class", clazz));
-    }
-
-    private static Node node(Document doc, String name, String clazz) {
-        return node(doc, name, clazz, null);
-    }
-
-    private static void callHtml(Document doc, DecimalFormat formatter, FeatureResult featureResult, Node parent, int depth) {
-        String extraClass = featureResult.isFailed() ? "failed" : "passed";
-        Node stepContainer = div(doc, "step-container");
-        for (int i = 0; i < depth; i++) {
-            stepContainer.appendChild(div(doc, "step-indent", " "));
-        }                 
-        stepContainer.appendChild(div(doc, "step-cell " + extraClass, featureResult.getCallName()));
-        Node stepRow = div(doc, "step-row",
-                stepContainer,
-                div(doc, "time-cell " + extraClass, Engine.formatMillis(featureResult.getDurationMillis(), formatter)));
-        parent.appendChild(stepRow);
-        String callArg = featureResult.getCallArgPretty();
-        if (callArg != null) {
-            parent.appendChild(node(doc, "div", "preformatted", callArg));
-        }
-    }
-        
-    private static void stepHtml(Document doc, DecimalFormat formatter, StepResult stepResult, Node parent, int depth) {
+    private void stepHtml(StepResult stepResult, Node parent, int depth) {
         Step step = stepResult.getStep();
         Result result = stepResult.getResult();
         String extraClass;
@@ -106,23 +68,26 @@ public class Reports {
         } else {
             extraClass = "passed";
         }
-        Node stepContainer = div(doc, "step-container");
+        String refNum = ++stepCounter + "";
+        Element stepContainer = div("step-container");        
+        stepContainer.setAttribute("id", refNum);
+        stepContainer.appendChild(div("step-ref " + extraClass, refNum));
         for (int i = 0; i < depth; i++) {
-            stepContainer.appendChild(div(doc, "step-indent", " "));
-        }        
-        stepContainer.appendChild(div(doc, "step-cell " + extraClass, step.getPrefix() + ' ' + step.getText()));
-        Node stepRow = div(doc, "step-row", 
+            stepContainer.appendChild(div("step-indent", " "));
+        }
+        stepContainer.appendChild(div("step-cell " + extraClass, step.getPrefix() + ' ' + step.getText()));
+        Node stepRow = div("step-row",
                 stepContainer,
-                div(doc, "time-cell " + extraClass, Engine.formatNanos(result.getDurationNanos(), formatter)));
+                div("time-cell " + extraClass, Engine.formatNanos(result.getDurationNanos(), formatter)));
         parent.appendChild(stepRow);
         if (step.getTable() != null) {
-            Node table = node(doc, "table", null);
+            Node table = node("table", null);
             parent.appendChild(table);
             for (List<String> row : step.getTable().getRows()) {
-                Node tr = node(doc, "tr", null);
+                Node tr = node("tr", null);
                 table.appendChild(tr);
                 for (String cell : row) {
-                    tr.appendChild(node(doc, "td", null, cell));
+                    tr.appendChild(node("td", null, cell));
                 }
             }
         }
@@ -143,88 +108,120 @@ public class Reports {
             sb.append(result.getError().getMessage());
         }
         if (sb.length() > 0) {
-            parent.appendChild(node(doc, "div", "preformatted", sb.toString()));
+            Element docStringNode = node("div", "preformatted", sb.toString());
+            docStringNode.setAttribute("data-parent", refNum);
+            parent.appendChild(docStringNode);
         }
         List<Embed> embeds = stepResult.getEmbeds();
         if (embeds != null) {
             for (Embed embed : embeds) {
-                Node embedNode;
+                Element embedNode;
                 String mimeType = embed.getMimeType().toLowerCase();
                 if (mimeType.contains("image")) {
-                    embedNode = node(doc, "img", null);
+                    embedNode = node("img", null);
                     String src = embed.getAsHtmlData();
-                    XmlUtils.addAttributes((Element) embedNode, Collections.singletonMap("src", src));
+                    XmlUtils.addAttributes(embedNode, Collections.singletonMap("src", src));
                 } else if (mimeType.contains("html")) {
                     Node html;
                     try {
                         html = XmlUtils.toXmlDoc(embed.getAsString()).getDocumentElement();
                     } catch (Exception e) {
-                        html = div(doc, null, e.getMessage());
+                        html = div(null, e.getMessage());
                     }
                     html = doc.importNode(html, true);
-                    embedNode = div(doc, null, html);
+                    embedNode = div(null, html);
                 } else {
-                    embedNode = div(doc, null);
+                    embedNode = div(null);
                     embedNode.setTextContent(embed.getAsString());
                 }
-                parent.appendChild(div(doc, "embed", embedNode));
+                Element embedContainer = div("embed", embedNode);
+                embedContainer.setAttribute("data-parent", refNum);
+                parent.appendChild(embedContainer);
             }
         }
         List<FeatureResult> callResults = stepResult.getCallResults();
         if (callResults != null) { // this is a 'call'
+            int index = 1;
             for (FeatureResult callResult : callResults) {
-                callHtml(doc, formatter, callResult, parent, depth);
-                for (StepResult sr : callResult.getStepResults()) { // flattens all steps in called feature
-                    stepHtml(doc, formatter, sr, parent, depth + 1);
-                }
+                callHtml(callResult, parent, depth, refNum + "." + index++);
             }
-        }
-    }    
-    
-    private static final String[] RESOURCES = new String[] {
-        "bootstrap.min.css", 
-        "bootstrap.min.js", 
-        "jquery.min.js", 
-        "jquery.tablesorter.min.js",
-        "karate-logo.png",
-        "karate-logo.svg",
-        "karate-report.css",
-        "karate-report.js"
-    };
-    
-    public static void initStaticResources(String targetDir) {
-        String resPath = targetDir + File.separator + "res" + File.separator;
-        File res = new File(resPath);
-        if (res.exists()) {
-            return;
-        }
-        ClassLoader cl = Reports.class.getClassLoader();
-        for (String name : RESOURCES) {
-            byte[] bytes = FileUtils.toBytes(cl.getResourceAsStream("res/" + name));
-            File dest = new File(resPath + name);
-            FileUtils.writeToFile(dest, bytes);
         }
     }
 
-    public static File saveResultHtml(String targetDir, FeatureResult result, String fileName) {
-        DecimalFormat formatter = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
+    private void callHtml(FeatureResult featureResult, Node parent, int depth, String callRefNum) {
+        List<StepResult> stepResults = featureResult.getAllScenarioStepResultsNotHidden();
+        if (stepResults.isEmpty()) {
+            return;
+        }
+        String extraClass = featureResult.isFailed() ? "failed" : "passed";
+        Element stepContainer = div("step-container");
+        stepContainer.setAttribute("id", callRefNum);
+        stepContainer.appendChild(div("step-ref " + extraClass, ">>"));
+        for (int i = 0; i < depth; i++) {
+            stepContainer.appendChild(div("step-indent", " "));
+        }
+        stepContainer.appendChild(div("step-cell " + extraClass, featureResult.getCallName()));
+        Node stepRow = div("step-row",
+                stepContainer,
+                div("time-cell " + extraClass, Engine.formatMillis(featureResult.getDurationMillis(), formatter)));
+        parent.appendChild(stepRow);
+        String callArg = featureResult.getCallArgPretty();
+        if (callArg != null) {
+            Element callArgContainer = div("callarg-container");
+            callArgContainer.setAttribute("data-parent", callRefNum);
+            parent.appendChild(callArgContainer);
+            callArgContainer.appendChild(div("step-ref", " "));
+            for (int i = 0; i < depth; i++) {
+                callArgContainer.appendChild(div("step-indent", " "));
+            }
+            callArgContainer.appendChild(node("div", "preformatted", callArg));
+        }
+        for (StepResult sr : stepResults) {
+            stepHtml(sr, parent, depth + 1);
+        }
+    }
+
+    //==========================================================================
+    //
+    public static File saveFeatureResult(String targetDir, FeatureResult result, String fileName) {
+        HtmlReport report = new HtmlReport(result);
+        return report.save(targetDir, fileName);
+    }
+
+    private HtmlReport(FeatureResult result) {
+        formatter = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
         formatter.applyPattern("0.######");
         String html = getResourceAsString("report-template.html");
-        Document doc = XmlUtils.toXmlDoc(html);
-        String baseName = result.getPackageQualifiedName();
-        set(doc, "/html/head/title", baseName);
+        doc = XmlUtils.toXmlDoc(html);
+        baseName = result.getPackageQualifiedName();
+        set("/html/head/title", baseName);
+        Node leftnav = XmlUtils.getNodeByPath(doc, "/html/body/div/div[1]", false);
+        navContainer = div("nav-container");
+        leftnav.appendChild(navContainer);
         Node content = XmlUtils.getNodeByPath(doc, "/html/body/div/div[2]", false);
         for (ScenarioResult sr : result.getScenarioResults()) {
-            Node scenarioDiv = div(doc, "scenario");
+            Node scenarioDiv = div("scenario");
             content.appendChild(scenarioDiv);
-            Node scenarioHeadingDiv = div(doc, "scenario-heading",
-                    node(doc, "span", "scenario-keyword", sr.getScenario().getKeyword() + ": " + sr.getScenario().getDisplayMeta()),
-                    node(doc, "span", "scenario-name", sr.getScenario().getName()));
+            String scenarioMeta = sr.getScenario().getDisplayMeta();
+            String scenarioName = sr.getScenario().getName();
+            Element scenarioHeadingDiv = div("scenario-heading",
+                    node("span", "scenario-keyword", sr.getScenario().getKeyword() + ": " + scenarioMeta),
+                    node("span", "scenario-name", scenarioName));
+            scenarioHeadingDiv.setAttribute("id", scenarioMeta);
             scenarioDiv.appendChild(scenarioHeadingDiv);
+            String extraClass = sr.isFailed() ? "failed" : "passed";
+            Element scenarioNav = div("scenario-nav " + extraClass);
+            navContainer.appendChild(scenarioNav);
+            Element scenarioLink = node("a", null, scenarioMeta + " " + scenarioName);
+            scenarioNav.appendChild(scenarioLink);
+            scenarioLink.setAttribute("href", "#" + scenarioMeta);
             for (StepResult stepResult : sr.getStepResults()) {
-                stepHtml(doc, formatter, stepResult, scenarioDiv, 0);
+                stepHtml(stepResult, scenarioDiv, 0);
             }
         }
+    }
+
+    private File save(String targetDir, String fileName) {
         if (fileName == null) {
             fileName = baseName + ".html";
         }
@@ -243,7 +240,60 @@ public class Reports {
         return file;
     }
 
-    public static File saveTimelineHtml(String targetDir, Results results, String fileName) {
+    private static final String[] RESOURCES = new String[]{
+        "bootstrap.min.css",
+        "bootstrap.min.js",
+        "jquery.min.js",
+        "jquery.tablesorter.min.js",
+        "karate-logo.png",
+        "karate-logo.svg",
+        "karate-report.css",
+        "karate-report.js"
+    };
+
+    private void initStaticResources(String targetDir) {
+        String resPath = targetDir + File.separator + "res" + File.separator;
+        File res = new File(resPath);
+        if (res.exists()) {
+            return;
+        }
+        ClassLoader cl = getClass().getClassLoader();
+        for (String name : RESOURCES) {
+            byte[] bytes = FileUtils.toBytes(cl.getResourceAsStream("res/" + name));
+            File dest = new File(resPath + name);
+            FileUtils.writeToFile(dest, bytes);
+        }
+    }
+
+    private static String getResourceAsString(String name) {
+        return FileUtils.toString(HtmlReport.class.getClassLoader().getResourceAsStream(name));
+    }
+
+    private void set(String path, String value) {
+        XmlUtils.setByPath(doc, path, value);
+    }
+
+    private Element div(String clazz, String value) {
+        return node("div", clazz, value);
+    }
+
+    private Element div(String clazz, Node... childNodes) {
+        Element parent = node("div", clazz);
+        for (Node child : childNodes) {
+            parent.appendChild(child);
+        }
+        return parent;
+    }
+
+    private Element node(String name, String clazz, String text) {
+        return XmlUtils.createElement(doc, name, text, clazz == null ? null : Collections.singletonMap("class", clazz));
+    }
+
+    private Element node(String name, String clazz) {
+        return node(name, clazz, null);
+    }
+
+    public static File saveTimeline(String targetDir, Results results, String fileName) {
         Map<String, Integer> groupsMap = new LinkedHashMap();
         List<ScenarioResult> scenarioResults = results.getScenarioResults();
         List<Map> items = new ArrayList(scenarioResults.size());

@@ -2041,7 +2041,7 @@ Examples:
 And if you need to set some of these 'globally' you can easily do so using [the `karate` object](#the-karate-object) in [`karate-config.js`](#configuration) - for e.g. [`karate.configure('ssl', true)`](#karate-configure).
 
 ### Report Verbosity
-By default, when the [parallel runner](#parallel-execution) is used Karate will add logs to the report output so that HTTP requests and responses appear in-line in the HTML reports. There may be cases where you want to suppress this to make the reports "lighter" and easier to read.
+By default, Karate will add logs to the report output so that HTTP requests and responses appear in-line in the HTML reports. There may be cases where you want to suppress this to make the reports "lighter" and easier to read.
 
 The configure key here is `report` and it takes a JSON value. For example:
 
@@ -2061,13 +2061,23 @@ You can 'reset' default settings by using the following short-cut:
 * configure report = true
 ```
 
-And this short-cut is also supported which will disable all logs:
+Since you can use `configure` any time within a test, you have control over which requests or steps you want to show / hide.
+
+This short-cut is also supported which will disable all logs:
 
 ```cucumber
 * configure report = false
 ```
 
-Since you can use `configure` any time within a test, you have control over which requests or steps you want to show / hide.
+When you use a re-usable feature that has [commonly used utilities](multiple-functions-in-one-file), you may want to hide this completely from the HTML reports. The special [tag](#tags) `@report=false` can be used:
+
+```cucumber
+@ignore @report=false
+Feature:
+
+Scenario:
+# some re-usable steps
+```
 
 ### Log Masking
 In cases where you want to "mask" values which are sensitive from a security point of view from the output files, logs and HTML reports, you can implement the [`HttpLogModifier`](karate-core/src/main/java/com/intuit/karate/http/HttpLogModifier.java) and tell Karate to use it via the [`configure`](#configure) keyword. Here is an [example](karate-demo/src/test/java/demo/headers/DemoLogModifier.java) of an implementation. For performance reasons, you can implement  `enableForUri()` so that this "activates" only for some URL patterns.

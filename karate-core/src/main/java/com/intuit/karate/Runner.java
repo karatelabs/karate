@@ -32,7 +32,7 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureExecutionUnit;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.Reports;
+import com.intuit.karate.core.HtmlReport;
 import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.core.Tags;
 import com.intuit.karate.job.JobConfig;
@@ -358,7 +358,7 @@ public class Runner {
         }
         results.printStats(threadCount);
         Engine.saveStatsJson(reportDir, results, null);
-        Reports.saveTimelineHtml(reportDir, results, null);
+        HtmlReport.saveTimeline(reportDir, results, null);
         if (options.hooks != null) {
             options.hooks.forEach(h -> h.afterAll(results));
         }

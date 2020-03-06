@@ -139,10 +139,7 @@ public class ScenarioResult {
                 StepResult callResult = new StepResult(call, Result.passed(0), null, null, null);
                 callResult.setHidden(stepResult.isHidden());
                 list.add(callResult.toMap());
-                for (StepResult sr : fr.getStepResults()) { // flattened
-                    if (sr.isHidden()) {
-                        continue;
-                    }
+                for (StepResult sr : fr.getAllScenarioStepResultsNotHidden()) {
                     Map<String, Object> map = sr.toMap();
                     String temp = (String) map.get("keyword");
                     map.put("keyword", StringUtils.repeat('>', depth + 1) + ' ' + temp);
@@ -244,6 +241,17 @@ public class ScenarioResult {
     public List<StepResult> getStepResults() {
         return stepResults;
     }
+    
+    public List<StepResult> getStepResultsNotHidden() {
+        List<StepResult> list = new ArrayList(stepResults.size());
+        for (StepResult sr : stepResults) {
+            if (sr.isHidden()) {
+                continue;
+            }
+            list.add(sr);
+        }
+        return list;
+    }    
 
     public boolean isFailed() {
         return failedStep != null;

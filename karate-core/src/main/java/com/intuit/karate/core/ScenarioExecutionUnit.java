@@ -44,6 +44,7 @@ public class ScenarioExecutionUnit implements Runnable {
     public final Scenario scenario;
     private final ExecutionContext exec;    
     public final ScenarioResult result;
+    private final boolean reportDisabled;
     private boolean executed = false;
 
     private Collection<ExecutionHook> hooks;
@@ -87,7 +88,9 @@ public class ScenarioExecutionUnit implements Runnable {
         }
         if (exec.callContext.perfMode) {
             appender = LogAppender.NO_OP;
-        }        
+        }
+        Tags tags = scenario.getTagsEffective();
+        reportDisabled = tags.valuesFor("report").isAnyOf("false");
     }
 
     public ScenarioContext getContext() {
@@ -204,7 +207,7 @@ public class ScenarioExecutionUnit implements Runnable {
                 return null;
             }
         }
-        boolean hidden = step.isPrefixStar() && !step.isPrint() && !actions.context.getConfig().isShowAllSteps();
+        boolean hidden = reportDisabled || (step.isPrefixStar() && !step.isPrint() && !actions.context.getConfig().isShowAllSteps());
         if (stopped) {
             Result stepResult;
             if (aborted && actions.context.getConfig().isAbortedStepsShouldPass()) {
@@ -228,7 +231,7 @@ public class ScenarioExecutionUnit implements Runnable {
             }
             // log appender collection for each step happens here
             String stepLog = StringUtils.trimToNull(appender.collect());
-            boolean showLog = actions.context.getConfig().isShowLog();
+            boolean showLog = !reportDisabled && actions.context.getConfig().isShowLog();
             StepResult sr = new StepResult(step, execResult, stepLog, embeds, callResults);
             sr.setHidden(hidden);
             sr.setShowLog(showLog);

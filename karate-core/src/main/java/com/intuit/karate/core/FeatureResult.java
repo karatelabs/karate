@@ -99,18 +99,17 @@ public class FeatureResult {
         return map;
     }
 
-    // this "flattens" all steps from all scenarios
-    public List<StepResult> getStepResults() {
+    public List<StepResult> getAllScenarioStepResultsNotHidden() {
         List<StepResult> list = new ArrayList();
         for (ScenarioResult sr : scenarioResults) {
-            list.addAll(sr.getStepResults());
+            list.addAll(sr.getStepResultsNotHidden());
         }
         return list;
     }
 
     public Results getResults() {
         return results;
-    }        
+    }
 
     public FeatureResult(Results results, Feature feature) {
         this.results = results;
@@ -239,7 +238,7 @@ public class FeatureResult {
                 addError(copy);
             } else {
                 addError(result.getError());
-            }            
+            }
         }
     }
 
