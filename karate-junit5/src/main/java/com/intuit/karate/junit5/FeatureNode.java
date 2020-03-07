@@ -57,14 +57,14 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
         featureUnit = new FeatureExecutionUnit(exec);
         featureUnit.init();
         List<ScenarioExecutionUnit> selected = new ArrayList();
-        for(ScenarioExecutionUnit unit : featureUnit.getScenarioExecutionUnits()) {
+        for (ScenarioExecutionUnit unit : featureUnit.getScenarioExecutionUnits()) {
             if (featureUnit.isSelected(unit)) { // tag filtering
                 selected.add(unit);
             }
         }
         if (!selected.isEmpty()) { // make sure we trigger junit html report on last unit (after tag filtering)
             selected.get(selected.size() - 1).setLast(true);
-        }        
+        }
         iterator = selected.iterator();
     }
 
@@ -81,8 +81,10 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
             boolean failed = unit.result.isFailed();
             if (unit.isLast() || failed) {
                 featureUnit.stop();
-                exec.result.printStats(null);
-                HtmlReport.saveFeatureResult(FileUtils.getBuildDir() + File.separator + "surefire-reports", exec.result, null);
+                if (!exec.result.isEmpty()) {
+                    exec.result.printStats(null);
+                    HtmlReport.saveFeatureResult(FileUtils.getBuildDir() + File.separator + "surefire-reports", exec.result);
+                }
             }
             if (failed) {
                 Assertions.fail(unit.result.getError().getMessage());

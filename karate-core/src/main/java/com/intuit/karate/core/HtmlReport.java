@@ -69,7 +69,7 @@ public class HtmlReport {
             extraClass = "passed";
         }
         String refNum = ++stepCounter + "";
-        Element stepContainer = div("step-container");        
+        Element stepContainer = div("step-container");
         stepContainer.setAttribute("id", refNum);
         stepContainer.appendChild(div("step-ref " + extraClass, refNum));
         for (int i = 0; i < depth; i++) {
@@ -183,9 +183,9 @@ public class HtmlReport {
 
     //==========================================================================
     //
-    public static File saveFeatureResult(String targetDir, FeatureResult result, String fileName) {
+    public static File saveFeatureResult(String targetDir, FeatureResult result) {
         HtmlReport report = new HtmlReport(result);
-        return report.save(targetDir, fileName);
+        return report.save(targetDir);
     }
 
     private HtmlReport(FeatureResult result) {
@@ -221,10 +221,8 @@ public class HtmlReport {
         }
     }
 
-    private File save(String targetDir, String fileName) {
-        if (fileName == null) {
-            fileName = baseName + ".html";
-        }
+    private File save(String targetDir) {
+        String fileName = baseName + ".html";
         File file = new File(targetDir + File.separator + fileName);
         String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, false);
         try {

@@ -193,6 +193,10 @@ public class FeatureResult {
     public int getFailedCount() {
         return failedCount;
     }
+    
+    public boolean isEmpty() {
+        return scenarioCount == 0;
+    }
 
     public int getScenarioCount() {
         return scenarioCount;

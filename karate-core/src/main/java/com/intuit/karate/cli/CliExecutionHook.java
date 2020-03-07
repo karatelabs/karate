@@ -125,11 +125,11 @@ public class CliExecutionHook implements ExecutionHook {
         if (result.getScenarioCount() == 0) {
             return;
         }
-        if (htmlReport) {
-            HtmlReport.saveFeatureResult(targetDir, result, null);
+        if (htmlReport && !result.isEmpty()) {
+            HtmlReport.saveFeatureResult(targetDir, result);
         }
         if (LOCK.tryLock()) {
-            Engine.saveStatsJson(targetDir, context.results, null);
+            Engine.saveStatsJson(targetDir, context.results);
             LOCK.unlock();
         }
     }

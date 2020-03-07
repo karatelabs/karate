@@ -262,11 +262,9 @@ public class Engine {
         return System.nanoTime() - startTime;
     }
 
-    public static File saveStatsJson(String targetDir, Results results, String fileName) {
+    public static File saveStatsJson(String targetDir, Results results) {
         String json = JsonUtils.toJson(results.toMap());
-        if (fileName == null) {
-            fileName = "results-json.txt";
-        }
+        String fileName = "results-json.txt";
         File file = new File(targetDir + File.separator + fileName);
         FileUtils.writeToFile(file, json);
         return file;

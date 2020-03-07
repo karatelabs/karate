@@ -59,7 +59,7 @@ public class ScenarioResult {
             if (steps == null || steps.isEmpty()) {
                 return;
             }
-            Map<String, Object> map = steps.get(steps.size() - 1);           
+            Map<String, Object> map = steps.get(steps.size() - 1);
             List<Map<String, Object>> embedList = (List) map.get("embeddings");
             if (embedList == null) {
                 embedList = new ArrayList();
@@ -70,7 +70,7 @@ public class ScenarioResult {
             getLastStepResult().addEmbed(embed);
         }
     }
-    
+
     public StepResult getLastStepResult() {
         if (stepResults.isEmpty()) {
             return null;
@@ -164,7 +164,7 @@ public class ScenarioResult {
         return list;
     }
 
-    public Map<String, Object> backgroundToMap() {        
+    public Map<String, Object> backgroundToMap() {
         if (backgroundJson != null) {
             return backgroundJson;
         }
@@ -241,7 +241,7 @@ public class ScenarioResult {
     public List<StepResult> getStepResults() {
         return stepResults;
     }
-    
+
     public List<StepResult> getStepResultsNotHidden() {
         List<StepResult> list = new ArrayList(stepResults.size());
         for (StepResult sr : stepResults) {
@@ -251,7 +251,7 @@ public class ScenarioResult {
             list.add(sr);
         }
         return list;
-    }    
+    }
 
     public boolean isFailed() {
         return failedStep != null;

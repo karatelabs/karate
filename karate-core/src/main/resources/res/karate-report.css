@@ -1,10 +1,10 @@
 #root-container { display: flex; align-items: stretch; }
-#leftnav { min-width: 250px; max-width: 250px; min-height: 100vh; background: #000; color: #fff;
-    position: fixed; overflow-y: scroll; top: 0; bottom: 0; }
+#leftnav { min-width: 250px; max-width: 250px; min-height: 100vh; background: #000; color: #fff; position: fixed; }
 #leftnav .logo { width: 120px; padding: 1em; }
 
-.scenario-nav { margin: 1em; padding: 0.2em; }
-.scenario-nav a { display: block; color: #000; }
+.nav-container { display: flex; flex-direction: column; overflow-y: scroll; height: 80vh; }
+.scenario-nav { margin: 0.5em 1em; padding: 0.2em; }
+.scenario-nav a { width: 100%; color: #000; }
 
 #content { padding: 0.5em; margin-left: 250px; width: 100%; }
 .scenario { border: 1px solid gray; margin-bottom: 1em;  }
@@ -22,7 +22,11 @@ a .step-container { width: 100%; color: #000; }
 a .step-ref { font-weight: bold; color: blue; }
 .step-cell { display: flex; width: 100%; padding: 0 0.2em 0 0.2em; } 
 .time-cell { background-color: #92DD96; display: flex; width: 10%; margin-left: 2px; padding-left: 0.2em; } 
+
+.scenario table { margin: 0.5em; }
+.scenario table td { border: 1px solid gray; padding: 0.1em 0.2em; } 
 .preformatted { white-space: pre-wrap; font-family: monospace; padding: 0 0.3em 0.2em 0.3em } 
+.embed img { width: 100%; }
 
 .passed { background-color: #92DD96; } 
 .failed { background-color: #F2928C; } 

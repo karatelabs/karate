@@ -357,7 +357,7 @@ public class Runner {
             scenarioExecutor.shutdownNow();
         }
         results.printStats(threadCount);
-        Engine.saveStatsJson(reportDir, results, null);
+        Engine.saveStatsJson(reportDir, results);
         HtmlReport.saveTimeline(reportDir, results, null);
         if (options.hooks != null) {
             options.hooks.forEach(h -> h.afterAll(results));
