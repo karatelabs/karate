@@ -4,7 +4,7 @@
 
 .nav-container { display: flex; flex-direction: column; overflow-y: scroll; height: 80vh; }
 .scenario-nav { margin: 0.5em 1em; padding: 0.2em; }
-.scenario-nav a { width: 100%; color: #000; }
+.scenario-nav a { color: #000; display: block; }
 
 #content { padding: 0.5em; margin-left: 250px; width: 100%; }
 .scenario { border: 1px solid gray; margin-bottom: 1em;  }

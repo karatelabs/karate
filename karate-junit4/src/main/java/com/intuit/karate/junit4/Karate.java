@@ -129,7 +129,7 @@ public class Karate extends ParentRunner<Feature> {
         FeatureResult result = info.exec.result;
         if (!result.isEmpty()) {
             result.printStats(null);
-            HtmlFeatureReport.saveFeatureResult(targetDir, result);
+            HtmlFeatureReport.saveFeatureResult(targetDir, result, true);
             summary.addFeatureResult(result);
         }
     }

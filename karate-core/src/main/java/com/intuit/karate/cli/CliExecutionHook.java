@@ -131,7 +131,7 @@ public class CliExecutionHook implements ExecutionHook {
             return;
         }
         if (htmlReport && !result.isEmpty()) {
-            HtmlFeatureReport.saveFeatureResult(targetDir, result);
+            HtmlFeatureReport.saveFeatureResult(targetDir, result, false);
             summary.addFeatureResult(result);
         }
         if (LOCK.tryLock()) {

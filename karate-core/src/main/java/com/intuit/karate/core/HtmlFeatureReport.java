@@ -167,9 +167,9 @@ public class HtmlFeatureReport extends HtmlReport {
 
     //==========================================================================
     //
-    public static File saveFeatureResult(String targetDir, FeatureResult result) {
+    public static File saveFeatureResult(String targetDir, FeatureResult result, boolean showConsoleMessage) {
         HtmlFeatureReport report = new HtmlFeatureReport(result);
-        return report.save(targetDir);
+        return report.save(targetDir, showConsoleMessage);
     }
 
     private HtmlFeatureReport(FeatureResult result) {
@@ -197,17 +197,19 @@ public class HtmlFeatureReport extends HtmlReport {
         }
     }
 
-    private File save(String targetDir) {
+    private File save(String targetDir, boolean showConsoleMessage) {
         String fileName = baseName + ".html";
         File file = new File(targetDir + File.separator + fileName);
         String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, false);
         try {
             initStaticResources(targetDir); // TODO improve init
             FileUtils.writeToFile(file, xml);
-            System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
-                    + FileUtils.getKarateVersion() + "\n"
-                    + file.toURI()
-                    + "\n---------------------------------------------------------\n");
+            if (showConsoleMessage) {
+                System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
+                        + FileUtils.getKarateVersion() + "\n"
+                        + file.toURI()
+                        + "\n---------------------------------------------------------\n");
+            }
         } catch (Exception e) {
             System.out.println("html report output failed: " + e.getMessage());
         }
