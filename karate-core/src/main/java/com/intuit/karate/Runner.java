@@ -83,7 +83,7 @@ public class Runner {
         List<Resource> resolveResources() {
             RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(paths, tags, optionsClass);
             paths = options.features;
-            tags = options.tags;     
+            tags = options.tags;
             scenarioName = options.name;
             if (resources == null) {
                 return FileUtils.scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
@@ -350,9 +350,11 @@ public class Runner {
                 if (result.isFailed()) {
                     results.addToFailedList(result.getPackageQualifiedName(), result.getErrorMessages());
                 }
-                results.addScenarioResults(result.getScenarioResults());                
-                HtmlFeatureReport.saveFeatureResult(reportDir, result);
-                summary.addFeatureResult(result);
+                results.addScenarioResults(result.getScenarioResults());
+                if (!result.isEmpty()) {
+                    HtmlFeatureReport.saveFeatureResult(reportDir, result);
+                    summary.addFeatureResult(result);
+                }
             }
             summary.save(reportDir);
         } catch (Exception e) {
