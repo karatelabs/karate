@@ -29,7 +29,8 @@ import com.intuit.karate.RunnerOptions;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.HtmlReport;
+import com.intuit.karate.core.HtmlFeatureReport;
+import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.Tags;
 import java.io.File;
 import java.io.IOException;
@@ -58,6 +59,8 @@ public class Karate extends ParentRunner<Feature> {
     private final List<Feature> children;
     private final Map<String, FeatureInfo> featureMap;
     private final String tagSelector;
+    private final HtmlSummaryReport summary;
+    private final String targetDir;
 
     public Karate(Class<?> clazz) throws InitializationError, IOException {
         super(clazz);
@@ -76,6 +79,8 @@ public class Karate extends ParentRunner<Feature> {
             children.add(feature);
         }
         tagSelector = Tags.fromKarateOptionsTags(options.getTags());
+        summary = new HtmlSummaryReport();
+        targetDir = FileUtils.getBuildDir() + File.separator + "surefire-reports";
     }
 
     @Override
@@ -124,13 +129,15 @@ public class Karate extends ParentRunner<Feature> {
         FeatureResult result = info.exec.result;
         if (!result.isEmpty()) {
             result.printStats(null);
-            HtmlReport.saveFeatureResult(FileUtils.getBuildDir() + File.separator + "surefire-reports", result);
+            HtmlFeatureReport.saveFeatureResult(targetDir, result);
+            summary.addFeatureResult(result);
         }
     }
 
     @Override
     public void run(RunNotifier notifier) {
         super.run(notifier);
+        summary.save(targetDir);
     }
 
 }

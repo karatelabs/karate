@@ -30,7 +30,8 @@ import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.HtmlReport;
+import com.intuit.karate.core.HtmlFeatureReport;
+import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioContext;
@@ -48,12 +49,13 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author pthomas3
  */
 public class CliExecutionHook implements ExecutionHook {
-
+    
     private final boolean htmlReport;
     private final String targetDir;
     private final boolean intellij;
     private final ReentrantLock LOCK = new ReentrantLock();
-
+    private final HtmlSummaryReport summary;
+    
     public CliExecutionHook(boolean htmlReport, String targetDir, boolean intellij) {
         this.htmlReport = htmlReport;
         this.targetDir = targetDir;
@@ -61,28 +63,31 @@ public class CliExecutionHook implements ExecutionHook {
         if (intellij) {
             log(String.format(TEMPLATE_ENTER_THE_MATRIX, getCurrentTime()));
         }
+        summary = htmlReport ? new HtmlSummaryReport() : null;
     }
-
+    
     @Override
     public void beforeAll(Results results) {
-
-    }   
-
+        
+    }    
+    
     @Override
     public void afterAll(Results results) {
-
-    }      
-
+        if (htmlReport) {
+            summary.save(targetDir);
+        }
+    }    
+    
     @Override
     public boolean beforeStep(Step step, ScenarioContext context) {
         return true;
     }
-
+    
     @Override
     public void afterStep(StepResult result, ScenarioContext context) {
-
-    }        
-
+        
+    }    
+    
     @Override
     public boolean beforeScenario(Scenario scenario, ScenarioContext context) {
         if (intellij && context.callDepth == 0) {
@@ -92,7 +97,7 @@ public class CliExecutionHook implements ExecutionHook {
         }
         return true;
     }
-
+    
     @Override
     public void afterScenario(ScenarioResult result, ScenarioContext context) {
         if (intellij && context.callDepth == 0) {
@@ -104,7 +109,7 @@ public class CliExecutionHook implements ExecutionHook {
             log(String.format(TEMPLATE_TEST_FINISHED, getCurrentTime(), result.getDurationNanos() / 1000000, escape(scenario.getNameForReport())));
         }
     }
-
+    
     @Override
     public boolean beforeFeature(Feature feature, ExecutionContext context) {
         if (intellij && context.callContext.callDepth == 0) {
@@ -113,7 +118,7 @@ public class CliExecutionHook implements ExecutionHook {
         }
         return true;
     }
-
+    
     @Override
     public void afterFeature(FeatureResult result, ExecutionContext context) {
         if (context.callContext.callDepth > 0) {
@@ -126,39 +131,40 @@ public class CliExecutionHook implements ExecutionHook {
             return;
         }
         if (htmlReport && !result.isEmpty()) {
-            HtmlReport.saveFeatureResult(targetDir, result);
+            HtmlFeatureReport.saveFeatureResult(targetDir, result);
+            summary.addFeatureResult(result);
         }
         if (LOCK.tryLock()) {
             Engine.saveStatsJson(targetDir, context.results);
             LOCK.unlock();
         }
     }
-
+    
     @Override
     public String getPerfEventName(HttpRequestBuilder req, ScenarioContext context) {
         return null;
     }
-
+    
     @Override
     public void reportPerfEvent(PerfEvent event) {
-
+        
     }
-
+    
     private static void log(String s) {
         System.out.println(s);
     }
-
+    
     private static String getCurrentTime() {
         return DATE_FORMAT.format(new Date());
     }
-
+    
     private static String escape(String source) {
         if (source == null) {
             return "";
         }
         return source.replace("|", "||").replace("\n", "|n").replace("\r", "|r").replace("'", "|'").replace("[", "|[").replace("]", "|]");
     }
-
+    
     private static StringUtils.Pair details(Throwable error) {
         String fullMessage = error.getMessage().replace("\r", "").replace("\t", "  ");
         String[] messageInfo = fullMessage.split("\n", 2);
@@ -168,9 +174,9 @@ public class CliExecutionHook implements ExecutionHook {
             return StringUtils.pair(fullMessage, "");
         }
     }
-
+    
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ss.SSSZ");
-
+    
     private static final String TEAMCITY_PREFIX = "##teamcity";
     private static final String TEMPLATE_TEST_STARTED = TEAMCITY_PREFIX + "[testStarted timestamp = '%s' locationHint = '%s' captureStandardOutput = 'true' name = '%s']";
     private static final String TEMPLATE_TEST_FAILED = TEAMCITY_PREFIX + "[testFailed timestamp = '%s' details = '%s' message = '%s' name = '%s' %s]";
@@ -178,5 +184,5 @@ public class CliExecutionHook implements ExecutionHook {
     private static final String TEMPLATE_ENTER_THE_MATRIX = TEAMCITY_PREFIX + "[enteredTheMatrix timestamp = '%s']";
     private static final String TEMPLATE_TEST_SUITE_STARTED = TEAMCITY_PREFIX + "[testSuiteStarted timestamp = '%s' locationHint = 'file://%s' name = '%s']";
     private static final String TEMPLATE_TEST_SUITE_FINISHED = TEAMCITY_PREFIX + "[testSuiteFinished timestamp = '%s' name = '%s']";
-
+    
 }

@@ -28,7 +28,9 @@ import com.intuit.karate.Resource;
 import com.intuit.karate.RunnerOptions;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
+import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.Tags;
+import java.io.File;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -55,7 +57,10 @@ public class Karate implements Iterable<DynamicNode> {
     private final List<String> tags = new ArrayList();
     private final List<String> paths = new ArrayList();
     private Class clazz;
-    
+
+    private static final HtmlSummaryReport SUMMARY = new HtmlSummaryReport();
+    private static boolean shutdownHookRegistered;
+
     // short cut for new Karate().feature()
     public static Karate run(String... paths) {
         return new Karate().feature(paths);
@@ -88,15 +93,27 @@ public class Karate implements Iterable<DynamicNode> {
             features.add(feature);
         }
         String tagSelector = Tags.fromKarateOptionsTags(options.getTags());
+        String reportDir = FileUtils.getBuildDir() + File.separator + "surefire-reports";
         List<DynamicNode> list = new ArrayList<>(features.size());
         for (Feature feature : features) {
-            FeatureNode featureNode = new FeatureNode(feature, tagSelector);
+            FeatureNode featureNode = new FeatureNode(reportDir, SUMMARY, feature, tagSelector);
             String testName = feature.getResource().getFileNameWithoutExtension();
             DynamicNode node = DynamicContainer.dynamicContainer(testName, featureNode);
             list.add(node);
         }
         if (list.isEmpty()) {
             Assertions.fail("no features or scenarios found: " + options.getFeatures());
+        }
+        synchronized (SUMMARY) {
+            if (!shutdownHookRegistered) {
+                Runtime.getRuntime().addShutdownHook(new Thread() {
+                    @Override
+                    public void run() {
+                        SUMMARY.save(reportDir);
+                    }
+                });
+                shutdownHookRegistered = true;
+            }
         }
         return list.iterator();
     }

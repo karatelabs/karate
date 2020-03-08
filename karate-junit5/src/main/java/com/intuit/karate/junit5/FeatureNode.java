@@ -24,14 +24,14 @@
 package com.intuit.karate.junit5;
 
 import com.intuit.karate.CallContext;
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureContext;
 import com.intuit.karate.core.FeatureExecutionUnit;
-import com.intuit.karate.core.HtmlReport;
+import com.intuit.karate.core.FeatureResult;
+import com.intuit.karate.core.HtmlFeatureReport;
+import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.ScenarioExecutionUnit;
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -47,9 +47,14 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     public final Feature feature;
     public final ExecutionContext exec;
     public final FeatureExecutionUnit featureUnit;
+    public final HtmlSummaryReport summary;
+    public final String reportDir;
+
     Iterator<ScenarioExecutionUnit> iterator;
 
-    public FeatureNode(Feature feature, String tagSelector) {
+    public FeatureNode(String reportDir, HtmlSummaryReport summary, Feature feature, String tagSelector) {
+        this.reportDir = reportDir;
+        this.summary = summary;
         this.feature = feature;
         FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
         CallContext callContext = new CallContext(null, true);
@@ -81,9 +86,11 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
             boolean failed = unit.result.isFailed();
             if (unit.isLast() || failed) {
                 featureUnit.stop();
-                if (!exec.result.isEmpty()) {
-                    exec.result.printStats(null);
-                    HtmlReport.saveFeatureResult(FileUtils.getBuildDir() + File.separator + "surefire-reports", exec.result);
+                FeatureResult result = exec.result;
+                if (!result.isEmpty()) {
+                    result.printStats(null);
+                    HtmlFeatureReport.saveFeatureResult(reportDir, result);
+                    summary.addFeatureResult(result);
                 }
             }
             if (failed) {

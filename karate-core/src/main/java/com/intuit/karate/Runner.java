@@ -32,7 +32,9 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureExecutionUnit;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
+import com.intuit.karate.core.HtmlFeatureReport;
 import com.intuit.karate.core.HtmlReport;
+import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.core.Tags;
 import com.intuit.karate.job.JobConfig;
@@ -336,6 +338,7 @@ public class Runner {
                 latch.await();
             }
             results.stopTimer();
+            HtmlSummaryReport summary = new HtmlSummaryReport();
             for (FeatureResult result : featureResults) {
                 int scenarioCount = result.getScenarioCount();
                 results.addToScenarioCount(scenarioCount);
@@ -347,8 +350,11 @@ public class Runner {
                 if (result.isFailed()) {
                     results.addToFailedList(result.getPackageQualifiedName(), result.getErrorMessages());
                 }
-                results.addScenarioResults(result.getScenarioResults());
+                results.addScenarioResults(result.getScenarioResults());                
+                HtmlFeatureReport.saveFeatureResult(reportDir, result);
+                summary.addFeatureResult(result);
             }
+            summary.save(reportDir);
         } catch (Exception e) {
             LOGGER.error("karate parallel runner failed: ", e.getMessage());
             results.setFailureReason(e);
