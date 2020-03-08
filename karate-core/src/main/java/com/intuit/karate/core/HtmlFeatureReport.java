@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
 import java.io.File;
 import java.util.Collections;
@@ -37,7 +36,7 @@ import org.w3c.dom.Node;
  */
 public class HtmlFeatureReport extends HtmlReport {
 
-    private final String baseName;
+    private final FeatureResult featureResult;
 
     private int stepCounter;
 
@@ -62,7 +61,7 @@ public class HtmlFeatureReport extends HtmlReport {
         stepContainer.appendChild(div("step-cell " + extraClass, step.getPrefix() + ' ' + step.getText()));
         Node stepRow = div("step-row",
                 stepContainer,
-                div("time-cell " + extraClass, Engine.formatNanos(result.getDurationNanos(), formatter)));
+                div("time-cell " + extraClass, formatter.format(result.getDurationMillis())));
         parent.appendChild(stepRow);
         if (step.getTable() != null) {
             Node table = node("table", null);
@@ -147,7 +146,7 @@ public class HtmlFeatureReport extends HtmlReport {
         stepContainer.appendChild(div("step-cell " + extraClass, featureResult.getCallName()));
         Node stepRow = div("step-row",
                 stepContainer,
-                div("time-cell " + extraClass, Engine.formatMillis(featureResult.getDurationMillis(), formatter)));
+                div("time-cell " + extraClass, formatter.format(featureResult.getDurationMillis())));
         parent.appendChild(stepRow);
         String callArg = featureResult.getCallArgPretty();
         if (callArg != null) {
@@ -167,15 +166,15 @@ public class HtmlFeatureReport extends HtmlReport {
 
     //==========================================================================
     //
-    public static File saveFeatureResult(String targetDir, FeatureResult result, boolean showConsoleMessage) {
+    public static File saveFeatureResult(String targetDir, FeatureResult result) {
         HtmlFeatureReport report = new HtmlFeatureReport(result);
-        return report.save(targetDir, showConsoleMessage);
+        return report.save(targetDir);
     }
 
-    private HtmlFeatureReport(FeatureResult result) {
-        baseName = result.getPackageQualifiedName();
-        set("/html/head/title", baseName);
-        for (ScenarioResult sr : result.getScenarioResults()) {
+    private HtmlFeatureReport(FeatureResult featureResult) {
+        this.featureResult = featureResult;
+        set("/html/head/title", featureResult.getPackageQualifiedName());
+        for (ScenarioResult sr : featureResult.getScenarioResults()) {
             Node scenarioDiv = div("scenario");
             contentContainer.appendChild(scenarioDiv);
             String scenarioMeta = sr.getScenario().getDisplayMeta();
@@ -186,7 +185,7 @@ public class HtmlFeatureReport extends HtmlReport {
             scenarioHeadingDiv.setAttribute("id", scenarioMeta);
             scenarioDiv.appendChild(scenarioHeadingDiv);
             String extraClass = sr.isFailed() ? "failed" : "passed";
-            Element scenarioNav = div("scenario-nav " + extraClass);
+            Element scenarioNav = div("nav-item " + extraClass);
             navContainer.appendChild(scenarioNav);
             Element scenarioLink = node("a", null, scenarioMeta + " " + scenarioName);
             scenarioNav.appendChild(scenarioLink);
@@ -197,23 +196,8 @@ public class HtmlFeatureReport extends HtmlReport {
         }
     }
 
-    private File save(String targetDir, boolean showConsoleMessage) {
-        String fileName = baseName + ".html";
-        File file = new File(targetDir + File.separator + fileName);
-        String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, false);
-        try {
-            initStaticResources(targetDir); // TODO improve init
-            FileUtils.writeToFile(file, xml);
-            if (showConsoleMessage) {
-                System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
-                        + FileUtils.getKarateVersion() + "\n"
-                        + file.toURI()
-                        + "\n---------------------------------------------------------\n");
-            }
-        } catch (Exception e) {
-            System.out.println("html report output failed: " + e.getMessage());
-        }
-        return file;
+    private File save(String targetDir) {
+        return saveHtmlToFile(targetDir, getHtmlFileName(featureResult));
     }
 
 }

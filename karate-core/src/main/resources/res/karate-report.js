@@ -9,4 +9,5 @@ window.onload = function () {
       });
     }
   });
+  $("table.features-table").tablesorter();
 }

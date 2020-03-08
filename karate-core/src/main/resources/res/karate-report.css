@@ -3,10 +3,14 @@
 #leftnav .logo { width: 120px; padding: 1em; }
 
 .nav-container { display: flex; flex-direction: column; overflow-y: scroll; height: 80vh; }
-.scenario-nav { margin: 0.5em 1em; padding: 0.2em; }
-.scenario-nav a { color: #000; display: block; }
+.nav-item { margin: 0.5em 1em; padding: 0.2em; }
+.nav-item a { color: #000; display: block; }
 
 #content { padding: 0.5em; margin-left: 250px; width: 100%; }
+
+.features-table { border: 1px solid gray; }
+.num { text-align: right; }
+
 .scenario { border: 1px solid gray; margin-bottom: 1em;  }
 .scenario-heading { background-color: #F5F28F; padding: 0.2em 0.5em; border-bottom: 1px solid gray; margin-bottom: 2px; }
 .scenario-name { font-weight: bold; padding-left: 0.2em; }
@@ -21,7 +25,7 @@ a .step-container { width: 100%; color: #000; }
 .step-ref { width: 2.2em; text-align: right; padding: 0 0.2em 0 0.2em; margin-right: 2px; }
 a .step-ref { font-weight: bold; color: blue; }
 .step-cell { display: flex; width: 100%; padding: 0 0.2em 0 0.2em; } 
-.time-cell { background-color: #92DD96; display: flex; width: 10%; margin-left: 2px; padding-left: 0.2em; } 
+.time-cell { width: 10%; margin-left: 2px; padding-right: 0.2em; text-align: right; } 
 
 .scenario table { margin: 0.5em; }
 .scenario table td { border: 1px solid gray; padding: 0.1em 0.2em; } 

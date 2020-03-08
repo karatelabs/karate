@@ -116,6 +116,10 @@ public class Result {
     public long getDurationNanos() {
         return durationNanos;
     }
+    
+    public double getDurationMillis() {
+        return Engine.nanosToMillis(durationNanos);
+    }    
 
     @Override
     public String toString() {

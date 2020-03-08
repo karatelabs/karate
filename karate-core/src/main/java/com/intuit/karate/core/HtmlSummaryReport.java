@@ -35,32 +35,70 @@ import org.w3c.dom.Node;
  */
 public class HtmlSummaryReport extends HtmlReport {
 
+    private final Element tbody;
+
+    private Element th(String content, String clazz) {
+        Element th = node("th", clazz);
+        th.setTextContent(content);
+        return th;
+    }   
+    
+    private Element td(String content, String clazz) {
+        Element td = node("td", clazz);
+        td.setTextContent(content);
+        return td;
+    }    
+
     public HtmlSummaryReport() {
         set("/html/head/title", "Karate Summary Report");
+        Element table = node("table", "features-table table table-sm");
+        contentContainer.appendChild(table);
+        Element thead = node("thead", null);
+        table.appendChild(thead);
+        Element tr = node("tr", null);
+        thead.appendChild(tr);
+        tr.appendChild(th("Feature", null));
+        tr.appendChild(th("Passed", "num"));
+        tr.appendChild(th("Failed", "num"));
+        tr.appendChild(th("Scenarios", "num"));
+        tr.appendChild(th("Duration", "num"));
+        tbody = node("tbody", null);
+        table.appendChild(tbody);
     }
 
     public void addFeatureResult(FeatureResult result) {
-        String featureName = result.getDisplayUri();
-        Node featureDiv = div("feature", featureName);
-        contentContainer.appendChild(featureDiv);        
-        Element featureNav = div("feature-nav", featureName);
-        navContainer.appendChild(featureNav);
+        Element tr = node("tr", null);
+        tbody.appendChild(tr);
+        String featureUri = result.getDisplayUri();
+        String featurePath = getHtmlFileName(result);
+        // feature
+        Element tdFeature = node("td", null);
+        tr.appendChild(tdFeature);
+        Element featureLink = node("a", null);
+        tdFeature.appendChild(featureLink);
+        featureLink.setTextContent(featureUri);
+        featureLink.setAttribute("href", featurePath);
+        tr.appendChild(td(result.getPassedCount() + "", "num"));
+        tr.appendChild(td(result.getFailedCount() + "", "num"));
+        tr.appendChild(td(result.getScenarioCount() + "", "num"));
+        String duration = formatter.format(result.getDurationMillis());
+        tr.appendChild(td(duration, "num"));
+        if (result.isFailed()) {
+            Element featureNav = div("nav-item failed");
+            Element failedLink = node("a", null);
+            featureNav.appendChild(failedLink);
+            failedLink.setTextContent(result.getFeature().getNameForReport());
+            failedLink.setAttribute("href", featurePath);
+            navContainer.appendChild(featureNav);
+        }
     }
 
     public File save(String targetDir) {
-        String fileName = "karate-summary.html";
-        File file = new File(targetDir + File.separator + fileName);
-        String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, false);
-        try {
-            initStaticResources(targetDir); // TODO improve init
-            FileUtils.writeToFile(file, xml);
-            System.out.println("\nHTML summary: (paste into browser to view) | Karate version: "
-                    + FileUtils.getKarateVersion() + "\n"
-                    + file.toURI()
-                    + "\n=========================================================\n");
-        } catch (Exception e) {
-            System.out.println("html report output failed: " + e.getMessage());
-        }
+        File file = saveHtmlToFile(targetDir, "karate-summary.html");
+        System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
+                + FileUtils.getKarateVersion() + "\n"
+                + file.toURI()
+                + "\n===================================================================\n");
         return file;
     }
 

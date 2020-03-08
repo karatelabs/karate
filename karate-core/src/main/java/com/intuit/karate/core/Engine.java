@@ -171,12 +171,12 @@ public class Engine {
 
     public static String formatNanos(long nanos, DecimalFormat formatter) {
         return formatter.format(nanosToSeconds(nanos));
-    }
+    }   
 
     public static String formatMillis(double millis, DecimalFormat formatter) {
         return formatter.format(millis / 1000);
-    }
-
+    }  
+    
     private static Throwable appendSteps(List<StepResult> steps, StringBuilder sb) {
         Throwable error = null;
         for (StepResult sr : steps) {

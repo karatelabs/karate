@@ -351,7 +351,7 @@ public class Runner {
                     results.addToFailedList(result.getPackageQualifiedName(), result.getErrorMessages());
                 }
                 results.addScenarioResults(result.getScenarioResults());                
-                HtmlFeatureReport.saveFeatureResult(reportDir, result, false);
+                HtmlFeatureReport.saveFeatureResult(reportDir, result);
                 summary.addFeatureResult(result);
             }
             summary.save(reportDir);

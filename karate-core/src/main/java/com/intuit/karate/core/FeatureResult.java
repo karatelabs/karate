@@ -67,7 +67,7 @@ public class FeatureResult {
         if (reportPath != null) {
             sb.append("report: ").append(reportPath).append('\n');
         }
-        sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", scenarioCount, scenarioCount - failedCount, failedCount, durationMillis / 1000));
+        sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", scenarioCount, getPassedCount(), failedCount, durationMillis / 1000));
         sb.append("---------------------------------------------------------");
         System.out.println(sb);
     }
@@ -200,6 +200,10 @@ public class FeatureResult {
 
     public int getScenarioCount() {
         return scenarioCount;
+    }
+    
+    public int getPassedCount() {
+        return scenarioCount - failedCount;
     }
 
     public boolean isFailed() {

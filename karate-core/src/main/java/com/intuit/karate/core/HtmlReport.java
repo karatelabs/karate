@@ -59,11 +59,11 @@ public abstract class HtmlReport {
         String html = getResourceAsString("report-template.html");
         doc = XmlUtils.toXmlDoc(html);
         formatter = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
-        formatter.applyPattern("0.######");
+        formatter.applyPattern("0");
         Node leftNav = XmlUtils.getNodeByPath(doc, "/html/body/div/div[1]", false);
         navContainer = div("nav-container");
-        leftNav.appendChild(navContainer);        
-        contentContainer = XmlUtils.getNodeByPath(doc, "/html/body/div/div[2]", false); 
+        leftNav.appendChild(navContainer);
+        contentContainer = XmlUtils.getNodeByPath(doc, "/html/body/div/div[2]", false);
     }
 
     private static final String[] RESOURCES = new String[]{
@@ -123,7 +123,23 @@ public abstract class HtmlReport {
     protected Element node(String name, String clazz) {
         return node(name, clazz, null);
     }
-    
+
+    protected static String getHtmlFileName(FeatureResult result) {
+        return result.getPackageQualifiedName() + ".html";
+    }
+
+    protected File saveHtmlToFile(String targetDir, String fileName) {
+        File file = new File(targetDir + File.separator + fileName);
+        try {            
+            String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, false);
+            initStaticResources(targetDir); // TODO improve init
+            FileUtils.writeToFile(file, xml);
+        } catch (Exception e) {
+            System.out.println("html report output failed: " + e.getMessage());
+        }
+        return file;
+    }
+
     public static File saveTimeline(String targetDir, Results results, String fileName) {
         Map<String, Integer> groupsMap = new LinkedHashMap();
         List<ScenarioResult> scenarioResults = results.getScenarioResults();
@@ -179,6 +195,6 @@ public abstract class HtmlReport {
         html = html.replaceFirst("//timeline//", sb.toString());
         FileUtils.writeToFile(htmlFile, html);
         return htmlFile;
-    }    
+    }
 
 }

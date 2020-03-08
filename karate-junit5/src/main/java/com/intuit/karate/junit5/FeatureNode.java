@@ -89,7 +89,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
                 FeatureResult result = exec.result;
                 if (!result.isEmpty()) {
                     result.printStats(null);
-                    HtmlFeatureReport.saveFeatureResult(reportDir, result, true);
+                    HtmlFeatureReport.saveFeatureResult(reportDir, result);
                     summary.addFeatureResult(result);
                 }
             }
