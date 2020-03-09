@@ -65,7 +65,7 @@ public class HtmlSummaryReport extends HtmlReport {
         tr.appendChild(th("Passed", "num"));
         tr.appendChild(th("Failed", "num"));
         tr.appendChild(th("Scenarios", "num"));
-        tr.appendChild(th("Duration", "num"));
+        tr.appendChild(th("Duration (ms)", "num"));
         tbody = node("tbody", null);
         table.appendChild(tbody);
     }

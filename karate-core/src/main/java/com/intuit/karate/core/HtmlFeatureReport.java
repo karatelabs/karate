@@ -40,7 +40,7 @@ public class HtmlFeatureReport extends HtmlReport {
 
     private int stepCounter;
 
-    private void stepHtml(StepResult stepResult, Node parent, int depth) {
+    private void stepHtml(boolean calledFromBackground, String scenarioMeta, StepResult stepResult, Node parent, int depth) {
         Step step = stepResult.getStep();
         Result result = stepResult.getResult();
         String extraClass;
@@ -54,17 +54,25 @@ public class HtmlFeatureReport extends HtmlReport {
         String refNum = ++stepCounter + "";
         Element stepContainer = div("step-container");
         stepContainer.setAttribute("id", refNum);
-        stepContainer.appendChild(div("step-ref " + extraClass, refNum));
+        boolean isBackground = calledFromBackground || (depth == 0 && step.isBackground());
+        String refClass = isBackground ? "bg-step" : extraClass;
+        stepContainer.appendChild(div("step-ref " + refClass, refNum));
         for (int i = 0; i < depth; i++) {
             stepContainer.appendChild(div("step-indent", " "));
         }
         stepContainer.appendChild(div("step-cell " + extraClass, step.getPrefix() + ' ' + step.getText()));
-        Node stepRow = div("step-row",
+        Element stepRow = div("step-row",
                 stepContainer,
                 div("time-cell " + extraClass, formatter.format(result.getDurationMillis())));
         parent.appendChild(stepRow);
+        if (isBackground) {
+            stepRow.setAttribute("data-parent", scenarioMeta + "bg");
+        }
         if (step.getTable() != null) {
-            Node table = node("table", null);
+            Element table = node("table", null);
+            if (isBackground) {
+                table.setAttribute("data-parent", scenarioMeta + "bg");
+            }
             parent.appendChild(table);
             for (List<String> row : step.getTable().getRows()) {
                 Node tr = node("tr", null);
@@ -126,12 +134,12 @@ public class HtmlFeatureReport extends HtmlReport {
         if (callResults != null) { // this is a 'call'
             int index = 1;
             for (FeatureResult callResult : callResults) {
-                callHtml(callResult, parent, depth, refNum + "." + index++);
+                callHtml(isBackground, scenarioMeta, callResult, parent, depth, refNum + "." + index++);
             }
         }
     }
 
-    private void callHtml(FeatureResult featureResult, Node parent, int depth, String callRefNum) {
+    private void callHtml(boolean isBackground, String scenarioMeta, FeatureResult featureResult, Node parent, int depth, String callRefNum) {
         List<StepResult> stepResults = featureResult.getAllScenarioStepResultsNotHidden();
         if (stepResults.isEmpty()) {
             return;
@@ -139,15 +147,18 @@ public class HtmlFeatureReport extends HtmlReport {
         String extraClass = featureResult.isFailed() ? "failed" : "passed";
         Element stepContainer = div("step-container");
         stepContainer.setAttribute("id", callRefNum);
-        stepContainer.appendChild(div("step-ref " + extraClass, ">>"));
+        stepContainer.appendChild(div("step-ref " + (isBackground ? "bg-step" : extraClass), ">>"));
         for (int i = 0; i < depth; i++) {
             stepContainer.appendChild(div("step-indent", " "));
         }
         stepContainer.appendChild(div("step-cell " + extraClass, featureResult.getCallName()));
-        Node stepRow = div("step-row",
+        Element stepRow = div("step-row",
                 stepContainer,
                 div("time-cell " + extraClass, formatter.format(featureResult.getDurationMillis())));
         parent.appendChild(stepRow);
+        if (isBackground) {
+            stepRow.setAttribute("data-parent", scenarioMeta + "bg");
+        }
         String callArg = featureResult.getCallArgPretty();
         if (callArg != null) {
             Element callArgContainer = div("callarg-container");
@@ -160,7 +171,7 @@ public class HtmlFeatureReport extends HtmlReport {
             callArgContainer.appendChild(node("div", "preformatted", callArg));
         }
         for (StepResult sr : stepResults) {
-            stepHtml(sr, parent, depth + 1);
+            stepHtml(isBackground, scenarioMeta, sr, parent, depth + 1);
         }
     }
 
@@ -194,19 +205,34 @@ public class HtmlFeatureReport extends HtmlReport {
             contentContainer.appendChild(scenarioDiv);
             String scenarioMeta = sr.getScenario().getDisplayMeta();
             String scenarioName = sr.getScenario().getName();
-            Element scenarioHeadingDiv = div("scenario-heading",
+            String extraClass = sr.isFailed() ? "failed" : "passed";
+            Element headingContainer = div("heading-container",
                     node("span", "scenario-keyword", sr.getScenario().getKeyword() + ": " + scenarioMeta),
                     node("span", "scenario-name", scenarioName));
+            String duration = formatter.format(sr.getDurationMillis());
+            Element scenarioHeadingDiv = div("scenario-heading",
+                    headingContainer,
+                    div("scenario-time " + extraClass, "ms: " + duration));
             scenarioHeadingDiv.setAttribute("id", scenarioMeta);
             scenarioDiv.appendChild(scenarioHeadingDiv);
-            String extraClass = sr.isFailed() ? "failed" : "passed";
             Element scenarioNav = div("nav-item " + extraClass);
             navContainer.appendChild(scenarioNav);
             Element scenarioLink = node("a", null, scenarioMeta + " " + scenarioName);
             scenarioNav.appendChild(scenarioLink);
             scenarioLink.setAttribute("href", "#" + scenarioMeta);
-            for (StepResult stepResult : sr.getStepResults()) {
-                stepHtml(stepResult, scenarioDiv, 0);
+            List<StepResult> stepResults = sr.getStepResults();
+            if (!stepResults.isEmpty() && stepResults.get(0).getStep().isBackground()) {
+                Element bgContainer = div("step-container");
+                bgContainer.setAttribute("id", scenarioMeta + "bg");
+                bgContainer.appendChild(div("step-ref passed", ">>"));
+                bgContainer.appendChild(div("step-cell passed", "Background:"));
+                Node bgRow = div("step-row",
+                        bgContainer,
+                        div("time-cell passed", ""));
+                scenarioDiv.appendChild(bgRow);
+            }
+            for (StepResult stepResult : stepResults) {
+                stepHtml(false, scenarioMeta, stepResult, scenarioDiv, 0);
             }
         }
     }

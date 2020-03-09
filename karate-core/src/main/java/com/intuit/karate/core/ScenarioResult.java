@@ -268,6 +268,10 @@ public class ScenarioResult {
     public long getDurationNanos() {
         return durationNanos;
     }
+    
+    public double getDurationMillis() {
+        return Engine.nanosToMillis(durationNanos);
+    }    
 
     public String getThreadName() {
         return threadName;
