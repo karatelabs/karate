@@ -54,6 +54,7 @@ public abstract class HtmlReport {
     protected final Node navContainer;
     protected final Node contentContainer;
     protected final DecimalFormat formatter;
+    protected final String dateString;
 
     public HtmlReport() {
         String html = getResourceAsString("report-template.html");
@@ -64,6 +65,9 @@ public abstract class HtmlReport {
         navContainer = div("nav-container");
         leftNav.appendChild(navContainer);
         contentContainer = XmlUtils.getNodeByPath(doc, "/html/body/div/div[2]", false);
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss a");
+        dateString = sdf.format(new Date());
+        setById("nav-date", dateString);
     }
 
     private static final String[] RESOURCES = new String[]{
@@ -104,6 +108,14 @@ public abstract class HtmlReport {
         XmlUtils.setByPath(doc, path, value);
     }
 
+    protected void setById(String id, String value) {
+        String path = "//div[@id='" + id + "']";
+        Node node = XmlUtils.getNodeByPath(doc, path, false);
+        if (node != null) {
+            node.setTextContent(value);
+        }
+    }
+
     protected Element div(String clazz, String value) {
         return node("div", clazz, value);
     }
@@ -130,7 +142,7 @@ public abstract class HtmlReport {
 
     protected File saveHtmlToFile(String targetDir, String fileName) {
         File file = new File(targetDir + File.separator + fileName);
-        try {            
+        try {
             String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, false);
             initStaticResources(targetDir); // TODO improve init
             FileUtils.writeToFile(file, xml);

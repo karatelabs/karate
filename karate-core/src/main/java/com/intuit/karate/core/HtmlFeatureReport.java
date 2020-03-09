@@ -174,6 +174,21 @@ public class HtmlFeatureReport extends HtmlReport {
     private HtmlFeatureReport(FeatureResult featureResult) {
         this.featureResult = featureResult;
         set("/html/head/title", featureResult.getPackageQualifiedName());
+        setById("nav-type", "Scenarios");
+        setById("nav-pass", featureResult.getPassedCount() + "");
+        setById("nav-fail", featureResult.getFailedCount() + "");
+        Element summaryLink = node("a", null);
+        summaryLink.setAttribute("href", "karate-summary.html");
+        summaryLink.setTextContent("Summary");
+        String featureName = featureResult.getDisplayUri();
+        String featureDescription = featureResult.getFeature().getNameAndDescription();
+        Node featureDiv = div("feature-heading alert alert-primary",
+                summaryLink,
+                node("span", "feature-label", "|"),
+                node("span", "feature-label", "Feature:"),
+                node("span", "feature-name", featureName),
+                node("span", "feature-description", featureDescription));
+        contentContainer.appendChild(featureDiv);
         for (ScenarioResult sr : featureResult.getScenarioResults()) {
             Node scenarioDiv = div("scenario");
             contentContainer.appendChild(scenarioDiv);

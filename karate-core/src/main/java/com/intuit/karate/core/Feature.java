@@ -64,6 +64,20 @@ public class Feature {
         return background != null && background.getSteps() != null;
     }
 
+    public String getNameAndDescription() {
+        String temp = "";
+        if (!StringUtils.isBlank(name)) {
+            temp = temp + name;
+        }
+        if (!StringUtils.isBlank(description)) {
+            if (!temp.isEmpty()) {
+                temp = temp + " | ";
+            }
+            temp = temp + description;
+        }
+        return temp;
+    }
+
     public String getNameForReport() {
         if (name == null) {
             return "[" + resource.getFileNameWithoutExtension() + "]";
@@ -319,6 +333,6 @@ public class Feature {
     @Override
     public String toString() {
         return resource.toString();
-    }        
+    }
 
 }

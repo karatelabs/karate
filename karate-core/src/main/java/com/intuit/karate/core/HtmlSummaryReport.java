@@ -36,6 +36,9 @@ import org.w3c.dom.Node;
 public class HtmlSummaryReport extends HtmlReport {
 
     private final Element tbody;
+    
+    private int passCount;
+    private int failCount;
 
     private Element th(String content, String clazz) {
         Element th = node("th", clazz);
@@ -51,6 +54,7 @@ public class HtmlSummaryReport extends HtmlReport {
 
     public HtmlSummaryReport() {
         set("/html/head/title", "Karate Summary Report");
+        setById("nav-type", "Features");
         Element table = node("table", "features-table table table-sm");
         contentContainer.appendChild(table);
         Element thead = node("thead", null);
@@ -84,16 +88,21 @@ public class HtmlSummaryReport extends HtmlReport {
         String duration = formatter.format(result.getDurationMillis());
         tr.appendChild(td(duration, "num"));
         if (result.isFailed()) {
+            failCount++;
             Element featureNav = div("nav-item failed");
             Element failedLink = node("a", null);
             featureNav.appendChild(failedLink);
             failedLink.setTextContent(result.getFeature().getNameForReport());
             failedLink.setAttribute("href", featurePath);
             navContainer.appendChild(featureNav);
+        } else {
+            passCount++;
         }
     }
 
     public File save(String targetDir) {
+        setById("nav-pass", passCount + "");
+        setById("nav-fail", failCount + "");
         File file = saveHtmlToFile(targetDir, "karate-summary.html");
         System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
                 + FileUtils.getKarateVersion() + "\n"
