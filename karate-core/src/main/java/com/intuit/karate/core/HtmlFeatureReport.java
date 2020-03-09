@@ -70,9 +70,7 @@ public class HtmlFeatureReport extends HtmlReport {
         }
         if (step.getTable() != null) {
             Element table = node("table", null);
-            if (isBackground) {
-                table.setAttribute("data-parent", scenarioMeta + "bg");
-            }
+            table.setAttribute("data-parent", refNum);
             parent.appendChild(table);
             for (List<String> row : step.getTable().getRows()) {
                 Node tr = node("tr", null);
@@ -224,7 +222,7 @@ public class HtmlFeatureReport extends HtmlReport {
             if (!stepResults.isEmpty() && stepResults.get(0).getStep().isBackground()) {
                 Element bgContainer = div("step-container");
                 bgContainer.setAttribute("id", scenarioMeta + "bg");
-                bgContainer.appendChild(div("step-ref passed", ">>"));
+                bgContainer.appendChild(div("step-ref bg-step", ">>"));
                 bgContainer.appendChild(div("step-cell passed", "Background:"));
                 Node bgRow = div("step-row",
                         bgContainer,
