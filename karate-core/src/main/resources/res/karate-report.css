@@ -14,6 +14,9 @@
 #content { padding: 0.5em; margin-left: 250px; width: 100%; }
 
 .features-table, .tags-table { border: 1px solid gray; }
+.tags-table th { text-align: center; }
+.tags-table td { text-align: center; }
+.tags-table td.feature-cell { text-align: left; }
 .num { text-align: right; }
 
 .feature-heading { margin-bottom: 0.5em; }

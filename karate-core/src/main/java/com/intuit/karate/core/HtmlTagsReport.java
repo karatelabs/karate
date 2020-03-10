@@ -23,14 +23,15 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.FileUtils;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import org.w3c.dom.Element;
 
 /**
@@ -39,64 +40,70 @@ import org.w3c.dom.Element;
  */
 public class HtmlTagsReport extends HtmlReport {
 
-    private final Element tbody;
-
-    private final Map<String, List<FeatureResult>> TAG_FEATURES = new LinkedHashMap();
+    private final List<FeatureResult> FEATURES = new ArrayList();
 
     public HtmlTagsReport() {
         set("/html/head/title", "Karate Tags Report");
         setById("nav-type", "Tags");
-        Element table = node("table", "tags-table table table-sm");
-        contentContainer.appendChild(table);
-        Element thead = node("thead", null);
-        table.appendChild(thead);
-        Element tr = node("tr", null);
-        thead.appendChild(tr);
-        tr.appendChild(th("Tag", null));
-        tr.appendChild(th("Scenarios", null));
-        tbody = node("tbody", null);
-        table.appendChild(tbody);
     }
 
     public void addFeatureResult(FeatureResult result) {
-        Set<String> distinct = new HashSet();
-        for (ScenarioResult sr : result.getScenarioResults()) {
-            Scenario scenario = sr.getScenario();
-            Tags tags = scenario.getTagsEffective();
-            distinct.addAll(tags.getTagKeys());
-        }
-        for (String tagKey : distinct) {
-            List<FeatureResult> list = TAG_FEATURES.get(tagKey);
-            if (list == null) {
-                list = new ArrayList();
-                TAG_FEATURES.put(tagKey, list);
-            }
-            list.add(result);
-        }
+        FEATURES.add(result);
     }
 
     public File save(String targetDir) {
-        setById("nav-pass", 0 + "");
-        setById("nav-fail", 0 + "");
-        TAG_FEATURES.forEach((tagKey, results) -> {
-            Element tr = node("tr", null);
-            tbody.appendChild(tr);
-            tr.appendChild(td(tagKey, null));
-            Element td = node("td", null);
-            tr.appendChild(td);
-            for (FeatureResult fr : results) {
-                Element featureLink = node("a", null);
-                td.appendChild(featureLink);
-                featureLink.setAttribute("href", "#");
-                featureLink.setTextContent(fr.getDisplayUri());
-                for (ScenarioResult sr : fr.getScenarioResults()) {
-                    Element scenarioLink = node("a", null);
-                    td.appendChild(scenarioLink);
-                    scenarioLink.setAttribute("href", "#");
-                    scenarioLink.setTextContent(sr.getScenario().getNameForReport());
+        Set<String> allTags = new TreeSet();
+        Set<String> failedTags = new TreeSet();
+        Map<String, Set<String>> featureTagsMap = new HashMap();
+        for (FeatureResult fr : FEATURES) {
+            Set<String> featureTags = new HashSet();
+            featureTagsMap.put(fr.getPackageQualifiedName(), featureTags);
+            for (ScenarioResult sr : fr.getScenarioResults()) {
+                Tags tags = sr.getScenario().getTagsEffective();
+                Collection<String> tagKeys = tags.getTagKeys();
+                allTags.addAll(tagKeys);
+                featureTags.addAll(tagKeys);
+                if (sr.isFailed()) {
+                    failedTags.addAll(tagKeys);
                 }
             }
-        });
+        }
+        setById("nav-pass", (allTags.size() - failedTags.size()) + "");
+        setById("nav-fail", failedTags.size() + "");
+        Element table = node("table", "tags-table table table-sm table-bordered");
+        contentContainer.appendChild(table);
+        Element thead = node("thead", null);
+        table.appendChild(thead);
+        Element headRow = node("tr", null);
+        thead.appendChild(headRow);
+        headRow.appendChild(th("Feature", null));
+        for (String tagKey : allTags) {
+            String tagClass = failedTags.contains(tagKey) ? "failed" : "passed";
+            headRow.appendChild(th(tagKey, tagClass));
+        }
+        Element tbody = node("tbody", null);
+        table.appendChild(tbody);
+        for (FeatureResult fr : FEATURES) {
+            Element tr = node("tr", null);
+            tbody.appendChild(tr);
+            Element featureCell = node("td", "feature-cell");
+            tr.appendChild(featureCell);
+            Element featureLink = node("a", "");
+            featureCell.appendChild(featureLink);
+            featureLink.setAttribute("href", getHtmlFileName(fr));
+            featureLink.setTextContent(fr.getDisplayUri());
+            Set<String> featureTags = featureTagsMap.get(fr.getPackageQualifiedName());
+            for (String tagKey : allTags) {
+                Element td;
+                String tagClass = fr.isFailed() ? "failed" : "passed";
+                if (featureTags.contains(tagKey)) {
+                    td = td("X", tagClass);
+                } else {
+                    td = td("", null);
+                }
+                tr.appendChild(td);
+            }
+        }
         return saveHtmlToFile(targetDir, "karate-tags.html");
     }
 

@@ -65,7 +65,7 @@ public abstract class HtmlReport {
         navContainer = div("nav-container");
         leftNav.appendChild(navContainer);
         contentContainer = XmlUtils.getNodeByPath(doc, "/html/body/div/div[2]", false);
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss a");
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss a");
         dateString = sdf.format(new Date());
         setById("nav-date", dateString);
     }
