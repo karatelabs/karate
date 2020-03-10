@@ -182,6 +182,7 @@ public class HtmlFeatureReport extends HtmlReport {
 
     private HtmlFeatureReport(FeatureResult featureResult) {
         this.featureResult = featureResult;
+        Feature feature = featureResult.getFeature();
         set("/html/head/title", featureResult.getPackageQualifiedName());
         setById("nav-type", "Scenarios");
         setById("nav-pass", featureResult.getPassedCount() + "");
@@ -190,7 +191,7 @@ public class HtmlFeatureReport extends HtmlReport {
         summaryLink.setAttribute("href", "karate-summary.html");
         summaryLink.setTextContent("Summary");
         String featureName = featureResult.getDisplayUri();
-        String featureDescription = featureResult.getFeature().getNameAndDescription();
+        String featureDescription = feature.getNameAndDescription();
         Node featureDiv = div("feature-heading alert alert-primary",
                 summaryLink,
                 node("span", "feature-label", "|"),
@@ -204,7 +205,16 @@ public class HtmlFeatureReport extends HtmlReport {
             String scenarioMeta = sr.getScenario().getDisplayMeta();
             String scenarioName = sr.getScenario().getName();
             String extraClass = sr.isFailed() ? "failed" : "passed";
+            Tags tags = sr.getScenario().getTagsEffective();
+            Element tagsDiv = div("scenario-tags");           
+            for (Tag tag : tags.getOriginal()) {
+                Element tagLink = node("a", "badge badge-primary");
+                tagsDiv.appendChild(tagLink);
+                tagLink.setAttribute("href", "karate-tags.html");
+                tagLink.setTextContent(tag.getText());
+            }                        
             Element headingContainer = div("heading-container",
+                    tagsDiv,
                     node("span", "scenario-keyword", sr.getScenario().getKeyword() + ": " + scenarioMeta),
                     node("span", "scenario-name", scenarioName));
             String duration = formatter.format(sr.getDurationMillis());

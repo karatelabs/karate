@@ -24,10 +24,8 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.XmlUtils;
 import java.io.File;
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 
 /**
  *
@@ -36,23 +34,13 @@ import org.w3c.dom.Node;
 public class HtmlSummaryReport extends HtmlReport {
 
     private final Element tbody;
+    private final HtmlTagsReport tagsReport;
     
     private int passCount;
-    private int failCount;
-
-    private Element th(String content, String clazz) {
-        Element th = node("th", clazz);
-        th.setTextContent(content);
-        return th;
-    }   
-    
-    private Element td(String content, String clazz) {
-        Element td = node("td", clazz);
-        td.setTextContent(content);
-        return td;
-    }    
+    private int failCount;   
 
     public HtmlSummaryReport() {
+        tagsReport = new HtmlTagsReport();
         set("/html/head/title", "Karate Summary Report");
         setById("nav-type", "Features");
         Element table = node("table", "features-table table table-sm");
@@ -75,7 +63,6 @@ public class HtmlSummaryReport extends HtmlReport {
         tbody.appendChild(tr);
         String featureUri = result.getDisplayUri();
         String featurePath = getHtmlFileName(result);
-        // feature
         Element tdFeature = node("td", null);
         tr.appendChild(tdFeature);
         Element featureLink = node("a", null);
@@ -98,9 +85,11 @@ public class HtmlSummaryReport extends HtmlReport {
         } else {
             passCount++;
         }
+        tagsReport.addFeatureResult(result);
     }
 
     public File save(String targetDir) {
+        tagsReport.save(targetDir);
         setById("nav-pass", passCount + "");
         setById("nav-fail", failCount + "");
         File file = saveHtmlToFile(targetDir, "karate-summary.html");

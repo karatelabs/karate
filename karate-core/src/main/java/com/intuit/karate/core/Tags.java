@@ -129,6 +129,10 @@ public class Tags implements Iterable<Tag> {
     public List<String> getTags() {
         return tags;
     }
+    
+    public Collection<String> getTagKeys() {
+        return tagValues.keySet();
+    }
 
     public Map<String, List<String>> getTagValues() {
         return tagValues;

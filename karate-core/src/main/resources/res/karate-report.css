@@ -13,7 +13,7 @@
 
 #content { padding: 0.5em; margin-left: 250px; width: 100%; }
 
-.features-table { border: 1px solid gray; }
+.features-table, .tags-table { border: 1px solid gray; }
 .num { text-align: right; }
 
 .feature-heading { margin-bottom: 0.5em; }
@@ -24,6 +24,7 @@
 .scenario { border: 1px solid gray; margin-bottom: 1em;  }
 .scenario-heading { border-bottom: 1px solid gray; margin-bottom: 2px; display: flex; }
 .heading-container { padding: 0.2em 0.5em; background-color: #F5F28F; width: 90%; }
+.scenario-tags .badge { margin-right: 0.5em; }
 .scenario-name { font-weight: bold; padding-left: 0.2em; }
 .scenario-time { margin-left: 2px; padding: 0.2em 0.6em; text-align: right; width: 10%; }
 
