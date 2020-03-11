@@ -14,15 +14,13 @@
 #content { padding: 0.5em; margin-left: 250px; width: 100%; }
 
 .features-table, .tags-table { border: 1px solid gray; }
-.tags-table th { text-align: center; }
-.tags-table td { text-align: center; }
-.tags-table td.feature-cell { text-align: left; }
+.tags-table th, .tags-table td { text-align: center; }
+.tags-table .feature-cell { text-align: left; }
 .num { text-align: right; }
 
-.feature-heading { margin-bottom: 0.5em; }
-.feature-label { padding-left: 0.5em; }
-.feature-name { font-weight: bold; padding-left: 0.5em; }
-.feature-description { padding-left: 1em; font-style: italic; }
+.page-heading  { margin-bottom: 0.5em; }
+.feature-label { padding: 0 0.5em; }
+.feature-description { font-weight: bold; padding-left: 1em; font-style: italic; }
 
 .scenario { border: 1px solid gray; margin-bottom: 1em;  }
 .scenario-heading { border-bottom: 1px solid gray; margin-bottom: 2px; display: flex; }

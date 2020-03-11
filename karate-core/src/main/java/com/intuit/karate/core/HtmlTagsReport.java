@@ -45,6 +45,7 @@ public class HtmlTagsReport extends HtmlReport {
     public HtmlTagsReport() {
         set("/html/head/title", "Karate Tags Report");
         setById("nav-type", "Tags");
+        contentContainer.appendChild(div("page-heading alert alert-primary", summaryLink()));        
     }
 
     public void addFeatureResult(FeatureResult result) {
@@ -76,7 +77,7 @@ public class HtmlTagsReport extends HtmlReport {
         table.appendChild(thead);
         Element headRow = node("tr", null);
         thead.appendChild(headRow);
-        headRow.appendChild(th("Feature", null));
+        headRow.appendChild(th("Feature", "feature-cell"));
         for (String tagKey : allTags) {
             String tagClass = failedTags.contains(tagKey) ? "failed" : "passed";
             headRow.appendChild(th(tagKey, tagClass));

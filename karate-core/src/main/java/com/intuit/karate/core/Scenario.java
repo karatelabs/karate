@@ -62,6 +62,20 @@ public class Scenario {
         this.section = section;
         this.index = index;
     }
+    
+    public String getNameAndDescription() {
+        String temp = "";
+        if (name != null) {
+            temp = temp + name;
+        }
+        if (description != null) {
+            if (!temp.isEmpty()) {
+                temp = temp + " ";
+            }
+            temp = temp + description;
+        }
+        return temp;
+    }
 
     public String getNameForReport() {
         if (name == null) {

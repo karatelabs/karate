@@ -135,18 +135,32 @@ public abstract class HtmlReport {
     protected Element node(String name, String clazz) {
         return node(name, clazz, null);
     }
-    
+
     protected Element th(String content, String clazz) {
         Element th = node("th", clazz);
         th.setTextContent(content);
         return th;
-    }   
-    
+    }
+
     protected Element td(String content, String clazz) {
         Element td = node("td", clazz);
         td.setTextContent(content);
         return td;
-    }     
+    }
+
+    protected Element summaryLink() {
+        Element link = node("a", null);
+        link.setAttribute("href", "karate-summary.html");
+        link.setTextContent("Summary");
+        return link;
+    }
+    
+    protected Element tagsLink() {
+        Element link = node("a", null);
+        link.setAttribute("href", "karate-tags.html");
+        link.setTextContent("Tags");
+        return link;
+    }    
 
     protected static String getHtmlFileName(FeatureResult result) {
         return result.getPackageQualifiedName() + ".html";

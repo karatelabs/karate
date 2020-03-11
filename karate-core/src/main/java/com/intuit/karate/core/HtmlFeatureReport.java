@@ -186,26 +186,26 @@ public class HtmlFeatureReport extends HtmlReport {
         set("/html/head/title", featureResult.getPackageQualifiedName());
         setById("nav-type", "Scenarios");
         setById("nav-pass", featureResult.getPassedCount() + "");
-        setById("nav-fail", featureResult.getFailedCount() + "");
-        Element summaryLink = node("a", null);
-        summaryLink.setAttribute("href", "karate-summary.html");
-        summaryLink.setTextContent("Summary");
+        setById("nav-fail", featureResult.getFailedCount() + "");        
         String featureName = featureResult.getDisplayUri();
         String featureDescription = feature.getNameAndDescription();
-        Node featureDiv = div("feature-heading alert alert-primary",
-                summaryLink,
+        Node featureHeading = div("page-heading alert alert-primary",
+                summaryLink(),
+                node("span", "feature-label", "|"),
+                tagsLink(),
                 node("span", "feature-label", "|"),
                 node("span", "feature-label", "Feature:"),
                 node("span", "feature-name", featureName),
                 node("span", "feature-description", featureDescription));
-        contentContainer.appendChild(featureDiv);
+        contentContainer.appendChild(featureHeading);
         for (ScenarioResult sr : featureResult.getScenarioResults()) {
             Node scenarioDiv = div("scenario");
             contentContainer.appendChild(scenarioDiv);
-            String scenarioMeta = sr.getScenario().getDisplayMeta();
-            String scenarioName = sr.getScenario().getName();
+            Scenario scenario = sr.getScenario();
+            String scenarioMeta = scenario.getDisplayMeta();
+            String scenarioName = scenario.getNameAndDescription();
             String extraClass = sr.isFailed() ? "failed" : "passed";
-            Tags tags = sr.getScenario().getTagsEffective();
+            Tags tags = scenario.getTagsEffective();
             Element tagsDiv = div("scenario-tags");           
             for (Tag tag : tags.getOriginal()) {
                 Element tagLink = node("a", "badge badge-primary");
@@ -215,7 +215,7 @@ public class HtmlFeatureReport extends HtmlReport {
             }                        
             Element headingContainer = div("heading-container",
                     tagsDiv,
-                    node("span", "scenario-keyword", sr.getScenario().getKeyword() + ": " + scenarioMeta),
+                    node("span", "scenario-keyword", scenario.getKeyword() + ": " + scenarioMeta),
                     node("span", "scenario-name", scenarioName));
             String duration = formatter.format(sr.getDurationMillis());
             Element scenarioHeadingDiv = div("scenario-heading",

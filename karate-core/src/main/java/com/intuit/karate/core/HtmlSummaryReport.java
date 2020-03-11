@@ -43,6 +43,7 @@ public class HtmlSummaryReport extends HtmlReport {
         tagsReport = new HtmlTagsReport();
         set("/html/head/title", "Karate Summary Report");
         setById("nav-type", "Features");
+        contentContainer.appendChild(div("page-heading alert alert-primary", tagsLink())); 
         Element table = node("table", "features-table table table-sm");
         contentContainer.appendChild(table);
         Element thead = node("thead", null);
