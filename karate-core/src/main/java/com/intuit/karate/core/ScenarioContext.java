@@ -786,9 +786,6 @@ public class ScenarioContext {
         }
         MultiPartItem item = new MultiPartItem(name, fileValue);
         String filename = asString(map, "filename");
-        if (filename == null) {
-            filename = name;
-        }
         item.setFilename(filename);
         String contentType = asString(map, "contentType");
         if (contentType != null) {
