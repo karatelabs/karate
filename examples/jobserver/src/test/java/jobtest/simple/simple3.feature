@@ -8,5 +8,5 @@ Scenario: 3-two
 
 Scenario: 3-three
 * print '3-three'
-* url 'http://httpbin.org/get'
-* method get
+Given url 'http://httpbin.org/get'
+When method get
