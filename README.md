@@ -1848,7 +1848,7 @@ Note that `multipart file` takes a JSON argument so that you can easily set the 
 
 * `read`: the name of a file, and the [`classpath:`](#reading-files) prefix also is allowed. mandatory unless `value` is used, see below.
 * `value`: alternative to `read` in rare cases where something like a JSON or XML file is being uploaded and you want to create it dynamically.
-* `filename`: optional, will default to the multipart field name if not specified
+* `filename`: optional, if not specified there will be no `filename` attribute in `Content-Disposition` 
 * `contentType`: optional, will default to `application/octet-stream`
 
 When 'multipart' content is involved, the `Content-Type` header of the HTTP request defaults to `multipart/form-data`.
