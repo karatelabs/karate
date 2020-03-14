@@ -12,6 +12,7 @@ public enum MatchType {
     NOT_CONTAINS,
     CONTAINS_ONLY,
     CONTAINS_ANY,
+    CONTAINS_DEEP,
     EACH_EQUALS,
     EACH_NOT_EQUALS,
     EACH_CONTAINS,

@@ -1145,6 +1145,7 @@ public class Script {
             case NOT_CONTAINS:
             case CONTAINS_ONLY:
             case CONTAINS_ANY:
+            case CONTAINS_DEEP:
                 if (actObject instanceof List && !(expObject instanceof List)) { // if RHS is not a list, make it so
                     expObject = Collections.singletonList(expObject);
                 }
@@ -1378,7 +1379,7 @@ public class Script {
                     return matchFailed(matchType, path, actObject, expObject, "all key-values did not match, expected has un-matched keys: " + unMatchedKeysExp);
                 }
             } else if (!unMatchedKeysAct.isEmpty()) {
-                if (matchType == MatchType.CONTAINS || expMap.isEmpty()) {
+                if (matchType == MatchType.CONTAINS || matchType == MatchType.CONTAINS_DEEP || expMap.isEmpty()) {
                     return AssertionResult.PASS;
                 }
                 if (matchType == MatchType.NOT_EQUALS) {
@@ -1420,13 +1421,16 @@ public class Script {
             if (matchType == MatchType.CONTAINS
                     || matchType == MatchType.CONTAINS_ONLY
                     || matchType == MatchType.CONTAINS_ANY
-                    || matchType == MatchType.NOT_CONTAINS) { // just checks for existence (or non-existence)
+                    || matchType == MatchType.NOT_CONTAINS
+                    || matchType == MatchType.CONTAINS_DEEP
+            ) { // just checks for existence (or non-existence)
                 for (Object expListObject : expList) { // for each expected item in the list
                     boolean found = false;
                     for (int i = 0; i < actCount; i++) {
                         Object actListObject = actList.get(i);
                         String listPath = buildListPath(delimiter, path, i);
-                        AssertionResult ar = matchNestedObject(delimiter, listPath, MatchType.EQUALS, actRoot, actListObject, actListObject, expListObject, context);
+                        MatchType childMatchType = matchType.equals(MatchType.CONTAINS_DEEP)? MatchType.CONTAINS_DEEP : MatchType.EQUALS;
+                        AssertionResult ar = matchNestedObject(delimiter, listPath, childMatchType, actRoot, actListObject, actListObject, expListObject, context);
                         if (ar.pass) { // exact match, we found it
                             found = true;
                             break;
