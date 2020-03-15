@@ -33,6 +33,7 @@ import java.awt.Color;
 import java.awt.Image;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.util.HashMap;
 import java.util.List;
@@ -67,16 +68,16 @@ import org.slf4j.LoggerFactory;
  */
 public class RobotUtils {
 
-    private static final Logger logger = LoggerFactory.getLogger(RobotUtils.class);   
+    private static final Logger logger = LoggerFactory.getLogger(RobotUtils.class);
 
     public static Region find(File source, File target, boolean resize) {
         return find(read(source), read(target), resize);
     }
-    
+
     public static Region find(BufferedImage source, byte[] bytes, boolean resize) {
         Mat srcMat = Java2DFrameUtils.toMat(source);
         return find(srcMat, read(bytes), resize);
-    }    
+    }
 
     public static Region find(BufferedImage source, File target, boolean resize) {
         Mat srcMat = Java2DFrameUtils.toMat(source);
@@ -98,7 +99,7 @@ public class RobotUtils {
         double step = 0.1;
         int count = resize ? 5 : 0;
         int targetScore = target.size().area() * 300; // magic number
-        for (int i = -count; i <= count; i++) {            
+        for (int i = -count; i <= count; i++) {
             double scale = 1 + step * i;
             Mat resized = scale == 1 ? source : rescale(source, scale);
             Size temp = resized.size();
@@ -113,7 +114,7 @@ public class RobotUtils {
             double tempMinVal = minVal.get();
             double ratio = (double) 1 / scale;
             double score = tempMinVal / targetScore;
-            String minValString = String.format("%.1f", tempMinVal);            
+            String minValString = String.format("%.1f", tempMinVal);
             if (prevMinVal == null || tempMinVal < prevMinVal) {
                 prevMinVal = tempMinVal;
                 prevRatio = ratio;
@@ -146,21 +147,31 @@ public class RobotUtils {
         return toBufferedImage(mat);
     }
 
+    public static byte[] toBytes(BufferedImage img) {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try {
+            ImageIO.write(img, "png", baos);
+            return baos.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static Mat read(File file) {
         return read(file, IMREAD_GRAYSCALE);
     }
-    
+
     public static Mat read(byte[] bytes) {
         return read(bytes, IMREAD_GRAYSCALE);
-    }    
-    
+    }
+
     public static Mat read(byte[] bytes, int flags) {
         Mat image = imdecode(new Mat(bytes), flags);
         if (image.empty()) {
             throw new RuntimeException("image decode failed");
         }
         return image;
-    }    
+    }
 
     public static Mat read(File file, int flags) {
         Mat image = imread(file.getAbsolutePath(), flags);

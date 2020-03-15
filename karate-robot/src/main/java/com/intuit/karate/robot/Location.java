@@ -54,7 +54,8 @@ public class Location {
     }
     
     public Location click(int num) {
-        robot.move(x, y).click(num);
+        robot.move(x, y); // do not chain, causes recursion
+        robot.click(num);
         return this;
     }
 

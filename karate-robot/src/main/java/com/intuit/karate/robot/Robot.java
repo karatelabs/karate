@@ -210,7 +210,7 @@ public class Robot {
         return this;
     }
 
-    public BufferedImage capture() {
+    public BufferedImage capture() { // TODO by region
         int width = dimension.width;
         int height = dimension.height;
         Image image = robot.createScreenCapture(new Rectangle(0, 0, width, height));
@@ -227,8 +227,16 @@ public class Robot {
         return file;
     }
     
+    public byte[] screenshot() { // TODO by region
+        BufferedImage image = capture();
+        byte[] bytes = RobotUtils.toBytes(image);
+        context.embed(bytes, "image/png");
+        return bytes;
+    }
+    
     public Region move(int x, int y) {
-        return new Region(x, y).with(this).move();        
+        robot.mouseMove(x, y);
+        return new Region(x, y).with(this);        
     }
     
     public Region click(int x, int y) {

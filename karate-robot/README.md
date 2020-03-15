@@ -118,3 +118,6 @@ Else, you pass a string of text which can include special characters such as a l
 ```cucumber
 * robot.input('karate dsl' + Key.ENTER)
 ```
+
+## `robot.screenshot()`
+Will save a screenshot of the viewport, which will appear in the HTML report. Note that this returns a byte-array of the PNG image.
