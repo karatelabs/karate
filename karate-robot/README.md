@@ -14,6 +14,9 @@
 * Navigation via image detection
 * Tightly integrated into Karate
 
+## Examples
+Refer to the [`examples/robot-test`](../examples/robot-test) project which is a stand-alone Maven project that can be used as a starting point.
+
 ## Using
 The `karate-robot` capabilities are not part of the `karate-core`, because they bring in a few extra dependencies.
 
