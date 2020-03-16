@@ -31,6 +31,8 @@ public interface HttpLogModifier {
     
     boolean enableForUri(String uri);
     
+    String uri(String uri);
+    
     String header(String header, String value);
     
     String request(String uri, String request);

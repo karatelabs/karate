@@ -116,8 +116,9 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
         actual.setMethod(method);
         actual.setUri(uri);
         StringBuilder sb = new StringBuilder();
-        sb.append("request\n").append(id).append(" > ").append(method).append(' ').append(uri).append('\n');
         HttpLogModifier requestModifier = logModifier == null ? null : logModifier.enableForUri(uri) ? logModifier : null;
+        String maskedUri = requestModifier == null ? uri : requestModifier.uri(uri);
+        sb.append("request\n").append(id).append(" > ").append(method).append(' ').append(maskedUri).append('\n');        
         logHeaders(requestModifier, sb, id, '>', request.getStringHeaders(), actual);
         LoggingFilterOutputStream out = (LoggingFilterOutputStream) request.getProperty(LoggingFilterOutputStream.KEY);
         if (out != null) {
