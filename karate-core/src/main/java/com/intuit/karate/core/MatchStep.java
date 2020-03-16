@@ -49,6 +49,7 @@ public class MatchStep {
         boolean not = false;
         boolean only = false;
         boolean any = false;
+        boolean deep = false;
         int spacePos = raw.indexOf(' ');
         int leftParenPos = raw.indexOf('(');
         int rightParenPos = raw.indexOf(')');
@@ -65,15 +66,19 @@ public class MatchStep {
             contains = true;
             not = raw.charAt(lhsEndPos + 1) == '!';
             searchPos = lhsEndPos + (not ? 10 : 9);
-            String anyOrOnly = raw.substring(searchPos).trim();
-            if (anyOrOnly.startsWith("only")) {
+            String anyOrOnlyOrDeep = raw.substring(searchPos).trim();
+            if (anyOrOnlyOrDeep.startsWith("only")) {
                 int onlyPos = raw.indexOf(" only", searchPos);
                 only = true;
                 searchPos = onlyPos + 5;
-            } else if (anyOrOnly.startsWith("any")) {
+            } else if (anyOrOnlyOrDeep.startsWith("any")) {
                 int anyPos = raw.indexOf(" any", searchPos);
                 any = true;
                 searchPos = anyPos + 4;
+            } else if (anyOrOnlyOrDeep.startsWith("deep")) {
+                int deepPos = raw.indexOf(" deep", searchPos);
+                deep = true;
+                searchPos = deepPos + 5;
             }
         } else {
             int equalPos = raw.indexOf(" ==", searchPos);
@@ -106,7 +111,7 @@ public class MatchStep {
             path = null;
         }
         expected = StringUtils.trimToNull(raw.substring(searchPos));
-        type = getType(each, not, contains, only, any);
+        type = getType(each, not, contains, only, any, deep);
     }
 
     private static int min(int a, int b) {
@@ -119,7 +124,7 @@ public class MatchStep {
         return Math.min(a, b);
     }
 
-    private static MatchType getType(boolean each, boolean not, boolean contains, boolean only, boolean any) {
+    private static MatchType getType(boolean each, boolean not, boolean contains, boolean only, boolean any, boolean deep) {
         if (each) {
             if (contains) {
                 if (only) {
@@ -138,6 +143,9 @@ public class MatchStep {
             }
             if (any) {
                 return MatchType.CONTAINS_ANY;
+            }
+            if (deep) {
+                return MatchType.CONTAINS_DEEP;
             }
             return not ? MatchType.NOT_CONTAINS : MatchType.CONTAINS;
         }

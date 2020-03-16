@@ -389,15 +389,40 @@ public class ScriptTest {
         assertTrue(Script.matchJsonOrObject(MatchType.NOT_CONTAINS, myJson, "$.foo", "[{bar: 9, baz: 'z'}, {bar: 99, baz: 'zz'}]", ctx).pass);
         assertTrue(Script.matchJsonOrObject(MatchType.CONTAINS_ONLY, myJson, "$.foo", "[{bar: 1, baz: 'a'}, {bar: 2, baz: 'b'}, {bar:3, baz: 'c'}]", ctx).pass);
         assertTrue(Script.matchJsonOrObject(MatchType.CONTAINS_ANY, myJson, "$.foo", "[{bar: 9, baz: 'z'}, {bar: 2, baz: 'b'}]", ctx).pass);
+        assertTrue(Script.matchJsonOrObject(MatchType.CONTAINS_DEEP, myJson, "$.foo", "[{bar: 1}, {bar: 2}, {bar:3}]", ctx).pass);
+
         // shuffle
         assertTrue(Script.matchJsonOrObject(MatchType.CONTAINS_ONLY, myJson, "$.foo", "[{bar: 2, baz: 'b'}, {bar:3, baz: 'c'}, {bar: 1, baz: 'a'}]", ctx).pass);
         assertFalse(Script.matchJsonOrObject(MatchType.CONTAINS_ONLY, myJson, "$.foo", "[{bar: 1, baz: 'a'}, {bar: 2, baz: 'b'}]", ctx).pass);
         assertTrue(Script.matchJsonOrObject(MatchType.EACH_EQUALS, myJson, "$.foo", "{bar:'#number', baz:'#string'}", ctx).pass);
         assertTrue(Script.matchJsonOrObject(MatchType.EACH_CONTAINS, myJson, "$.foo", "{bar:'#number'}", ctx).pass);
         assertTrue(Script.matchJsonOrObject(MatchType.EACH_CONTAINS, myJson, "$.foo", "{baz:'#string'}", ctx).pass);
+        assertTrue(Script.matchJsonOrObject(MatchType.CONTAINS_DEEP, myJson, "$.foo", "[{bar: 1}, {bar: 2}, {bar:3}]", ctx).pass);
         assertTrue(Script.matchJsonOrObject(MatchType.EACH_NOT_CONTAINS, myJson, "$.foo", "{baz:'z'}", ctx).pass);
         assertFalse(Script.matchJsonOrObject(MatchType.EACH_NOT_CONTAINS, myJson, "$.foo", "{baz:'a'}", ctx).pass);
         assertFalse(Script.matchJsonOrObject(MatchType.EACH_EQUALS, myJson, "$.foo", "{bar:'#? _ < 3',  baz:'#string'}", ctx).pass);
+        assertTrue(Script.matchJsonOrObject(MatchType.CONTAINS_DEEP, myJson, "$", "{foo: [{bar: 1}, {bar: 2}, {bar:3}]}", ctx).pass);
+
+    }
+
+    @Test
+    public void testMatchContainsDeep() {
+
+        DocumentContext doc = JsonPath.parse("{ foo: [{bar: 1, baz: 'a'}, {bar: 2, baz: 'b'}, {bar:3, baz: 'c'}], eoo: { doo: { car: 1, caz: 'a'} } }");
+        ScenarioContext ctx = getContext();
+        ctx.vars.put("myJson", doc);
+        ScriptValue myJson = ctx.vars.get("myJson");
+        assertTrue(Script.matchJsonOrObject(MatchType.CONTAINS_DEEP, myJson, "$.foo", "[{bar: 1}, {bar: 2}, {bar:3}]", ctx).pass);
+        assertFalse(Script.matchJsonOrObject(MatchType.CONTAINS_DEEP, myJson, "$.foo", "[{bar: 1}, {bar: 4}, {bar:3}]", ctx).pass);
+        assertTrue(Script.matchJsonOrObject(MatchType.CONTAINS_DEEP, myJson, "$.foo", "[{bar: 1, baz: 'a'}]", ctx).pass);
+        assertFalse(Script.matchJsonOrObject(MatchType.CONTAINS_DEEP, myJson, "$.foo", "[{bar: 1, baz: 'a', 'baq': 'b'}]", ctx).pass);
+        assertTrue(Script.matchJsonOrObject(MatchType.CONTAINS_DEEP, myJson, "$.foo", "[{baz: 'a'}, {bar: 2}, {bar:3, baz: 'c'}]", ctx).pass);
+        assertTrue(Script.matchJsonOrObject(MatchType.CONTAINS_DEEP, myJson, "$.foo", "[{baz: 'a'}, {bar:3, baz: 'c'}]", ctx).pass);
+
+        assertTrue(Script.matchJsonOrObject(MatchType.CONTAINS_DEEP, myJson, "$", "{eoo: '#ignore'}", ctx).pass);
+        assertTrue(Script.matchJsonOrObject(MatchType.CONTAINS_DEEP, myJson, "$", "{eoo: { doo: {car: 1} } }", ctx).pass);
+        assertFalse(Script.matchJsonOrObject(MatchType.CONTAINS_DEEP, myJson, "$", "{eoo: { doo: {car: 'a'} } }", ctx).pass);
+
     }
 
     @Test

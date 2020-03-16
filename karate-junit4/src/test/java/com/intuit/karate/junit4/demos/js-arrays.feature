@@ -311,10 +311,15 @@ Scenario: comparing 2 payloads
     * def bar = { baz: 'ban', hello: 'world' }
     * match foo == bar
 
-Scenario: contains will recurse
+Scenario: contains deep will recurse nested json
     * def original = { a: 1, b: 2, c: 3, d: { a: 1, b: 2 } }
     * def expected = { a: 1, c: 3, d: { b: 2 } }
-    * match original contains expected
+    * match original contains deep expected
+
+Scenario: contains deep will recurse nested array
+    * def original = { a: 1, arr: [ { b: 2, c: 3 }, { b: 3, c: 4 } ] }
+    * def expected = { a: 1, arr: [ { b: 2 }, { c: 4 } ] }
+    * match original contains deep expected
 
 Scenario: contains will recurse in reverse !
     * def original = { "a": { "b": { "c": { "d":1, "e":2 } } } }
