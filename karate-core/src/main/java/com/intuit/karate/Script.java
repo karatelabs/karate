@@ -1334,7 +1334,12 @@ public class Script {
                 }
                 Object childAct = actMap.get(key);
                 ScriptValue childActValue = new ScriptValue(childAct);
-                MatchType childMatchType = childActValue.isJsonLike() ? matchType : MatchType.EQUALS;
+                MatchType childMatchType = MatchType.EQUALS;
+                if (matchType.equals(MatchType.CONTAINS_DEEP)) {
+                    if (childActValue.isJsonLike()) {
+                        childMatchType = MatchType.CONTAINS_DEEP;
+                    }
+                }
                 AssertionResult ar = matchNestedObject(delimiter, childPath, childMatchType, actRoot, actMap, childAct, childExp, context);
                 if (ar.pass) { // values for this key match                    
                     if (matchType == MatchType.CONTAINS_ANY) {
