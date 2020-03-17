@@ -155,7 +155,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 Map<String, Object> map = new HashMap();
                 map.put("name", k);
                 try {
-                    map.put("value", v.getAsString());
+                    map.put("value", v.getAsStringRemovingCyclicReferences());
                 } catch (Exception e) {
                     logger.warn("unable to convert to string: {} - {}", k, v);
                     map.put("value", "(unknown)");

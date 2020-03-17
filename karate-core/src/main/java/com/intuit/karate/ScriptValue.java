@@ -338,6 +338,16 @@ public class ScriptValue {
         }
     }
 
+    public String getAsStringRemovingCyclicReferences() {
+        switch (type) {
+            case JSON:
+            case MAP:
+                Map map = JsonUtils.removeCyclicReferences(getAsMap());
+                return JsonUtils.toJsonDoc(map).jsonString();
+            default: return getAsString();
+        }
+    }
+    
     public String getAsString() {
         switch (type) {
             case NULL:
