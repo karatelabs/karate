@@ -2040,7 +2040,22 @@ Examples:
 * configure proxy = { uri: 'http://my.proxy.host:8080', username: 'john', password: 'secret' }
 ```
 
-And if you need to set some of these 'globally' you can easily do so using [the `karate` object](#the-karate-object) in [`karate-config.js`](#configuration) - for e.g. [`karate.configure('ssl', true)`](#karate-configure).
+## `configure` globally 
+If you need to set any of these "globally" you can easily do so using [the `karate` object](#the-karate-object) in [`karate-config.js`](#configuration) - for e.g:
+
+```js
+  karate.configure('ssl', true);
+  karate.configure('readTimeout', 5000);
+```
+
+In rare cases where you need to add nested non-JSON data to the `configure` value, you have to play by the [rules](#restrictions-on-global-variables) that apply within [`karate-config.js`](#karate-configjs). Here is an example of performing a [`configure driver`](karate-core#configure-driver) step in JavaScript:
+
+```js
+  var LM = Java.type('com.mycompany.MyHttpLogModifier');
+  var driverConfig = { type:'chromedriver', start: false, webDriverUrl:'https://user:password@zalenium.net/wd/hub' };
+  driverConfig.httpConfig = karate.toMap({ logModifier: LM.INSTANCE });
+  karate.configure('driver', driverConfig);
+```
 
 ### Report Verbosity
 By default, Karate will add logs to the report output so that HTTP requests and responses appear in-line in the HTML reports. There may be cases where you want to suppress this to make the reports "lighter" and easier to read.
