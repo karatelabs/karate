@@ -262,18 +262,11 @@ public class Script {
             } else {
                 text = text.substring(5);
             }
-            int pos = text.indexOf(' '); // TODO handle read('file with spaces in the name')
-            String arg;
-            if (pos != -1) {
-                arg = text.substring(pos);
-                text = text.substring(0, pos);
-            } else {
-                arg = null;
-            }
+            StringUtils.Pair pair = parseCallArgs(text);
             if (callOnce) {
-                return callWithCache(text, arg, context, false);
+                return callWithCache(pair.left, pair.right, context, false);
             } else {
-                return call(text, arg, context, false);
+                return call(pair.left, pair.right, context, false);
             }
         } else if (isJsonPath(text)) {
             return evalJsonPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
@@ -1791,6 +1784,22 @@ public class Script {
             throw result.getErrorsCombined();
         }
         return new ScriptValue(result.getResultAsPrimitiveMap());
+    }
+    
+    public static StringUtils.Pair parseCallArgs(String line) {
+        int pos = line.indexOf("read(");
+        if (pos != -1) {
+            pos = line.indexOf(')');
+            if (pos == -1) {
+                throw new RuntimeException("failed to parse call arguments: " + line);
+            }
+            return new StringUtils.Pair(line.substring(0, pos + 1), line.substring(pos + 1)); 
+        }
+        pos = line.indexOf(' ');
+        if (pos == -1) {
+            return new StringUtils.Pair(line, null);
+        }
+        return new StringUtils.Pair(line.substring(0, pos), line.substring(pos));        
     }
 
     public static void callAndUpdateConfigAndAlsoVarsIfMapReturned(boolean callOnce, String name, String arg, ScenarioContext context) {

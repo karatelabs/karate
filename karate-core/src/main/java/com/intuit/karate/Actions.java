@@ -34,9 +34,9 @@ public interface Actions {
 
     void assertTrue(String expression);
 
-    void call(String name, String arg);
+    void call(String line);
 
-    void callonce(String name, String arg);
+    void callonce(String line);
     
     void csv(String name, String expression);
 

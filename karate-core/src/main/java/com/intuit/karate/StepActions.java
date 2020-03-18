@@ -349,15 +349,15 @@ public class StepActions implements Actions {
     }
 
     @Override
-    @When("^call ([^\\s]+)( .*)?")
-    public void call(String name, String arg) {
-        context.call(false, name, arg);
+    @When("^call (.+)")
+    public void call(String line) {
+        context.call(false, line);
     }
 
     @Override
-    @When("^callonce ([^\\s]+)( .*)?")
-    public void callonce(String name, String arg) {
-        context.call(true, name, arg);
+    @When("^callonce (.+)")
+    public void callonce(String line) {
+        context.call(true, line);
     }
 
     @Override

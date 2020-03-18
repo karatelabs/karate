@@ -862,8 +862,9 @@ public class ScenarioContext {
         Script.removeValueByPath(name, path, this);
     }
 
-    public void call(boolean callonce, String name, String arg) {
-        Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(callonce, name, arg, this);
+    public void call(boolean callonce, String line) {
+        StringUtils.Pair pair = Script.parseCallArgs(line);
+        Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(callonce, pair.left, pair.right, this);
     }
 
     public ScriptValue eval(String exp) {
