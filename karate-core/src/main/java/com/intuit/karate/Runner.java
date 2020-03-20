@@ -356,19 +356,20 @@ public class Runner {
                     summary.addFeatureResult(result);
                 }
             }
+            // saving reports can in rare cases throw errors, so do within try block
             summary.save(reportDir);
+            results.printStats(threadCount);
+            Engine.saveStatsJson(reportDir, results);
+            HtmlReport.saveTimeline(reportDir, results, null);
+            if (options.hooks != null) {
+                options.hooks.forEach(h -> h.afterAll(results));
+            }
         } catch (Exception e) {
             LOGGER.error("karate parallel runner failed: ", e.getMessage());
             results.setFailureReason(e);
         } finally {
             featureExecutor.shutdownNow();
             scenarioExecutor.shutdownNow();
-        }
-        results.printStats(threadCount);
-        Engine.saveStatsJson(reportDir, results);
-        HtmlReport.saveTimeline(reportDir, results, null);
-        if (options.hooks != null) {
-            options.hooks.forEach(h -> h.afterAll(results));
         }
         return results;
     }
