@@ -230,7 +230,7 @@ public abstract class HtmlReport {
         }
         File htmlFile = new File(targetDir + fileName);
         String html = getResourceAsString("timeline-template.html");
-        html = html.replaceFirst("//timeline//", sb.toString());
+        html = html.replace("//timeline//", sb.toString());
         FileUtils.writeToFile(htmlFile, html);
         return htmlFile;
     }
