@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.driver;
 
+import java.util.Map;
+
 /**
  *
  * @author pthomas3
@@ -51,6 +53,16 @@ public class MissingElement implements Element {
     public boolean isEnabled() {
         return true; // hmm
     }
+
+    @Override
+    public Map<String, Object> position() {
+        return null;
+    }   
+
+    @Override
+    public byte[] screenshot() {
+        return null;
+    }        
 
     @Override
     public Element highlight() {

@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.driver;
 
+import java.util.Map;
+
 /**
  *
  * @author pthomas3
@@ -34,6 +36,10 @@ public interface Element {
     boolean isExists(); // getter
 
     boolean isEnabled(); // getter
+    
+    Map<String, Object> position();
+    
+    byte[] screenshot();
 
     Element highlight();
 

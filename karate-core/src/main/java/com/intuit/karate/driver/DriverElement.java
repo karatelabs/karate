@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.driver;
 
+import java.util.Map;
+
 /**
  * TODO make this convert-able to JSON
  *
@@ -64,6 +66,16 @@ public class DriverElement implements Element {
 
     public void setExists(Boolean exists) {
         this.exists = exists;
+    }
+
+    @Override
+    public Map<String, Object> position() {
+        return driver.position(locator);
+    }
+
+    @Override
+    public byte[] screenshot() {
+        return driver.screenshot();
     }
 
     @Override

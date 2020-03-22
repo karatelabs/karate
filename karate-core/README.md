@@ -1121,6 +1121,8 @@ And def searchFunction =
 
 The great thing here is that the `innnerText()` function can be defined in a [common feature](https://github.com/intuit/karate#multiple-functions-in-one-file) which all your scripts can re-use. You can see how it can be re-used anywhere to scrape the contents out of *any* HTML tabular data, and all you need to do is supply the [locator](#locators) that matches the elements you are interested in.
 
+Also see [Karate vs the Browser](#karate-vs-the-browser).
+
 ## `retry()`
 For tests that need to wait for slow pages or deal with un-predictable element load-times or state / visibility changes, Karate allows you to *temporarily* tweak the internal retry settings. Here are the few things you need to know.
 
@@ -1198,6 +1200,8 @@ Here is an interesting example where a JavaScript event can be triggered on a gi
 ```cucumber
 * waitFor('#someId').script("_.dispatchEvent(new Event('change'))")
 ```
+
+For an advanced example of simulating a drag and drop operation see [this answer on Stack Overflow](https://stackoverflow.com/a/60800181/143475).
 
 Also see the plural form [`scriptAll()`](#scriptall).
 
