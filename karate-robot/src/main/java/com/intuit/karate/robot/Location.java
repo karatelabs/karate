@@ -58,5 +58,17 @@ public class Location {
         robot.click(num);
         return this;
     }
+    
+    public Location press() {
+        robot.move(x, y); // do not chain, causes recursion
+        robot.press();
+        return this;
+    }   
+    
+    public Location release() {
+        robot.move(x, y); // do not chain, causes recursion
+        robot.release();
+        return this;
+    }     
 
 }

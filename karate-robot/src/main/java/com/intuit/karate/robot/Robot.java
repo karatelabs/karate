@@ -131,23 +131,36 @@ public class Robot {
         robot.delay(millis);
         return this;
     }
-    
+
     private static int mask(int num) {
         switch (num) {
-            case 2: return InputEvent.BUTTON2_DOWN_MASK;
-            case 3: return InputEvent.BUTTON3_DOWN_MASK;
-            default: return InputEvent.BUTTON1_DOWN_MASK;
-        }         
+            case 2:
+                return InputEvent.BUTTON2_DOWN_MASK;
+            case 3:
+                return InputEvent.BUTTON3_DOWN_MASK;
+            default:
+                return InputEvent.BUTTON1_DOWN_MASK;
+        }
     }
-    
-    public Robot click() {             
-        return click(1);        
-    }    
+
+    public Robot click() {
+        return click(1);
+    }
 
     public Robot click(int num) {
         int mask = mask(num);
         robot.mousePress(mask);
         robot.mouseRelease(mask);
+        return this;
+    }
+
+    public Robot press() {
+        robot.mousePress(1);
+        return this;
+    }
+
+    public Robot release() {
+        robot.mouseRelease(1);
         return this;
     }
 
@@ -226,29 +239,37 @@ public class Robot {
         RobotUtils.save(image, file);
         return file;
     }
-    
+
     public byte[] screenshot() { // TODO by region
         BufferedImage image = capture();
         byte[] bytes = RobotUtils.toBytes(image);
         context.embed(bytes, "image/png");
         return bytes;
     }
-    
+
     public Region move(int x, int y) {
         robot.mouseMove(x, y);
-        return new Region(x, y).with(this);        
+        return new Region(x, y).with(this);
     }
-    
+
     public Region click(int x, int y) {
         return move(x, y).click();
-    }    
+    }
 
     public Region move(String path) {
         return find(path).move();
-    }    
+    }
 
     public Region click(String path) {
         return find(path).click();
+    }
+
+    public Region press(String path) {
+        return find(path).press();
+    }
+
+    public Region release(String path) {
+        return find(path).release();
     }
 
     public Region find(String path) {

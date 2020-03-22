@@ -122,5 +122,11 @@ Else, you pass a string of text which can include special characters such as a l
 * robot.input('karate dsl' + Key.ENTER)
 ```
 
+## `robot.press()`
+A mouse press that will be held down, useful for simulating a drag and drop operation.
+
+## `robot.release()`
+Release mouse button, useful for simulating a drag and drop operation.
+
 ## `robot.screenshot()`
 Will save a screenshot of the viewport, which will appear in the HTML report. Note that this returns a byte-array of the PNG image.
