@@ -84,6 +84,10 @@ public class Config {
     // report config
     private boolean showLog = true;
     private boolean showAllSteps = true;
+    
+    // call single cache config
+    private int callSingleCacheMinutes = 0;
+    private String callSingleCacheDir = FileUtils.getBuildDir();
 
     public Config() {
         // zero arg constructor
@@ -167,6 +171,13 @@ public class Config {
                 return false;
             case "abortedStepsShouldPass":
                 abortedStepsShouldPass = value.isBooleanTrue();
+                return false;
+            case "callSingleCache":
+                if (value.isMapLike()) {
+                    Map<String, Object> map = value.getAsMap();
+                    callSingleCacheMinutes = get(map, "minutes", callSingleCacheMinutes);
+                    callSingleCacheDir = get(map, "dir", callSingleCacheDir);
+                }
                 return false;
             // here on the http client has to be re-constructed ================
             case "httpClientClass":
@@ -277,6 +288,8 @@ public class Config {
         outlineVariablesAuto = parent.outlineVariablesAuto;
         abortedStepsShouldPass = parent.abortedStepsShouldPass;
         logModifier = parent.logModifier;
+        callSingleCacheMinutes = parent.callSingleCacheMinutes;
+        callSingleCacheDir = parent.callSingleCacheDir;
     }
 
     public void setCookies(ScriptValue cookies) {
@@ -480,5 +493,13 @@ public class Config {
     public HttpLogModifier getLogModifier() {
         return logModifier;
     }
+
+    public String getCallSingleCacheDir() {
+        return callSingleCacheDir;
+    }
+
+    public int getCallSingleCacheMinutes() {
+        return callSingleCacheMinutes;
+    }        
 
 }

@@ -2005,6 +2005,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `localAddress` | string | see [`karate-gatling`](karate-gatling#configure-localaddress)
 `charset` | string | The charset that will be sent in the request `Content-Type` which defaults to `utf-8`. You typically never need to change this, and you can over-ride (or disable) this per-request if needed via the [`header`](#header) keyword ([example](karate-demo/src/test/java/demo/headers/content-type.feature)).
 `retry` | JSON | defaults to `{ count: 3, interval: 3000 }` - see [`retry until`](#retry-until)
+`callSingleCache` | JSON | defaults to `{ minutes: 0, dir: 'target' }` - see [`configure callSingleCache`](#callSingleCache)
 `outlineVariablesAuto` | boolean | defaults to `true`, whether each key-value pair in the `Scenario Outline` example-row is automatically injected into the context as a variable (and not just `__row`), see [`Scenario Outline` Enhancements](#scenario-outline-enhancements)
  `lowerCaseResponseHeaders` | boolean | Converts every key and value in the [`responseHeaders`](#responseheaders) to lower-case which makes it easier to validate for e.g. using [`match header`](#match-header) (default `false`) [(example)](karate-demo/src/test/java/demo/headers/content-type.feature).
  `abortedStepsShouldPass` | boolean | defaults to `false`, whether steps after a [`karate.abort()`](#karate-abort) should be marked as `PASSED` instead of `SKIPPED` - this can impact the behavior of 3rd-party reports, see [this issue](https://github.com/intuit/karate/issues/755) for details
@@ -3196,7 +3197,7 @@ Operation | Description
 <a name="karate-append"><code>karate.append(... items)</code></a> | useful to create lists out of items (which can be lists as well), see [JSON transforms](#json-transforms)
 <a name="karate-appendto"><code>karate.appendTo(name, ... items)</code></a> | useful to append to a list-like variable (that has to exist) in scope, see [JSON transforms](#json-transforms) - the first argument can be a reference to an array-like variable or even the name (string) of an existing variable which is list-like
 <a name="karate-call"><code>karate.call(fileName, [arg])</code></a> | invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument)
-<a name="karate-callsingle"><code>karate.callSingle(fileName, [arg])</code></a> | like the above, but guaranteed to run **only once** even across multiple features *and* parallel threads (recommended only for advanced users) - refer to this example: [`karate-config.js`](karate-demo/src/test/java/karate-config.js) / [`headers-single.feature`](karate-demo/src/test/java/demo/headers/headers-single.feature)
+<a name="karate-callsingle"><code>karate.callSingle(fileName, [arg])</code></a> | like the above, but guaranteed to run **only once** even across multiple features - see [`karate.callSingle()`](#karatecallsingle)
 <a name="karate-configure"><code>karate.configure(key, value)</code></a> | does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
 <a name="karate-embed"><code>karate.embed(object, mimeType)</code></a> | embeds the object (can be raw bytes or an image) into the JSON report output, see this [example](karate-demo/src/test/java/demo/embed/embed.feature)
 <a name="karate-env"><code>karate.env</code></a> | gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
@@ -3801,12 +3802,43 @@ Instead, Karate gives you all you need as part of the syntax. Here is a summary:
 
 To Run Some Code | How
 ---------------- | ---
-Before *everything* (or 'globally' once) | Use [`karate.callSingle()`](#karate-callsingle) in [`karate-config.js`](#karate-configjs). Only recommended for advanced users, but this guarantees a routine is run only once, *even* when [running tests in parallel](#parallel-execution). You *can* use this directly in a `*.feature` file, but it logically fits better in the global "bootstrap".
+Before *everything* (or 'globally' once) | See [`karate.callSingle()`](#karatecallsingle)
 Before every `Scenario` | Use the [`Background`](#script-structure). Note that [`karate-config.js`](#karate-configjs) is processed before *every* `Scenario` - so you can choose to put "global" config here, for example using [`karate.configure()`](#karate-configure).
 Once (or at the start of) every `Feature` | Use a [`callonce`](#callonce) in the [`Background`](#script-structure). The advantage is that you can set up variables (using [`def`](#def) if needed) which can be used in all `Scenario`-s within that `Feature`.
 After every `Scenario` | [`configure afterScenario`](#configure) (see [example](karate-demo/src/test/java/demo/hooks/hooks.feature))
 At the end of the `Feature` | [`configure afterFeature`](#configure) (see [example](karate-demo/src/test/java/demo/hooks/hooks.feature))
 
+### `karate.callSingle()`
+Only recommended for advanced users, but this guarantees a routine is run only once, *even* when [running tests in parallel](#parallel-execution). You can use [`karate.callSingle()`](#karate-callsingle) in [`karate-config.js`](#karate-configjs) like this:
+
+```js
+var result = karate.callSingle('classpath:some/package/my.feature');
+```
+
+It can take a second JSON argument following the same rules as [`call`](#call). Once you get a result, you typically use it to set global variables.
+
+Refer to this example:
+* [`karate-config.js`](karate-demo/src/test/java/karate-config.js)
+* [`headers-single.feature`](karate-demo/src/test/java/demo/headers/headers-single.feature)
+
+> You *can* use `karate.callSingle()` directly in a `*.feature` file, but it logically fits better in the global "bootstrap".
+
+#### `configure callSingleCache`
+When re-running tests in development mode and when your test suite depends on say an `Authorization` header set by [`karate.callSingle()`](#karatecallsingle), you can cache the results locally to a file, which is very convenient when your "auth token" is valid for a period of a few minutes - which typically is the case. This means that as long as the token "on file" is valid, you can save time by not having to make the one or two HTTP calls needed to "sign-in" or create "throw-away" users in your SSO store.
+
+So in "dev mode" you can easily set this behavior like this:
+
+```js
+if (karate.env == 'local') {
+  karate.configure('callSingleCache', { minutes: 15 });
+}
+```
+
+By default Karate will use `target` (or `build`) as the "cache" folder, which you can over-ride by adding a `dir` key:
+
+```js
+  karate.configure('callSingleCache', { minutes: 15, dir: 'some/other/folder' });
+```
 
 ## Data Driven Tests
 ### The Cucumber Way
