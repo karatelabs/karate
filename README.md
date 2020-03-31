@@ -2005,7 +2005,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `localAddress` | string | see [`karate-gatling`](karate-gatling#configure-localaddress)
 `charset` | string | The charset that will be sent in the request `Content-Type` which defaults to `utf-8`. You typically never need to change this, and you can over-ride (or disable) this per-request if needed via the [`header`](#header) keyword ([example](karate-demo/src/test/java/demo/headers/content-type.feature)).
 `retry` | JSON | defaults to `{ count: 3, interval: 3000 }` - see [`retry until`](#retry-until)
-`callSingleCache` | JSON | defaults to `{ minutes: 0, dir: 'target' }` - see [`configure callSingleCache`](#callSingleCache)
+`callSingleCache` | JSON | defaults to `{ minutes: 0, dir: 'target' }` - see [`configure callSingleCache`](#configure-callsinglecache)
 `outlineVariablesAuto` | boolean | defaults to `true`, whether each key-value pair in the `Scenario Outline` example-row is automatically injected into the context as a variable (and not just `__row`), see [`Scenario Outline` Enhancements](#scenario-outline-enhancements)
  `lowerCaseResponseHeaders` | boolean | Converts every key and value in the [`responseHeaders`](#responseheaders) to lower-case which makes it easier to validate for e.g. using [`match header`](#match-header) (default `false`) [(example)](karate-demo/src/test/java/demo/headers/content-type.feature).
  `abortedStepsShouldPass` | boolean | defaults to `false`, whether steps after a [`karate.abort()`](#karate-abort) should be marked as `PASSED` instead of `SKIPPED` - this can impact the behavior of 3rd-party reports, see [this issue](https://github.com/intuit/karate/issues/755) for details
