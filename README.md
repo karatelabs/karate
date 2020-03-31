@@ -3840,6 +3840,8 @@ By default Karate will use `target` (or `build`) as the "cache" folder, which yo
   karate.configure('callSingleCache', { minutes: 15, dir: 'some/other/folder' });
 ```
 
+> This caching behavior will work only if the result of `karate.callSingle()` is a JSON-like object, and any JS functions or Java objects mixed in will be lost.
+
 ## Data Driven Tests
 ### The Cucumber Way
 Cucumber has a concept of [Scenario Outlines](https://docs.cucumber.io/gherkin/reference/#scenario-outline) where you can re-use a set of data-driven steps and assertions, and the data can be declared in a very user-friendly fashion. Observe the usage of `Scenario Outline:` instead of `Scenario:`, and the new `Examples:` section.
