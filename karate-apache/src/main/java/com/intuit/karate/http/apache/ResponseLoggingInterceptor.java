@@ -53,9 +53,13 @@ public class ResponseLoggingInterceptor implements HttpResponseInterceptor {
     @Override
     public void process(HttpResponse response, HttpContext httpContext) throws HttpException, IOException {
         HttpRequest actual = context.getPrevRequest();
-        actual.stopTimer();
+        actual.stopTimer();                
+        boolean showLog = !context.isReportDisabled() && context.getConfig().isShowLog();
+        if (!showLog) {
+            return;
+        }
         int id = requestInterceptor.getCounter().get();
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder();        
         sb.append("response time in milliseconds: ").append(actual.getResponseTimeFormatted()).append('\n');
         sb.append(id).append(" < ").append(response.getStatusLine().getStatusCode()).append('\n');
         HttpLogModifier responseModifier = logModifier == null ? null : logModifier.enableForUri(actual.getUri()) ? logModifier : null;

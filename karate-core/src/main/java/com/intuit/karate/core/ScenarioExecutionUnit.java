@@ -142,6 +142,8 @@ public class ScenarioExecutionUnit implements Runnable {
             logger.setAppender(appender);
             actions.context.setLogger(logger);
         }
+        // this flag is used to suppress logs in the http client if needed
+        actions.context.setReportDisabled(reportDisabled);
         // this is not done in the constructor as we need to be on the "executor" thread
         hooks = exec.callContext.resolveHooks();
         // before-scenario hook, important: actions.context will be null if initFailed

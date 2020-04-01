@@ -43,7 +43,7 @@ public class RequestLoggingInterceptor implements HttpRequestInterceptor {
 
     private final ScenarioContext context;
     private final HttpLogModifier logModifier;
-    private final AtomicInteger counter = new AtomicInteger();    
+    private final AtomicInteger counter = new AtomicInteger();
 
     public RequestLoggingInterceptor(ScenarioContext context) {
         this.context = context;
@@ -61,31 +61,35 @@ public class RequestLoggingInterceptor implements HttpRequestInterceptor {
         String uri = (String) httpContext.getAttribute(ApacheHttpClient.URI_CONTEXT_KEY);
         String method = request.getRequestLine().getMethod();
         actual.setUri(uri);
-        actual.setMethod(method);        
-        StringBuilder sb = new StringBuilder();
+        actual.setMethod(method);
+        context.setPrevRequest(actual);
         HttpLogModifier requestModifier = logModifier == null ? null : logModifier.enableForUri(uri) ? logModifier : null;
         String maskedUri = requestModifier == null ? uri : requestModifier.uri(uri);
-        sb.append("request:\n").append(id).append(" > ").append(method).append(' ').append(maskedUri).append('\n');        
-        LoggingUtils.logHeaders(requestModifier, sb, id, '>', request, actual);
-        if (request instanceof HttpEntityEnclosingRequest) {
-            HttpEntityEnclosingRequest entityRequest = (HttpEntityEnclosingRequest) request;
-            HttpEntity entity = entityRequest.getEntity();
-            if (LoggingUtils.isPrintable(entity)) {
-                LoggingEntityWrapper wrapper = new LoggingEntityWrapper(entity); // todo optimize, preserve if stream
-                String buffer = FileUtils.toString(wrapper.getContent());
-                if (context.getConfig().isLogPrettyRequest()) {
-                    buffer = FileUtils.toPrettyString(buffer);
+        boolean showLog = !context.isReportDisabled() && context.getConfig().isShowLog();
+        if (showLog) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("request:\n").append(id).append(" > ").append(method).append(' ').append(maskedUri).append('\n');
+            LoggingUtils.logHeaders(requestModifier, sb, id, '>', request, actual);
+            if (request instanceof HttpEntityEnclosingRequest) {
+                HttpEntityEnclosingRequest entityRequest = (HttpEntityEnclosingRequest) request;
+                HttpEntity entity = entityRequest.getEntity();
+                if (LoggingUtils.isPrintable(entity)) {
+                    LoggingEntityWrapper wrapper = new LoggingEntityWrapper(entity); // todo optimize, preserve if stream
+                    String buffer = FileUtils.toString(wrapper.getContent());
+                    if (context.getConfig().isLogPrettyRequest()) {
+                        buffer = FileUtils.toPrettyString(buffer);
+                    }
+                    if (requestModifier != null) {
+                        buffer = requestModifier.request(uri, buffer);
+                    }
+                    sb.append(buffer).append('\n');
+                    actual.setBody(wrapper.getBytes());
+                    entityRequest.setEntity(wrapper);
                 }
-                if (requestModifier != null) {
-                    buffer = requestModifier.request(uri, buffer);
-                }
-                sb.append(buffer).append('\n');
-                actual.setBody(wrapper.getBytes());
-                entityRequest.setEntity(wrapper);
             }
+            context.logger.debug(sb.toString());
         }
-        context.setPrevRequest(actual);
-        context.logger.debug(sb.toString());
+        // make sure this does not include the toString / logging time
         actual.startTimer();
     }
 

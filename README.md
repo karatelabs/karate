@@ -2079,9 +2079,9 @@ You can 'reset' default settings by using the following short-cut:
 * configure report = true
 ```
 
-Since you can use `configure` any time within a test, you have control over which requests or steps you want to show / hide.
+Since you can use `configure` any time within a test, you have control over which requests or steps you want to show / hide. This can be convenient if a particular call results in a huge response payload.
 
-This short-cut is also supported which will disable all logs:
+The following short-cut is also supported which will disable all logs:
 
 ```cucumber
 * configure report = false

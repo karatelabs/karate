@@ -110,6 +110,7 @@ public class ScenarioContext {
     // the actual http request/response last sent on the wire    
     private HttpRequest prevRequest;
     private HttpResponse prevResponse;
+    private boolean reportDisabled;
 
     // pass call result to engine via this variable (hack)
     private List<FeatureResult> callResults;
@@ -257,6 +258,14 @@ public class ScenarioContext {
             config.setCookies(new ScriptValue(map));
         }
     }
+
+    public boolean isReportDisabled() {
+        return reportDisabled;
+    }
+
+    public void setReportDisabled(boolean reportDisabled) {
+        this.reportDisabled = reportDisabled;
+    }        
 
     public boolean isPrintEnabled() {
         return config.isPrintEnabled();

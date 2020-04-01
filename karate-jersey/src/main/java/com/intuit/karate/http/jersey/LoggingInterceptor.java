@@ -115,6 +115,10 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
         String uri = request.getUri().toASCIIString();
         actual.setMethod(method);
         actual.setUri(uri);
+        boolean showLog = !context.isReportDisabled() && context.getConfig().isShowLog();
+        if (!showLog) {
+            return;
+        }
         StringBuilder sb = new StringBuilder();
         HttpLogModifier requestModifier = logModifier == null ? null : logModifier.enableForUri(uri) ? logModifier : null;
         String maskedUri = requestModifier == null ? uri : requestModifier.uri(uri);
