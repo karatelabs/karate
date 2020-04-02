@@ -2087,7 +2087,7 @@ The following short-cut is also supported which will disable all logs:
 * configure report = false
 ```
 
-When you use a re-usable feature that has [commonly used utilities](multiple-functions-in-one-file), you may want to hide this completely from the HTML reports. The special [tag](#tags) `@report=false` can be used:
+When you use a re-usable feature that has [commonly used utilities](multiple-functions-in-one-file), you may want to hide this completely from the HTML reports. The special [tag](#tags) `@report=false` can be used, and it can even be used only for a single `Scenario`:
 
 ```cucumber
 @ignore @report=false

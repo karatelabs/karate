@@ -1506,10 +1506,11 @@ For driver type [`chrome`](#driver-types), you can use the `addOption` key to pa
 * configure driver = { type: 'chrome', addOptions: [ '--proxy-server="https://somehost:5000"' ] }
 ```
 
-For the WebDriver based [driver types](#driver-types) like `chromedriver`, `geckodriver` etc, you can use the [`webDriverCapabilities`](#configure-driver) driver configuration as per the [W3C WebDriver spec](https://w3c.github.io/webdriver/#proxy):
+For the WebDriver based [driver types](#driver-types) like `chromedriver`, `geckodriver` etc, you can use the [`webDriverSession`](#webdriversession) configuration as per the [W3C WebDriver spec](https://w3c.github.io/webdriver/#proxy):
 
 ```cucumber
-* configure driver = { type: 'chromedriver', webDriverCapabilities: { proxy: { proxyType: 'manual', httpProxy: 'somehost:5000' } } }
+* def session = { capabilities: { browserName: 'chrome', proxy: { proxyType: 'manual', httpProxy: 'somehost:5000' } } }
+* configure driver = { type: 'chromedriver', webDriverSession: '#(session)' }
 ```
 
 # Appium
