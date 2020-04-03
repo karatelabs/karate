@@ -12,7 +12,8 @@ Given def cat =
   ]
 }
 """
-
+Then match cat.kittens[0] == { name: 'Bob', id: 23 }
+Then match cat.kittens[0].id == 23
 Then match cat.kittens[*].id == [23, 42]
 Then match cat.kittens[*].id contains 23
 Then match cat.kittens[*].id contains [42, 23]
