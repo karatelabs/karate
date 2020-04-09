@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.driver;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -57,12 +58,12 @@ public class MissingElement implements Element {
     @Override
     public Map<String, Object> position() {
         return null;
-    }   
+    }
 
     @Override
     public byte[] screenshot() {
         return null;
-    }        
+    }
 
     @Override
     public Element highlight() {
@@ -144,7 +145,7 @@ public class MissingElement implements Element {
     public Element retry(Integer count, Integer interval) {
         return this;
     }
-    
+
     @Override
     public Element waitFor() {
         return this;
@@ -162,6 +163,16 @@ public class MissingElement implements Element {
 
     @Override
     public Object script(String expression) {
+        return null;
+    }
+
+    @Override
+    public Element locate(String locator) {
+        return null;
+    }
+
+    @Override
+    public List<Element> locateAll(String locator) {
         return null;
     }
 

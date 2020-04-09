@@ -4,17 +4,14 @@ Scenario Outline: <type>
   * def webUrlBase = karate.properties['web.url.base']
   * configure driver = { type: '#(type)', showDriverLog: true }
 
-  Given driver webUrlBase + '/page-01'
+  * driver webUrlBase + '/page-01'
 
-  # key events and key combinations
-  And input('#eg02InputId', Key.CONTROL + 'a')
-  And def temp = text('#eg02DivId')
-  And match temp contains '17d'
-  And match temp contains '65u'
+  * def temp = locate('#eg01').locateAll('input')
+  * karate.forEach(temp, function(x, i){ karate.log(i, x.html) })
 
 Examples:
 | type         |
-#| chrome       |
+# | chrome       |
 | chromedriver |
 #| geckodriver  |
 #| safaridriver |

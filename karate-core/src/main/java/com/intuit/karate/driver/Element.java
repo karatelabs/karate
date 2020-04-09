@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.driver;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -80,6 +81,10 @@ public interface Element {
     Element waitForText(String text);
 
     Object script(String expression);
+    
+    Element locate(String locator);
+    
+    List<Element> locateAll(String locator);
 
     String getHtml(); // getter
 

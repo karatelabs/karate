@@ -456,6 +456,7 @@ You have the option to adjust the "scope" of the match, and here are examples:
 Locator | Description
 ------- | -----------
 `click('{a}Click Me')` | the first `<a>` where the text-content is *exactly*: `Click Me`
+`click('{}Click Me')` | the first element (*any* tag name) where the text-content is *exactly*: `Click Me`
 `click('{^span}Click')` | the first `<span>` where the text-content *contains*: `Click`
 `click('{div:2}Click Me')` | the second `<div>` where the text-content is *exactly*: `Click Me`
 `click('{span/a}Click Me')` | the first `<a>` where a `<span>` is the immediate parent, and where the text-content is *exactly*: `Click Me`

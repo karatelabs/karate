@@ -386,8 +386,14 @@ public class DriverOptions {
         }
         return "/(" + xpath + ")[" + index + "]";
     }
-
+    
+    private static final String DOCUMENT = "document";
+    
     public String selector(String locator) {
+        return selector(locator, DOCUMENT);
+    }
+
+    public String selector(String locator, String contextNode) {
         if (locator.startsWith("(")) {
             return locator; // pure js !
         }
@@ -398,9 +404,9 @@ public class DriverOptions {
             if (locator.startsWith("/(")) {
                 locator = locator.substring(1); // hack for wildcard with index (see preProcessWildCard last line)
             }
-            return "document.evaluate(\"" + locator + "\", document, null, 9, null).singleNodeValue";
+            return "document.evaluate(\"" + locator + "\", " + contextNode + ", null, 9, null).singleNodeValue";
         }
-        return "document.querySelector(\"" + locator + "\")";
+        return contextNode + ".querySelector(\"" + locator + "\")";
     }
 
     public void setRetryInterval(Integer retryInterval) {
@@ -467,7 +473,7 @@ public class DriverOptions {
         return scriptAllSelector(locator, HIGHLIGHT_FN);
     }
 
-    public String optionSelector(String id, String text) {
+    public String optionSelector(String locator, String text) {
         boolean textEquals = text.startsWith("{}");
         boolean textContains = text.startsWith("{^}");
         String condition;
@@ -477,7 +483,7 @@ public class DriverOptions {
         } else {
             condition = "e.options[i].value === t";
         }
-        String e = selector(id);
+        String e = selector(locator);
         String temp = "var e = " + e + "; var t = \"" + text + "\";"
                 + " for (var i = 0; i < e.options.length; ++i)"
                 + " if (" + condition + ") { e.options[i].selected = true; e.dispatchEvent(new Event('change')) }";
@@ -498,20 +504,30 @@ public class DriverOptions {
     }
 
     public String scriptSelector(String locator, String expression) {
-        String temp = "var fun = " + fun(expression) + "; var e = " + selector(locator) + "; return fun(e)";
+        return scriptSelector(locator, expression, DOCUMENT);
+    }
+    
+    public String scriptSelector(String locator, String expression, String contextNode) {
+        String temp = "var fun = " + fun(expression) + "; var e = " + selector(locator, contextNode) + "; return fun(e)";
         return wrapInFunctionInvoke(temp);
     }
+    
+    public String scriptAllSelector(String locator, String expression) { 
+        return scriptAllSelector(locator, expression, DOCUMENT);
+    }
 
-    public String scriptAllSelector(String locator, String expression) {
+    // the difference here from selector() is the use of querySelectorAll()
+    // how the loop for XPath results has to be handled
+    public String scriptAllSelector(String locator, String expression, String contextNode) {
         if (locator.startsWith("{")) {
             locator = preProcessWildCard(locator);
         }
         boolean isXpath = locator.startsWith("/");
         String selector;
-        if (isXpath) {
-            selector = "document.evaluate(\"" + locator + "\", document, null, 5, null)";
+        if (isXpath) { // XPathResult.ORDERED_NODE_ITERATOR_TYPE = 5
+            selector = "document.evaluate(\"" + locator + "\", " + contextNode  + ", null, 5, null)";
         } else {
-            selector = "document.querySelectorAll(\"" + locator + "\")";
+            selector = contextNode + ".querySelectorAll(\"" + locator + "\")";
         }
         String temp = "var res = []; var fun = " + fun(expression) + "; var es = " + selector + "; ";
         if (isXpath) {

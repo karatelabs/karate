@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.driver;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -188,6 +190,30 @@ public class DriverElement implements Element {
     @Override
     public Object script(String expression) {
         return driver.script(locator, expression);
+    }
+
+    private String thisLocator() {
+        String thisRef = (String) driver.script(locator, DriverOptions.KARATE_REF_GENERATOR);
+        return DriverOptions.karateLocator(thisRef);
+    }
+
+    @Override
+    public Element locate(String locator) {
+        String childRefScript = driver.getOptions().scriptSelector(locator, DriverOptions.KARATE_REF_GENERATOR, thisLocator());
+        String childRef = (String) driver.script(childRefScript);
+        return DriverElement.locatorExists(driver, DriverOptions.karateLocator(childRef));
+    }
+
+    @Override
+    public List<Element> locateAll(String locator) {
+        String childRefScript = driver.getOptions().scriptAllSelector(locator, DriverOptions.KARATE_REF_GENERATOR, thisLocator());
+        List<String> childRefs = (List) driver.script(childRefScript);
+        List<Element> elements = new ArrayList(childRefs.size());
+        for (String childRef : childRefs) {
+            String karateLocator = DriverOptions.karateLocator(childRef);
+            elements.add(DriverElement.locatorExists(driver, karateLocator));
+        }
+        return elements;
     }
 
     //java bean naming conventions =============================================        
