@@ -78,10 +78,14 @@ Here is a sample test:
 
 The above flow performs the following operations:
 * finds an already open window where the name contains `Chrome`
+  * note that on Windows you may need to use `New Tab` instead
 * enables "highlight" mode for ease of development / troubleshooting
 * triggers keyboard events for [COMMAND + t] which will open a new browser tab
+  * on Windows this should be `Key.CONTROL` instead
 * triggers keyboard events for the input "karate dsl" and an ENTER key-press
 * waits for a section of the screen defined by [`tams.png`](src/test/java/tams.png) to appear - and clicks in the center of that region
+  * Karate will try to use different scaling factors for an image match, for best results - try to use images that are the same resolution (or as close) as the desktop resolution
+  * if you run into issues, try re-taking a PNG capture of the area to click-on
 
 ## Images
 Images have to be in PNG format, and with the extension `*.png`. Karate will attempt to find images that are smaller or larger to a certain extent. But for the best results, try to save images that are the same resolution as the application under test.
