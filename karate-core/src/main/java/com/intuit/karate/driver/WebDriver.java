@@ -74,6 +74,11 @@ public abstract class WebDriver implements Driver {
         }
     }
 
+    // can be used directly if you know what you are doing !
+    public Http getHttp() {
+        return http;
+    }    
+    
     private String getSubmitHash() {
         return getUrl() + elementId("html");
     }

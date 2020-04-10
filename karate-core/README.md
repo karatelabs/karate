@@ -709,6 +709,12 @@ And an extra convenience third argument is a time-delay (in milliseconds) that w
 * input('input[name=someName]', ['a', 'b', 'c', Key.ENTER], 200)
 ```
 
+If you need to send input to the "whole page" (not a specific input field), just use `body` as the selector:
+
+```cucumber
+* input('body', Key.ESCAPE)
+```
+
 ### Special Keys
 Special keys such as `ENTER`, `TAB` etc. can be specified like this:
 

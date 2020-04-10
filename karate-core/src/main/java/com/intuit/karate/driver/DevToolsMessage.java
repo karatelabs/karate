@@ -163,21 +163,23 @@ public class DevToolsMessage {
         method = (String) map.get("method");
         params = (Map) map.get("params");
         Map temp = (Map) map.get("result");
-        if (temp != null && temp.containsKey("result")) {
-            Object inner = temp.get("result");
-            if (inner instanceof List) {
-                result = new ScriptValue(toMap((List) inner));
-            } else {
-                Map innerMap = (Map) inner;
-                String subtype = (String) innerMap.get("subtype");
-                if ("error".equals(subtype) || innerMap.containsKey("objectId")) {
-                    result = new ScriptValue(innerMap);
-                } else { // Runtime.evaluate "returnByValue" is true
-                    result = new ScriptValue(innerMap.get("value"));
+        if (temp != null) {
+            if (temp.containsKey("result")) {
+                Object inner = temp.get("result");
+                if (inner instanceof List) {
+                    result = new ScriptValue(toMap((List) inner));
+                } else {
+                    Map innerMap = (Map) inner;
+                    String subtype = (String) innerMap.get("subtype");
+                    if ("error".equals(subtype) || innerMap.containsKey("objectId")) {
+                        result = new ScriptValue(innerMap);
+                    } else { // Runtime.evaluate "returnByValue" is true
+                        result = new ScriptValue(innerMap.get("value"));
+                    }
                 }
+            } else {
+                result = new ScriptValue(temp);
             }
-        } else {
-            result = new ScriptValue(temp);
         }
         error = (Map) map.get("error");
     }

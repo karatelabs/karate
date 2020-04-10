@@ -1,5 +1,5 @@
 # Karate UI Test
-This project is designed to be the simplest way to replicate issues with the [Karate UI framework](https://github.com/intuit/karate/tree/master/karate-core) for web-browser testing. It includes an HTTP mock that serves HTML and JavaScript, which you can easily modify to simulate complex situations such as a slow-loading element.
+This project is designed to be the simplest way to replicate issues with the [Karate UI framework](https://github.com/intuit/karate/tree/master/karate-core) for web-browser testing. It includes an HTTP mock that serves HTML and JavaScript, which you can easily modify to simulate complex situations such as a slow-loading element. To submit an issue after you have a way to replicate the scenario, follow these instructions: [How to Submit an Issue](https://github.com/intuit/karate/wiki/How-to-Submit-an-Issue).
 
 ## Overview
 To point to a specifc version of Karate, edit the `pom.xml`. If you are working with the source-code of Karate, follow the [developer guide](https://github.com/intuit/karate/wiki/Developer-Guide).
@@ -14,7 +14,7 @@ The `test.feature` is a simple [Karate UI test](https://github.com/intuit/karate
 ## Debugging
 You should be able to use the [Karate extension for Visual Studio Code](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) for stepping-through a test for troubleshooting.
 
-## Advanced
+## WebDriver Tips
 If you are targeting a WebDriver implementation, you may need to experiment with HTTP calls. Don't forget that that is Karate's core competency ! So you can use a "scratchpad" Karate test on the side, like this:
 
 ```cucumber
@@ -27,4 +27,37 @@ Scenario:
 * method post
 ```
 
-And note that the [VS Code "Karate Runner"](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) plugin is really convenient for re-running the above, once you have say - started the driver executable manually.
+Within a test script, as a convenience, the `driver` object, exposes an `http` property, which makes it easy to make custom-crafted WebDriver requests using [this class](../../karate-core/src/main/java/com/intuit/karate/Http.java).
+
+Here is an example of [getting the page title](https://w3c.github.io/webdriver/#get-title):
+
+```cucumber
+* def temp = driver.http.path('title').get().body().asMap()
+* print 'temp:', temp
+```
+
+Which results in a GET request to: `http://localhost:9515/session/{sessionId}/title` - and the response body will be printed. Now you can easily extract data out of the response JSON.
+
+And note that the [VS Code "Karate Runner"](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) plugin is really convenient for re-running tests - or you can pause a test using a break-point and [type in interactive commands](https://twitter.com/KarateDSL/status/1167533484560142336).
+
+## DevTools Protocol Tips
+When using the driver type `chrome`, you can call the `send()` method and pass a raw JSON message that will be sent to the Chrome browser using a WebSocket connection. For example here is how to get the [metadata about frames](https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-getFrameTree):
+
+```cucumber
+* def temp = driver.send({ method: 'Page.getFrameTree' })
+* print 'temp:', temp
+```
+
+This will result in the following raw message sent (Karate will supply the `id` automatically):
+
+```
+{"method":"Page.getFrameTree","id":7}
+```
+
+Chrome will respond with something like this, which should be viewable in the log / console:
+
+```
+{"id":7,"result":{"frameTree":{"frame":{"id":"11B3A5ABDEE5802201D84389EE0215B8","loaderId":"D2241AD7B86ED533F095F907A78A1208","url":"http://localhost:52664/page-01","securityOrigin":"http://localhost:52664","mimeType":"text/html"}}}}
+```
+
+You can do more, but this should be sufficient for exploring the possible commands and troubleshooting via trial and error. And suggest / contribute changes to be made to the code, e.g. the [DevToolsDriver](../../karate-core/src/main/java/com/intuit/karate/driver/DevToolsDriver.java).

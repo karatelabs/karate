@@ -109,11 +109,18 @@ public abstract class DevToolsDriver implements Driver {
     public DevToolsMessage method(String method) {
         return new DevToolsMessage(this, method);
     }
-
+    
+    // this can be used for exploring / sending any raw message !
+    public Map<String, Object> send(Map<String, Object> map) {
+        DevToolsMessage dtm = new DevToolsMessage(this, map);
+        dtm.setId(nextId());
+        return sendAndWait(dtm, null).toMap();
+    }
+    
     public void send(DevToolsMessage dtm) {
         String json = JsonUtils.toJson(dtm.toMap());
         logger.debug(">> {}", json);
-        client.send(json);
+        client.send(json);        
     }
 
     public DevToolsMessage sendAndWait(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {

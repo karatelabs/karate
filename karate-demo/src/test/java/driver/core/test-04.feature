@@ -6,12 +6,14 @@ Scenario Outline: <type>
 
   * driver webUrlBase + '/page-01'
 
-  * def temp = locate('#eg01').locateAll('input')
-  * karate.forEach(temp, function(x, i){ karate.log(i, x.html) })
+  * def temp = driver.send({ method: 'Page.getFrameTree' })
+  * print 'temp:', temp
+  * delay(3000)
+  
 
 Examples:
 | type         |
-# | chrome       |
-| chromedriver |
+| chrome       |
+#| chromedriver |
 #| geckodriver  |
 #| safaridriver |
