@@ -27,7 +27,7 @@ Scenario:
 * method post
 ```
 
-Within a test script, as a convenience, the `driver` object, exposes an `http` property, which makes it easy to make custom-crafted WebDriver requests using [this class](../../karate-core/src/main/java/com/intuit/karate/Http.java).
+Within a test script, as a convenience, the `driver` object exposes an `http` property, which makes it easy to make custom-crafted WebDriver requests using the [`Http` helper / class](../../karate-core/src/main/java/com/intuit/karate/Http.java). Note that this will be available only after the [`driver` keyword](https://github.com/intuit/karate/tree/master/karate-core#driver) has been used, and thus a WebDriver session has been initialized.
 
 Here is an example of [getting the page title](https://w3c.github.io/webdriver/#get-title):
 
@@ -36,7 +36,7 @@ Here is an example of [getting the page title](https://w3c.github.io/webdriver/#
 * print 'temp:', temp
 ```
 
-Which results in a GET request to: `http://localhost:9515/session/{sessionId}/title` - and the response body will be printed. Now you can easily extract data out of the response JSON.
+Which results in a `GET` request to: `http://localhost:9515/session/{sessionId}/title` - and the response body will be printed. Now you can easily extract data out of the response JSON.
 
 And here is how you can make a `POST` request, to [navigate to a given URL](https://w3c.github.io/webdriver/#navigate-to):
 
