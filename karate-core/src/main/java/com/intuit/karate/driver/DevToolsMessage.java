@@ -30,12 +30,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class DevToolsMessage {
+
+    private static final Logger logger = LoggerFactory.getLogger(DevToolsMessage.class);
 
     protected final DevToolsDriver driver;
 
@@ -84,7 +88,14 @@ public class DevToolsMessage {
             return null;
         }
         Json json = new Json(params);
-        return json.get(path, clazz);
+        try {
+            return json.get(path, clazz);
+        } catch (Exception e) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("json-path evaluation failed: {}", e.getMessage());
+            }
+            return null;
+        }
     }
 
     public Map<String, Object> getParams() {

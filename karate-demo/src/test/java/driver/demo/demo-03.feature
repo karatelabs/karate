@@ -1,8 +1,8 @@
 Feature: 3 scenarios
 
   Background:
-    * configure driver = { type: 'chromedriver', showDriverLog: true }
-    # * configure driverTarget = { docker: 'ptrthomas/karate-chrome', showDriverLog: true }
+    # * configure driver = { type: 'chromedriver', showDriverLog: true }
+    * configure driverTarget = { docker: 'ptrthomas/karate-chrome', showDriverLog: true }
 
   Scenario: try to login to github
   and then do a google search

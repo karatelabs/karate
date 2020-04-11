@@ -116,10 +116,9 @@ public class ScenarioJobServer extends JobServer {
             sr.setThreadName(executorId);
             cr.setResult(sr);
             if (videoFile != null) {
-                File dest = new File(FileUtils.getBuildDir()
-                        + File.separator + "cucumber-html-reports" + File.separator + chunkId + ".mp4");
+                File dest = new File(FileUtils.getBuildDir() + File.separator + chunkId + ".mp4");
                 FileUtils.copy(videoFile, dest);
-                sr.appendEmbed(Embed.forVideoFile(dest.getName()));
+                sr.appendEmbed(Embed.forVideoFile("../" + dest.getName()));
             }
             if (cr.parent.isComplete()) {
                 LOGGER.info("feature complete, calling onComplete(): {}", cr.parent);

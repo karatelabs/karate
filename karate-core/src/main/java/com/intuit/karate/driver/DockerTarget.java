@@ -130,10 +130,9 @@ public class DockerTarget implements Target {
             logger.warn("video file missing: {}", file);
             return Collections.EMPTY_MAP;
         }
-        File copy = new File(Command.getBuildDir() + File.separator 
-                + "cucumber-html-reports" + File.separator + dirName + ".mp4");
+        File copy = new File(Command.getBuildDir() + File.separator + dirName + ".mp4");
         FileUtils.copy(file, copy);
-        return Collections.singletonMap("video", copy.getName());
+        return Collections.singletonMap("video", "../" + copy.getName());
     }
 
 }

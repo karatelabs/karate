@@ -54,6 +54,8 @@ public class HttpUtilsTest {
         Match.equals(map, "{ path: 'cats', id: '1' }");
         map = HttpUtils.parseUriPattern("/cats/{id}/foo", "/cats/1/foo");
         Match.equals(map, "{ id: '1' }");
+        map = HttpUtils.parseUriPattern("/api/{img}", "/api/billie.jpg");
+        Match.equals(map, "{ img: 'billie.jpg' }");
     }
 
     @Test

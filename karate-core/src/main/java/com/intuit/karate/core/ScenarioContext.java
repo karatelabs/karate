@@ -1031,11 +1031,10 @@ public class ScenarioContext {
                 if (options.videoFile != null) {
                     File src = new File(options.videoFile);
                     if (src.exists()) {
-                        String path = FileUtils.getBuildDir() + File.separator
-                                + "cucumber-html-reports" + File.separator + System.currentTimeMillis() + ".mp4";
+                        String path = FileUtils.getBuildDir() + File.separator + System.currentTimeMillis() + ".mp4";
                         File dest = new File(path);
                         FileUtils.copy(src, dest);
-                        Embed embed = Embed.forVideoFile(dest.getName());
+                        Embed embed = Embed.forVideoFile("../" + dest.getName());
                         lastStepResult.addEmbed(embed);
                         logger.debug("appended video to report: {}", dest.getPath());
                     }

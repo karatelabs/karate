@@ -129,10 +129,10 @@ public class NettyUtils {
                 keyStoreFile.getName(), "-storepass", KEYSTORE_PASSWORD, "-file", keyStoreFile.getName() + ".der");
         return keyStoreFile;
     }
-    
+
     public static FullHttpResponse createResponse(int status, String body) {
         return createResponse(HttpResponseStatus.valueOf(status), body);
-    }    
+    }
 
     public static FullHttpResponse createResponse(HttpResponseStatus status, String body) {
         byte[] bytes = FileUtils.toBytes(body);
@@ -192,7 +192,7 @@ public class NettyUtils {
             return StringUtils.pair(null, rawUri);
         }
         String path = uri.getRawPath();
-        pos = rawUri.indexOf(path);
+        pos = rawUri.lastIndexOf(path); // edge case that path is just "/"
         String urlBase = rawUri.substring(0, pos);
         return StringUtils.pair(urlBase, rawUri.substring(pos));
     }

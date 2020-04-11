@@ -74,6 +74,10 @@ public class FeatureServer {
     private final EventLoopGroup bossGroup;
     private final EventLoopGroup workerGroup;
     private final FeatureBackend backend;
+    
+    public String getBaseUrl() {
+        return (ssl ? "https" : "http") + "://" + host + ":" + port;
+    }
 
     public int getPort() {
         return port;
@@ -184,7 +188,7 @@ public class FeatureServer {
             InetSocketAddress isa = (InetSocketAddress) channel.localAddress();
             host = "127.0.0.1"; //isa.getHostString();
             port = isa.getPort();
-            logger.info("server started - {}://{}:{}", ssl ? "https" : "http", host, port);
+            logger.info("server started - {}", getBaseUrl());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

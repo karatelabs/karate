@@ -41,6 +41,7 @@
     | <a href="#wait-api">Waits</a>
     | <a href="#distributed-testing">Distributed Testing</a>
     | <a href="#proxy">Proxy</a>
+    | <a href="#intercepting-http-requests">Intercepting HTTP Requests</a>
   </td>
 </tr>
 <tr>
@@ -144,15 +145,18 @@
   <th>Chrome</th>
   <td>
       <a href="#chrome-java-api">Java API</a>
-    | <a href="#pdf"><code>pdf()</code></a>
-    | <a href="#screenshotfull"><code>screenshotFull()</code></a>
+    | <a href="#driverpdf"><code>driver.pdf()</code></a>
+    | <a href="#driverscreenshotfull"><code>driver.screenshotFull()</code></a>
+    | <a href="#driverintercept"><code>driver.intercept()</code></a>
   </td> 
 </tr>
 <tr>
   <th>Appium</th>
   <td>
       <a href="#screen-recording">Screen Recording</a>
-    | <a href="#hideKeyboard"><code>hideKeyboard()</code></a>
+    | <a href="#screen-recording"><code>driver.startRecordingScreen()</code></a>
+    | <a href="#screen-recording"><code>driver.saveRecordingScreen()</code></a>
+    | <a href="#driverhidekeyboard"><code>driver.hideKeyboard()</code></a>
   </td> 
 </tr>
 </table>
@@ -1291,6 +1295,18 @@ Then match driver.cookies contains '#(^myCookie)'
 
 > Note that you can do the above as a one-liner like this: `* cookie({ name: 'hello', value: 'world' })`, just keep in mind here that then it would follow the rules of [Enclosed JavaScript](https://github.com/intuit/karate#enclosed-javascript) (not [Embedded Expressions](https://github.com/intuit/karate#embedded-expressions))
 
+If you need to set cookies *before* the target URL is loaded, you can start off by navigating to `about:blank` like this:
+
+```cucumber
+# perform some API calls and initialize the value of "token"
+* driver 'about:blank'
+* cookie({ name: 'my.auth.token', value: token, domain: '.mycompany.com' })
+# now you can jump straight into your home page and bypass the login screen !
+* driver baseUrl + '/home'
+```
+
+This is very useful for "hybrid" tests. Since Karate combines API testing capabilities, you can sign-in to your SSO store via a REST end-point, and then drop cookies onto the browser so that you can bypass the user log-in experience. This can be a huge time-saver !
+
 ## `cookie()`
 Get a cookie by name. Note how Karate's [`match`](https://github.com/intuit/karate#match) syntax comes in handy.
 
@@ -1458,6 +1474,57 @@ So now you have `testAccounts`, `leftNav` and `transactions` as variables, and y
 
 And this is how you can have all your locators defined in one place and re-used across multiple tests. You can experiment for yourself (probably depending on the size of your test-automation team) if this leads to any appreciable benefits, because the down-side is that you need to keep switching between 2 files - when writing and maintaining tests.
 
+# Intercepting HTTP Requests
+You can selectively re-direct some HTTP requests that the browser makes - into a [Karate test-double](https://github.com/intuit/karate/tree/master/karate-netty) ! This gives you some powerful options, for example you can simulate Ajax and [XHR](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest) failures, or even replace entire widgets or sections of the page with "fake" HTML. The unified use of Karate test-doubles means that you can script dynamic responses and handle incoming URL, query-string and header variations. The following scenario will make this clear.
+
+We will use this page: [`https://www.seleniumeasy.com/test/dynamic-data-loading-demo.html`](https://www.seleniumeasy.com/test/dynamic-data-loading-demo.html) - as an example. When a button on this page is clicked, a request is made to [`https://api.randomuser.me/?nat=us`](https://api.randomuser.me/?nat=us) - which returns some JSON data. That data is used to make *yet another* request to fetch a JPEG image from e.g. [`https://randomuser.me/api/portraits/women/34.jpg`](https://randomuser.me/api/portraits/women/34.jpg). Finally, the page is updated to display the first-name, last-name and the image.
+
+What we will do is intercept any request to a URL pattern `*randomuser.me/*` and "fake" a response. We can return JSON and even an image using a mock like this:
+
+```cucumber
+@ignore
+Feature:
+
+Background:
+* configure cors = true
+* def count = 0
+
+Scenario: pathMatches('/api/{img}')
+* def response = read('billie.jpg')
+* def responseHeaders = { 'Content-Type': 'image/jpeg' }
+
+Scenario:
+* def count = count + 1
+* def lastName = 'Request #' + count
+* def response = read('response.json')
+```
+
+Refer to the [Karate test-doubles documentation](https://github.com/intuit/karate/tree/master/karate-netty) for details. We [configure cors = true](https://github.com/intuit/karate/tree/master/karate-netty#configure-cors) to ensure that the browser does not complain about cross-origin requests. If the request is for `/api/*`, the first `Scenario` matches - else the last one is a "catch all". Note how we can even serve an image with the right `Content-Type` header. And the returned JSON is dynamic, the `lastName` will modify [`response.json`](../karate-demo/src/test/java/driver/mock/response.json) via an [embedded-expression](https://github.com/intuit/karate#embedded-expressions).
+
+## `driver.intercept()`
+All we need to do now is to tell Chrome to intercept some URL patterns and use the above mock-server feature-file:
+
+```cucumber
+Feature: intercepting browser requests
+
+Scenario:
+* configure driver = { type: 'chrome' }
+* driver 'https://www.seleniumeasy.com/test/dynamic-data-loading-demo.html'
+
+* driver.intercept({ patterns: [{ urlPattern: '*randomuser.me/*' }], mock: 'mock-01.feature' })
+* click('{}Get New User')
+* delay(2000)
+* screenshot()
+```
+
+* `driver.intercept()` is supported only for the driver type `chrome`
+* you can route multiple URL patterns to the same Karate mock-feature, the format of each array-element under `patterns` can be found [here](https://chromedevtools.github.io/devtools-protocol/tot/Fetch/#type-RequestPattern).
+* `driver.intercept()` can be called only once during a `Scenario`, which means only one mock-feature can be used - but a mock-feature can have any number of `Scenario` "routes"
+* the `mock` value supports any [Karate file-reading prefix](https://github.com/intuit/karate#reading-files) such as `classpath:` 
+* if you need to set up HTTP mocks *before* even loading the first page, you can use `about:blank` for the first URL used for the `driver` init (similar to how you can pre-set a [`cookie()`](#cookieset).
+
+The entire example can be found [here](../karate-demo/src/test/java/driver/mock/demo-01.feature). Note how the "fake" [`response.json`](../karate-demo/src/test/java/driver/mock/response.json) is tiny compared to the "real" JSON, because we know that only a few data-elements are needed for the UI to work in this case.
+
 # Chrome Java API
 Karate also has a Java API to automate the Chrome browser directly, designed for common needs such as converting HTML to PDF - or taking a screenshot of a page. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):
 
@@ -1502,10 +1569,10 @@ For more control or custom options, the `start()` method takes a `Map<String, Ob
 * `headless` - (Boolean) if headless
 * `maxPayloadSize` - (Integer) defaults to 4194304 (bytes, around 4 MB), but you can override it if you deal with very large output / binary payloads
 
-## `screenshotFull()`
+## `driver.screenshotFull()`
 Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api). This will snapshot the entire page, not just what is visible in the viewport.
 
-## `pdf()`
+## `driver.pdf()`
 Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api).
 
 # Proxy
@@ -1533,7 +1600,7 @@ Only supported for driver type [`android` | `ios`](#driver-types).
 ```
 The above example would save the file and perform "auto-embedding" into the HTML report.
 
-You can also use `startRecordingScreen()` and `stopRecordingScreen()`, and both methods take recording options as JSON input.
+You can also use `driver.startRecordingScreen()` and `driver.stopRecordingScreen()`, and both methods take recording options as JSON input.
 
-## `hideKeyboard()`
+## `driver.hideKeyboard()`
 Only supported for driver type [`android` | `ios`](#driver-types), for hiding the "soft keyboard".
