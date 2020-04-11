@@ -1510,7 +1510,6 @@ Feature: intercepting browser requests
 Scenario:
 * configure driver = { type: 'chrome' }
 * driver 'https://www.seleniumeasy.com/test/dynamic-data-loading-demo.html'
-
 * driver.intercept({ patterns: [{ urlPattern: '*randomuser.me/*' }], mock: 'mock-01.feature' })
 * click('{}Get New User')
 * delay(2000)
