@@ -15,7 +15,7 @@ The `test.feature` is a simple [Karate UI test](https://github.com/intuit/karate
 You should be able to use the [Karate extension for Visual Studio Code](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) for stepping-through a test for troubleshooting.
 
 ## WebDriver Tips
-If you are targeting a WebDriver implementation, you may need to experiment with HTTP calls. Don't forget that that is Karate's core competency ! So you can use a "scratchpad" Karate test on the side, like this:
+If you are targeting a WebDriver implementation, you may need to experiment with HTTP calls. Don't forget that that is Karate's core competency ! So you can use a "scratchpad" Karate test on the side, like this, after you have manually started a "driver executable", [`chromedriver`](https://chromedriver.chromium.org) in this case:
 
 ```cucumber
 Feature:
@@ -37,6 +37,12 @@ Here is an example of [getting the page title](https://w3c.github.io/webdriver/#
 ```
 
 Which results in a GET request to: `http://localhost:9515/session/{sessionId}/title` - and the response body will be printed. Now you can easily extract data out of the response JSON.
+
+And here is how you can make a `POST` request, to [navigate to a given URL](https://w3c.github.io/webdriver/#navigate-to):
+
+```cucumber
+* driver.http.path('url').post({ url: 'https://github.com' })
+```
 
 And note that the [VS Code "Karate Runner"](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) plugin is really convenient for re-running tests - or you can pause a test using a break-point and [type in interactive commands](https://twitter.com/KarateDSL/status/1167533484560142336).
 

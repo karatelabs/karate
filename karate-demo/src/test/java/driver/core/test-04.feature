@@ -6,14 +6,13 @@ Scenario Outline: <type>
 
   * driver webUrlBase + '/page-01'
 
-  * def temp = driver.send({ method: 'Page.getFrameTree' })
-  * print 'temp:', temp
+  * driver.http.path('url').post({ url: 'https://github.com' })
   * delay(3000)
   
 
 Examples:
 | type         |
-| chrome       |
-#| chromedriver |
+#| chrome       |
+| chromedriver |
 #| geckodriver  |
 #| safaridriver |
