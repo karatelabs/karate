@@ -75,7 +75,7 @@ public class Robot {
         this.context = context;
         try {
             this.options = options;
-            basePath = get("basePath", "classpath:");
+            basePath = get("basePath", null);
             highlight = get("highlight", false);
             highlightDuration = get("highlightDuration", 1000);
             retryCount = get("retryCount", 3);

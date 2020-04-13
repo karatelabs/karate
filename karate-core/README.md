@@ -463,6 +463,7 @@ Locator | Description
 ------- | -----------
 `click('{a}Click Me')` | the first `<a>` where the text-content is *exactly*: `Click Me`
 `click('{}Click Me')` | the first element (*any* tag name) where the text-content is *exactly*: `Click Me`
+`click('{^}Click')` | the first element (*any* tag name) where the text-content *contains*: `Click`
 `click('{^span}Click')` | the first `<span>` where the text-content *contains*: `Click`
 `click('{div:2}Click Me')` | the second `<div>` where the text-content is *exactly*: `Click Me`
 `click('{span/a}Click Me')` | the first `<a>` where a `<span>` is the immediate parent, and where the text-content is *exactly*: `Click Me`
@@ -1520,9 +1521,9 @@ Scenario:
 * you can route multiple URL patterns to the same Karate mock-feature, the format of each array-element under `patterns` can be found [here](https://chromedevtools.github.io/devtools-protocol/tot/Fetch/#type-RequestPattern).
 * `driver.intercept()` can be called only once during a `Scenario`, which means only one mock-feature can be used - but a mock-feature can have any number of `Scenario` "routes"
 * the `mock` value supports any [Karate file-reading prefix](https://github.com/intuit/karate#reading-files) such as `classpath:` 
-* if you need to set up HTTP mocks *before* even loading the first page, you can use `about:blank` for the first URL used for the `driver` init (similar to how you can pre-set a [`cookie()`](#cookieset).
+* if you need to set up HTTP mocks *before* even loading the first page, you can use `about:blank` for the first URL used for the `driver` init - similar to how you can pre-set a [`cookie()`](#cookieset).
 
-The entire example can be found [here](../karate-demo/src/test/java/driver/mock/demo-01.feature) and here is a [video](https://twitter.com/KarateDSL/status/1248996522357739521). Note how the "fake" [`response.json`](../karate-demo/src/test/java/driver/mock/response.json) is tiny compared to the "real" JSON, because we know that only a few data-elements are needed for the UI to work in this case.
+The entire example can be found [here](../karate-demo/src/test/java/driver/mock/demo-01.feature) - and here is a [video](https://twitter.com/KarateDSL/status/1248996522357739521). Note how the "fake" [`response.json`](../karate-demo/src/test/java/driver/mock/response.json) is tiny compared to the "real" JSON, because we know that only a few data-elements are needed for the UI to work in this case.
 
 # Chrome Java API
 Karate also has a Java API to automate the Chrome browser directly, designed for common needs such as converting HTML to PDF - or taking a screenshot of a page. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):

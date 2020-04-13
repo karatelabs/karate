@@ -30,11 +30,61 @@
             <groupId>org.bytedeco</groupId>
             <artifactId>javacv</artifactId>
             <version>${javacpp.version}</version>
-        </dependency>              
+            <exclusions>
+                <exclusion>
+                    <groupId>org.bytedeco</groupId>
+                    <artifactId>ffmpeg</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.bytedeco</groupId>
+                    <artifactId>flycapture</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.bytedeco</groupId>
+                    <artifactId>libdc1394</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.bytedeco</groupId>
+                    <artifactId>libfreenect</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.bytedeco</groupId>
+                    <artifactId>libfreenect2</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.bytedeco</groupId>
+                    <artifactId>librealsense</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.bytedeco</groupId>
+                    <artifactId>librealsense2</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.bytedeco</groupId>
+                    <artifactId>videoinput</artifactId>
+                </exclusion> 
+                <exclusion>
+                    <groupId>org.bytedeco</groupId>
+                    <artifactId>artoolkitplus</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.bytedeco</groupId>
+                    <artifactId>flandmark</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.bytedeco</groupId>
+                    <artifactId>leptonica</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.bytedeco</groupId>
+                    <artifactId>tesseract</artifactId>
+                </exclusion>                                                                                                                                                         
+            </exclusions>
+        </dependency>                   
         <dependency>
             <groupId>org.bytedeco</groupId>
             <artifactId>opencv-platform</artifactId>
-            <version>${opencv.version}-${javacpp.version}</version>
+            <version>${opencv.version}-${javacpp.version}</version>          
         </dependency>
         <dependency>
             <groupId>com.intuit.karate</groupId>
@@ -59,6 +109,45 @@
                 </excludes>
             </testResource>
         </testResources>       
-    </build>           
+    </build>
+    
+    <profiles>
+        <profile>
+            <id>fatjar</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <version>${maven.shade.version}</version>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                                <configuration>
+                                    <artifactSet>
+                                        <includes>
+                                            <include>net.java.dev.jna:*</include>
+                                            <include>org.bytedeco:*</include>
+                                        </includes>
+                                        <excludes>
+                                            <exclude>*:*:jar:android-*:*</exclude>
+                                            <exclude>*:*:jar:ios-*:*</exclude>
+                                            <exclude>*:*:jar:linux-*:*</exclude>
+                                       <!-- <exclude>*:*:jar:macosx-*:*</exclude>
+                                            <exclude>*:*:jar:windows-x86:*</exclude> 
+                                            <exclude>*:*:jar:windows-x86_64:*</exclude> -->
+                                        </excludes>                                        
+                                    </artifactSet>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>                              
+                </plugins>                 
+            </build>
+        </profile>
+    </profiles>                           
     
 </project>

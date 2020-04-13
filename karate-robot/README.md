@@ -58,7 +58,7 @@ The keys that the `robot` keyword supports are the following:
 key | description
 --- | -----------
 `app` | the name of the window to bring to focus, and you can use a `^` prefix to do a string "contains" match
-`basePath` | defaults to [`classpath:`](https://github.com/intuit/karate#classpath) which means `src/test/java` if you use the [recommended project structure](https://github.com/intuit/karate#folder-structure)
+`basePath` | defaults to `null`, which means the search will be relative to the "entry point" feature file, but can be used to point to for [prefixed / relative paths](https://github.com/intuit/karate#reading-files) such as `classpath:some/folder`
 `highlight` | default `false` if an image match should be highlighted
 `highlightDuration` | default `1000` - time to `highlight` in milliseconds
 `retryCount` | default `3` number of times Karate will attempt to find an image
@@ -77,13 +77,13 @@ Here is a sample test:
 ```
 
 The above flow performs the following operations:
-* finds an already open window where the name contains `Chrome`
-  * note that on Windows you may need to use `New Tab` instead
+* finds an already open window where the name contains "Chrome"
+  * note that on Windows you may need to use "New Tab" instead
 * enables "highlight" mode for ease of development / troubleshooting
 * triggers keyboard events for [COMMAND + t] which will open a new browser tab
   * on Windows this should be `Key.CONTROL` instead
 * triggers keyboard events for the input "karate dsl" and an ENTER key-press
-* waits for a section of the screen defined by [`tams.png`](src/test/java/tams.png) to appear - and clicks in the center of that region
+* waits for a section of the screen defined by [`tams.png`](src/test/java/robot/core/tams.png) to appear - and clicks in the center of that region
   * Karate will try to use different scaling factors for an image match, for best results - try to use images that are the same resolution (or as close) as the desktop resolution
   * if you run into issues, try re-taking a PNG capture of the area to click-on
 
@@ -134,3 +134,11 @@ Release mouse button, useful for simulating a drag and drop operation.
 
 ## `robot.screenshot()`
 Will save a screenshot of the viewport, which will appear in the HTML report. Note that this returns a byte-array of the PNG image.
+
+# Standalone JAR
+The `karate-robot` for Windows and Mac OSX is around 100 MB and hence not distributed with the [ZIP Release](https://github.com/intuit/karate/wiki/ZIP-Release). But you can download it separately, and it can be easily added to the classpath. You can find instructions [here](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot).
+
+## Building
+For Linux, Android or iOS, you can build a stand-alone JAR by following the [Developer Guide](https://github.com/intuit/karate/wiki/Developer-Guide#build-standalone-karate-robot-jar).
+
+
