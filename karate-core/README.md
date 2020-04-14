@@ -1525,6 +1525,29 @@ Scenario:
 
 The entire example can be found [here](../karate-demo/src/test/java/driver/mock/demo-01.feature) - and here is a [video](https://twitter.com/KarateDSL/status/1248996522357739521). Note how the "fake" [`response.json`](../karate-demo/src/test/java/driver/mock/response.json) is tiny compared to the "real" JSON, because we know that only a few data-elements are needed for the UI to work in this case.
 
+## Intercepting All Requests
+If you use `*` as the `urlPattern` *every* request can be routed to the mock ! And if you use the following mock, it will actually act as a ["pass-through" proxy](https://github.com/intuit/karate/tree/master/karate-netty#karateproceed) - but with the advantage that every single request and response will be emitted to `target/karate.log`. You may be able to turn this into a custom "record-replay" framework, or do other interesting things. Yes, you can modify the request or response if needed !
+
+```cucumber
+@ignore
+Feature:
+
+Scenario:
+* karate.proceed()
+```
+
+And here is the [test script](../karate-demo/src/test/java/driver/mock/demo-02.feature):
+
+```cucumber
+Feature: intercepting all requests !
+
+Scenario: 
+* configure driver = { type: 'chrome' }
+* driver 'about:blank'
+* driver.intercept({ patterns: [{ urlPattern: '*' }], mock: 'mock-02.feature' })
+* driver 'https://github.com/login'
+```
+
 # Chrome Java API
 Karate also has a Java API to automate the Chrome browser directly, designed for common needs such as converting HTML to PDF - or taking a screenshot of a page. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):
 

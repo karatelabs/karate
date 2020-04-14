@@ -242,16 +242,22 @@ public class FeatureBackend {
         } else if (configResponseHeadersMap != null) {
             responseHeadersMap = configResponseHeadersMap;
         }
+        boolean contentTypeHeaderExists = false;
         if (responseHeadersMap != null) {
-            responseHeadersMap.forEach((k, v) -> {
+            for (Map.Entry<String, Object> entry : responseHeadersMap.entrySet()) {
+                String k = entry.getKey();
+                Object v = entry.getValue();
+                if (HttpUtils.HEADER_CONTENT_TYPE.equalsIgnoreCase(k)) {
+                    contentTypeHeaderExists = true;
+                }
                 if (v instanceof List) { // MultiValueMap returned by proceed / response.headers
                     response.putHeader(k, (List) v);
                 } else if (v != null) {                    
                     response.addHeader(k, v.toString());
-                }
-            }); 
+                }                
+            }
         }
-        if (responseValue != null && (responseHeadersMap == null || !responseHeadersMap.containsKey(HttpUtils.HEADER_CONTENT_TYPE))) {
+        if (!contentTypeHeaderExists && responseValue != null) {
             response.addHeader(HttpUtils.HEADER_CONTENT_TYPE, HttpUtils.getContentType(responseValue));
         }        
         if (corsEnabled) {

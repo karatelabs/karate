@@ -89,12 +89,12 @@ public class RobotUtils {
         resize(mat, resized, new Size(), scale, scale, CV_INTER_AREA);
         return resized;
     }
-    
+
     private static final int TARGET_MINVAL_FACTOR = 300; // magic number
     private static final double TARGET_SCORE = 1.5;      // magic number
-    private static final double[] SAME_SIZE = new double[]{1};   
+    private static final double[] SAME_SIZE = new double[]{1};
     // try to use "more likely" scaling factors first
-    private static final double[] RE_SIZE = new double[]{1, 1.5, 0.5, 0.9, 1.1, 0.8, 1.2, 0.7, 1.3, 0.6, 1.4 };
+    private static final double[] RE_SIZE = new double[]{1, 1.5, 0.5, 0.9, 1.1, 0.8, 1.2, 0.7, 1.3, 0.6, 1.4};
 
     public static Region find(Mat source, Mat target, boolean resize) {
         Double prevMinVal = null;
@@ -123,12 +123,12 @@ public class RobotUtils {
                 prevMinVal = tempMinVal;
                 prevRatio = ratio;
                 prevMinPt = minPt;
-                prevScore = score;                     
+                prevScore = score;
                 logger.debug("better minVal: {}, score: {}, scale: {} / {}:{}", minValString, scoreString, scale, resized.size().width(), resized.size().height());
                 if (score < TARGET_SCORE) {
                     logger.debug("<< match found: {}", scoreString);
                     break;
-                }                
+                }
             } else {
                 logger.debug("ignore minVal: {}, score: {}, scale: {} / {}:{}", minValString, scoreString, scale, resized.size().width(), resized.size().height());
             }
@@ -345,7 +345,7 @@ public class RobotUtils {
         delay(time);
         f.dispose();
     }
-    
+
     public static void delay(int millis) {
         try {
             Thread.sleep(millis);

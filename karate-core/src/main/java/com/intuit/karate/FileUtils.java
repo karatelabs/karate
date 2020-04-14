@@ -67,6 +67,7 @@ public class FileUtils {
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(FileUtils.class);
 
     public static final Charset UTF8 = StandardCharsets.UTF_8;
+    public static final byte[] EMPTY_BYTES = new byte[]{};
 
     private static final String CLASSPATH = "classpath";
 

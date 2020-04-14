@@ -201,6 +201,8 @@ public abstract class DevToolsDriver implements Driver {
         wait.receive(dtm);
     }
     
+    
+    
     private void handleInterceptedRequest(DevToolsMessage dtm) {
         String requestId = dtm.get("requestId", String.class);
         String requestUrl = dtm.get("request.url", String.class);
@@ -218,6 +220,8 @@ public abstract class DevToolsDriver implements Driver {
             headers.forEach((k, v) -> request.addHeader(k, v));
             if (postData != null) {
                 request.setBody(FileUtils.toBytes(postData));
+            } else {
+                request.setBody(FileUtils.EMPTY_BYTES);
             }
             HttpResponse response = backend.buildResponse(request, System.currentTimeMillis());
             String responseBody = response.getBody() == null ? "" : Base64.getEncoder().encodeToString(response.getBody());
