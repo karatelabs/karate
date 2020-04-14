@@ -89,6 +89,12 @@ public class RobotUtils {
         resize(mat, resized, new Size(), scale, scale, CV_INTER_AREA);
         return resized;
     }
+    
+    private static final int TARGET_MINVAL_FACTOR = 300; // magic number
+    private static final double TARGET_SCORE = 1.5;      // magic number
+    private static final double[] SAME_SIZE = new double[]{1};   
+    // try to use "more likely" scaling factors first
+    private static final double[] RE_SIZE = new double[]{1, 1.5, 0.5, 0.9, 1.1, 0.8, 1.2, 0.7, 1.3, 0.6, 1.4 };
 
     public static Region find(Mat source, Mat target, boolean resize) {
         Double prevMinVal = null;
@@ -96,14 +102,11 @@ public class RobotUtils {
         Point prevMinPt = null;
         double prevScore = -1;
         //=====================
-        double step = 0.1;
-        int count = resize ? 5 : 0;
-        int targetScore = target.size().area() * 300; // magic number
-        for (int i = -count; i <= count; i++) {
-            double scale = 1 + step * i;
+        double[] scales = resize ? RE_SIZE : SAME_SIZE;
+        int targetMinVal = target.size().area() * TARGET_MINVAL_FACTOR;
+        logger.debug(">> target minVal: {}, target score: {}", targetMinVal, TARGET_SCORE);
+        for (double scale : scales) {
             Mat resized = scale == 1 ? source : rescale(source, scale);
-            Size temp = resized.size();
-            logger.debug("scale: {} - {}:{} - target: {}", scale, temp.width(), temp.height(), targetScore);
             Mat result = new Mat();
             matchTemplate(resized, target, result, CV_TM_SQDIFF);
             DoublePointer minVal = new DoublePointer(1);
@@ -113,20 +116,25 @@ public class RobotUtils {
             minMaxLoc(result, minVal, maxVal, minPt, maxPt, null);
             double tempMinVal = minVal.get();
             double ratio = (double) 1 / scale;
-            double score = tempMinVal / targetScore;
+            double score = tempMinVal / targetMinVal;
+            String scoreString = String.format("%.1f", score);
             String minValString = String.format("%.1f", tempMinVal);
             if (prevMinVal == null || tempMinVal < prevMinVal) {
                 prevMinVal = tempMinVal;
                 prevRatio = ratio;
                 prevMinPt = minPt;
-                prevScore = score;
-                logger.debug("found minVal: {}, score: {}, ratio: {}", minValString, score, ratio);
+                prevScore = score;                     
+                logger.debug("better minVal: {}, score: {}, scale: {} / {}:{}", minValString, scoreString, scale, resized.size().width(), resized.size().height());
+                if (score < TARGET_SCORE) {
+                    logger.debug("<< match found: {}", scoreString);
+                    break;
+                }                
             } else {
-                logger.debug("ignore minVal: {}, score: {}, ratio: {}", minValString, score, ratio);
+                logger.debug("ignore minVal: {}, score: {}, scale: {} / {}:{}", minValString, scoreString, scale, resized.size().width(), resized.size().height());
             }
         }
-        if (prevScore > 1.5) {
-            logger.debug("match quality insufficient: {}", prevScore);
+        if (prevScore > TARGET_SCORE) {
+            logger.debug("<< match quality insufficient, best: {}", prevScore);
             return null;
         }
         int x = (int) Math.round(prevMinPt.x() * prevRatio);
@@ -337,7 +345,7 @@ public class RobotUtils {
         delay(time);
         f.dispose();
     }
-
+    
     public static void delay(int millis) {
         try {
             Thread.sleep(millis);
