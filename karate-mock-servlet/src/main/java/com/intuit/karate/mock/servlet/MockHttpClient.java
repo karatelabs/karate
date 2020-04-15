@@ -33,6 +33,7 @@ import static com.intuit.karate.http.Cookie.SECURE;
 import static com.intuit.karate.http.Cookie.VERSION;
 import com.intuit.karate.http.HttpBody;
 import com.intuit.karate.http.HttpClient;
+import com.intuit.karate.http.HttpLogModifier;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
@@ -50,8 +51,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.servlet.Servlet;
 import javax.servlet.ServletContext;
 import javax.servlet.http.Cookie;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -63,9 +62,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  */
 public abstract class MockHttpClient extends HttpClient<HttpBody> {
 
-    private static final Logger logger = LoggerFactory.getLogger(MockHttpClient.class);
-
     private URI uri;
+
     private MockHttpServletRequestBuilder requestBuilder;
 
     protected abstract Servlet getServlet(HttpRequestBuilder request);
@@ -163,7 +161,6 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
 
     @Override
     protected HttpResponse makeHttpRequest(HttpBody entity, ScenarioContext context) {
-        logger.info("making mock http client request: {} - {}", request.getMethod(), getRequestUri());
         MockHttpServletRequest req = requestBuilder.buildRequest(getServletContext());
         byte[] bytes;
         if (entity != null) {
@@ -186,7 +183,13 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
             bytes = null;
         }
         MockHttpServletResponse res = new MockHttpServletResponse();
-        logRequest(req, bytes);
+        String uri = req.getRequestURL().toString();
+        HttpLogModifier logModifier = context.getConfig().getLogModifier();
+        logModifier = logModifier == null ? null : (logModifier.enableForUri(uri) ? logModifier : null);
+        boolean showLog = !context.isReportDisabled() && context.getConfig().isShowLog();
+        if (showLog) {
+            context.logger.debug(logRequest(uri, logModifier, req, bytes));
+        }
         long startTime = System.currentTimeMillis();
         try {
             getServlet(request).service(req, res);
@@ -195,12 +198,14 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
             if (message == null && e.getCause() != null) {
                 message = e.getCause().getMessage();
             }
-            logger.error("mock servlet request failed: {}", message);
+            context.logger.error("mock servlet request failed: {}", message);
             throw new RuntimeException(e);
         }
         HttpResponse response = new HttpResponse(startTime, System.currentTimeMillis());
         bytes = res.getContentAsByteArray();
-        logResponse(res, bytes);
+        if (showLog) {
+            context.logger.debug(logResponse(uri, logModifier, res, bytes, response.getResponseTime()));
+        }
         response.setUri(getRequestUri());
         response.setBody(bytes);
         response.setStatus(res.getStatus());
@@ -226,52 +231,70 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
 
     private final AtomicInteger counter = new AtomicInteger();
 
-    private void logRequest(MockHttpServletRequest req, byte[] bytes) {
-        if (!logger.isDebugEnabled()) {
-            return;
-        }
+    private String logRequest(String uri, HttpLogModifier logModifier, MockHttpServletRequest req, byte[] bytes) {
+        String maskedUri = logModifier == null ? uri : logModifier.uri(uri);
         int id = counter.incrementAndGet();
         StringBuilder sb = new StringBuilder();
-        sb.append('\n').append(id).append(" > ").append(req.getMethod()).append(' ')
-                .append(req.getRequestURL()).append('\n');
-        logRequestHeaders(sb, id, req);
-        logBody(sb, bytes, req.getContentType());
-        logger.debug(sb.toString());
+        sb.append("request:\n").append(id).append(" > ").append(req.getMethod()).append(' ').append(maskedUri).append('\n');
+        logRequestHeaders(logModifier, sb, id, req);
+        logBody(true, uri, logModifier, sb, bytes, req.getContentType());
+        return sb.toString();
     }
 
-    private void logResponse(MockHttpServletResponse res, byte[] bytes) {
-        if (!logger.isDebugEnabled()) {
-            return;
-        }
+    private String logResponse(String uri, HttpLogModifier logModifier, MockHttpServletResponse res, byte[] bytes, long responseTime) {
         int id = counter.get();
         StringBuilder sb = new StringBuilder();
-        sb.append('\n').append(id).append(" < ").append(res.getStatus()).append('\n');
-        logResponseHeaders(sb, id, res);
-        logBody(sb, bytes, res.getContentType());
-        logger.debug(sb.toString());
+        sb.append("response time in milliseconds: ").append(responseTime).append('\n');
+        sb.append(id).append(" < ").append(res.getStatus()).append('\n');
+        logResponseHeaders(logModifier, sb, id, res);
+        logBody(false, uri, logModifier, sb, bytes, res.getContentType());
+        return sb.toString();
     }
 
-    private static void logRequestHeaders(StringBuilder sb, int id, MockHttpServletRequest request) {
+    private static void logRequestHeaders(HttpLogModifier logModifier, StringBuilder sb, int id, MockHttpServletRequest request) {
         Set<String> keys = new TreeSet(Collections.list(request.getHeaderNames()));
         for (String key : keys) {
             List<String> entries = Collections.list(request.getHeaders(key));
-            sb.append(id).append(' ').append('>').append(' ')
-                    .append(key).append(": ").append(entries.size() == 1 ? entries.get(0) : entries).append('\n');
+            sb.append(id).append(' ').append('>').append(' ').append(key).append(": ");
+            logHeaderValues(logModifier, key, entries, sb);
+            sb.append('\n');
         }
     }
 
-    private static void logResponseHeaders(StringBuilder sb, int id, MockHttpServletResponse response) {
+    private static void logResponseHeaders(HttpLogModifier logModifier, StringBuilder sb, int id, MockHttpServletResponse response) {
         Set<String> keys = new TreeSet(response.getHeaderNames());
         for (String key : keys) {
             List<String> entries = response.getHeaders(key);
-            sb.append(id).append(' ').append('<').append(' ')
-                    .append(key).append(": ").append(entries.size() == 1 ? entries.get(0) : entries).append('\n');
+            sb.append(id).append(' ').append('<').append(' ').append(key).append(": ");
+            logHeaderValues(logModifier, key, entries, sb);
+            sb.append('\n');
         }
     }
 
-    private static void logBody(StringBuilder sb, byte[] bytes, String contentType) {
+    private static void logHeaderValues(HttpLogModifier logModifier, String key, List<String> entries, StringBuilder sb) {
+        if (logModifier == null) {
+            sb.append(entries.size() == 1 ? entries.get(0) : entries);
+        } else {
+            if (entries.size() == 1) {
+                sb.append(logModifier.header(key, entries.get(0)));
+            } else {
+                List<String> masked = new ArrayList(entries.size());
+                for (String entry : entries) {
+                    masked.add(logModifier.header(key, entry));
+                }
+                sb.append(masked);
+            }
+
+        }
+    }
+
+    private static void logBody(boolean request, String uri, HttpLogModifier logModifier, StringBuilder sb, byte[] bytes, String contentType) {
         if (bytes != null && HttpUtils.isPrintable(contentType)) {
-            sb.append(FileUtils.toString(bytes));
+            String body = FileUtils.toString(bytes);
+            if (logModifier != null) {
+                body = request ? logModifier.request(uri, body) : logModifier.response(uri, body);
+            }
+            sb.append(body).append('\n');
         }
     }
 

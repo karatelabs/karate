@@ -3,30 +3,43 @@
     <modelVersion>4.0.0</modelVersion>
  
     <groupId>com.intuit.karate.examples</groupId>
-    <artifactId>examples-cdc</artifactId>
+    <artifactId>examples-mock-servlet</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <packaging>pom</packaging>
+    <packaging>jar</packaging>
     
-    <modules>
-        <module>payment-producer</module>
-        <module>payment-consumer</module>
-    </modules>    
- 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.8</java.version>
         <maven.compiler.version>3.6.0</maven.compiler.version>
-        <spring.boot.version>2.2.0.RELEASE</spring.boot.version>
-        <karate.version>0.9.5</karate.version>
+        <spring.boot.version>1.5.3.RELEASE</spring.boot.version>
+        <karate.version>2.0.0</karate.version>
     </properties>    
 
     <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-dependencies</artifactId>
+            <version>${spring.boot.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <version>${spring.boot.version}</version>
+        </dependency>
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-apache</artifactId>
             <version>${karate.version}</version>
             <scope>test</scope>
-        </dependency>        
+        </dependency>
+        <dependency>
+            <groupId>com.intuit.karate</groupId>
+            <artifactId>karate-mock-servlet</artifactId>
+            <version>${karate.version}</version>
+            <scope>test</scope>
+        </dependency>                                
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-junit4</artifactId>
@@ -57,6 +70,6 @@
                 </configuration>
             </plugin>                  
         </plugins>        
-    </build>
+    </build>    
     
 </project>

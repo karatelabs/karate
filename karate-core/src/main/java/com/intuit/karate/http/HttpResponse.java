@@ -31,21 +31,21 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class HttpResponse {    
-    
+public class HttpResponse {
+
     private String uri;
     private Map<String, Cookie> cookies;
     private MultiValuedMap headers;
     private byte[] body;
-    private int status;   
+    private int status;
     private final long startTime;
     private final long endTime;
-    
+
     // make sure client implementations don't forget to set response time
     public HttpResponse(long startTime, long endTime) {
         this.startTime = startTime;
         this.endTime = endTime;
-    }    
+    }
 
     public long getStartTime() {
         return startTime;
@@ -54,10 +54,10 @@ public class HttpResponse {
     public long getEndTime() {
         return endTime;
     }
-   
+
     public long getResponseTime() {
         return endTime - startTime;
-    }    
+    }
 
     public void setUri(String uri) {
         this.uri = uri;
@@ -65,7 +65,7 @@ public class HttpResponse {
 
     public String getUri() {
         return uri;
-    }      
+    }
 
     public MultiValuedMap getHeaders() {
         return headers;
@@ -81,7 +81,7 @@ public class HttpResponse {
 
     public void setStatus(int status) {
         this.status = status;
-    }        
+    }
 
     public void setBody(byte[] body) {
         this.body = body;
@@ -94,26 +94,26 @@ public class HttpResponse {
     public void setCookies(Map<String, Cookie> cookies) {
         this.cookies = cookies;
     }
-    
+
     public void addCookie(Cookie cookie) {
         if (cookies == null) {
-            cookies = new LinkedHashMap<>();            
+            cookies = new LinkedHashMap<>();
         }
         cookies.put(cookie.getName(), cookie);
     }
-    
+
     public void addHeader(String name, String value) {
         if (headers == null) {
             headers = new MultiValuedMap();
         }
         headers.add(name, value);
-    }    
-    
+    }
+
     public void putHeader(String name, List values) {
         if (headers == null) {
             headers = new MultiValuedMap();
         }
         headers.put(name, values);
     }
-    
+
 }

@@ -38,7 +38,7 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class TomcatConfig {
-    
+
     @Bean
     public EmbeddedServletContainerCustomizer cookieProcessorCustomizer() {
         return new EmbeddedServletContainerCustomizer() {
@@ -50,12 +50,12 @@ public class TomcatConfig {
                         @Override
                         public void customize(Context context) {
                             context.setCookieProcessor(new LegacyCookieProcessor());
-                        }                        
+                        }
                     });
                 }
             }
 
         };
-    }     
-    
+    }
+
 }
