@@ -18,6 +18,7 @@
                 <version>3.0.2</version>
                 <configuration>
                     <includeEmptyDirs>true</includeEmptyDirs>
+                    <addDefaultExcludes>false</addDefaultExcludes>
                 </configuration>
             </plugin>
 
