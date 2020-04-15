@@ -25,7 +25,7 @@
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-apache</artifactId>
             <version>${karate.version}</version>
-            <scope>test</scope>
+            <!-- <scope>test</scope> not ideal but our consumer depends on some karate utils -->
         </dependency>        
         <dependency>
             <groupId>com.intuit.karate</groupId>

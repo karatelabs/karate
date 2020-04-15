@@ -40,7 +40,9 @@ You only need to over-ride two methods:
 * `ServletContext getServletContext()`
 
 Once you refer to the following examples, you should be able to get up and running for your project.
-* [Spring MVC Dispatcher Servlet example](src/test/java/demo/MockSpringMvcServlet.java)
+* Spring MVC Dispatcher Servlet
+  * [Spring Boot 1](src/test/java/demo/MockSpringMvcServlet.java)
+  * [Spring Boot 2](../examples/mock-servlet/src/test/java/payment/mock/servlet/MockSpringMvcServlet.java)
 * [Jersey JAX-RS Resource example](src/test/java/mock/jersey/MockJerseyServlet.java)
 
 Note that the first example above tests the whole of the [`karate-demo`](../karate-demo) Spring Boot application, and using a [parallel runner](src/test/java/demo/MockSpringMvcServletTest.java)

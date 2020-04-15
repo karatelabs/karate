@@ -29,6 +29,8 @@ import com.intuit.karate.mock.servlet.MockHttpClient;
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.springframework.boot.autoconfigure.web.WebMvcProperties;
 import org.springframework.mock.web.MockServletConfig;
@@ -41,6 +43,8 @@ import org.springframework.web.servlet.DispatcherServlet;
  * @author pthomas3
  */
 public class MockSpringMvcServlet extends MockHttpClient {
+    
+    private static final Logger logger = LoggerFactory.getLogger(MockSpringMvcServlet.class);
 
     private final Servlet servlet;
     private final ServletContext servletContext;
@@ -77,23 +81,20 @@ public class MockSpringMvcServlet extends MockHttpClient {
             servlet.init(servletConfig);
             customize(servlet);
         } catch (Exception e) {
+            logger.error("init failed: {}", e.getMessage());
             throw new RuntimeException(e);
         }
         return servlet;
     }
 
-    /**
-     * Checks if servlet is Dispatcher servlet implementation and then fetches
-     * the WebMvcProperties from spring container and configure the dispatcher
-     * servlet.
-     *
-     * @param servlet input servlet implementation
-     */
+    // if you want things like error handling, encoding etc to work exactly as the "real" spring DispatcherServlet
+    // you may need to add filters and beans to make some tests pass
+    // this may not be worth it, so alternatively use tags to exclude those tests from your local mock-servlet based tests
+    // note that this code below e.g. the WebMvcProperties depends on spring-boot 1.5X
     private static void customize(Servlet servlet) {
         if (servlet instanceof DispatcherServlet) {
             DispatcherServlet dispatcherServlet = (DispatcherServlet) servlet;
-            WebMvcProperties mvcProperties
-                    = dispatcherServlet.getWebApplicationContext().getBean(WebMvcProperties.class);
+            WebMvcProperties mvcProperties = dispatcherServlet.getWebApplicationContext().getBean(WebMvcProperties.class);
             dispatcherServlet.setThrowExceptionIfNoHandlerFound(mvcProperties.isThrowExceptionIfNoHandlerFound());
             dispatcherServlet.setDispatchOptionsRequest(mvcProperties.isDispatchOptionsRequest());
             dispatcherServlet.setDispatchTraceRequest(mvcProperties.isDispatchTraceRequest());

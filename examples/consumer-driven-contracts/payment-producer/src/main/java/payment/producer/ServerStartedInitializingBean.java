@@ -15,24 +15,24 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class ServerStartedInitializingBean implements ApplicationRunner, ApplicationListener<WebServerInitializedEvent> {
-	
-	private static final Logger logger = LoggerFactory.getLogger(ServerStartedInitializingBean.class);
 
-	private int localPort;	
+    private static final Logger logger = LoggerFactory.getLogger(ServerStartedInitializingBean.class);
 
-	public int getLocalPort() {
-		return localPort;
-	}	
-	
-	@Override
-	public void run(ApplicationArguments aa) throws Exception {
-		logger.info("server started with args: {}", Arrays.toString(aa.getSourceArgs()));
-	}
+    private int localPort;
 
-	@Override
-	public void onApplicationEvent(WebServerInitializedEvent e) {
-		localPort = e.getWebServer().getPort();
-		logger.info("after runtime init, local server port: {}", localPort);
-	}
+    public int getLocalPort() {
+        return localPort;
+    }
+
+    @Override
+    public void run(ApplicationArguments aa) throws Exception {
+        logger.info("server started with args: {}", Arrays.toString(aa.getSourceArgs()));
+    }
+
+    @Override
+    public void onApplicationEvent(WebServerInitializedEvent e) {
+        localPort = e.getWebServer().getPort();
+        logger.info("after runtime init, local server port: {}", localPort);
+    }
 
 }
