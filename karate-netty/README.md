@@ -87,6 +87,16 @@ If you think about it, all the above are *sufficient* to implement *any* micro-s
 
 The only pre-requisite is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the JDK / Java Development Kit. At least version 1.8.0_112 or greater is required, and there's a good chance you already have Java installed. Check by typing `java -version` on the command line.
 
+## Downloading
+Note that the [ZIP Release](#quick-start) is recommended for those new to Karate - or who don't have much programming experience. If you are just looking for the single JAR file or executable, please read on.
+
+> Tip: Rename the file to `karate.jar` to make the [commands](#usage) easier to type !
+
+Look for the file with the name: `karate-<version>.jar`:
+
+* Option 1: Download from Bintray: [https://dl.bintray.com/ptrthomas/karate/](https://dl.bintray.com/ptrthomas/karate/)
+* Option 2: Look for the [latest release](https://github.com/intuit/karate/releases) on GitHub and scroll down to find the "Assets"
+
 ## Quick Start
 Just use the [ZIP release](https://github.com/intuit/karate/wiki/ZIP-Release) and follow the insructions under the heading: [API Mocks](https://github.com/intuit/karate/wiki/ZIP-Release#api-mocks).
 
@@ -141,10 +151,10 @@ java -jar karate.jar my-test.feature
 #### Custom Classpath
 Karate allows you to use custom Java code or 3rd party Java libraries using [Java interop](https://github.com/intuit/karate#calling-java). Normally those who do this use Karate in the context of [Maven](https://maven.apache.org) or [Gradle](https://gradle.org) - and the [classpath](https://github.com/intuit/karate#classpath) would be set automatically.
 
-You can use the standalone JAR and still depend on external Java code - but you have to set the classpath for this to work. The entry-point for the Karate command-line app is `com.intuit.karate.Main`. Here is an example of using the 3rd-party [SikuliX](http://sikulix.com) library, assuming it is in the current working directory.
+You can use the standalone JAR and still depend on external Java code - but you have to set the classpath for this to work. The entry-point for the Karate command-line app is `com.intuit.karate.Main`. Here is an example of using the [Karate Robot](https://github.com/intuit/karate/tree/master/karate-robot) library [as a JAR file](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot) assuming it is in the current working directory.
 
 ```
-java -cp karate.jar:sikulixapi.jar com.intuit.karate.Main test.feature
+java -cp karate.jar:karate-robot.jar com.intuit.karate.Main test.feature
 ```
 
 If on Windows, note that the path-separator is `;` instead of `:` as seen above for Mac / Linux. Refer this [post](https://stackoverflow.com/a/56458094/143475) for more details.

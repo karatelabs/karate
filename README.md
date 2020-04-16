@@ -1000,7 +1000,7 @@ Then print myVar
 # assigning a number (you can use '*' instead of Given / When / Then)
 * def myNum = 5
 ```
-Note that `def` will over-write any variable that was using the same name earlier. Keep in mind that the start-up [configuration routine](#configuration) could have already initialized some variables before the script even started.
+Note that `def` will over-write any variable that was using the same name earlier. Keep in mind that the start-up [configuration routine](#configuration) could have already initialized some variables before the script even started. For details of scope and visibility of variables, see [Script Structure](#script-structure).
 
 > Note that `url` and `request` are not allowed as variable names. This is just to reduce confusion for users new to Karate who tend to do `* def request = {}` and expect the [`request`](#request) body or similarly, the [`url`](#url) to be set.
 
