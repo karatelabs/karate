@@ -1846,7 +1846,11 @@ When method post
 Then status 200
 ```
 
-Note that `multipart file` takes a JSON argument so that you can easily set the `filename` and the `contentType` (mime-type) in one step.
+It is important to note that `myFile` above is the "field name" within the `multipart/form-data` request payload. This roughly corresponds to a [`cURL`](https://curl.haxx.se/docs/manpage.html#-F) argument of `-F @myFile=test.pdf`.
+
+> `multipart` file uploads can be tricky, and hard to get right. If you get stuck and ask a question on [Stack Overflow](https://stackoverflow.com/questions/tagged/karate), make sure you provide a `cURL` command that works - or else it would be very difficult for anyone to troubleshoot what you could be doing wrong.
+
+Also note that `multipart file` takes a JSON argument so that you can easily set the `filename` and the `contentType` (mime-type) in one step.
 
 * `read`: the name of a file, and the [`classpath:`](#reading-files) prefix also is allowed. mandatory unless `value` is used, see below.
 * `value`: alternative to `read` in rare cases where something like a JSON or XML file is being uploaded and you want to create it dynamically.
