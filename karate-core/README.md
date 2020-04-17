@@ -1534,6 +1534,9 @@ Scenario:
 
 * `driver.intercept()` is supported only for the driver type `chrome`
 * you can route multiple URL patterns to the same Karate mock-feature, the format of each array-element under `patterns` can be found [here](https://chromedevtools.github.io/devtools-protocol/tot/Fetch/#type-RequestPattern).
+  * the `*` wildcard (most likely what you need) will match any number of characters, e.g. `*myhost/some/path/*`
+  * `?` will match any single character
+  * `\` can be used as an "escape" character
 * `driver.intercept()` can be called only once during a `Scenario`, which means only one mock-feature can be used - but a mock-feature can have any number of `Scenario` "routes"
 * the `mock` value supports any [Karate file-reading prefix](https://github.com/intuit/karate#reading-files) such as `classpath:` 
 * if you need to set up HTTP mocks *before* even loading the first page, you can use `about:blank` for the first URL used for the `driver` init - similar to how you can pre-set a [`cookie()`](#cookieset).
