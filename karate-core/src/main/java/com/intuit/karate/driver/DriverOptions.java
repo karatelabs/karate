@@ -66,11 +66,8 @@ import java.util.function.Supplier;
  */
 public class DriverOptions {
 
-    // 15 seconds, as of now this is only used by the chrome / CDP reply timeout
-    public static final long DEFAULT_TIMEOUT = 15 * 1000;
-
     public final Map<String, Object> options;
-    public final long timeout;
+    public final int timeout;
     public final boolean start;
     public final String executable;
     public final String type;
@@ -106,6 +103,8 @@ public class DriverOptions {
     private Integer retryInterval = null;
     private Integer retryCount = null;
     private String preSubmitHash = null;
+
+    private Integer timeoutOverride;
 
     // mutable when we return from called features
     private ScenarioContext context;
@@ -149,7 +148,7 @@ public class DriverOptions {
         this.appender = appender;
         logger = new Logger(getClass());
         logger.setAppender(appender);
-        timeout = get("timeout", DEFAULT_TIMEOUT);
+        timeout = get("timeout", Config.DEFAULT_TIMEOUT);
         type = get("type", null);
         start = get("start", true);
         executable = get("executable", defaultExecutable);
@@ -238,7 +237,7 @@ public class DriverOptions {
             }
             command = new Command(false, processLogger, uniqueName, processLogFile, workingDir, args.toArray(new String[]{}));
             command.start();
-        }        
+        }
         if (start) { // wait for a slow booting browser / driver process
             waitForPort(host, port);
         }
@@ -273,7 +272,7 @@ public class DriverOptions {
                 case "safaridriver":
                     return SafariWebDriver.start(context, options, appender);
                 case "msedgedriver":
-                    return MsEdgeDriver.start(context, options, appender);                    
+                    return MsEdgeDriver.start(context, options, appender);
                 case "mswebdriver":
                     return MsWebDriver.start(context, options, appender);
                 case "iedriver":
@@ -312,8 +311,8 @@ public class DriverOptions {
             capabilities = new HashMap();
             session.put("capabilities", capabilities);
             Map<String, Object> alwaysMatch = new HashMap();
-            capabilities.put("alwaysMatch", alwaysMatch);            
-            alwaysMatch.put("browserName", browserName);            
+            capabilities.put("alwaysMatch", alwaysMatch);
+            alwaysMatch.put("browserName", browserName);
         }
         return session;
     }
@@ -327,7 +326,7 @@ public class DriverOptions {
                 return getSession("firefox");
             case "safaridriver":
                 return getSession("safari");
-            case "msedgedriver":               
+            case "msedgedriver":
             case "mswebdriver":
                 return getSession("edge");
             case "iedriver":
@@ -386,9 +385,9 @@ public class DriverOptions {
         }
         return "/(" + xpath + ")[" + index + "]";
     }
-    
+
     private static final String DOCUMENT = "document";
-    
+
     public String selector(String locator) {
         return selector(locator, DOCUMENT);
     }
@@ -407,6 +406,17 @@ public class DriverOptions {
             return "document.evaluate(\"" + locator + "\", " + contextNode + ", null, 9, null).singleNodeValue";
         }
         return contextNode + ".querySelector(\"" + locator + "\")";
+    }
+
+    public void setTimeout(Integer timeout) {
+        this.timeoutOverride = timeout;
+    }
+
+    public int getTimeout() {
+        if (timeoutOverride != null) {
+            return timeoutOverride;
+        }
+        return timeout;
     }
 
     public void setRetryInterval(Integer retryInterval) {
@@ -506,13 +516,13 @@ public class DriverOptions {
     public String scriptSelector(String locator, String expression) {
         return scriptSelector(locator, expression, DOCUMENT);
     }
-    
+
     public String scriptSelector(String locator, String expression, String contextNode) {
         String temp = "var fun = " + fun(expression) + "; var e = " + selector(locator, contextNode) + "; return fun(e)";
         return wrapInFunctionInvoke(temp);
     }
-    
-    public String scriptAllSelector(String locator, String expression) { 
+
+    public String scriptAllSelector(String locator, String expression) {
         return scriptAllSelector(locator, expression, DOCUMENT);
     }
 
@@ -525,7 +535,7 @@ public class DriverOptions {
         boolean isXpath = locator.startsWith("/");
         String selector;
         if (isXpath) { // XPathResult.ORDERED_NODE_ITERATOR_TYPE = 5
-            selector = "document.evaluate(\"" + locator + "\", " + contextNode  + ", null, 5, null)";
+            selector = "document.evaluate(\"" + locator + "\", " + contextNode + ", null, 5, null)";
         } else {
             selector = contextNode + ".querySelectorAll(\"" + locator + "\")";
         }

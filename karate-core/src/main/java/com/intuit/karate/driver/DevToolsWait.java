@@ -93,7 +93,7 @@ public class DevToolsWait {
         lastReceived = null;
         lastSent = dtm;
         this.condition = condition == null ? DEFAULT : condition;        
-        long timeout = dtm.getTimeout() == null ? options.timeout : dtm.getTimeout();
+        long timeout = dtm.getTimeout() == null ? options.getTimeout() : dtm.getTimeout();
         synchronized (this) {
             logger.trace(">> wait: {}", dtm);
             try {

@@ -74,11 +74,24 @@ public abstract class WebDriver implements Driver {
         }
     }
 
+    @Override
+    public Driver timeout(Integer millis) {
+        options.setTimeout(millis);
+        // this will "reset" to default if null was set above
+        http.config("readTimeout", options.getTimeout() + "");
+        return this;
+    }
+
+    @Override
+    public Driver timeout() {
+        return timeout(null);
+    }
+
     // can be used directly if you know what you are doing !
     public Http getHttp() {
         return http;
-    }    
-    
+    }
+
     private String getSubmitHash() {
         return getUrl() + elementId("html");
     }

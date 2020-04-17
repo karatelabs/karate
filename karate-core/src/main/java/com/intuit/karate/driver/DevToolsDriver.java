@@ -117,6 +117,17 @@ public abstract class DevToolsDriver implements Driver {
         }
         return command.waitSync();
     }
+
+    @Override
+    public Driver timeout(Integer millis) {
+        options.setTimeout(millis);
+        return this;
+    } 
+    
+    @Override
+    public Driver timeout() {
+        return timeout(null);
+    }     
     
     public DevToolsMessage method(String method) {
         return new DevToolsMessage(this, method);

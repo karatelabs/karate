@@ -24,7 +24,8 @@
     | <a href="#configure-driver"><code>configure driver</code></a>
     | <a href="#configure-drivertarget"><code>configure driverTarget</code></a>
     | <a href="#karate-chrome">Docker / <code>karate-chrome</code></a>
-    | <a href="#driver-types">Driver Types</a>  
+    | <a href="#driver-types">Driver Types</a> 
+    | <a href="#timeout"><code>timeout()</code></a>
   </td>
 </tr>
 <tr>
@@ -256,7 +257,8 @@ key | description
 `beforeStart` | default `null`, an OS command that will be executed before commencing a `Scenario` (and before the `executable` is invoked if applicable) typically used to start video-recording
 `afterStop` | default `null`, an OS command that will be executed after a `Scenario` completes, typically used to stop video-recording and save the video file to an output folder
 `videoFile` | default `null`, the path to the video file that will be added to the end of the test report, if it does not exist, it will be ignored
-`httpConfig` | optional, and typically only used for remote WebDriver usage where the HTTP client [configuration](https://github.com/intuit/karate#configure) needs to be tweaked, e.g. `{ readTimeout: 120000 }`
+`httpConfig` | optional, and typically only used for remote WebDriver usage where the HTTP client [configuration](https://github.com/intuit/karate#configure) needs to be tweaked, e.g. `{ readTimeout: 120000 }` (also see `timeout` below)
+`timeout` | default `30000`,  amount of time (in milliseconds) that type `chrome` will wait for an operation that takes time (typically navigating to a new page) - and as a convenience for WebDriver, this will be equivalent to setting the `readTimeout` for the `httpConfig` (see above) - also see [`timeout()`](#timeout)
 `webDriverUrl` | see [`webDriverUrl`](#webdriverurl)
 `webDriverSession` | see [`webDriverSession`](#webdriversession)
 `webDriverPath` | optional, and rarely used only in case you need to append a path such as `/wd/hub` - typically needed for Appium (or a Selenium Grid) on `localhost`, where `host`, `port` / `executable` etc. are involved.
@@ -1402,6 +1404,19 @@ Plural form of the above.
 
 ```cucumber
 * highlightAll('input')
+```
+
+## `timeout()`
+Rarely used, but sometimes for only some parts of your test - you need to tell the browser to wait for a very slow loading page. Behind the scenes, this sets the HTTP communication "read timeout". This does the same thing as the `timeout` key in the [driver config](#configure-driver) - but is designed so that you can change this "on the fly", *during* the flow of a test.
+
+Note that the duration is in milliseconds. As a convenience, to "reset" the value to what was initially set, you can call `timeout()` with no argument:
+
+```cucumber
+# wait 3 minutes if needed for page to load
+* timeout(3 * 60 * 1000)
+* driver 'http://mydomain/some/slow/page'
+# reset to defaults for the rest of the test ...
+* timeout()
 ```
 
 # Debugging

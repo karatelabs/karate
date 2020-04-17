@@ -118,6 +118,10 @@ public interface Driver {
         getOptions().sleep(millis);
         return this;
     }
+    
+    Driver timeout(Integer millis);
+    
+    Driver timeout();
 
     // element actions =========================================================
     //

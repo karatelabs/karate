@@ -39,6 +39,7 @@ public class Config {
 
     public static final int DEFAULT_RETRY_INTERVAL = 3000;
     public static final int DEFAULT_RETRY_COUNT = 3;
+    public static final int DEFAULT_TIMEOUT = 30000;
 
     private boolean sslEnabled = false;
     private String sslAlgorithm = "TLS";
@@ -50,8 +51,8 @@ public class Config {
     private String sslTrustStoreType;
     private boolean sslTrustAll = true;
     private boolean followRedirects = true;
-    private int readTimeout = 30000;
-    private int connectTimeout = 30000;
+    private int readTimeout = DEFAULT_TIMEOUT;
+    private int connectTimeout = DEFAULT_TIMEOUT;
     private Charset charset = FileUtils.UTF8;
     private String proxyUri;
     private String proxyUsername;
