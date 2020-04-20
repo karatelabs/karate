@@ -223,19 +223,19 @@ If you want to customize the start-up, you can use a batch-file:
 * configure driver = { type: 'chrome', executable: 'chrome' }
 ```
 
-Here a batch-file called `chrome` can be placed in the system `PATH` (and made executable) with the following contents:
+Here a batch-file called `chrome` can be placed in the system [`PATH`](https://www.java.com/en/download/help/path.xml) (and made executable) with the following contents:
 
 ```bash
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" $*
 ```
 
-For Windows it would be `chrome.bat` in the system `PATH` as follows:
+For Windows it would be `chrome.bat` in the system [`PATH`](https://www.java.com/en/download/help/path.xml) as follows:
 
 ```bat
 "C:\Program Files (x86)\Google\Chrome\Application\chrome" %*
 ```
 
-Another example for WebDriver, again assuming that `chromedriver` is in the `PATH`:
+Another example for WebDriver, again assuming that `chromedriver` is in the [`PATH`](https://www.java.com/en/download/help/path.xml):
 
 ```cucumber
 { type: 'chromedriver', port: 9515, executable: 'chromedriver' }
@@ -244,7 +244,7 @@ Another example for WebDriver, again assuming that `chromedriver` is in the `PAT
 key | description
 --- | -----------
 `type` | see [driver types](#driver-types)
-`executable` | if present, Karate will attempt to invoke this, if not in the system `PATH`, you can use a full-path instead of just the name of the executable. batch files should also work
+`executable` | if present, Karate will attempt to invoke this, if not in the system [`PATH`](https://www.java.com/en/download/help/path.xml), you can use a full-path instead of just the name of the executable. batch files should also work
 `start` | default `true`, Karate will attempt to start the `executable` - and if the `executable` is not defined, Karate will even try to assume the default for the OS in use
 `port` | optional, and Karate would choose the "traditional" port for the given `type`
 `host` | optional, will default to `localhost` and you normally never need to change this
