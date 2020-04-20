@@ -1454,9 +1454,9 @@ First, you can maintain a JSON "map" of your application locators. It can look s
     "submit": "#submitButton"
   },
   "leftNav": {
-    "home": "{span}Home",
-    "invoices": "{span}Invoices",
-    "transactions": "{span}Transactions"
+    "home": "{}Home",
+    "invoices": "{a}Invoices",
+    "transactions": "{^}Transactions"
   },
   "transactions": {
     "addFirst": ".transactions .qwl-secondary-button",
