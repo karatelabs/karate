@@ -116,8 +116,13 @@ public class Karate extends ParentRunner<Feature> {
                 throw new RuntimeException(e);
             }
         }
-        FeatureInfo info = new FeatureInfo(feature, tagSelector);
-        featureMap.put(feature.getRelativePath(), info);
+        String relativePath = feature.getRelativePath();
+        // for whatever reason the junit 4 lifecycle can call describeChild() multiple times
+        FeatureInfo info = featureMap.get(relativePath);
+        if (info == null) {
+            info = new FeatureInfo(feature, tagSelector);
+            featureMap.put(relativePath, info);
+        }
         return info.description;
     }
 
