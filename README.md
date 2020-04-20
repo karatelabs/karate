@@ -2235,7 +2235,8 @@ In case you were wondering, variables (and even expressions) are supported on th
 
 If you are wondering about the finer details of the `match` syntax, the Left-Hand-Side has to be either a 
 * variable name - e.g. `foo`
-* a 'named' JsonPath or XPath expression - e.g. `foo[0].bar` or `foo[*].bar` (note that variables are not supported on the LHS, so [use an extra step](#get) if needed)
+* a 'named' JsonPath or XPath expression - e.g. `foo[0].bar` or `foo[*].bar`
+    * note that this cannot be "dynamic" (with in-line variables) so [use an extra step](#get) if needed
 * any valid function or method call - e.g. `foo.bar()` or `foo.bar('hello').baz`
 * or anything wrapped in parentheses which will be evaluated as JavaScript - e.g. `(foo + bar)` or `(42)`
 
