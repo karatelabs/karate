@@ -43,7 +43,9 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jcl-over-slf4j</artifactId>
+            <!-- this is tied to logback-classic version in karate-parent -->
             <version>1.7.25</version>
+            <scope>runtime</scope>
         </dependency>
 
     </dependencies>          

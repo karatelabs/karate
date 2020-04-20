@@ -64,7 +64,8 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.2.3</version>
+            <!-- if we change this, also update jcl-over-slf4j in karate-apache -->
+            <version>1.2.3</version> 
             <scope>runtime</scope>
         </dependency>         		
     </dependencies>
