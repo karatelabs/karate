@@ -127,6 +127,7 @@
                                     <goal>shade</goal>
                                 </goals>
                                 <configuration>
+                                    <finalName>karate-robot-${project.version}</finalName>
                                     <artifactSet>
                                         <includes>
                                             <include>net.java.dev.jna:*</include>

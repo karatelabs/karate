@@ -21,6 +21,12 @@ mvn install -P fatjar
 https://bintray.com/ptrthomas/karate
 (upload to github release notes)
 
+robot:
+cd karate-robot
+mvn install -P fatjar
+https://bintray.com/ptrthomas/karate
+(upload to github release notes)
+
 docker:
 (double check if the below pom files are updated for the version
 (edit examples/jobserver/pom.xml)
