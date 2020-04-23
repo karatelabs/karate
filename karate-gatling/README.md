@@ -74,6 +74,11 @@ As of now the Gatling concept of ["throttle" and related syntax](https://gatling
 
 Also the concept of Gatling "[groups](https://gatling.io/docs/2.3/general/scenario/#groups-definition)" is not supported where you can have sub-groups within groups. However custom grouping via the [`nameResolver`](#nameresolver) is sufficient for most teams.
 
+## Logging
+Once you have your performance tests working, you may want to tune the logging config. Note that there are options to [reduce or completely suppress](https://github.com/intuit/karate#logging) the console logging.
+
+Also note that the [`logback-test.xml`](../examples/gatling/src/test/java/logback-test.xml) in the examples project uses [`<immediateFlush>false</immediateFlush>`](http://logback.qos.ch/manual/appenders.html#OutputStreamAppender).
+
 ## Usage
 
 Let's look at an [example](src/test/scala/mock/CatsSimulation.scala):
