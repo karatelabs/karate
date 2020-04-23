@@ -767,6 +767,15 @@ Here is a sample `logback-test.xml` for you to get started.
 ```
 You can change the `com.intuit.karate` logger level to `INFO` to reduce the amount of logging. When the level is `DEBUG` the entire request and response payloads are logged. If you use the above config, logs will be captured in `target/karate.log`.
 
+If you want to keep the level as `DEBUG` ([for HTML reports](#test-reports)) but suppress logging to the console, you can comment out the `STDOUT` "root" `appender-ref`:
+
+```xml
+  <root level="warn">
+      <!-- <appender-ref ref="STDOUT" /> -->
+      <appender-ref ref="FILE" />
+  </root>
+```
+
 For suppressing sensitive information such as secrets and passwords from the log, see [Log Masking](#log-masking).
 
 # Configuration
