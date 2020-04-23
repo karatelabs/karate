@@ -1,23 +1,30 @@
 # Karate Robot
 
 ## Desktop Automation Made `Simple.`
-> Version 0.9.5 is the first release, and experimental. Please test and contribute if you can !
+> Version 0.9.6.RC2 is available, and experimental. Please test and contribute if you can !
 
 ### Demo Videos
-* Clicking the *native* "File Upload" button in a Web Page - [Link](https://twitter.com/ptrthomas/status/1215534821234995200)
+* Clicking the *native* "File Upload" button in a Web Page - [Link](https://twitter.com/ptrthomas/status/1253373486384295936)
+  * details, code and explanation [here](https://stackoverflow.com/a/61393515/143475)
 * Clicking a button in an iOS Mobile Emulator - [Link](https://twitter.com/ptrthomas/status/1217479362666041344)
 
 ### Capabilities
 * Cross-Platform: MacOS, Windows, Linux - and should work on others as well via [Java CPP](https://github.com/bytedeco/javacpp)
+* Available as a standalone binary via the [ZIP Release](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot)
 * Native Mouse Events
 * Native Keyboard Events
 * Navigation via image detection
 * Tightly integrated into Karate
 
 ## Examples
-Refer to the [`examples/robot-test`](../examples/robot-test) project which is a stand-alone Maven project that can be used as a starting point.
+* Refer to the [`examples/robot-test`](../examples/robot-test) project which is a stand-alone Maven project that can be used as a starting point
+* Opening a browser tab and performing actions - [Link](src/test/java/robot/core/chrome.feature)
 
 ## Using
+If you are not that experienced with programming - or don't want to set up a Java development environment, please look at the [ZIP Release](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot) which you can run using [Visual Studio Code](https://github.com/intuit/karate/wiki/IDE-Support#visual-studio-code).
+
+Maven (or Gradle) users can read on below.
+
 The `karate-robot` capabilities are not part of the `karate-core`, because they bring in a few extra dependencies.
 
 ### Maven
@@ -140,5 +147,3 @@ The `karate-robot` for Windows and Mac OSX is around 100 MB and hence not distri
 
 ## Building
 For Linux, Android or iOS, you can build a stand-alone JAR by following the [Developer Guide](https://github.com/intuit/karate/wiki/Developer-Guide#build-standalone-karate-robot-jar).
-
-
