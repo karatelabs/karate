@@ -776,6 +776,19 @@ If you want to keep the level as `DEBUG` ([for HTML reports](#test-reports)) but
   </root>
 ```
 
+Or another option is to use a [`ThresholdFilter`](http://logback.qos.ch/manual/filters.html#thresholdFilter), so you still see critical logs on the console:
+
+```xml
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+      <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+          <level>WARN</level>
+      </filter>
+      <encoder>
+          <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+      </encoder>
+  </appender>
+```
+
 For suppressing sensitive information such as secrets and passwords from the log, see [Log Masking](#log-masking).
 
 # Configuration
