@@ -377,7 +377,7 @@ You can use these in the "request matcher" described above. This is how you can 
 This variable holds the value of the request body. It will be a JSON or XML object if it can be parsed as such. Else it would be a string.
 
 ## `requestBytes`
-Rarely used, unless you are expecting incoming binary content. This variable holds the value of the raw request bytes. Here is an example: [`_mock.feature`](src/test/java/com/intuit/karate/mock/_mock.feature).
+Rarely used, unless you are expecting incoming binary content. This variable holds the value of the raw request bytes. Here is an example: [`_mock.feature`](../karate-junit4/src/test/java/com/intuit/karate/mock/_mock.feature).
 
 ## `requestUrlBase`
 Holds the value of the "base URL". This will be in the form `http://somehost:8080` and will include the port number if needed. It may start with `https` if applicable.
@@ -475,7 +475,7 @@ XML example:
 Scenario: pathMatches('/v1/body/xml') && bodyPath('/dog/name') == 'Scooby'
 ```
 
-Refer to this example: [`server.feature`](src/test/java/com/intuit/karate/netty/server.feature).
+Refer to this example: [`server.feature`](src/test/java/com/intuit/karate/server.feature).
 
 # Response Building
 Shaping the HTTP response is very easy - you just set a bunch of variables. This is surprisingly effective, and gives you the flexibility to perform multiple steps as part of request processing. You don't need to build the whole response and "return" it on the last line. And the order of what you define does not matter.
