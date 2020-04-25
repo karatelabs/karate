@@ -65,7 +65,7 @@ The keys that the `robot` keyword supports are the following:
 key | description
 --- | -----------
 `app` | the name of the window to bring to focus, and you can use a `^` prefix to do a string "contains" match
-`basePath` | defaults to `null`, which means the search will be relative to the "entry point" feature file, but can be used to point to for [prefixed / relative paths](https://github.com/intuit/karate#reading-files) such as `classpath:some/folder`
+`basePath` | defaults to `null`, which means the search will be relative to the "entry point" feature file, but can be used to point to [prefixed / relative paths](https://github.com/intuit/karate#reading-files) such as `classpath:some/folder`
 `highlight` | default `false` if an image match should be highlighted
 `highlightDuration` | default `1000` - time to `highlight` in milliseconds
 `retryCount` | default `3` number of times Karate will attempt to find an image
