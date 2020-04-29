@@ -2298,7 +2298,7 @@ One extra convenience for JSON is that if the variable itself (which was `cat` i
 * match foo == [{ bar: 'baz' }, { bar: 'ban' }]
 ```
 
-If you have to set a bunch of deeply nested keys, you can move the parent path to the top, next to the `set` keyword and save a lot of typing !
+If you have to set a bunch of deeply nested keys, you can move the parent path to the top, next to the `set` keyword and save a lot of typing ! Note that this is not supported for "arrays" like above, and you can have only one `value` column.
 
 ```cucumber
 * set foo.bar
