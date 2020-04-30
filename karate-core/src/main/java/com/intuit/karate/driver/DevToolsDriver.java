@@ -685,7 +685,7 @@ public abstract class DevToolsDriver implements Driver {
                 logger.warn("waitUntil evaluate failed: {}", e.getMessage());
                 return false;
             }
-        }, b -> b, "waitUntil (js)");
+        }, b -> b, "waitUntil (js)", true);
     }
     
     @Override

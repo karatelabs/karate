@@ -197,7 +197,7 @@ public interface Driver {
     }
 
     default Object waitUntil(Supplier<Object> condition) {
-        return getOptions().retry(() -> condition.get(), o -> o != null, "waitUntil (function)");
+        return getOptions().retry(() -> condition.get(), o -> o != null, "waitUntil (function)", true);
     }
     
     default Element locate(String locator) {

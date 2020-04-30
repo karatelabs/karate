@@ -44,7 +44,7 @@ public class DriverOptionsTest {
     @Test
     public void testRetry() {
         DriverOptions options = new DriverOptions(getContext(), Collections.EMPTY_MAP, null, 0, null);
-        options.retry(() -> 1, x -> x < 5, "not 5");        
+        options.retry(() -> 1, x -> x < 5, "not 5", false);        
     }
 
 }

@@ -445,7 +445,7 @@ public class DriverOptions {
         }
     }
 
-    public <T> T retry(Supplier<T> action, Predicate<T> condition, String logDescription) {
+    public <T> T retry(Supplier<T> action, Predicate<T> condition, String logDescription, boolean failWithException) {
         long startTime = System.currentTimeMillis();
         int count = 0, max = getRetryCount();
         T result;
@@ -460,7 +460,11 @@ public class DriverOptions {
         } while (!success && count++ < max);
         if (!success) {
             long elapsedTime = System.currentTimeMillis() - startTime;
-            logger.warn("failed after {} retries and {} milliseconds", (count - 1), elapsedTime);
+            String message = logDescription + ": failed after " + (count - 1) + " retries and " + elapsedTime + " milliseconds";
+            logger.warn(message);
+            if (failWithException) {
+                throw new RuntimeException(message);
+            }
         }
         return result;
     }
@@ -641,7 +645,7 @@ public class DriverOptions {
     }
 
     public String waitForUrl(Driver driver, String expected) {
-        return retry(() -> driver.getUrl(), url -> url.contains(expected), "waitForUrl");
+        return retry(() -> driver.getUrl(), url -> url.contains(expected), "waitForUrl", true);
     }
 
     public Element waitForAny(Driver driver, String... locators) {

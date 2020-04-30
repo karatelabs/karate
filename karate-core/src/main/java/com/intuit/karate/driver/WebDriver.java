@@ -107,7 +107,7 @@ public abstract class WebDriver implements Driver {
             T result = action.get();
             Integer retryInterval = options.getRetryInterval();
             options.setRetryInterval(500); // reduce retry interval for this special case
-            options.retry(() -> getSubmitHash(), hash -> !before.equals(hash), "waiting for document to change");
+            options.retry(() -> getSubmitHash(), hash -> !before.equals(hash), "waiting for document to change", false);
             // extra precaution TODO is this needed
             // waitUntil("document.readyState == 'complete'");
             options.setRetryInterval(retryInterval); // restore
@@ -413,7 +413,7 @@ public abstract class WebDriver implements Driver {
                 logger.warn("waitUntil evaluate failed: {}", e.getMessage());
                 return false;
             }
-        }, b -> b, "waitUntil (js)");
+        }, b -> b, "waitUntil (js)", true);
     }
 
     @Override
