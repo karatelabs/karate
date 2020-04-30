@@ -2199,10 +2199,21 @@ The match syntax involves a double-equals sign '==' to represent a comparison (a
 Since `match` and `set` go well together, they are both introduced in the examples in the section below.
 
 ## `set`
-### Manipulating Data
 Game, `set` and `match` - Karate !
 
-Setting values on JSON documents is simple using the `set` keyword and [JsonPath expressions](https://github.com/jayway/JsonPath#path-examples).
+### JS for JSON
+Before you consider the `set` keyword - note that for simple JSON update operations, you can use [`eval`](#eval) - especially useful when the path you are trying to mutate is dynamic. Since the `eval` keyword can be omitted when operating on variables using JavaScript, this leads to very concise code:
+
+```cucumber
+* def myJson = { a: '1' }
+* myJson.b = 2
+* match myJson == { a: '1', b: 2 }
+```
+
+Refer to [`eval`](#eval) for more / advanced examples.
+
+### Manipulating Data
+Setting values on JSON documents is simple using the `set` keyword.
 
 ```cucumber
 * def myJson = { foo: 'bar' }
@@ -2244,8 +2255,6 @@ XML and XPath works just like you'd expect.
 * match xml == <foo><bar><hello>world</hello></bar></foo>
 ```
 Refer to the section on [XPath Functions](#xpath-functions) for examples of advanced XPath usage.
-
-> For JSON, you can also use [`eval`](#eval) instead of `set`, useful when the path you are trying to mutate is dynamic.
 
 ### `match` and variables
 In case you were wondering, variables (and even expressions) are supported on the right-hand-side. So you can compare 2 JSON (or XML) payloads if you wanted to:

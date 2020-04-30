@@ -309,7 +309,7 @@ Scenario: fifty
   * match response == { success: true }
 ```
 
-The `karate` object happens to implement the `PerfContext` interface and keeps your code simple. Note how the `myRpc` method has been implemented to accept a `Map` (auto-converted from JSON) and the `PerfContext` as arguments. 
+The `karate` object happens to implement the `PerfContext` interface and keeps your code simple. Note how the `myRpc` method has been [implemented to accept a `Map`](https://github.com/intuit/karate#calling-java) (auto-converted from JSON) and the `PerfContext` as arguments. 
 
 Like the built-in HTTP support, any test failures are automatically linked to the previous "perf event" captured.
 
