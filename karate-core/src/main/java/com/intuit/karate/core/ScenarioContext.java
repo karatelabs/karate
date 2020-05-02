@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.Actions;
 import com.intuit.karate.AssertionResult;
 import com.intuit.karate.AssignType;
 import com.intuit.karate.CallContext;
@@ -41,6 +42,7 @@ import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.Config;
 import com.intuit.karate.LogAppender;
+import com.intuit.karate.StepActions;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
@@ -523,6 +525,18 @@ public class ScenarioContext {
                 logger.warn("{} hook failed: {}", prefix, e.getMessage());
             }
         }
+    }
+    
+    public Result evalAsStep(String expression) {
+        Scenario scenario = executionUnit.scenario;
+        Step evalStep = new Step(scenario.getFeature(), scenario, scenario.getIndex() + 1);
+        try {
+            FeatureParser.updateStepFromText(evalStep, expression);
+        } catch (Exception e) {
+            return Result.failed(0, e, evalStep);
+        }
+        Actions evalActions = new StepActions(this);
+        return Engine.executeStep(evalStep, evalActions);        
     }
 
     //==========================================================================

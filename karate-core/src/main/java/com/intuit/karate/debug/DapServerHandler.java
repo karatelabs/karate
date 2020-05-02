@@ -23,19 +23,13 @@
  */
 package com.intuit.karate.debug;
 
-import com.intuit.karate.Actions;
 import com.intuit.karate.Runner;
 import com.intuit.karate.RunnerOptions;
-import com.intuit.karate.Script;
 import com.intuit.karate.ScriptValue;
-import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.ExecutionHookFactory;
-import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.Result;
-import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.Step;
 import io.netty.buffer.Unpooled;
@@ -73,6 +67,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
 
     private boolean singleFeature;
     private String launchCommand;
+    private String preStep;
 
     public DapServerHandler(DapServer server) {
         this.server = server;
@@ -213,13 +208,15 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 // normally a single feature full path, but can be set with any valid karate.options
                 // for e.g. "-t ~@ignore -T 5 classpath:demo.feature"
                 launchCommand = StringUtils.trimToNull(req.getArgument("karateOptions", String.class));
+                preStep = StringUtils.trimToNull(req.getArgument("debugPreStep", String.class));
+                if (preStep != null) {
+                    logger.debug("using pre-step: {}", preStep);
+                }
                 if (launchCommand == null) {
                     launchCommand = req.getArgument("feature", String.class);
-                    singleFeature = true;
-                    start();
-                } else {
-                    start();
+                    singleFeature = true;                    
                 }
+                start();
                 ctx.write(response(req));
                 break;
             case "threads":
@@ -284,25 +281,17 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 String result;
                 if ("clipboard".equals(reqContext)) {
                     try {
-                        ScriptValue sv = Script.evalJsExpression(expression, evalContext);
+                        ScriptValue sv = evalContext.vars.get(expression);
                         result = sv.getAsPrettyString();
                     } catch (Exception e) {
                         result = "[error] " + e.getMessage();
                     }
                 } else {
-                    Scenario evalScenario = evalContext.getExecutionUnit().scenario;
-                    Step evalStep = new Step(evalScenario.getFeature(), evalScenario, evalScenario.getIndex() + 1);                    
-                    try {
-                        FeatureParser.updateStepFromText(evalStep, expression);
-                        Actions evalActions = new StepActions(evalContext);
-                        Result evalResult = Engine.executeStep(evalStep, evalActions);
-                        if (evalResult.isFailed()) {
-                            result = "[error] " + evalResult.getError().getMessage();
-                        } else {
-                            result = "[done]";
-                        }
-                    } catch (Exception e) {
-                        result = "[error] " + e.getMessage();
+                    Result evalResult = evalContext.evalAsStep(expression);
+                    if (evalResult.isFailed()) {
+                        result = "[error] " + evalResult.getError().getMessage();
+                    } else {
+                        result = "[done]";
                     }
                 }
                 ctx.write(response(req)
@@ -332,6 +321,18 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 ctx.write(response(req));
         }
         ctx.writeAndFlush(Unpooled.EMPTY_BUFFER);
+    }
+
+    protected void evaluatePreStep(DebugThread dt) {
+        if (preStep == null) {
+            return;
+        }
+        Result result = dt.getContext().evalAsStep(preStep);
+        if (result.isFailed()) {
+            output("[debug] pre-step failed: " + preStep + " - " + result.getError().getMessage());
+        } else {
+            output("[debug] pre-step success: " + preStep);
+        }
     }
 
     @Override

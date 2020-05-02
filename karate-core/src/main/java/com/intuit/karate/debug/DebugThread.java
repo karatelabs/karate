@@ -101,7 +101,7 @@ public class DebugThread implements ExecutionHook, LogAppender {
         if (stepBack) { // don't clear flag yet !
             getContext().getExecutionUnit().stepBack();
             return false; // abort and do not execute step !
-        }        
+        }
         if (stopped) {
             getContext().getExecutionUnit().stepReset();
             return false;
@@ -111,6 +111,7 @@ public class DebugThread implements ExecutionHook, LogAppender {
 
     protected void resume() {
         stopped = false;
+        handler.evaluatePreStep(this);
         for (DebugThread dt : handler.THREADS.values()) {
             synchronized (dt) {
                 dt.notify();
@@ -149,7 +150,7 @@ public class DebugThread implements ExecutionHook, LogAppender {
             paused = false;
             return stop("pause");
         } else if (errored) {
-            errored = false;            
+            errored = false;
             context.getExecutionUnit().stepReset();
             return false; // TODO we have to click on the next button twice
         } else if (stepBack) {
