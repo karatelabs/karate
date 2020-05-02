@@ -26,6 +26,8 @@ package com.intuit.karate.debug;
 import com.intuit.karate.Actions;
 import com.intuit.karate.Runner;
 import com.intuit.karate.RunnerOptions;
+import com.intuit.karate.Script;
+import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Engine;
@@ -161,6 +163,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                     map.put("value", "(unknown)");
                 }
                 map.put("type", v.getTypeAsShortString());
+                map.put("evaluateName", k);
                 // if > 0 , this can be used  by client to request more info
                 map.put("variablesReference", 0);
                 list.add(map);
@@ -194,7 +197,9 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 ctx.write(response(req)
                         .body("supportsConfigurationDoneRequest", true)
                         .body("supportsRestartRequest", true)
-                        .body("supportsStepBack", true));
+                        .body("supportsStepBack", true)
+                        .body("supportsVariableType", true)
+                        .body("supportsClipboardContext", true));
                 ctx.write(event("initialized"));
                 ctx.write(event("output").body("output", "debug server listening on port: " + server.getPort() + "\n"));
                 break;
@@ -274,21 +279,31 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             case "evaluate":
                 String expression = req.getArgument("expression", String.class);
                 Number evalFrameId = req.getArgument("frameId", Number.class);
+                String reqContext = req.getArgument("context", String.class);
                 ScenarioContext evalContext = FRAMES.get(evalFrameId.longValue());
-                Scenario evalScenario = evalContext.getExecutionUnit().scenario;
-                Step evalStep = new Step(evalScenario.getFeature(), evalScenario, evalScenario.getIndex() + 1);
                 String result;
-                try {
-                    FeatureParser.updateStepFromText(evalStep, expression);
-                    Actions evalActions = new StepActions(evalContext);
-                    Result evalResult = Engine.executeStep(evalStep, evalActions);
-                    if (evalResult.isFailed()) {
-                        result = "[error] " + evalResult.getError().getMessage();
-                    } else {
-                        result = "[done]";
+                if ("clipboard".equals(reqContext)) {
+                    try {
+                        ScriptValue sv = Script.evalJsExpression(expression, evalContext);
+                        result = sv.getAsPrettyString();
+                    } catch (Exception e) {
+                        result = "[error] " + e.getMessage();
                     }
-                } catch (Exception e) {
-                    result = "[error] " + e.getMessage();
+                } else {
+                    Scenario evalScenario = evalContext.getExecutionUnit().scenario;
+                    Step evalStep = new Step(evalScenario.getFeature(), evalScenario, evalScenario.getIndex() + 1);                    
+                    try {
+                        FeatureParser.updateStepFromText(evalStep, expression);
+                        Actions evalActions = new StepActions(evalContext);
+                        Result evalResult = Engine.executeStep(evalStep, evalActions);
+                        if (evalResult.isFailed()) {
+                            result = "[error] " + evalResult.getError().getMessage();
+                        } else {
+                            result = "[done]";
+                        }
+                    } catch (Exception e) {
+                        result = "[error] " + e.getMessage();
+                    }
                 }
                 ctx.write(response(req)
                         .body("result", result)
