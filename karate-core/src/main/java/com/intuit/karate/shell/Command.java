@@ -31,8 +31,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.net.SocketAddress;
+import java.nio.channels.SocketChannel;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -65,7 +69,7 @@ public class Command extends Thread {
         command.start();
         command.waitSync();
         return command.appender.collect();
-    }
+    }  
 
     public static String[] tokenize(String command) {
         StringTokenizer st = new StringTokenizer(command);
@@ -108,6 +112,34 @@ public class Command extends Thread {
             throw new RuntimeException(e);
         }
     }
+    
+    private static void sleep(int millis) {
+        try {
+            LOGGER.trace("sleeping for millis: {}", millis);
+            Thread.sleep(millis);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }    
+    
+    private static final int SLEEP_TIME = 2000;
+    private static final int POLL_ATTEMPTS_MAX = 30;
+    
+    public static boolean waitForPort(String host, int port) {
+        int attempts = 0;
+        do {
+            SocketAddress address = new InetSocketAddress(host, port);
+            try {
+                LOGGER.debug("poll attempt #{} for port to be ready - {}:{}", attempts, host, port);
+                SocketChannel sock = SocketChannel.open(address);
+                sock.close();
+                return true;
+            } catch (IOException e) {
+                sleep(SLEEP_TIME);
+            }
+        } while (attempts++ < POLL_ATTEMPTS_MAX);
+        return false;
+    }    
 
     public static boolean waitForHttp(String url) {
         int attempts = 0;
@@ -128,16 +160,29 @@ public class Command extends Thread {
                     LOGGER.warn("http get returned non-ok status: {} - {}", status, url);
                 }
             } catch (Exception e) {
-                try {
-                    Thread.sleep(2000);
-                } catch (Exception ee) {
-                    return false;
-                }
+                sleep(SLEEP_TIME);
             }
-        } while (attempts++ < 30);
+        } while (attempts++ < POLL_ATTEMPTS_MAX);
         return false;
     }
 
+    public static boolean waitForSocket(int port) {
+        StopListenerThread waiter = new StopListenerThread(port, () -> {
+            LOGGER.info("*** exited socket wait succesfully");
+        });
+        waiter.start();
+        port = waiter.getPort();
+        System.out.println("*** waiting for socket, type the command below:\ncurl http://localhost:"
+                + port + "\nin a new terminal (or open the URL in a web-browser) to proceed ...");
+        try {
+            waiter.join();
+            return true;
+        } catch (Exception e) {
+            LOGGER.warn("*** wait thread failed: {}", e.getMessage());
+            return false;
+        }
+    }    
+    
     public Command(String... args) {
         this(false, null, null, null, null, args);
     }

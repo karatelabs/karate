@@ -25,7 +25,9 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.AssertionResult;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.PerfContext;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptBindings;
@@ -33,6 +35,8 @@ import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.exception.KarateAbortException;
+import com.intuit.karate.exception.KarateException;
+import com.intuit.karate.exception.KarateFailException;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
@@ -41,11 +45,13 @@ import com.intuit.karate.http.MultiValuedMap;
 import com.intuit.karate.netty.FeatureServer;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
+import com.intuit.karate.shell.Command;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -56,6 +62,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
@@ -512,16 +520,6 @@ public class ScriptBridge implements PerfContext {
         return context.getPrevRequest();
     }
 
-    public String exec(String command) {
-        Runtime runtime = Runtime.getRuntime();
-        try {
-            InputStream is = runtime.exec(command).getInputStream();
-            return FileUtils.toString(is);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     public Object eval(String exp) {
         ScriptValue sv = Script.evalJsExpression(exp, context);
         return sv.getValue();
@@ -557,10 +555,6 @@ public class ScriptBridge implements PerfContext {
         HttpResponse response = context.getHttpClient().invoke(request, context);
         context.setPrevResponse(response);
         context.updateResponseVars();
-    }
-
-    public void abort() {
-        throw new KarateAbortException(null);
     }
 
     public void embed(Object o, String contentType) {
@@ -758,8 +752,87 @@ public class ScriptBridge implements PerfContext {
         return System.getProperties();
     }
 
+    public String extract(String text, String regex, int group) {
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(text);
+        if (!matcher.find()) {
+            context.logger.warn("failed to find pattern: {}", regex);
+            return null;
+        }
+        return matcher.group(group);
+    }
+    
+    public List<String> extractAll(String text, String regex, int group) {
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(text);
+        List<String> list = new ArrayList();
+        while (matcher.find()) {
+            list.add(matcher.group(group));
+        }
+        return list;
+    }    
+
+    public Http http(String url) {
+        return Http.forUrl(context, url);
+    }
+
     public void stop() {
-        FileUtils.waitForSocket(0);
+        Command.waitForSocket(0);
+    }
+
+    public void abort() {
+        throw new KarateAbortException(null);
+    }
+
+    public void fail(String message) {
+        throw new KarateFailException(message);
+    }
+
+    public String toAbsolutePath(String resource) {
+        Path path = FileUtils.fromRelativeClassPath(resource, context.classLoader);
+        return path.toAbsolutePath().toString();
+    }
+
+    public boolean waitForPort(String host, int port) {
+        return Command.waitForPort(host, port);
+    }
+
+    public boolean waitForHttp(String url) {
+        return Command.waitForHttp(url);
+    }
+
+    public String exec(String command) {
+        Runtime runtime = Runtime.getRuntime();
+        try {
+            InputStream is = runtime.exec(command).getInputStream();
+            return FileUtils.toString(is);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public Command fork(String line) {
+        return fork(Collections.singletonMap("line", line));
+    }
+
+    public Command fork(Map<String, Object> options) {
+        options = new ScriptValue(options).getAsMap(); // TODO fix nashorn quirks
+        List<String> list = (List) options.get("args");
+        String[] args;
+        if (list == null) {
+            String line = (String) options.get("line");
+            if (line == null) {
+                throw new RuntimeException("'line' or 'args' is required");
+            }
+            args = Command.tokenize(line);
+        } else {
+            args = list.toArray(new String[list.size()]);
+        }
+        String workingDir = (String) options.get("workingDir");
+        File workingFile = workingDir == null ? null : new File(workingDir);
+        Command command = new Command(true, context.logger, null, null, workingFile, args);
+        command.start();
+        return command;
     }
 
     public void log(Object... objects) {

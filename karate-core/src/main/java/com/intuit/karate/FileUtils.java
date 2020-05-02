@@ -27,7 +27,6 @@ import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.exception.KarateFileNotFoundException;
-import com.intuit.karate.shell.StopListenerThread;
 import com.jayway.jsonpath.DocumentContext;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -667,23 +666,6 @@ public class FileUtils {
         }
         String command = System.getProperty("sun.java.command", "");
         return command.contains("org.gradle.") ? "build" : "target";
-    }
-
-    public static boolean waitForSocket(int port) {
-        StopListenerThread waiter = new StopListenerThread(port, () -> {
-            LOGGER.info("*** exited socket wait succesfully");
-        });
-        waiter.start();
-        port = waiter.getPort();
-        System.out.println("*** waiting for socket, type the command below:\ncurl http://localhost:"
-                + port + "\nin a new terminal (or open the URL in a web-browser) to proceed ...");
-        try {
-            waiter.join();
-            return true;
-        } catch (Exception e) {
-            LOGGER.warn("*** wait thread failed: {}", e.getMessage());
-            return false;
-        }
     }
 
     public static enum OsType {

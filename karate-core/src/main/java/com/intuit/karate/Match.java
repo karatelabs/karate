@@ -43,8 +43,12 @@ public class Match {
 
     public static Match forHttp(LogAppender appender) {
         return new Match(appender, null);
-    }
+    }  
 
+    public static Match forHttp(ScenarioContext context) {
+        return new Match(context);
+    }     
+    
     public Match(String exp) {
         this(null, exp);
     }
@@ -61,6 +65,10 @@ public class Match {
         Match match = new Match(null, null);
         match.prevValue = new ScriptValue(o);
         return match;
+    }
+    
+    private Match(ScenarioContext context) {
+        this.context = context;
     }
 
     private Match(LogAppender appender, String exp) {

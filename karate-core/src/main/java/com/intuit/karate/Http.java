@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.core.ScenarioContext;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -139,6 +140,11 @@ public class Http {
         Http http = new Http(Match.forHttp(appender), url);
         return http.url(url);
     }
+    
+    public static Http forUrl(ScenarioContext context, String url) {
+        Http http = new Http(Match.forHttp(context), url);
+        return http.url(url);
+    }    
 
     public Match config(String key, String value) {
         return match.config(key, value);

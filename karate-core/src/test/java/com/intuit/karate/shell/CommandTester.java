@@ -1,4 +1,4 @@
-package com.intuit.karate;
+package com.intuit.karate.shell;
 
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -8,13 +8,13 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class FileUtilsTester {
+public class CommandTester {
     
-    private static final Logger logger = LoggerFactory.getLogger(FileUtilsTester.class);
+    private static final Logger logger = LoggerFactory.getLogger(CommandTester.class);
     
     @Test
     public void testWaitForKeyboard() {
-        FileUtils.waitForSocket(0);
+        Command.waitForSocket(0);
     }
     
 }

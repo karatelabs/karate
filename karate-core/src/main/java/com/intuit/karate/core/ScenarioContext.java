@@ -91,7 +91,7 @@ public class ScenarioContext {
     public final Collection<ExecutionHook> executionHooks;
     public final boolean perfMode;
     public final ScenarioInfo scenarioInfo;
-    private final ClassLoader classLoader;
+    public final ClassLoader classLoader;
 
     public final Function<String, Object> read = s -> {
         ScriptValue sv = FileUtils.readFile(s, this);

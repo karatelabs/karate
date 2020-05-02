@@ -26,6 +26,7 @@ package com.intuit.karate;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScriptBridge;
 import com.intuit.karate.exception.KarateAbortException;
+import com.intuit.karate.exception.KarateFailException;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import java.io.File;
 import java.util.Collection;
@@ -140,11 +141,11 @@ public class ScriptBindings implements Bindings {
         try {
             Object o = bindings == null ? NASHORN.eval(exp) : NASHORN.eval(exp, bindings);
             return new ScriptValue(o);
-        } catch (KarateAbortException | KarateFileNotFoundException ke) {
-            throw ke; // reduce log bloat for common file-not-found situation / handle karate.abort()
+        } catch (KarateFailException | KarateAbortException | KarateFileNotFoundException ke) {
+            throw ke; // reduce log bloat for common file-not-found situation / handle karate.abort() / karate.fail()
         } catch (Exception e) {
             String append = e.getMessage() == null ? exp : e.getMessage();
-            throw new RuntimeException("javascript evaluation failed: " + exp + ", " + append, e);
+            throw new RuntimeException("evaluation (js) failed: " + exp + ", " + append, e);
         }
     }
 
