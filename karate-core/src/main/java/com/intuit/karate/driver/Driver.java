@@ -207,7 +207,18 @@ public interface Driver {
     default List<Element> locateAll(String locator) {
         return getOptions().findAll(this, locator);
     }
-
+    
+    default List<Element> locateAll(String locator, Predicate predicate) {
+        List before = locateAll(locator);
+        List after = new ArrayList(before.size());
+        for (Object o : before) {
+            if (predicate.test(o)) {
+                after.add(o);
+            }
+        }
+        return after;        
+    }
+    
     default Element scroll(String locator) {
         script(locator, DriverOptions.SCROLL_JS_FUNCTION);
         return DriverElement.locatorExists(this, locator);

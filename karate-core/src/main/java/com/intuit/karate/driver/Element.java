@@ -98,6 +98,10 @@ public interface Element {
 
     void setValue(String value); // setter
     
+    String attribute(String name);
+    
+    String property(String name);
+    
     Finder rightOf();
     
     Finder leftOf();

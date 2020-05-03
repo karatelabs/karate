@@ -1243,7 +1243,9 @@ See [Function Composition](#function-composition) for another good example. Also
 * match list == ['data1', 'data2']
 ```
 
-> Note that the JS in this case is run by Karate not the browser, so you use the Java `String.contains()` API not the JavaScript `String.includes()` one.
+> Note that the JS in this case is run by *Karate* not the browser, so you use the Java `String.contains()` API not the JavaScript `String.includes()` one.
+
+See also [`locateAll()` with filter](#locateall-with-filter).
 
 ## `locate()`
 Rarely used, but when you want to just instantiate an [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instance, typically when you are writing custom re-usable functions. See also [`locateAll()`](#locateall)
@@ -1267,11 +1269,26 @@ This will return *all* elements that match the [locator](#locator) as a list of 
 # find all elements with the text-content "Click Me"
 * def elements = locateAll('{}Click Me')
 * match karate.sizeOf(elements) == 7
-* elements.get(6).click()
-* match elements.get(3).script('_.tagName') == 'BUTTON'
+* elements[6].click()
+* match elements[3].script('_.tagName') == 'BUTTON'
 ```
 
 Take a look at how to [loop and transform](https://github.com/intuit/karate#json-transforms) data for more ideas.
+
+### `locateAll()` with filter
+`locateAll()` can take a second argument which has to be a JavaScript "predicate" function, that returns a boolean `true` or `false`. This is very useful to "filter" the results that match a desired condition - typically a text comparison.
+
+Imagine a situation where you want to get only the element where a certain attribute value *starts with* some text - and then click on it. A plain CSS selector won't work - but you can do this:
+
+```cucumber
+* def filter = function(x){ return x.attribute('data-label').startsWith('myQues1_1') }
+* def list = locateAll('div[data-label]', filter)
+* list[0].click()
+```
+
+The `filter` function above, will be called for each [`Element`](src/main/java/com/intuit/karate/driver/Element.java) - which means that you can call methods on it such as [`Element.attribute(name)`](#chaining) in this case. Note that the JS function in this case is run by *Karate* not the browser, so you use the Java `String.startsWith()` API.
+
+See also [`scriptAll()` with filter](#scriptall-with-filter).
 
 ## `refresh()`
 Normal page reload, does *not* clear cache.

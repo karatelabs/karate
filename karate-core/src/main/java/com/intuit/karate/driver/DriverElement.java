@@ -216,6 +216,16 @@ public class DriverElement implements Element {
         return elements;
     }
 
+    @Override
+    public String attribute(String name) {
+        return driver.attribute(locator, name);
+    }
+
+    @Override
+    public String property(String name) {
+        return driver.property(locator, name);
+    }
+
     //java bean naming conventions =============================================        
     //        
     @Override

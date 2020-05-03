@@ -177,6 +177,16 @@ public class MissingElement implements Element {
     }
 
     @Override
+    public String attribute(String name) {
+        return null;
+    }
+
+    @Override
+    public String property(String name) {
+        return null;
+    }
+
+    @Override
     public String getHtml() {
         return null;
     }
