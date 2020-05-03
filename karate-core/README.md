@@ -1425,18 +1425,18 @@ You can use the [Visual Studio Karate entension](https://github.com/intuit/karat
 When you are in a hurry, you can pause a test in the middle of a flow just to look at the browser developer tools to see what CSS selectors you need to use. For this you can use [`karate.stop()`](../#karate-stop) - but of course, *NEVER* forget to remove this before you move on to something else !
 
 ```cucumber
-* karate.stop()
+* karate.stop(9000)
 ```
 
 And then you would see something like this in the console:
 
 ```
 *** waiting for socket, type the command below:
-curl http://localhost:61963
+curl http://localhost:9000
 in a new terminal (or open the URL in a web-browser) to proceed ...
 ```
 
-In most IDE-s, you would even see the URL above as a clickable hyperlink, so just clicking it would end the `stop()`. This is really convenient in "dev-local" mode.
+In most IDE-s, you would even see the URL above as a clickable hyperlink, so just clicking it would end the `stop()`. This is really convenient in "dev-local" mode. The integer port argument is mandatory and you have to choose one that is not being used.
 
 # Locator Lookup
 Other UI automation frameworks spend a lot of time encouraging you to follow a so-called "[Page Object Model](https://martinfowler.com/bliki/PageObject.html)" for your tests. The Karate project team is of the opinion that things can be made simpler.

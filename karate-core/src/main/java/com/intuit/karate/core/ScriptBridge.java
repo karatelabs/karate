@@ -27,7 +27,6 @@ import com.intuit.karate.AssertionResult;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.LogAppender;
 import com.intuit.karate.PerfContext;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptBindings;
@@ -35,7 +34,6 @@ import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.exception.KarateAbortException;
-import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.exception.KarateFailException;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpRequestBuilder;
@@ -775,10 +773,10 @@ public class ScriptBridge implements PerfContext {
     public Http http(String url) {
         return Http.forUrl(context, url);
     }
-
-    public void stop() {
-        Command.waitForSocket(0);
-    }
+    
+    public void stop(int port) {
+        Command.waitForSocket(port);
+    }    
 
     public void abort() {
         throw new KarateAbortException(null);
