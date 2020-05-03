@@ -31,6 +31,7 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureBackend;
 import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.core.ScriptBridge;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.MultiValuedMap;
@@ -952,6 +953,16 @@ public abstract class DevToolsDriver implements Driver {
         Feature feature = mockSv.getValue(Feature.class);
         backend = new FeatureBackend(feature);
         method("Fetch.enable").param("patterns", patterns).send();
+    }
+    
+    public void inputFile(String locator, String ... relativePaths) {
+        List<String> files = new ArrayList(relativePaths.length);
+        ScriptBridge bridge = options.getContext().bindings.bridge;
+        for (String p : relativePaths) {
+            files.add(bridge.toAbsolutePath(p));
+        }
+        Integer nodeId = elementId(locator);
+        method("DOM.setFileInputFiles").param("files", files).param("nodeId", nodeId).send();
     }
     
 }

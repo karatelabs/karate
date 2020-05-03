@@ -182,7 +182,7 @@ public class FileUtils {
         return feature;
     }
 
-    private static Resource toResource(String path, ScenarioContext context) {
+    public static Resource toResource(String path, ScenarioContext context) {
         if (isClassPath(path)) {
             return new Resource(context, path);
         } else if (isFilePath(path)) {

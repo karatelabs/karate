@@ -43,6 +43,7 @@
     | <a href="#distributed-testing">Distributed Testing</a>
     | <a href="#proxy">Proxy</a>
     | <a href="#intercepting-http-requests">Intercepting HTTP Requests</a>
+    | <a href="#file-upload">File Upload</a>
   </td>
 </tr>
 <tr>
@@ -149,6 +150,7 @@
     | <a href="#driverpdf"><code>driver.pdf()</code></a>
     | <a href="#driverscreenshotfull"><code>driver.screenshotFull()</code></a>
     | <a href="#driverintercept"><code>driver.intercept()</code></a>
+    | <a href="#driverinputfile"><code>driver.inputFile()</code></a>
   </td> 
 </tr>
 <tr>
@@ -1592,6 +1594,56 @@ Scenario:
 * driver.intercept({ patterns: [{ urlPattern: '*' }], mock: 'mock-02.feature' })
 * driver 'https://github.com/login'
 ```
+
+# File Upload
+There are multiple options, choose the one that fits you best.
+
+## `driver.inputFile()`
+File-upload is supported natively only by type: `chrome`. You need to call a method on the `driver` object directly. Here is an [example](../karate-demo/src/test/java/driver/demo/demo-05.feature) that you can try:
+
+```cucumber
+* configure driver = { type: 'chrome' }
+* driver 'http://the-internet.herokuapp.com/upload'
+* driver.inputFile('#file-upload', 'billie.jpg')
+* submit().click('#file-submit')
+* waitForText('#uploaded-files', 'billie.jpg')
+```
+
+The `driver.inputFile()` can take an array or varargs as the second argument. Note how Karate is able to resolve a [relative path](https://github.com/intuit/karate#reading-files) to an actual OS file-path behind the scenes. If you want to point to a real file, use the `file:` prefix.
+
+## Using `multipart file`
+This is the recommended, browser-agnostic approach that uses Karate's core-competency as an HTTP API client i.e. [`multipart file`](https://github.com/intuit/karate#multipart-file).
+
+Here is how the example above looks like:
+
+```cucumber
+* url 'http://the-internet.herokuapp.com/upload'
+* multipart file file = { read: 'billie.jpg', filename: 'billie.jpg', contentType: 'image/jpg' }
+* method post
+```
+
+Validation can be performed if needed on the response to this HTTP `POST` which may be HTML, and the [`karate.extract()`](https://github.com/intuit/karate#karate-extract) API may come in useful.
+
+In real-life flows, you may need to pass cookies from the [browser](#cookie) to the [Karate HTTP client](https://github.com/intuit/karate#cookie), so that you can simulate any flows needed after this step.
+
+## Using Karate Robot
+[Karate Robot](https://github.com/intuit/karate/tree/master/karate-robot) is designed for desktop application testing, but since you can click on anything in the viewport, you can achieve what you may not be able to with other automation frameworks. Here is the same example using this approach, where a couple of images need to be saved as part of the test-script:
+
+```cucumber
+* driver 'http://the-internet.herokuapp.com/upload'
+* robot { app: '^Chrome', highlight: true }
+* robot.click('choose-file.png')
+* robot.delay(1000)
+* robot.input('/Users/pthomas3/Desktop')
+* robot.input(Key.ENTER)
+* robot.click('file-name.png')
+* robot.input(Key.ENTER)
+* robot.delay(1000)
+* submit().click('#file-submit')
+* waitForText('#uploaded-files', 'billie.jpg')
+```
+
+A video of the above execution can be viewed [here](https://twitter.com/ptrthomas/status/1253373486384295936).
 
 # Chrome Java API
 Karate also has a Java API to automate the Chrome browser directly, designed for common needs such as converting HTML to PDF - or taking a screenshot of a page. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):

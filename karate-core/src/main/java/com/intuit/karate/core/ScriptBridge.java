@@ -28,6 +28,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.PerfContext;
+import com.intuit.karate.Resource;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.ScriptValue;
@@ -49,6 +50,7 @@ import com.jayway.jsonpath.JsonPath;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -786,9 +788,9 @@ public class ScriptBridge implements PerfContext {
         throw new KarateFailException(message);
     }
 
-    public String toAbsolutePath(String resource) {
-        Path path = FileUtils.fromRelativeClassPath(resource, context.classLoader);
-        return path.toAbsolutePath().toString();
+    public String toAbsolutePath(String relativePath) {
+        Resource resource = FileUtils.toResource(relativePath, context);
+        return resource.getPath().normalize().toAbsolutePath().toString();
     }
 
     public boolean waitForPort(String host, int port) {
