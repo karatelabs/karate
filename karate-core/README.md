@@ -1288,6 +1288,14 @@ Imagine a situation where you want to get only the element where a certain attri
 
 The `filter` function above, will be called for each [`Element`](src/main/java/com/intuit/karate/driver/Element.java) - which means that you can call methods on it such as [`Element.attribute(name)`](#chaining) in this case. Note that the JS function in this case is run by *Karate* not the browser, so you use the Java `String.startsWith()` API.
 
+Since you can call `Element.script()` - *any* kind of filtering will be possible. For example here is the equivalent of the example above. Note the combination of "Karate JavaScript" and ["JS that runs in the browser"](#karate-vs-the-browser):
+
+```cucumber
+* def filter = function(x){ return x.script("_.getAttribute('data-label')").startsWith('myQues1_1') }
+* def list = locateAll('div[data-label]', filter)
+* list[0].click()
+```
+
 See also [`scriptAll()` with filter](#scriptall-with-filter).
 
 ## `refresh()`
