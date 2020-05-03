@@ -60,8 +60,13 @@ public class Robot {
     public final int highlightDuration;
     public final int retryCount;
     public final int retryInterval;
+    public final Region screen;
 
-    public String basePath;
+    // mutables
+    private String basePath;
+    
+    // most recent region
+    private Region region;
 
     private <T> T get(String key, T defaultValue) {
         T temp = (T) options.get(key);
@@ -83,6 +88,7 @@ public class Robot {
             retryInterval = get("retryInterval", Config.DEFAULT_RETRY_INTERVAL);
             toolkit = Toolkit.getDefaultToolkit();
             dimension = toolkit.getScreenSize();
+            screen = new Region(0, 0, dimension.width, dimension.height).with(this);
             robot = new java.awt.Robot();
             robot.setAutoDelay(40);
             robot.setAutoWaitForIdle(true);
@@ -223,17 +229,23 @@ public class Robot {
         }
         return this;
     }
+    
+    public BufferedImage capture() {
+        return capture(screen);
+    }
+    
+    public BufferedImage capture(int x, int y, int width, int height) {
+        return capture(new Region(x, y, width, height));
+    }    
 
-    public BufferedImage capture() { // TODO by region
-        int width = dimension.width;
-        int height = dimension.height;
-        Image image = robot.createScreenCapture(new Rectangle(0, 0, width, height));
-        BufferedImage bi = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
+    public BufferedImage capture(Region region) {
+        Image image = robot.createScreenCapture(new Rectangle(region.x, region.y, region.width, region.height));
+        BufferedImage bi = new BufferedImage(region.width, region.height, BufferedImage.TYPE_BYTE_GRAY);
         Graphics g = bi.createGraphics();
-        g.drawImage(image, 0, 0, width, height, null);
+        g.drawImage(image, region.x, region.y, region.width, region.height, null);
         return bi;
     }
-
+    
     public File captureAndSave(String path) {
         BufferedImage image = capture();
         File file = new File(path);
@@ -241,49 +253,68 @@ public class Robot {
         return file;
     }
 
-    public byte[] screenshot() { // TODO by region
-        BufferedImage image = capture();
+    public byte[] screenshot() {
+        return screenshot(screen);
+    }
+    
+    public byte[] screenshot(int x, int y, int width, int height) {
+        return screenshot(new Region(x, y, width, height));
+    }    
+    
+    public byte[] screenshot(Region region) {
+        BufferedImage image = capture(region);
         byte[] bytes = RobotUtils.toBytes(image);
         context.embed(bytes, "image/png");
         return bytes;
-    }
+    }    
 
-    public Region move(int x, int y) {
+    public Region getRegion() {
+        if (region == null) {
+            return screen;
+        }
+        return region;
+    }        
+
+    public Robot move(int x, int y) {
         robot.mouseMove(x, y);
-        return new Region(x, y).with(this);
+        return this;
     }
 
-    public Region click(int x, int y) {
+    public Robot click(int x, int y) {
         return move(x, y).click();
     }
 
-    public Region move(String path) {
-        return find(path).move();
+    public Robot move(String path) {
+        find(path).move();
+        return this;
     }
 
-    public Region click(String path) {
-        return find(path).click();
+    public Robot click(String path) {
+        find(path).click();
+        return this;
     }
 
-    public Region press(String path) {
-        return find(path).press();
+    public Robot press(String path) {
+        find(path).press();
+        return this;
     }
 
-    public Region release(String path) {
-        return find(path).release();
+    public Robot release(String path) {
+        find(path).release();
+        return this;
     }
 
     public Region find(String path) {
-        return find(read(path)).with(this);
+        return find(read(path));
     }
 
     public Region find(byte[] bytes) {
         AtomicBoolean resize = new AtomicBoolean();
-        Region region = retry(() -> RobotUtils.find(capture(), bytes, resize.getAndSet(true)), r -> r != null, "find by image");
+        region = retry(() -> RobotUtils.find(capture(), bytes, resize.getAndSet(true)), r -> r != null, "find by image");
         if (highlight) {
             region.highlight(highlightDuration);
         }
-        return region;
+        return region.with(this);
     }
 
     public boolean switchTo(String title) {
