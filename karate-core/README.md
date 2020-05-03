@@ -1281,7 +1281,7 @@ Take a look at how to [loop and transform](https://github.com/intuit/karate#json
 Imagine a situation where you want to get only the element where a certain attribute value *starts with* some text - and then click on it. A plain CSS selector won't work - but you can do this:
 
 ```cucumber
-* def filter = function(x){ return x.attribute('data-label').startsWith('myQues1_1') }
+* def filter = function(x){ return x.attribute('data-label').startsWith('somePrefix_') }
 * def list = locateAll('div[data-label]', filter)
 * list[0].click()
 ```
@@ -1291,7 +1291,7 @@ The `filter` function above, will be called for each [`Element`](src/main/java/c
 Since you can call `Element.script()` - *any* kind of filtering will be possible. For example here is the equivalent of the example above. Note the combination of "Karate JavaScript" and ["JS that runs in the browser"](#karate-vs-the-browser):
 
 ```cucumber
-* def filter = function(x){ return x.script("_.getAttribute('data-label')").startsWith('myQues1_1') }
+* def filter = function(x){ return x.script("_.getAttribute('data-label')").startsWith('somePrefix_') }
 * def list = locateAll('div[data-label]', filter)
 * list[0].click()
 ```
