@@ -100,6 +100,10 @@ public abstract class WebDriver implements Driver {
         if (options.isRetryEnabled()) {
             waitFor(locator); // will throw exception if not found
         }
+        if (options.highlight) {
+            highlight(locator);
+            delay(options.highlightDuration);
+        }
         String before = options.getPreSubmitHash();
         if (before != null) {
             logger.trace("submit requested, will wait for page load after next action on : {}", locator);

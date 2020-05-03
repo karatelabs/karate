@@ -67,9 +67,9 @@ key | description
 `app` | the name of the window to bring to focus, and you can use a `^` prefix to do a string "contains" match
 `basePath` | defaults to `null`, which means the search will be relative to the "entry point" feature file, but can be used to point to [prefixed / relative paths](https://github.com/intuit/karate#reading-files) such as `classpath:some/folder`
 `highlight` | default `false` if an image match should be highlighted
-`highlightDuration` | default `1000` - time to `highlight` in milliseconds
+`highlightDuration` | default `3000` - time to `highlight` in milliseconds
 `retryCount` | default `3` number of times Karate will attempt to find an image
-`retryInterval` | default `2000` time between retries when finding an image
+`retryInterval` | default `3000` time between retries when finding an image
 
 # API
 Please refer to the available methods in [`Robot.java`](src/main/java/com/intuit/karate/robot/Robot.java). Most of them are "chainable".

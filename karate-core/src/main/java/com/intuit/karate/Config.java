@@ -40,6 +40,7 @@ public class Config {
     public static final int DEFAULT_RETRY_INTERVAL = 3000;
     public static final int DEFAULT_RETRY_COUNT = 3;
     public static final int DEFAULT_TIMEOUT = 30000;
+    public static final int DEFAULT_HIGHLIGHT_DURATION = 3000;
 
     private boolean sslEnabled = false;
     private String sslAlgorithm = "TLS";

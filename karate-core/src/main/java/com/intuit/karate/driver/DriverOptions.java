@@ -97,6 +97,8 @@ public class DriverOptions {
     public final String beforeStart;
     public final String afterStop;
     public final String videoFile;
+    public final boolean highlight;
+    public final int highlightDuration;
 
     // mutable during a test
     private boolean retryEnabled;
@@ -182,6 +184,8 @@ public class DriverOptions {
         videoFile = get("videoFile", null);
         pollAttempts = get("pollAttempts", 20);
         pollInterval = get("pollInterval", 250);
+        highlight = get("highlight", false);
+        highlightDuration = get("highlightDuration", Config.DEFAULT_HIGHLIGHT_DURATION);
         // do this last to ensure things like logger, start-flag, webDriverUrl etc. are set
         port = resolvePort(defaultPort);
     }
@@ -475,11 +479,11 @@ public class DriverOptions {
 
     private static final String HIGHLIGHT_FN = "function(e){ var old = e.getAttribute('style');"
             + " e.setAttribute('style', 'background: yellow; border: 2px solid red;');"
-            + " setTimeout(function(){ e.setAttribute('style', old) }, 3000) }";
+            + " setTimeout(function(){ e.setAttribute('style', old) }, %d) }";
 
     public String highlight(String locator) {
         String e = selector(locator);
-        String temp = "var e = " + e + "; var fun = " + HIGHLIGHT_FN + "; fun(e)";
+        String temp = "var e = " + e + "; var fun = " + String.format(HIGHLIGHT_FN, highlightDuration) + "; fun(e)";
         return wrapInFunctionInvoke(temp);
     }
 

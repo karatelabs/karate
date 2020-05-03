@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.robot;
 
+import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.core.ScenarioContext;
@@ -77,9 +78,9 @@ public class Robot {
             this.options = options;
             basePath = get("basePath", null);
             highlight = get("highlight", false);
-            highlightDuration = get("highlightDuration", 1000);
+            highlightDuration = get("highlightDuration", Config.DEFAULT_HIGHLIGHT_DURATION);
             retryCount = get("retryCount", 3);
-            retryInterval = get("retryInterval", 2000);
+            retryInterval = get("retryInterval", Config.DEFAULT_RETRY_INTERVAL);
             toolkit = Toolkit.getDefaultToolkit();
             dimension = toolkit.getScreenSize();
             robot = new java.awt.Robot();

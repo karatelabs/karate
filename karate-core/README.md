@@ -262,6 +262,8 @@ key | description
 `webDriverUrl` | see [`webDriverUrl`](#webdriverurl)
 `webDriverSession` | see [`webDriverSession`](#webdriversession)
 `webDriverPath` | optional, and rarely used only in case you need to append a path such as `/wd/hub` - typically needed for Appium (or a Selenium Grid) on `localhost`, where `host`, `port` / `executable` etc. are involved.
+`highlight` | default `false`, useful for demos or for running a test in "slow motion" where before each navigation action, the HTML element for the current [locator](#locators) is highlighted for a duration of `highlightDuration`
+`highlightDuration` | default 3000 (milliseconds), duration to apply the `highlight`
 
 For more advanced options such as for Docker, CI, headless, cloud-environments or custom needs, see [`configure driverTarget`](#configure-drivertarget).
 
@@ -1393,7 +1395,7 @@ If you want to disable the "auto-embedding" into the HTML report, pass an additi
 ```
 
 ## `highlight()`
-To visually highlight an element in the browser, especially useful when working in the [debugger](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin).
+To visually highlight an element in the browser, especially useful when working in the [debugger](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin). Uses the [configured `highlightDuration`](#configure-driver).
 
 ```cucumber
 * highlight('#eg01DivId')

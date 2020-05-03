@@ -298,6 +298,10 @@ public abstract class DevToolsDriver implements Driver {
         if (options.isRetryEnabled()) {
             waitFor(locator); // will throw exception if not found
         }
+        if (options.highlight) {
+            highlight(locator);
+            delay(options.highlightDuration);
+        }
     }
     
     protected int getRootNodeId() {
