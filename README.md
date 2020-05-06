@@ -49,7 +49,9 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#switching-the-environment">Environment Switching</a>
     | <a href="#test-reports">Reports</a>
     | <a href="#junit-html-report">JUnit HTML Report</a>
+    | <a href="#report-verbosity">Report Verbosity</a>
     | <a href="#logging">Logging</a>
+    | <a href="#log-masking">Log Masking</a>
   </td>
 </tr>
 <tr>
@@ -2112,6 +2114,7 @@ The following short-cut is also supported which will disable all logs:
 ```cucumber
 * configure report = false
 ```
+#### `@report=false`
 
 When you use a re-usable feature that has [commonly used utilities](multiple-functions-in-one-file), you may want to hide this completely from the HTML reports. The special [tag](#tags) `@report=false` can be used, and it can even be used only for a single `Scenario`:
 
@@ -2147,6 +2150,15 @@ Since `karate-config.js` is processed for every `Scenario`, you can use a single
 var LM = Java.type('demo.headers.DemoLogModifier');
 karate.configure('logModifier', LM.INSTANCE);
 ```
+
+#### Log Masking Caveats
+The `logModifier` will not affect the [`call`](#call) argument that Karate outputs by default in the HTML / reports. This means that if you pass a sensitive value as part of a JSON argument (even in a [data driven `call` loop](#data-driven-features)) - it *will* appear in the report !
+
+The recommendation is to *not* have sensitive values as part of your core test-flows. This is what most teams would be doing anyway, and there are three points to keep in mind:
+
+* sensitive variables are typically set up in [`karate-config.js`](#configuration), they will be available "globally" and never need to be passed as `call` arguments
+* all variables ["visible" in a "calling" feature](#call) will be available in the "called" feature. So if you really wanted to pass a sensitive value into a `call` on the fly, just use [`def`](#def) (or you can use [`karate.set()`](#karate-set) if within JS) to initialize a variable - and then proceed to make a `call` without arguments.
+* you can of course hide the entire `call` from the report by using the [`@report=false`](#reportfalse) annotation
 
 ### System Properties for SSL and HTTP proxy
 For HTTPS / SSL, you can also specify a custom certificate or trust store by [setting Java system properties](https://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/JSSERefGuide.html#InstallationAndCustomization). And similarly - for [specifying the HTTP proxy](https://docs.oracle.com/javase/8/docs/technotes/guides/net/proxies.html).
@@ -3016,6 +3028,8 @@ Given the examples above, it has to be said that a best practice with Karate is 
 * match foo == [{ name: 'User 1' }, { name: 'User 2' }, { name: 'User 3' }]
 ```
 
+Don't forget that Karate's [data-driven testing capabilities](#data-driven-tests) can loop over arrays of JSON objects automatically.
+
 ## XPath Functions
 When handling XML, you sometimes need to call [XPath functions](https://docs.oracle.com/javase/tutorial/jaxp/xslt/xpath.html), for example to get the count of a node-set. Any valid XPath expression is allowed on the left-hand-side of a [`match`](#match) statement.
 
@@ -3320,6 +3334,7 @@ The contents of `my-signin.feature` are shown below. A few points to note:
 * Karate creates a new 'context' for the feature file being invoked but passes along all variables and configuration. This means that all your [config variables](#configuration) and [`configure` settings](#configure) would be available to use, for example `loginUrlBase` in the example below. 
 * When you use [`def`](#def) in the 'called' feature, it will **not** over-write variables in the 'calling' feature (unless you explicitly choose to use [shared scope](#shared-scope)). But note that JSON, XML, Map-like or List-like variables are 'passed by reference' which means that 'called' feature steps can *update* or 'mutate' them using the [`set`](#set) keyword. Use the [`copy`](#copy) keyword to 'clone' a JSON or XML payload if needed, and refer to this example for more details: [`copy-caller.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/copy-caller.feature).
 * You can add (or over-ride) variables by passing a call 'argument' as shown above. Only one JSON argument is allowed, but this does not limit you in any way as you can use any complex JSON structure. You can even initialize the JSON in a separate step and pass it by name, especially if it is complex. Observe how using JSON for parameter-passing makes things super-readable. In the 'called' feature, the argument can also be accessed using the built-in variable: [`__arg`](#built-in-variables-for-call).
+* Note that any `call` argument will be shown in the HTML reports by default, make sure you are aware of the [Log Masking Caveats](#log-masking-caveats)
 * **All** variables that were defined (using [`def`](#def)) in the 'called' script would be returned as 'keys' within a JSON-like object. Note that this includes ['built-in' variables](#special-variables), which means that things like the last value of [`response`](#response) would also be present. In the example above you can see that the JSON 'envelope' returned - is assigned to the variable named `signIn`. And then getting hold of any data that was generated by the 'called' script is as simple as accessing it by name, for example `signIn.authToken` as shown above. This design has the following advantages:
   * 'called' Karate scripts don't need to use any special keywords to 'return' data and can behave like 'normal' Karate tests in 'stand-alone' mode if needed
   * the data 'return' mechanism is 'safe', there is no danger of the 'called' script over-writing any variables in the 'calling' (or parent) script (unless you use [shared scope](#shared-scope))
