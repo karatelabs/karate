@@ -211,6 +211,9 @@ public class Main implements Callable<Void> {
             cert = new File(FeatureServer.DEFAULT_CERT_NAME);
             key = new File(FeatureServer.DEFAULT_KEY_NAME);
         }
+        if (env != null) { // some advanced mocks may want karate.env
+            System.setProperty(ScriptBindings.KARATE_ENV, env);
+        }
         FeatureServer server = FeatureServer.start(mock, port, ssl, cert, key, null);
         if (watch) {
             logger.info("--watch enabled, will hot-reload: {}", mock.getName());
