@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.robot.win;
 
-import com.sun.jna.platform.win32.Variant.VARIANT;
 import com.sun.jna.platform.win32.WinDef;
 
 /**
@@ -62,16 +61,16 @@ public class IUIAutomation extends IUIAutomationBase {
         return invokeForCondition("CreateFalseCondition");
     }
 
-    public IUIAutomationCondition createPropertyCondition(String propertyName, VARIANT variant) {
-        return invokeForCondition("CreatePropertyCondition", enumValue("UIA_PropertyIds", propertyName), variant);
+    public IUIAutomationCondition createPropertyCondition(String propertyName, ComAllocated value) {
+        return invokeForCondition("CreatePropertyCondition", enumValue("UIA_PropertyIds", propertyName), value);
     }
     
     public IUIAutomationCondition createPropertyCondition(String propertyName, String value) {
-        return createPropertyCondition(propertyName, new VARIANT(value));
+        return createPropertyCondition(propertyName, new ComAllocatedString(value));
     }   
     
     public IUIAutomationCondition createPropertyCondition(String propertyName, int value) {
-        return createPropertyCondition(propertyName, new VARIANT(value));
+        return createPropertyCondition(propertyName, new ComAllocatedVariant(value));
     }    
 
     public IUIAutomationCondition getContentViewCondition() {

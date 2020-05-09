@@ -26,6 +26,8 @@ package com.intuit.karate.robot.win;
 import com.sun.jna.Function;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  *
@@ -54,33 +56,47 @@ public abstract class IUIAutomationBase extends ComRef {
 
     public int invoke(int offset, Object... args) {
         Function function = INTERFACE.getFunction(offset, REF.getValue());
-        return invoke(function, args);
+        return invoke("offset: " + offset, function, args);
     }
 
     public int invoke(String name, Object... args) {
         Function function = INTERFACE.getFunction(name, REF.getValue());
-        return invoke(function, args);
+        return invoke(name, function, args);
     }
 
-    public int invoke(Function function, Object... args) {
-        Object[] refs = new Object[args.length + 1];
-        refs[0] = REF.getValue();
-        for (int i = 0; i < args.length; i++) {
-            Object arg = args[i];
-            if (arg instanceof ComRef) {
-                ComRef ref = (ComRef) arg;
-                if (i == args.length - 1) { // last
-                    refs[i + 1] = ref.REF;
+    public int invoke(String name, Function function, Object... args) {
+        int res = -1;
+        List<ComAllocated> toFree = new ArrayList(args.length);
+        try {
+            Object[] refs = new Object[args.length + 1];
+            refs[0] = REF.getValue();
+            for (int i = 0; i < args.length; i++) {
+                Object arg = args[i];
+                Object val;
+                if (arg instanceof ComRef) {
+                    ComRef ref = (ComRef) arg;
+                    if (i == args.length - 1) { // if last arg
+                        val = ref.REF; // reference to pointer
+                    } else {
+                        val = ref.REF.getValue(); // pointer
+                    }
+                } else if (arg instanceof ComAllocated) {
+                    ComAllocated ca = (ComAllocated) arg;
+                    toFree.add(ca);
+                    val = ca.value();
                 } else {
-                    refs[i + 1] = ref.REF.getValue();
+                    val = arg;
                 }
-            } else {
-                refs[i + 1] = arg;
+                refs[i + 1] = val;
             }
-        }
-        int res = function.invokeInt(refs);
-        if (res != 0) {
-            logger.error("call failed: {}, result: {}", function, res);
+            res = function.invokeInt(refs);
+            if (res != 0) {
+                logger.warn("{}.{} failed, result: {}", INTERFACE.name, name, res);
+            }
+        } catch (Exception e) {
+            logger.error("call failed with exception: {}", e.getMessage());
+        } finally {
+            toFree.forEach(ComAllocated::free);
         }
         return res;
     }
