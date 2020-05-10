@@ -47,9 +47,9 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class Robot {
+public abstract class Robot {
 
-    private static final Logger logger = LoggerFactory.getLogger(Robot.class);
+    protected static final Logger logger = LoggerFactory.getLogger(Robot.class);
 
     public final ScenarioContext context;
     public final java.awt.Robot robot;
@@ -64,7 +64,7 @@ public class Robot {
 
     // mutables
     private String basePath;
-    
+
     // most recent region
     private Region region;
 
@@ -92,9 +92,9 @@ public class Robot {
             robot = new java.awt.Robot();
             robot.setAutoDelay(40);
             robot.setAutoWaitForIdle(true);
-            String app = (String) options.get("app");
+            String app = get("app", null);
             if (app != null) {
-                switchTo(app);
+                focusWindow(app);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -229,14 +229,14 @@ public class Robot {
         }
         return this;
     }
-    
+
     public BufferedImage capture() {
         return capture(screen);
     }
-    
+
     public BufferedImage capture(int x, int y, int width, int height) {
         return capture(new Region(x, y, width, height));
-    }    
+    }
 
     public BufferedImage capture(Region region) {
         Image image = robot.createScreenCapture(new Rectangle(region.x, region.y, region.width, region.height));
@@ -245,7 +245,7 @@ public class Robot {
         g.drawImage(image, region.x, region.y, region.width, region.height, null);
         return bi;
     }
-    
+
     public File captureAndSave(String path) {
         BufferedImage image = capture();
         File file = new File(path);
@@ -256,24 +256,24 @@ public class Robot {
     public byte[] screenshot() {
         return screenshot(screen);
     }
-    
+
     public byte[] screenshot(int x, int y, int width, int height) {
         return screenshot(new Region(x, y, width, height));
-    }    
-    
+    }
+
     public byte[] screenshot(Region region) {
         BufferedImage image = capture(region);
         byte[] bytes = RobotUtils.toBytes(image);
         context.embed(bytes, "image/png");
         return bytes;
-    }    
+    }
 
     public Region getRegion() {
         if (region == null) {
             return screen;
         }
         return region;
-    }        
+    }
 
     public Robot move(int x, int y) {
         robot.mouseMove(x, y);
@@ -317,37 +317,15 @@ public class Robot {
         return region.with(this);
     }
 
-    public boolean switchTo(String title) {
+    public boolean focusWindow(String title) {
         if (title.startsWith("^")) {
-            return switchTo(t -> t.contains(title.substring(1)));
+            return focusWindow(t -> t.contains(title.substring(1)));
         }
-        FileUtils.OsType type = FileUtils.getOsType();
-        switch (type) {
-            case LINUX:
-                return RobotUtils.switchToLinuxOs(title);
-            case MACOSX:
-                return RobotUtils.switchToMacOs(title);
-            case WINDOWS:
-                return RobotUtils.switchToWinOs(title);
-            default:
-                logger.warn("unsupported os: {}", type);
-                return false;
-        }
+        return focusWindowInternal(title);
     }
 
-    public boolean switchTo(Predicate<String> condition) {
-        FileUtils.OsType type = FileUtils.getOsType();
-        switch (type) {
-            case LINUX:
-                return RobotUtils.switchToLinuxOs(condition);
-            case MACOSX:
-                return RobotUtils.switchToMacOs(condition);
-            case WINDOWS:
-                return RobotUtils.switchToWinOs(condition);
-            default:
-                logger.warn("unsupported os: {}", type);
-                return false;
-        }
-    }
+    protected abstract boolean focusWindowInternal(String title);
+
+    public abstract boolean focusWindow(Predicate<String> condition);
 
 }

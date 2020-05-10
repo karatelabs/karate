@@ -7,6 +7,7 @@ import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.Keys;
 import com.intuit.karate.robot.Region;
 import com.intuit.karate.robot.Robot;
+import com.intuit.karate.robot.RobotFactory;
 import java.nio.file.Path;
 import org.junit.Test;
 
@@ -16,18 +17,19 @@ import org.junit.Test;
  */
 public class ChromeJavaRunner {
     
-    public static ScenarioContext getContext() {
+    public static Robot getRobot() {
         Path featureDir = FileUtils.getPathContaining(ChromeJavaRunner.class);
         FeatureContext featureContext = FeatureContext.forWorkingDir("dev", featureDir.toFile());
         CallContext callContext = new CallContext(null, true);
-        return new ScenarioContext(featureContext, callContext, null, null);
+        ScenarioContext context = new ScenarioContext(featureContext, callContext, null, null);
+        return new RobotFactory().create(context, null);
     }    
 
     @Test
-    public void testCalc() {        
-        Robot bot = new Robot(getContext());
+    public void testCalc() {                
+        Robot bot = getRobot();
         // make sure Chrome is open
-        bot.switchTo(t -> t.contains("Chrome"));
+        bot.focusWindow(t -> t.contains("Chrome"));
         bot.input(Keys.META, "t");
         bot.input("karate dsl" + Keys.ENTER);
         Region region = bot.find("tams.png");        

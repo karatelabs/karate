@@ -994,19 +994,19 @@ public class ScenarioContext {
 
     public void robot(String expression) {
         ScriptValue sv = Script.evalKarateExpression(expression, this);
-        Map<String, Object> config;
+        Map<String, Object> robotConfig;
         if (sv.isMapLike()) {
-            config = sv.getAsMap();
+            robotConfig = sv.getAsMap();
         } else if (sv.isString()) {
-            config = Collections.singletonMap("app", sv.getAsString());
+            robotConfig = Collections.singletonMap("app", sv.getAsString());
         } else {
-            config = Collections.EMPTY_MAP;
+            robotConfig = Collections.EMPTY_MAP;
         }
         Object robot;
         try {
-            Class clazz = Class.forName("com.intuit.karate.robot.Robot");
-            Constructor constructor = clazz.getDeclaredConstructor(ScenarioContext.class, Map.class);
-            robot = constructor.newInstance(this, config);
+            Class clazz = Class.forName("com.intuit.karate.robot.RobotFactory");
+            ObjectFactory factory = (ObjectFactory) clazz.newInstance();
+            robot = factory.create(this, robotConfig);
         } catch (Exception e) {
             String message = "cannot instantiate robot, is 'karate-robot' included as a maven / gradle dependency ? - " + e.getMessage();
             logger.error(message);

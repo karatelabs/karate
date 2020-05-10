@@ -8,14 +8,14 @@ import org.junit.Test;
  * @author pthomas3
  */
 public class CaptureRunner {
-    
+
     @Test
     public void testCapture() {
-        Robot bot = new Robot(ChromeJavaRunner.getContext());
+        Robot bot = ChromeJavaRunner.getRobot();
         // make sure Chrome is open
-        bot.switchTo(t -> t.contains("Chrome"));
+        bot.focusWindow(t -> t.contains("Chrome"));
         bot.delay(1000);
         bot.captureAndSave("target/temp.png");
     }
-    
+
 }

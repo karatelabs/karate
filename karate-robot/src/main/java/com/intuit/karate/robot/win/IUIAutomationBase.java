@@ -91,10 +91,12 @@ public abstract class IUIAutomationBase extends ComRef {
             }
             res = function.invokeInt(refs);
             if (res != 0) {
-                logger.warn("{}.{} failed, result: {}", INTERFACE.name, name, res);
+                logger.warn("{}.{} returned non-zero: {}", INTERFACE.name, name, res);
             }
         } catch (Exception e) {
-            logger.error("call failed with exception: {}", e.getMessage());
+            String message = INTERFACE.name + "." + name + " failed with exception: " + e.getMessage();
+            logger.error(message);
+            throw new RuntimeException(e);
         } finally {
             toFree.forEach(ComAllocated::free);
         }

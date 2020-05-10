@@ -23,12 +23,7 @@
  */
 package com.intuit.karate.robot;
 
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.driver.Keys;
-import com.intuit.karate.shell.Command;
-import com.sun.jna.Native;
-import com.sun.jna.platform.win32.User32;
-import com.sun.jna.platform.win32.WinDef.HWND;
 import java.awt.Color;
 import java.awt.Image;
 import java.awt.event.KeyEvent;
@@ -36,10 +31,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Predicate;
 import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.JFrame;
@@ -240,95 +232,6 @@ public class RobotUtils {
 
     //==========================================================================
     //
-    private static final String MAC_GET_PROCS
-            = "    tell application \"System Events\""
-            + "\n    set procs to (processes whose background only is false)"
-            + "\n    set results to {}"
-            + "\n    repeat with n from 1 to the length of procs"
-            + "\n      set p to item n of procs"
-            + "\n      set entry to { name of p as text,\"|\"}"
-            + "\n      set end of results to entry"
-            + "\n    end repeat"
-            + "\n  end tell"
-            + "\n  results";
-
-    public static List<String> getAppsMacOs() {
-        String res = Command.exec(true, null, "osascript", "-e", MAC_GET_PROCS);
-        res = res + ", ";
-        res = res.replace(", |, ", "\n");
-        return StringUtils.split(res, '\n');
-    }
-
-    public static boolean switchToMacOs(Predicate<String> condition) {
-        List<String> list = getAppsMacOs();
-        for (String s : list) {
-            if (condition.test(s)) {
-                Command.exec(true, null, "osascript", "-e", "tell app \"" + s + "\" to activate");
-                return true; // TODO use command return code
-            }
-        }
-        return false;
-    }
-
-    public static boolean switchToMacOs(String title) {
-        Command.exec(true, null, "osascript", "-e", "tell app \"" + title + "\" to activate");
-        return true; // TODO use command return code
-    }
-
-    public static boolean switchToWinOs(Predicate<String> condition) {
-        final AtomicBoolean found = new AtomicBoolean();
-        User32.INSTANCE.EnumWindows((HWND hwnd, com.sun.jna.Pointer p) -> {
-            char[] windowText = new char[512];
-            User32.INSTANCE.GetWindowText(hwnd, windowText, 512);
-            String windowName = Native.toString(windowText);
-            logger.debug("scanning window: {}", windowName);
-            if (condition.test(windowName)) {
-                found.set(true);
-                focusWinOs(hwnd);
-                return false;
-            }
-            return true;
-        }, null);
-        return found.get();
-    }
-
-    private static void focusWinOs(HWND hwnd) {
-        User32.INSTANCE.ShowWindow(hwnd, 9); // SW_RESTORE
-        User32.INSTANCE.SetForegroundWindow(hwnd);
-    }
-
-    public static boolean switchToWinOs(String title) {
-        HWND hwnd = User32.INSTANCE.FindWindow(null, title);
-        if (hwnd == null) {
-            return false;
-        } else {
-            focusWinOs(hwnd);
-            return true;
-        }
-    }
-
-    public static boolean switchToLinuxOs(String title) {
-        Command.exec(true, null, "wmctrl", "-FR", title);
-        return true; // TODO ?
-    }
-
-    public static boolean switchToLinuxOs(Predicate<String> condition) {
-        String res = Command.exec(true, null, "wmctrl", "-l");
-        List<String> lines = StringUtils.split(res, '\n');
-        for (String line : lines) {
-            List<String> cols = StringUtils.split(line, ' ');
-            String id = cols.get(0);
-            String host = cols.get(2);
-            int pos = line.indexOf(host);
-            String name = line.substring(pos + host.length() + 1);
-            if (condition.test(name)) {
-                Command.exec(true, null, "wmctrl", "-iR", id);
-                return true;
-            }
-        }
-        return false;
-    }
-
     public static void highlight(int x, int y, int width, int height, int time) {
         JFrame f = new JFrame();
         f.setUndecorated(true);
