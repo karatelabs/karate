@@ -59,7 +59,6 @@ import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.File;
 import java.io.InputStream;
-import java.lang.reflect.Constructor;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -323,6 +322,7 @@ public class ScenarioContext {
         bindings = new ScriptBindings(this);
         // TODO improve bindings re-use
         // for call + ui tests, extra step has to be done after bindings set
+        // note that the below code depends on bindings inited with things like the "karate" and "read" variable
         if (call.context != null && call.context.driver != null) {
             setDriver(call.context.driver);
         }

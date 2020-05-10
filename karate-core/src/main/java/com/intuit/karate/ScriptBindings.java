@@ -49,14 +49,6 @@ import javax.script.ScriptEngineManager;
  */
 public class ScriptBindings implements Bindings {
 
-    // all threads will share this ! thread isolation is via Bindings (this class)
-    private static final ScriptEngine NASHORN = new ScriptEngineManager(null).getEngineByName("nashorn");
-
-    public final ScriptBridge bridge;
-
-    private final ScriptValueMap vars;
-    public final Map<String, Object> adds;
-
     public static final String KARATE = "karate";
     public static final String KARATE_ENV = "karate.env";
     public static final String KARATE_CONFIG_DIR = "karate.config.dir";
@@ -79,10 +71,17 @@ public class ScriptBindings implements Bindings {
     public static final String PATH_PARAMS = "pathParams";
     public static final String BODY_PATH = "bodyPath";
     public static final String SERVER_PORT = "serverPort";
+    
+    // all threads will share this ! thread isolation is via Bindings (this class)
+    private static final ScriptEngine NASHORN = new ScriptEngineManager(null).getEngineByName("nashorn");
+
+    public final ScriptBridge bridge;
+    private final ScriptValueMap vars;
+    public final Map<String, Object> adds;    
 
     public ScriptBindings(ScenarioContext context) {
         this.vars = context.vars;
-        this.adds = new HashMap(8); // read, karate, self, root, parent, nashorn.global, driver, responseBytes
+        this.adds = new HashMap(10); // read, karate, self, root, parent, nashorn.global, driver, robot, responseBytes
         bridge = new ScriptBridge(context);
         adds.put(KARATE, bridge);
         adds.put(READ, context.read);

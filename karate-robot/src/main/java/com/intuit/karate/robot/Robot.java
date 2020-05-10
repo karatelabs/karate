@@ -27,6 +27,8 @@ import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.core.ScriptBridge;
+import com.intuit.karate.shell.Command;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Image;
@@ -62,11 +64,12 @@ public abstract class Robot {
     public final int retryInterval;
     public final Region screen;
 
+    protected ScriptBridge bridge;
+
     // mutables
     private String basePath;
-
-    // most recent region
     private Region region;
+    protected Command command;
 
     private <T> T get(String key, T defaultValue) {
         T temp = (T) options.get(key);
@@ -79,6 +82,7 @@ public abstract class Robot {
 
     public Robot(ScenarioContext context, Map<String, Object> options) {
         this.context = context;
+        bridge = context.bindings.bridge;
         try {
             this.options = options;
             basePath = get("basePath", null);
@@ -92,16 +96,35 @@ public abstract class Robot {
             robot = new java.awt.Robot();
             robot.setAutoDelay(40);
             robot.setAutoWaitForIdle(true);
-            String app = get("app", null);
-            if (app != null) {
-                focusWindow(app);
+            boolean attach = get("attach", true);
+            boolean found = false;
+            String window = get("window", null);
+            if (window != null) {
+                found = focusWindow(window);
+            }
+            if (found && attach) {
+                logger.debug("window found, will re-use: {}", window);
+            } else {
+                ScriptValue sv = new ScriptValue(options.get("fork"));
+                if (sv.isString()) {
+                    command = bridge.fork(sv.getAsString());
+                } else if (sv.isListLike()) {
+                    command = bridge.fork(sv.getAsList());
+                } else { // map
+                    command = bridge.fork(sv.getAsMap());
+                }
+                if (command != null && window != null) {
+                    delay(500); // give process time to start
+                    retry(() -> focusWindow(window), r -> r, "finding window", true);
+                    logger.debug("attached to process window: {} - {}", window, command.getArgList());
+                }
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    public <T> T retry(Supplier<T> action, Predicate<T> condition, String logDescription) {
+    public <T> T retry(Supplier<T> action, Predicate<T> condition, String logDescription, boolean failWithException) {
         long startTime = System.currentTimeMillis();
         int count = 0, max = retryCount;
         T result;
@@ -116,7 +139,11 @@ public abstract class Robot {
         } while (!success && count++ < max);
         if (!success) {
             long elapsedTime = System.currentTimeMillis() - startTime;
-            logger.warn("failed after {} retries and {} milliseconds", (count - 1), elapsedTime);
+            String message = logDescription + ": failed after " + (count - 1) + " retries and " + elapsedTime + " milliseconds";
+            logger.warn(message);
+            if (failWithException) {
+                throw new RuntimeException(message);
+            }
         }
         return result;
     }
@@ -125,7 +152,7 @@ public abstract class Robot {
         this.basePath = basePath;
     }
 
-    public byte[] read(String path) {
+    private byte[] readBytes(String path) {
         if (basePath != null) {
             String slash = basePath.endsWith(":") ? "" : "/";
             path = basePath + slash + path;
@@ -246,7 +273,7 @@ public abstract class Robot {
         return bi;
     }
 
-    public File captureAndSave(String path) {
+    public File captureAndSaveAs(String path) {
         BufferedImage image = capture();
         File file = new File(path);
         RobotUtils.save(image, file);
@@ -283,34 +310,42 @@ public abstract class Robot {
     public Robot click(int x, int y) {
         return move(x, y).click();
     }
+    
+    public Region locate(String locator) {
+        if (locator.endsWith(".png")) {
+            return locateImage(locator);
+        }
+        Element element = locateElement(locator);
+        return element.getRegion();
+    }
 
-    public Robot move(String path) {
-        find(path).move();
+    public Robot move(String locator) {
+        locate(locator).move();
         return this;
     }
 
-    public Robot click(String path) {
-        find(path).click();
+    public Robot click(String locator) {
+        locate(locator).click();
         return this;
     }
 
-    public Robot press(String path) {
-        find(path).press();
+    public Robot press(String locator) {
+        locate(locator).press();
         return this;
     }
 
-    public Robot release(String path) {
-        find(path).release();
+    public Robot release(String locator) {
+        locate(locator).release();
         return this;
     }
 
-    public Region find(String path) {
-        return find(read(path));
+    public Region locateImage(String path) {
+        return locateImage(readBytes(path));
     }
 
-    public Region find(byte[] bytes) {
+    public Region locateImage(byte[] bytes) {
         AtomicBoolean resize = new AtomicBoolean();
-        region = retry(() -> RobotUtils.find(capture(), bytes, resize.getAndSet(true)), r -> r != null, "find by image");
+        region = retry(() -> RobotUtils.find(capture(), bytes, resize.getAndSet(true)), r -> r != null, "find by image", true);
         if (highlight) {
             region.highlight(highlightDuration);
         }
@@ -327,5 +362,7 @@ public abstract class Robot {
     protected abstract boolean focusWindowInternal(String title);
 
     public abstract boolean focusWindow(Predicate<String> condition);
-
+    
+    public abstract Element locateElement(String locator);
+    
 }

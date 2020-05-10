@@ -23,7 +23,8 @@
  */
 package com.intuit.karate.robot.win;
 
-import com.sun.jna.platform.win32.Variant.VARIANT;
+import com.sun.jna.platform.win32.Variant;
+import com.sun.jna.platform.win32.WinDef;
 
 /**
  *
@@ -43,12 +44,22 @@ public class IUIAutomationElement extends IUIAutomationBase {
         return invoke(IUIAutomationElementArray.class, "FindAll", enumValue("TreeScope", scope), condition);
     }
     
-    public VARIANT getCurrentPropertyValue(String propertyName) {
-        return invoke(VARIANT.class, "GetCurrentPropertyValue", enumValue("UIA_PropertyIds", propertyName));
+    public Variant.VARIANT getCurrentPropertyValue(String propertyName) {
+        return invoke(Variant.VARIANT.class, "GetCurrentPropertyValue", enumValue("UIA_PropertyIds", propertyName));
     }
     
     public void setFocus() {
         invoke("SetFocus");
+    }
+    
+    public WinDef.POINT getClickablePoint() {
+        WinDef.POINT point = new WinDef.POINT.ByReference();
+        WinDef.BOOLByReference status = new WinDef.BOOLByReference();
+        invoke("GetClickablePoint", point, status);
+        if (!status.getValue().booleanValue()) {
+            logger.warn("failed to get clickable point");
+        }
+        return point;
     }
 
 }

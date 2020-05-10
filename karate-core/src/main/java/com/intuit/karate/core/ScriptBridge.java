@@ -761,7 +761,7 @@ public class ScriptBridge implements PerfContext {
         }
         return matcher.group(group);
     }
-    
+
     public List<String> extractAll(String text, String regex, int group) {
         Pattern pattern = Pattern.compile(regex);
         Matcher matcher = pattern.matcher(text);
@@ -770,15 +770,15 @@ public class ScriptBridge implements PerfContext {
             list.add(matcher.group(group));
         }
         return list;
-    }    
+    }
 
     public Http http(String url) {
         return Http.forUrl(context, url);
     }
-    
+
     public void stop(int port) {
         Command.waitForSocket(port);
-    }    
+    }
 
     public void abort() {
         throw new KarateAbortException(null);
@@ -801,14 +801,29 @@ public class ScriptBridge implements PerfContext {
         return Command.waitForHttp(url);
     }
 
-    public String exec(String command) {
+    public String exec(String line) {
         Runtime runtime = Runtime.getRuntime();
         try {
-            InputStream is = runtime.exec(command).getInputStream();
+            InputStream is = runtime.exec(line).getInputStream();
             return FileUtils.toString(is);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public String exec(List<String> argList) {
+        String[] args = argList.toArray(new String[argList.size()]);
+        Runtime runtime = Runtime.getRuntime();
+        try {
+            InputStream is = runtime.exec(args).getInputStream();
+            return FileUtils.toString(is);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public Command fork(List<String> args) {
+        return fork(Collections.singletonMap("args", args));
     }
 
     public Command fork(String line) {

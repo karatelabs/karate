@@ -32,7 +32,7 @@ public class ChromeJavaRunner {
         bot.focusWindow(t -> t.contains("Chrome"));
         bot.input(Keys.META, "t");
         bot.input("karate dsl" + Keys.ENTER);
-        Region region = bot.find("tams.png");        
+        Region region = bot.locateImage("tams.png");        
         region.highlight(2000);
         region.click();
     }    

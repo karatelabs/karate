@@ -52,7 +52,7 @@ public class Command extends Thread {
     private final String uniqueName;
     private final Logger logger;
     private final String[] args;
-    private final List argList;
+    private final List argList; // just for logging
     private final boolean sharedAppender;
     private final LogAppender appender;
 

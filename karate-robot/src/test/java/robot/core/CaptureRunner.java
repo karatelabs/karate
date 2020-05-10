@@ -15,7 +15,7 @@ public class CaptureRunner {
         // make sure Chrome is open
         bot.focusWindow(t -> t.contains("Chrome"));
         bot.delay(1000);
-        bot.captureAndSave("target/temp.png");
+        bot.captureAndSaveAs("target/temp.png");
     }
 
 }

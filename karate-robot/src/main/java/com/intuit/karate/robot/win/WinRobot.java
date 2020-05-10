@@ -24,6 +24,7 @@
 package com.intuit.karate.robot.win;
 
 import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.Robot;
 import com.sun.jna.Native;
 import com.sun.jna.platform.win32.User32;
@@ -38,22 +39,26 @@ import java.util.function.Predicate;
  */
 public class WinRobot extends Robot {
     
+    private WinDef.HWND hwnd;
+    private final IUIAutomation uia;
+
     public WinRobot(ScenarioContext context, Map<String, Object> options) {
         super(context, options);
+        uia = IUIAutomation.INSTANCE;
     }
 
-    private static void focusWinOs(WinDef.HWND hwnd) {
+    private static void focusWindow(WinDef.HWND hwnd) {
         User32.INSTANCE.ShowWindow(hwnd, 9); // SW_RESTORE
         User32.INSTANCE.SetForegroundWindow(hwnd);
-    }  
+    }
 
     @Override
-    protected boolean focusWindowInternal(String title) {      
-        WinDef.HWND hwnd = User32.INSTANCE.FindWindow(null, title);
+    protected boolean focusWindowInternal(String title) {
+        hwnd = User32.INSTANCE.FindWindow(null, title);
         if (hwnd == null) {
             return false;
         } else {
-            focusWinOs(hwnd);
+            focusWindow(hwnd);
             return true;
         }
     }
@@ -68,7 +73,7 @@ public class WinRobot extends Robot {
             logger.debug("scanning window: {}", windowName);
             if (condition.test(windowName)) {
                 found.set(true);
-                focusWinOs(hwnd);
+                focusWindow(hwnd);
                 return false;
             }
             return true;
@@ -76,4 +81,16 @@ public class WinRobot extends Robot {
         return found.get();
     }
     
+    private IUIAutomationCondition byName(String name) {
+        return uia.createPropertyCondition("UIA_NamePropertyId", name);
+    }
+    
+    @Override
+    public Element locateElement(String locator) {
+        IUIAutomationElement root = hwnd == null ? uia.getRootElement() : uia.elementFromHandle(hwnd);
+        IUIAutomationElement found = root.findFirst("TreeScope_Descendants", byName(locator));
+        WinDef.POINT point = found.getClickablePoint();
+        return new Clickable(this, point.x, point.y);
+    }    
+
 }

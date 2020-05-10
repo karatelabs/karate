@@ -25,6 +25,7 @@ package com.intuit.karate.robot.mac;
 
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.Robot;
 import com.intuit.karate.shell.Command;
 import java.util.List;
@@ -77,5 +78,10 @@ public class MacRobot extends Robot {
         }
         return false;
     }
+    
+    @Override
+    public Element locateElement(String locator) {
+        throw new UnsupportedOperationException("not supported yet.");
+    }    
     
 }
