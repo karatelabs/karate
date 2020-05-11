@@ -47,13 +47,13 @@ Karate Robot is designed to only activate when you use the `robot` keyword, and 
 Here Karate will look for an application window called `Chrome` and will "focus" it so that it becomes the top-most window, and be visible. This will work on Mac, Windows and Linux (X Window System / X11).
 
 ```cucumber
-* robot { app: 'Chrome' }
+* robot { window: 'Chrome' }
 ```
 
 In development mode, you can switch on a red highlight border around areas that Karate finds via image matching. Note that the `^` prefix means that Karate will look for a window where the name *contains* `Chrome`.
 
 ```cucumber
-* robot { app: '^Chrome', highlight: true }
+* robot { window: '^Chrome', highlight: true }
 ```
 
 Note that you can use [`karate.exec()`](https://github.com/intuit/karate#karate-exec) to run a console command to start an application if needed, before "activating" it.
@@ -79,7 +79,7 @@ Please refer to the available methods in [`Robot.java`](src/main/java/com/intuit
 Here is a sample test:
 
 ```cucumber
-* robot { app: '^Chrome', highlight: true }
+* robot { window: '^Chrome', highlight: true }
 * robot.input(Key.META, 't')
 * robot.input('karate dsl' + Key.ENTER)
 * robot.click('tams.png')
@@ -123,16 +123,16 @@ Argument can be `x, y` co-ordinates or typically the name of an image, which wil
 Not recommended unless un-avoidable. Argument is time in milliseconds.
 
 ## `robot.input()`
-If there are 2 arguments, the first argument is for [modifier keys](#key) such as `Key.CTRL`, `Key.ALT`, etc.
-
-```cucumber
-* robot.input(Key.META, 't')
-```
-
-Else, you pass a string of text which can include special characters such as a line-feed:
+The single string argument can include special characters such as a line-feed:
 
 ```cucumber
 * robot.input('karate dsl' + Key.ENTER)
+```
+
+If you need to simulate key combinations, just ensure that the [modifier keys](#key) such as `Key.CTRL`, `Key.ALT` are the first in the sequence (they will be auto-released at the end):
+
+```cucumber
+* robot.input(Key.META + 't')
 ```
 
 ## `robot.press()`

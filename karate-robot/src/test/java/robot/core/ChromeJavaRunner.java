@@ -26,11 +26,11 @@ public class ChromeJavaRunner {
     }    
 
     @Test
-    public void testCalc() {                
+    public void testChrome() {                
         Robot bot = getRobot();
         // make sure Chrome is open
         bot.focusWindow(t -> t.contains("Chrome"));
-        bot.input(Keys.META, "t");
+        bot.input(Keys.META + "t");
         bot.input("karate dsl" + Keys.ENTER);
         Region region = bot.locateImage("tams.png");        
         region.highlight(2000);

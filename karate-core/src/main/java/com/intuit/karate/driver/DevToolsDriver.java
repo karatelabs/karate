@@ -538,7 +538,7 @@ public abstract class DevToolsDriver implements Driver {
         Input input = new Input(value);
         while (input.hasNext()) {
             char c = input.next();
-            int modifier = input.getModifier();
+            int modifier = input.getModifierFlags();
             Integer keyCode = Keys.code(c);
             if (Keys.isNormal(c)) {
                 if (keyCode != null) {

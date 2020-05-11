@@ -28,6 +28,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScriptBridge;
+import com.intuit.karate.driver.Keys;
 import com.intuit.karate.shell.Command;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -110,7 +111,7 @@ public abstract class Robot {
                     command = bridge.fork(sv.getAsString());
                 } else if (sv.isListLike()) {
                     command = bridge.fork(sv.getAsList());
-                } else { // map
+                } else if (sv.isMapLike()) { // map
                     command = bridge.fork(sv.getAsMap());
                 }
                 if (command != null && window != null) {
@@ -202,43 +203,20 @@ public abstract class Robot {
         return input(Character.toString(s));
     }
 
-    public Robot input(String mod, char s) {
-        return input(mod, Character.toString(s));
-    }
-
-    public Robot input(char mod, String s) {
-        return input(Character.toString(mod), s);
-    }
-
-    public Robot input(char mod, char s) {
-        return input(Character.toString(mod), Character.toString(s));
-    }
-
-    public Robot input(String mod, String s) { // TODO refactor
-        for (char c : mod.toCharArray()) {
-            int[] codes = RobotUtils.KEY_CODES.get(c);
-            if (codes == null) {
-                logger.warn("cannot resolve char: {}", c);
-                robot.keyPress(c);
-            } else {
-                robot.keyPress(codes[0]);
-            }
-        }
-        input(s);
-        for (char c : mod.toCharArray()) {
-            int[] codes = RobotUtils.KEY_CODES.get(c);
-            if (codes == null) {
-                logger.warn("cannot resolve char: {}", c);
-                robot.keyRelease(c);
-            } else {
-                robot.keyRelease(codes[0]);
-            }
-        }
-        return this;
-    }
-
     public Robot input(String s) {
+        StringBuilder sb = new StringBuilder();
         for (char c : s.toCharArray()) {
+            if (Keys.isModifier(c)) {
+                sb.append(c);
+                int[] codes = RobotUtils.KEY_CODES.get(c);
+                if (codes == null) {
+                    logger.warn("cannot resolve char: {}", c);
+                    robot.keyPress(c);
+                } else {
+                    robot.keyPress(codes[0]);
+                }
+                continue;
+            }
             int[] codes = RobotUtils.KEY_CODES.get(c);
             if (codes == null) {
                 logger.warn("cannot resolve char: {}", c);
@@ -251,6 +229,15 @@ public abstract class Robot {
                 robot.keyRelease(codes[0]);
             } else {
                 robot.keyPress(codes[0]);
+                robot.keyRelease(codes[0]);
+            }
+        }
+        for (char c : sb.toString().toCharArray()) {
+            int[] codes = RobotUtils.KEY_CODES.get(c);
+            if (codes == null) {
+                logger.warn("cannot resolve char: {}", c);
+                robot.keyRelease(c);
+            } else {
                 robot.keyRelease(codes[0]);
             }
         }
@@ -310,7 +297,7 @@ public abstract class Robot {
     public Robot click(int x, int y) {
         return move(x, y).click();
     }
-    
+
     public Region locate(String locator) {
         if (locator.endsWith(".png")) {
             return locateImage(locator);
@@ -362,7 +349,7 @@ public abstract class Robot {
     protected abstract boolean focusWindowInternal(String title);
 
     public abstract boolean focusWindow(Predicate<String> condition);
-    
+
     public abstract Element locateElement(String locator);
-    
+
 }

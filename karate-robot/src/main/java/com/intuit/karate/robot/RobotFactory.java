@@ -29,6 +29,7 @@ import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.linux.LinuxRobot;
 import com.intuit.karate.robot.mac.MacRobot;
 import com.intuit.karate.robot.win.WinRobot;
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -39,6 +40,9 @@ public class RobotFactory implements ObjectFactory {
 
     @Override
     public Robot create(ScenarioContext context, Map<String, Object> options) {
+        if (options == null) {
+            options = Collections.EMPTY_MAP;
+        }
         FileUtils.OsType type = FileUtils.getOsType();
         switch (type) {
             case LINUX:
