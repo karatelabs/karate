@@ -66,11 +66,11 @@ public class IUIAutomation extends IUIAutomationBase {
     }
     
     public IUIAutomationCondition createPropertyCondition(String propertyName, String value) {
-        return createPropertyCondition(propertyName, new ComAllocatedString(value));
+        return createPropertyCondition(propertyName, new ComAllocatedVarStr(value));
     }   
     
     public IUIAutomationCondition createPropertyCondition(String propertyName, int value) {
-        return createPropertyCondition(propertyName, new ComAllocatedVariant(value));
+        return createPropertyCondition(propertyName, new ComAllocatedVarInt(value));
     }    
 
     public IUIAutomationCondition getContentViewCondition() {

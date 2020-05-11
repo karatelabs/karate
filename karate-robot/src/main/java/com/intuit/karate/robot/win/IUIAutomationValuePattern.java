@@ -23,45 +23,22 @@
  */
 package com.intuit.karate.robot.win;
 
-import com.sun.jna.platform.win32.OleAuto;
-import com.sun.jna.platform.win32.Variant;
-import com.sun.jna.platform.win32.WTypes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  *
  * @author pthomas3
  */
-public class ComAllocatedString implements ComAllocated {
+public class IUIAutomationValuePattern extends IUIAutomationBase {
     
-    private static final Logger logger = LoggerFactory.getLogger(ComAllocatedString.class);
-
-    private final String value;
-    private final Variant.VARIANT variant;
-    private final WTypes.BSTR sysAllocated;
-
-    public ComAllocatedString(String value) {
-        this.value = value;
-        variant = new Variant.VARIANT.ByValue();
-        sysAllocated = OleAuto.INSTANCE.SysAllocString(value);
-        variant.setValue(Variant.VT_BSTR, sysAllocated);
-        if (logger.isTraceEnabled()) {
-            logger.trace("allocated string: '{}'", value);
-        }
+    public boolean getCurrentIsReadOnly() {
+        return invokeForInt("CurrentIsReadOnly") == 1;
     }
-
-    @Override
-    public Object value() {
-        return variant;
-    }    
     
-    @Override
-    public void free() {
-        OleAuto.INSTANCE.SysFreeString(sysAllocated);
-        if (logger.isTraceEnabled()) {
-            logger.trace("dellocated string: '{}'", value);
-        }
+    public String getCurrentValue() {
+        return invokeForString("CurrentValue");
     }
-
+    
+    public void setCurrentValue(String value) {
+        invoke("SetValue", new ComAllocatedStr(value));
+    }
+    
 }

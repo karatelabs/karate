@@ -65,5 +65,9 @@ public class IUIAutomationElement extends IUIAutomationBase {
     public WinDef.RECT getCurrentBoundingRectangle() {
         return invoke(WinDef.RECT.class, "CurrentBoundingRectangle");
     }
+    
+    public IUIAutomationValuePattern getCurrentPatternAsValuePattern() {
+        return invoke(IUIAutomationValuePattern.class, "GetCurrentPattern", enumValue("UIA_PatternIds", "UIA_ValuePatternId"));
+    }
 
 }

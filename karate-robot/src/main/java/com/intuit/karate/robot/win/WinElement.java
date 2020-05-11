@@ -28,6 +28,7 @@ import com.intuit.karate.robot.Location;
 import com.intuit.karate.robot.Region;
 import com.intuit.karate.robot.Robot;
 import com.intuit.karate.robot.RobotAware;
+import com.sun.jna.platform.win32.Variant;
 import com.sun.jna.platform.win32.WinDef;
 
 /**
@@ -83,8 +84,34 @@ public class WinElement extends RobotAware implements Element {
         return this;
     }        
     
+    @Override
     public String getName() {
         return e.getCurrentName();
     }
+    
+    private boolean isValuePatternAvailable() {
+        Variant.VARIANT variant = e.getCurrentPropertyValue("UIA_IsValuePatternAvailablePropertyId");
+        return variant.booleanValue();
+    }
+
+    @Override
+    public String getValue() {
+        if (isValuePatternAvailable()) {
+            return e.getCurrentPatternAsValuePattern().getCurrentValue();
+        }
+        return null;
+    }        
+
+    @Override
+    public Element input(String value) {
+        if (isValuePatternAvailable()) {
+            IUIAutomationValuePattern valuePattern = e.getCurrentPatternAsValuePattern();
+            valuePattern.setCurrentValue(value);
+        } else {
+            e.setFocus();
+            robot.input(value);
+        }
+        return this;
+    }        
 
 }

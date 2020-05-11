@@ -21,30 +21,43 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.robot;
+package com.intuit.karate.robot.win;
+
+import com.sun.jna.platform.win32.OleAuto;
+import com.sun.jna.platform.win32.WTypes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public interface Element {
+public class ComAllocatedStr implements ComAllocated {
     
-    Region getRegion();
+    private static final Logger logger = LoggerFactory.getLogger(ComAllocatedStr.class);
+
+    private final String value;
+    private final WTypes.BSTR sysAllocated;
+
+    public ComAllocatedStr(String value) {
+        this.value = value;
+        sysAllocated = OleAuto.INSTANCE.SysAllocString(value);
+        if (logger.isTraceEnabled()) {
+            logger.trace("allocated string: '{}'", value);
+        }
+    }
+
+    @Override
+    public Object value() {
+        return sysAllocated;
+    }    
     
-    Element click();
-    
-    Element move();
-    
-    Element press();
-    
-    Element release();
-    
-    Element highlight();
-    
-    String getName();
-    
-    String getValue();
-    
-    Element input(String value);
-    
+    @Override
+    public void free() {
+        OleAuto.INSTANCE.SysFreeString(sysAllocated);
+        if (logger.isTraceEnabled()) {
+            logger.trace("dellocated string: '{}'", value);
+        }
+    }
+
 }

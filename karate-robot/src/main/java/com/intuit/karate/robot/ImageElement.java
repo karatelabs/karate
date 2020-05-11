@@ -69,5 +69,22 @@ public class ImageElement implements Element {
         region.highlight();
         return this;
     }        
-    
+
+    @Override
+    public String getName() {
+        return null;
+    }        
+
+    @Override
+    public String getValue() {
+        return null;
+    }        
+
+    @Override
+    public Element input(String value) {
+        region.click();
+        region.robot.input(value);
+        return this;
+    }
+            
 }

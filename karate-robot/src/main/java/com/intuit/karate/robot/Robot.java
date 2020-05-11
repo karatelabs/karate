@@ -243,6 +243,10 @@ public abstract class Robot {
         }
         return this;
     }
+    
+    public Element input(String locator, String value) {
+        return locate(locator).input(value);
+    }
 
     public BufferedImage capture() {
         return capture(screen);

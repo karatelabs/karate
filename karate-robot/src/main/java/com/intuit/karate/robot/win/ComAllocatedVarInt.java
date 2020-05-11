@@ -29,11 +29,11 @@ import com.sun.jna.platform.win32.Variant;
  *
  * @author pthomas3
  */
-public class ComAllocatedVariant implements ComAllocated {
+public class ComAllocatedVarInt implements ComAllocated {
 
     private final Variant.VARIANT variant;
 
-    public ComAllocatedVariant(int value) {
+    public ComAllocatedVarInt(int value) {
         this.variant = new Variant.VARIANT(value);
     }
 
