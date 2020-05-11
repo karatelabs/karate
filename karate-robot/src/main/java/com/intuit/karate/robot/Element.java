@@ -31,4 +31,14 @@ public interface Element {
     
     Region getRegion();
     
+    Element click();
+    
+    Element move();
+    
+    Element press();
+    
+    Element release();
+    
+    Element highlight();
+    
 }

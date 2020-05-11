@@ -5,7 +5,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.FeatureContext;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.Keys;
-import com.intuit.karate.robot.Region;
+import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.Robot;
 import com.intuit.karate.robot.RobotFactory;
 import java.nio.file.Path;
@@ -32,9 +32,9 @@ public class ChromeJavaRunner {
         bot.focusWindow(t -> t.contains("Chrome"));
         bot.input(Keys.META + "t");
         bot.input("karate dsl" + Keys.ENTER);
-        Region region = bot.locateImage("tams.png");        
-        region.highlight();
-        region.click();
+        Element img = bot.locateImage("tams.png");        
+        img.highlight();
+        img.click();
     }    
 
 }

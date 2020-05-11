@@ -69,7 +69,6 @@ public abstract class Robot {
 
     // mutables
     private String basePath;
-    private Region region;
     protected Command command;
 
     private <T> T get(String key, T defaultValue) {
@@ -283,13 +282,6 @@ public abstract class Robot {
         return bytes;
     }
 
-    public Region getRegion() {
-        if (region == null) {
-            return screen;
-        }
-        return region;
-    }
-
     public Robot move(int x, int y) {
         robot.mouseMove(x, y);
         return this;
@@ -299,45 +291,41 @@ public abstract class Robot {
         return move(x, y).click();
     }
 
-    public Region locate(String locator) {
+    public Element locate(String locator) {
         if (locator.endsWith(".png")) {
             return locateImage(locator);
         }
         Element element = locateElement(locator);
-        return element.getRegion();
+        if (highlight) {
+            element.highlight();
+        }
+        return element;
     }
 
-    public Robot move(String locator) {
-        locate(locator).move();
-        return this;
+    public Element move(String locator) {
+        return locate(locator).move();
     }
 
-    public Robot click(String locator) {
-        locate(locator).click();
-        return this;
+    public Element click(String locator) {
+        return locate(locator).click();
     }
 
-    public Robot press(String locator) {
-        locate(locator).press();
-        return this;
+    public Element press(String locator) {
+        return locate(locator).press();
     }
 
-    public Robot release(String locator) {
-        locate(locator).release();
-        return this;
+    public Element release(String locator) {
+        return locate(locator).release();
     }
 
-    public Region locateImage(String path) {
+    public Element locateImage(String path) {
         return locateImage(readBytes(path));
     }
 
-    public Region locateImage(byte[] bytes) {
+    public Element locateImage(byte[] bytes) {
         AtomicBoolean resize = new AtomicBoolean();
-        region = retry(() -> RobotUtils.find(this, capture(), bytes, resize.getAndSet(true)), r -> r != null, "find by image", true);
-        if (highlight) {
-            region.highlight();
-        }
-        return region;
+        Region region = retry(() -> RobotUtils.find(this, capture(), bytes, resize.getAndSet(true)), r -> r != null, "find by image", true);
+        return new ImageElement(region);
     }
 
     public boolean focusWindow(String title) {
