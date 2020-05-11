@@ -33,7 +33,7 @@ public class ChromeJavaRunner {
         bot.input(Keys.META + "t");
         bot.input("karate dsl" + Keys.ENTER);
         Region region = bot.locateImage("tams.png");        
-        region.highlight(2000);
+        region.highlight();
         region.click();
     }    
 

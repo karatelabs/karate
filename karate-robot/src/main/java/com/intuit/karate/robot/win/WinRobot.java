@@ -25,6 +25,7 @@ package com.intuit.karate.robot.win;
 
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.Element;
+import com.intuit.karate.robot.Region;
 import com.intuit.karate.robot.Robot;
 import com.sun.jna.Native;
 import com.sun.jna.platform.win32.User32;
@@ -38,18 +39,29 @@ import java.util.function.Predicate;
  * @author pthomas3
  */
 public class WinRobot extends Robot {
-    
+        
     private WinDef.HWND hwnd;
-    private final IUIAutomation uia;
+    private static final IUIAutomation UIA = IUIAutomation.INSTANCE;
 
     public WinRobot(ScenarioContext context, Map<String, Object> options) {
         super(context, options);
-        uia = IUIAutomation.INSTANCE;
     }
 
-    private static void focusWindow(WinDef.HWND hwnd) {
+    private void focusWindow(WinDef.HWND hwnd) {
         User32.INSTANCE.ShowWindow(hwnd, 9); // SW_RESTORE
         User32.INSTANCE.SetForegroundWindow(hwnd);
+        if (highlight) {
+            highlight(UIA.elementFromHandle(hwnd));
+        }
+    }
+    
+    private Region toRegion(WinDef.RECT rect) {
+        return new Region(this, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);        
+    }
+    
+    private void highlight(IUIAutomationElement element) {
+        WinDef.RECT rect = element.getCurrentBoundingRectangle();
+        toRegion(rect).highlight();
     }
 
     @Override
@@ -82,15 +94,18 @@ public class WinRobot extends Robot {
     }
     
     private IUIAutomationCondition byName(String name) {
-        return uia.createPropertyCondition("UIA_NamePropertyId", name);
+        return UIA.createPropertyCondition("UIA_NamePropertyId", name);
     }
     
     @Override
     public Element locateElement(String locator) {
-        IUIAutomationElement root = hwnd == null ? uia.getRootElement() : uia.elementFromHandle(hwnd);
+        IUIAutomationElement root = hwnd == null ? UIA.getRootElement() : UIA.elementFromHandle(hwnd);
         IUIAutomationElement found = root.findFirst("TreeScope_Descendants", byName(locator));
+        if (highlight) {
+            highlight(found);
+        }
         WinDef.POINT point = found.getClickablePoint();
-        return new Clickable(this, point.x, point.y);
+        return new ClickableElement(this, point.x, point.y);
     }    
 
 }

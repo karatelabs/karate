@@ -61,5 +61,9 @@ public class IUIAutomationElement extends IUIAutomationBase {
         }
         return point;
     }
+    
+    public WinDef.RECT getCurrentBoundingRectangle() {
+        return invoke(WinDef.RECT.class, "CurrentBoundingRectangle");
+    }
 
 }

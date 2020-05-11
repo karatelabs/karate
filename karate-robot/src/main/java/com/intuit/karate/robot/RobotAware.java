@@ -21,27 +21,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.robot.win;
-
-import com.intuit.karate.robot.Element;
-import com.intuit.karate.robot.Region;
-import com.intuit.karate.robot.Robot;
+package com.intuit.karate.robot;
 
 /**
  *
  * @author pthomas3
  */
-public class Clickable implements Element {
-
-    private final Region region;
-
-    public Clickable(Robot robot, int x, int y) {
-        region = new Region(x, y).with(robot);
+public abstract class RobotAware {
+    
+    protected final Robot robot;
+    
+    public RobotAware(Robot robot) {
+        this.robot = robot;
     }
-
-    @Override
-    public Region getRegion() {
-        return region;
-    }
-
+    
 }

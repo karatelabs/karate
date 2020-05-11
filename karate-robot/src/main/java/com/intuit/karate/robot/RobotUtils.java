@@ -62,18 +62,18 @@ public class RobotUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(RobotUtils.class);
 
-    public static Region find(File source, File target, boolean resize) {
-        return find(read(source), read(target), resize);
+    public static Region find(Robot robot, File source, File target, boolean resize) {
+        return find(robot, read(source), read(target), resize);
     }
 
-    public static Region find(BufferedImage source, byte[] bytes, boolean resize) {
+    public static Region find(Robot robot, BufferedImage source, byte[] bytes, boolean resize) {
         Mat srcMat = Java2DFrameUtils.toMat(source);
-        return find(srcMat, read(bytes), resize);
+        return find(robot, srcMat, read(bytes), resize);
     }
 
-    public static Region find(BufferedImage source, File target, boolean resize) {
+    public static Region find(Robot robot, BufferedImage source, File target, boolean resize) {
         Mat srcMat = Java2DFrameUtils.toMat(source);
-        return find(srcMat, read(target), resize);
+        return find(robot, srcMat, read(target), resize);
     }
 
     public static Mat rescale(Mat mat, double scale) {
@@ -88,7 +88,7 @@ public class RobotUtils {
     // try to use "more likely" scaling factors first
     private static final double[] RE_SIZE = new double[]{1, 1.5, 0.5, 0.9, 1.1, 0.8, 1.2, 0.7, 1.3, 0.6, 1.4};
 
-    public static Region find(Mat source, Mat target, boolean resize) {
+    public static Region find(Robot robot, Mat source, Mat target, boolean resize) {
         Double prevMinVal = null;
         double prevRatio = -1;
         Point prevMinPt = null;
@@ -133,7 +133,7 @@ public class RobotUtils {
         int y = (int) Math.round(prevMinPt.y() * prevRatio);
         int width = (int) Math.round(target.cols() * prevRatio);
         int height = (int) Math.round(target.rows() * prevRatio);
-        return new Region(x, y, width, height);
+        return new Region(robot, x, y, width, height);
     }
 
     public static Mat loadAndShowOrExit(File file, int flags) {
@@ -231,7 +231,7 @@ public class RobotUtils {
     }
 
     //==========================================================================
-    //
+    //    
     public static void highlight(int x, int y, int width, int height, int time) {
         JFrame f = new JFrame();
         f.setUndecorated(true);

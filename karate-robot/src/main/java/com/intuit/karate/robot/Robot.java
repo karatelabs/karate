@@ -93,10 +93,11 @@ public abstract class Robot {
             retryInterval = get("retryInterval", Config.DEFAULT_RETRY_INTERVAL);
             toolkit = Toolkit.getDefaultToolkit();
             dimension = toolkit.getScreenSize();
-            screen = new Region(0, 0, dimension.width, dimension.height).with(this);
+            screen = new Region(this, 0, 0, dimension.width, dimension.height);
             robot = new java.awt.Robot();
             robot.setAutoDelay(40);
             robot.setAutoWaitForIdle(true);
+            //==================================================================
             boolean attach = get("attach", true);
             boolean found = false;
             String window = get("window", null);
@@ -249,7 +250,7 @@ public abstract class Robot {
     }
 
     public BufferedImage capture(int x, int y, int width, int height) {
-        return capture(new Region(x, y, width, height));
+        return capture(new Region(this, x, y, width, height));
     }
 
     public BufferedImage capture(Region region) {
@@ -272,7 +273,7 @@ public abstract class Robot {
     }
 
     public byte[] screenshot(int x, int y, int width, int height) {
-        return screenshot(new Region(x, y, width, height));
+        return screenshot(new Region(this, x, y, width, height));
     }
 
     public byte[] screenshot(Region region) {
@@ -332,11 +333,11 @@ public abstract class Robot {
 
     public Region locateImage(byte[] bytes) {
         AtomicBoolean resize = new AtomicBoolean();
-        region = retry(() -> RobotUtils.find(capture(), bytes, resize.getAndSet(true)), r -> r != null, "find by image", true);
+        region = retry(() -> RobotUtils.find(this, capture(), bytes, resize.getAndSet(true)), r -> r != null, "find by image", true);
         if (highlight) {
-            region.highlight(highlightDuration);
+            region.highlight();
         }
-        return region.with(this);
+        return region;
     }
 
     public boolean focusWindow(String title) {

@@ -19,11 +19,11 @@ public class RobotUtilsTest {
         // System.setProperty("org.bytedeco.javacpp.logger.debug", "true");
         File target = new File("src/test/java/search.png");
         File source = new File("src/test/java/desktop01.png");
-        Region region = RobotUtils.find(source, target, false);
+        Region region = RobotUtils.find(null, source, target, false);
         assertEquals(1605, region.x);
         assertEquals(1, region.y);
         target = new File("src/test/java/search-1_5.png");
-        region = RobotUtils.find(source, target, true);
+        region = RobotUtils.find(null, source, target, true);
         assertEquals(1605, region.x);
         assertEquals(1, region.y);
     }

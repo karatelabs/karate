@@ -21,48 +21,27 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.robot;
+package com.intuit.karate.robot.win;
+
+import com.intuit.karate.robot.Element;
+import com.intuit.karate.robot.Region;
+import com.intuit.karate.robot.Robot;
 
 /**
  *
  * @author pthomas3
  */
-public class Location extends RobotAware {
-    
-    public final int x;
-    public final int y;
+public class ClickableElement implements Element {
 
-    public Location(Robot robot, int x, int y) {
-        super(robot);
-        this.x = x;
-        this.y = y;
+    private final Region region;
+
+    public ClickableElement(Robot robot, int x, int y) {
+        region = new Region(robot, x, y);
     }
-    
-    public Location move() {
-        robot.move(x, y);
-        return this;
-    }   
-    
-    public Location click() {
-        return click(1);
+
+    @Override
+    public Region getRegion() {
+        return region;
     }
-    
-    public Location click(int num) {
-        robot.move(x, y); // do not chain, causes recursion
-        robot.click(num);
-        return this;
-    }
-    
-    public Location press() {
-        robot.move(x, y); // do not chain, causes recursion
-        robot.press();
-        return this;
-    }   
-    
-    public Location release() {
-        robot.move(x, y); // do not chain, causes recursion
-        robot.release();
-        return this;
-    }     
 
 }
