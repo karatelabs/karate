@@ -24,6 +24,7 @@
 package com.intuit.karate.robot.linux;
 
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.Robot;
@@ -41,6 +42,11 @@ public class LinuxRobot extends Robot {
     public LinuxRobot(ScenarioContext context, Map<String, Object> options) {
         super(context, options);
     }
+
+    @Override
+    public List<String> methodNames() {
+        return Plugin.methodNames(LinuxRobot.class);
+    }        
 
     @Override
     protected boolean focusWindowInternal(String title) {

@@ -21,40 +21,35 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.robot;
+package com.intuit.karate.core;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.robot.linux.LinuxRobot;
-import com.intuit.karate.robot.mac.MacRobot;
-import com.intuit.karate.robot.win.WinRobot;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
-import com.intuit.karate.core.PluginFactory;
-import java.util.HashMap;
 
 /**
  *
  * @author pthomas3
  */
-public class RobotFactory implements PluginFactory {
-    
-    private static final FileUtils.OsType OS_TYPE = FileUtils.getOsType();    
+public interface Plugin {
 
-    @Override
-    public Robot create(ScenarioContext context, Map<String, Object> options) {
-        if (options == null) {
-            options = new HashMap();
+    void setContext(ScenarioContext context);
+
+    Map<String, Object> afterScenario();
+
+    List<String> methodNames();
+
+    public static List<String> methodNames(Class clazz) {
+        List<String> list = new ArrayList();
+        for (Method m : clazz.getMethods()) {
+            if (m.getAnnotation(AutoDef.class) != null) {
+                list.add(m.getName());
+            } else {
+                System.out.println("skip: " + m.getName());
+            }
         }
-        switch (OS_TYPE) {
-            case LINUX:
-                return new LinuxRobot(context, options);
-            case MACOSX: 
-                return new MacRobot(context, options);
-            case WINDOWS: 
-                return new WinRobot(context, options);
-            default:
-                throw new RuntimeException("os not supported: " + OS_TYPE);
-        }
-    }        
-   
+        return list;
+    }
+
 }

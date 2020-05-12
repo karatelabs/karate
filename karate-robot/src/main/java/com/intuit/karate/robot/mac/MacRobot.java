@@ -24,6 +24,7 @@
 package com.intuit.karate.robot.mac;
 
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.Robot;
@@ -41,6 +42,11 @@ public class MacRobot extends Robot {
     public MacRobot(ScenarioContext context, Map<String, Object> options) {
         super(context, options);
     }
+    
+    @Override
+    public List<String> methodNames() {
+        return Plugin.methodNames(MacRobot.class);
+    }    
     
     private static final String MAC_GET_PROCS
             = "    tell application \"System Events\""

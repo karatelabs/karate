@@ -59,6 +59,7 @@ import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.File;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -105,6 +106,7 @@ public class ScenarioContext {
     private Config config;
     private HttpClient client;
     private Driver driver;
+    private Plugin robot;
 
     private HttpRequestBuilder request = new HttpRequestBuilder();
 
@@ -266,7 +268,7 @@ public class ScenarioContext {
 
     public void setReportDisabled(boolean reportDisabled) {
         this.reportDisabled = reportDisabled;
-    }        
+    }
 
     public boolean isPrintEnabled() {
         return config.isPrintEnabled();
@@ -526,7 +528,7 @@ public class ScenarioContext {
             }
         }
     }
-    
+
     public Result evalAsStep(String expression) {
         Scenario scenario = executionUnit.scenario;
         Step evalStep = new Step(scenario.getFeature(), scenario, scenario.getIndex() + 1);
@@ -536,7 +538,7 @@ public class ScenarioContext {
             return Result.failed(0, e, evalStep);
         }
         Actions evalActions = new StepActions(this);
-        return Engine.executeStep(evalStep, evalActions);        
+        return Engine.executeStep(evalStep, evalActions);
     }
 
     //==========================================================================
@@ -956,22 +958,30 @@ public class ScenarioContext {
         }
     }
 
-    // driver ==================================================================       
+    // driver and robot ========================================================     
     //
-    private void setDriver(Driver driver) {
-        this.driver = driver;
-        driver.getOptions().setContext(this);
-        bindings.putAdditionalVariable(ScriptBindings.DRIVER, driver);
-        // the most interesting hack in the world
-        for (String methodName : DriverOptions.DRIVER_METHOD_NAMES) {
-            String js = "function(){ if (arguments.length == 0) return driver." + methodName + "();"
-                    + " if (arguments.length == 1) return driver." + methodName + "(arguments[0]);"
-                    + " if (arguments.length == 2) return driver." + methodName + "(arguments[0], arguments[1]);"
-                    + " return driver." + methodName + "(arguments[0], arguments[1], arguments[2]) }";
+    private void autoDef(Plugin plugin, String instanceName) {
+        for (String methodName : plugin.methodNames()) {
+            String invoke = instanceName + "." + methodName;
+            String js = "function(){ if (arguments.length == 0) return " + invoke + "();"
+                    + " if (arguments.length == 1) return " + invoke + "(arguments[0]);"
+                    + " if (arguments.length == 2) return " + invoke + "(arguments[0], arguments[1]);"
+                    + " return " + invoke + "(arguments[0], arguments[1], arguments[2]) }";
             ScriptValue sv = ScriptBindings.eval(js, bindings);
             bindings.putAdditionalVariable(methodName, sv.getValue());
         }
-        bindings.putAdditionalVariable("Key", Key.INSTANCE);
+    }
+
+    private void setDriver(Driver driver) {
+        this.driver = driver;
+        driver.setContext(this);
+        bindings.putAdditionalVariable(ScriptBindings.DRIVER, driver);
+        if (robot != null) {
+            logger.warn("'robot' is active, use 'driver.' prefix for driver methods");
+            return;
+        }
+        autoDef(driver, ScriptBindings.DRIVER);
+        bindings.putAdditionalVariable(ScriptBindings.KEY, Key.INSTANCE);
     }
 
     public void driver(String expression) {
@@ -992,28 +1002,38 @@ public class ScenarioContext {
         }
     }
 
+    private void setRobot(Plugin robot) {
+        this.robot = robot;
+        robot.setContext(this);
+        bindings.putAdditionalVariable(ScriptBindings.ROBOT, robot);
+        if (driver != null) {
+            logger.warn("'driver' is active, use 'robot.' prefix for robot methods");
+            return;
+        }
+        autoDef(robot, ScriptBindings.ROBOT);
+        bindings.putAdditionalVariable(ScriptBindings.KEY, Key.INSTANCE);
+    }
+
     public void robot(String expression) {
         ScriptValue sv = Script.evalKarateExpression(expression, this);
-        Map<String, Object> robotConfig;
-        if (sv.isMapLike()) {
-            robotConfig = sv.getAsMap();
-        } else if (sv.isString()) {
-            robotConfig = Collections.singletonMap("app", sv.getAsString());
-        } else {
-            robotConfig = Collections.EMPTY_MAP;
+        if (robot == null) {
+            Map<String, Object> robotConfig = null;
+            if (sv.isMapLike()) {
+                robotConfig = sv.getAsMap();
+            } else if (sv.isString()) {
+                robotConfig = Collections.singletonMap("window", sv.getAsString());
+            }
+            try {
+                Class clazz = Class.forName("com.intuit.karate.robot.RobotFactory");
+                PluginFactory factory = (PluginFactory) clazz.newInstance();
+                robot = factory.create(this, robotConfig);
+            } catch (Exception e) {
+                String message = "cannot instantiate robot, is 'karate-robot' included as a maven / gradle dependency ? " + e.getMessage();
+                logger.error(message);
+                throw new RuntimeException(message, e);
+            }
+            setRobot(robot);
         }
-        Object robot;
-        try {
-            Class clazz = Class.forName("com.intuit.karate.robot.RobotFactory");
-            ObjectFactory factory = (ObjectFactory) clazz.newInstance();
-            robot = factory.create(this, robotConfig);
-        } catch (Exception e) {
-            String message = "cannot instantiate robot, is 'karate-robot' included as a maven / gradle dependency ? - " + e.getMessage();
-            logger.error(message);
-            throw new RuntimeException(message, e);
-        }
-        bindings.putAdditionalVariable("robot", robot);
-        bindings.putAdditionalVariable("Key", Key.INSTANCE);
     }
 
     public void stop(StepResult lastStepResult) {
@@ -1021,40 +1041,47 @@ public class ScenarioContext {
             if (driver != null) { // a called feature inited the driver
                 parentContext.setDriver(driver);
             }
+            if (robot != null) {
+                parentContext.setRobot(robot);
+            }
             parentContext.webSocketClients = webSocketClients;
             return; // don't kill driver yet
         }
-        if (webSocketClients != null) {
-            webSocketClients.forEach(WebSocketClient::close);
-        }
-        if (callDepth == 0 && driver != null) {
-            driver.quit();
-            DriverOptions options = driver.getOptions();
-            if (options.target != null) {
-                logger.debug("custom target configured, attempting stop()");
-                Map<String, Object> map = options.target.stop(logger);
-                String video = (String) map.get("video");
-                if (video != null && lastStepResult != null) {
-                    Embed embed = Embed.forVideoFile(video);
-                    lastStepResult.addEmbed(embed);
-                }
-            } else {
-                if (options.afterStop != null) {
-                    Command.execLine(null, options.afterStop);
-                }
-                if (options.videoFile != null) {
-                    File src = new File(options.videoFile);
-                    if (src.exists()) {
-                        String path = FileUtils.getBuildDir() + File.separator + System.currentTimeMillis() + ".mp4";
-                        File dest = new File(path);
-                        FileUtils.copy(src, dest);
-                        Embed embed = Embed.forVideoFile("../" + dest.getName());
+        if (callDepth == 0) {
+            if (webSocketClients != null) {
+                webSocketClients.forEach(WebSocketClient::close);
+            }
+            if (driver != null) { // TODO afterScenario plugin unification
+                driver.quit();
+                DriverOptions options = driver.getOptions();
+                if (options.target != null) {
+                    logger.debug("custom target configured, attempting stop()");
+                    Map<String, Object> map = options.target.stop(logger);
+                    String video = (String) map.get("video");
+                    if (video != null && lastStepResult != null) {
+                        Embed embed = Embed.forVideoFile(video);
                         lastStepResult.addEmbed(embed);
-                        logger.debug("appended video to report: {}", dest.getPath());
+                    }
+                } else {
+                    if (options.afterStop != null) {
+                        Command.execLine(null, options.afterStop);
+                    }
+                    if (options.videoFile != null) {
+                        File src = new File(options.videoFile);
+                        if (src.exists()) {
+                            String path = FileUtils.getBuildDir() + File.separator + System.currentTimeMillis() + ".mp4";
+                            File dest = new File(path);
+                            FileUtils.copy(src, dest);
+                            Embed embed = Embed.forVideoFile("../" + dest.getName());
+                            lastStepResult.addEmbed(embed);
+                            logger.debug("appended video to report: {}", dest.getPath());
+                        }
                     }
                 }
             }
-            driver = null;
+            if (robot != null) {
+                robot.afterScenario();
+            }
         }
     }
 

@@ -24,7 +24,10 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.core.AutoDef;
+import com.intuit.karate.core.Plugin;
+import com.intuit.karate.core.ScenarioContext;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -34,7 +37,7 @@ import java.util.function.Supplier;
  *
  * @author pthomas3
  */
-public interface Driver {
+public interface Driver extends Plugin {
 
     @AutoDef
     void activate();
@@ -147,10 +150,10 @@ public interface Driver {
         getOptions().sleep(millis);
         return this;
     }
-    
+
     @AutoDef
     Driver timeout(Integer millis);
-    
+
     @AutoDef
     Driver timeout();
 
@@ -167,7 +170,7 @@ public interface Driver {
 
     @AutoDef
     Element input(String locator, String value);
-    
+
     @AutoDef
     default Element input(String locator, String[] values) {
         return input(locator, values, 0);
@@ -184,7 +187,7 @@ public interface Driver {
         }
         return element;
     }
-    
+
     @AutoDef
     Element select(String locator, String text);
 
@@ -249,7 +252,7 @@ public interface Driver {
     default Object waitUntil(Supplier<Object> condition) {
         return getOptions().retry(() -> condition.get(), o -> o != null, "waitUntil (function)", true);
     }
-    
+
     @AutoDef
     default Element locate(String locator) {
         return DriverElement.locatorUnknown(this, locator);
@@ -259,7 +262,7 @@ public interface Driver {
     default List<Element> locateAll(String locator) {
         return getOptions().findAll(this, locator);
     }
-    
+
     @AutoDef
     default List<Element> locateAll(String locator, Predicate predicate) {
         List before = locateAll(locator);
@@ -269,9 +272,9 @@ public interface Driver {
                 after.add(o);
             }
         }
-        return after;        
+        return after;
     }
-    
+
     @AutoDef
     default Element scroll(String locator) {
         script(locator, DriverOptions.SCROLL_JS_FUNCTION);
@@ -388,7 +391,7 @@ public interface Driver {
         String js = getOptions().scriptAllSelector(locator, expression);
         return (List) script(js);
     }
-    
+
     @AutoDef
     default List scriptAll(String locator, String expression, Predicate predicate) {
         List before = scriptAll(locator, expression);
@@ -399,14 +402,29 @@ public interface Driver {
             }
         }
         return after;
-    }    
+    }
 
     // for internal use ========================================================
-    //
+    //    
     DriverOptions getOptions();
 
     Object elementId(String locator);
 
     List elementIds(String locator);
+
+    @Override
+    default List<String> methodNames() {
+        return Plugin.methodNames(Driver.class);
+    }        
+
+    @Override
+    default void setContext(ScenarioContext context) {
+        getOptions().setContext(context);
+    }
+
+    @Override
+    default Map<String, Object> afterScenario() {
+        return Collections.EMPTY_MAP; // TODO
+    }
 
 }

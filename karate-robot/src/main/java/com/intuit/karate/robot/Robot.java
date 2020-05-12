@@ -25,7 +25,10 @@ package com.intuit.karate.robot;
 
 import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptValue;
+import com.intuit.karate.core.AutoDef;
+import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScriptBridge;
 import com.intuit.karate.driver.Keys;
@@ -43,18 +46,13 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public abstract class Robot {
-
-    protected static final Logger logger = LoggerFactory.getLogger(Robot.class);
-
-    public final ScenarioContext context;
+public abstract class Robot implements Plugin {
+    
     public final java.awt.Robot robot;
     public final Toolkit toolkit;
     public final Dimension dimension;
@@ -70,6 +68,18 @@ public abstract class Robot {
     // mutables
     private String basePath;
     protected Command command;
+    protected ScenarioContext context;
+    protected Logger logger;
+
+    @Override
+    public void setContext(ScenarioContext context) {
+        this.context = context;
+    }        
+
+    @Override
+    public Map<String, Object> afterScenario() {
+        return Collections.EMPTY_MAP;
+    }        
 
     private <T> T get(String key, T defaultValue) {
         T temp = (T) options.get(key);
@@ -82,6 +92,7 @@ public abstract class Robot {
 
     public Robot(ScenarioContext context, Map<String, Object> options) {
         this.context = context;
+        this.logger = context.logger;
         bridge = context.bindings.bridge;
         try {
             this.options = options;
@@ -162,6 +173,7 @@ public abstract class Robot {
         return sv.getAsByteArray();
     }
 
+    @AutoDef
     public Robot delay(int millis) {
         robot.delay(millis);
         return this;
@@ -178,10 +190,12 @@ public abstract class Robot {
         }
     }
 
+    @AutoDef
     public Robot click() {
         return click(1);
     }
 
+    @AutoDef
     public Robot click(int num) {
         int mask = mask(num);
         robot.mousePress(mask);
@@ -189,11 +203,13 @@ public abstract class Robot {
         return this;
     }
 
+    @AutoDef
     public Robot press() {
         robot.mousePress(1);
         return this;
     }
 
+    @AutoDef
     public Robot release() {
         robot.mouseRelease(1);
         return this;
@@ -203,6 +219,7 @@ public abstract class Robot {
         return input(Character.toString(s));
     }
 
+    @AutoDef
     public Robot input(String s) {
         StringBuilder sb = new StringBuilder();
         for (char c : s.toCharArray()) {
@@ -244,6 +261,7 @@ public abstract class Robot {
         return this;
     }
     
+    @AutoDef
     public Element input(String locator, String value) {
         return locate(locator).input(value);
     }
@@ -271,6 +289,7 @@ public abstract class Robot {
         return file;
     }
 
+    @AutoDef
     public byte[] screenshot() {
         return screenshot(screen);
     }
@@ -286,42 +305,51 @@ public abstract class Robot {
         return bytes;
     }
 
+    @AutoDef
     public Robot move(int x, int y) {
         robot.mouseMove(x, y);
         return this;
     }
 
+    @AutoDef
     public Robot click(int x, int y) {
         return move(x, y).click();
     }
 
+    @AutoDef
     public Element locate(String locator) {
+        Element element;
         if (locator.endsWith(".png")) {
-            return locateImage(locator);
+            element = locateImage(locator);
+        } else {
+            element = locateElement(locator);
         }
-        Element element = locateElement(locator);
         if (highlight) {
             element.highlight();
         }
         return element;
     }
 
+    @AutoDef
     public Element move(String locator) {
         return locate(locator).move();
     }
 
+    @AutoDef
     public Element click(String locator) {
         return locate(locator).click();
     }
 
+    @AutoDef
     public Element press(String locator) {
         return locate(locator).press();
     }
 
+    @AutoDef
     public Element release(String locator) {
         return locate(locator).release();
     }
-
+    
     public Element locateImage(String path) {
         return locateImage(readBytes(path));
     }
@@ -332,6 +360,7 @@ public abstract class Robot {
         return new ImageElement(region);
     }
 
+    @AutoDef
     public boolean focusWindow(String title) {
         if (title.startsWith("^")) {
             return focusWindow(t -> t.contains(title.substring(1)));
@@ -341,8 +370,10 @@ public abstract class Robot {
 
     protected abstract boolean focusWindowInternal(String title);
 
+    @AutoDef
     public abstract boolean focusWindow(Predicate<String> condition);
 
+    @AutoDef
     public abstract Element locateElement(String locator);
 
 }

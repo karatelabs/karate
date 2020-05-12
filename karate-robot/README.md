@@ -9,11 +9,11 @@
 * Clicking a button in an iOS Mobile Emulator - [Link](https://twitter.com/ptrthomas/status/1217479362666041344)
 
 ### Capabilities
-* Cross-Platform: MacOS, Windows, Linux - and should work on others as well via [Java CPP](https://github.com/bytedeco/javacpp)
 * Available as a standalone binary via the [ZIP Release](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot)
 * Native Mouse Events
 * Native Keyboard Events
-* Navigation via image detection
+* Navigation via image detection - cross-platform (mac, win, linux) via [Java CPP](https://github.com/bytedeco/javacpp)
+* Windows object-recognition using [Microsoft UI Automation](https://docs.microsoft.com/en-us/windows/win32/winauto/entry-uiauto-win32)
 * Tightly integrated into Karate
 
 ## Examples
@@ -56,7 +56,7 @@ In development mode, you can switch on a red highlight border around areas that 
 * robot { window: '^Chrome', highlight: true }
 ```
 
-Note that you can use [`karate.exec()`](https://github.com/intuit/karate#karate-exec) to run a console command to start an application if needed, before "activating" it.
+You can use `fork` to run a console command to start an application if needed, before "activating" it.
 
 > If you want to do conditional logic depending on the OS, you can use [`karate.os`](https://github.com/intuit/karate#karate-os) - for e.g. `* if (karate.os.type == 'windows') karate.set('filename', 'start.bat')`
 
@@ -74,15 +74,25 @@ key | description
 `retryInterval` | default `3000` time between retries when finding an image or element
 
 # API
-Please refer to the available methods in [`Robot.java`](src/main/java/com/intuit/karate/robot/Robot.java). Most of them are "chainable".
+Please refer to the available methods in [`Robot.java`](src/main/java/com/intuit/karate/robot/Robot.java). Most of them are "chainable". The built-in `robot` JS object is where you script UI automation. It will be initialized only after the [`robot`](#robot) keyword has been used to start / attach to a desktop window.
 
-Here is a sample test:
+## Methods
+As a convenience, *all* the methods on the `robot` have been injected into the context as special (JavaScript) variables so you can omit the "`robot.`" part and save a lot of typing. For example instead of:
 
 ```cucumber
 * robot { window: '^Chrome', highlight: true }
 * robot.input(Key.META, 't')
 * robot.input('karate dsl' + Key.ENTER)
 * robot.click('tams.png')
+```
+
+You can shorten all that to:
+
+```cucumber
+* robot { window: '^Chrome', highlight: true }
+* input(Key.META, 't')
+* input('karate dsl' + Key.ENTER)
+* click('tams.png')
 ```
 
 The above flow performs the following operations:
@@ -103,7 +113,7 @@ Images have to be in PNG format, and with the extension `*.png`. Karate will att
 Just [like Karate UI](https://github.com/intuit/karate/tree/master/karate-core#special-keys), the special keys are made available under the namespace `Key`. You can see all the available codes [here](https://github.com/intuit/karate/blob/master/karate-core/src/main/java/com/intuit/karate/driver/Key.java).
 
 ```cucumber
-* robot.input('karate dsl' + Key.ENTER)
+* input('karate dsl' + Key.ENTER)
 ```
 
 ## `robot.basePath`
@@ -113,38 +123,38 @@ Rarely used since `basePath` would typically be set by the [`robot` options](#ro
 * robot.basePath = 'classpath:some/package'
 ```
 
-## `robot.click()`
+## `click()`
 Defaults to a "left-click", pass 1, 2 or 3 as the argument to specify left, middle or right mouse button.
 
-## `robot.move()`
+## `move()`
 Argument can be `x, y` co-ordinates or typically the name of an image, which will be looked for in the [`basePath`](#robot). Note that relative paths will work.
 
-## `robot.delay()`
+## `delay()`
 Not recommended unless un-avoidable. Argument is time in milliseconds.
 
-## `robot.input()`
+## `input()`
 The single string argument can include special characters such as a line-feed:
 
 ```cucumber
-* robot.input('karate dsl' + Key.ENTER)
+* input('karate dsl' + Key.ENTER)
 ```
 
 If you need to simulate key combinations, just ensure that the [modifier keys](#key) such as `Key.CTRL`, `Key.ALT` are the first in the sequence (they will be auto-released at the end):
 
 ```cucumber
-* robot.input(Key.META + 't')
+* input(Key.META + 't')
 ```
 
-## `robot.press()`
+## `press()`
 A mouse press that will be held down, useful for simulating a drag and drop operation.
 
-## `robot.release()`
+## `release()`
 Release mouse button, useful for simulating a drag and drop operation.
 
-## `robot.focusWindow()`
+## `focusWindow()`
 Sets focus to the window by title, prefix with `^` for a string "contains" match.
 
-## `robot.screenshot()`
+## `screenshot()`
 Will save a screenshot of the viewport, which will appear in the HTML report. Note that this returns a byte-array of the PNG image.
 
 # Standalone JAR

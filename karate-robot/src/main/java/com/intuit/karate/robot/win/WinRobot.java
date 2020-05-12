@@ -23,12 +23,14 @@
  */
 package com.intuit.karate.robot.win;
 
+import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.Robot;
 import com.sun.jna.Native;
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinDef;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
@@ -45,6 +47,11 @@ public class WinRobot extends Robot {
     public WinRobot(ScenarioContext context, Map<String, Object> options) {
         super(context, options);
     }
+
+    @Override
+    public List<String> methodNames() {
+        return Plugin.methodNames(WinRobot.class);
+    }        
 
     private void focusWindow(WinDef.HWND hwnd) {
         User32.INSTANCE.ShowWindow(hwnd, 9); // SW_RESTORE

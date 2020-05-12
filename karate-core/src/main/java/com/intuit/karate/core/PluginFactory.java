@@ -29,8 +29,8 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public interface ObjectFactory {
+public interface PluginFactory {
     
-    Object create(ScenarioContext context, Map<String, Object> options);
+    Plugin create(ScenarioContext context, Map<String, Object> options);
     
 }

@@ -28,7 +28,6 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
-import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.appium.AndroidDriver;
@@ -46,18 +45,15 @@ import com.intuit.karate.shell.Command;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -614,16 +610,6 @@ public class DriverOptions {
     public void embedContent(Embed embed) {
         if (context != null) {
             context.embed(embed);
-        }
-    }
-
-    public static final Set<String> DRIVER_METHOD_NAMES = new HashSet();
-
-    static {
-        for (Method m : Driver.class.getDeclaredMethods()) {
-            if (m.getAnnotation(AutoDef.class) != null) {
-                DRIVER_METHOD_NAMES.add(m.getName());
-            }            
         }
     }
 
