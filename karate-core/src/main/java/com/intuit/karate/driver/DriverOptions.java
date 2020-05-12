@@ -28,6 +28,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
+import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.appium.AndroidDriver;
@@ -620,7 +621,9 @@ public class DriverOptions {
 
     static {
         for (Method m : Driver.class.getDeclaredMethods()) {
-            DRIVER_METHOD_NAMES.add(m.getName());
+            if (m.getAnnotation(AutoDef.class) != null) {
+                DRIVER_METHOD_NAMES.add(m.getName());
+            }            
         }
     }
 
