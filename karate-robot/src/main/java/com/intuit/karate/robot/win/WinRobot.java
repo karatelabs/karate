@@ -104,7 +104,12 @@ public class WinRobot extends Robot {
         } else {
             condition = by("UIA_NamePropertyId", locator);
         }
-        IUIAutomationElement found = root.findFirst("TreeScope_Descendants", condition);
+        IUIAutomationElement found = root.findFirst("TreeScope_Descendants", condition);        
+        try {
+            found.getCurrentName(); // TODO better way
+        } catch (Exception e) {
+            throw new RuntimeException("failed to locate element: " + locator);
+        }
         return new WinElement(this, found);
     }    
 

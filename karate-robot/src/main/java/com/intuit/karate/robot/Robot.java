@@ -122,13 +122,16 @@ public abstract class Robot implements Plugin {
                     command = bridge.fork(sv.getAsString());
                 } else if (sv.isListLike()) {
                     command = bridge.fork(sv.getAsList());
-                } else if (sv.isMapLike()) { // map
+                } else if (sv.isMapLike()) {
                     command = bridge.fork(sv.getAsMap());
                 }
                 if (command != null && window != null) {
                     delay(500); // give process time to start
                     retry(() -> focusWindow(window), r -> r, "finding window", true);
                     logger.debug("attached to process window: {} - {}", window, command.getArgList());
+                }
+                if (!found && window != null) {
+                    throw new RuntimeException("failed to find window: " + window);
                 }
             }
         } catch (Exception e) {

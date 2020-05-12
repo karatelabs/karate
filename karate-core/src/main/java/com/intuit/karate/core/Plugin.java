@@ -45,8 +45,6 @@ public interface Plugin {
         for (Method m : clazz.getMethods()) {
             if (m.getAnnotation(AutoDef.class) != null) {
                 list.add(m.getName());
-            } else {
-                System.out.println("skip: " + m.getName());
             }
         }
         return list;
