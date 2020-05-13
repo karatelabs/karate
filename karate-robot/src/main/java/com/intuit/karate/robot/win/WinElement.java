@@ -47,7 +47,7 @@ public class WinElement extends RobotAware implements Element {
     @Override
     public boolean isImage() {
         return false;
-    }        
+    }
 
     @Override
     public Region getRegion() {
@@ -60,6 +60,7 @@ public class WinElement extends RobotAware implements Element {
         return new Location(robot, point.x, point.y);
     }
 
+    @Override
     public Element click() {
         getClickablePoint().click();
         return this;
@@ -87,13 +88,13 @@ public class WinElement extends RobotAware implements Element {
     public Element highlight() {
         getRegion().highlight();
         return this;
-    }        
-    
+    }
+
     @Override
     public String getName() {
         return e.getCurrentName();
     }
-    
+
     private boolean isValuePatternAvailable() {
         Variant.VARIANT variant = e.getCurrentPropertyValue("UIA_IsValuePatternAvailablePropertyId");
         return variant.booleanValue();
@@ -105,7 +106,7 @@ public class WinElement extends RobotAware implements Element {
             return e.getCurrentPatternAsValuePattern().getCurrentValue();
         }
         return null;
-    }        
+    }
 
     @Override
     public Element input(String value) {
@@ -117,22 +118,22 @@ public class WinElement extends RobotAware implements Element {
             robot.input(value);
         }
         return this;
-    }        
+    }
 
     @Override
     public Element delay(int millis) {
         robot.delay(millis);
         return this;
-    }        
+    }
 
     @Override
     public Element locate(String locator) {
-        return robot.locateElementInternal(this, locator);
-    }   
+        return robot.locateElement(this, locator);
+    }
 
     @Override
     public IUIAutomationElement toNative() {
         return e;
-    }        
+    }
 
 }

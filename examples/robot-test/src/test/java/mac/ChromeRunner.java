@@ -1,4 +1,4 @@
-package chrome;
+package mac;
 
 import com.intuit.karate.junit5.Karate;
 
@@ -9,8 +9,8 @@ import com.intuit.karate.junit5.Karate;
 class ChromeRunner {
     
     @Karate.Test
-    Karate test() {
-        return Karate.run("classpath:chrome/chrome.feature");
+    Karate testChrome() {
+        return Karate.run("classpath:mac/chrome.feature");
     }      
     
 }

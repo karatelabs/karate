@@ -98,12 +98,12 @@ public class MacRobot extends Robot {
 
     @Override
     public Element getRoot() {
-        return new ImageElement(screen); // TODO
+        return new ImageElement(screen);
     }
 
     @Override
     public Element locateFocus() {
-        throw new UnsupportedOperationException("not supported yet.");
+        return new ImageElement(screen);
     }
 
 }

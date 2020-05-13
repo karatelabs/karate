@@ -1,4 +1,4 @@
-Feature: browser + robot test
+Feature: mac - robot and chrome
 
 Scenario:
 # * karate.exec('Chrome')

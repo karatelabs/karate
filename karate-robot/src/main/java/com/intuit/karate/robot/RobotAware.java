@@ -33,6 +33,6 @@ public abstract class RobotAware {
     
     public RobotAware(Robot robot) {
         this.robot = robot;
-    }
+    }      
     
 }

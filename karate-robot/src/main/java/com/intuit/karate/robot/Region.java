@@ -83,5 +83,10 @@ public class Region extends RobotAware {
         center().release();
         return this;
     }    
+
+    @Override
+    public String toString() {
+        return x + ":" + y + "(" + width + ":" + height + ")";
+    }        
     
 }

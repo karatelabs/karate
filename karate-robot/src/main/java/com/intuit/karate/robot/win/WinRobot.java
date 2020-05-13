@@ -95,18 +95,21 @@ public class WinRobot extends Robot {
     private IUIAutomationCondition by(String name, String value) {
         return UIA.createPropertyCondition(name, value);
     }
+    
+    private IUIAutomationElement getSearchRoot() {
+        return hwnd == null ? UIA.getRootElement() : UIA.elementFromHandle(hwnd);
+    }
 
     @Override
     public Element locateElement(String locator) {
-        IUIAutomationElement root = hwnd == null ? UIA.getRootElement() : UIA.elementFromHandle(hwnd);
-        return locateElementInternal(toElement(root, locator), locator);
+        return locateElementInternal(toElement(getSearchRoot(), locator), locator);
     }
     
     private WinElement toElement(IUIAutomationElement element, String description) {
         try {
             element.getCurrentName(); // TODO better way
         } catch (Exception e) {
-            throw new RuntimeException("failed to locate element: " + description);
+            return null;
         }          
         return new WinElement(this, element);
     }

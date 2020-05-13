@@ -127,7 +127,7 @@ public abstract class Robot implements Plugin {
                 }
                 if (command != null && window != null) {
                     delay(500); // give process time to start
-                    retry(() -> focusWindow(window), r -> r, "finding window", true);
+                    found = retry(() -> focusWindow(window), r -> r, "finding window", true);
                     logger.debug("attached to process window: {} - {}", window, command.getArgList());
                 }
                 if (!found && window != null) {
@@ -217,7 +217,7 @@ public abstract class Robot implements Plugin {
         robot.mouseRelease(1);
         return this;
     }
-    
+
     @AutoDef
     public Robot input(String[] values) {
         for (String s : values) {
@@ -343,19 +343,19 @@ public abstract class Robot implements Plugin {
     public Element locate(Element root, String locator) {
         Element found;
         if (locator.endsWith(".png")) {
-            found = locateImage(root.getRegion().capture(), locator);
+            found = locateImage(() -> root.getRegion().capture(), locator);
         } else if (root.isImage()) {
             // TODO
             throw new RuntimeException("todo find non-image elements within region");
         } else {
-            found = locateElementInternal(root, locator);
+            found = locateElement(root, locator);
         }
         if (highlight) {
             found.highlight();
-        }   
+        }
         return found;
-    }    
-    
+    }
+
     @AutoDef
     public Element move(String locator) {
         return locate(locator).move();
@@ -377,16 +377,16 @@ public abstract class Robot implements Plugin {
     }
 
     public Element locateImage(String path) {
-        return locateImage(capture(), readBytes(path));
+        return locateImage(() -> capture(), readBytes(path));
     }
 
-    public Element locateImage(BufferedImage source, String path) {
+    public Element locateImage(Supplier<BufferedImage> source, String path) {
         return locateImage(source, readBytes(path));
     }
 
-    public Element locateImage(BufferedImage source, byte[] bytes) {
+    public Element locateImage(Supplier<BufferedImage> source, byte[] bytes) {
         AtomicBoolean resize = new AtomicBoolean();
-        Region region = retry(() -> RobotUtils.find(this, source, bytes, resize.getAndSet(true)), r -> r != null, "find by image", true);
+        Region region = retry(() -> RobotUtils.find(this, source.get(), bytes, resize.getAndSet(true)), r -> r != null, "find by image", true);
         return new ImageElement(region);
     }
 
@@ -397,9 +397,13 @@ public abstract class Robot implements Plugin {
         }
         return focusWindowInternal(title);
     }
+    
+    public Element locateElement(Element root, String locator) {
+        return retry(() -> locateElementInternal(root, locator), r -> r != null, "find by locator: " + locator, true);
+    }
 
     protected abstract boolean focusWindowInternal(String title);
-    
+
     public abstract Element locateElementInternal(Element root, String locator);
 
     @AutoDef
@@ -407,10 +411,10 @@ public abstract class Robot implements Plugin {
 
     @AutoDef
     public abstract Element locateElement(String locator);
-    
+
     @AutoDef
-    public abstract Element getRoot(); 
-    
+    public abstract Element getRoot();
+
     @AutoDef
     public abstract Element locateFocus();
 

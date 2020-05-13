@@ -58,7 +58,7 @@ public interface Element {
     String getValue();
     
     Element input(String value);
-    
+
     Element delay(int millis);
     
     Element locate(String locator);

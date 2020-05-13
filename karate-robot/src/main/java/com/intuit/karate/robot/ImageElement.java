@@ -51,7 +51,7 @@ public class ImageElement implements Element {
     public Element click() {
         region.click();
         return this;
-    }     
+    }
 
     @Override
     public Element move() {
@@ -79,12 +79,12 @@ public class ImageElement implements Element {
 
     @Override
     public String getName() {
-        return null;
+        return region.toString();
     }
 
     @Override
     public String getValue() {
-        return null;
+        return region.toString();
     }
 
     @Override
@@ -102,14 +102,14 @@ public class ImageElement implements Element {
 
     @Override
     public Element locate(String locator) {
-        Element fe = robot.locateImage(region.capture(), locator);
+        Element fe = robot.locateImage(() -> region.capture(), locator);
         Region fr = fe.getRegion();
         return new ImageElement(new Region(robot, region.x + fr.x, region.y + fr.y, fr.width, fr.height));
     }
 
     @Override
-    public Object toNative() {
-        throw new UnsupportedOperationException("not supported yet.");
-    }        
+    public Region toNative() {
+        return region;
+    }
 
 }
