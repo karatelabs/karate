@@ -40,7 +40,7 @@ import java.util.function.Predicate;
  * @author pthomas3
  */
 public class WinRobot extends Robot {
-        
+
     private WinDef.HWND hwnd;
     private static final IUIAutomation UIA = IUIAutomation.INSTANCE;
 
@@ -48,10 +48,14 @@ public class WinRobot extends Robot {
         super(context, options);
     }
 
+    private WinElement toElement(IUIAutomationElement e) {
+        return new WinElement(this, e);
+    }
+
     @Override
     public List<String> methodNames() {
         return Plugin.methodNames(WinRobot.class);
-    }        
+    }
 
     private void focusWindow(WinDef.HWND hwnd) {
         User32.INSTANCE.ShowWindow(hwnd, 9); // SW_RESTORE
@@ -90,27 +94,37 @@ public class WinRobot extends Robot {
         }, null);
         return found.get();
     }
-    
+
     private IUIAutomationCondition by(String name, String value) {
         return UIA.createPropertyCondition(name, value);
     }
-    
+
     @Override
     public Element locateElement(String locator) {
         IUIAutomationElement root = hwnd == null ? UIA.getRootElement() : UIA.elementFromHandle(hwnd);
+        return locateElementInternal(toElement(root), locator);
+    }
+
+    @Override
+    public Element locateElementInternal(Element root, String locator) {
         IUIAutomationCondition condition;
         if (locator.startsWith("#")) {
             condition = by("UIA_AutomationIdPropertyId", locator.substring(1));
         } else {
             condition = by("UIA_NamePropertyId", locator);
         }
-        IUIAutomationElement found = root.findFirst("TreeScope_Descendants", condition);        
+        IUIAutomationElement found = root.<IUIAutomationElement>toNative().findFirst("TreeScope_Descendants", condition);
         try {
             found.getCurrentName(); // TODO better way
         } catch (Exception e) {
             throw new RuntimeException("failed to locate element: " + locator);
         }
-        return new WinElement(this, found);
-    }    
+        return toElement(found);
+    }
+
+    @Override
+    public Element getRoot() {
+        return toElement(UIA.getRootElement());
+    }        
 
 }

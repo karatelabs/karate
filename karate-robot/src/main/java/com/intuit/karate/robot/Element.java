@@ -29,6 +29,8 @@ package com.intuit.karate.robot;
  */
 public interface Element {
     
+    boolean isImage();
+    
     Region getRegion();
     
     Element click();
@@ -46,5 +48,11 @@ public interface Element {
     String getValue();
     
     Element input(String value);
+    
+    Element delay(int millis);
+    
+    Element locate(String locator);
+    
+    <T> T toNative();
     
 }

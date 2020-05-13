@@ -45,6 +45,11 @@ public class WinElement extends RobotAware implements Element {
     }
 
     @Override
+    public boolean isImage() {
+        return false;
+    }        
+
+    @Override
     public Region getRegion() {
         WinDef.RECT rect = e.getCurrentBoundingRectangle();
         return new Region(robot, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
@@ -112,6 +117,22 @@ public class WinElement extends RobotAware implements Element {
             robot.input(value);
         }
         return this;
+    }        
+
+    @Override
+    public Element delay(int millis) {
+        robot.delay(millis);
+        return this;
+    }        
+
+    @Override
+    public Element locate(String locator) {
+        return robot.locateElementInternal(this, locator);
+    }   
+
+    @Override
+    public IUIAutomationElement toNative() {
+        return e;
     }        
 
 }

@@ -28,11 +28,18 @@ package com.intuit.karate.robot;
  * @author pthomas3
  */
 public class ImageElement implements Element {
-    
+
     private final Region region;
-    
+    private final Robot robot;
+
     public ImageElement(Region region) {
         this.region = region;
+        robot = region.robot;
+    }
+
+    @Override
+    public boolean isImage() {
+        return true;
     }
 
     @Override
@@ -62,29 +69,47 @@ public class ImageElement implements Element {
     public Element release() {
         region.release();
         return this;
-    } 
+    }
 
     @Override
     public Element highlight() {
         region.highlight();
         return this;
-    }        
+    }
 
     @Override
     public String getName() {
         return null;
-    }        
+    }
 
     @Override
     public String getValue() {
         return null;
-    }        
+    }
 
     @Override
     public Element input(String value) {
         region.click();
-        region.robot.input(value);
+        robot.input(value);
         return this;
     }
-            
+
+    @Override
+    public Element delay(int millis) {
+        robot.delay(millis);
+        return this;
+    }
+
+    @Override
+    public Element locate(String locator) {
+        Element fe = robot.locateImage(region.capture(), locator);
+        Region fr = fe.getRegion();
+        return new ImageElement(new Region(robot, region.x + fr.x, region.y + fr.y, fr.width, fr.height));
+    }
+
+    @Override
+    public Object toNative() {
+        throw new UnsupportedOperationException("not supported yet.");
+    }        
+
 }

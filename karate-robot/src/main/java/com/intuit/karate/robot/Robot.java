@@ -52,7 +52,7 @@ import java.util.function.Supplier;
  * @author pthomas3
  */
 public abstract class Robot implements Plugin {
-    
+
     public final java.awt.Robot robot;
     public final Toolkit toolkit;
     public final Dimension dimension;
@@ -74,12 +74,12 @@ public abstract class Robot implements Plugin {
     @Override
     public void setContext(ScenarioContext context) {
         this.context = context;
-    }        
+    }
 
     @Override
     public Map<String, Object> afterScenario() {
         return Collections.EMPTY_MAP;
-    }        
+    }
 
     private <T> T get(String key, T defaultValue) {
         T temp = (T) options.get(key);
@@ -263,7 +263,7 @@ public abstract class Robot implements Plugin {
         }
         return this;
     }
-    
+
     @AutoDef
     public Element input(String locator, String value) {
         return locate(locator).input(value);
@@ -321,18 +321,34 @@ public abstract class Robot implements Plugin {
 
     @AutoDef
     public Element locate(String locator) {
-        Element element;
+        Element found;
         if (locator.endsWith(".png")) {
-            element = locateImage(locator);
+            found = locateImage(locator);
         } else {
-            element = locateElement(locator);
+            found = locateElement(locator);
         }
         if (highlight) {
-            element.highlight();
+            found.highlight();
         }
-        return element;
+        return found;
     }
 
+    public Element locate(Element root, String locator) {
+        Element found;
+        if (locator.endsWith(".png")) {
+            found = locateImage(root.getRegion().capture(), locator);
+        } else if (root.isImage()) {
+            // TODO
+            throw new RuntimeException("todo find non-image elements within region");
+        } else {
+            found = locateElementInternal(root, locator);
+        }
+        if (highlight) {
+            found.highlight();
+        }   
+        return found;
+    }    
+    
     @AutoDef
     public Element move(String locator) {
         return locate(locator).move();
@@ -352,14 +368,18 @@ public abstract class Robot implements Plugin {
     public Element release(String locator) {
         return locate(locator).release();
     }
-    
+
     public Element locateImage(String path) {
-        return locateImage(readBytes(path));
+        return locateImage(capture(), readBytes(path));
     }
 
-    public Element locateImage(byte[] bytes) {
+    public Element locateImage(BufferedImage source, String path) {
+        return locateImage(source, readBytes(path));
+    }
+
+    public Element locateImage(BufferedImage source, byte[] bytes) {
         AtomicBoolean resize = new AtomicBoolean();
-        Region region = retry(() -> RobotUtils.find(this, capture(), bytes, resize.getAndSet(true)), r -> r != null, "find by image", true);
+        Region region = retry(() -> RobotUtils.find(this, source, bytes, resize.getAndSet(true)), r -> r != null, "find by image", true);
         return new ImageElement(region);
     }
 
@@ -372,11 +392,16 @@ public abstract class Robot implements Plugin {
     }
 
     protected abstract boolean focusWindowInternal(String title);
+    
+    public abstract Element locateElementInternal(Element root, String locator);
 
     @AutoDef
     public abstract boolean focusWindow(Predicate<String> condition);
 
     @AutoDef
     public abstract Element locateElement(String locator);
+    
+    @AutoDef
+    public abstract Element getRoot(); 
 
 }

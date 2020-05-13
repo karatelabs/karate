@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.robot;
 
+import java.awt.image.BufferedImage;
+
 /**
  *
  * @author pthomas3
@@ -44,6 +46,10 @@ public class Region extends RobotAware {
         this.y = y;
         this.width = width;
         this.height = height;
+    }
+    
+    public BufferedImage capture() {
+        return robot.capture(this);
     }
 
     public Location center() {
