@@ -217,15 +217,22 @@ public abstract class Robot implements Plugin {
         robot.mouseRelease(1);
         return this;
     }
-
-    public Robot input(char s) {
-        return input(Character.toString(s));
+    
+    @AutoDef
+    public Robot input(String[] values) {
+        for (String s : values) {
+            input(s);
+        }
+        return this;
     }
 
     @AutoDef
-    public Robot input(String s) {
+    public Robot input(String value) {
+        if (highlight) {
+            locateFocus().highlight();
+        }
         StringBuilder sb = new StringBuilder();
-        for (char c : s.toCharArray()) {
+        for (char c : value.toCharArray()) {
             if (Keys.isModifier(c)) {
                 sb.append(c);
                 int[] codes = RobotUtils.KEY_CODES.get(c);
@@ -403,5 +410,8 @@ public abstract class Robot implements Plugin {
     
     @AutoDef
     public abstract Element getRoot(); 
+    
+    @AutoDef
+    public abstract Element locateFocus();
 
 }

@@ -35,6 +35,16 @@ public interface Element {
     
     Element click();
     
+    default Element click(int fromLeft, int fromTop) {
+        Region r = getRegion();
+        Location l = new Location(r.robot, r.x + fromLeft, r.y + fromTop);
+        if (l.robot.highlight) {
+            l.highlight();
+        }
+        l.click();
+        return this;        
+    }
+    
     Element move();
     
     Element press();

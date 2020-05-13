@@ -51,7 +51,7 @@ public class ImageElement implements Element {
     public Element click() {
         region.click();
         return this;
-    }
+    }     
 
     @Override
     public Element move() {

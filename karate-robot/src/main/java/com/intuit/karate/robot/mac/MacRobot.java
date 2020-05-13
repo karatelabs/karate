@@ -39,16 +39,16 @@ import java.util.function.Predicate;
  * @author pthomas3
  */
 public class MacRobot extends Robot {
-    
+
     public MacRobot(ScenarioContext context, Map<String, Object> options) {
         super(context, options);
     }
-    
+
     @Override
     public List<String> methodNames() {
         return Plugin.methodNames(MacRobot.class);
-    }    
-    
+    }
+
     private static final String MAC_GET_PROCS
             = "    tell application \"System Events\""
             + "\n    set procs to (processes whose background only is false)"
@@ -66,7 +66,7 @@ public class MacRobot extends Robot {
         res = res + ", ";
         res = res.replace(", |, ", "\n");
         return StringUtils.split(res, '\n');
-    }    
+    }
 
     @Override
     public boolean focusWindowInternal(String title) {
@@ -85,20 +85,25 @@ public class MacRobot extends Robot {
         }
         return false;
     }
-    
+
     @Override
     public Element locateElement(String locator) {
         throw new UnsupportedOperationException("not supported yet.");
-    }    
+    }
 
     @Override
     public Element locateElementInternal(Element root, String locator) {
         throw new UnsupportedOperationException("not supported yet.");
     }
-    
+
     @Override
     public Element getRoot() {
         return new ImageElement(screen); // TODO
-    }     
-    
+    }
+
+    @Override
+    public Element locateFocus() {
+        throw new UnsupportedOperationException("not supported yet.");
+    }
+
 }

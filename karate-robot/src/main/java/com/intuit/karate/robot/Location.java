@@ -28,7 +28,7 @@ package com.intuit.karate.robot;
  * @author pthomas3
  */
 public class Location extends RobotAware {
-    
+
     public final int x;
     public final int y;
 
@@ -37,32 +37,37 @@ public class Location extends RobotAware {
         this.x = x;
         this.y = y;
     }
-    
+
     public Location move() {
         robot.move(x, y);
         return this;
-    }   
-    
+    }
+
     public Location click() {
         return click(1);
     }
-    
+
     public Location click(int num) {
         robot.move(x, y); // do not chain, causes recursion
         robot.click(num);
         return this;
     }
-    
+
     public Location press() {
         robot.move(x, y); // do not chain, causes recursion
         robot.press();
         return this;
-    }   
-    
+    }
+
     public Location release() {
         robot.move(x, y); // do not chain, causes recursion
         robot.release();
         return this;
-    }     
+    }
+    
+    public Location highlight() {
+        new Region(robot, x - 5, y - 5, 10, 10).highlight();
+        return this;
+    }
 
 }

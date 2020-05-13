@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.robot.win;
 
+import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.Element;
@@ -46,10 +47,6 @@ public class WinRobot extends Robot {
 
     public WinRobot(ScenarioContext context, Map<String, Object> options) {
         super(context, options);
-    }
-
-    private WinElement toElement(IUIAutomationElement e) {
-        return new WinElement(this, e);
     }
 
     @Override
@@ -102,7 +99,16 @@ public class WinRobot extends Robot {
     @Override
     public Element locateElement(String locator) {
         IUIAutomationElement root = hwnd == null ? UIA.getRootElement() : UIA.elementFromHandle(hwnd);
-        return locateElementInternal(toElement(root), locator);
+        return locateElementInternal(toElement(root, locator), locator);
+    }
+    
+    private WinElement toElement(IUIAutomationElement element, String description) {
+        try {
+            element.getCurrentName(); // TODO better way
+        } catch (Exception e) {
+            throw new RuntimeException("failed to locate element: " + description);
+        }          
+        return new WinElement(this, element);
     }
 
     @Override
@@ -114,17 +120,17 @@ public class WinRobot extends Robot {
             condition = by("UIA_NamePropertyId", locator);
         }
         IUIAutomationElement found = root.<IUIAutomationElement>toNative().findFirst("TreeScope_Descendants", condition);
-        try {
-            found.getCurrentName(); // TODO better way
-        } catch (Exception e) {
-            throw new RuntimeException("failed to locate element: " + locator);
-        }
-        return toElement(found);
+        return toElement(found, locator);
     }
 
     @Override
     public Element getRoot() {
-        return toElement(UIA.getRootElement());
+        return toElement(UIA.getRootElement(), "(root)");
     }        
+    
+    @AutoDef
+    public Element locateFocus() {
+        return toElement(UIA.getFocusedElement(), "(focus)");
+    }
 
 }
