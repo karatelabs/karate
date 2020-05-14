@@ -53,6 +53,10 @@ public abstract class IUIAutomationBase extends ComRef {
     protected static int enumValue(String name, String key) {
         return ComUtils.enumValue(name, key);
     }
+    
+    protected static String enumKey(String name, int value) {
+        return ComUtils.enumKey(name, value);
+    }    
 
     public int invoke(int offset, Object... args) {
         Function function = INTERFACE.getFunction(offset, REF.getValue());
@@ -67,6 +71,7 @@ public abstract class IUIAutomationBase extends ComRef {
     public int invoke(String name, Function function, Object... args) {
         int res = -1;
         List<ComAllocated> toFree = new ArrayList(args.length);
+        ComRef lastArg = null;
         try {
             Object[] refs = new Object[args.length + 1];
             refs[0] = REF.getValue();
@@ -77,6 +82,7 @@ public abstract class IUIAutomationBase extends ComRef {
                     ComRef ref = (ComRef) arg;
                     if (i == args.length - 1) { // if last arg
                         val = ref.REF; // reference to pointer
+                        lastArg = ref;
                     } else {
                         val = ref.REF.getValue(); // pointer
                     }
@@ -92,6 +98,9 @@ public abstract class IUIAutomationBase extends ComRef {
             res = function.invokeInt(refs);
             if (res != 0) {
                 logger.warn("{}.{} returned non-zero: {}", INTERFACE.name, name, res);
+            }
+            if (lastArg != null && !lastArg.isNull() && logger.isTraceEnabled()) {
+                logger.trace("{}.{} returned null: {}", INTERFACE.name, name, lastArg.REF);
             }
         } catch (Exception e) {
             String message = INTERFACE.name + "." + name + " failed with exception: " + e.getMessage();
@@ -127,8 +136,8 @@ public abstract class IUIAutomationBase extends ComRef {
 
     public String invokeForString(String name) {
         ComRef ref = new ComRef();
-        invoke(name, ref);
-        return ref.asString();
+        invoke(name, ref);        
+        return ref.isNull() ? "" : ref.asString();
     }
 
     public int invokeForInt(String name) {

@@ -64,7 +64,7 @@ public class ComUtils {
     } 
     
     public static int enumValue(String name, String key) {
-        Map<String, Integer> map = LIBRARY.constants.get(name);
+        Map<String, Integer> map = LIBRARY.enumKeyValues.get(name);
         if (map == null) {
             throw new RuntimeException("no such enum: " + name);
         }
@@ -74,5 +74,17 @@ public class ComUtils {
         }
         return value;
     }    
+    
+    public static String enumKey(String name, int value) {
+        Map<Integer, String> map = LIBRARY.enumValueKeys.get(name);
+        if (map == null) {
+            throw new RuntimeException("no such enum: " + name);
+        }
+        String key = map.get(value);
+        if (key == null) {
+            throw new RuntimeException("enum: " + name + " does not contain value: " + value);
+        }
+        return key;
+    }     
     
 }

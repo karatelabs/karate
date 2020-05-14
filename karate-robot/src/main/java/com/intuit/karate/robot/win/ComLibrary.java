@@ -37,6 +37,7 @@ import com.sun.jna.platform.win32.WTypes;
 import com.sun.jna.platform.win32.WinDef;
 import com.sun.jna.platform.win32.WinNT;
 import com.sun.jna.ptr.PointerByReference;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -54,8 +55,9 @@ public class ComLibrary {
     public final String clsId;
     public final int majorVersion;
     public final int minorVersion;
-    public final Map<String, Map<String, Integer>> constants = new LinkedHashMap();
-    public final Map<String, ComInterface> interfaces = new LinkedHashMap();
+    public final Map<String, Map<String, Integer>> enumKeyValues = new HashMap();
+    public final Map<String, Map<Integer, String>> enumValueKeys = new HashMap();
+    public final Map<String, ComInterface> interfaces = new HashMap();
 
     public ComLibrary(String typeLibClsId, int majorVersion, int minorVersion) {
         // load registered class id
@@ -184,8 +186,10 @@ public class ComLibrary {
 
     private void getEnums(String enumName, ITypeInfo typeInfo, OaIdl.TYPEATTR typeAttr) {
         int varCount = typeAttr.cVars.intValue();
-        Map<String, Integer> enumValues = new LinkedHashMap();
-        constants.put(enumName, enumValues);
+        Map<String, Integer> keyValues = new LinkedHashMap();
+        this.enumKeyValues.put(enumName, keyValues); 
+        Map<Integer, String> valueKeys = new HashMap();
+        this.enumValueKeys.put(enumName, valueKeys);        
         if (varCount > 0) {
             for (int i = 0; i < varCount; i++) {
                 OaIdl.VARDESC varDesc = getVarDesc(typeInfo, i);
@@ -194,11 +198,12 @@ public class ComLibrary {
                 OaIdl.MEMBERID memberId = varDesc.memid;
                 String name = getName(typeInfo, memberId);
                 Integer intValue = Integer.valueOf(value.toString());
-                enumValues.put(name, intValue);
+                keyValues.put(name, intValue);
+                valueKeys.put(intValue, name);
             }
         }
         if (logger.isTraceEnabled()) {
-            logger.trace("enum: {} - {}", enumName, enumValues);
+            logger.trace("enum: {} - {}", enumName, keyValues);
         }
     }
 

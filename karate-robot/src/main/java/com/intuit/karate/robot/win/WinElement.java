@@ -96,14 +96,14 @@ public class WinElement extends RobotAware implements Element {
     }
 
     private boolean isValuePatternAvailable() {
-        Variant.VARIANT variant = e.getCurrentPropertyValue("UIA_IsValuePatternAvailablePropertyId");
+        Variant.VARIANT variant = e.getCurrentPropertyValue(Property.IsValuePatternAvailable);
         return variant.booleanValue();
     }
 
     @Override
     public String getValue() {
         if (isValuePatternAvailable()) {
-            return e.getCurrentPatternAsValuePattern().getCurrentValue();
+            return e.getCurrentPattern(IUIAutomationValuePattern.class).getCurrentValue();
         }
         return null;
     }
@@ -111,7 +111,7 @@ public class WinElement extends RobotAware implements Element {
     @Override
     public Element input(String value) {
         if (isValuePatternAvailable()) {
-            IUIAutomationValuePattern valuePattern = e.getCurrentPatternAsValuePattern();
+            IUIAutomationValuePattern valuePattern = e.getCurrentPattern(IUIAutomationValuePattern.class);
             valuePattern.setCurrentValue(value);
         } else {
             e.setFocus();

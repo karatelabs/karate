@@ -23,38 +23,25 @@
  */
 package com.intuit.karate.robot.win;
 
-import com.sun.jna.ptr.PointerByReference;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  *
  * @author pthomas3
  */
-public class ComRef {
+public enum TreeScope {
 
-    protected static final Logger logger = LoggerFactory.getLogger(ComRef.class);
+    Element("TreeScope_Element", 1),
+    Children("TreeScope_Children", 2),
+    Descendants("TreeScope_Descendants", 4),
+    Parent("TreeScope_Parent", 8),
+    Ancestors("TreeScope_Ancestors", 16),
+    Subtree("TreeScope_Subtree", 7);
 
-    protected final PointerByReference REF;
+    public final String key;
+    public final int value;
 
-    public ComRef() {
-        REF = new PointerByReference();
-    }
-
-    public ComRef(PointerByReference ref) {
-        this.REF = ref;
-    }
-    
-    public boolean isNull() {
-        return REF.getValue() == null;
-    }    
-
-    public int asInt() {
-        return REF.getValue().getInt(0);
-    }
-
-    public String asString() {
-        return REF.getValue().getWideString(0);
+    TreeScope(String key, int value) {
+        this.key = key;
+        this.value = value;
     }
 
 }

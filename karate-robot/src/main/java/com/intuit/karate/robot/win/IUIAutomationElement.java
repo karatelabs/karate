@@ -30,22 +30,35 @@ import com.sun.jna.platform.win32.WinDef;
  *
  * @author pthomas3
  */
-public class IUIAutomationElement extends IUIAutomationBase {
+public class IUIAutomationElement extends IUIAutomationBase {    
 
     public String getCurrentName() {
         return invokeForString("CurrentName");
     }
+    
+    public ControlType getControlType() {
+        int controlType = getCurrentPropertyValue(Property.ControlType).intValue();
+        return ControlType.fromValue(controlType);
+    }    
+    
+    public String getClassName() {
+        return getCurrentPropertyValue(Property.ClassName).stringValue();
+    }   
+    
+    public String getAutomationId() {
+        return getCurrentPropertyValue(Property.AutomationId).stringValue();
+    }    
 
-    public IUIAutomationElement findFirst(String scope, IUIAutomationCondition condition) {
-        return invokeForElement("FindFirst", enumValue("TreeScope", scope), condition);
+    public IUIAutomationElement findFirst(TreeScope scope, IUIAutomationCondition condition) {
+        return invokeForElement("FindFirst", scope.value, condition);
     }
 
-    public IUIAutomationElementArray findAll(String scope, IUIAutomationCondition condition) {
-        return invoke(IUIAutomationElementArray.class, "FindAll", enumValue("TreeScope", scope), condition);
+    public IUIAutomationElementArray findAll(TreeScope scope, IUIAutomationCondition condition) {
+        return invoke(IUIAutomationElementArray.class, "FindAll", scope.value, condition);
     }
     
-    public Variant.VARIANT getCurrentPropertyValue(String propertyName) {
-        return invoke(Variant.VARIANT.class, "GetCurrentPropertyValue", enumValue("UIA_PropertyIds", propertyName));
+    public Variant.VARIANT getCurrentPropertyValue(Property property) {
+        return invoke(Variant.VARIANT.class, "GetCurrentPropertyValue", property.value);
     }
     
     public void setFocus() {
@@ -66,8 +79,12 @@ public class IUIAutomationElement extends IUIAutomationBase {
         return invoke(WinDef.RECT.class, "CurrentBoundingRectangle");
     }
     
-    public IUIAutomationValuePattern getCurrentPatternAsValuePattern() {
-        return invoke(IUIAutomationValuePattern.class, "GetCurrentPattern", enumValue("UIA_PatternIds", "UIA_ValuePatternId"));
+    public <T> T getCurrentPattern(Class<T> type) {
+        Pattern pattern = Pattern.fromType(type);
+        if (pattern == null) {
+            throw new RuntimeException("unsupported pattern: " + type);
+        }
+        return invoke(type, "GetCurrentPattern", pattern.value);
     }
 
 }

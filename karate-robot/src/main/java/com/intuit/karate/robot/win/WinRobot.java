@@ -92,8 +92,8 @@ public class WinRobot extends Robot {
         return found.get();
     }
 
-    private IUIAutomationCondition by(String name, String value) {
-        return UIA.createPropertyCondition(name, value);
+    private IUIAutomationCondition by(Property property, String value) {
+        return UIA.createPropertyCondition(property, value);
     }
     
     private IUIAutomationElement getSearchRoot() {
@@ -106,11 +106,9 @@ public class WinRobot extends Robot {
     }
     
     private WinElement toElement(IUIAutomationElement element, String description) {
-        try {
-            element.getCurrentName(); // TODO better way
-        } catch (Exception e) {
+        if (element.isNull()) {
             return null;
-        }          
+        }
         return new WinElement(this, element);
     }
 
@@ -118,11 +116,11 @@ public class WinRobot extends Robot {
     public Element locateElementInternal(Element root, String locator) {
         IUIAutomationCondition condition;
         if (locator.startsWith("#")) {
-            condition = by("UIA_AutomationIdPropertyId", locator.substring(1));
+            condition = by(Property.AutomationId, locator.substring(1));
         } else {
-            condition = by("UIA_NamePropertyId", locator);
+            condition = by(Property.Name, locator);
         }
-        IUIAutomationElement found = root.<IUIAutomationElement>toNative().findFirst("TreeScope_Descendants", condition);
+        IUIAutomationElement found = root.<IUIAutomationElement>toNative().findFirst(TreeScope.Descendants, condition);
         return toElement(found, locator);
     }
 
@@ -132,6 +130,7 @@ public class WinRobot extends Robot {
     }        
     
     @AutoDef
+    @Override
     public Element locateFocus() {
         return toElement(UIA.getFocusedElement(), "(focus)");
     }

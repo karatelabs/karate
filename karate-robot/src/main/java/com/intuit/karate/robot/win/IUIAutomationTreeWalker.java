@@ -23,38 +23,34 @@
  */
 package com.intuit.karate.robot.win;
 
-import com.sun.jna.ptr.PointerByReference;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  *
  * @author pthomas3
  */
-public class ComRef {
+public class IUIAutomationTreeWalker extends IUIAutomationBase {
 
-    protected static final Logger logger = LoggerFactory.getLogger(ComRef.class);
-
-    protected final PointerByReference REF;
-
-    public ComRef() {
-        REF = new PointerByReference();
-    }
-
-    public ComRef(PointerByReference ref) {
-        this.REF = ref;
+    public IUIAutomationElement getFirstChildElement(IUIAutomationElement e) {
+        return invokeForElement("GetFirstChildElement", e);
     }
     
-    public boolean isNull() {
-        return REF.getValue() == null;
+    public IUIAutomationElement getLastChildElement(IUIAutomationElement e) {
+        return invokeForElement("GetLastChildElement", e);
     }    
 
-    public int asInt() {
-        return REF.getValue().getInt(0);
+    public IUIAutomationElement getNextSiblingElement(IUIAutomationElement e) {
+        return invokeForElement("GetNextSiblingElement", e);
     }
 
-    public String asString() {
-        return REF.getValue().getWideString(0);
+    public IUIAutomationElement getParentElement(IUIAutomationElement e) {
+        return invokeForElement("GetParentElement", e);
     }
+
+    public IUIAutomationElement getPreviousSiblingElement(IUIAutomationElement e) {
+        return invokeForElement("GetPreviousSiblingElement", e);
+    }
+    
+    public IUIAutomationElement normalizeElement(IUIAutomationElement e) {
+        return invokeForElement("NormalizeElement", e);
+    }    
 
 }

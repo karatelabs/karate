@@ -61,16 +61,16 @@ public class IUIAutomation extends IUIAutomationBase {
         return invokeForCondition("CreateFalseCondition");
     }
 
-    public IUIAutomationCondition createPropertyCondition(String propertyName, ComAllocated value) {
-        return invokeForCondition("CreatePropertyCondition", enumValue("UIA_PropertyIds", propertyName), value);
+    public IUIAutomationCondition createPropertyCondition(Property property, ComAllocated value) {
+        return invokeForCondition("CreatePropertyCondition", property.value, value);
     }
     
-    public IUIAutomationCondition createPropertyCondition(String propertyName, String value) {
-        return createPropertyCondition(propertyName, new ComAllocatedVarStr(value));
+    public IUIAutomationCondition createPropertyCondition(Property property, String value) {
+        return createPropertyCondition(property, new ComAllocatedVarStr(value));
     }   
     
-    public IUIAutomationCondition createPropertyCondition(String propertyName, int value) {
-        return createPropertyCondition(propertyName, new ComAllocatedVarInt(value));
+    public IUIAutomationCondition createPropertyCondition(Property property, int value) {
+        return createPropertyCondition(property, new ComAllocatedVarInt(value));
     }    
 
     public IUIAutomationCondition getContentViewCondition() {
@@ -95,6 +95,10 @@ public class IUIAutomation extends IUIAutomationBase {
 
     public IUIAutomationCondition createNotCondition(IUIAutomationCondition c) {
         return invokeForCondition("CreateNotCondition", c);
+    }
+    
+    public IUIAutomationTreeWalker getControlViewWalker() {
+        return invoke(IUIAutomationTreeWalker.class, "ControlViewWalker");
     }
 
 }
