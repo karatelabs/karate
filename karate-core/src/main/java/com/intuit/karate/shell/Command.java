@@ -59,6 +59,15 @@ public class Command extends Thread {
     private Map<String, String> environment;
     private Process process;
     private int exitCode = -1;
+    private Exception failureReason;
+
+    public boolean isFailed() {
+        return failureReason != null;
+    }      
+
+    public Exception getFailureReason() {
+        return failureReason;
+    }        
 
     public void setEnvironment(Map<String, String> environment) {
         this.environment = environment;
@@ -294,6 +303,7 @@ public class Command extends Thread {
                 LOGGER.warn("exit code was non-zero: {} - {}", exitCode, argList);
             }
         } catch (Exception e) {
+            failureReason = e;
             LOGGER.error("command error: {} - {}", argList, e.getMessage());
         }
     }

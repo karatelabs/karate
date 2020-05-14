@@ -129,7 +129,7 @@ public class WinElement extends RobotAware implements Element {
     @Override
     public Element locate(String locator) {
         return robot.locateElement(this, locator);
-    }
+    }     
 
     @Override
     public IUIAutomationElement toNative() {

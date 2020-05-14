@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.robot.win;
 
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
@@ -31,6 +32,8 @@ import com.intuit.karate.robot.Robot;
 import com.sun.jna.Native;
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinDef;
+import com.sun.jna.platform.win32.WinUser;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -50,11 +53,21 @@ public class WinRobot extends Robot {
     }
 
     @Override
+    public Map<String, Object> afterScenario() {
+        if (autoClose && command != null && hwnd != null) {
+            User32.INSTANCE.PostMessage(hwnd, WinUser.WM_QUIT, null, null);
+            command.close(false);
+        }
+        return Collections.EMPTY_MAP;
+    }
+
+    @Override
     public List<String> methodNames() {
         return Plugin.methodNames(WinRobot.class);
     }
 
     private void focusWindow(WinDef.HWND hwnd) {
+        this.hwnd = hwnd; // important, state
         User32.INSTANCE.ShowWindow(hwnd, 9); // SW_RESTORE
         User32.INSTANCE.SetForegroundWindow(hwnd);
         if (highlight) {
@@ -77,14 +90,16 @@ public class WinRobot extends Robot {
     @Override
     public boolean focusWindow(Predicate<String> condition) {
         final AtomicBoolean found = new AtomicBoolean();
-        User32.INSTANCE.EnumWindows((WinDef.HWND hwnd, com.sun.jna.Pointer p) -> {
+        User32.INSTANCE.EnumWindows((WinDef.HWND testHwnd, com.sun.jna.Pointer p) -> {
             char[] windowText = new char[512];
-            User32.INSTANCE.GetWindowText(hwnd, windowText, 512);
+            User32.INSTANCE.GetWindowText(testHwnd, windowText, 512);
             String windowName = Native.toString(windowText);
-            logger.debug("scanning window: {}", windowName);
+            if (logger.isTraceEnabled()) {
+                logger.trace("scanning window: {}", windowName);
+            }
             if (condition.test(windowName)) {
                 found.set(true);
-                focusWindow(hwnd);
+                focusWindow(testHwnd);
                 return false;
             }
             return true;
@@ -95,18 +110,18 @@ public class WinRobot extends Robot {
     private IUIAutomationCondition by(Property property, String value) {
         return UIA.createPropertyCondition(property, value);
     }
-    
+
     private IUIAutomationElement getSearchRoot() {
         return hwnd == null ? UIA.getRootElement() : UIA.elementFromHandle(hwnd);
     }
 
     @Override
     public Element locateElement(String locator) {
-        return locateElementInternal(toElement(getSearchRoot(), locator), locator);
+        return locateElementInternal(toElement(getSearchRoot()), locator);
     }
-    
-    private WinElement toElement(IUIAutomationElement element, String description) {
-        if (element.isNull()) {
+
+    private WinElement toElement(IUIAutomationElement element) {
+        if (element == null || element.isNull()) {
             return null;
         }
         return new WinElement(this, element);
@@ -114,25 +129,49 @@ public class WinRobot extends Robot {
 
     @Override
     public Element locateElementInternal(Element root, String locator) {
+        IUIAutomationElement parent = root.<IUIAutomationElement>toNative();
         IUIAutomationCondition condition;
-        if (locator.startsWith("#")) {
+        if (locator.startsWith("{")) {
+            IUIAutomationElement found = walkAndFind(new SearchOptions(locator), UIA.getControlViewWalker(), parent, 0);
+            return toElement(found);
+        } else if (locator.startsWith("#")) {
             condition = by(Property.AutomationId, locator.substring(1));
         } else {
             condition = by(Property.Name, locator);
         }
-        IUIAutomationElement found = root.<IUIAutomationElement>toNative().findFirst(TreeScope.Descendants, condition);
-        return toElement(found, locator);
+        IUIAutomationElement found = parent.findFirst(TreeScope.Descendants, condition);
+        return toElement(found);
     }
 
     @Override
     public Element getRoot() {
-        return toElement(UIA.getRootElement(), "(root)");
-    }        
-    
+        return toElement(UIA.getRootElement());
+    }
+
     @AutoDef
     @Override
     public Element locateFocus() {
-        return toElement(UIA.getFocusedElement(), "(focus)");
+        return toElement(UIA.getFocusedElement());
+    }
+
+    private IUIAutomationElement walkAndFind(SearchOptions search, IUIAutomationTreeWalker walker, IUIAutomationElement e, int depth) {
+        IUIAutomationElement child = walker.getFirstChildElement(e);
+        while (!child.isNull()) {
+            if (logger.isTraceEnabled()) {
+                String indent = StringUtils.repeat(' ', depth * 2);
+                logger.trace("{}{}.{} - '{}'", indent, child.getControlType(), child.getClassName(), child.getCurrentName());
+            }
+            if (search.matches(child)) {
+                logger.debug("found {} at depth: {}", search, depth);
+                return child;
+            }
+            IUIAutomationElement found = walkAndFind(search, walker, child, depth + 1);
+            if (found != null) {
+                return found;
+            }
+            child = walker.getNextSiblingElement(child);
+        }
+        return null;
     }
 
 }

@@ -30,6 +30,7 @@ import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.ImageElement;
 import com.intuit.karate.robot.Robot;
 import com.intuit.karate.shell.Command;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -43,6 +44,11 @@ public class MacRobot extends Robot {
     public MacRobot(ScenarioContext context, Map<String, Object> options) {
         super(context, options);
     }
+    
+    @Override
+    public Map<String, Object> afterScenario() {
+        return Collections.EMPTY_MAP;
+    }    
 
     @Override
     public List<String> methodNames() {

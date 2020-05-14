@@ -105,7 +105,7 @@ public class ImageElement implements Element {
         Element fe = robot.locateImage(() -> region.capture(), locator);
         Region fr = fe.getRegion();
         return new ImageElement(new Region(robot, region.x + fr.x, region.y + fr.y, fr.width, fr.height));
-    }
+    }      
 
     @Override
     public Region toNative() {

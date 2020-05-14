@@ -41,8 +41,7 @@ public class IUIAutomationRunner {
         children = rootElement.findAll(TreeScope.Children, andCondition);
         assertEquals(1, children.getLength());
         assertEquals("Program Manager", children.getElement(0).getCurrentName());
-        int windowControlType = ComUtils.enumValue("UIA_ControlTypeIds", "UIA_WindowControlTypeId");
-        IUIAutomationCondition windowCondition = ui.createPropertyCondition(Property.ControlType, windowControlType);
+        IUIAutomationCondition windowCondition = ui.createPropertyCondition(Property.ControlType, ControlType.Window.value);
         children = rootElement.findAll(TreeScope.Children, windowCondition);
         count = children.getLength();
         logger.debug("windows length: {}", count);

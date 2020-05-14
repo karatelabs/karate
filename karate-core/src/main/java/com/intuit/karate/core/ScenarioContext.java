@@ -1027,6 +1027,8 @@ public class ScenarioContext {
                 Class clazz = Class.forName("com.intuit.karate.robot.RobotFactory");
                 PluginFactory factory = (PluginFactory) clazz.newInstance();
                 robot = factory.create(this, robotConfig);
+            } catch (KarateException ke) {
+                throw ke;
             } catch (Exception e) {
                 String message = "cannot instantiate robot, is 'karate-robot' included as a maven / gradle dependency ? " + e.getMessage();
                 logger.error(message);

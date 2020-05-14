@@ -66,6 +66,7 @@ key | description
 --- | -----------
 `window` | (optional) the name of the window to bring to focus, and you can use a `^` prefix to do a string "contains" match
 `fork` | (optional) calls an OS executable and takes a string (e.g. `'some.exe -h'`), string-array (e.g. `['some.exe', '-h']`) or JSON as per [`karate.fork()`](https://github.com/intuit/karate#karate-fork)
+`autoClose` | deafult `true` will close the current window if fork was used on startup 
 `attach` | defult `true` if the `window` exists, `fork` will not be executed
 `basePath` | defaults to `null`, which means the search will be relative to the "entry point" feature file, but can be used to point to [prefixed / relative paths](https://github.com/intuit/karate#reading-files) such as `classpath:some/folder`
 `highlight` | default `false` if an image match should be highlighted
@@ -121,6 +122,39 @@ Rarely used since `basePath` would typically be set by the [`robot` options](#ro
 
 ```cucumber
 * robot.basePath = 'classpath:some/package'
+```
+## Windows Locators
+Finding by "name" is the default. Prefixing with a `#` means using the "Automation ID" which may or may not be available depending on the application under test. The "`{}`" and "`{^}`" locator-prefixes are designed to make adding more filter conditions easy, for e.g. to find by "control type" and "class name".
+
+Here are examples:
+
+Locator | Description
+------- | -----------
+`click('Click Me')` | the first control (any type) where the name is *exactly*: `Click Me`
+`click('{button}')` | the first button found when traversing the whole tree from the primary window
+`click('{button}Continue')` | the first button found with the text (name) "Continue"
+`click('{button:2}')` | the second button
+`click('{button.TButton}')` | the first button with a "class name" of "TButton"
+`click('{.TButton}')` | the first control (any type) with a "class name" of "TButton"
+`click('{^:4}Me')` | the fourth control (any type) where the name *contains*: `Me`
+
+Use a tool like [Inspect.exe](https://docs.microsoft.com/en-us/windows/win32/winauto/inspect-objects) to identify the properties needed for automation from an application window.
+
+### Calculator Example
+
+[Here is an example](../examples/robot-test/src/test/java/win/calc.features) that operates the Calculator app on Windows.
+
+```cucumber
+Feature: windows calculator
+
+Scenario:
+* robot { window: 'Calculator', fork: 'calc' }
+* click('Clear')
+* click('One')
+* click('Plus')
+* click('Two')
+* click('Equals')
+* match locate('#CalculatorResults').name == 'Display is  3 '
 ```
 
 ## `click()`

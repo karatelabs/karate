@@ -32,6 +32,7 @@ import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScriptBridge;
 import com.intuit.karate.driver.Keys;
+import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.shell.Command;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -58,6 +59,7 @@ public abstract class Robot implements Plugin {
     public final Dimension dimension;
     public final Map<String, Object> options;
     public final boolean highlight;
+    public final boolean autoClose;
     public final int highlightDuration;
     public final int retryCount;
     public final int retryInterval;
@@ -74,11 +76,6 @@ public abstract class Robot implements Plugin {
     @Override
     public void setContext(ScenarioContext context) {
         this.context = context;
-    }
-
-    @Override
-    public Map<String, Object> afterScenario() {
-        return Collections.EMPTY_MAP;
     }
 
     private <T> T get(String key, T defaultValue) {
@@ -108,6 +105,7 @@ public abstract class Robot implements Plugin {
             robot.setAutoDelay(40);
             robot.setAutoWaitForIdle(true);
             //==================================================================
+            autoClose = get("autoClose", true);
             boolean attach = get("attach", true);
             boolean found = false;
             String window = get("window", null);
@@ -125,17 +123,22 @@ public abstract class Robot implements Plugin {
                 } else if (sv.isMapLike()) {
                     command = bridge.fork(sv.getAsMap());
                 }
-                if (command != null && window != null) {
+                if (command != null) {
                     delay(500); // give process time to start
-                    found = retry(() -> focusWindow(window), r -> r, "finding window", true);
-                    logger.debug("attached to process window: {} - {}", window, command.getArgList());
+                    if (command.isFailed()) {
+                        throw new KarateException("robot fork command failed: " + command.getFailureReason().getMessage());
+                    }
+                    if (window != null) {                        
+                        found = retry(() -> focusWindow(window), r -> r, "finding window", true);
+                        logger.debug("attached to process window: {} - {}", window, command.getArgList());
+                    }
                 }
                 if (!found && window != null) {
-                    throw new RuntimeException("failed to find window: " + window);
+                    throw new KarateException("failed to find window: " + window);
                 }
             }
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new KarateException("robot init failed", e);
         }
     }
 
@@ -327,6 +330,15 @@ public abstract class Robot implements Plugin {
     }
 
     @AutoDef
+    public Element highlight(String locator) {
+        Element found = locate(locator);
+        if (!highlight) { // reverse logic because locate() would do it
+            found.highlight();
+        }
+        return found;
+    }
+
+    @AutoDef
     public Element locate(String locator) {
         Element found;
         if (locator.endsWith(".png")) {
@@ -397,7 +409,7 @@ public abstract class Robot implements Plugin {
         }
         return focusWindowInternal(title);
     }
-    
+
     public Element locateElement(Element root, String locator) {
         return retry(() -> locateElementInternal(root, locator), r -> r != null, "find by locator: " + locator, true);
     }
