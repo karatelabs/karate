@@ -177,6 +177,15 @@ public interface Driver extends Plugin {
     }
 
     @AutoDef
+    default Element input(String locator, String chars, int delay) {
+        String[] array = new String[chars.length()];
+        for (int i = 0; i < array.length; i++) {
+            array[i] = Character.toString(chars.charAt(i));
+        }
+        return input(locator, array, delay);
+    }
+
+    @AutoDef
     default Element input(String locator, String[] values, int delay) {
         Element element = DriverElement.locatorUnknown(this, locator);
         for (String value : values) {
@@ -415,7 +424,7 @@ public interface Driver extends Plugin {
     @Override
     default List<String> methodNames() {
         return Plugin.methodNames(Driver.class);
-    }        
+    }
 
     @Override
     default void setContext(ScenarioContext context) {
