@@ -29,18 +29,16 @@ package com.intuit.karate.robot.win;
  */
 public enum TreeScope {
 
-    Element("TreeScope_Element", 1),
-    Children("TreeScope_Children", 2),
-    Descendants("TreeScope_Descendants", 4),
-    Parent("TreeScope_Parent", 8),
-    Ancestors("TreeScope_Ancestors", 16),
-    Subtree("TreeScope_Subtree", 7);
+    Element(1),
+    Children(2),
+    Descendants(4),
+    Parent(8),
+    Ancestors(16),
+    Subtree(7);
 
-    public final String key;
     public final int value;
 
-    TreeScope(String key, int value) {
-        this.key = key;
+    TreeScope(int value) {
         this.value = value;
     }
 

@@ -32,51 +32,49 @@ import java.util.Map;
  */
 public enum Pattern {
 
-    Invoke("UIA_InvokePatternId", 10000),
-    Selection("UIA_SelectionPatternId", 10001),
-    Value("UIA_ValuePatternId", 10002, IUIAutomationValuePattern.class),
-    RangeValue("UIA_RangeValuePatternId", 10003),
-    Scroll("UIA_ScrollPatternId", 10004),
-    ExpandCollapse("UIA_ExpandCollapsePatternId", 10005),
-    Grid("UIA_GridPatternId", 10006),
-    GridItem("UIA_GridItemPatternId", 10007),
-    MultipleView("UIA_MultipleViewPatternId", 10008),
-    Window("UIA_WindowPatternId", 10009),
-    SelectionItem("UIA_SelectionItemPatternId", 10010),
-    Dock("UIA_DockPatternId", 10011),
-    Table("UIA_TablePatternId", 10012),
-    TableItem("UIA_TableItemPatternId", 10013),
-    Text("UIA_TextPatternId", 10014),
-    Toggle("UIA_TogglePatternId", 10015),
-    Transform("UIA_TransformPatternId", 10016),
-    ScrollItem("UIA_ScrollItemPatternId", 10017),
-    LegacyIAccessible("UIA_LegacyIAccessiblePatternId", 10018),
-    ItemContainer("UIA_ItemContainerPatternId", 10019),
-    VirtualizedItem("UIA_VirtualizedItemPatternId", 10020),
-    SynchronizedInput("UIA_SynchronizedInputPatternId", 10021),
-    ObjectModel("UIA_ObjectModelPatternId", 10022),
-    Annotation("UIA_AnnotationPatternId", 10023),
-    Text2("UIA_TextPattern2Id", 10024),
-    Styles("UIA_StylesPatternId", 10025),
-    Spreadsheet("UIA_SpreadsheetPatternId", 10026),
-    SpreadsheetItem("UIA_SpreadsheetItemPatternId", 10027),
-    Transform2("UIA_TransformPattern2Id", 10028),
-    TextChild("UIA_TextChildPatternId", 10029),
-    Drag("UIA_DragPatternId", 10030),
-    DropTarget("UIA_DropTargetPatternId", 10031),
-    TextEdit("UIA_TextEditPatternId", 10032),
-    CustomNavigation("UIA_CustomNavigationPatternId", 10033);
+    Invoke(10000),
+    Selection(10001),
+    Value(10002, IUIAutomationValuePattern.class),
+    RangeValue(10003),
+    Scroll(10004),
+    ExpandCollapse(10005),
+    Grid(10006),
+    GridItem(10007),
+    MultipleView(10008),
+    Window(10009),
+    SelectionItem(10010),
+    Dock(10011),
+    Table(10012),
+    TableItem(10013),
+    Text(10014),
+    Toggle(10015),
+    Transform(10016),
+    ScrollItem(10017),
+    LegacyIAccessible(10018),
+    ItemContainer(10019),
+    VirtualizedItem(10020),
+    SynchronizedInput(10021),
+    ObjectModel(10022),
+    Annotation(10023),
+    Text2(10024),
+    Styles(10025),
+    Spreadsheet(10026),
+    SpreadsheetItem(10027),
+    Transform2(10028),
+    TextChild(10029),
+    Drag(10030),
+    DropTarget(10031),
+    TextEdit(10032),
+    CustomNavigation(10033);
 
-    public final String key;
     public final int value;
     public final Class type;
 
-    private Pattern(String key, int value) {
-        this(key, value, null);
+    private Pattern(int value) {
+        this(value, null);
     }
 
-    private Pattern(String key, int value, Class type) {
-        this.key = key;
+    private Pattern(int value, Class type) {
         this.value = value;
         this.type = type;
     }
