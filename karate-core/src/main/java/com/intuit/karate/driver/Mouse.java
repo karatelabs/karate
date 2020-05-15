@@ -41,6 +41,8 @@ public interface Mouse {
     
     Mouse click();
     
+    Mouse doubleClick();
+    
     Mouse go();
     
     Mouse duration(Integer duration);

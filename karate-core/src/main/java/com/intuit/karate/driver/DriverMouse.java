@@ -40,10 +40,10 @@ public class DriverMouse implements Mouse {
     public DriverMouse(Driver driver) {
         this.driver = driver;
     }
-    
+
     private Integer duration;
     private final List<Map<String, Object>> actions = new ArrayList();
-    
+    Number x, y;
 
     private Map<String, Object> moveAction(int x, int y) {
         // {"type":"pointer","id":"1","actions":[{"type":"pointerMove","x":250,"y":250}]}        
@@ -73,9 +73,9 @@ public class DriverMouse implements Mouse {
 
     @Override
     public DriverMouse move(Number x, Number y) {
-        x = x == null ? 0 : x;
-        y = y == null ? 0 : y;
-        Map<String, Object> action = moveAction(x.intValue(), y.intValue());
+        this.x = x == null ? 0 : x;
+        this.y = y == null ? 0 : y;
+        Map<String, Object> action = moveAction(this.x.intValue(), this.y.intValue());
         actions.add(action);
         return this;
     }
@@ -97,7 +97,7 @@ public class DriverMouse implements Mouse {
         actions.add(up);
         return go();
     }
-    
+
     @Override
     public DriverMouse submit() {
         driver.submit();
@@ -107,6 +107,13 @@ public class DriverMouse implements Mouse {
     @Override
     public DriverMouse click() {
         return down().up();
+    }
+
+    @Override
+    public DriverMouse doubleClick() {
+        String js = "document.elementFromPoint(" + x + "," + y + ").dispatchEvent(new MouseEvent('dblclick'))";
+        driver.script(js);
+        return this;
     }
 
     @Override

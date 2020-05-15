@@ -432,6 +432,7 @@ public abstract class Robot implements Plugin {
     public abstract Element locateFocus();
 
     //==========================================================================
+    //
     public abstract Element locateElementInternal(Element root, String locator);
 
     protected abstract boolean windowInternal(String title);

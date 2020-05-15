@@ -895,6 +895,12 @@ Since moving the mouse is a common task, these short-cuts can be used:
 
 These are useful in situations where the "normal" [`click()`](#click) does not work - especially when the element you are clicking is not a normal hyperlink (`<a href="">`) or `<button>`.
 
+The rare need to "double-click" is supported as a `doubleClick()` method:
+
+```cucumber
+* mouse('#myBtn').doubleClick()
+```
+
 ## `close()`
 Close the page / tab.
 

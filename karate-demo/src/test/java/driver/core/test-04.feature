@@ -6,16 +6,12 @@ Scenario Outline: <type>
 
   * driver webUrlBase + '/page-02'
 
-* highlightAll('a')
-* def elements = locateAll('{}Click Me')
-* match karate.sizeOf(elements) == 7
-* elements[6].click()
-* match elements[3].script('_.tagName') == 'BUTTON'
-  
+* mouse('{}Double Click').doubleClick()
+* match text('#eg03Result') == 'DOUBLE'
 
 Examples:
 | type         |
 | chrome       |
-#| chromedriver |
-#| geckodriver  |
-#| safaridriver |
+| chromedriver |
+| geckodriver  |
+| safaridriver |
