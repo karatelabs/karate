@@ -44,11 +44,11 @@ public class MacRobot extends Robot {
     public MacRobot(ScenarioContext context, Map<String, Object> options) {
         super(context, options);
     }
-    
+
     @Override
     public Map<String, Object> afterScenario() {
         return Collections.EMPTY_MAP;
-    }    
+    }
 
     private static final List<String> METHOD_NAMES = Plugin.methodNames(MacRobot.class);
 
@@ -107,6 +107,11 @@ public class MacRobot extends Robot {
     @Override
     public Element getRoot() {
         return new ImageElement(screen);
+    }
+
+    @Override
+    protected Element getSearchRoot() {
+        return new ImageElement(screen); // TODO
     }
 
     @Override

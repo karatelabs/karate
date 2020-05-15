@@ -288,6 +288,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                         result = "[error] " + e.getMessage();
                     }
                 } else {
+                    evaluatePreStep(thread(req));
                     Result evalResult = evalContext.evalAsStep(expression);
                     if (evalResult.isFailed()) {
                         result = "[error] " + evalResult.getError().getMessage();

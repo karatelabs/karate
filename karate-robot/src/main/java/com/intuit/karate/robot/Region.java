@@ -57,8 +57,12 @@ public class Region extends RobotAware {
     }
 
     public void highlight() {
-        RobotUtils.highlight(x, y, width, height, robot.highlightDuration);
+        highlight(robot.highlightDuration);
     }
+    
+    public void highlight(int millis) {
+        RobotUtils.highlight(x, y, width, height, millis);
+    }    
 
     public Region click() {
         return click(1);

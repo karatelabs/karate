@@ -113,13 +113,10 @@ public class WinRobot extends Robot {
         return UIA.createPropertyCondition(property, value);
     }
 
-    private IUIAutomationElement getSearchRoot() {
-        return hwnd == null ? UIA.getRootElement() : UIA.elementFromHandle(hwnd);
-    }
-
     @Override
-    public Element locateElement(String locator) {
-        return locateElementInternal(toElement(getSearchRoot()), locator);
+    protected Element getSearchRoot() {
+        IUIAutomationElement e = hwnd == null ? UIA.getRootElement() : UIA.elementFromHandle(hwnd);
+        return toElement(e);
     }
 
     private WinElement toElement(IUIAutomationElement element) {

@@ -97,8 +97,13 @@ public class LinuxRobot extends Robot {
     }        
 
     @Override
+    protected Element getSearchRoot() {
+        return new ImageElement(screen); // TODO
+    }    
+    
+    @Override
     public Element locateFocus() {
-        throw new UnsupportedOperationException("not supported yet.");
+        return new ImageElement(screen); // TODO
     }       
     
 }

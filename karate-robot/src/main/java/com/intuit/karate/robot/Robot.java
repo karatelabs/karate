@@ -110,7 +110,7 @@ public abstract class Robot implements Plugin {
             boolean found = false;
             String window = get("window", null);
             if (window != null) {
-                found = focusWindow(window);
+                found = window(window);
             }
             if (found && attach) {
                 logger.debug("window found, will re-use: {}", window);
@@ -129,7 +129,7 @@ public abstract class Robot implements Plugin {
                         throw new KarateException("robot fork command failed: " + command.getFailureReason().getMessage());
                     }
                     if (window != null) {
-                        found = retry(() -> focusWindow(window), r -> r, "finding window", true);
+                        found = retry(() -> window(window), r -> r, "finding window", true);
                         logger.debug("attached to process window: {} - {}", window, command.getArgList());
                     }
                 }
@@ -274,9 +274,13 @@ public abstract class Robot implements Plugin {
         return this;
     }
 
+    private int getDuration() {
+        return highlight ? highlightDuration : -1;
+    }
+
     @AutoDef
     public Element input(String locator, String value) {
-        return locate(locator).input(value);
+        return locate(getDuration(), locator).input(value);
     }
 
     public BufferedImage capture() {
@@ -331,28 +335,28 @@ public abstract class Robot implements Plugin {
 
     @AutoDef
     public Element highlight(String locator) {
-        Element found = locate(locator);
-        if (!highlight) { // reverse logic because locate() would do it
-            found.highlight();
-        }
-        return found;
+        return locate(Config.DEFAULT_HIGHLIGHT_DURATION, locator);
     }
 
     @AutoDef
     public Element locate(String locator) {
+        return locate(getDuration(), locator);
+    }
+
+    protected Element locate(int duration, String locator) {
         Element found;
         if (locator.endsWith(".png")) {
             found = locateImage(locator);
         } else {
             found = locateElement(locator);
         }
-        if (highlight) {
-            found.highlight();
+        if (duration > 0) {
+            found.getRegion().highlight(duration);
         }
         return found;
     }
 
-    public Element locate(Element root, String locator) {
+    protected Element locate(int duration, Element root, String locator) {
         Element found;
         if (locator.endsWith(".png")) {
             found = locateImage(() -> root.getRegion().capture(), locator);
@@ -362,30 +366,30 @@ public abstract class Robot implements Plugin {
         } else {
             found = locateElement(root, locator);
         }
-        if (highlight) {
-            found.highlight();
+        if (duration > 0) {
+            found.getRegion().highlight(duration);
         }
         return found;
     }
 
     @AutoDef
     public Element move(String locator) {
-        return locate(locator).move();
+        return locate(getDuration(), locator).move();
     }
 
     @AutoDef
     public Element click(String locator) {
-        return locate(locator).click();
+        return locate(getDuration(), locator).click();
     }
 
     @AutoDef
     public Element press(String locator) {
-        return locate(locator).press();
+        return locate(getDuration(), locator).press();
     }
 
     @AutoDef
     public Element release(String locator) {
-        return locate(locator).release();
+        return locate(getDuration(), locator).release();
     }
 
     public Element locateImage(String path) {
@@ -403,9 +407,9 @@ public abstract class Robot implements Plugin {
     }
 
     @AutoDef
-    public boolean focusWindow(String title) {
+    public boolean window(String title) {
         if (title.startsWith("^")) {
-            return window(t -> t.contains(title.substring(1)));
+            return Robot.this.window(t -> t.contains(title.substring(1)));
         }
         return windowInternal(title);
     }
@@ -414,22 +418,24 @@ public abstract class Robot implements Plugin {
         return retry(() -> locateElementInternal(root, locator), r -> r != null, "find by locator: " + locator, true);
     }
 
-    @AutoDef
-    public abstract boolean window(Predicate<String> condition);
+    public Element locateElement(String locator) {
+        return locateElement(getSearchRoot(), locator);
+    }
 
     @AutoDef
-    public abstract Element locateElement(String locator);
+    public abstract boolean window(Predicate<String> condition);
 
     @AutoDef
     public abstract Element getRoot();
 
     @AutoDef
     public abstract Element locateFocus();
-    
+
     //==========================================================================
-    
     public abstract Element locateElementInternal(Element root, String locator);
 
-    protected abstract boolean windowInternal(String title);    
+    protected abstract boolean windowInternal(String title);
+
+    protected abstract Element getSearchRoot();
 
 }
