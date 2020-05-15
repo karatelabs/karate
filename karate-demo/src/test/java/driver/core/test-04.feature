@@ -6,6 +6,7 @@ Scenario Outline: <type>
 
   * driver webUrlBase + '/page-02'
 
+* highlightAll('a')
 * def elements = locateAll('{}Click Me')
 * match karate.sizeOf(elements) == 7
 * elements[6].click()

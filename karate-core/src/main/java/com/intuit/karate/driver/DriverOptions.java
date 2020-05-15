@@ -393,7 +393,7 @@ public class DriverOptions {
         return selector(locator, DOCUMENT);
     }
 
-    public String selector(String locator, String contextNode) {
+    public static String selector(String locator, String contextNode) {
         if (locator.startsWith("(")) {
             return locator; // pure js !
         }
@@ -477,15 +477,19 @@ public class DriverOptions {
     private static final String HIGHLIGHT_FN = "function(e){ var old = e.getAttribute('style');"
             + " e.setAttribute('style', 'background: yellow; border: 2px solid red;');"
             + " setTimeout(function(){ e.setAttribute('style', old) }, %d) }";
+    
+    private static String highlightFn(int millis) {
+        return String.format(HIGHLIGHT_FN, millis);
+    }
 
-    public String highlight(String locator) {
+    public String highlight(String locator, int millis) {
         String e = selector(locator);
-        String temp = "var e = " + e + "; var fun = " + String.format(HIGHLIGHT_FN, highlightDuration) + "; fun(e)";
+        String temp = "var e = " + e + "; var fun = " + highlightFn(millis) + "; fun(e)";
         return wrapInFunctionInvoke(temp);
     }
 
-    public String highlightAll(String locator) {
-        return scriptAllSelector(locator, HIGHLIGHT_FN);
+    public String highlightAll(String locator, int millis) {
+        return scriptAllSelector(locator, highlightFn(millis));
     }
 
     public String optionSelector(String locator, String text) {

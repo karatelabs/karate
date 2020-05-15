@@ -61,9 +61,11 @@ public class WinRobot extends Robot {
         return Collections.EMPTY_MAP;
     }
 
+    private static final List<String> METHOD_NAMES = Plugin.methodNames(WinRobot.class);
+
     @Override
     public List<String> methodNames() {
-        return Plugin.methodNames(WinRobot.class);
+        return METHOD_NAMES;
     }
 
     private void focusWindow(WinDef.HWND hwnd) {

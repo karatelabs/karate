@@ -49,10 +49,12 @@ public class LinuxRobot extends Robot {
     public Map<String, Object> afterScenario() {
         return Collections.EMPTY_MAP;
     }        
+    
+    private static final List<String> METHOD_NAMES = Plugin.methodNames(LinuxRobot.class);
 
     @Override
     public List<String> methodNames() {
-        return Plugin.methodNames(LinuxRobot.class);
+        return METHOD_NAMES;
     }        
 
     @Override

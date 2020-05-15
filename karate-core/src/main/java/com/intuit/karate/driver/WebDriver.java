@@ -101,8 +101,7 @@ public abstract class WebDriver implements Driver {
             waitFor(locator); // will throw exception if not found
         }
         if (options.highlight) {
-            highlight(locator);
-            delay(options.highlightDuration);
+            highlight(locator, options.highlightDuration);
         }
         String before = options.getPreSubmitHash();
         if (before != null) {

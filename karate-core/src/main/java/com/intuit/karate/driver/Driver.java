@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.driver;
 
+import com.intuit.karate.Config;
 import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
@@ -292,13 +293,23 @@ public interface Driver extends Plugin {
 
     @AutoDef
     default Element highlight(String locator) {
-        script(getOptions().highlight(locator));
-        return DriverElement.locatorExists(this, locator);
+        return highlight(locator, Config.DEFAULT_HIGHLIGHT_DURATION);
     }
 
+    default Element highlight(String locator, int millis) {
+        script(getOptions().highlight(locator, millis));
+        delay(millis);
+        return DriverElement.locatorExists(this, locator);
+    }
+    
     @AutoDef
     default void highlightAll(String locator) {
-        script(getOptions().highlightAll(locator));
+        highlightAll(locator, Config.DEFAULT_HIGHLIGHT_DURATION);
+    }
+    
+    default void highlightAll(String locator, int millis) {
+        script(getOptions().highlightAll(locator, millis));
+        delay(millis);
     }
 
     // friendly locators =======================================================
@@ -396,7 +407,7 @@ public interface Driver extends Plugin {
     }
 
     @AutoDef
-    default List scriptAll(String locator, String expression) {
+    default List scriptAll(String locator, String expression) {       
         String js = getOptions().scriptAllSelector(locator, expression);
         return (List) script(js);
     }
@@ -421,9 +432,11 @@ public interface Driver extends Plugin {
 
     List elementIds(String locator);
 
+    static final List<String> METHOD_NAMES = Plugin.methodNames(Driver.class);
+
     @Override
     default List<String> methodNames() {
-        return Plugin.methodNames(Driver.class);
+        return METHOD_NAMES;
     }
 
     @Override

@@ -50,9 +50,11 @@ public class MacRobot extends Robot {
         return Collections.EMPTY_MAP;
     }    
 
+    private static final List<String> METHOD_NAMES = Plugin.methodNames(MacRobot.class);
+
     @Override
     public List<String> methodNames() {
-        return Plugin.methodNames(MacRobot.class);
+        return METHOD_NAMES;
     }
 
     private static final String MAC_GET_PROCS
