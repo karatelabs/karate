@@ -60,11 +60,13 @@ You can use `fork` to run a console command to start an application if needed, b
 
 > If you want to do conditional logic depending on the OS, you can use [`karate.os`](https://github.com/intuit/karate#karate-os) - for e.g. `* if (karate.os.type == 'windows') karate.set('filename', 'start.bat')`
 
+### `robot` options
+
 The keys that the `robot` keyword supports are the following:
 
 key | description
 --- | -----------
-`window` | (optional) the name of the window to bring to focus, and you can use a `^` prefix to do a string "contains" match
+`window` | (optional) the name of the window to bring to focus, and you can use a `^` prefix to do a string "contains" match, also see [`window()`](#window)
 `fork` | (optional) calls an OS executable and takes a string (e.g. `'some.exe -h'`), string-array (e.g. `['some.exe', '-h']`) or JSON as per [`karate.fork()`](https://github.com/intuit/karate#karate-fork)
 `autoClose` | deafult `true` will close the current window if fork was used on startup 
 `attach` | defult `true` if the `window` exists, `fork` will not be executed
@@ -185,8 +187,8 @@ A mouse press that will be held down, useful for simulating a drag and drop oper
 ## `release()`
 Release mouse button, useful for simulating a drag and drop operation.
 
-## `focusWindow()`
-Sets focus to the window by title, prefix with `^` for a string "contains" match.
+## `window()`
+Sets focus to the window by title, prefix with `^` for a string "contains" match
 
 ## `screenshot()`
 Will save a screenshot of the viewport, which will appear in the HTML report. Note that this returns a byte-array of the PNG image.

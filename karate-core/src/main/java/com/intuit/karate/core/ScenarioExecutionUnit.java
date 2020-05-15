@@ -278,14 +278,18 @@ public class ScenarioExecutionUnit implements Runnable {
     public void stepReset() {
         stopped = false;
         stepIndex--;
-        if (stepIndex < 0) {
+        if (stepIndex < 0) { // maybe not required, but debug is hard
             stepIndex = 0;
         }        
-    }    
+    }
+
+    public void stepProceed() {
+        stopped = false;
+    }     
 
     private int nextStepIndex() {
         return stepIndex++;
-    }
+    }        
 
     @Override
     public void run() {

@@ -112,7 +112,8 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         return sb.isBreakpoint(line);
     }
 
-    private DebugThread thread(Number threadId) {
+    private DebugThread thread(DapMessage dm) {
+        Number threadId = dm.getThreadId();
         if (threadId == null) {
             return null;
         }
@@ -249,29 +250,29 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 ctx.write(response(req).body("variables", variables(variablesReference)));
                 break;
             case "next":
-                thread(req.getThreadId()).step().resume();
+                thread(req).next().resume();
                 ctx.write(response(req));
                 break;
             case "stepBack":
             case "reverseContinue": // since we can't disable this button
-                thread(req.getThreadId()).stepBack(true).resume();
+                thread(req).stepBack().resume();
                 ctx.write(response(req));
                 break;
             case "stepIn":
-                thread(req.getThreadId()).stepIn().resume();
+                thread(req).stepIn().resume();
                 ctx.write(response(req));
                 break;
             case "stepOut":
-                thread(req.getThreadId()).stepOut().resume();
+                thread(req).stepOut().resume();
                 ctx.write(response(req));
                 break;
             case "continue":
-                thread(req.getThreadId()).clearStepModes().resume();
+                thread(req)._continue().resume();
                 ctx.write(response(req));
                 break;
             case "pause":
                 ctx.write(response(req));
-                thread(req.getThreadId()).pause();
+                thread(req).pause();
                 break;
             case "evaluate":
                 String expression = req.getArgument("expression", String.class);

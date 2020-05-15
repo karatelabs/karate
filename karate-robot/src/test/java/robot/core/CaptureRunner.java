@@ -13,7 +13,7 @@ public class CaptureRunner {
     public void testCapture() {
         Robot bot = ChromeJavaRunner.getRobot();
         // make sure Chrome is open
-        bot.focusWindow(t -> t.contains("Chrome"));
+        bot.window(t -> t.contains("Chrome"));
         bot.delay(1000);
         bot.captureAndSaveAs("target/temp.png");
     }

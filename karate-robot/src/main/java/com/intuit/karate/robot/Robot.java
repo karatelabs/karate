@@ -128,7 +128,7 @@ public abstract class Robot implements Plugin {
                     if (command.isFailed()) {
                         throw new KarateException("robot fork command failed: " + command.getFailureReason().getMessage());
                     }
-                    if (window != null) {                        
+                    if (window != null) {
                         found = retry(() -> focusWindow(window), r -> r, "finding window", true);
                         logger.debug("attached to process window: {} - {}", window, command.getArgList());
                     }
@@ -405,21 +405,17 @@ public abstract class Robot implements Plugin {
     @AutoDef
     public boolean focusWindow(String title) {
         if (title.startsWith("^")) {
-            return focusWindow(t -> t.contains(title.substring(1)));
+            return window(t -> t.contains(title.substring(1)));
         }
-        return focusWindowInternal(title);
+        return windowInternal(title);
     }
 
     public Element locateElement(Element root, String locator) {
         return retry(() -> locateElementInternal(root, locator), r -> r != null, "find by locator: " + locator, true);
     }
 
-    protected abstract boolean focusWindowInternal(String title);
-
-    public abstract Element locateElementInternal(Element root, String locator);
-
     @AutoDef
-    public abstract boolean focusWindow(Predicate<String> condition);
+    public abstract boolean window(Predicate<String> condition);
 
     @AutoDef
     public abstract Element locateElement(String locator);
@@ -429,5 +425,11 @@ public abstract class Robot implements Plugin {
 
     @AutoDef
     public abstract Element locateFocus();
+    
+    //==========================================================================
+    
+    public abstract Element locateElementInternal(Element root, String locator);
+
+    protected abstract boolean windowInternal(String title);    
 
 }

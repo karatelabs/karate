@@ -77,13 +77,13 @@ public class MacRobot extends Robot {
     }
 
     @Override
-    public boolean focusWindowInternal(String title) {
+    public boolean windowInternal(String title) {
         Command.exec(true, null, "osascript", "-e", "tell app \"" + title + "\" to activate");
         return true; // TODO use command return code
     }
 
     @Override
-    public boolean focusWindow(Predicate<String> condition) {
+    public boolean window(Predicate<String> condition) {
         List<String> list = getAppsMacOs();
         for (String s : list) {
             if (condition.test(s)) {

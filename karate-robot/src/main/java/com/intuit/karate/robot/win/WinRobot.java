@@ -79,7 +79,7 @@ public class WinRobot extends Robot {
     }
 
     @Override
-    protected boolean focusWindowInternal(String title) {
+    protected boolean windowInternal(String title) {
         hwnd = User32.INSTANCE.FindWindow(null, title);
         if (hwnd == null) {
             return false;
@@ -90,7 +90,7 @@ public class WinRobot extends Robot {
     }
 
     @Override
-    public boolean focusWindow(Predicate<String> condition) {
+    public boolean window(Predicate<String> condition) {
         final AtomicBoolean found = new AtomicBoolean();
         User32.INSTANCE.EnumWindows((WinDef.HWND testHwnd, com.sun.jna.Pointer p) -> {
             char[] windowText = new char[512];

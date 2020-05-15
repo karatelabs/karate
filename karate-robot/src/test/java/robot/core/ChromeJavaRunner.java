@@ -29,7 +29,7 @@ public class ChromeJavaRunner {
     public void testChrome() {                
         Robot bot = getRobot();
         // make sure Chrome is open
-        bot.focusWindow(t -> t.contains("Chrome"));
+        bot.window(t -> t.contains("Chrome"));
         bot.input(Keys.META + "t");
         bot.input("karate dsl" + Keys.ENTER);
         Element img = bot.locateImage("tams.png");        

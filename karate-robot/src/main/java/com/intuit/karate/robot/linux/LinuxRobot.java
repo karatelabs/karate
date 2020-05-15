@@ -58,13 +58,13 @@ public class LinuxRobot extends Robot {
     }        
 
     @Override
-    protected boolean focusWindowInternal(String title) {
+    protected boolean windowInternal(String title) {
         Command.exec(true, null, "wmctrl", "-FR", title);
         return true; // TODO ?
     }
 
     @Override
-    public boolean focusWindow(Predicate<String> condition) {
+    public boolean window(Predicate<String> condition) {
         String res = Command.exec(true, null, "wmctrl", "-l");
         List<String> lines = StringUtils.split(res, '\n');
         for (String line : lines) {
