@@ -43,12 +43,22 @@ public class HtmlFeatureReport extends HtmlReport {
     private void stepHtml(boolean calledFromBackground, String scenarioMeta, StepResult stepResult, Node parent, int depth) {
         String refNum = ++stepCounter + "";
         Step step = stepResult.getStep();
+        Result result = stepResult.getResult();
+        String extraClass;
+        if (result.isFailed()) {
+            extraClass = "failed";
+        } else if (result.isSkipped()) {
+            extraClass = "skipped";
+        } else {
+            extraClass = "passed";
+        }        
         boolean isBackground = calledFromBackground || (depth == 0 && step.isBackground());
         List<String> comments = step.getComments();
         if (comments != null) {
             for (String comment : comments) {
                 Element commentContainer = div("step-container");
-                commentContainer.appendChild(div("step-ref comment", ""));
+                String refClass = isBackground ? "bg-step" : extraClass;
+                commentContainer.appendChild(div("step-ref " + refClass, ""));
                 for (int i = 0; i < depth; i++) {
                     commentContainer.appendChild(div("step-indent", " "));
                 }
@@ -61,15 +71,6 @@ public class HtmlFeatureReport extends HtmlReport {
                 }
                 parent.appendChild(commentRow);
             }
-        }
-        Result result = stepResult.getResult();
-        String extraClass;
-        if (result.isFailed()) {
-            extraClass = "failed";
-        } else if (result.isSkipped()) {
-            extraClass = "skipped";
-        } else {
-            extraClass = "passed";
         }
         Element stepContainer = div("step-container");
         stepContainer.setAttribute("id", refNum);
