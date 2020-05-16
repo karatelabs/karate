@@ -24,6 +24,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.StringUtils;
+import java.util.List;
 
 /**
  *
@@ -37,6 +38,7 @@ public class Step {
 
     private int line;
     private int endLine;
+    private List<String> comments;
     private String prefix;
     private String text;
     private String docString;
@@ -139,6 +141,14 @@ public class Step {
     public void setTable(Table table) {
         this.table = table;
     }
+
+    public List<String> getComments() {
+        return comments;
+    }
+
+    public void setComments(List<String> comments) {
+        this.comments = comments;
+    }    
 
     @Override
     public String toString() {

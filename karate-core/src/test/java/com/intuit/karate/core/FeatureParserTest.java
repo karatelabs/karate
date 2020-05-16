@@ -202,5 +202,11 @@ public class FeatureParserTest {
         assertTrue(step.isPrint());
         assertEquals("print a", step.getText());
     }
+    
+    @Test
+    public void testComments() {
+        FeatureResult result = execute("test-comments.feature");
+        assertFalse(result.isFailed());
+    }    
 
 }

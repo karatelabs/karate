@@ -43,7 +43,7 @@ public class DriverMouse implements Mouse {
 
     private Integer duration;
     private final List<Map<String, Object>> actions = new ArrayList();
-    Number x, y;
+    private Number x, y;
 
     private Map<String, Object> moveAction(int x, int y) {
         // {"type":"pointer","id":"1","actions":[{"type":"pointerMove","x":250,"y":250}]}        

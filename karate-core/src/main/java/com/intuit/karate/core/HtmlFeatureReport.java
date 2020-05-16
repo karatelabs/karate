@@ -41,7 +41,27 @@ public class HtmlFeatureReport extends HtmlReport {
     private int stepCounter;
 
     private void stepHtml(boolean calledFromBackground, String scenarioMeta, StepResult stepResult, Node parent, int depth) {
+        String refNum = ++stepCounter + "";
         Step step = stepResult.getStep();
+        boolean isBackground = calledFromBackground || (depth == 0 && step.isBackground());
+        List<String> comments = step.getComments();
+        if (comments != null) {
+            for (String comment : comments) {
+                Element commentContainer = div("step-container");
+                commentContainer.appendChild(div("step-ref comment", ""));
+                for (int i = 0; i < depth; i++) {
+                    commentContainer.appendChild(div("step-indent", " "));
+                }
+                commentContainer.appendChild(div("step-cell comment", comment));
+                Element commentRow = div("step-row",
+                        commentContainer,
+                        div("time-cell comment"));
+                if (isBackground) {
+                    commentRow.setAttribute("data-parent", scenarioMeta + "bg");
+                }
+                parent.appendChild(commentRow);
+            }
+        }
         Result result = stepResult.getResult();
         String extraClass;
         if (result.isFailed()) {
@@ -51,10 +71,8 @@ public class HtmlFeatureReport extends HtmlReport {
         } else {
             extraClass = "passed";
         }
-        String refNum = ++stepCounter + "";
         Element stepContainer = div("step-container");
         stepContainer.setAttribute("id", refNum);
-        boolean isBackground = calledFromBackground || (depth == 0 && step.isBackground());
         String refClass = isBackground ? "bg-step" : extraClass;
         stepContainer.appendChild(div("step-ref " + refClass, refNum));
         for (int i = 0; i < depth; i++) {
@@ -64,10 +82,10 @@ public class HtmlFeatureReport extends HtmlReport {
         Element stepRow = div("step-row",
                 stepContainer,
                 div("time-cell " + extraClass, formatter.format(result.getDurationMillis())));
-        parent.appendChild(stepRow);
         if (isBackground) {
             stepRow.setAttribute("data-parent", scenarioMeta + "bg");
         }
+        parent.appendChild(stepRow);
         if (step.getTable() != null) {
             Element table = node("table", null);
             table.setAttribute("data-parent", refNum);
@@ -186,7 +204,7 @@ public class HtmlFeatureReport extends HtmlReport {
         set("/html/head/title", featureResult.getPackageQualifiedName());
         setById("nav-type", "Scenarios");
         setById("nav-pass", featureResult.getPassedCount() + "");
-        setById("nav-fail", featureResult.getFailedCount() + "");        
+        setById("nav-fail", featureResult.getFailedCount() + "");
         String featureName = featureResult.getDisplayUri();
         String featureDescription = feature.getNameAndDescription();
         Node featureHeading = div("page-heading alert alert-primary",
@@ -206,13 +224,13 @@ public class HtmlFeatureReport extends HtmlReport {
             String scenarioName = scenario.getNameAndDescription();
             String extraClass = sr.isFailed() ? "failed" : "passed";
             Tags tags = scenario.getTagsEffective();
-            Element tagsDiv = div("scenario-tags");           
+            Element tagsDiv = div("scenario-tags");
             for (Tag tag : tags.getOriginal()) {
                 Element tagLink = node("a", "badge badge-primary");
                 tagsDiv.appendChild(tagLink);
                 tagLink.setAttribute("href", "karate-tags.html");
                 tagLink.setTextContent(tag.getText());
-            }                        
+            }
             Element headingContainer = div("heading-container",
                     tagsDiv,
                     node("span", "scenario-keyword", scenario.getKeyword() + ": " + scenarioMeta),
