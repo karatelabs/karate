@@ -69,7 +69,7 @@ public class IUIAutomation extends IUIAutomationBase {
         return createPropertyCondition(property, new ComAllocatedVarStr(value));
     }   
     
-    public IUIAutomationCondition createPropertyCondition(Property property, int value) {
+    public IUIAutomationCondition createPropertyCondition(Property property, int value) {   
         return createPropertyCondition(property, new ComAllocatedVarInt(value));
     }    
 

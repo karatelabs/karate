@@ -38,7 +38,7 @@ public enum TreeScope {
 
     public final int value;
 
-    TreeScope(int value) {
+    private TreeScope(int value) {
         this.value = value;
     }
 

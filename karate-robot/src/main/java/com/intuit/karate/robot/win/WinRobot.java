@@ -29,6 +29,7 @@ import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.Robot;
+import com.intuit.karate.robot.StringMatcher;
 
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinUser;
@@ -70,22 +71,23 @@ public class WinRobot extends Robot {
 
     @Override
     protected Element windowInternal(String title) {
-        return windowInternal(title::equals);
+        return windowInternal(new StringMatcher(title));
     }
 
     @Override
     protected Element windowInternal(Predicate<String> condition) {
-        IUIAutomationElementArray windows = UIA.getRootElement().findAll(TreeScope.Children, UIA.createTrueCondition());
+        IUIAutomationCondition isWindow = UIA.createPropertyCondition(Property.ControlType, ControlType.Window.value);
+        IUIAutomationElementArray windows = UIA.getRootElement().findAll(TreeScope.Descendants, isWindow);
         int count = windows.getLength();
         for (int i = 0; i < count; i++) {
-            IUIAutomationElement window = windows.getElement(i);
-            String name = window.getCurrentName();
+            IUIAutomationElement child = windows.getElement(i);
+            String name = child.getCurrentName();
             if (logger.isTraceEnabled()) {
                 logger.trace("scanning window: {}", name);
             }
             if (condition.test(name)) {
                 logger.debug("found window: {}", name);
-                return toElement(window).focus();
+                return toElement(child).focus();
             }
         }
         logger.warn("failed to find window: {}", condition);

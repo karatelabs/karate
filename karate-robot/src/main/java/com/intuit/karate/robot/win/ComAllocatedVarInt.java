@@ -34,7 +34,8 @@ public class ComAllocatedVarInt implements ComAllocated {
     private final Variant.VARIANT variant;
 
     public ComAllocatedVarInt(int value) {
-        this.variant = new Variant.VARIANT(value);
+        this.variant = new Variant.VARIANT.ByValue();
+        variant.setValue(Variant.VT_INT, value);
     }
 
     @Override
