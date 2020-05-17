@@ -23,48 +23,37 @@
  */
 package com.intuit.karate.robot;
 
+import java.util.function.Predicate;
+
 /**
  *
  * @author pthomas3
  */
-public interface Element {
+public class StringMatcher implements Predicate<String> {
     
-    boolean isImage();
+    private final String orig;
+    private final String text;
+    private final Predicate<String> pred;
     
-    Region getRegion();
-    
-    Element focus();
-    
-    Element click();
-    
-    default Element click(int fromLeft, int fromTop) {
-        Region r = getRegion();
-        Location l = new Location(r.robot, r.x + fromLeft, r.y + fromTop);
-        if (l.robot.highlight) {
-            l.highlight();
-        }
-        l.click();
-        return this;        
+    public StringMatcher(String text) {
+        this.orig = text;
+        if (text.startsWith("^")) {
+            this.text = text.substring(1);
+            pred = s -> s.contains(this.text);
+        } else {
+            this.text = text;
+            pred = s -> s.equals(this.text);
+        }        
     }
-    
-    Element move();
-    
-    Element press();
-    
-    Element release();
-    
-    Element highlight();
-    
-    String getName();
-    
-    String getValue();
-    
-    Element input(String value);
 
-    Element delay(int millis);
-    
-    Element locate(String locator);
-    
-    <T> T toNative();
+    @Override
+    public boolean test(String t) {
+        return pred.test(t);
+    }
+
+    @Override
+    public String toString() {
+        return orig;
+    }        
     
 }

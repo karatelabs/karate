@@ -60,6 +60,7 @@ public abstract class Robot implements Plugin {
     public final Map<String, Object> options;
     public final boolean highlight;
     public final boolean autoClose;
+    public final int autoDelay;
     public final int highlightDuration;
     public final int retryCount;
     public final int retryInterval;
@@ -72,6 +73,7 @@ public abstract class Robot implements Plugin {
     protected Command command;
     protected ScenarioContext context;
     protected Logger logger;
+    protected Element currentWindow;
 
     @Override
     public void setContext(ScenarioContext context) {
@@ -98,21 +100,21 @@ public abstract class Robot implements Plugin {
             highlightDuration = get("highlightDuration", Config.DEFAULT_HIGHLIGHT_DURATION);
             retryCount = get("retryCount", 3);
             retryInterval = get("retryInterval", Config.DEFAULT_RETRY_INTERVAL);
+            autoDelay = get("autoDelay", 0);
             toolkit = Toolkit.getDefaultToolkit();
             dimension = toolkit.getScreenSize();
             screen = new Region(this, 0, 0, dimension.width, dimension.height);
             robot = new java.awt.Robot();
-            robot.setAutoDelay(40);
+            robot.setAutoDelay(autoDelay);
             robot.setAutoWaitForIdle(true);
             //==================================================================
             autoClose = get("autoClose", true);
             boolean attach = get("attach", true);
-            boolean found = false;
             String window = get("window", null);
             if (window != null) {
-                found = window(window);
+                currentWindow = window(window, false); // don't retry
             }
-            if (found && attach) {
+            if (currentWindow != null && attach) {
                 logger.debug("window found, will re-use: {}", window);
             } else {
                 ScriptValue sv = new ScriptValue(options.get("fork"));
@@ -129,11 +131,11 @@ public abstract class Robot implements Plugin {
                         throw new KarateException("robot fork command failed: " + command.getFailureReason().getMessage());
                     }
                     if (window != null) {
-                        found = retry(() -> window(window), r -> r, "finding window", true);
+                        currentWindow = window(window); // will retry
                         logger.debug("attached to process window: {} - {}", window, command.getArgList());
                     }
                 }
-                if (!found && window != null) {
+                if (currentWindow == null && window != null) {
                     throw new KarateException("failed to find window: " + window);
                 }
             }
@@ -407,11 +409,26 @@ public abstract class Robot implements Plugin {
     }
 
     @AutoDef
-    public boolean window(String title) {
-        if (title.startsWith("^")) {
-            return Robot.this.window(t -> t.contains(title.substring(1)));
+    public Element window(String title) {
+        return window(title, true);
+    }
+
+    private Element window(String title, boolean retry) {
+        Predicate<String> condition = new StringMatcher(title);
+        currentWindow = retry ? retry(() -> windowInternal(condition), w -> w != null, "find window", true) : windowInternal(condition);
+        if (currentWindow != null && highlight) {
+            currentWindow.highlight();
         }
-        return windowInternal(title);
+        return currentWindow;        
+    }
+
+    @AutoDef
+    public Element window(Predicate<String> condition) {
+        currentWindow = retry(() -> windowInternal(condition), w -> w != null, "find window", true);
+        if (currentWindow != null && highlight) {
+            currentWindow.highlight();
+        }
+        return currentWindow;
     }
 
     public Element locateElement(Element root, String locator) {
@@ -422,8 +439,9 @@ public abstract class Robot implements Plugin {
         return locateElement(getSearchRoot(), locator);
     }
 
-    @AutoDef
-    public abstract boolean window(Predicate<String> condition);
+    protected Element getSearchRoot() {
+        return currentWindow == null ? getRoot() : currentWindow;
+    }
 
     @AutoDef
     public abstract Element getRoot();
@@ -431,12 +449,12 @@ public abstract class Robot implements Plugin {
     @AutoDef
     public abstract Element locateFocus();
 
-    //==========================================================================
+    //==========================================================================        
     //
-    public abstract Element locateElementInternal(Element root, String locator);
+    protected abstract Element windowInternal(String title);
 
-    protected abstract boolean windowInternal(String title);
+    protected abstract Element windowInternal(Predicate<String> condition);
 
-    protected abstract Element getSearchRoot();
+    protected abstract Element locateElementInternal(Element root, String locator);
 
 }

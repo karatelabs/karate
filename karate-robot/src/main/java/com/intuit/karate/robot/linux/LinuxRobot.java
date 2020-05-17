@@ -40,7 +40,7 @@ import java.util.function.Predicate;
  * @author pthomas3
  */
 public class LinuxRobot extends Robot {
-    
+
     public LinuxRobot(ScenarioContext context, Map<String, Object> options) {
         super(context, options);
     }
@@ -48,23 +48,23 @@ public class LinuxRobot extends Robot {
     @Override
     public Map<String, Object> afterScenario() {
         return Collections.EMPTY_MAP;
-    }        
-    
+    }
+
     private static final List<String> METHOD_NAMES = Plugin.methodNames(LinuxRobot.class);
 
     @Override
     public List<String> methodNames() {
         return METHOD_NAMES;
-    }        
-
-    @Override
-    protected boolean windowInternal(String title) {
-        Command.exec(true, null, "wmctrl", "-FR", title);
-        return true; // TODO ?
     }
 
     @Override
-    public boolean window(Predicate<String> condition) {
+    protected Element windowInternal(String title) {
+        Command.exec(true, null, "wmctrl", "-FR", title);
+        return new ImageElement(screen); // TODO
+    }
+
+    @Override
+    public Element windowInternal(Predicate<String> condition) {
         String res = Command.exec(true, null, "wmctrl", "-l");
         List<String> lines = StringUtils.split(res, '\n');
         for (String line : lines) {
@@ -75,35 +75,30 @@ public class LinuxRobot extends Robot {
             String name = line.substring(pos + host.length() + 1);
             if (condition.test(name)) {
                 Command.exec(true, null, "wmctrl", "-iR", id);
-                return true;
+                return new ImageElement(screen); // TODO
             }
         }
-        return false;
+        return null;
     }
 
     @Override
     public Element locateElement(String locator) {
         throw new UnsupportedOperationException("not supported yet.");
-    }        
+    }
 
     @Override
     public Element locateElementInternal(Element root, String locator) {
         throw new UnsupportedOperationException("not supported yet.");
-    }        
+    }
 
     @Override
     public Element getRoot() {
         return new ImageElement(screen); // TODO
-    }        
+    }
 
-    @Override
-    protected Element getSearchRoot() {
-        return new ImageElement(screen); // TODO
-    }    
-    
     @Override
     public Element locateFocus() {
         return new ImageElement(screen); // TODO
-    }       
-    
+    }
+
 }

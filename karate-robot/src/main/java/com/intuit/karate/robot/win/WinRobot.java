@@ -29,14 +29,12 @@ import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.Robot;
-import com.sun.jna.Native;
+
 import com.sun.jna.platform.win32.User32;
-import com.sun.jna.platform.win32.WinDef;
 import com.sun.jna.platform.win32.WinUser;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 
 /**
@@ -45,7 +43,6 @@ import java.util.function.Predicate;
  */
 public class WinRobot extends Robot {
 
-    private WinDef.HWND hwnd;
     private static final IUIAutomation UIA = IUIAutomation.INSTANCE;
 
     public WinRobot(ScenarioContext context, Map<String, Object> options) {
@@ -54,7 +51,10 @@ public class WinRobot extends Robot {
 
     @Override
     public Map<String, Object> afterScenario() {
-        if (autoClose && command != null && hwnd != null) {
+        logger.debug("after scenario, current window: {}", currentWindow);
+        if (autoClose && command != null && currentWindow != null) {
+            logger.debug("will attempt to close window for: {}", currentWindow.getName());
+            WinUser.HWND hwnd = currentWindow.<IUIAutomationElement>toNative().getCurrentNativeWindowHandle();
             User32.INSTANCE.PostMessage(hwnd, WinUser.WM_QUIT, null, null);
             command.close(false);
         }
@@ -68,55 +68,32 @@ public class WinRobot extends Robot {
         return METHOD_NAMES;
     }
 
-    private void focusWindow(WinDef.HWND hwnd) {
-        this.hwnd = hwnd; // important, state
-        User32.INSTANCE.ShowWindow(hwnd, 9); // SW_RESTORE
-        User32.INSTANCE.SetForegroundWindow(hwnd);
-        if (highlight) {
-            IUIAutomationElement uae = UIA.elementFromHandle(hwnd);
-            new WinElement(this, uae).highlight();
-        }
+    @Override
+    protected Element windowInternal(String title) {
+        return windowInternal(title::equals);
     }
 
     @Override
-    protected boolean windowInternal(String title) {
-        hwnd = User32.INSTANCE.FindWindow(null, title);
-        if (hwnd == null) {
-            return false;
-        } else {
-            focusWindow(hwnd);
-            return true;
-        }
-    }
-
-    @Override
-    public boolean window(Predicate<String> condition) {
-        final AtomicBoolean found = new AtomicBoolean();
-        User32.INSTANCE.EnumWindows((WinDef.HWND testHwnd, com.sun.jna.Pointer p) -> {
-            char[] windowText = new char[512];
-            User32.INSTANCE.GetWindowText(testHwnd, windowText, 512);
-            String windowName = Native.toString(windowText);
+    protected Element windowInternal(Predicate<String> condition) {
+        IUIAutomationElementArray windows = UIA.getRootElement().findAll(TreeScope.Children, UIA.createTrueCondition());
+        int count = windows.getLength();
+        for (int i = 0; i < count; i++) {
+            IUIAutomationElement window = windows.getElement(i);
+            String name = window.getCurrentName();
             if (logger.isTraceEnabled()) {
-                logger.trace("scanning window: {}", windowName);
+                logger.trace("scanning window: {}", name);
             }
-            if (condition.test(windowName)) {
-                found.set(true);
-                focusWindow(testHwnd);
-                return false;
+            if (condition.test(name)) {
+                logger.debug("found window: {}", name);
+                return toElement(window).focus();
             }
-            return true;
-        }, null);
-        return found.get();
+        }
+        logger.warn("failed to find window: {}", condition);
+        return null;
     }
 
     private IUIAutomationCondition by(Property property, String value) {
         return UIA.createPropertyCondition(property, value);
-    }
-
-    @Override
-    protected Element getSearchRoot() {
-        IUIAutomationElement e = hwnd == null ? UIA.getRootElement() : UIA.elementFromHandle(hwnd);
-        return toElement(e);
     }
 
     private WinElement toElement(IUIAutomationElement element) {

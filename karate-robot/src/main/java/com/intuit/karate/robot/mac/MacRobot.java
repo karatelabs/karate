@@ -77,21 +77,21 @@ public class MacRobot extends Robot {
     }
 
     @Override
-    public boolean windowInternal(String title) {
+    public Element windowInternal(String title) {
         Command.exec(true, null, "osascript", "-e", "tell app \"" + title + "\" to activate");
-        return true; // TODO use command return code
+        return new ImageElement(screen); // TODO
     }
 
     @Override
-    public boolean window(Predicate<String> condition) {
+    public Element windowInternal(Predicate<String> condition) {
         List<String> list = getAppsMacOs();
         for (String s : list) {
             if (condition.test(s)) {
                 Command.exec(true, null, "osascript", "-e", "tell app \"" + s + "\" to activate");
-                return true; // TODO use command return code
+                return new ImageElement(screen); // TODO
             }
         }
-        return false;
+        return null;
     }
 
     @Override
@@ -107,11 +107,6 @@ public class MacRobot extends Robot {
     @Override
     public Element getRoot() {
         return new ImageElement(screen);
-    }
-
-    @Override
-    protected Element getSearchRoot() {
-        return new ImageElement(screen); // TODO
     }
 
     @Override

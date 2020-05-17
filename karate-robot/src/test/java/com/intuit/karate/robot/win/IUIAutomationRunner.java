@@ -1,6 +1,8 @@
 package com.intuit.karate.robot.win;
 
 import com.intuit.karate.StringUtils;
+import com.sun.jna.platform.win32.User32;
+import com.sun.jna.platform.win32.WinDef;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.slf4j.Logger;
@@ -48,7 +50,14 @@ public class IUIAutomationRunner {
         IUIAutomationElement last = null;
         for (int i = 0; i < count; i++) {
             last = children.getElement(i);
-            logger.debug("name {}: {}", i, last.getCurrentName());
+            String windowName = last.getCurrentName();
+            logger.debug("name {}: {}", i, windowName);
+            WinDef.HWND hwnd = last.getCurrentNativeWindowHandle();
+            IUIAutomationElement temp1 = ui.elementFromHandle(hwnd);
+            assertEquals(temp1.getCurrentName(), windowName);
+            WinDef.HWND temp2 = User32.INSTANCE.FindWindow(null, windowName);
+            IUIAutomationElement temp3 = ui.elementFromHandle(temp2);
+            assertEquals(temp3.getCurrentName(), windowName);
         }        
         IUIAutomationTreeWalker walker = ui.getControlViewWalker();
         walk(walker, last, 0);       

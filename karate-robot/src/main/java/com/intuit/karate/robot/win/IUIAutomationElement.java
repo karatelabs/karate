@@ -25,29 +25,30 @@ package com.intuit.karate.robot.win;
 
 import com.sun.jna.platform.win32.Variant;
 import com.sun.jna.platform.win32.WinDef;
+import com.sun.jna.ptr.PointerByReference;
 
 /**
  *
  * @author pthomas3
  */
-public class IUIAutomationElement extends IUIAutomationBase {    
+public class IUIAutomationElement extends IUIAutomationBase {
 
     public String getCurrentName() {
         return invokeForString("CurrentName");
     }
-    
+
     public ControlType getControlType() {
         int controlType = getCurrentPropertyValue(Property.ControlType).intValue();
         return ControlType.fromValue(controlType);
-    }    
-    
+    }
+
     public String getClassName() {
         return getCurrentPropertyValue(Property.ClassName).stringValue();
-    }   
-    
+    }
+
     public String getAutomationId() {
         return getCurrentPropertyValue(Property.AutomationId).stringValue();
-    }    
+    }
 
     public IUIAutomationElement findFirst(TreeScope scope, IUIAutomationCondition condition) {
         return invokeForElement("FindFirst", scope.value, condition);
@@ -56,15 +57,15 @@ public class IUIAutomationElement extends IUIAutomationBase {
     public IUIAutomationElementArray findAll(TreeScope scope, IUIAutomationCondition condition) {
         return invoke(IUIAutomationElementArray.class, "FindAll", scope.value, condition);
     }
-    
+
     public Variant.VARIANT getCurrentPropertyValue(Property property) {
         return invoke(Variant.VARIANT.class, "GetCurrentPropertyValue", property.value);
     }
-    
+
     public void setFocus() {
         invoke("SetFocus");
     }
-    
+
     public WinDef.POINT getClickablePoint() {
         WinDef.POINT point = new WinDef.POINT.ByReference();
         WinDef.BOOLByReference status = new WinDef.BOOLByReference();
@@ -74,17 +75,23 @@ public class IUIAutomationElement extends IUIAutomationBase {
         }
         return point;
     }
-    
+
     public WinDef.RECT getCurrentBoundingRectangle() {
         return invoke(WinDef.RECT.class, "CurrentBoundingRectangle");
     }
-    
+
     public <T> T getCurrentPattern(Class<T> type) {
         Pattern pattern = Pattern.fromType(type);
         if (pattern == null) {
             throw new RuntimeException("unsupported pattern: " + type);
         }
         return invoke(type, "GetCurrentPattern", pattern.value);
+    }
+
+    public WinDef.HWND getCurrentNativeWindowHandle() {
+        PointerByReference pbr = new PointerByReference();
+        invoke("CurrentNativeWindowHandle", pbr);
+        return new WinDef.HWND(pbr.getValue());
     }
 
 }

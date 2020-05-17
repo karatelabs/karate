@@ -48,6 +48,11 @@ public class ImageElement implements Element {
     }
 
     @Override
+    public Element focus() {
+        return this;
+    }        
+
+    @Override
     public Element click() {
         region.click();
         return this;

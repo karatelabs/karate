@@ -3,11 +3,6 @@
 ## Desktop Automation Made `Simple.`
 > Version 0.9.6.RC2 is available, and experimental. Please test and contribute if you can !
 
-### Demo Videos
-* Clicking the *native* "File Upload" button in a Web Page - [Link](https://twitter.com/ptrthomas/status/1253373486384295936)
-  * details, code and explanation [here](https://stackoverflow.com/a/61393515/143475)
-* Clicking a button in an iOS Mobile Emulator - [Link](https://twitter.com/ptrthomas/status/1217479362666041344)
-
 ### Capabilities
 * Available as a standalone binary via the [ZIP Release](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot)
 * Native Mouse Events
@@ -15,6 +10,12 @@
 * Navigation via image detection - cross-platform (mac, win, linux) via [Java CPP](https://github.com/bytedeco/javacpp)
 * Windows object-recognition using [Microsoft UI Automation](https://docs.microsoft.com/en-us/windows/win32/winauto/entry-uiauto-win32)
 * Tightly integrated into Karate
+
+### Demo Videos
+* Clicking the *native* "File Upload" button in a Web Page - [Link](https://twitter.com/ptrthomas/status/1253373486384295936)
+  * details, code and explanation [here](https://stackoverflow.com/a/61393515/143475)
+* Clicking a button in an iOS Mobile Emulator - [Link](https://twitter.com/ptrthomas/status/1217479362666041344)
+* Windows automation by natively accessing UI controls and the window / object tree - [Link](https://twitter.com/ptrthomas/status/1261183808985948160)
 
 ## Examples
 * Refer to the [`examples/robot-test`](../examples/robot-test) project which is a stand-alone Maven project that can be used as a starting point
@@ -68,16 +69,26 @@ key | description
 --- | -----------
 `window` | (optional) the name of the window to bring to focus, and you can use a `^` prefix to do a string "contains" match, also see [`window()`](#window)
 `fork` | (optional) calls an OS executable and takes a string (e.g. `'some.exe -h'`), string-array (e.g. `['some.exe', '-h']`) or JSON as per [`karate.fork()`](https://github.com/intuit/karate#karate-fork)
-`autoClose` | deafult `true` will close the current window if fork was used on startup 
-`attach` | defult `true` if the `window` exists, `fork` will not be executed
-`basePath` | defaults to `null`, which means the search will be relative to the "entry point" feature file, but can be used to point to [prefixed / relative paths](https://github.com/intuit/karate#reading-files) such as `classpath:some/folder`
+`autoClose` | deafult `true` - to close the current window if fork was used on startup 
+`attach` | defult `true` - if the `window` exists, `fork` will not be executed
+`basePath` | defaults to `null`, which means the "find by image" search will be relative to the "entry point" feature file, but can be used to point to [prefixed / relative paths](https://github.com/intuit/karate#reading-files) such as `classpath:some/folder`
 `highlight` | default `false` if an image match should be highlighted
 `highlightDuration` | default `3000` - time to `highlight` in milliseconds
-`retryCount` | default `3` number of times Karate will attempt to find an image or element
-`retryInterval` | default `3000` time between retries when finding an image or element
+`retryCount` | default `3` - number of times Karate will attempt to find an image or element
+`retryInterval` | default `3000` - time between retries when finding an image or element
+`autoDelay` | default `0` - time delay added (in milliseconds) after a native action (key press, mouse click), you can set this to a small value e.g. `40` only in case of any issues with keystrokes being too fast, etc
 
 # API
 Please refer to the available methods in [`Robot.java`](src/main/java/com/intuit/karate/robot/Robot.java). Most of them are "chainable". The built-in `robot` JS object is where you script UI automation. It will be initialized only after the [`robot`](#robot) keyword has been used to start / attach to a desktop window.
+
+## Element
+Any method on the [`Robot`](#api) type that returns [`Element`](src/main/java/com/intuit/karate/robot/Element.java) can be chained for convenience. Here is an example:
+
+```cucumber
+* locate('Taxpayer').click(20, 40)
+```
+
+This [locates](#windows-locators) a UI control by name, and then within the bounds of that element, proceeds to click the mouse at an inner offset of 20 pixels(horizontal) and 40 pixels (vertical) from the top-left corner of the element.
 
 ## Methods
 As a convenience, *all* the methods on the `robot` have been injected into the context as special (JavaScript) variables so you can omit the "`robot.`" part and save a lot of typing. For example instead of:
@@ -109,8 +120,7 @@ The above flow performs the following operations:
   * Karate will try to use different scaling factors for an image match, for best results - try to use images that are the same resolution (or as close) as the desktop resolution
   * if you run into issues, try re-taking a PNG capture of the area to click-on
 
-## Images
-Images have to be in PNG format, and with the extension `*.png`. Karate will attempt to find images that are smaller or larger to a certain extent. But for the best results, try to save images that are the same resolution as the application under test.
+Also see [Image Locators](#image-locators)
 
 ## `Key`
 Just [like Karate UI](https://github.com/intuit/karate/tree/master/karate-core#special-keys), the special keys are made available under the namespace `Key`. You can see all the available codes [here](https://github.com/intuit/karate/blob/master/karate-core/src/main/java/com/intuit/karate/driver/Key.java).
@@ -125,6 +135,12 @@ Rarely used since `basePath` would typically be set by the [`robot` options](#ro
 ```cucumber
 * robot.basePath = 'classpath:some/package'
 ```
+
+## Image Locators
+Images have to be in PNG format, and with the extension `*.png`. Karate will attempt to find images that are smaller or larger to a certain extent. But for the best results, try to save images that are the same resolution as the application under test. Also see [`robot.basePath`](#robotbasepath)
+
+So any string that ends with `.png` will be treated as an "image locator". Else read on for OS-native locators.
+
 ## Windows Locators
 Finding by "name" is the default. Prefixing with a `#` means using the "Automation ID" which may or may not be available depending on the application under test. The "`{}`" and "`{^}`" locator-prefixes are designed to make adding more filter conditions easy, for e.g. to find by "control type" and "class name".
 
@@ -141,6 +157,10 @@ Locator | Description
 `click('{^:4}Me')` | the fourth control (any type) where the name *contains*: `Me`
 
 Use a tool like [Inspect.exe](https://docs.microsoft.com/en-us/windows/win32/winauto/inspect-objects) to identify the properties needed for automation from an application window.
+
+The [control "type"](https://docs.microsoft.com/en-us/windows/win32/winauto/uiauto-controltypesoverview) is not case-sensititive. Examples are `edit`, `button` and `checkbox`. The complete list of types can be [found here](src/main/java/com/intuit/karate/robot/win/ControlType.java). You don't have to rely on the `LocalizedControlType` shown in tools such as "Inspect.exe" because Karate uses the `ControlType`.
+
+Similarly, the "class name" is not case-sensitive. This can be useful in some cases, for example in Delphi you can use values such as `TScrollBox` and `TEdit`.
 
 ### Calculator Example
 
@@ -161,6 +181,16 @@ Scenario:
 
 ## `click()`
 Defaults to a "left-click", pass 1, 2 or 3 as the argument to specify left, middle or right mouse button.
+
+```cucumber
+* click('Continue')
+```
+
+You can also click on any X and Y co-ordinate. Note that (0, 0) is the top, left of the screen.
+
+```cucumber
+* click(100, 200)
+```
 
 ## `move()`
 Argument can be `x, y` co-ordinates or typically the name of an image, which will be looked for in the [`basePath`](#robot). Note that relative paths will work.

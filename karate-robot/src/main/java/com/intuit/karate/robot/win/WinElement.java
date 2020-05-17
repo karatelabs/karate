@@ -61,6 +61,12 @@ public class WinElement extends RobotAware implements Element {
     }
 
     @Override
+    public Element focus() {
+        e.setFocus();
+        return this;
+    }    
+    
+    @Override
     public Element click() {
         getClickablePoint().click();
         return this;
