@@ -24,6 +24,8 @@
 package com.intuit.karate.robot;
 
 import java.awt.image.BufferedImage;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  *
@@ -87,6 +89,19 @@ public class Region extends RobotAware {
         center().release();
         return this;
     }    
+    
+    public Map<String, Object> getPosition() {
+        Map<String, Object> map = new HashMap();
+        map.put("x", x);
+        map.put("y", y);
+        map.put("width", width);
+        map.put("height", height);
+        return map;
+    }
+    
+    public byte[] screenshot() {
+        return robot.screenshot(this);
+    }
 
     @Override
     public String toString() {

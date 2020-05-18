@@ -56,7 +56,7 @@ public class MissingElement implements Element {
     }
 
     @Override
-    public Map<String, Object> position() {
+    public Map<String, Object> getPosition() {
         return null;
     }
 

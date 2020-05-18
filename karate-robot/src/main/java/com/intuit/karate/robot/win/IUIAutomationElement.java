@@ -93,5 +93,9 @@ public class IUIAutomationElement extends IUIAutomationBase {
         invoke("CurrentNativeWindowHandle", pbr);
         return new WinDef.HWND(pbr.getValue());
     }
+    
+    public boolean getCurrentIsEnabled() {
+        return invokeForInt("CurrentIsEnabled") == 1;
+    }    
 
 }

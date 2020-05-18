@@ -23,48 +23,104 @@
  */
 package com.intuit.karate.robot;
 
+import java.util.Map;
+
 /**
  *
  * @author pthomas3
  */
 public interface Element {
-    
-    boolean isImage();
-    
-    Region getRegion();
-    
-    Element focus();
-    
-    Element click();
-    
-    default Element click(int fromLeft, int fromTop) {
+
+    Robot getRobot();
+
+    default Location offset(int fromLeft, int fromTop) {
         Region r = getRegion();
         Location l = new Location(r.robot, r.x + fromLeft, r.y + fromTop);
         if (l.robot.highlight) {
             l.highlight();
         }
-        l.click();
-        return this;        
+        return l;
+    }
+
+    boolean isExists(); // getter    
+
+    boolean isImage(); // getter
+
+    boolean isEnabled(); // getter    
+
+    default Map<String, Object> getPosition() {
+        return getRegion().getPosition();
+    }
+
+    Region getRegion();
+
+    default byte[] screenshot() {
+        return getRegion().screenshot();
+    }
+
+    Element focus();
+
+    default Element move(int fromLeft, int fromTop) {
+        offset(fromLeft, fromTop).move();
+        return this;
+    }
+
+    Element click();
+
+    Element clear();
+
+    default Element click(int fromLeft, int fromTop) {
+        offset(fromLeft, fromTop).click();
+        return this;
     }
     
+    default Element doubleClick(int fromLeft, int fromTop) {
+        offset(fromLeft, fromTop).doubleClick();
+        return this;
+    }    
+
     Element move();
-    
+
     Element press();
-    
+
     Element release();
-    
+
     Element highlight();
-    
+
     String getName();
-    
+
     String getValue();
-    
+
     Element input(String value);
 
     Element delay(int millis);
-    
-    Element locate(String locator);
-    
+
+    default Element retry() {
+        getRobot().retry();
+        return this;
+    }
+
+    default Element retry(int count) {
+        getRobot().retry(count);
+        return this;
+    }
+
+    default Element retry(Integer count, Integer interval) {
+        getRobot().retry(count, interval);
+        return this;
+    }
+
+    default Element locate(String locator) {
+        Robot robot = getRobot();
+        return robot.locate(robot.getHighlightDuration(), this, locator);
+    }
+
+    default Element exists(String locator) {
+        return getRobot().exists(this, locator);
+    }
+
     <T> T toNative();
     
+    String getDebugString();
+
 }

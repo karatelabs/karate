@@ -38,6 +38,21 @@ public class ImageElement implements Element {
     }
 
     @Override
+    public Robot getRobot() {
+        return robot;
+    }
+
+    @Override
+    public boolean isExists() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
+
+    @Override
     public boolean isImage() {
         return true;
     }
@@ -49,8 +64,9 @@ public class ImageElement implements Element {
 
     @Override
     public Element focus() {
+        region.click();
         return this;
-    }        
+    }
 
     @Override
     public Element click() {
@@ -100,21 +116,26 @@ public class ImageElement implements Element {
     }
 
     @Override
+    public Element clear() {
+        region.click();
+        robot.clearFocused();
+        return this;
+    }
+
+    @Override
     public Element delay(int millis) {
         robot.delay(millis);
         return this;
     }
 
     @Override
-    public Element locate(String locator) {
-        Element fe = robot.locateImage(() -> region.capture(), locator);
-        Region fr = fe.getRegion();
-        return new ImageElement(new Region(robot, region.x + fr.x, region.y + fr.y, fr.width, fr.height));
-    }      
-
-    @Override
     public Region toNative() {
         return region;
     }
+
+    @Override
+    public String getDebugString() {
+        return getName();
+    }        
 
 }

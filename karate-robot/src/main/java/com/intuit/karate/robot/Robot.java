@@ -252,6 +252,14 @@ public abstract class Robot implements Plugin {
         robot.mouseRelease(mask);
         return this;
     }
+    
+    @AutoDef
+    public Robot doubleClick() {
+        click();
+        delay(40);
+        click();
+        return this;
+    }    
 
     @AutoDef
     public Robot press() {
@@ -317,14 +325,18 @@ public abstract class Robot implements Plugin {
         }
         return this;
     }
+    
+    public Robot clearFocused() {
+        return input(Keys.CONTROL + "a" + Keys.DELETE);
+    }
 
-    private int getDuration() {
+    protected int getHighlightDuration() {
         return highlight ? highlightDuration : -1;
     }
 
     @AutoDef
     public Element input(String locator, String value) {
-        return locate(getDuration(), locator).input(value);
+        return locate(locator).input(value);
     }
 
     public BufferedImage capture() {
@@ -379,22 +391,39 @@ public abstract class Robot implements Plugin {
 
     @AutoDef
     public Element highlight(String locator) {
-        return locate(Config.DEFAULT_HIGHLIGHT_DURATION, locator);
+        return locate(Config.DEFAULT_HIGHLIGHT_DURATION, getSearchRoot(), locator);
     }
 
     @AutoDef
     public Element locate(String locator) {
-        return locate(getDuration(), locator);
+        return locate(getHighlightDuration(), getSearchRoot(), locator);
+    }
+    
+    @AutoDef
+    public Element exists(String locator) {
+        return exists(getSearchRoot(), locator);
+    }
+    
+    protected Element exists(Element searchRoot, String locator) {
+        Element found = locateImageOrElement(searchRoot, locator);
+        if (found == null) {
+            logger.warn("element does not exist: {}", locator);
+            return new MissingElement(this);
+        }
+        if (highlight) {
+            found.highlight();
+        }
+        return found;        
     }
 
-    protected Element locate(int duration, String locator) {
+    protected Element locate(int duration, Element searchRoot, String locator) {
         Element found;
         if (retryEnabled) {
-            found = waitFor(locator); // will throw exception if not found
+            found = waitForAny(searchRoot, locator); // will throw exception if not found
         } else {
-            found = locateImageOrElement(getSearchRoot(), locator);
+            found = locateImageOrElement(searchRoot, locator);
             if (found == null) {
-                throw new RuntimeException("cannot locate: " + locator);
+                throw new RuntimeException("cannot locate: " + locator + " (" + searchRoot.getDebugString() + ")");
             }
             if (duration > 0) {
                 found.getRegion().highlight(duration);
@@ -405,22 +434,22 @@ public abstract class Robot implements Plugin {
 
     @AutoDef
     public Element move(String locator) {
-        return locate(getDuration(), locator).move();
+        return locate(getHighlightDuration(), getSearchRoot(), locator).move();
     }
 
     @AutoDef
     public Element click(String locator) {
-        return locate(getDuration(), locator).click();
+        return locate(getHighlightDuration(), getSearchRoot(), locator).click();
     }
 
     @AutoDef
     public Element press(String locator) {
-        return locate(getDuration(), locator).press();
+        return locate(getHighlightDuration(), getSearchRoot(), locator).press();
     }
 
     @AutoDef
     public Element release(String locator) {
-        return locate(getDuration(), locator).release();
+        return locate(getHighlightDuration(), getSearchRoot(), locator).release();
     }
 
     public Element locateImage(String path) {
@@ -447,7 +476,7 @@ public abstract class Robot implements Plugin {
     private Element window(String title, boolean retry) {
         Predicate<String> condition = new StringMatcher(title);
         currentWindow = retry ? retry(() -> windowInternal(condition), w -> w != null, "find window", true) : windowInternal(condition);
-        if (currentWindow != null && highlight) {
+        if (currentWindow != null && highlight) { // currentWindow can be null
             currentWindow.highlight();
         }
         return currentWindow;
@@ -456,7 +485,7 @@ public abstract class Robot implements Plugin {
     @AutoDef
     public Element window(Predicate<String> condition) {
         currentWindow = retry(() -> windowInternal(condition), w -> w != null, "find window", true);
-        if (currentWindow != null && highlight) {
+        if (currentWindow != null && highlight) { // currentWindow can be null
             currentWindow.highlight();
         }
         return currentWindow;
@@ -486,11 +515,10 @@ public abstract class Robot implements Plugin {
     }
 
     private Element retryForAny(Element searchRoot, String... locators) {
-        List<String> list = Arrays.asList(locators); // just for debuggability
-        return retry(() -> waitForAny(searchRoot, list), r -> r != null, "find by locator(s): " + list, true);
+        return retry(() -> waitForAny(searchRoot, locators), r -> r != null, "find by locator(s): " + Arrays.asList(locators), true);
     }
 
-    private Element waitForAny(Element searchRoot, List<String> locators) {
+    protected Element waitForAny(Element searchRoot, String... locators) {
         for (String locator : locators) {
             Element found = locateImageOrElement(searchRoot, locator);
             if (found != null) {

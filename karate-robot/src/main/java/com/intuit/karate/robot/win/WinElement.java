@@ -27,7 +27,6 @@ import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.Location;
 import com.intuit.karate.robot.Region;
 import com.intuit.karate.robot.Robot;
-import com.intuit.karate.robot.RobotAware;
 import com.sun.jna.platform.win32.Variant;
 import com.sun.jna.platform.win32.WinDef;
 
@@ -35,13 +34,29 @@ import com.sun.jna.platform.win32.WinDef;
  *
  * @author pthomas3
  */
-public class WinElement extends RobotAware implements Element {
+public class WinElement implements Element {
 
     private final IUIAutomationElement e;
+    private final Robot robot;
 
     public WinElement(Robot robot, IUIAutomationElement e) {
-        super(robot);
+        this.robot = robot;
         this.e = e;
+    }
+
+    @Override
+    public Robot getRobot() {
+        return robot;
+    }
+
+    @Override
+    public boolean isExists() {
+        return !e.isNull(); // should be un-necessary
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return e.getCurrentIsEnabled();
     }
 
     @Override
@@ -64,8 +79,8 @@ public class WinElement extends RobotAware implements Element {
     public Element focus() {
         e.setFocus();
         return this;
-    }    
-    
+    }
+
     @Override
     public Element click() {
         getClickablePoint().click();
@@ -115,6 +130,18 @@ public class WinElement extends RobotAware implements Element {
     }
 
     @Override
+    public Element clear() {
+        if (isValuePatternAvailable()) {
+            IUIAutomationValuePattern valuePattern = e.getCurrentPattern(IUIAutomationValuePattern.class);
+            valuePattern.setCurrentValue("");
+        } else {
+            e.setFocus();
+            robot.clearFocused();
+        }
+        return this;
+    }
+
+    @Override
     public Element input(String value) {
         if (isValuePatternAvailable()) {
             IUIAutomationValuePattern valuePattern = e.getCurrentPattern(IUIAutomationValuePattern.class);
@@ -133,13 +160,13 @@ public class WinElement extends RobotAware implements Element {
     }
 
     @Override
-    public Element locate(String locator) {
-        return robot.locateElement(this, locator);
-    }     
-
-    @Override
     public IUIAutomationElement toNative() {
         return e;
     }
+
+    @Override
+    public String getDebugString() {
+        return "{" + e.getControlType() + "}" + e.getCurrentName();
+    }        
 
 }

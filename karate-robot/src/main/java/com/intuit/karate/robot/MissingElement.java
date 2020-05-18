@@ -27,10 +27,27 @@ package com.intuit.karate.robot;
  *
  * @author pthomas3
  */
-public class MissingElement extends RobotAware implements Element {
-    
+public class MissingElement implements Element {
+
+    private final Robot robot;
+
     public MissingElement(Robot robot) {
-        super(robot);
+        this.robot = robot;
+    }
+
+    @Override
+    public Robot getRobot() {
+        return robot;
+    }
+
+    @Override
+    public boolean isExists() {
+        return false;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true; // hmm
     }
 
     @Override
@@ -85,7 +102,12 @@ public class MissingElement extends RobotAware implements Element {
 
     @Override
     public Element input(String value) {
-       return this;
+        return this;
+    }
+
+    @Override
+    public Element clear() {
+        return this;
     }
 
     @Override
@@ -103,5 +125,10 @@ public class MissingElement extends RobotAware implements Element {
     public <T> T toNative() {
         return null;
     }
-    
+
+    @Override
+    public String getDebugString() {
+        return "(missing element)";
+    }
+
 }

@@ -71,7 +71,7 @@ public class DriverElement implements Element {
     }
 
     @Override
-    public Map<String, Object> position() {
+    public Map<String, Object> getPosition() {
         return driver.position(locator);
     }
 

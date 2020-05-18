@@ -52,6 +52,12 @@ public class Location extends RobotAware {
         robot.click(num);
         return this;
     }
+    
+    public Location doubleClick() {
+        robot.move(x, y); // do not chain, causes recursion
+        robot.doubleClick();
+        return this;
+    }    
 
     public Location press() {
         robot.move(x, y); // do not chain, causes recursion

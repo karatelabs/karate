@@ -38,7 +38,7 @@ public interface Element {
 
     boolean isEnabled(); // getter
     
-    Map<String, Object> position();
+    Map<String, Object> getPosition(); // getter
     
     byte[] screenshot();
 
@@ -67,11 +67,11 @@ public interface Element {
     Element switchFrame();
 
     Element delay(int millis);
-    
+
     Element retry();
-    
+
     Element retry(int count);
-    
+
     Element retry(Integer count, Integer interval);
 
     Element waitFor();
