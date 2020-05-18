@@ -112,6 +112,7 @@ public class Main implements Callable<Void> {
     String importFile;
 
     public static void main(String[] args) {
+        boolean isClean = false;
         boolean isOutputArg = false;
         String outputDir = DEFAULT_OUTPUT_DIR;
         // hack to manually extract the output dir arg to redirect karate.log if needed
@@ -128,12 +129,21 @@ public class Main implements Callable<Void> {
                     isOutputArg = true;
                 }
             }
+            if (s.startsWith("-C") || s.startsWith("--clean")) {
+                isClean = true;
+            }
         }
-        System.setProperty("karate.output.dir", outputDir);
-        // ensure we init logback before anything else
-        String logbackConfig = System.getProperty(LOGBACK_CONFIG);
-        if (StringUtils.isBlank(logbackConfig)) {
-            System.setProperty(LOGBACK_CONFIG, "logback-netty.xml");
+        if (isClean) {
+            // ensure karate.log is not held open which will prevent 
+            // a graceful delete of "target" especially on windows
+            System.setProperty(LOGBACK_CONFIG, "logback-nofile.xml");
+        } else {
+            System.setProperty("karate.output.dir", outputDir);
+            // ensure we init logback before anything else
+            String logbackConfig = System.getProperty(LOGBACK_CONFIG);
+            if (StringUtils.isBlank(logbackConfig)) {
+                System.setProperty(LOGBACK_CONFIG, "logback-netty.xml");
+            }
         }
         logger = LoggerFactory.getLogger(Main.class);
         logger.info("Karate version: {}", FileUtils.getKarateVersion());
