@@ -42,9 +42,10 @@ import java.awt.Toolkit;
 import java.awt.event.InputEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -62,8 +63,6 @@ public abstract class Robot implements Plugin {
     public final boolean autoClose;
     public final int autoDelay;
     public final int highlightDuration;
-    public final int retryCount;
-    public final int retryInterval;
     public final Region screen;
 
     protected ScriptBridge bridge;
@@ -74,6 +73,47 @@ public abstract class Robot implements Plugin {
     protected ScenarioContext context;
     protected Logger logger;
     protected Element currentWindow;
+
+    // retry
+    private boolean retryEnabled;
+    private Integer retryIntervalOverride = null;
+    private Integer retryCountOverride = null;
+
+    public void disableRetry() {
+        retryEnabled = false;
+        retryCountOverride = null;
+        retryIntervalOverride = null;
+    }
+
+    public void enableRetry(Integer count, Integer interval) {
+        retryEnabled = true;
+        retryCountOverride = count; // can be null
+        retryIntervalOverride = interval; // can be null
+    }
+
+    private int getRetryCount() {
+        return retryCountOverride == null ? context.getConfig().getRetryCount() : retryCountOverride;
+    }
+
+    private int getRetryInterval() {
+        return retryIntervalOverride == null ? context.getConfig().getRetryInterval() : retryIntervalOverride;
+    }
+
+    @AutoDef
+    public Robot retry() {
+        return retry(null, null);
+    }
+
+    @AutoDef
+    public Robot retry(int count) {
+        return retry(count, null);
+    }
+
+    @AutoDef
+    public Robot retry(Integer count, Integer interval) {
+        enableRetry(count, interval);
+        return this;
+    }
 
     @Override
     public void setContext(ScenarioContext context) {
@@ -98,8 +138,6 @@ public abstract class Robot implements Plugin {
             basePath = get("basePath", null);
             highlight = get("highlight", false);
             highlightDuration = get("highlightDuration", Config.DEFAULT_HIGHLIGHT_DURATION);
-            retryCount = get("retryCount", 3);
-            retryInterval = get("retryInterval", Config.DEFAULT_RETRY_INTERVAL);
             autoDelay = get("autoDelay", 0);
             toolkit = Toolkit.getDefaultToolkit();
             dimension = toolkit.getScreenSize();
@@ -131,6 +169,8 @@ public abstract class Robot implements Plugin {
                         throw new KarateException("robot fork command failed: " + command.getFailureReason().getMessage());
                     }
                     if (window != null) {
+                        retryCountOverride = get("retryCount", 3);
+                        retryIntervalOverride = get("retryInterval", Config.DEFAULT_RETRY_INTERVAL);
                         currentWindow = window(window); // will retry
                         logger.debug("attached to process window: {} - {}", window, command.getArgList());
                     }
@@ -146,13 +186,15 @@ public abstract class Robot implements Plugin {
 
     public <T> T retry(Supplier<T> action, Predicate<T> condition, String logDescription, boolean failWithException) {
         long startTime = System.currentTimeMillis();
-        int count = 0, max = retryCount;
+        int count = 0, max = getRetryCount();
+        int interval = getRetryInterval();
+        disableRetry(); // always reset
         T result;
         boolean success;
         do {
             if (count > 0) {
                 logger.debug("{} - retry #{}", logDescription, count);
-                delay(retryInterval);
+                delay(interval);
             }
             result = action.get();
             success = condition.test(result);
@@ -347,29 +389,16 @@ public abstract class Robot implements Plugin {
 
     protected Element locate(int duration, String locator) {
         Element found;
-        if (locator.endsWith(".png")) {
-            found = locateImage(locator);
+        if (retryEnabled) {
+            found = waitFor(locator); // will throw exception if not found
         } else {
-            found = locateElement(locator);
-        }
-        if (duration > 0) {
-            found.getRegion().highlight(duration);
-        }
-        return found;
-    }
-
-    protected Element locate(int duration, Element root, String locator) {
-        Element found;
-        if (locator.endsWith(".png")) {
-            found = locateImage(() -> root.getRegion().capture(), locator);
-        } else if (root.isImage()) {
-            // TODO
-            throw new RuntimeException("todo find non-image elements within region");
-        } else {
-            found = locateElement(root, locator);
-        }
-        if (duration > 0) {
-            found.getRegion().highlight(duration);
+            found = locateImageOrElement(getSearchRoot(), locator);
+            if (found == null) {
+                throw new RuntimeException("cannot locate: " + locator);
+            }
+            if (duration > 0) {
+                found.getRegion().highlight(duration);
+            }
         }
         return found;
     }
@@ -403,8 +432,10 @@ public abstract class Robot implements Plugin {
     }
 
     public Element locateImage(Supplier<BufferedImage> source, byte[] bytes) {
-        AtomicBoolean resize = new AtomicBoolean();
-        Region region = retry(() -> RobotUtils.find(this, source.get(), bytes, resize.getAndSet(true)), r -> r != null, "find by image", true);
+        Region region = RobotUtils.find(this, source.get(), bytes, true);
+        if (region == null) {
+            return null;
+        }
         return new ImageElement(region);
     }
 
@@ -419,7 +450,7 @@ public abstract class Robot implements Plugin {
         if (currentWindow != null && highlight) {
             currentWindow.highlight();
         }
-        return currentWindow;        
+        return currentWindow;
     }
 
     @AutoDef
@@ -432,19 +463,59 @@ public abstract class Robot implements Plugin {
     }
 
     public Element locateElement(Element root, String locator) {
-        return retry(() -> locateElementInternal(root, locator), r -> r != null, "find by locator: " + locator, true);
-    }
-
-    public Element locateElement(String locator) {
-        return locateElement(getSearchRoot(), locator);
+        return locateElementInternal(root, locator);
     }
 
     protected Element getSearchRoot() {
-        return currentWindow == null ? getRoot() : currentWindow;
+        return currentWindow == null ? getDesktop() : currentWindow;
     }
 
     @AutoDef
-    public abstract Element getRoot();
+    public Element waitFor(String locator) {
+        return retryForAny(getSearchRoot(), locator);
+    }
+
+    @AutoDef
+    public Element waitForAny(String locator1, String locator2) {
+        return retryForAny(getSearchRoot(), locator1, locator2);
+    }
+
+    @AutoDef
+    public Element waitForAny(String[] locators) {
+        return retryForAny(getSearchRoot(), locators);
+    }
+
+    private Element retryForAny(Element searchRoot, String... locators) {
+        List<String> list = Arrays.asList(locators); // just for debuggability
+        return retry(() -> waitForAny(searchRoot, list), r -> r != null, "find by locator(s): " + list, true);
+    }
+
+    private Element waitForAny(Element searchRoot, List<String> locators) {
+        for (String locator : locators) {
+            Element found = locateImageOrElement(searchRoot, locator);
+            if (found != null) {
+                if (highlight) {
+                    found.getRegion().highlight();
+                }
+                return found;
+            }
+        }
+        return null;
+    }
+
+    private Element locateImageOrElement(Element searchRoot, String locator) {
+        if (locator.endsWith(".png")) {
+            return locateImage(() -> searchRoot.getRegion().capture(), locator);
+        } else if (searchRoot.isImage()) {
+            // TODO
+            throw new RuntimeException("todo find non-image elements within region");
+        } else {
+            return locateElement(searchRoot, locator);
+        }
+    }
+
+    @AutoDef
+    public abstract Element getDesktop();
 
     @AutoDef
     public abstract Element locateFocus();

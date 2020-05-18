@@ -111,7 +111,7 @@ public class DebugThread implements ExecutionHook, LogAppender {
 
     protected void resume() {
         stopped = false;
-        handler.evaluatePreStep(this);
+        handler.evaluatePreStep(getContext());
         for (DebugThread dt : handler.THREADS.values()) {
             synchronized (dt) {
                 dt.notify();
@@ -280,5 +280,10 @@ public class DebugThread implements ExecutionHook, LogAppender {
     public void reportPerfEvent(PerfEvent event) {
 
     }
+
+    @Override
+    public String toString() {
+        return "id: " + id + ", name: " + name + ", stack: " + stack;
+    }        
 
 }

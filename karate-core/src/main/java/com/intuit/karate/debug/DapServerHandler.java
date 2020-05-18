@@ -215,7 +215,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 }
                 if (launchCommand == null) {
                     launchCommand = req.getArgument("feature", String.class);
-                    singleFeature = true;                    
+                    singleFeature = true;
                 }
                 start();
                 ctx.write(response(req));
@@ -288,7 +288,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                         result = "[error] " + e.getMessage();
                     }
                 } else {
-                    evaluatePreStep(thread(req));
+                    evaluatePreStep(evalContext);
                     Result evalResult = evalContext.evalAsStep(expression);
                     if (evalResult.isFailed()) {
                         result = "[error] " + evalResult.getError().getMessage();
@@ -325,11 +325,11 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         ctx.writeAndFlush(Unpooled.EMPTY_BUFFER);
     }
 
-    protected void evaluatePreStep(DebugThread dt) {
+    protected void evaluatePreStep(ScenarioContext context) {
         if (preStep == null) {
             return;
         }
-        Result result = dt.getContext().evalAsStep(preStep);
+        Result result = context.evalAsStep(preStep);
         if (result.isFailed()) {
             output("[debug] pre-step failed: " + preStep + " - " + result.getError().getMessage());
         } else {

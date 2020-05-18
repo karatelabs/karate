@@ -122,7 +122,7 @@ public class WinRobot extends Robot {
     }
 
     @Override
-    public Element getRoot() {
+    public Element getDesktop() {
         return toElement(UIA.getRootElement());
     }
 

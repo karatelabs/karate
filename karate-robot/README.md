@@ -74,8 +74,8 @@ key | description
 `basePath` | defaults to `null`, which means the "find by image" search will be relative to the "entry point" feature file, but can be used to point to [prefixed / relative paths](https://github.com/intuit/karate#reading-files) such as `classpath:some/folder`
 `highlight` | default `false` if an image match should be highlighted
 `highlightDuration` | default `3000` - time to `highlight` in milliseconds
-`retryCount` | default `3` - number of times Karate will attempt to find an image or element
-`retryInterval` | default `3000` - time between retries when finding an image or element
+`retryCount` | default `3` - overrides the default [`retry()`](#retry) count, this applies only for finding the `window` *after* a `fork` was executed 
+`retryInterval` | default `3000` - overrides the default [`retry()`](#retry) interval, this applies only for finding the `window` *after* a `fork` was executed 
 `autoDelay` | default `0` - time delay added (in milliseconds) after a native action (key press, mouse click), you can set this to a small value e.g. `40` only in case of any issues with keystrokes being too fast, etc
 
 # API
@@ -149,8 +149,10 @@ Here are examples:
 Locator | Description
 ------- | -----------
 `click('Click Me')` | the first control (any type) where the name is *exactly*: `Click Me`
+`click('{^}Click')` | the first control (any type) where the name *contains*: `Click`
 `click('{button}')` | the first button found when traversing the whole tree from the primary window
 `click('{button}Continue')` | the first button found with the text (name) "Continue"
+`click('{^button}Continue')` | the first button found with the text (name) *containing* "Continue"
 `click('{button:2}')` | the second button
 `click('{button.TButton}')` | the first button with a "class name" of "TButton"
 `click('{.TButton}')` | the first control (any type) with a "class name" of "TButton"
@@ -177,6 +179,16 @@ Scenario:
 * click('Two')
 * click('Equals')
 * match locate('#CalculatorResults').name == 'Display is  3 '
+```
+
+## `retry()`
+Please refer to the documentation for the Karate browser-automation syntax for [`retry()`](https://github.com/intuit/karate/tree/master/karate-core#retry). It is the same for Karate Robot.
+
+## `waitFor()`
+Convenient to wait for an element. Try to use this only when necessary, for example once a Window loads, all components within it would be immediately accessible without needing to "wait". So you can use a `waitFor()` only for the first element within that window that you need to act upon:
+
+```cucumber
+* waitFor('Add New').click()
 ```
 
 ## `click()`

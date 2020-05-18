@@ -95,17 +95,12 @@ public class MacRobot extends Robot {
     }
 
     @Override
-    public Element locateElement(String locator) {
-        throw new UnsupportedOperationException("not supported yet.");
-    }
-
-    @Override
     public Element locateElementInternal(Element root, String locator) {
         throw new UnsupportedOperationException("not supported yet.");
     }
 
     @Override
-    public Element getRoot() {
+    public Element getDesktop() {
         return new ImageElement(screen);
     }
 

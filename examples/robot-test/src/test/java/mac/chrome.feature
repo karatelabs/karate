@@ -6,7 +6,7 @@ Scenario:
 * robot { window: '^Chrome', highlight: true }
 * input(Key.META + 't')
 * input('karate dsl' + Key.ENTER)
-* click('tams.png')
+* waitFor('tams.png').click()
 * delay(2000)
 * screenshot()
 
