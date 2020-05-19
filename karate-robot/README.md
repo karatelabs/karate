@@ -72,10 +72,10 @@ key | description
 `autoClose` | deafult `true` - to close the current window if fork was used on startup 
 `attach` | defult `true` - if the `window` exists, `fork` will not be executed
 `basePath` | defaults to `null`, which means the "find by image" search will be relative to the "entry point" feature file, but can be used to point to [prefixed / relative paths](https://github.com/intuit/karate#reading-files) such as `classpath:some/folder`
-`highlight` | default `false` if an image match should be highlighted
+`highlight` | default `false` if an element (or image) match should be highlighted
 `highlightDuration` | default `3000` - time to `highlight` in milliseconds
-`retryCount` | default `3` - overrides the default [`retry()`](#retry) count, this applies only for finding the `window` *after* a `fork` was executed 
-`retryInterval` | default `3000` - overrides the default [`retry()`](#retry) interval, this applies only for finding the `window` *after* a `fork` was executed 
+`retryCount` | default [normally `3`](https://github.com/intuit/karate#retry-until) - overrides the default [`retry()`](#retry) count, this applies only for finding the `window` *after* a `fork` was executed 
+`retryInterval` | default [normally `3000`](https://github.com/intuit/karate#retry-until) - overrides the default [`retry()`](#retry) interval, this applies only for finding the `window` *after* a `fork` was executed 
 `autoDelay` | default `0` - time delay added (in milliseconds) after a native action (key press, mouse click), you can set this to a small value e.g. `40` only in case of any issues with keystrokes being too fast, etc
 
 # API
@@ -166,7 +166,7 @@ Similarly, the "class name" is not case-sensitive. This can be useful in some ca
 
 ### Calculator Example
 
-[Here is an example](../examples/robot-test/src/test/java/win/calc.features) that operates the Calculator app on Windows.
+[Here is an example](../examples/robot-test/src/test/java/win/calc.feature) that operates the Calculator app on Windows.
 
 ```cucumber
 Feature: windows calculator
@@ -178,7 +178,9 @@ Scenario:
 * click('Plus')
 * click('Two')
 * click('Equals')
-* match locate('#CalculatorResults').name == 'Display is  3 '
+* match locate('#CalculatorResults').name == 'Display is 3'
+* screenshot()
+* click('Close Calculator')
 ```
 
 ## `retry()`

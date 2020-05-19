@@ -169,8 +169,8 @@ public abstract class Robot implements Plugin {
                         throw new KarateException("robot fork command failed: " + command.getFailureReason().getMessage());
                     }
                     if (window != null) {
-                        retryCountOverride = get("retryCount", 3);
-                        retryIntervalOverride = get("retryInterval", Config.DEFAULT_RETRY_INTERVAL);
+                        retryCountOverride = get("retryCount", null);
+                        retryIntervalOverride = get("retryInterval", null);
                         currentWindow = window(window); // will retry
                         logger.debug("attached to process window: {} - {}", window, command.getArgList());
                     }
@@ -252,14 +252,14 @@ public abstract class Robot implements Plugin {
         robot.mouseRelease(mask);
         return this;
     }
-    
+
     @AutoDef
     public Robot doubleClick() {
         click();
         delay(40);
         click();
         return this;
-    }    
+    }
 
     @AutoDef
     public Robot press() {
@@ -325,7 +325,7 @@ public abstract class Robot implements Plugin {
         }
         return this;
     }
-    
+
     public Robot clearFocused() {
         return input(Keys.CONTROL + "a" + Keys.DELETE);
     }
@@ -339,29 +339,6 @@ public abstract class Robot implements Plugin {
         return locate(locator).input(value);
     }
 
-    public BufferedImage capture() {
-        return capture(screen);
-    }
-
-    public BufferedImage capture(int x, int y, int width, int height) {
-        return capture(new Region(this, x, y, width, height));
-    }
-
-    public BufferedImage capture(Region region) {
-        Image image = robot.createScreenCapture(new Rectangle(region.x, region.y, region.width, region.height));
-        BufferedImage bi = new BufferedImage(region.width, region.height, BufferedImage.TYPE_BYTE_GRAY);
-        Graphics g = bi.createGraphics();
-        g.drawImage(image, region.x, region.y, region.width, region.height, null);
-        return bi;
-    }
-
-    public File captureAndSaveAs(String path) {
-        BufferedImage image = capture();
-        File file = new File(path);
-        RobotUtils.save(image, file);
-        return file;
-    }
-
     @AutoDef
     public byte[] screenshot() {
         return screenshot(screen);
@@ -372,7 +349,7 @@ public abstract class Robot implements Plugin {
     }
 
     public byte[] screenshot(Region region) {
-        BufferedImage image = capture(region);
+        BufferedImage image = region.captureColor();
         byte[] bytes = RobotUtils.toBytes(image);
         context.embed(bytes, "image/png");
         return bytes;
@@ -398,12 +375,24 @@ public abstract class Robot implements Plugin {
     public Element locate(String locator) {
         return locate(getHighlightDuration(), getSearchRoot(), locator);
     }
-    
+
     @AutoDef
     public Element exists(String locator) {
         return exists(getSearchRoot(), locator);
     }
-    
+
+    @AutoDef
+    public Element windowExists(String locator) {
+        Element prevWindow = currentWindow;
+        Element window = window(locator, false); // will update currentWindow        
+        if (window == null) {
+            currentWindow = prevWindow;
+            return new MissingElement(this);
+        }
+        // note that currentWindow will point to the new window located
+        return window;
+    }
+
     protected Element exists(Element searchRoot, String locator) {
         Element found = locateImageOrElement(searchRoot, locator);
         if (found == null) {
@@ -413,7 +402,7 @@ public abstract class Robot implements Plugin {
         if (highlight) {
             found.highlight();
         }
-        return found;        
+        return found;
     }
 
     protected Element locate(int duration, Element searchRoot, String locator) {
@@ -453,7 +442,7 @@ public abstract class Robot implements Plugin {
     }
 
     public Element locateImage(String path) {
-        return locateImage(() -> capture(), readBytes(path));
+        return locateImage(() -> screen.captureGreyScale(), readBytes(path));
     }
 
     public Element locateImage(Supplier<BufferedImage> source, String path) {
@@ -533,7 +522,7 @@ public abstract class Robot implements Plugin {
 
     private Element locateImageOrElement(Element searchRoot, String locator) {
         if (locator.endsWith(".png")) {
-            return locateImage(() -> searchRoot.getRegion().capture(), locator);
+            return locateImage(() -> searchRoot.getRegion().captureGreyScale(), locator);
         } else if (searchRoot.isImage()) {
             // TODO
             throw new RuntimeException("todo find non-image elements within region");

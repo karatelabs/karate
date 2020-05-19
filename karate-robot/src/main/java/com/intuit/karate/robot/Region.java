@@ -23,6 +23,9 @@
  */
 package com.intuit.karate.robot;
 
+import java.awt.Graphics;
+import java.awt.Image;
+import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,9 +53,21 @@ public class Region extends RobotAware {
         this.height = height;
     }
     
-    public BufferedImage capture() {
-        return robot.capture(this);
+    private BufferedImage capture(int type) {
+        Image image = robot.robot.createScreenCapture(new Rectangle(x, y, width, height));
+        BufferedImage bi = new BufferedImage(width, height, type);
+        Graphics g = bi.createGraphics();
+        g.drawImage(image, x, y, width, height, null);
+        return bi;
+    }    
+    
+    public BufferedImage captureColor() {
+        return capture(BufferedImage.TYPE_INT_RGB);
     }
+    
+    public BufferedImage captureGreyScale() {
+        return capture(BufferedImage.TYPE_BYTE_GRAY);
+    }    
 
     public Location center() {
         return new Location(robot, x + width / 2, y + height / 2);

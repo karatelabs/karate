@@ -1633,20 +1633,19 @@ Validation can be performed if needed on the response to this HTTP `POST` which 
 In real-life flows, you may need to pass cookies from the [browser](#cookie) to the [Karate HTTP client](https://github.com/intuit/karate#cookie), so that you can simulate any flows needed after this step.
 
 ## Using Karate Robot
-[Karate Robot](https://github.com/intuit/karate/tree/master/karate-robot) is designed for desktop application testing, but since you can click on anything in the viewport, you can achieve what you may not be able to with other automation frameworks. Here is the same example using this approach, where a couple of images need to be saved as part of the test-script:
+[Karate Robot](https://github.com/intuit/karate/tree/master/karate-robot) is designed for desktop application testing, but since you can click on anything in the viewport, you can achieve what you may not be able to with other automation frameworks. [Here](../karate-robot/src/test/java/robot/core/upload.feature) is the same example using this approach, where a couple of images need to be saved as part of the test-script:
 
 ```cucumber
 * driver 'http://the-internet.herokuapp.com/upload'
-* robot { app: '^Chrome', highlight: true }
-* robot.click('choose-file.png')
-* robot.delay(1000)
-* robot.input('/Users/pthomas3/Desktop')
-* robot.input(Key.ENTER)
-* robot.click('file-name.png')
-* robot.input(Key.ENTER)
-* robot.delay(1000)
+* robot { window: '^Chrome', highlight: true }
+# since we have the driver active, the "robot" namespace is needed
+* robot.waitFor('choose-file.png').click().delay(1000)
+* robot.input('/Users/pthomas3/Desktop' + Key.ENTER)
+* robot.waitFor('file-name.png').click()
+* robot.input(Key.ENTER).delay(1000)
 * submit().click('#file-submit')
 * waitForText('#uploaded-files', 'billie.jpg')
+* screenshot()
 ```
 
 A video of the above execution can be viewed [here](https://twitter.com/ptrthomas/status/1253373486384295936).
