@@ -23,6 +23,9 @@
  */
 package com.intuit.karate.robot;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  *
  * @author pthomas3
@@ -127,6 +130,11 @@ public class ImageElement implements Element {
         robot.delay(millis);
         return this;
     }
+
+    @Override
+    public List<Element> getChildren() {
+        return Collections.EMPTY_LIST;
+    }        
 
     @Override
     public Region toNative() {

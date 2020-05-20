@@ -35,16 +35,11 @@ import com.intuit.karate.driver.Keys;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.shell.Command;
 import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Image;
-import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.event.InputEvent;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -117,7 +112,7 @@ public abstract class Robot implements Plugin {
 
     @Override
     public void setContext(ScenarioContext context) {
-        this.context = context;
+        this.context = context;      
     }
 
     private <T> T get(String key, T defaultValue) {
@@ -487,6 +482,11 @@ public abstract class Robot implements Plugin {
     protected Element getSearchRoot() {
         return currentWindow == null ? getDesktop() : currentWindow;
     }
+    
+    @AutoDef
+    public Object waitUntil(Supplier<Object> condition) {
+        return retry(() -> condition.get(), o -> o != null, "waitUntil (function)", true);
+    }    
 
     @AutoDef
     public Element waitFor(String locator) {

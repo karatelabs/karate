@@ -44,7 +44,7 @@ import java.util.function.Predicate;
  */
 public class WinRobot extends Robot {
 
-    private static final IUIAutomation UIA = IUIAutomation.INSTANCE;
+    protected static final IUIAutomation UIA = IUIAutomation.INSTANCE;
 
     public WinRobot(ScenarioContext context, Map<String, Object> options) {
         super(context, options);
@@ -98,7 +98,7 @@ public class WinRobot extends Robot {
         return UIA.createPropertyCondition(property, value);
     }
 
-    private WinElement toElement(IUIAutomationElement element) {
+    protected WinElement toElement(IUIAutomationElement element) {
         if (element == null || element.isNull()) {
             return null;
         }

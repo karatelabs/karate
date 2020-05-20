@@ -38,8 +38,10 @@ import com.jayway.jsonpath.spi.mapper.MappingProvider;
 import de.siegmar.fastcsv.reader.CsvContainer;
 import de.siegmar.fastcsv.reader.CsvReader;
 import de.siegmar.fastcsv.reader.CsvRow;
+import de.siegmar.fastcsv.writer.CsvWriter;
 import java.io.IOException;
 import java.io.StringReader;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -446,6 +448,34 @@ public class JsonUtils {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+    
+    public static String toCsv(List<Map<String, Object>> list) {
+        List<String[]> csv = new ArrayList(list.size() + 1);
+        // header row
+        boolean first = true;
+        for (Map<String, Object> map : list) {
+            int colCount = map.size();
+            if (first) {
+                Set<String> keys = map.keySet();
+                csv.add(keys.toArray(new String[colCount]));
+                first = false;
+            }
+            String[] row = new String[colCount];
+            List cols = new ArrayList(map.values());
+            for (int i = 0; i < colCount; i++) {
+                row[i] = new ScriptValue(cols.get(i)).getAsString();
+            }
+            csv.add(row);
+        }
+        CsvWriter csvWriter = new CsvWriter();
+        StringWriter sw = new StringWriter();
+        try {
+            csvWriter.write(sw, csv);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return sw.toString();        
     }
 
     /**

@@ -47,13 +47,9 @@ import com.intuit.karate.netty.WebSocketOptions;
 import com.intuit.karate.shell.Command;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
-import de.siegmar.fastcsv.writer.CsvWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.StringWriter;
-import java.nio.file.LinkOption;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -62,7 +58,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -425,7 +420,7 @@ public class ScriptBridge implements PerfContext {
             return new ArrayList(src);
         }
         return o;
-    }
+    }    
 
     public Object toJson(Object o) {
         return toJson(o, false);
@@ -445,31 +440,7 @@ public class ScriptBridge implements PerfContext {
             throw new RuntimeException("not a list-like value:" + sv);
         }
         List<Map<String, Object>> list = sv.getAsList();
-        List<String[]> csv = new ArrayList(list.size() + 1);
-        // header row
-        boolean first = true;
-        for (Map<String, Object> map : list) {
-            int colCount = map.size();
-            if (first) {
-                Set<String> keys = map.keySet();
-                csv.add(keys.toArray(new String[colCount]));
-                first = false;
-            }
-            String[] row = new String[colCount];
-            List cols = new ArrayList(map.values());
-            for (int i = 0; i < colCount; i++) {
-                row[i] = new ScriptValue(cols.get(i)).getAsString();
-            }
-            csv.add(row);
-        }
-        CsvWriter csvWriter = new CsvWriter();
-        StringWriter sw = new StringWriter();
-        try {
-            csvWriter.write(sw, csv);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        return sw.toString();
+        return JsonUtils.toCsv(list);
     }
 
     public Object call(String fileName) {

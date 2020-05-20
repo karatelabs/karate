@@ -325,8 +325,13 @@ public class ScenarioContext {
         // TODO improve bindings re-use
         // for call + ui tests, extra step has to be done after bindings set
         // note that the below code depends on bindings inited with things like the "karate" and "read" variable
-        if (call.context != null && call.context.driver != null) {
-            setDriver(call.context.driver);
+        if (call.context != null) {
+            if (call.context.driver != null) {
+                setDriver(call.context.driver);
+            } // TODO refactor plugin start
+            if (call.context.robot != null) {
+                setRobot(call.context.robot);
+            }
         }
         if (call.context == null && call.evalKarateConfig) {
             // base config is only looked for in the classpath
@@ -387,10 +392,6 @@ public class ScenarioContext {
         return new ScenarioContext(this, info);
     }
 
-    public ScenarioContext copy() {
-        return new ScenarioContext(this, scenarioInfo);
-    }
-
     private ScenarioContext(ScenarioContext sc, ScenarioInfo info) {
         featureContext = sc.featureContext;
         classLoader = sc.classLoader;
@@ -411,13 +412,20 @@ public class ScenarioContext {
         bindings = new ScriptBindings(this);
         // state
         request = sc.request.copy();
-        driver = sc.driver;
         prevRequest = sc.prevRequest;
         prevResponse = sc.prevResponse;
         prevPerfEvent = sc.prevPerfEvent;
         callResults = sc.callResults;
+        prevEmbeds = sc.prevEmbeds;
         webSocketClients = sc.webSocketClients;
         signalResult = sc.signalResult;
+        // plugin TODO make better
+        if (sc.driver != null) {
+            setDriver(sc.driver);
+        }
+        if (sc.robot != null) {
+            setRobot(sc.robot);
+        }
     }
 
     public void configure(Config config) {

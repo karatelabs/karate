@@ -23,6 +23,9 @@
  */
 package com.intuit.karate.robot;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  *
  * @author pthomas3
@@ -120,6 +123,11 @@ public class MissingElement implements Element {
     public Element locate(String locator) {
         return this;
     }
+
+    @Override
+    public List<Element> getChildren() {
+        return Collections.EMPTY_LIST;
+    }        
 
     @Override
     public <T> T toNative() {

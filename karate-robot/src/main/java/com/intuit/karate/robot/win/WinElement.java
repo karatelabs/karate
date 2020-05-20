@@ -29,6 +29,8 @@ import com.intuit.karate.robot.Region;
 import com.intuit.karate.robot.Robot;
 import com.sun.jna.platform.win32.Variant;
 import com.sun.jna.platform.win32.WinDef;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  *
@@ -37,9 +39,9 @@ import com.sun.jna.platform.win32.WinDef;
 public class WinElement implements Element {
 
     private final IUIAutomationElement e;
-    private final Robot robot;
+    private final WinRobot robot;
 
-    public WinElement(Robot robot, IUIAutomationElement e) {
+    public WinElement(WinRobot robot, IUIAutomationElement e) {
         this.robot = robot;
         this.e = e;
     }
@@ -160,6 +162,18 @@ public class WinElement implements Element {
     }
 
     @Override
+    public List<Element> getChildren() {
+        IUIAutomationElementArray array = e.findAll(TreeScope.Children, WinRobot.UIA.createTrueCondition());
+        int count = array.getLength();
+        List<Element> list = new ArrayList(count);
+        for (int i = 0; i < count; i++) {
+            IUIAutomationElement child = array.getElement(i);            
+            list.add(robot.toElement(child));
+        }
+        return list;
+    }        
+
+    @Override
     public IUIAutomationElement toNative() {
         return e;
     }
@@ -167,6 +181,11 @@ public class WinElement implements Element {
     @Override
     public String getDebugString() {
         return "{" + e.getControlType() + "}" + e.getCurrentName();
+    }     
+
+    @Override
+    public String toString() {
+        return getDebugString();
     }        
 
 }

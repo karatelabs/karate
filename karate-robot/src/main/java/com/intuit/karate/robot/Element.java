@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.robot;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -118,6 +119,8 @@ public interface Element {
     default Element exists(String locator) {
         return getRobot().exists(this, locator);
     }
+    
+    List<Element> getChildren();
 
     <T> T toNative();
     
