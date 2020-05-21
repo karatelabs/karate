@@ -62,16 +62,16 @@ public class RobotUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(RobotUtils.class);
 
-    public static Region find(Robot robot, File source, File target, boolean resize) {
+    public static Region find(RobotBase robot, File source, File target, boolean resize) {
         return find(robot, read(source), read(target), resize);
     }
 
-    public static Region find(Robot robot, BufferedImage source, byte[] bytes, boolean resize) {
+    public static Region find(RobotBase robot, BufferedImage source, byte[] bytes, boolean resize) {
         Mat srcMat = Java2DFrameUtils.toMat(source);
         return find(robot, srcMat, read(bytes), resize);
     }
 
-    public static Region find(Robot robot, BufferedImage source, File target, boolean resize) {
+    public static Region find(RobotBase robot, BufferedImage source, File target, boolean resize) {
         Mat srcMat = Java2DFrameUtils.toMat(source);
         return find(robot, srcMat, read(target), resize);
     }
@@ -88,7 +88,7 @@ public class RobotUtils {
     // try to use "more likely" scaling factors first
     private static final double[] RE_SIZE = new double[]{1, 1.5, 0.5, 0.9, 1.1, 0.8, 1.2, 0.7, 1.3, 0.6, 1.4};
 
-    public static Region find(Robot robot, Mat source, Mat target, boolean resize) {
+    public static Region find(RobotBase robot, Mat source, Mat target, boolean resize) {
         Double prevMinVal = null;
         double prevRatio = -1;
         Point prevMinPt = null;

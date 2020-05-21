@@ -25,16 +25,14 @@ package com.intuit.karate.robot.win;
 
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.AutoDef;
-import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.Element;
-import com.intuit.karate.robot.Robot;
+import com.intuit.karate.robot.RobotBase;
 import com.intuit.karate.robot.StringMatcher;
 
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinUser;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
@@ -42,7 +40,7 @@ import java.util.function.Predicate;
  *
  * @author pthomas3
  */
-public class WinRobot extends Robot {
+public class WinRobot extends RobotBase {
 
     protected static final IUIAutomation UIA = IUIAutomation.INSTANCE;
 
@@ -60,13 +58,6 @@ public class WinRobot extends Robot {
             command.close(false);
         }
         return Collections.EMPTY_MAP;
-    }
-
-    private static final List<String> METHOD_NAMES = Plugin.methodNames(WinRobot.class);
-
-    @Override
-    public List<String> methodNames() {
-        return METHOD_NAMES;
     }
 
     @Override

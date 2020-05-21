@@ -41,11 +41,11 @@ public class Region extends RobotAware {
     public final int width;
     public final int height;
 
-    public Region(Robot robot, int x, int y) {
+    public Region(RobotBase robot, int x, int y) {
         this(robot, x, y, 0, 0);
     }
 
-    public Region(Robot robot, int x, int y, int width, int height) {
+    public Region(RobotBase robot, int x, int y, int width, int height) {
         super(robot);
         this.x = x;
         this.y = y;

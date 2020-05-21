@@ -32,7 +32,7 @@ import java.util.Map;
  */
 public interface Element {
 
-    Robot getRobot();
+    RobotBase getRobot();
 
     default Location offset(int fromLeft, int fromTop) {
         Region r = getRegion();
@@ -112,7 +112,7 @@ public interface Element {
     }
 
     default Element locate(String locator) {
-        Robot robot = getRobot();
+        RobotBase robot = getRobot();
         return robot.locate(robot.getHighlightDuration(), this, locator);
     }
 

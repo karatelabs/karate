@@ -95,7 +95,7 @@ As a convenience, *all* the methods on the `robot` have been injected into the c
 
 ```cucumber
 * robot { window: '^Chrome', highlight: true }
-* robot.input(Key.META, 't')
+* robot.input(Key.META + 't')
 * robot.input('karate dsl' + Key.ENTER)
 * robot.click('tams.png')
 ```
@@ -104,7 +104,7 @@ You can shorten all that to:
 
 ```cucumber
 * robot { window: '^Chrome', highlight: true }
-* input(Key.META, 't')
+* input(Key.META + 't')
 * input('karate dsl' + Key.ENTER)
 * click('tams.png')
 ```

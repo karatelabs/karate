@@ -29,9 +29,9 @@ package com.intuit.karate.robot;
  */
 public abstract class RobotAware {
     
-    protected final Robot robot;
+    protected final RobotBase robot;
     
-    public RobotAware(Robot robot) {
+    public RobotAware(RobotBase robot) {
         this.robot = robot;
     }      
     

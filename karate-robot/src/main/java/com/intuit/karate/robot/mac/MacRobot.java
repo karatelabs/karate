@@ -24,11 +24,10 @@
 package com.intuit.karate.robot.mac;
 
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.ImageElement;
-import com.intuit.karate.robot.Robot;
+import com.intuit.karate.robot.RobotBase;
 import com.intuit.karate.shell.Command;
 import java.util.Collections;
 import java.util.List;
@@ -39,7 +38,7 @@ import java.util.function.Predicate;
  *
  * @author pthomas3
  */
-public class MacRobot extends Robot {
+public class MacRobot extends RobotBase {
 
     public MacRobot(ScenarioContext context, Map<String, Object> options) {
         super(context, options);
@@ -48,13 +47,6 @@ public class MacRobot extends Robot {
     @Override
     public Map<String, Object> afterScenario() {
         return Collections.EMPTY_MAP;
-    }
-
-    private static final List<String> METHOD_NAMES = Plugin.methodNames(MacRobot.class);
-
-    @Override
-    public List<String> methodNames() {
-        return METHOD_NAMES;
     }
 
     private static final String MAC_GET_PROCS

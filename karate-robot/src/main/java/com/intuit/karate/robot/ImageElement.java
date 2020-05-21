@@ -33,7 +33,7 @@ import java.util.List;
 public class ImageElement implements Element {
 
     private final Region region;
-    private final Robot robot;
+    private final RobotBase robot;
 
     public ImageElement(Region region) {
         this.region = region;
@@ -41,7 +41,7 @@ public class ImageElement implements Element {
     }
 
     @Override
-    public Robot getRobot() {
+    public RobotBase getRobot() {
         return robot;
     }
 

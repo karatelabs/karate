@@ -32,14 +32,14 @@ import java.util.List;
  */
 public class MissingElement implements Element {
 
-    private final Robot robot;
+    private final RobotBase robot;
 
-    public MissingElement(Robot robot) {
+    public MissingElement(RobotBase robot) {
         this.robot = robot;
     }
 
     @Override
-    public Robot getRobot() {
+    public RobotBase getRobot() {
         return robot;
     }
 

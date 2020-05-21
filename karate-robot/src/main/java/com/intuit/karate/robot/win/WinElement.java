@@ -26,7 +26,7 @@ package com.intuit.karate.robot.win;
 import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.Location;
 import com.intuit.karate.robot.Region;
-import com.intuit.karate.robot.Robot;
+import com.intuit.karate.robot.RobotBase;
 import com.sun.jna.platform.win32.Variant;
 import com.sun.jna.platform.win32.WinDef;
 import java.util.ArrayList;
@@ -47,7 +47,7 @@ public class WinElement implements Element {
     }
 
     @Override
-    public Robot getRobot() {
+    public RobotBase getRobot() {
         return robot;
     }
 

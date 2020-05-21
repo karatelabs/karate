@@ -32,7 +32,7 @@ public class Location extends RobotAware {
     public final int x;
     public final int y;
 
-    public Location(Robot robot, int x, int y) {
+    public Location(RobotBase robot, int x, int y) {
         super(robot);
         this.x = x;
         this.y = y;
