@@ -34,7 +34,7 @@ public interface Element {
 
     String getLocator(); // getter
 
-    boolean isExists(); // getter
+    boolean isPresent(); // getter
 
     boolean isEnabled(); // getter
     
@@ -81,6 +81,10 @@ public interface Element {
     Element waitForText(String text);
 
     Object script(String expression);
+    
+    Element optional(String locator);
+    
+    boolean exists(String locator);
     
     Element locate(String locator);
     

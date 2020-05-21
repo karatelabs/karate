@@ -278,7 +278,7 @@ public abstract class RobotBase implements Robot, Plugin {
     @Override
     public Robot input(String value) {
         if (highlight) {
-            locateFocus().highlight();
+            getFocused().highlight();
         }
         StringBuilder sb = new StringBuilder();
         for (char c : value.toCharArray()) {
@@ -371,12 +371,12 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     @Override
-    public Element exists(String locator) {
-        return exists(getSearchRoot(), locator);
+    public Element optional(String locator) {
+        return optional(getSearchRoot(), locator);
     }
 
     @Override
-    public Element windowExists(String locator) {
+    public Element windowOptional(String locator) {
         Element prevWindow = currentWindow;
         Element window = window(locator, false); // will update currentWindow        
         if (window == null) {
@@ -387,7 +387,7 @@ public abstract class RobotBase implements Robot, Plugin {
         return window;
     }
 
-    protected Element exists(Element searchRoot, String locator) {
+    protected Element optional(Element searchRoot, String locator) {
         Element found = locateImageOrElement(searchRoot, locator);
         if (found == null) {
             logger.warn("element does not exist: {}", locator);
@@ -534,7 +534,7 @@ public abstract class RobotBase implements Robot, Plugin {
     public abstract Element getDesktop();
 
     @Override
-    public abstract Element locateFocus();
+    public abstract Element getFocused();
 
     //==========================================================================        
     //

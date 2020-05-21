@@ -52,7 +52,7 @@ public class WinElement implements Element {
     }
 
     @Override
-    public boolean isExists() {
+    public boolean isPresent() {
         return !e.isValid() && !e.isNull();
     }
 

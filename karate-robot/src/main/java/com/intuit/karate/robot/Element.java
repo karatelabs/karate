@@ -43,7 +43,7 @@ public interface Element {
         return l;
     }
 
-    boolean isExists(); // getter    
+    boolean isPresent(); // getter    
 
     boolean isImage(); // getter
 
@@ -114,10 +114,14 @@ public interface Element {
     default Element locate(String locator) {
         RobotBase robot = getRobot();
         return robot.locate(robot.getHighlightDuration(), this, locator);
-    }
+    }   
 
-    default Element exists(String locator) {
-        return getRobot().exists(this, locator);
+    default Element optional(String locator) {
+        return getRobot().optional(this, locator);
+    }
+    
+    default boolean exists(String locator) {
+        return optional(locator).isPresent();
     }
     
     List<Element> getChildren();

@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.driver;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -46,7 +47,7 @@ public class MissingElement implements Element {
     }
 
     @Override
-    public boolean isExists() {
+    public boolean isPresent() {
         return false;
     }
 
@@ -167,13 +168,23 @@ public class MissingElement implements Element {
     }
 
     @Override
+    public Element optional(String locator) {
+        return this;
+    }        
+
+    @Override
+    public boolean exists(String locator) {
+        return false;
+    }        
+
+    @Override
     public Element locate(String locator) {
-        return null;
+        return this;
     }
 
     @Override
     public List<Element> locateAll(String locator) {
-        return null;
+        return Collections.EMPTY_LIST;
     }
 
     @Override
@@ -218,27 +229,27 @@ public class MissingElement implements Element {
 
     @Override
     public Finder rightOf() {
-        return null;
+        return new MissingFinder(this);
     }
 
     @Override
     public Finder leftOf() {
-        return null;
+        return new MissingFinder(this);
     }
 
     @Override
     public Finder above() {
-        return null;
+        return new MissingFinder(this);
     }
 
     @Override
     public Finder below() {
-        return null;
+        return new MissingFinder(this);
     }
 
     @Override
     public Finder near() {
-        return null;
+        return new MissingFinder(this);
     }
 
 }

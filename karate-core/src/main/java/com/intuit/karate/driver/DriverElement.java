@@ -59,9 +59,9 @@ public class DriverElement implements Element {
     }
 
     @Override
-    public boolean isExists() {
+    public boolean isPresent() {
         if (exists == null) {
-            exists = driver.exists(locator).isExists();
+            exists = driver.optional(locator).isPresent();
         }
         return exists;
     }
@@ -198,10 +198,28 @@ public class DriverElement implements Element {
     }
 
     @Override
-    public Element locate(String locator) {
+    public Element optional(String locator) {
         String childRefScript = driver.getOptions().scriptSelector(locator, DriverOptions.KARATE_REF_GENERATOR, thisLocator());
-        String childRef = (String) driver.script(childRefScript);
-        return DriverElement.locatorExists(driver, DriverOptions.karateLocator(childRef));
+        try {
+            String childRef = (String) driver.script(childRefScript);
+            return DriverElement.locatorExists(driver, DriverOptions.karateLocator(childRef));
+        } catch (Exception e) {            
+            return new MissingElement(driver, locator);
+        }
+    }    
+
+    @Override
+    public boolean exists(String locator) {
+        return optional(locator).isPresent();
+    }        
+
+    @Override
+    public Element locate(String locator) {
+        Element e = optional(locator);
+        if (e.isPresent()) {
+            return e;
+        }
+        throw new RuntimeException("cannot find locator: " + locator);
     }
 
     @Override

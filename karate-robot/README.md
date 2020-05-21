@@ -193,6 +193,38 @@ Convenient to wait for an element. Try to use this only when necessary, for exam
 * waitFor('Add New').click()
 ```
 
+## `waitUntil()`
+
+## `optional()`
+
+## `windowOptional()`
+
+## `exists()`
+
+## `windowExists()`
+
+## `window()`
+Sets focus to the window by title, prefix with `^` for a string "contains" match
+
+## `robot.desktop`
+
+## `robot.focused`
+
+## `locate()`
+Rarely used, but when you want to just instantiate an [`Element`](src/main/java/com/intuit/karate/robot/Element.java) instance, typically when you are writing custom re-usable functions, or using an element as a "waypoint" to access other elements in a large, complex "tree".
+
+```cucumber
+* def e = locate('{pane}Some Pane')
+# now you can have multiple steps refer to "e"
+* e.locate('{edit}').input('foo')
+* e.locate('{button}').click()
+```
+Note that `locate()` will fail the test if the element was not found. Think of it as just like [`waitFor()`](#waitfor) but without the "wait" part.
+
+Also see [`exists()`](#exists) and [`optional()`](#optional).
+
+## `locateAll()`
+
 ## `click()`
 Defaults to a "left-click", pass 1, 2 or 3 as the argument to specify left, middle or right mouse button.
 
@@ -230,9 +262,6 @@ A mouse press that will be held down, useful for simulating a drag and drop oper
 
 ## `release()`
 Release mouse button, useful for simulating a drag and drop operation.
-
-## `window()`
-Sets focus to the window by title, prefix with `^` for a string "contains" match
 
 ## `screenshot()`
 Will save a screenshot of the viewport, which will appear in the HTML report. Note that this returns a byte-array of the PNG image.

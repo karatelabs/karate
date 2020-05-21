@@ -97,7 +97,7 @@ public class MacRobot extends RobotBase {
     }
 
     @Override
-    public Element locateFocus() {
+    public Element getFocused() {
         return new ImageElement(screen);
     }
 

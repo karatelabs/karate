@@ -669,8 +669,8 @@ public class DriverOptions {
             return DriverElement.locatorExists(driver, locators[0]);
         }
         for (String locator : locators) {
-            Element temp = driver.exists(locator);
-            if (temp.isExists()) {
+            Element temp = driver.optional(locator);
+            if (temp.isPresent()) {
                 return temp;
             }
         }
@@ -678,7 +678,7 @@ public class DriverOptions {
         throw new RuntimeException("unexpected wait failure for locators: " + list);
     }
 
-    public Element exists(Driver driver, String locator) {
+    public Element optional(Driver driver, String locator) {
         String js = selector(locator);
         String evalJs = js + " != null";
         Object o = driver.script(evalJs);

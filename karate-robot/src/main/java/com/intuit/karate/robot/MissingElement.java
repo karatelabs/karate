@@ -44,7 +44,7 @@ public class MissingElement implements Element {
     }
 
     @Override
-    public boolean isExists() {
+    public boolean isPresent() {
         return false;
     }
 

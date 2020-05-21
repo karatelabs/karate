@@ -111,9 +111,10 @@
     | <a href="#attribute"><code>attribute()</code></a>
     | <a href="#enabled"><code>enabled()</code></a>
     | <a href="#exists"><code>exists()</code></a>
-    | <a href="#position"><code>position()</code></a>
-    | <a href="#locate"><code>locate()</code></a>
+    | <a href="#optional"><code>optional()</code></a>    
+    | <a href="#locate"><code>locate()</code></a>    
     | <a href="#locateall"><code>locateAll()</code></a>
+    | <a href="#position"><code>position()</code></a>
   </td>
 </tr>
 <tr>
@@ -1010,14 +1011,14 @@ Also see [waits](#wait-api).
 ## `waitForAny()`
 Rarely used - but accepts multiple arguments for those tricky situations where a particular element may or may *not* be present in the page. It returns the [`Element`](#chaining) representation of whichever element was found *first*, so that you can perform conditional logic to handle accordingly.
 
-But since the [`exists()`](#exists) API is designed to handle the case when a given [locator](#locators) does *not* exist, you can write some very concise tests, *without* needing to examine the returned object from `waitForAny()`.
+But since the [`optional()`](#optional) API is designed to handle the case when a given [locator](#locators) does *not* exist, you can write some very concise tests, *without* needing to examine the returned object from `waitForAny()`.
 
 Here is a real-life example combined with the use of [`retry()`](#retry):
 
 ```cucumber
 * retry(5, 10000).waitForAny('#nextButton', '#randomButton')
-* exists('#nextButton').click()
-* exists('#randomButton').click()
+* optional('#nextButton').click()
+* optional('#randomButton').click()
 ```
 
 If you have more than two locators you need to wait for, use the single-argument-as-array form, like this:
@@ -1028,32 +1029,33 @@ If you have more than two locators you need to wait for, use the single-argument
 
 Also see [waits](#wait-api).
 
-## `exists()`
-This method returns an [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instance which means it can be [chained](#chaining) as you expect. But there is a twist. If the [locator](#locators) does *not* exist, any attempt to perform actions on it will *not* fail your test - and silently perform a "no-op".
+## `optional()`
+Returns an [`Element`](src/main/java/com/intuit/karate/driver/Element.java) (instead of `exists()` which returns a boolean). What this means is that it can be [chained](#chaining) as you expect. But there is a twist ! If the [locator](#locators) does *not* exist, any attempt to perform actions on it will *not* fail your test - and silently perform a "no-op".
 
-This is designed specifically for the kind of situation described in the example for [`waitForAny()`](#waitforany). If you wanted to check if the `Element` returned exists, you can use the "getter" as follows:
+This is designed specifically for the kind of situation described in the example for [`waitForAny()`](#waitforany). If you wanted to check if the `Element` returned exists, you can use the `present` property "getter" as follows:
 
 ```cucumber
-* assert exists('#someId').exists
+* assert optional('#someId').present
 ```
 
-But the above is more elegantly expressed using [`locate()`](#locate):
+But what is most useful is how you can now *click only if element exists*. As you can imagine, this can handle un-predictable dialogs, advertisements and the like.
 
 ```cucumber
-* assert locate('#someId').exists
-```
-
-But what is most useful is how you can now *click only if element exists*. As you can imagine this can handle un-predictable dialogs, advertisements and the like.
-
-```cucumber
-* exists('#elusiveButton').click()
+* optional('#elusiveButton').click()
 # or if you need to click something else
-* if (locate('#elusivePopup').exists) click('#elusiveButton')
+* if (exists('#elusivePopup')) click('#elusiveButton')
 ```
 
 And yes, you *can* use an [`if` statement in Karate](https://github.com/intuit/karate#conditional-logic) !
 
-Note that the `exists()` API is a little different from the other `Element` actions, because it will *not* honor any intent to [`retry()`](#retry) and *immediately* check the HTML for the given locator. This is important because it is designed to answer the question: "*does the element exist in the HTML page __right now__ ?*"
+Note that the `optional()`, `exists()` and `locate()` APIs are a little different from the other `Element` actions, because they will *not* honor any intent to [`retry()`](#retry) and *immediately* check the HTML for the given locator. This is important because they are designed to answer the question: "*does the element exist in the HTML page __right now__ ?*"
+
+Note that the "opposite" of `optional()` is [`locate()`](#locate) which will fail if the element is not present.
+
+If all you need to do is check whether an element exists and fail the test if it doesn't, see [`exists()`](#exists) below.
+
+## `exists()`
+This method returns a boolean (`true` or `false`), perfect for asserting if an element exists and failing the test if not.
 
 ## `waitUntil()`
 Wait for the *browser* JS expression to evaluate to `true`. Will poll using the [retry()](#retry) settings configured.
@@ -1256,19 +1258,17 @@ See [Function Composition](#function-composition) for another good example. Also
 See also [`locateAll()` with filter](#locateall-with-filter).
 
 ## `locate()`
-Rarely used, but when you want to just instantiate an [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instance, typically when you are writing custom re-usable functions. See also [`locateAll()`](#locateall)
+Rarely used, but when you want to just instantiate an [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instance, typically when you are writing custom re-usable functions, or using an element as a "waypoint" to access other elements in a large, complex "tree".
 
 ```cucumber
-* def e = locate('{}Click Me')
+* def e = locate('.some-div')
 # now you can have multiple steps refer to "e"
-* if (e.exists) karate.call('some.feature')
+* e.locate('.something-else').input('foo')
+* e.locate('.some-button').click()
 ```
+Note that `locate()` will fail the test if the element was not found. Think of it as just like [`waitFor()`](#waitfor) but without the "wait" part.
 
-It is also useful if you just want to check if an element is present - and this is a bit more elegant than using [`exists()`](#exists):
-
-```cucumber
-* if (locate('{}Click Me').exists) karate.call('some.feature')
-```
+See also [`locateAll()`](#locateall).
 
 ## `locateAll()`
 This will return *all* elements that match the [locator](#locator) as a list of [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instances. You can now use Karate's [core API](https://github.com/intuit/karate#the-karate-object) and call [chained](#chaining) methods. Here are some examples:

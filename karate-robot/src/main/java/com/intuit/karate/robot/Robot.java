@@ -34,9 +34,9 @@ import java.util.function.Supplier;
  * @author pthomas3
  */
 public interface Robot extends Plugin {
-    
+
     static final List<String> METHOD_NAMES = Plugin.methodNames(Robot.class);
-    
+
     @Override
     default List<String> methodNames() {
         return METHOD_NAMES;
@@ -50,13 +50,13 @@ public interface Robot extends Plugin {
 
     @AutoDef
     Robot retry(Integer count, Integer interval);
-    
+
     @AutoDef
     Robot delay(int millis);
 
     @AutoDef
     Robot click();
-    
+
     @AutoDef
     Robot click(int num);
 
@@ -74,10 +74,10 @@ public interface Robot extends Plugin {
 
     @AutoDef
     Robot input(String value);
-    
+
     @AutoDef
     Element input(String locator, String value);
-    
+
     @AutoDef
     byte[] screenshot();
 
@@ -94,10 +94,20 @@ public interface Robot extends Plugin {
     Element locate(String locator);
 
     @AutoDef
-    Element exists(String locator);
-    
+    Element optional(String locator);
+
     @AutoDef
-    Element windowExists(String locator);
+    default boolean exists(String locator) {
+        return optional(locator).isPresent();
+    }
+
+    @AutoDef
+    default boolean windowExists(String locator) {
+        return windowOptional(locator).isPresent();
+    }
+
+    @AutoDef
+    Element windowOptional(String locator);
 
     @AutoDef
     Element move(String locator);
@@ -116,7 +126,7 @@ public interface Robot extends Plugin {
 
     @AutoDef
     Element window(Predicate<String> condition);
-    
+
     @AutoDef
     Object waitUntil(Supplier<Object> condition);
 
@@ -129,10 +139,8 @@ public interface Robot extends Plugin {
     @AutoDef
     Element waitForAny(String[] locators);
 
-    @AutoDef
-    public abstract Element getDesktop();
+    Element getDesktop(); // getter
 
-    @AutoDef
-    public abstract Element locateFocus();
+    Element getFocused(); // getter
 
 }

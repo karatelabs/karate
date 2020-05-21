@@ -113,9 +113,14 @@ Scenario Outline: using <config>
   * click("{^button:2}Item")
   * match text('#eg03Result') == 'ITEM2'
 
-  # locate
+  # locate and exists
   * def element = locate('{}Click Me')
-  * assert element.exists
+  * assert element.present
+  * assert exists('{}Click Me')
+
+  # optional
+  * assert !exists('#thisDoesNotExist')
+  * optional('#thisDoesNotExist').click()
 
   # locate all
   * def elements = locateAll('{}Click Me')

@@ -119,7 +119,7 @@ public class WinRobot extends RobotBase {
 
     @AutoDef
     @Override
-    public Element locateFocus() {
+    public Element getFocused() {
         return toElement(UIA.getFocusedElement());
     }
 

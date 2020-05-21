@@ -46,7 +46,7 @@ public class ImageElement implements Element {
     }
 
     @Override
-    public boolean isExists() {
+    public boolean isPresent() {
         return true;
     }
 

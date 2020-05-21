@@ -265,7 +265,11 @@ public interface Driver extends Plugin {
 
     @AutoDef
     default Element locate(String locator) {
-        return DriverElement.locatorUnknown(this, locator);
+        Element e = DriverElement.locatorUnknown(this, locator);
+        if (e.isPresent()) {
+            return e;
+        }
+        throw new RuntimeException("cannot find locator: " + locator);
     }
 
     @AutoDef
@@ -385,8 +389,13 @@ public interface Driver extends Plugin {
     boolean enabled(String locator);
 
     @AutoDef
-    default Element exists(String locator) {
-        return getOptions().exists(this, locator);
+    default boolean exists(String locator) {
+        return getOptions().optional(this, locator).isPresent();
+    }    
+    
+    @AutoDef
+    default Element optional(String locator) {
+        return getOptions().optional(this, locator);
     }
 
     @AutoDef
