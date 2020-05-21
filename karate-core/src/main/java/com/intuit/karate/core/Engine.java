@@ -117,6 +117,8 @@ public class Engine {
         return step.getScenario().getFeature().getPath().getFileName().toString();
     }
 
+    public static final ThreadLocal<ScenarioContext> THREAD_CONTEXT = new ThreadLocal();
+
     public static Result executeStep(Step step, Actions actions) {
         String text = step.getText();
         List<MethodMatch> matches = findMethodsMatching(text);
@@ -144,7 +146,7 @@ public class Engine {
             return Result.failed(0, e, step);
         }
         long startTime = System.nanoTime();
-        try {
+        try {            
             match.method.invoke(actions, args);
             return Result.passed(getElapsedTime(startTime));
         } catch (InvocationTargetException e) { // target will be KarateException
@@ -171,12 +173,12 @@ public class Engine {
 
     public static String formatNanos(long nanos, DecimalFormat formatter) {
         return formatter.format(nanosToSeconds(nanos));
-    }   
+    }
 
     public static String formatMillis(double millis, DecimalFormat formatter) {
         return formatter.format(millis / 1000);
-    }  
-    
+    }
+
     private static Throwable appendSteps(List<StepResult> steps, StringBuilder sb) {
         Throwable error = null;
         for (StepResult sr : steps) {

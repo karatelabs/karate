@@ -221,7 +221,9 @@ public class ScenarioExecutionUnit implements Runnable {
             sr.setHidden(hidden);
             return afterStep(sr);
         } else {
+            Engine.THREAD_CONTEXT.set(actions.context);
             Result execResult = Engine.executeStep(step, actions);
+            Engine.THREAD_CONTEXT.set(null);
             List<FeatureResult> callResults = actions.context.getAndClearCallResults();
             // embed collection for each step happens here
             List<Embed> embeds = actions.context.getAndClearEmbeds();

@@ -1684,7 +1684,7 @@ public class Script {
                         throw new RuntimeException("only json/map or list/array allowed as feature call argument");
                 }
                 Feature feature = sv.getValue(Feature.class);
-                return evalFeatureCall(feature, callArg, context, reuseParentConfig, null);
+                return evalFeatureCall(feature, callArg, context, reuseParentConfig);
             default:
                 context.logger.warn("not a js function or feature file: {} - {}", name, sv);
                 return ScriptValue.NULL;
@@ -1719,8 +1719,7 @@ public class Script {
         }
     }
 
-    public static ScriptValue evalFeatureCall(Feature feature, Object callArg, ScenarioContext context,
-            boolean reuseParentConfig, ScenarioContext reportContext) {
+    public static ScriptValue evalFeatureCall(Feature feature, Object callArg, ScenarioContext context, boolean reuseParentConfig) {
         if (callArg instanceof Collection) { // JSON array
             Collection items = (Collection) callArg;
             Object[] array = items.toArray();
@@ -1731,7 +1730,7 @@ public class Script {
                 if (rowArg instanceof Map) {
                     Map rowArgMap = (Map) rowArg;
                     try {
-                        CallContext callContext = CallContext.forCall(feature, context, rowArgMap, i, reuseParentConfig, reportContext);
+                        CallContext callContext = CallContext.forCall(feature, context, rowArgMap, i, reuseParentConfig);
                         ScriptValue rowResult = evalFeatureCall(callContext);
                         result.add(rowResult.getValue());
                     } catch (KarateException ke) {
@@ -1759,7 +1758,7 @@ public class Script {
         } else if (callArg == null || callArg instanceof Map) {
             Map<String, Object> argAsMap = (Map) callArg;
             try {
-                CallContext callContext = CallContext.forCall(feature, context, argAsMap, -1, reuseParentConfig, reportContext);
+                CallContext callContext = CallContext.forCall(feature, context, argAsMap, -1, reuseParentConfig);
                 return evalFeatureCall(callContext);
             } catch (KarateException ke) {
                 String argString = new ScriptValue(callArg).getAsString(); // convert if JS object from [object: Object] 
@@ -1777,7 +1776,7 @@ public class Script {
         // the call is always going to execute synchronously ! TODO improve  
         FeatureResult result = Engine.executeFeatureSync(null, callContext.feature, null, callContext);
         // hack to pass call result back to caller step
-        callContext.reportContext.addCallResult(result);
+        callContext.context.addCallResult(result);
         result.setCallArg(callContext.callArg);
         result.setLoopIndex(callContext.loopIndex);
         if (result.isFailed()) {

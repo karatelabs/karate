@@ -160,8 +160,17 @@ public class ScenarioContext {
         callResults = null;
         return temp;
     }
-
-    public void addCallResult(FeatureResult callResult) {
+    
+    public void addCallResult(FeatureResult result) {
+        ScenarioContext threadContext = Engine.THREAD_CONTEXT.get();
+        if (threadContext != null) {
+            threadContext.addCallResultInternal(result);
+        } else {
+            addCallResultInternal(result);
+        }     
+    }
+        
+    private void addCallResultInternal(FeatureResult callResult) {
         if (callResults == null) {
             callResults = new ArrayList();
         }
@@ -914,7 +923,12 @@ public class ScenarioContext {
         Embed embed = new Embed();
         embed.setBytes(bytes);
         embed.setMimeType(contentType);
-        embed(embed);
+        ScenarioContext threadContext = Engine.THREAD_CONTEXT.get();
+        if (threadContext != null) {
+            threadContext.embed(embed);
+        } else {
+            embed(embed);
+        }
     }
 
     public void embed(Embed embed) {
