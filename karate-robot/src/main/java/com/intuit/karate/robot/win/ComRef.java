@@ -36,6 +36,7 @@ public class ComRef {
     protected static final Logger logger = LoggerFactory.getLogger(ComRef.class);
 
     protected final PointerByReference REF;
+    private boolean valid = true;
 
     public ComRef() {
         REF = new PointerByReference();
@@ -56,5 +57,13 @@ public class ComRef {
     public String asString() {
         return REF.getValue().getWideString(0);
     }
+
+    public void setValid(boolean valid) {
+        this.valid = valid;
+    }
+
+    public boolean isValid() {
+        return valid;
+    }        
 
 }

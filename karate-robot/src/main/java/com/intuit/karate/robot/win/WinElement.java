@@ -53,7 +53,7 @@ public class WinElement implements Element {
 
     @Override
     public boolean isExists() {
-        return !e.isNull(); // should be un-necessary
+        return !e.isValid() && !e.isNull();
     }
 
     @Override
@@ -179,8 +179,15 @@ public class WinElement implements Element {
     }
 
     @Override
-    public String getDebugString() {
-        return "{" + e.getControlType() + "}" + e.getCurrentName();
+    public String getDebugString() {        
+        if (!e.isValid()) {
+            return "(null)";
+        }
+        try {
+            return "{" + e.getControlType() + "}" + e.getCurrentName();
+        } catch (Exception e) {
+            return "(stale) " + e.getMessage();
+        }
     }     
 
     @Override

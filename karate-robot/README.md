@@ -1,7 +1,7 @@
 # Karate Robot
 
 ## Desktop Automation Made `Simple.`
-> Version 0.9.6.RC2 is available, and experimental. Please test and contribute if you can !
+> Version 0.9.6.RC3 is available, and experimental. Please test and contribute if you can !
 
 ### Capabilities
 * Available as a standalone binary via the [ZIP Release](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot)
@@ -9,7 +9,7 @@
 * Native Keyboard Events
 * Navigation via image detection - cross-platform (mac, win, linux) via [Java CPP](https://github.com/bytedeco/javacpp)
 * Windows object-recognition using [Microsoft UI Automation](https://docs.microsoft.com/en-us/windows/win32/winauto/entry-uiauto-win32)
-* Tightly integrated into Karate
+* Tightly integrated into Karate - which means a [debugger, HTML reports](https://twitter.com/ptrthomas/status/1261183808985948160), and more
 
 ### Demo Videos
 * Clicking the *native* "File Upload" button in a Web Page - [Link](https://twitter.com/ptrthomas/status/1253373486384295936)

@@ -98,6 +98,9 @@ public abstract class IUIAutomationBase extends ComRef {
             res = function.invokeInt(refs);
             if (res != 0) {
                 logger.warn("{}.{} returned non-zero: {}", INTERFACE.name, name, res);
+                if (lastArg != null) {
+                    lastArg.setValid(false);
+                }
             }
             if (lastArg != null && !lastArg.isNull() && logger.isTraceEnabled()) {
                 logger.trace("{}.{} returned null: {}", INTERFACE.name, name, lastArg.REF);
