@@ -174,6 +174,12 @@ public class WinElement implements Element {
     }        
 
     @Override
+    public Element getParent() {
+       IUIAutomationTreeWalker walker = WinRobot.UIA.getControlViewWalker();
+       return robot.toElement(walker.getParentElement(e));
+    }        
+
+    @Override
     public IUIAutomationElement toNative() {
         return e;
     }

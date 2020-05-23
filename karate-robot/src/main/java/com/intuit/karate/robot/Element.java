@@ -49,7 +49,7 @@ public interface Element {
 
     boolean isEnabled(); // getter    
 
-    default Map<String, Object> getPosition() {
+    default Map<String, Object> getPosition() { // getter
         return getRegion().getPosition();
     }
 
@@ -125,6 +125,8 @@ public interface Element {
     }
     
     List<Element> getChildren();
+    
+    Element getParent();
 
     <T> T toNative();
     

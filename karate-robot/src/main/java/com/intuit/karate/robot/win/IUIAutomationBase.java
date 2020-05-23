@@ -102,7 +102,7 @@ public abstract class IUIAutomationBase extends ComRef {
                     lastArg.setValid(false);
                 }
             }
-            if (lastArg != null && !lastArg.isNull() && logger.isTraceEnabled()) {
+            if (lastArg != null && lastArg.isNull() && logger.isTraceEnabled()) {
                 logger.trace("{}.{} returned null: {}", INTERFACE.name, name, lastArg.REF);
             }
         } catch (Exception e) {

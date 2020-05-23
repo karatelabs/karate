@@ -63,7 +63,7 @@ public class ComRef {
     }
 
     public boolean isValid() {
-        return valid;
+        return valid && !isNull();
     }        
 
 }

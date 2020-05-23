@@ -34,8 +34,9 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class Region extends RobotAware {
+public class Region  {
 
+    public final RobotBase robot;
     public final int x;
     public final int y;
     public final int width;
@@ -46,7 +47,7 @@ public class Region extends RobotAware {
     }
 
     public Region(RobotBase robot, int x, int y, int width, int height) {
-        super(robot);
+        this.robot = robot;
         this.x = x;
         this.y = y;
         this.width = width;

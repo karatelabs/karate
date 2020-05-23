@@ -531,6 +531,14 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     @Override
+    public Element getWindow() {
+        if (currentWindow == null) {
+            throw new RuntimeException("no window has been selected or activated");
+        }
+        return currentWindow;
+    }
+
+    @Override
     public abstract Element getDesktop();
 
     @Override

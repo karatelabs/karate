@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.robot.win;
 
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.Element;
@@ -32,7 +31,9 @@ import com.intuit.karate.robot.StringMatcher;
 
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinUser;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
@@ -90,7 +91,7 @@ public class WinRobot extends RobotBase {
     }
 
     protected WinElement toElement(IUIAutomationElement element) {
-        if (element == null || element.isNull()) {
+        if (element == null || !element.isValid()) {
             return null;
         }
         return new WinElement(this, element);
@@ -100,9 +101,18 @@ public class WinRobot extends RobotBase {
     public Element locateElementInternal(Element root, String locator) {
         IUIAutomationElement parent = root.<IUIAutomationElement>toNative();
         IUIAutomationCondition condition;
-        if (locator.startsWith("{")) {
-            IUIAutomationElement found = walkAndFind(new SearchOptions(locator), UIA.getControlViewWalker(), parent, 0);
-            return toElement(found);
+        if (PathSearch.isWildcard(locator)) {
+            locator = "//*{" + locator + "}";
+        }
+        if (locator.startsWith("/")) {
+            List<IUIAutomationElement> searchResults = new ArrayList();
+            PathSearch search = new PathSearch(locator, true);
+            walkPathAndFind(searchResults, search, UIA.getControlViewWalker(), parent, 0);
+            if (searchResults.isEmpty()) {
+                return null;
+            } else {
+                return toElement(searchResults.get(0));
+            }
         } else if (locator.startsWith("#")) {
             condition = by(Property.AutomationId, locator.substring(1));
         } else {
@@ -123,24 +133,42 @@ public class WinRobot extends RobotBase {
         return toElement(UIA.getFocusedElement());
     }
 
-    private IUIAutomationElement walkAndFind(SearchOptions search, IUIAutomationTreeWalker walker, IUIAutomationElement e, int depth) {
-        IUIAutomationElement child = walker.getFirstChildElement(e);
-        while (!child.isNull()) {
-            if (logger.isTraceEnabled()) {
-                String indent = StringUtils.repeat(' ', depth * 2);
-                logger.trace("{}{}.{} - '{}'", indent, child.getControlType(), child.getClassName(), child.getCurrentName());
-            }
-            if (search.matches(child)) {
-                logger.debug("found {} at depth: {}", search, depth);
-                return child;
-            }
-            IUIAutomationElement found = walkAndFind(search, walker, child, depth + 1);
-            if (found != null) {
-                return found;
-            }
-            child = walker.getNextSiblingElement(child);
+    private void walkPathAndFind(List<IUIAutomationElement> searchResults, PathSearch search,
+            IUIAutomationTreeWalker walker, IUIAutomationElement e, int depth) {
+        PathSearch.Chunk chunk = search.chunks.get(depth);
+        IUIAutomationCondition condition;
+        ControlType controlType;
+        if ("*".equals(chunk.controlType)) {
+            condition = UIA.getControlViewCondition();
+            controlType = null;
+        } else {
+            controlType = ControlType.fromName(chunk.controlType);
+            condition = UIA.createPropertyCondition(Property.ControlType, controlType.value);
         }
-        return null;
+        IUIAutomationElementArray array = e.findAll(chunk.anyDepth ? TreeScope.Descendants : TreeScope.Children, condition);
+        int count = array.getLength();
+        boolean leaf = depth == search.chunks.size() - 1;
+        for (int i = 0; i < count; i++) {
+            if (chunk.index != -1 && chunk.index != i) {
+                continue;
+            }
+            IUIAutomationElement child = array.getElement(i);
+            if (chunk.nameCondition != null) {
+                String name = child.getCurrentName();
+                if (!chunk.nameCondition.test(name)) {
+                    continue;
+                }
+            }
+            if (leaf) {
+                // already filtered to content-type, so we have a match !
+                searchResults.add(child);
+                if (!search.findAll) {
+                    return; // exit early
+                }
+            } else {
+                walkPathAndFind(searchResults, search, walker, child, depth + 1);
+            }
+        }
     }
 
 }

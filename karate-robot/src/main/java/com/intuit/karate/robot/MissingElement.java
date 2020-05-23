@@ -130,6 +130,11 @@ public class MissingElement implements Element {
     }        
 
     @Override
+    public Element getParent() {
+        return this;
+    }        
+
+    @Override
     public <T> T toNative() {
         return null;
     }

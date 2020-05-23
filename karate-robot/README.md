@@ -67,9 +67,9 @@ The keys that the `robot` keyword supports are the following:
 
 key | description
 --- | -----------
-`window` | (optional) the name of the window to bring to focus, and you can use a `^` prefix to do a string "contains" match, also see [`window()`](#window)
+`window` | (optional) the name of the window to bring to focus, and you can use a `^` prefix to do a string "contains" match or `~` for a regular-expression match, also see [`window()`](#window)
 `fork` | (optional) calls an OS executable and takes a string (e.g. `'some.exe -h'`), string-array (e.g. `['some.exe', '-h']`) or JSON as per [`karate.fork()`](https://github.com/intuit/karate#karate-fork)
-`autoClose` | deafult `true` - to close the current window if fork was used on startup 
+`autoClose` | default `true` - to close the current window if fork was used on startup 
 `attach` | defult `true` - if the `window` exists, `fork` will not be executed
 `basePath` | defaults to `null`, which means the "find by image" search will be relative to the "entry point" feature file, but can be used to point to [prefixed / relative paths](https://github.com/intuit/karate#reading-files) such as `classpath:some/folder`
 `highlight` | default `false` if an element (or image) match should be highlighted
@@ -150,6 +150,9 @@ Locator | Description
 ------- | -----------
 `click('Click Me')` | the first control (any type) where the name is *exactly*: `Click Me`
 `click('{^}Click')` | the first control (any type) where the name *contains*: `Click`
+`click('^Click')` | short-cut for the above
+`click('{~}Click .{2}')` | the first control (any type) where the name matches the regular expression: `Click .{2}`
+`click('~Click .{2}')` | short-cut for the above
 `click('{button}')` | the first button found when traversing the whole tree from the primary window
 `click('{button}Continue')` | the first button found with the text (name) "Continue"
 `click('{^button}Continue')` | the first button found with the text (name) *containing* "Continue"
@@ -204,11 +207,16 @@ Convenient to wait for an element. Try to use this only when necessary, for exam
 ## `windowExists()`
 
 ## `window()`
-Sets focus to the window by title, prefix with `^` for a string "contains" match
+Sets focus to the window by title, prefix with `^` for a string "contains" match or `~` for a regular-expression match.
 
 ## `robot.desktop`
+Gets the root of all other Windows objects as an [`Element`](#element) reference. Useful when you want to search within the entire "Desktop".
+
+## `robot.window`
+Returns the currently "active" window set after a previous call to [`window()`](#window) or [`windowOptional()`](#windowoptional). This will fail the test if a window has not been activated.
 
 ## `robot.focused`
+Returns the [`Element`](#element) that currently has "focus" on the screen, no matter where or what type it is.
 
 ## `locate()`
 Rarely used, but when you want to just instantiate an [`Element`](src/main/java/com/intuit/karate/robot/Element.java) instance, typically when you are writing custom re-usable functions, or using an element as a "waypoint" to access other elements in a large, complex "tree".

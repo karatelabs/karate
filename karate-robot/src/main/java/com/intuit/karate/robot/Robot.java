@@ -138,6 +138,8 @@ public interface Robot extends Plugin {
 
     @AutoDef
     Element waitForAny(String[] locators);
+    
+    Element getWindow(); // getter
 
     Element getDesktop(); // getter
 

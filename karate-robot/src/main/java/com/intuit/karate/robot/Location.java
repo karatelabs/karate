@@ -27,13 +27,14 @@ package com.intuit.karate.robot;
  *
  * @author pthomas3
  */
-public class Location extends RobotAware {
+public class Location {
 
+    public final RobotBase robot;
     public final int x;
     public final int y;
 
     public Location(RobotBase robot, int x, int y) {
-        super(robot);
+        this.robot = robot;
         this.x = x;
         this.y = y;
     }

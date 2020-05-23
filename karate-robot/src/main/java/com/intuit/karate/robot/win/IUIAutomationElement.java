@@ -98,4 +98,16 @@ public class IUIAutomationElement extends IUIAutomationBase {
         return invokeForInt("CurrentIsEnabled") == 1;
     }    
 
+    @Override
+    public String toString() {
+        if (!isValid()) {
+            return "(stale)";
+        }
+        try {
+            return getControlType() + ":" + getCurrentName();
+        } catch (Exception e) {
+            return "(stale) " + e.getMessage();
+        }
+    }    
+    
 }

@@ -137,6 +137,11 @@ public class ImageElement implements Element {
     }        
 
     @Override
+    public Element getParent() {
+        return null;
+    }        
+
+    @Override
     public Region toNative() {
         return region;
     }
