@@ -35,14 +35,18 @@ public class StringMatcher implements Predicate<String> {
     private final String text;
     private final Predicate<String> pred;
     
-    public StringMatcher(String text) {
-        this.orig = text;
-        if (text.startsWith("^")) {
-            this.text = text.substring(1);
-            pred = s -> s.contains(this.text);
+    public StringMatcher(String raw) {
+        this.orig = raw;
+        if (raw.startsWith("^")) {
+            text = raw.substring(1);
+            pred = s -> s.contains(text);
+        } else if (raw.startsWith("~")) {
+            text = raw.substring(1);
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(text);
+            pred = s -> pattern.matcher(s).find();
         } else {
-            this.text = text;
-            pred = s -> s.equals(this.text);
+            text = raw;
+            pred = s -> s.equals(text);            
         }        
     }
 

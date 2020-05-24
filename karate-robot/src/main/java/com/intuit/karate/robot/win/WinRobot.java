@@ -159,6 +159,12 @@ public class WinRobot extends RobotBase {
                     continue;
                 }
             }
+            if (chunk.className != null) {
+                String className = child.getClassName();
+                if (!chunk.className.equalsIgnoreCase(className)) {
+                    continue;
+                }
+            }
             if (leaf) {
                 // already filtered to content-type, so we have a match !
                 searchResults.add(child);

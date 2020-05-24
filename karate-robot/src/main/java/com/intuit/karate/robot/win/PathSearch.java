@@ -43,6 +43,7 @@ public class PathSearch {
         final String raw;
         final boolean anyDepth;
         final String controlType;
+        final String className;
         final int index;
         final Predicate<String> nameCondition;
         final String name;
@@ -85,10 +86,16 @@ public class PathSearch {
                 name = null;
                 nameCondition = null;
             }
-            if (controlTypeEndPos == -1) {
+            if (controlTypeEndPos != -1) {
+                raw = raw.substring(0, controlTypeEndPos);
+            }
+            pos = raw.indexOf('.');
+            if (pos == -1) {
                 controlType = raw;
+                className = null;
             } else {
-                controlType = raw.substring(0, controlTypeEndPos);
+                controlType = raw.substring(0, pos);
+                className = raw.substring(pos + 1);
             }
         }
 

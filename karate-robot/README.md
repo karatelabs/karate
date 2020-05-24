@@ -142,28 +142,26 @@ Images have to be in PNG format, and with the extension `*.png`. Karate will att
 So any string that ends with `.png` will be treated as an "image locator". Else read on for OS-native locators.
 
 ## Windows Locators
-Finding by "name" is the default. Prefixing with a `#` means using the "Automation ID" which may or may not be available depending on the application under test. The "`{}`" and "`{^}`" locator-prefixes are designed to make adding more filter conditions easy, for e.g. to find by "control type" and "class name".
+Prefixing with a `#` means using the "Automation ID" which may or may not be available depending on the application under test. And finding by "name" is the default, if the first character is not `/` or `#`. As a convenience, you can use the `^` prefix for a name "contains" match and `~` for a name regular-expression match.
+
+But the most useful locator strategy is an XPath-like one. While it does not support all the extensions and functions in proper XPath, it is designed to make selecting elements super-easy and for improved performance, you can "scope" to parent element / paths and make these selectors robust.
 
 Here are examples:
 
 Locator | Description
 ------- | -----------
-`click('Click Me')` | the first control (any type) where the name is *exactly*: `Click Me`
-`click('{^}Click')` | the first control (any type) where the name *contains*: `Click`
-`click('^Click')` | short-cut for the above
-`click('{~}Click .{2}')` | the first control (any type) where the name matches the regular expression: `Click .{2}`
-`click('~Click .{2}')` | short-cut for the above
-`click('{button}')` | the first button found when traversing the whole tree from the primary window
-`click('{button}Continue')` | the first button found with the text (name) "Continue"
-`click('{^button}Continue')` | the first button found with the text (name) *containing* "Continue"
-`click('{button:2}')` | the second button
-`click('{button.TButton}')` | the first button with a "class name" of "TButton"
-`click('{.TButton}')` | the first control (any type) with a "class name" of "TButton"
-`click('{^:4}Me')` | the fourth control (any type) where the name *contains*: `Me`
+`click('Click Me')` | the first control (any type) where the name is *exactly*: "Click Me"
+`click('//*{Click Me}')` | the "long-form" of the above. Try to use more specific path-selectors for better performance.
+`click('^Click')` | the first control (any type) where the name *contains*: "Click"
+`click('//*{^Click}')` | the "long-form" of the above. Try to use more specific path-selectors for better performance.
+`click('//button{Click Me}')` | the first button where the name is equal to "Click Me"
+`click('/pane[2]/button')` | absolute path, the second pane on the active window, and the first button on it
+`click('//pane/*/button')` | other examples of what you can use, the `*` will match any control type
+`click('//button.TButton{^Click}')` | the first button with a "class name" of "TButton" and the name contains "Click"
 
 Use a tool like [Inspect.exe](https://docs.microsoft.com/en-us/windows/win32/winauto/inspect-objects) to identify the properties needed for automation from an application window.
 
-The [control "type"](https://docs.microsoft.com/en-us/windows/win32/winauto/uiauto-controltypesoverview) is not case-sensititive. Examples are `edit`, `button` and `checkbox`. The complete list of types can be [found here](src/main/java/com/intuit/karate/robot/win/ControlType.java). You don't have to rely on the `LocalizedControlType` shown in tools such as "Inspect.exe" because Karate uses the `ControlType`.
+The [control "type"](https://docs.microsoft.com/en-us/windows/win32/winauto/uiauto-controltypesoverview) is case-insensitive. Examples are `edit`, `button` and `checkbox`. The complete list of types can be [found here](src/main/java/com/intuit/karate/robot/win/ControlType.java). You don't have to rely on the `LocalizedControlType` shown in tools such as "Inspect.exe" because Karate uses the `ControlType`.
 
 Similarly, the "class name" is not case-sensitive. This can be useful in some cases, for example in Delphi you can use values such as `TScrollBox` and `TEdit`.
 
