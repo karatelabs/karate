@@ -139,4 +139,9 @@ public class MissingElement implements Element {
         return "(missing element)";
     }
 
+    @Override
+    public Element select() {
+        return this;
+    }
+
 }

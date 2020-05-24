@@ -42,7 +42,7 @@ public enum Pattern {
     GridItem(10007),
     MultipleView(10008),
     Window(10009),
-    SelectionItem(10010),
+    SelectionItem(10010, IUIAutomationSelectionItemPattern.class),
     Dock(10011),
     Table(10012),
     TableItem(10013),

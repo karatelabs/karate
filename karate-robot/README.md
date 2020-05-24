@@ -257,6 +257,9 @@ If you need to simulate key combinations, just ensure that the [modifier keys](#
 * input(Key.META + 't')
 ```
 
+## `select()`
+To select from drop-down, for item type elements.
+
 ## `press()`
 A mouse press that will be held down, useful for simulating a drag and drop operation.
 
