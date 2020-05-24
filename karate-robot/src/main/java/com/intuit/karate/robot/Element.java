@@ -132,4 +132,6 @@ public interface Element {
     
     String getDebugString();
 
+    Element select();
+
 }

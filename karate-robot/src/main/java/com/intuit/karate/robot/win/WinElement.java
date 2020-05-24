@@ -199,6 +199,13 @@ public class WinElement implements Element {
     @Override
     public String toString() {
         return getDebugString();
-    }        
+    }
+
+    @Override
+    public Element select() {
+        ((IUIAutomationSelectionItemPattern) e.getCurrentPattern(IUIAutomationSelectionItemPattern.class))
+                .select();
+        return this;
+    }
 
 }

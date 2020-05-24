@@ -149,6 +149,11 @@ public class ImageElement implements Element {
     @Override
     public String getDebugString() {
         return getName();
-    }        
+    }
+
+    @Override
+    public Element select() {
+        return this;
+    }
 
 }

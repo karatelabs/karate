@@ -823,7 +823,7 @@ Just triggers a click event on the DOM element:
 Also see [`submit()`](#submit) and [`mouse()`](#mouse).
 
 ## `select()`
-You can use this for plain-vanilla `<select>` boxes that have not been overly "ehnanced" by JavaScript. Nowadays, most "select" (or "multi-select") user experiences are JavaScript widgets, so you would be needing to fire a [`click()`](#click) or two to get things done. But if you are really dealing with an HTML `<select>`, then read on.
+You can use this for plain-vanilla `<select>` boxes that have not been overly "enhanced" by JavaScript. Nowadays, most "select" (or "multi-select") user experiences are JavaScript widgets, so you would be needing to fire a [`click()`](#click) or two to get things done. But if you are really dealing with an HTML `<select>`, then read on.
 
 There are four variations and use the [locator](#locators) prefix conventions for *exact* and *contains* matches against the `<option>` text-content.
 
