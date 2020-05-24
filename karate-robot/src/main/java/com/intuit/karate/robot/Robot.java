@@ -89,9 +89,15 @@ public interface Robot extends Plugin {
 
     @AutoDef
     Element highlight(String locator);
+    
+    @AutoDef
+    List<Element> highlightAll(String locator);    
 
     @AutoDef
     Element locate(String locator);
+    
+    @AutoDef
+    List<Element> locateAll(String locator);
 
     @AutoDef
     Element optional(String locator);

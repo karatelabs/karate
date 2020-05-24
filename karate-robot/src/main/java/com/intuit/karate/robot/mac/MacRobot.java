@@ -87,7 +87,12 @@ public class MacRobot extends RobotBase {
     }
 
     @Override
-    public Element locateElementInternal(Element root, String locator) {
+    public List<Element> locateAllInternal(Element searchRoot, String locator) {
+        throw new UnsupportedOperationException("not supported yet.");
+    } 
+
+    @Override
+    public Element locateInternal(Element root, String locator) {
         throw new UnsupportedOperationException("not supported yet.");
     }
 

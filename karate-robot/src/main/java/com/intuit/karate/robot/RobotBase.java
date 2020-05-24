@@ -39,6 +39,7 @@ import java.awt.event.InputEvent;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -364,11 +365,21 @@ public abstract class RobotBase implements Robot, Plugin {
     public Element highlight(String locator) {
         return locate(Config.DEFAULT_HIGHLIGHT_DURATION, getSearchRoot(), locator);
     }
+    
+    @Override
+    public List<Element> highlightAll(String locator) {
+        return locateAll(Config.DEFAULT_HIGHLIGHT_DURATION, getSearchRoot(), locator);
+    }    
 
     @Override
     public Element locate(String locator) {
         return locate(getHighlightDuration(), getSearchRoot(), locator);
     }
+    
+    @Override
+    public List<Element> locateAll(String locator) {
+        return locateAll(getHighlightDuration(), getSearchRoot(), locator);
+    }    
 
     @Override
     public Element optional(String locator) {
@@ -411,6 +422,14 @@ public abstract class RobotBase implements Robot, Plugin {
             if (duration > 0) {
                 found.getRegion().highlight(duration);
             }
+        }
+        return found;
+    }
+    
+    protected List<Element> locateAll(int duration, Element searchRoot, String locator) {
+        List<Element> found = locateAllInternal(searchRoot, locator);
+        if (duration > 0) {
+            RobotUtils.highlightAll(searchRoot.getRegion(), found, duration);
         }
         return found;
     }
@@ -475,7 +494,7 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     public Element locateElement(Element root, String locator) {
-        return locateElementInternal(root, locator);
+        return locateInternal(root, locator);
     }
 
     protected Element getSearchRoot() {
@@ -550,6 +569,8 @@ public abstract class RobotBase implements Robot, Plugin {
 
     protected abstract Element windowInternal(Predicate<String> condition);
 
-    protected abstract Element locateElementInternal(Element root, String locator);
+    protected abstract Element locateInternal(Element root, String locator);
+    
+    protected abstract List<Element> locateAllInternal(Element root, String locator);
 
 }

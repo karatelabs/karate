@@ -79,7 +79,7 @@ public class WinRobot extends RobotBase {
             }
             if (condition.test(name)) {
                 logger.debug("found window: {}", name);
-                return toElement(child).focus();
+                return new WinElement(this, child).focus();
             }
         }
         logger.warn("failed to find window: {}", condition);
@@ -89,29 +89,55 @@ public class WinRobot extends RobotBase {
     private IUIAutomationCondition by(Property property, String value) {
         return UIA.createPropertyCondition(property, value);
     }
-
-    protected WinElement toElement(IUIAutomationElement element) {
-        if (element == null || !element.isValid()) {
-            return null;
+    
+    protected List<Element> toElements(IUIAutomationElementArray array) {
+        int count = array.getLength();
+        List<Element> list = new ArrayList(count);
+        for (int i = 0; i < count; i++) {
+            IUIAutomationElement e = array.getElement(i);
+            if (e.isValid()) {
+                list.add(new WinElement(this, e));
+            }
         }
-        return new WinElement(this, element);
+        return list;
     }
 
     @Override
-    public Element locateElementInternal(Element root, String locator) {
+    public List<Element> locateAllInternal(Element root, String locator) {
+        IUIAutomationElement parent = root.<IUIAutomationElement>toNative();
+        IUIAutomationCondition condition;
+        if (PathSearch.isWildcard(locator)) {
+            locator = "//*{" + locator + "}";
+        } 
+        if (locator.startsWith("/")) {
+            List<Element> searchResults = new ArrayList();
+            PathSearch search = new PathSearch(locator, true);
+            walkPathAndFind(searchResults, search, UIA.getControlViewWalker(), parent, 0);
+            return searchResults;
+        } else if (locator.startsWith("#")) {
+            condition = by(Property.AutomationId, locator.substring(1));
+        } else {
+            condition = by(Property.Name, locator);
+        }
+        IUIAutomationElementArray found = parent.findAll(TreeScope.Descendants, condition);
+        return toElements(found);
+    }   
+    
+    @Override
+    public Element locateInternal(Element root, String locator) {
         IUIAutomationElement parent = root.<IUIAutomationElement>toNative();
         IUIAutomationCondition condition;
         if (PathSearch.isWildcard(locator)) {
             locator = "//*{" + locator + "}";
         }
         if (locator.startsWith("/")) {
-            List<IUIAutomationElement> searchResults = new ArrayList();
-            PathSearch search = new PathSearch(locator, true);
+            List<Element> searchResults = new ArrayList();
+            PathSearch search = new PathSearch(locator, false);
             walkPathAndFind(searchResults, search, UIA.getControlViewWalker(), parent, 0);
             if (searchResults.isEmpty()) {
                 return null;
             } else {
-                return toElement(searchResults.get(0));
+                return searchResults.get(0);
             }
         } else if (locator.startsWith("#")) {
             condition = by(Property.AutomationId, locator.substring(1));
@@ -119,21 +145,21 @@ public class WinRobot extends RobotBase {
             condition = by(Property.Name, locator);
         }
         IUIAutomationElement found = parent.findFirst(TreeScope.Descendants, condition);
-        return toElement(found);
+        return new WinElement(this, found);
     }
 
     @Override
     public Element getDesktop() {
-        return toElement(UIA.getRootElement());
+        return new WinElement(this, UIA.getRootElement());
     }
 
     @AutoDef
     @Override
     public Element getFocused() {
-        return toElement(UIA.getFocusedElement());
+        return new WinElement(this, UIA.getFocusedElement());
     }
 
-    private void walkPathAndFind(List<IUIAutomationElement> searchResults, PathSearch search,
+    private void walkPathAndFind(List<Element> searchResults, PathSearch search,
             IUIAutomationTreeWalker walker, IUIAutomationElement e, int depth) {
         PathSearch.Chunk chunk = search.chunks.get(depth);
         IUIAutomationCondition condition;
@@ -167,7 +193,7 @@ public class WinRobot extends RobotBase {
             }
             if (leaf) {
                 // already filtered to content-type, so we have a match !
-                searchResults.add(child);
+                searchResults.add(new WinElement(this, child));
                 if (!search.findAll) {
                     return; // exit early
                 }

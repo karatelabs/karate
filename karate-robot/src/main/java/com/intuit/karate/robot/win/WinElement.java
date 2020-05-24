@@ -168,7 +168,7 @@ public class WinElement implements Element {
         List<Element> list = new ArrayList(count);
         for (int i = 0; i < count; i++) {
             IUIAutomationElement child = array.getElement(i);
-            list.add(robot.toElement(child));
+            list.add(new WinElement(robot, child));
         }
         return list;
     }
@@ -176,7 +176,7 @@ public class WinElement implements Element {
     @Override
     public Element getParent() {
         IUIAutomationTreeWalker walker = WinRobot.UIA.getControlViewWalker();
-        return robot.toElement(walker.getParentElement(e));
+        return new WinElement(robot, walker.getParentElement(e));
     }
 
     @Override

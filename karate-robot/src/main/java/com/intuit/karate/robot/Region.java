@@ -79,7 +79,7 @@ public class Region  {
     }
     
     public void highlight(int millis) {
-        RobotUtils.highlight(x, y, width, height, millis);
+        RobotUtils.highlight(this, millis);
     }    
 
     public Region click() {

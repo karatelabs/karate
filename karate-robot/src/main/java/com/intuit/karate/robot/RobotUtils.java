@@ -24,16 +24,22 @@
 package com.intuit.karate.robot;
 
 import com.intuit.karate.driver.Keys;
+import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.WindowConstants;
 import org.bytedeco.javacpp.DoublePointer;
@@ -232,7 +238,7 @@ public class RobotUtils {
 
     //==========================================================================
     //    
-    public static void highlight(int x, int y, int width, int height, int time) {
+    public static void highlight(Region region, int time) {
         JFrame f = new JFrame();
         f.setUndecorated(true);
         f.setBackground(new Color(0, 0, 0, 0));
@@ -241,9 +247,47 @@ public class RobotUtils {
         f.setType(JFrame.Type.UTILITY);
         f.setFocusableWindowState(false);
         f.setAutoRequestFocus(false);
-        f.setLocation(x, y);
-        f.setSize(width, height);
+        f.setLocation(region.x, region.y);
+        f.setSize(region.width, region.height);
         f.getRootPane().setBorder(BorderFactory.createLineBorder(Color.RED, 3));
+        f.setVisible(true);
+        delay(time);
+        f.dispose();
+    }
+
+    public static void highlightAll(Region parent, List<Element> elements, int time) {
+        JFrame f = new JFrame();
+        f.setUndecorated(true);
+        f.setBackground(new Color(0, 0, 0, 0));
+        f.setAlwaysOnTop(true);
+        f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        f.setType(JFrame.Type.UTILITY);
+        f.setFocusableWindowState(false);
+        f.setAutoRequestFocus(false);
+        f.setLocation(parent.x, parent.y);
+        f.setSize(parent.width, parent.height);
+        f.getRootPane().setBorder(BorderFactory.createLineBorder(Color.YELLOW, 3));
+        // important to extract these so that swing awt ui thread doesn't clash with awt robot
+        List<int[]> rects = new ArrayList(elements.size());
+        for (Element e : elements) {
+            Region region = e.getRegion();
+            int x = region.x - parent.x;
+            int y = region.y - parent.y;
+            if (x > 0 && y > 0 && region.width > 0 && region.height > 0) {
+                rects.add(new int[]{x, y, region.width, region.height});
+            }
+        }
+        f.add(new JComponent() {
+            @Override
+            public void paint(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g;
+                g.setColor(Color.RED);  
+                g2d.setStroke(new BasicStroke(3));
+                for (int[] rect : rects) {
+                    g.drawRect(rect[0], rect[1], rect[2], rect[3]);
+                }
+            }
+        });
         f.setVisible(true);
         delay(time);
         f.dispose();
