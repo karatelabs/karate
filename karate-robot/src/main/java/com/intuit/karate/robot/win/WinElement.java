@@ -207,5 +207,16 @@ public class WinElement implements Element {
         pattern.select();
         return this;
     }
+    
+    public Object as(String patternName) {
+        Pattern pattern = Pattern.fromName(patternName);
+        if (pattern == null) {
+            throw new RuntimeException("no such pattern: " + patternName);
+        }
+        if (pattern.type == null) {
+            throw new RuntimeException("pattern not implemented: " + pattern);
+        }
+        return e.getCurrentPattern(pattern.type);
+    }
 
 }

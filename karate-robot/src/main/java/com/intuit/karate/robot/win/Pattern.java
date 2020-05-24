@@ -41,7 +41,7 @@ public enum Pattern {
     Grid(10006),
     GridItem(10007),
     MultipleView(10008),
-    Window(10009),
+    Window(10009, IUIAutomationWindowPattern.class),
     SelectionItem(10010, IUIAutomationSelectionItemPattern.class),
     Dock(10011),
     Table(10012),
@@ -80,19 +80,26 @@ public enum Pattern {
     }
 
     private static final Map<String, Pattern> FROM_CLASS;
+    private static final Map<String, Pattern> FROM_NAME;
 
     static {
-        Pattern[] patterns = Pattern.values();
-        FROM_CLASS = new HashMap(patterns.length);
-        for (Pattern p : patterns) {
+        Pattern[] values = Pattern.values();
+        FROM_CLASS = new HashMap(values.length);
+        FROM_NAME = new HashMap(values.length);
+        for (Pattern p : values) {
             if (p.type != null) {
                 FROM_CLASS.put(p.type.getSimpleName(), p);
             }
+            FROM_NAME.put(p.name().toLowerCase(), p);
         }
     }
 
     public static Pattern fromType(Class type) {
         return FROM_CLASS.get(type.getSimpleName());
+    }
+    
+    public static Pattern fromName(String name) {
+        return FROM_NAME.get(name.toLowerCase());
     }
 
 }
