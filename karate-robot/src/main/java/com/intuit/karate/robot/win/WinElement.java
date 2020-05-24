@@ -167,17 +167,17 @@ public class WinElement implements Element {
         int count = array.getLength();
         List<Element> list = new ArrayList(count);
         for (int i = 0; i < count; i++) {
-            IUIAutomationElement child = array.getElement(i);            
+            IUIAutomationElement child = array.getElement(i);
             list.add(robot.toElement(child));
         }
         return list;
-    }        
+    }
 
     @Override
     public Element getParent() {
-       IUIAutomationTreeWalker walker = WinRobot.UIA.getControlViewWalker();
-       return robot.toElement(walker.getParentElement(e));
-    }        
+        IUIAutomationTreeWalker walker = WinRobot.UIA.getControlViewWalker();
+        return robot.toElement(walker.getParentElement(e));
+    }
 
     @Override
     public IUIAutomationElement toNative() {
@@ -185,7 +185,7 @@ public class WinElement implements Element {
     }
 
     @Override
-    public String getDebugString() {        
+    public String getDebugString() {
         if (!e.isValid()) {
             return "(null)";
         }
@@ -194,7 +194,7 @@ public class WinElement implements Element {
         } catch (Exception e) {
             return "(stale) " + e.getMessage();
         }
-    }     
+    }
 
     @Override
     public String toString() {
@@ -203,8 +203,8 @@ public class WinElement implements Element {
 
     @Override
     public Element select() {
-        ((IUIAutomationSelectionItemPattern) e.getCurrentPattern(IUIAutomationSelectionItemPattern.class))
-                .select();
+        IUIAutomationSelectionItemPattern pattern = e.getCurrentPattern(IUIAutomationSelectionItemPattern.class);
+        pattern.select();
         return this;
     }
 

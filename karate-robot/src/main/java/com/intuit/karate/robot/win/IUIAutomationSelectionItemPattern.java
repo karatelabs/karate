@@ -5,6 +5,8 @@ package com.intuit.karate.robot.win;
  */
 public class IUIAutomationSelectionItemPattern extends IUIAutomationBase {
 
-    public void select() { invoke("Select");}
+    public void select() {
+        invoke("Select");
+    }
 
 }
