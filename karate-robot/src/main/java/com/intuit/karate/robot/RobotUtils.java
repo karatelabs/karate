@@ -43,11 +43,13 @@ import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.WindowConstants;
 import org.bytedeco.javacpp.DoublePointer;
+import org.bytedeco.javacpp.Pointer;
 import org.bytedeco.javacv.CanvasFrame;
 import org.bytedeco.javacv.Java2DFrameConverter;
 import org.bytedeco.javacv.Java2DFrameUtils;
 import org.bytedeco.javacv.OpenCVFrameConverter;
 import static org.bytedeco.opencv.global.opencv_core.minMaxLoc;
+import static org.bytedeco.opencv.global.opencv_core.findNonZero;
 import static org.bytedeco.opencv.global.opencv_imgcodecs.*;
 import static org.bytedeco.opencv.global.opencv_imgproc.*;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -68,18 +70,22 @@ public class RobotUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(RobotUtils.class);
 
-    public static Region find(RobotBase robot, File source, File target, boolean resize) {
-        return find(robot, read(source), read(target), resize);
-    }
-
     public static Region find(RobotBase robot, BufferedImage source, byte[] bytes, boolean resize) {
         Mat srcMat = Java2DFrameUtils.toMat(source);
         return find(robot, srcMat, read(bytes), resize);
     }
 
-    public static Region find(RobotBase robot, BufferedImage source, File target, boolean resize) {
+    public static Region find(RobotBase robot, Mat source, Mat target, boolean resize) {
+        List<Region> found = find(false, robot, source, target, resize);
+        if (found.isEmpty()) {
+            return null;
+        }
+        return found.get(0);
+    }
+
+    public static List<Region> findAll(RobotBase robot, BufferedImage source, byte[] bytes, boolean resize) {
         Mat srcMat = Java2DFrameUtils.toMat(source);
-        return find(robot, srcMat, read(target), resize);
+        return find(true, robot, srcMat, read(bytes), resize);
     }
 
     public static Mat rescale(Mat mat, double scale) {
@@ -88,58 +94,120 @@ public class RobotUtils {
         return resized;
     }
 
-    private static final int TARGET_MINVAL_FACTOR = 300; // magic number
-    private static final double TARGET_SCORE = 1.5;      // magic number
-    private static final double[] SAME_SIZE = new double[]{1};
-    // try to use "more likely" scaling factors first
-    private static final double[] RE_SIZE = new double[]{1, 1.5, 0.5, 0.9, 1.1, 0.8, 1.2, 0.7, 1.3, 0.6, 1.4};
+    private static final int TARGET_MINVAL_FACTOR = 450; // magic number, lower is stricter
+    private static final int BLOCK_SIZE = 5;
 
-    public static Region find(RobotBase robot, Mat source, Mat target, boolean resize) {
-        Double prevMinVal = null;
-        double prevRatio = -1;
-        Point prevMinPt = null;
-        double prevScore = -1;
-        //=====================
-        double[] scales = resize ? RE_SIZE : SAME_SIZE;
-        int targetMinVal = target.size().area() * TARGET_MINVAL_FACTOR;
-        logger.debug(">> target minVal: {}, target score: {}", targetMinVal, TARGET_SCORE);
-        for (double scale : scales) {
-            Mat resized = scale == 1 ? source : rescale(source, scale);
-            Mat result = new Mat();
-            matchTemplate(resized, target, result, CV_TM_SQDIFF);
-            DoublePointer minVal = new DoublePointer(1);
-            DoublePointer maxVal = new DoublePointer(1);
-            Point minPt = new Point();
-            Point maxPt = new Point();
-            minMaxLoc(result, minVal, maxVal, minPt, maxPt, null);
-            double tempMinVal = minVal.get();
-            double ratio = (double) 1 / scale;
-            double score = tempMinVal / targetMinVal;
-            String scoreString = String.format("%.1f", score);
-            String minValString = String.format("%.1f", tempMinVal);
-            if (prevMinVal == null || tempMinVal < prevMinVal) {
-                prevMinVal = tempMinVal;
-                prevRatio = ratio;
-                prevMinPt = minPt;
-                prevScore = score;
-                logger.debug("better minVal: {}, score: {}, scale: {} / {}:{}", minValString, scoreString, scale, resized.size().width(), resized.size().height());
-                if (score < TARGET_SCORE) {
-                    logger.debug("<< match found: {}", scoreString);
-                    break;
-                }
+    private static List<int[]> getPointsBelowThreshold(Mat src, double threshold) {
+        Mat dst = new Mat();
+        threshold(src, dst, threshold, 1, CV_THRESH_BINARY_INV);
+        Mat non = new Mat();
+        findNonZero(dst, non);
+        int len = (int) non.total();
+        int xPrev = -BLOCK_SIZE;
+        int yPrev = -BLOCK_SIZE;
+        int countPrev = 0;
+        int xSum = 0;
+        int ySum = 0;
+        List<int[]> points = new ArrayList(len);
+        for (int i = 0; i < len; i++) {
+            Pointer ptr = non.ptr(i);
+            Point p = new Point(ptr);
+            int x = p.x();
+            int y = p.y();
+            int xDelta = Math.abs(x - xPrev);
+            int yDelta = Math.abs(y - yPrev);
+            if (xDelta < BLOCK_SIZE && yDelta < BLOCK_SIZE) {
+                countPrev++;
+                xSum += x;
+                ySum += y;
             } else {
-                logger.debug("ignore minVal: {}, score: {}, scale: {} / {}:{}", minValString, scoreString, scale, resized.size().width(), resized.size().height());
+                if (countPrev > 0) {
+                    int xFinal = Math.floorDiv(xSum, countPrev);
+                    int yFinal = Math.floorDiv(ySum, countPrev);
+                    // logger.debug("end: {}:{}", xFinal, yFinal);
+                    points.add(new int[]{xFinal, yFinal});
+                }
+                xSum = x;
+                ySum = y;
+                countPrev = 1;
             }
+            xPrev = x;
+            yPrev = y;
         }
-        if (prevScore > TARGET_SCORE) {
-            logger.debug("<< match quality insufficient, best: {}", prevScore);
-            return null;
+        if (countPrev > 0) {
+            int xFinal = Math.floorDiv(xSum, countPrev);
+            int yFinal = Math.floorDiv(ySum, countPrev);
+            points.add(new int[]{xFinal, yFinal});
         }
-        int x = (int) Math.round(prevMinPt.x() * prevRatio);
-        int y = (int) Math.round(prevMinPt.y() * prevRatio);
-        int width = (int) Math.round(target.cols() * prevRatio);
-        int height = (int) Math.round(target.rows() * prevRatio);
+        return points;
+    }
+
+    private static Region toRegion(RobotBase robot, int[] p, double scale, int targetWidth, int targetHeight) {
+        int x = (int) Math.round(p[0] / scale);
+        int y = (int) Math.round(p[1] / scale);
+        int width = (int) Math.round(targetWidth / scale);
+        int height = (int) Math.round(targetHeight / scale);
         return new Region(robot, x, y, width, height);
+    }
+
+    private static int[] templateAndMin(double scale, Mat source, Mat target, Mat result) {
+        Mat resized = scale == 1 ? source : rescale(source, scale);
+        matchTemplate(resized, target, result, CV_TM_SQDIFF);
+        DoublePointer minValPtr = new DoublePointer(1);
+        DoublePointer maxValPtr = new DoublePointer(1);
+        Point minPt = new Point();
+        Point maxPt = new Point();
+        minMaxLoc(result, minValPtr, maxValPtr, minPt, maxPt, null);
+        int minVal = (int) minValPtr.get();
+        int x = minPt.x();
+        int y = minPt.y();
+        return new int[]{x, y, minVal};
+    }
+
+    private static int collect(List<Region> found, boolean findAll, RobotBase robot, Mat source, Mat target, double scale) {
+        int targetWidth = target.cols();
+        int targetHeight = target.rows();
+        int targetMinVal = targetWidth * targetHeight * TARGET_MINVAL_FACTOR;  
+        Mat result = new Mat();
+        int[] min = templateAndMin(scale, source, target, result);
+        if (min[2] > targetMinVal) {
+            logger.debug("no match at scale {}, minVal: {} / {} at {}:{}", scale, min[2], targetMinVal, min[0], min[1]);
+            return min[2];
+        }
+        logger.debug("found match at scale {}, minVal: {} / {} at {}:{}", scale, min[2], targetMinVal, min[0], min[1]);
+        if (findAll) {
+            List<int[]> points = getPointsBelowThreshold(result, targetMinVal);
+            for (int[] p : points) {
+                Region region = toRegion(robot, p, scale, targetWidth, targetHeight);
+                found.add(region);
+            }
+        } else {
+            Region region = toRegion(robot, min, scale, targetWidth, targetHeight);
+            found.add(region);
+        }
+        return min[2];
+    }
+
+    public static List<Region> find(boolean findAll, RobotBase robot, Mat source, Mat target, boolean resize) {
+        List<Region> found = new ArrayList();
+        collect(found, findAll, robot, source, target, 1);
+        if (!found.isEmpty()) {
+            return found;
+        }
+        int stepUp = collect(found, findAll, robot, source, target, 1.1);
+        if (!found.isEmpty()) {
+            return found;
+        }
+        int stepDown = collect(found, findAll, robot, source, target, 0.9);
+        if (!found.isEmpty()) {
+            return found;
+        }
+        boolean goUp = stepUp < stepDown;
+        for (int step = 2; step < 6; step++) {
+            double scale = 1 + 0.1 * step * (goUp ? 1 : -1);
+            collect(found, findAll, robot, source, target, scale);
+        }
+        return found;
     }
 
     public static Mat loadAndShowOrExit(File file, int flags) {
@@ -267,7 +335,7 @@ public class RobotUtils {
         f.setLocation(parent.x, parent.y);
         f.setSize(parent.width, parent.height);
         f.getRootPane().setBorder(BorderFactory.createLineBorder(Color.YELLOW, 3));
-        // important to extract these so that swing awt ui thread doesn't clash with awt robot
+        // important to extract these so that swing awt ui thread doesn't clash with AUT native ui rendering
         List<int[]> rects = new ArrayList(elements.size());
         for (Element e : elements) {
             Region region = e.getRegion();
@@ -281,7 +349,7 @@ public class RobotUtils {
             @Override
             public void paint(Graphics g) {
                 Graphics2D g2d = (Graphics2D) g;
-                g.setColor(Color.RED);  
+                g.setColor(Color.RED);
                 g2d.setStroke(new BasicStroke(3));
                 for (int[] rect : rects) {
                     g.drawRect(rect[0], rect[1], rect[2], rect[3]);

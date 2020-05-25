@@ -37,6 +37,7 @@ import java.awt.Dimension;
 import java.awt.Toolkit;
 import java.awt.event.InputEvent;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -365,21 +366,21 @@ public abstract class RobotBase implements Robot, Plugin {
     public Element highlight(String locator) {
         return locate(Config.DEFAULT_HIGHLIGHT_DURATION, getSearchRoot(), locator);
     }
-    
+
     @Override
     public List<Element> highlightAll(String locator) {
         return locateAll(Config.DEFAULT_HIGHLIGHT_DURATION, getSearchRoot(), locator);
-    }    
+    }
 
     @Override
     public Element locate(String locator) {
         return locate(getHighlightDuration(), getSearchRoot(), locator);
     }
-    
+
     @Override
     public List<Element> locateAll(String locator) {
         return locateAll(getHighlightDuration(), getSearchRoot(), locator);
-    }    
+    }
 
     @Override
     public Element optional(String locator) {
@@ -425,9 +426,14 @@ public abstract class RobotBase implements Robot, Plugin {
         }
         return found;
     }
-    
+
     protected List<Element> locateAll(int duration, Element searchRoot, String locator) {
-        List<Element> found = locateAllInternal(searchRoot, locator);
+        List<Element> found;
+        if (locator.endsWith(".png")) {
+            found = locateAllImages(searchRoot, locator);
+        } else {
+            found = locateAllInternal(searchRoot, locator);
+        }
         if (duration > 0) {
             RobotUtils.highlightAll(searchRoot.getRegion(), found, duration);
         }
@@ -452,6 +458,15 @@ public abstract class RobotBase implements Robot, Plugin {
     @Override
     public Element release(String locator) {
         return locate(getHighlightDuration(), getSearchRoot(), locator).release();
+    }
+
+    public List<Element> locateAllImages(Element searchRoot, String path) {
+        List<Region> found = RobotUtils.findAll(this, searchRoot.getRegion().captureGreyScale(), readBytes(path), true);
+        List<Element> list = new ArrayList(found.size());
+        for (Region region : found) {
+            list.add(new ImageElement(region));
+        }
+        return list;
     }
 
     public Element locateImage(String path) {
@@ -570,7 +585,7 @@ public abstract class RobotBase implements Robot, Plugin {
     protected abstract Element windowInternal(Predicate<String> condition);
 
     protected abstract Element locateInternal(Element root, String locator);
-    
+
     protected abstract List<Element> locateAllInternal(Element root, String locator);
 
 }
