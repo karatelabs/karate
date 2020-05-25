@@ -11,8 +11,10 @@
     <packaging>jar</packaging>  
     
     <properties>        
-        <javacpp.version>1.5.2</javacpp.version>
-        <opencv.version>4.1.2</opencv.version>
+        <javacpp.version>1.5.3</javacpp.version>
+        <opencv.version>4.3.0</opencv.version>
+        <tesseract.version>4.1.1</tesseract.version>
+        <ffmpeg.version>4.2.2</ffmpeg.version>
     </properties>      
 
     <dependencies>                         
@@ -31,10 +33,6 @@
             <artifactId>javacv</artifactId>
             <version>${javacpp.version}</version>
             <exclusions>
-                <exclusion>
-                    <groupId>org.bytedeco</groupId>
-                    <artifactId>ffmpeg</artifactId>
-                </exclusion>
                 <exclusion>
                     <groupId>org.bytedeco</groupId>
                     <artifactId>flycapture</artifactId>
@@ -70,15 +68,7 @@
                 <exclusion>
                     <groupId>org.bytedeco</groupId>
                     <artifactId>flandmark</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.bytedeco</groupId>
-                    <artifactId>leptonica</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.bytedeco</groupId>
-                    <artifactId>tesseract</artifactId>
-                </exclusion>                                                                                                                                                         
+                </exclusion>                                                                                                                                                        
             </exclusions>
         </dependency>                   
         <dependency>
@@ -86,6 +76,16 @@
             <artifactId>opencv-platform</artifactId>
             <version>${opencv.version}-${javacpp.version}</version>          
         </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>tesseract-platform</artifactId>
+            <version>${tesseract.version}-${javacpp.version}</version>          
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>ffmpeg-platform</artifactId>
+            <version>${ffmpeg.version}-${javacpp.version}</version>          
+        </dependency>                 
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-apache</artifactId>
@@ -137,9 +137,9 @@
                                             <exclude>*:*:jar:android-*:*</exclude>
                                             <exclude>*:*:jar:ios-*:*</exclude>
                                             <exclude>*:*:jar:linux-*:*</exclude>
-                                       <!-- <exclude>*:*:jar:macosx-*:*</exclude>
-                                            <exclude>*:*:jar:windows-x86:*</exclude> 
-                                            <exclude>*:*:jar:windows-x86_64:*</exclude> -->
+                                            <exclude>*:*:jar:macosx-*:*</exclude>
+                                            <exclude>*:*:jar:windows-x86:*</exclude>
+                                            <!-- <exclude>*:*:jar:windows-x86_64:*</exclude> -->
                                         </excludes>                                        
                                     </artifactSet>
                                 </configuration>

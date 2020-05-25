@@ -10,20 +10,20 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class RobotUtilsTest {
+public class OpenCvUtilsTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(RobotUtilsTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(OpenCvUtilsTest.class);
 
     @Test
     public void testOpenCv() {
         // System.setProperty("org.bytedeco.javacpp.logger.debug", "true");
         File target = new File("src/test/java/search.png");
         File source = new File("src/test/java/desktop01.png");
-        Region region = RobotUtils.find(null, RobotUtils.read(source), RobotUtils.read(target), false);
+        Region region = OpenCvUtils.find(null, OpenCvUtils.read(source), OpenCvUtils.read(target), false);
         assertEquals(1605, region.x);
         assertEquals(1, region.y);
         target = new File("src/test/java/search-1_5.png");
-        region = RobotUtils.find(null, RobotUtils.read(source), RobotUtils.read(target), true);
+        region = OpenCvUtils.find(null, OpenCvUtils.read(source), OpenCvUtils.read(target), true);
         assertEquals(1605, region.x);
         assertEquals(1, region.y);
     }

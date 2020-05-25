@@ -346,7 +346,7 @@ public abstract class RobotBase implements Robot, Plugin {
 
     public byte[] screenshot(Region region) {
         BufferedImage image = region.captureColor();
-        byte[] bytes = RobotUtils.toBytes(image);
+        byte[] bytes = OpenCvUtils.toBytes(image);
         context.embed(bytes, "image/png");
         return bytes;
     }
@@ -461,7 +461,7 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     public List<Element> locateAllImages(Element searchRoot, String path) {
-        List<Region> found = RobotUtils.findAll(this, searchRoot.getRegion().captureGreyScale(), readBytes(path), true);
+        List<Region> found = OpenCvUtils.findAll(this, searchRoot.getRegion().captureGreyScale(), readBytes(path), true);
         List<Element> list = new ArrayList(found.size());
         for (Region region : found) {
             list.add(new ImageElement(region));
@@ -478,7 +478,7 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     public Element locateImage(Supplier<BufferedImage> source, byte[] bytes) {
-        Region region = RobotUtils.find(this, source.get(), bytes, true);
+        Region region = OpenCvUtils.find(this, source.get(), bytes, true);
         if (region == null) {
             return null;
         }

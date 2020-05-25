@@ -57,7 +57,7 @@ public class PathSearchTest {
     
     @Test
     public void testClassName() {
-        List<PathSearch.Chunk> list = PathSearch.split("/hello[3]//world.Foo");
+        List<PathSearch.Chunk> list = PathSearch.split("/hello[3]//world.Foo/.Bar");
         logger.debug("list: {}", list);
         PathSearch.Chunk first = list.get(0);
         assertFalse(first.anyDepth);
@@ -68,6 +68,10 @@ public class PathSearchTest {
         assertTrue(second.anyDepth);  
         assertEquals("world", second.controlType);
         assertEquals("Foo", second.className);
+        PathSearch.Chunk third = list.get(2);
+        assertFalse(third.anyDepth);  
+        assertEquals(null, third.controlType);
+        assertEquals("Bar", third.className);        
     }    
     
 }

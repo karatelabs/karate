@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.robot.win;
 
+import com.intuit.karate.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
@@ -94,7 +95,7 @@ public class PathSearch {
                 controlType = raw;
                 className = null;
             } else {
-                controlType = raw.substring(0, pos);
+                controlType = StringUtils.trimToNull(raw.substring(0, pos));
                 className = raw.substring(pos + 1);
             }
         }
