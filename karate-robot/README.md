@@ -165,12 +165,15 @@ Locator | Description
 `click('/pane[2]/button')` | absolute path, the second pane on the active window, and the first button on it
 `click('//pane/*/button')` | other examples of what you can use, the `*` will match any control type
 `click('//button.TButton{^Click}')` | the first button with a "class name" of "TButton" and the name contains "Click"
+`click('//.TButton/{^Click}')` | a different example, so you can use only a "class name" or element name, note the position of the `/`
 
 Use a tool like [Inspect.exe](https://docs.microsoft.com/en-us/windows/win32/winauto/inspect-objects) to identify the properties needed for automation from an application window.
 
 The [control "type"](https://docs.microsoft.com/en-us/windows/win32/winauto/uiauto-controltypesoverview) is case-insensitive. Examples are `edit`, `button` and `checkbox`. The complete list of types can be [found here](src/main/java/com/intuit/karate/robot/win/ControlType.java). You don't have to rely on the `LocalizedControlType` shown in tools such as "Inspect.exe" because Karate uses the `ControlType`.
 
 Similarly, the "class name" is not case-sensitive. This can be useful in some cases, for example in Delphi you can use values such as `TScrollBox` and `TEdit`.
+
+Also see [`locateAll()`](#locateall) for ways to find the n-th control on a page that matches a locator and do something with it.
 
 ### Calculator Example
 
@@ -238,7 +241,22 @@ Note that `locate()` will fail the test if the element was not found. Think of i
 
 Also see [`exists()`](#exists) and [`optional()`](#optional).
 
-## `locateAll()`
+## `locateAll()`'
+This can be convenient if you need to loop over a bunch of element and do something. More useful is the ability to target a single item by index. For example, here is how you can find the *second* control with the name "Address" and click on it:
+
+```cucumber
+* locateAll('Address')[1].click()
+```
+
+## `highlight()`
+Designed for use within a [debug session](https://github.com/intuit/karate/wiki/IDE-Support#visual-studio-code), very convenient to interactively locate an element by trial and error.
+
+## `highlightAll()`
+Like [`highlight()`](#highlight) and super convenient, you can try doing the following to show *all* buttons on a window !
+
+```cucumber
+* highlightAll('//button')
+```
 
 ## `click()`
 Defaults to a "left-click", pass 1, 2 or 3 as the argument to specify left, middle or right mouse button.
