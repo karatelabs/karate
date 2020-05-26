@@ -78,7 +78,7 @@ public class WinRobot extends RobotBase {
                 logger.trace("scanning window: {}", name);
             }
             if (condition.test(name)) {
-                logger.debug("found window: {}", name);                
+                logger.debug("found window: {}", name);
                 return new WinWindow(this, child).focus();
             }
         }
@@ -89,7 +89,7 @@ public class WinRobot extends RobotBase {
     private IUIAutomationCondition by(Property property, String value) {
         return UIA.createPropertyCondition(property, value);
     }
-    
+
     protected List<Element> toElements(IUIAutomationElementArray array) {
         int count = array.getLength();
         List<Element> list = new ArrayList(count);
@@ -108,7 +108,7 @@ public class WinRobot extends RobotBase {
         IUIAutomationCondition condition;
         if (PathSearch.isWildcard(locator)) {
             locator = "//*{" + locator + "}";
-        } 
+        }
         if (locator.startsWith("/")) {
             List<Element> searchResults = new ArrayList();
             PathSearch search = new PathSearch(locator, true);
@@ -121,8 +121,8 @@ public class WinRobot extends RobotBase {
         }
         IUIAutomationElementArray found = parent.findAll(TreeScope.Descendants, condition);
         return toElements(found);
-    }   
-    
+    }
+
     @Override
     public Element locateInternal(Element root, String locator) {
         IUIAutomationElement parent = root.<IUIAutomationElement>toNative();
@@ -175,6 +175,9 @@ public class WinRobot extends RobotBase {
             condition = UIA.createPropertyCondition(Property.ControlType, controlType.value);
         }
         IUIAutomationElementArray array = e.findAll(chunk.anyDepth ? TreeScope.Descendants : TreeScope.Children, condition);
+        if (!array.isValid()) { // the tree can be unstable
+            return;
+        }
         int count = array.getLength();
         boolean leaf = depth == search.chunks.size() - 1;
         for (int i = 0; i < count; i++) {
@@ -182,6 +185,9 @@ public class WinRobot extends RobotBase {
                 continue;
             }
             IUIAutomationElement child = array.getElement(i);
+            if (!child.isValid()) { // the tree can be unstable
+                continue;
+            }
             if (chunk.nameCondition != null) {
                 String name = child.getCurrentName();
                 if (!chunk.nameCondition.test(name)) {
