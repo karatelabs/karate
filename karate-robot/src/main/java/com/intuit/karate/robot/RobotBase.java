@@ -390,9 +390,9 @@ public abstract class RobotBase implements Robot, Plugin {
     @Override
     public Element windowOptional(String locator) {
         Element prevWindow = currentWindow;
-        Element window = window(locator, false); // will update currentWindow        
+        Element window = window(locator, false); // will update currentWindow     
+        currentWindow = prevWindow; // so we reset it
         if (window == null) {
-            currentWindow = prevWindow;
             return new MissingElement(this);
         }
         // note that currentWindow will point to the new window located
@@ -574,6 +574,12 @@ public abstract class RobotBase implements Robot, Plugin {
         return currentWindow;
     }
 
+    @Override
+    public Robot setWindow(Element e) {
+        currentWindow = e;
+        return this;
+    }   
+    
     @Override
     public abstract Element getDesktop();
 

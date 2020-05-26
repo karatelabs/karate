@@ -23,62 +23,39 @@
  */
 package com.intuit.karate.robot.win;
 
-import com.sun.jna.ptr.IntByReference;
+import com.intuit.karate.robot.Window;
 
 /**
  *
  * @author pthomas3
  */
-public class IUIAutomationWindowPattern extends IUIAutomationBase {
+public class WinWindow extends WinElement implements Window {
+    
+    private final IUIAutomationWindowPattern window;
+    
+    public WinWindow(WinRobot robot, IUIAutomationElement e) {
+        super(robot, e);
+        window = e.getCurrentPattern(IUIAutomationWindowPattern.class);
+    }
 
+    @Override
     public void close() {
-        invoke("Close");
+        window.close();
     }
 
-    public boolean canMaximize() {
-        return invokeForBool("CurrentCanMaximize");
-    }
-
-    public boolean canMinimize() {
-        return invokeForBool("CurrentCanMinimize");
-    }
-
-    public boolean isModal() {
-        return invokeForBool("CurrentIsModal");
-    }
-
-    public boolean isTopmost() {
-        return invokeForBool("CurrentIsTopmost");
-    }
-
-    public int getCurrentWindowInteractionState() {
-        return invokeForInt("CurrentWindowInteractionState");
-    }
-
-    public int getCurrentWindowVisualState() {
-        return invokeForInt("CurrentWindowVisualState");
-    }
-
-    public void setWindowVisualState(int state) {
-        invoke("SetWindowVisualState", state);
-    }
-    
-    public void minimize() {
-        setWindowVisualState(2);
-    }
-    
-    public void maximize() {
-        setWindowVisualState(1);
-    }    
-    
+    @Override
     public void restore() {
-        setWindowVisualState(0);
-    }    
-
-    public boolean waitForInputIdle(int timeoutMillis) {
-        IntByReference intRef = new IntByReference();
-        invoke("WaitForInputIdle", timeoutMillis, intRef);
-        return intRef.getValue() != 0;
+        window.restore();
     }
 
+    @Override
+    public void minimize() {
+        window.minimize();
+    }
+
+    @Override
+    public void maximize() {
+        window.maximize();
+    }        
+    
 }

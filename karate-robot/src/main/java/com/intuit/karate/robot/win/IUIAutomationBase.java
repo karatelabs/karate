@@ -148,5 +148,9 @@ public abstract class IUIAutomationBase extends ComRef {
         invoke(name, ref);
         return ref.getValue();
     }
+    
+    public boolean invokeForBool(String name) {
+        return invokeForInt(name) != 0;
+    }    
 
 }

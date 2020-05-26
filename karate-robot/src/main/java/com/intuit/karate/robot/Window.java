@@ -21,24 +21,25 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.robot.win;
+package com.intuit.karate.robot;
 
 /**
  *
  * @author pthomas3
  */
-public class IUIAutomationValuePattern extends IUIAutomationBase {
+public interface Window extends Element {
     
-    public boolean getCurrentIsReadOnly() {
-        return invokeForBool("CurrentIsReadOnly");
-    }
+    void close();
     
-    public String getCurrentValue() {
-        return invokeForString("CurrentValue");
-    }
+    void restore();
     
-    public void setCurrentValue(String value) {
-        invoke("SetValue", new ComAllocatedStr(value));
+    void minimize();
+    
+    void maximize();
+    
+    default Element activate() {
+        getRobot().setWindow(this);
+        return this;
     }
     
 }

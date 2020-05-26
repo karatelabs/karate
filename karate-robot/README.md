@@ -81,7 +81,7 @@ key | description
 # API
 Please refer to the available methods in [`Robot.java`](src/main/java/com/intuit/karate/robot/Robot.java). Most of them are "chainable". The built-in `robot` JS object is where you script UI automation. It will be initialized only after the [`robot`](#robot) keyword has been used to start / attach to a desktop window.
 
-## Element
+## `Element` API
 Any method on the [`Robot`](#api) type that returns [`Element`](src/main/java/com/intuit/karate/robot/Element.java) can be chained for convenience. Here is an example:
 
 ```cucumber
@@ -89,6 +89,13 @@ Any method on the [`Robot`](#api) type that returns [`Element`](src/main/java/co
 ```
 
 This [locates](#windows-locators) a UI control by name, and then within the bounds of that element, proceeds to click the mouse at an inner offset of 20 pixels(horizontal) and 40 pixels (vertical) from the top-left corner of the element.
+
+## `Window` API
+A call to [`window()`](#window) will set the current or "active" window and also return an object of type [`Window`](src/main/java/com/intuit/karate/robot/Window.java) (which extends [`Element`](#element-api)). So to set the window and `restore()` it in one step you could do this:
+
+```cucumber
+* window('^Tax Organizer').restore()
+```
 
 ## Methods
 As a convenience, *all* the methods on the `robot` have been injected into the context as special (JavaScript) variables so you can omit the "`robot.`" part and save a lot of typing. For example instead of:
@@ -199,16 +206,18 @@ Convenient to wait for an element. Try to use this only when necessary, for exam
 ## `optional()`
 
 ## `windowOptional()`
+Returns an "optional" [`Window`](#window-api) object and will not update the "active" window. You can call `activate()` on the returned `Window` object to set it as the current, typically after [checking that it exists](#optional) (by using the `present` property getter).
 
 ## `exists()`
 
 ## `windowExists()`
+Returns `true` or `false` and will not set or "activate" the current window.
 
 ## `window()`
-Sets focus to the window by title, prefix with `^` for a string "contains" match or `~` for a regular-expression match.
+Sets focus (and activates as "current") to the window by title, prefix with `^` for a string "contains" match or `~` for a regular-expression match. The "active" window will be used as the root of all operations such as [locating controls](#windows-locators).
 
 ## `robot.desktop`
-Gets the root of all other Windows objects as an [`Element`](#element) reference. Useful when you want to search within the entire "Desktop".
+Gets the root of all other Windows objects as an [`Element`](#element-api) reference. Useful when you want to search within the entire "Desktop".
 
 ## `robot.window`
 Returns the currently "active" window set after a previous call to [`window()`](#window) or [`windowOptional()`](#windowoptional). This will fail the test if a window has not been activated.
@@ -264,7 +273,11 @@ If you need to simulate key combinations, just ensure that the [modifier keys](#
 ```
 
 ## `select()`
-To select from drop-down, for item type elements.
+To select from a drop-down, for elements with a control-type of `itemtype`. The pattern is to get a reference to the item and call `select()` on it:
+
+```cucumber
+* locate('Some Text').select()
+```
 
 ## `press()`
 A mouse press that will be held down, useful for simulating a drag and drop operation.

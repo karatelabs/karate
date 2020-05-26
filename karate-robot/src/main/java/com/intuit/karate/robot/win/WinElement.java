@@ -38,7 +38,7 @@ import java.util.List;
  */
 public class WinElement implements Element {
 
-    private final IUIAutomationElement e;
+    protected final IUIAutomationElement e;
     private final WinRobot robot;
 
     public WinElement(WinRobot robot, IUIAutomationElement e) {

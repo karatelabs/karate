@@ -146,6 +146,8 @@ public interface Robot extends Plugin {
     Element waitForAny(String[] locators);
     
     Element getWindow(); // getter
+    
+    Robot setWindow(Element e); // setter
 
     Element getDesktop(); // getter
 

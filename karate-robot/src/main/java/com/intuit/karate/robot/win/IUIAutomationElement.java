@@ -95,7 +95,7 @@ public class IUIAutomationElement extends IUIAutomationBase {
     }
     
     public boolean getCurrentIsEnabled() {
-        return invokeForInt("CurrentIsEnabled") == 1;
+        return invokeForBool("CurrentIsEnabled");
     }    
 
     @Override

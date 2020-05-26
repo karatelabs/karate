@@ -78,8 +78,8 @@ public class WinRobot extends RobotBase {
                 logger.trace("scanning window: {}", name);
             }
             if (condition.test(name)) {
-                logger.debug("found window: {}", name);
-                return new WinElement(this, child).focus();
+                logger.debug("found window: {}", name);                
+                return new WinWindow(this, child).focus();
             }
         }
         logger.warn("failed to find window: {}", condition);
