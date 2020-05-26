@@ -50,6 +50,7 @@ import com.jayway.jsonpath.JsonPath;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -417,7 +418,7 @@ public class ScriptBridge implements PerfContext {
             return new ArrayList(src);
         }
         return o;
-    }    
+    }
 
     public Object toJson(Object o) {
         return toJson(o, false);
@@ -430,7 +431,7 @@ public class ScriptBridge implements PerfContext {
         }
         return result;
     }
-    
+
     public String toCsv(Object o) {
         ScriptValue sv = new ScriptValue(o);
         if (!sv.isListLike()) {
@@ -538,8 +539,7 @@ public class ScriptBridge implements PerfContext {
     }
 
     public Map<String, Object> getInfo() {
-        DocumentContext doc = JsonUtils.toJsonDoc(context.scenarioInfo);
-        return doc.read("$");
+        return context.getScenarioInfo();
     }
 
     public void proceed() {

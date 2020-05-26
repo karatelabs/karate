@@ -61,6 +61,7 @@ import java.io.File;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -90,7 +91,6 @@ public class ScenarioContext {
     public final FeatureContext featureContext;
     public final Collection<ExecutionHook> executionHooks;
     public final boolean perfMode;
-    public final ScenarioInfo scenarioInfo;
     public final ClassLoader classLoader;
 
     public final Function<String, Object> read = s -> {
@@ -160,16 +160,16 @@ public class ScenarioContext {
         callResults = null;
         return temp;
     }
-    
+
     public void addCallResult(FeatureResult result) {
         ScenarioContext threadContext = Engine.THREAD_CONTEXT.get();
         if (threadContext != null) {
             threadContext.addCallResultInternal(result);
         } else {
             addCallResultInternal(result);
-        }     
+        }
     }
-        
+
     private void addCallResultInternal(FeatureResult callResult) {
         if (callResults == null) {
             callResults = new ArrayList();
@@ -183,10 +183,6 @@ public class ScenarioContext {
 
     public void setExecutionUnit(ScenarioExecutionUnit executionUnit) {
         this.executionUnit = executionUnit;
-    }
-
-    public void setScenarioError(Throwable error) {
-        scenarioInfo.setErrorMessage(error.getMessage());
     }
 
     public void setPrevRequest(HttpRequest prevRequest) {
@@ -231,6 +227,33 @@ public class ScenarioContext {
 
     public InputStream getResourceAsStream(String name) {
         return classLoader.getResourceAsStream(name);
+    }
+    
+    private static Map<String, Object> info(ScenarioContext context) {
+        Map<String, Object> info = new HashMap(6);
+        Path featurePath = context.featureContext.feature.getPath();
+        if (featurePath != null) {
+            info.put("featureDir", featurePath.getParent().toString());
+            info.put("featureFileName", featurePath.getFileName().toString());
+        }
+        ScenarioExecutionUnit unit = context.executionUnit;
+        if (unit != null) { // should never happen
+            info.put("scenarioName", unit.scenario.getName());
+            info.put("scenarioDescription", unit.scenario.getDescription());
+            info.put("scenarioType", unit.scenario.getKeyword());
+            String errorMessage = unit.getError() == null ? null : unit.getError().getMessage();
+            info.put("errorMessage", errorMessage);
+        }
+        return info;        
+    }
+
+    public Map<String, Object> getScenarioInfo() {
+        ScenarioContext threadContext = Engine.THREAD_CONTEXT.get();
+        if (threadContext != null) {
+            return info(threadContext);
+        } else {
+            return info(this);
+        }
     }
 
     public boolean hotReload() {
@@ -304,11 +327,9 @@ public class ScenarioContext {
             Tags tagsEffective = scenario.getTagsEffective();
             tags = tagsEffective.getTags();
             tagValues = tagsEffective.getTagValues();
-            scenarioInfo = scenario.toInfo(featureContext.feature.getPath());
         } else {
             tags = null;
             tagValues = null;
-            scenarioInfo = null;
         }
         if (reuseParentContext) {
             parentContext = call.context;
@@ -397,11 +418,11 @@ public class ScenarioContext {
         return call.context.classLoader;
     }
 
-    public ScenarioContext copy(ScenarioInfo info) {
-        return new ScenarioContext(this, info);
+    public ScenarioContext copy() {
+        return new ScenarioContext(this);
     }
 
-    private ScenarioContext(ScenarioContext sc, ScenarioInfo info) {
+    private ScenarioContext(ScenarioContext sc) {
         featureContext = sc.featureContext;
         classLoader = sc.classLoader;
         logger = sc.logger;
@@ -413,7 +434,6 @@ public class ScenarioContext {
         perfMode = sc.perfMode;
         tags = sc.tags;
         tagValues = sc.tagValues;
-        scenarioInfo = info;
         vars = sc.vars.copy(true); // deep / snap-shot copy
         config = new Config(sc.config); // safe copy
         rootFeatureContext = sc.rootFeatureContext;
@@ -538,7 +558,9 @@ public class ScenarioContext {
         ScriptValue sv = afterFeature ? config.getAfterFeature() : config.getAfterScenario();
         if (sv.isFunction()) {
             try {
+                Engine.THREAD_CONTEXT.set(this);
                 sv.invokeFunction(this, null);
+                Engine.THREAD_CONTEXT.set(null);
             } catch (Exception e) {
                 String prefix = afterFeature ? "afterFeature" : "afterScenario";
                 logger.warn("{} hook failed: {}", prefix, e.getMessage());

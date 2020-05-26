@@ -84,7 +84,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
         return DynamicTest.dynamicTest(unit.scenario.getNameForReport(), () -> {
             featureUnit.run(unit);
             boolean failed = unit.result.isFailed();
-            if (unit.isLast() || failed) {
+            if (unit.isLast()) {
                 featureUnit.stop();
                 FeatureResult result = exec.result;
                 if (!result.isEmpty()) {

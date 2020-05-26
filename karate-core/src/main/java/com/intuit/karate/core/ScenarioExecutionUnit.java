@@ -58,6 +58,11 @@ public class ScenarioExecutionUnit implements Runnable {
     private Step currentStep;
 
     private LogAppender appender;
+    private Throwable error;
+
+    public Throwable getError() {
+        return error;
+    }        
 
     // for debug
     public Step getCurrentStep() {
@@ -82,8 +87,7 @@ public class ScenarioExecutionUnit implements Runnable {
         this.exec = exec;
         result = new ScenarioResult(scenario, results);
         if (backgroundContext != null) { // re-build for dynamic scenario
-            ScenarioInfo info = scenario.toInfo(exec.featureContext.feature.getPath());
-            ScenarioContext context = backgroundContext.copy(info);
+            ScenarioContext context = backgroundContext.copy();
             actions = new StepActions(context);
         }
         if (exec.callContext.perfMode) {
@@ -231,7 +235,7 @@ public class ScenarioExecutionUnit implements Runnable {
                 aborted = true;
                 actions.context.logger.debug("abort at {}", step.getDebugInfo());
             } else if (execResult.isFailed()) {
-                actions.context.setScenarioError(execResult.getError());
+                error = execResult.getError();
             }
             // log appender collection for each step happens here
             String stepLog = StringUtils.trimToNull(appender.collect());
