@@ -43,7 +43,7 @@ public class RunnerOptions {
 
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(RunnerOptions.class);
 
-    private static final Pattern COMMAND_NAME = Pattern.compile("--name (\\^.+?\\$)");
+    private static final Pattern COMMAND_NAME = Pattern.compile("--name \"?([^$\"]+[^ \"]+)\"?");
 
     @Option(names = {"-h", "--help"}, usageHelp = true, description = "display this help message")
     boolean help;

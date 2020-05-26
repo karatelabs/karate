@@ -29,19 +29,12 @@ import com.intuit.karate.RunnerOptions;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.debug.DapServer;
 import java.io.File;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  *
  * @author pthomas3
  */
 public class Main {
-
-    private static final Pattern COMMAND_NAME = Pattern.compile("--name (.+?\\$)");
 
     public static void main(String[] args) {
         String command;
@@ -64,45 +57,6 @@ public class Main {
         Runner.path(ro.getFeatures())
                 .tags(ro.getTags()).scenarioName(ro.getName())
                 .hook(hook).parallel(ro.getThreads());
-    }
-
-    public static StringUtils.Pair parseCommandLine(String commandLine, String cwd) {
-        Matcher matcher = COMMAND_NAME.matcher(commandLine);
-        String name;
-        if (matcher.find()) {
-            name = matcher.group(1);
-            commandLine = matcher.replaceFirst("");
-        } else {
-            name = null;
-        }
-        List<String> args = Arrays.asList(commandLine.split("\\s+"));
-        Iterator<String> iterator = args.iterator();
-        String path = null;
-        while (iterator.hasNext()) {
-            String arg = iterator.next();
-            if (arg.equals("--plugin") || arg.equals("--glue")) {
-                iterator.next();
-            }
-            if (arg.startsWith("--") || arg.startsWith("com.") || arg.startsWith("cucumber.") || arg.startsWith("org.")) {
-                // do nothing
-            } else {
-                path = arg;
-            }
-        }
-        if (path == null) {
-            return null;
-        }
-        if (cwd == null) {
-            cwd = new File("").getAbsoluteFile().getPath();
-        }
-        cwd = cwd.replace('\\', '/'); // fix for windows
-        path = path.substring(cwd.length() + 1);
-        if (path.startsWith(FileUtils.SRC_TEST_JAVA)) {
-            path = FileUtils.CLASSPATH_COLON + path.substring(FileUtils.SRC_TEST_JAVA.length() + 1);
-        } else if (path.startsWith(FileUtils.SRC_TEST_RESOURCES)) {
-            path = FileUtils.CLASSPATH_COLON + path.substring(FileUtils.SRC_TEST_RESOURCES.length() + 1);
-        }
-        return StringUtils.pair(path, name);
     }
 
 }
