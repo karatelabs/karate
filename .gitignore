@@ -21,6 +21,7 @@ karate-demo/*.der
 karate-netty/*.pem
 karate-netty/*.jks
 karate-netty/*.der
+karate-robot/tessdata
 karate-junit4/src/test/java/com/intuit/karate/junit4/dev
 karate-robot/src/test/java/robot/dev
 

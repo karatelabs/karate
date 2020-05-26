@@ -418,7 +418,9 @@ public abstract class RobotBase implements Robot, Plugin {
         } else {
             found = locateImageOrElement(searchRoot, locator);
             if (found == null) {
-                throw new RuntimeException("cannot locate: " + locator + " (" + searchRoot.getDebugString() + ")");
+                String message = "cannot locate: '" + locator + "' (" + searchRoot.getDebugString() + ")";
+                logger.error(message);
+                throw new RuntimeException(message);
             }
             if (duration > 0) {
                 found.getRegion().highlight(duration);

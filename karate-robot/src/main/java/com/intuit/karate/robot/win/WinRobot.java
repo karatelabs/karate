@@ -145,6 +145,9 @@ public class WinRobot extends RobotBase {
             condition = by(Property.Name, locator);
         }
         IUIAutomationElement found = parent.findFirst(TreeScope.Descendants, condition);
+        if (!found.isValid()) { // important in this case
+            return null;
+        }
         return new WinElement(this, found);
     }
 

@@ -27,17 +27,20 @@ import com.intuit.karate.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
 
 /**
  *
  * @author pthomas3
  */
 public class PathSearch {
-    
+
     public static boolean isWildcard(String locator) {
-        char firstChar = locator.charAt(0);    
+        char firstChar = locator.charAt(0);
         return firstChar == '^' || firstChar == '~';
-    }    
+    }
+
+    private static final java.util.regex.Pattern PATH_CHUNK = java.util.regex.Pattern.compile("([^.{]+)?(\\.[^{]+)?(\\{.+\\})?");
 
     protected static class Chunk {
 
@@ -50,53 +53,50 @@ public class PathSearch {
         final String name;
 
         Chunk(boolean anyDepth, String raw) {
-            this.raw = raw;
             this.anyDepth = anyDepth;
-            int pos = raw.indexOf('[');
-            int controlTypeEndPos = -1;
-            if (pos != -1) {
-                controlTypeEndPos = pos;
-                int endPos = raw.indexOf(']', pos);
-                String temp = raw.substring(pos + 1, endPos);
-                index = Integer.valueOf(temp) - 1;
-            } else {
-                index = -1;
+            this.raw = raw;
+            Matcher matcher = PATH_CHUNK.matcher(raw);
+            if (!matcher.find()) {
+                throw new RuntimeException("invalid path pattern: " + raw);
             }
-            pos = raw.indexOf('{');
-            if (pos != -1) {
-                if (controlTypeEndPos == -1) {
-                    controlTypeEndPos = pos;
+            String typeAndIndex = matcher.group(1);
+            if (typeAndIndex == null) {
+                index = -1;
+                controlType = null;
+            } else {
+                int pos = typeAndIndex.indexOf('[');
+                if (pos != -1) {
+                    int endPos = raw.indexOf(']', pos);
+                    String temp = raw.substring(pos + 1, endPos);
+                    index = Integer.valueOf(temp) - 1;
+                    controlType = typeAndIndex.substring(0, pos);
+                } else {
+                    index = -1;
+                    controlType = typeAndIndex;
                 }
-                int endPos = raw.indexOf('}', pos);
-                String temp = raw.substring(pos + 1, endPos);
-                switch (temp.charAt(0)) {
+            }
+            String dotAndClassName = matcher.group(2);
+            className = dotAndClassName == null ? null : dotAndClassName.substring(1);
+            String prefixAndName = matcher.group(3);
+            if (prefixAndName == null) {
+                name = null;
+                nameCondition = null;
+            } else {
+                prefixAndName = prefixAndName.substring(1, prefixAndName.length() - 1);
+                switch (prefixAndName.charAt(0)) {
                     case '^':
-                        name = temp.substring(1);
+                        name = prefixAndName.substring(1);
                         nameCondition = s -> s.contains(name);
                         break;
                     case '~':
-                        name = temp.substring(1);
+                        name = prefixAndName.substring(1);
                         java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(name);
                         nameCondition = s -> pattern.matcher(s).find();
                         break;
                     default:
-                        name = temp;
-                        nameCondition = s -> s.equals(name);
+                        name = StringUtils.trimToNull(prefixAndName);
+                        nameCondition = name == null ? null : s -> s.equals(name);
                 }
-            } else {
-                name = null;
-                nameCondition = null;
-            }
-            if (controlTypeEndPos != -1) {
-                raw = raw.substring(0, controlTypeEndPos);
-            }
-            pos = raw.indexOf('.');
-            if (pos == -1) {
-                controlType = raw;
-                className = null;
-            } else {
-                controlType = StringUtils.trimToNull(raw.substring(0, pos));
-                className = raw.substring(pos + 1);
             }
         }
 
@@ -160,6 +160,6 @@ public class PathSearch {
     @Override
     public String toString() {
         return path;
-    }        
+    }
 
 }

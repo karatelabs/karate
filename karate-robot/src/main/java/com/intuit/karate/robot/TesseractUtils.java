@@ -43,7 +43,7 @@ public class TesseractUtils {
 
     public static void process(Mat mat) {
         TessBaseAPI tess = new TessBaseAPI();
-        if (tess.Init("../../tessdata_fast", "eng") != 0) {
+        if (tess.Init("tessdata", "eng") != 0) {
             throw new RuntimeException("tesseract init failed");
         }
         int width = mat.size().width();
