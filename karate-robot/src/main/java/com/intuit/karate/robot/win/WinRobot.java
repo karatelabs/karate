@@ -167,7 +167,7 @@ public class WinRobot extends RobotBase {
         PathSearch.Chunk chunk = search.chunks.get(depth);
         IUIAutomationCondition condition;
         ControlType controlType;
-        if ("*".equals(chunk.controlType)) {
+        if (chunk.controlType == null || "*".equals(chunk.controlType)) {
             condition = UIA.getControlViewCondition();
             controlType = null;
         } else {

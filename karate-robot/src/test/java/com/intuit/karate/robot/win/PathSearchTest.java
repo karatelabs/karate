@@ -94,5 +94,23 @@ public class PathSearchTest {
         assertEquals(null, third.controlType);
         assertEquals("Baz", third.name);      
     }
+    
+    @Test
+    public void testOnlyName2() {
+        List<PathSearch.Chunk> list = PathSearch.split("//listitem/{Taxpayer Information}");
+        logger.debug("list: {}", list);
+        PathSearch.Chunk first = list.get(0);
+        assertTrue(first.anyDepth);
+        assertEquals("listitem", first.controlType);
+        assertNull(first.className);
+        assertNull(first.name);
+        assertEquals(-1, first.index);
+        PathSearch.Chunk second = list.get(1);
+        assertFalse(second.anyDepth);
+        assertEquals(null, second.controlType);
+        assertEquals(null, second.className);
+        assertEquals("Taxpayer Information", second.name); 
+        assertNotNull(second.nameCondition);
+    }    
 
 }

@@ -414,7 +414,7 @@ public abstract class RobotBase implements Robot, Plugin {
     protected Element locate(int duration, Element searchRoot, String locator) {
         Element found;
         if (retryEnabled) {
-            found = waitForAny(searchRoot, locator); // will throw exception if not found
+            found = retryForAny(searchRoot, locator);
         } else {
             found = locateImageOrElement(searchRoot, locator);
             if (found == null) {
@@ -510,10 +510,6 @@ public abstract class RobotBase implements Robot, Plugin {
         return currentWindow;
     }
 
-    public Element locateElement(Element root, String locator) {
-        return locateInternal(root, locator);
-    }
-
     protected Element getSearchRoot() {
         return currentWindow == null ? getDesktop() : currentWindow;
     }
@@ -562,7 +558,7 @@ public abstract class RobotBase implements Robot, Plugin {
             // TODO
             throw new RuntimeException("todo find non-image elements within region");
         } else {
-            return locateElement(searchRoot, locator);
+            return locateInternal(searchRoot, locator);
         }
     }
 
@@ -576,10 +572,12 @@ public abstract class RobotBase implements Robot, Plugin {
 
     @Override
     public Robot setWindow(Element e) {
-        currentWindow = e;
+        if (e.isPresent()) {
+            currentWindow = e;
+        }
         return this;
-    }   
-    
+    }
+
     @Override
     public abstract Element getDesktop();
 
