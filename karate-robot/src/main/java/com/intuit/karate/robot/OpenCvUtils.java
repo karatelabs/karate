@@ -39,6 +39,7 @@ import org.bytedeco.javacv.Java2DFrameUtils;
 import org.bytedeco.javacv.OpenCVFrameConverter;
 import static org.bytedeco.opencv.global.opencv_core.findNonZero;
 import static org.bytedeco.opencv.global.opencv_core.minMaxLoc;
+import static org.bytedeco.opencv.global.opencv_core.bitwise_not;
 import static org.bytedeco.opencv.global.opencv_imgcodecs.*;
 import static org.bytedeco.opencv.global.opencv_imgproc.*;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -63,9 +64,8 @@ public class OpenCvUtils {
         // only static methods
     }
     
-    public static Region find(RobotBase robot, BufferedImage source, byte[] bytes, boolean resize) {
-        Mat srcMat = Java2DFrameUtils.toMat(source);
-        return find(robot, srcMat, read(bytes), resize);
+    public static Region find(RobotBase robot, Region source, byte[] bytes, boolean resize) {
+        return find(robot, toMat(source.captureGreyScale()), read(bytes), resize);
     }
 
     public static Region find(RobotBase robot, Mat source, Mat target, boolean resize) {
@@ -77,8 +77,7 @@ public class OpenCvUtils {
     }
 
     public static List<Region> findAll(RobotBase robot, BufferedImage source, byte[] bytes, boolean resize) {
-        Mat srcMat = Java2DFrameUtils.toMat(source);
-        return find(true, robot, srcMat, read(bytes), resize);
+        return find(true, robot, OpenCvUtils.toMat(source), read(bytes), resize);
     }
 
     public static Mat rescale(Mat mat, double scale) {
@@ -290,6 +289,16 @@ public class OpenCvUtils {
         rectangle(dest, overlay, color);
         return dest;
     }
+    
+    public static Mat negative(Mat src) {
+        Mat dest = new Mat();
+        bitwise_not(src, dest);
+        return dest;
+    }
+    
+    public static Mat toMat(BufferedImage bi) {
+        return Java2DFrameUtils.toMat(bi);
+    }    
 
     public static BufferedImage toBufferedImage(Mat mat) {
         OpenCVFrameConverter.ToMat openCVConverter = new OpenCVFrameConverter.ToMat();

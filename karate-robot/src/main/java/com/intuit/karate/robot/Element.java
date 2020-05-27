@@ -133,5 +133,14 @@ public interface Element {
     String getDebugString();
 
     Element select();
+    
+    default String extract(String lang) {
+        boolean negative = lang.charAt(0) == '-';
+        if (negative) {
+            lang = lang.substring(1);
+        }
+        Tesseract tess = Tesseract.init(getRobot(), lang, getRegion(), negative);
+        return tess.getAllText();
+    }
 
 }

@@ -7,8 +7,9 @@
 * Available as a standalone binary via the [ZIP Release](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot)
 * Native Mouse Events
 * Native Keyboard Events
-* Navigation via image detection - cross-platform (mac, win, linux) via [Java CPP](https://github.com/bytedeco/javacpp)
 * Windows object-recognition using [Microsoft UI Automation](https://docs.microsoft.com/en-us/windows/win32/winauto/entry-uiauto-win32)
+* [Navigation via image detection](#image-locators) - cross-platform (mac, win, linux) via [JavaCPP and OpenCV](https://github.com/bytedeco/javacpp-presets/tree/master/opencv)
+* [OCR driven navigation](#ocr-locators) and text extraction - cross-platform (mac, win, linux) via [JavaCPP and Tesseract](https://github.com/bytedeco/javacpp-presets/tree/master/tesseract)
 * Tightly integrated into Karate - which means a [debugger, HTML reports](https://twitter.com/ptrthomas/status/1261183808985948160), and more
 
 ### Demo Videos
@@ -77,6 +78,7 @@ key | description
 `retryCount` | default [normally `3`](https://github.com/intuit/karate#retry-until) - overrides the default [`retry()`](#retry) count, this applies only for finding the `window` *after* a `fork` was executed 
 `retryInterval` | default [normally `3000`](https://github.com/intuit/karate#retry-until) - overrides the default [`retry()`](#retry) interval, this applies only for finding the `window` *after* a `fork` was executed 
 `autoDelay` | default `0` - time delay added (in milliseconds) after a native action (key press, mouse click), you can set this to a small value e.g. `40` only in case of any issues with keystrokes being too fast, etc
+`tessdata` | default 'tessdata' - the path to a directory where the Tesseract (OCR engine) [data files](#ocr-locators) will be looked for, this is needed only if you use an [OCR Locator](#ocr-locators) or attempt to call [`Element.extract()`](#elementextract)
 
 # API
 Please refer to the available methods in [`Robot.java`](src/main/java/com/intuit/karate/robot/Robot.java). Most of them are "chainable". The built-in `robot` JS object is where you script UI automation. It will be initialized only after the [`robot`](#robot) keyword has been used to start / attach to a desktop window.
@@ -146,7 +148,43 @@ Rarely used since `basePath` would typically be set by the [`robot` options](#ro
 ## Image Locators
 Images have to be in PNG format, and with the extension `*.png`. Karate will attempt to find images that are smaller or larger to a certain extent. But for the best results, try to save images that are the same resolution as the application under test. Also see [`robot.basePath`](#robotbasepath)
 
-So any string that ends with `.png` will be treated as an "image locator". Else read on for OS-native locators.
+```cucumber
+* click('someimage.png')
+```
+
+So any string that ends with `.png` will be treated as an "image locator".
+
+## OCR Locators
+Any string that starts with the `{lang}` pattern will be treated as an OCR locator. 
+
+Karate uses the [Tesseract](https://tesseract-ocr.github.io) OCR engine (v4.X). You will need to acquire [data files](https://tesseract-ocr.github.io/tessdoc/Data-Files.html) for the language of your choice, e.g. English (`eng`). You can choose between the options "tessdata", "tessdata-fast" and "tessdata-best" depending on the quality vs speed (and data-file size) compromise you are willing to make. So for example here is the English data file for "tessdata-best": [link](https://github.com/tesseract-ocr/tessdata_best/blob/master/eng.traineddata). You can download it and make it available in a directory called "tessdata" in the root directory of the project you are working in. To change the "tessdata" location, look at the `tessdata` [configuration option](#robot-options).
+
+So to find the text "Click Me" and click on it:
+
+```cucumber
+* click('{eng}Click Me')
+```
+
+A variation is that if the language-key is prefixed with a `-`, the screen or element-region capture will be converted to a "negative" before OCR processing. This is useful in cases the text is in a light font against a dark background.
+
+```
+* click('{-eng}Dark Mode')
+```
+
+### `Element.extract()`
+The [`Element`](#element-api) has an `extract()` method which can scrape out the text via OCR from the bounds of an Element position on the screen. Results may vary and include line-breaks and white-space, but you may be able to pull-off some string-contains comparisons:
+
+```cucumber
+* match locate('somePane').extract('eng') contains 'Search Results'
+```
+
+Note that you have to pass the language-key to the `extract()` method like you see `eng` above.
+
+To extract the text from the whole screen, you can do this via the [`robot.desktop`](#robotdesktop) API:
+
+```cucumber
+* def text = robot.desktop.extract('eng')
+```
 
 ## Windows Locators
 Prefixing with a `#` means using the "Automation ID" which may or may not be available depending on the application under test. And finding by "name" is the default, if the first character is not `/` or `#`. As a convenience, you can use the `^` prefix for a name "contains" match and `~` for a name regular-expression match.

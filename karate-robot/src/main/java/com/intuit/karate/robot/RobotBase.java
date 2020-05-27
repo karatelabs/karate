@@ -27,6 +27,7 @@ import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptValue;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScriptBridge;
@@ -60,6 +61,7 @@ public abstract class RobotBase implements Robot, Plugin {
     public final int autoDelay;
     public final int highlightDuration;
     public final Region screen;
+    public final String tessdata;
 
     protected ScriptBridge bridge;
 
@@ -114,12 +116,13 @@ public abstract class RobotBase implements Robot, Plugin {
             highlight = get("highlight", false);
             highlightDuration = get("highlightDuration", Config.DEFAULT_HIGHLIGHT_DURATION);
             autoDelay = get("autoDelay", 0);
+            tessdata = get("tessdata", "tessdata");
             toolkit = Toolkit.getDefaultToolkit();
             dimension = toolkit.getScreenSize();
             screen = new Region(this, 0, 0, dimension.width, dimension.height);
             robot = new java.awt.Robot();
             robot.setAutoDelay(autoDelay);
-            robot.setAutoWaitForIdle(true);
+            robot.setAutoWaitForIdle(true);            
             //==================================================================
             autoClose = get("autoClose", true);
             boolean attach = get("attach", true);
@@ -433,6 +436,8 @@ public abstract class RobotBase implements Robot, Plugin {
         List<Element> found;
         if (locator.endsWith(".png")) {
             found = locateAllImages(searchRoot, locator);
+        } else if (locator.startsWith("{")) {
+            found = locateAllText(searchRoot, locator);
         } else {
             found = locateAllInternal(searchRoot, locator);
         }
@@ -461,6 +466,35 @@ public abstract class RobotBase implements Robot, Plugin {
     public Element release(String locator) {
         return locate(getHighlightDuration(), getSearchRoot(), locator).release();
     }
+    
+    private static StringUtils.Pair parseOcr(String raw) {
+        int pos = raw.indexOf('}');
+        String lang = raw.substring(1, pos);
+        String text = raw.substring(pos + 1);
+        return StringUtils.pair(lang, text);
+    }
+    
+    public List<Element> locateAllText(Element searchRoot, String path) {
+        StringUtils.Pair pair = parseOcr(path);
+        String lang = pair.left;
+        boolean negative = lang.charAt(0) == '-';
+        if (negative) {
+            lang = lang.substring(1);
+        }
+        String text = pair.right;
+        return Tesseract.findAll(this, lang, searchRoot.getRegion(), text, negative);
+    }
+    
+    public Element locateText(Element searchRoot, String path) { 
+        StringUtils.Pair pair = parseOcr(path);
+        String lang = pair.left;
+        boolean negative = lang.charAt(0) == '-';
+        if (negative) {
+            lang = lang.substring(1);
+        }
+        String text = pair.right;
+        return Tesseract.find(this, lang, searchRoot.getRegion(), text, negative);
+    }
 
     public List<Element> locateAllImages(Element searchRoot, String path) {
         List<Region> found = OpenCvUtils.findAll(this, searchRoot.getRegion().captureGreyScale(), readBytes(path), true);
@@ -469,18 +503,14 @@ public abstract class RobotBase implements Robot, Plugin {
             list.add(new ImageElement(region));
         }
         return list;
+    }        
+
+    public Element locateImage(Region region, String path) {
+        return locateImage(region, readBytes(path));
     }
 
-    public Element locateImage(String path) {
-        return locateImage(() -> screen.captureGreyScale(), readBytes(path));
-    }
-
-    public Element locateImage(Supplier<BufferedImage> source, String path) {
-        return locateImage(source, readBytes(path));
-    }
-
-    public Element locateImage(Supplier<BufferedImage> source, byte[] bytes) {
-        Region region = OpenCvUtils.find(this, source.get(), bytes, true);
+    public Element locateImage(Region searchRegion, byte[] bytes) {
+        Region region = OpenCvUtils.find(this, searchRegion, bytes, true);
         if (region == null) {
             return null;
         }
@@ -553,7 +583,9 @@ public abstract class RobotBase implements Robot, Plugin {
 
     private Element locateImageOrElement(Element searchRoot, String locator) {
         if (locator.endsWith(".png")) {
-            return locateImage(() -> searchRoot.getRegion().captureGreyScale(), locator);
+            return locateImage(searchRoot.getRegion(), locator);
+        } else if (locator.startsWith("{")) {
+            return locateText(searchRoot, locator);
         } else if (searchRoot.isImage()) {
             // TODO
             throw new RuntimeException("todo find non-image elements within region");
