@@ -97,7 +97,7 @@ public class Tesseract {
         tess = new TessBaseAPI();
         String dataPath = dataDir.getPath();
         if (tess.Init(dataPath, language) != 0) {
-            throw new RuntimeException("tesseract init failed: " + dataDir + ", " + language);
+            throw new RuntimeException("tesseract init failed: " + dataDir.getAbsolutePath() + ", " + language);
         }
     }
 

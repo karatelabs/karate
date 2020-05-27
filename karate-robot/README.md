@@ -266,6 +266,13 @@ Returns the currently "active" window set after a previous call to [`window()`](
 ## `robot.focused`
 Returns the [`Element`](#element) that currently has "focus" on the screen, no matter where or what type it is.
 
+## `robot.allWindows`
+Returns an array of all windows that exist on the desktop. This is convenient to quickly list all window names on the console, especially in debug mode. Also you could loop over all of them and call methods on the [`Element`](#element-api) or [`Window`](#window-api) instance.
+
+```cucumber
+* print robot.allWindows
+```
+
 ## `locate()`
 Rarely used, but when you want to just instantiate an [`Element`](src/main/java/com/intuit/karate/robot/Element.java) instance, typically when you are writing custom re-usable functions, or using an element as a "waypoint" to access other elements in a large, complex "tree".
 

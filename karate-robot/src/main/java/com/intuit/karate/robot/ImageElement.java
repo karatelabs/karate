@@ -96,12 +96,6 @@ public class ImageElement implements Element {
     }
 
     @Override
-    public Element highlight() {
-        region.highlight();
-        return this;
-    }
-
-    @Override
     public String getName() {
         return region.toString();
     }

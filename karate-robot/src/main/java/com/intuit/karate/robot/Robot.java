@@ -145,6 +145,8 @@ public interface Robot extends Plugin {
     @AutoDef
     Element waitForAny(String[] locators);
     
+    List<Window> getAllWindows(); // purely for debug convenience
+    
     Element getWindow(); // getter
     
     Robot setWindow(Element e); // setter

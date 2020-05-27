@@ -108,12 +108,6 @@ public class WinElement implements Element {
     }
 
     @Override
-    public Element highlight() {
-        getRegion().highlight();
-        return this;
-    }
-
-    @Override
     public String getName() {
         return e.getCurrentName();
     }
@@ -190,7 +184,7 @@ public class WinElement implements Element {
             return "(null)";
         }
         try {
-            return "{" + e.getControlType() + "}" + e.getCurrentName();
+            return "'" + e.getCurrentName() + "' " + e.getControlType();
         } catch (Exception e) {
             return "(stale) " + e.getMessage();
         }

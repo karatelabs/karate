@@ -28,6 +28,7 @@ import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.RobotBase;
 import com.intuit.karate.robot.StringMatcher;
+import com.intuit.karate.robot.Window;
 
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinUser;
@@ -60,6 +61,21 @@ public class WinRobot extends RobotBase {
         }
         return Collections.EMPTY_MAP;
     }
+
+    @Override
+    public List<Window> getAllWindows() {
+        IUIAutomationCondition isWindow = UIA.createPropertyCondition(Property.ControlType, ControlType.Window.value);
+        IUIAutomationElementArray array = UIA.getRootElement().findAll(TreeScope.Descendants, isWindow);
+        int count = array.getLength();
+        List<Window> list = new ArrayList(count);
+        for (int i = 0; i < count; i++) {
+            IUIAutomationElement e = array.getElement(i);
+            if (e.isValid()) {
+                list.add(new WinWindow(this, e));
+            }
+        }
+        return list;        
+    }        
 
     @Override
     protected Element windowInternal(String title) {

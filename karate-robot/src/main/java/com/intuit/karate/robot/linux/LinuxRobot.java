@@ -28,6 +28,7 @@ import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.ImageElement;
 import com.intuit.karate.robot.RobotBase;
+import com.intuit.karate.robot.Window;
 import com.intuit.karate.shell.Command;
 import java.util.Collections;
 import java.util.List;
@@ -92,5 +93,10 @@ public class LinuxRobot extends RobotBase {
     public Element getFocused() {
         return new ImageElement(screen); // TODO
     }
+
+    @Override
+    public List<Window> getAllWindows() {
+        throw new UnsupportedOperationException("not supported yet.");
+    }        
 
 }

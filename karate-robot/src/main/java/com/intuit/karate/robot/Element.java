@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.robot;
 
+import com.intuit.karate.Config;
 import java.util.List;
 import java.util.Map;
 
@@ -74,11 +75,11 @@ public interface Element {
         offset(fromLeft, fromTop).click();
         return this;
     }
-    
+
     default Element doubleClick(int fromLeft, int fromTop) {
         offset(fromLeft, fromTop).doubleClick();
         return this;
-    }    
+    }
 
     Element move();
 
@@ -86,11 +87,9 @@ public interface Element {
 
     Element release();
 
-    Element highlight();
+    String getName(); // getter
 
-    String getName();
-
-    String getValue();
+    String getValue(); // getter
 
     Element input(String value);
 
@@ -114,26 +113,46 @@ public interface Element {
     default Element locate(String locator) {
         RobotBase robot = getRobot();
         return robot.locate(robot.getHighlightDuration(), this, locator);
-    }   
+    }
+
+    default List<Element> locateAll(String locator) {
+        RobotBase robot = getRobot();
+        return robot.locateAll(robot.getHighlightDuration(), this, locator);
+    }
+    
+    default Element highlight() {
+        getRegion().highlight(Config.DEFAULT_HIGHLIGHT_DURATION);
+        return this;
+    }
+
+    default Element highlight(String locator) {
+        RobotBase robot = getRobot();
+        return robot.locate(Config.DEFAULT_HIGHLIGHT_DURATION, this, locator);
+    }
+
+    default List<Element> highlightAll(String locator) {
+        RobotBase robot = getRobot();
+        return robot.locateAll(Config.DEFAULT_HIGHLIGHT_DURATION, this, locator);
+    }
 
     default Element optional(String locator) {
         return getRobot().optional(this, locator);
     }
-    
+
     default boolean exists(String locator) {
         return optional(locator).isPresent();
     }
-    
+
     List<Element> getChildren();
-    
+
     Element getParent();
 
     <T> T toNative();
-    
+
     String getDebugString();
 
     Element select();
-    
+
     default String extract(String lang) {
         boolean negative = lang.charAt(0) == '-';
         if (negative) {
