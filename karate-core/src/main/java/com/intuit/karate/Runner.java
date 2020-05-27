@@ -84,7 +84,9 @@ public class Runner {
             RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(paths, tags, optionsClass);
             paths = options.features;
             tags = options.tags;
-            scenarioName = options.name;
+            if (scenarioName == null) { // this could have been set by cli (e.g. intellij) so preserve if needed
+                scenarioName = options.name;
+            }
             if (resources == null) {
                 return FileUtils.scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
             }
