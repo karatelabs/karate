@@ -61,7 +61,7 @@ public abstract class RobotBase implements Robot, Plugin {
     public final int autoDelay;
     public final int highlightDuration;
     public final Region screen;
-    public final String tessdata;
+    public final String tessData;
 
     protected ScriptBridge bridge;
 
@@ -116,7 +116,7 @@ public abstract class RobotBase implements Robot, Plugin {
             highlight = get("highlight", false);
             highlightDuration = get("highlightDuration", Config.DEFAULT_HIGHLIGHT_DURATION);
             autoDelay = get("autoDelay", 0);
-            tessdata = get("tessdata", "tessdata");
+            tessData = get("tessData", "tessdata");
             toolkit = Toolkit.getDefaultToolkit();
             dimension = toolkit.getScreenSize();
             screen = new Region(this, 0, 0, dimension.width, dimension.height);

@@ -104,7 +104,7 @@ public class Tesseract {
     public static final Tesseract init(RobotBase robot, String lang, Region searchRegion, boolean negative) {
         BufferedImage bi = searchRegion.captureGreyScale();
         Mat mat = OpenCvUtils.toMat(bi);
-        File file = new File(robot.tessdata);
+        File file = new File(robot.tessData);
         Tesseract tess = new Tesseract(file, lang);
         tess.process(mat, negative);
         return tess;
