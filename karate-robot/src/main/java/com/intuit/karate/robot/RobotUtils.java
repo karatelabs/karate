@@ -26,9 +26,13 @@ package com.intuit.karate.robot;
 import com.intuit.karate.driver.Keys;
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -64,7 +68,25 @@ public class RobotUtils {
         f.dispose();
     }
 
-    public static void highlightAll(Region parent, List<Element> elements, int time) {
+    static class RegionBox {
+
+        RegionBox(int x, int y, int width, int height, String text) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+            this.text = text;
+        }
+
+        int x;
+        int y;
+        int width;
+        int height;
+        String text;
+
+    }
+
+    public static void highlightAll(Region parent, List<Element> elements, int time, boolean showValue) {
         JFrame f = new JFrame();
         f.setUndecorated(true);
         f.setBackground(new Color(0, 0, 0, 0));
@@ -77,28 +99,42 @@ public class RobotUtils {
         f.setSize(parent.width, parent.height);
         f.getRootPane().setBorder(BorderFactory.createLineBorder(Color.YELLOW, 3));
         // important to extract these so that swing awt ui thread doesn't clash with AUT native ui rendering
-        List<int[]> rects = new ArrayList(elements.size());
+        List<RegionBox> boxes = new ArrayList(elements.size());
         for (Element e : elements) {
             Region region = e.getRegion();
             int x = region.x - parent.x;
             int y = region.y - parent.y;
             if (x > 0 && y > 0 && region.width > 0 && region.height > 0) {
-                rects.add(new int[]{x, y, region.width, region.height});
+                boxes.add(new RegionBox(x, y, region.width, region.height, showValue ? e.getValue() : null));
             }
         }
         f.add(new JComponent() {
             @Override
             public void paint(Graphics g) {
                 Graphics2D g2d = (Graphics2D) g;
-                g.setColor(Color.RED);
-                g2d.setStroke(new BasicStroke(3));
-                for (int[] rect : rects) {
-                    g.drawRect(rect[0], rect[1], rect[2], rect[3]);
+                g2d.setStroke(new BasicStroke(2));
+                for (RegionBox box : boxes) {
+                    g.setColor(Color.RED);
+                    g.drawRect(box.x, box.y, box.width, box.height);
+                    if (showValue) {
+                        String text = box.text;
+                        FontMetrics fm = g.getFontMetrics();
+                        Rectangle2D rect = fm.getStringBounds(text, g);
+                        g.setColor(Color.BLACK);
+                        g.fillRect(box.x, box.y - fm.getAscent(), (int) rect.getWidth(), (int) rect.getHeight());
+                        g.setColor(Color.YELLOW);
+                        g.drawString(box.text, box.x, box.y);
+                    }                    
                 }
             }
         });
         f.setVisible(true);
         delay(time);
+        if (showValue) {
+            BufferedImage image = new BufferedImage(f.getWidth(), f.getHeight(), BufferedImage.TYPE_INT_RGB);
+            f.paint(image.getGraphics());
+            OpenCvUtils.show(image, parent.toString());
+        }        
         f.dispose();
     }
 

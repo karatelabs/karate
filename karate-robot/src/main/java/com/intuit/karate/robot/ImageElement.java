@@ -34,11 +34,17 @@ public class ImageElement implements Element {
 
     private final Region region;
     private final RobotBase robot;
+    private final String value;
 
     public ImageElement(Region region) {
+        this(region, null);
+    }
+    
+    public ImageElement(Region region, String value) {
         this.region = region;
         robot = region.robot;
-    }
+        this.value = value == null ? region.toString() : value;
+    }    
 
     @Override
     public RobotBase getRobot() {
@@ -102,7 +108,7 @@ public class ImageElement implements Element {
 
     @Override
     public String getValue() {
-        return region.toString();
+        return value;
     }
 
     @Override

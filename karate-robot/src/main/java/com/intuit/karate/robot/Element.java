@@ -175,7 +175,7 @@ public interface Element {
         }
         Tesseract tess = Tesseract.init(getRobot(), lang, getRegion(), negative);
         if (debug) {
-            tess.highlightWords(getRobot(), getRegion());
+            tess.highlightWords(getRobot(), getRegion(), Config.DEFAULT_HIGHLIGHT_DURATION);
         }
         return tess.getAllText();
     }

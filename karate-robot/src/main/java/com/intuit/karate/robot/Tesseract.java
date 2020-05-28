@@ -139,14 +139,14 @@ public class Tesseract {
         process(mat, negative);
     }
 
-    public void highlightWords(RobotBase robot, Region parent) {
+    public void highlightWords(RobotBase robot, Region parent, int millis) {
         List<Element> elements = new ArrayList();
         for (Tesseract.Word word : words) {
             Region region = new Region(robot, parent.x + word.x, parent.y + word.y, word.width, word.height);
-            Element e = new ImageElement(region);
+            Element e = new ImageElement(region, word.text);
             elements.add(e);
         }
-        RobotUtils.highlightAll(parent, elements, robot.highlightDuration);
+        RobotUtils.highlightAll(parent, elements, millis, true);
     }
 
     public void process(Mat mat, boolean negative) {
@@ -208,7 +208,7 @@ public class Tesseract {
             Word prev = null;
             do {
                 String s = args[i];
-                found = s.equals(current.text);
+                found = s.contains(current.text);
                 prev = current;
                 current = current.next;
             } while (found && ++i < args.length && current != null);

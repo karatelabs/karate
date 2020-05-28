@@ -444,7 +444,7 @@ public abstract class RobotBase implements Robot, Plugin {
             found = locateAllInternal(searchRoot, locator);
         }
         if (duration > 0) {
-            RobotUtils.highlightAll(searchRoot.getRegion(), found, duration);
+            RobotUtils.highlightAll(searchRoot.getRegion(), found, duration, false);
         }
         return found;
     }
