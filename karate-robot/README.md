@@ -172,13 +172,11 @@ A variation is that if the language-key is prefixed with a `-`, the screen or el
 * click('{-eng}Dark Mode')
 ```
 
-You can omit the language in which can the `tessLang` [configuration option](#robot-options) will be used:
+You can omit the language in which case the `tessLang` [configuration option](#robot-options) will be used:
 
 ```
 * click('{}Some Text')
 ```
-
-For debugging and troubleshooting, there is an [`Element.debugExtract()`](#element-api) API. This will highlight all the words found within the given `Element`. This is super-useful during a step-through debugger session.
 
 ### `Element.extract()`
 The [`Element`](#element-api) has an `extract()` method which can scrape out the text via OCR from the bounds of an Element position on the screen. Results may vary and include line-breaks and white-space, but you may be able to pull-off some string-contains comparisons:
@@ -198,6 +196,9 @@ To extract the text from the whole screen (desktop), you can do this via the [`r
 ```cucumber
 * def text = robot.root.extract()
 ```
+
+### `Element.debugExtract()`
+For debugging and troubleshooting, there is an [`Element.debugExtract()`](#element-api) API. This will highlight all the words found within the given `Element`. This is super-useful during a step-through debugger session.
 
 ## Windows Locators
 Prefixing with a `#` means using the "Automation ID" which may or may not be available depending on the application under test. And finding by "name" is the default, if the first character is not `/` or `#`. As a convenience, you can use the `^` prefix for a name "contains" match and `~` for a name regular-expression match.

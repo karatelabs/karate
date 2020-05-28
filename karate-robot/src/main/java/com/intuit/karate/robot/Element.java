@@ -120,10 +120,14 @@ public interface Element {
         RobotBase robot = getRobot();
         return robot.locateAll(robot.getHighlightDuration(), this, locator);
     }
+    
+    default Element highlight(int millis) {
+        getRegion().highlight(millis);
+        return this;
+    }    
 
     default Element highlight() {
-        getRegion().highlight(Config.DEFAULT_HIGHLIGHT_DURATION);
-        return this;
+        return highlight(Config.DEFAULT_HIGHLIGHT_DURATION);
     }
 
     default Element highlight(String locator) {

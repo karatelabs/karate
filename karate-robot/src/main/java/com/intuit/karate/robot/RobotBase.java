@@ -285,7 +285,7 @@ public abstract class RobotBase implements Robot, Plugin {
     @Override
     public Robot input(String value) {
         if (highlight) {
-            getFocused().highlight();
+            getFocused().highlight(highlightDuration);
         }
         StringBuilder sb = new StringBuilder();
         for (char c : value.toCharArray()) {
@@ -531,7 +531,7 @@ public abstract class RobotBase implements Robot, Plugin {
         Predicate<String> condition = new StringMatcher(title);
         currentWindow = retry ? retry(() -> windowInternal(condition), w -> w != null, "find window", true) : windowInternal(condition);
         if (currentWindow != null && highlight) { // currentWindow can be null
-            currentWindow.highlight();
+            currentWindow.highlight(highlightDuration);
         }
         return currentWindow;
     }
@@ -540,7 +540,7 @@ public abstract class RobotBase implements Robot, Plugin {
     public Element window(Predicate<String> condition) {
         currentWindow = retry(() -> windowInternal(condition), w -> w != null, "find window", true);
         if (currentWindow != null && highlight) { // currentWindow can be null
-            currentWindow.highlight();
+            currentWindow.highlight(highlightDuration);
         }
         return currentWindow;
     }
