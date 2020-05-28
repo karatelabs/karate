@@ -168,7 +168,7 @@ public class WinRobot extends RobotBase {
     }
 
     @Override
-    public Element getDesktop() {
+    public Element getRoot() {
         return new WinElement(this, UIA.getRootElement());
     }
 

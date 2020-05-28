@@ -98,7 +98,7 @@ public class MacRobot extends RobotBase {
     }
 
     @Override
-    public Element getDesktop() {
+    public Element getRoot() {
         return new ImageElement(screen);
     }
 

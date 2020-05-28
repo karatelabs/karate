@@ -58,7 +58,7 @@ public class Region  {
         Image image = robot.robot.createScreenCapture(new Rectangle(x, y, width, height));
         BufferedImage bi = new BufferedImage(width, height, type);
         Graphics g = bi.createGraphics();
-        g.drawImage(image, x, y, width, height, null);
+        g.drawImage(image, 0, 0, width, height, null);
         return bi;
     }    
     
@@ -117,7 +117,7 @@ public class Region  {
     
     public byte[] screenshot() {
         return robot.screenshot(this);
-    }
+    }   
 
     @Override
     public String toString() {

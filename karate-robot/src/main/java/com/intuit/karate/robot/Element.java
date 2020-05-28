@@ -24,6 +24,7 @@
 package com.intuit.karate.robot;
 
 import com.intuit.karate.Config;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -119,7 +120,7 @@ public interface Element {
         RobotBase robot = getRobot();
         return robot.locateAll(robot.getHighlightDuration(), this, locator);
     }
-    
+
     default Element highlight() {
         getRegion().highlight(Config.DEFAULT_HIGHLIGHT_DURATION);
         return this;
@@ -153,13 +154,44 @@ public interface Element {
 
     Element select();
 
-    default String extract(String lang) {
+    default String extract() {
+        return extract(null, false);
+    }
+
+    default String extract(String lang, boolean debug) {
+        if (lang == null) {
+            lang = getRobot().tessLang;
+        }
+        if (lang.length() < 2) {
+            lang = lang + getRobot().tessLang;
+        }
         boolean negative = lang.charAt(0) == '-';
         if (negative) {
             lang = lang.substring(1);
         }
         Tesseract tess = Tesseract.init(getRobot(), lang, getRegion(), negative);
+        if (debug) {
+            tess.highlightWords(getRobot(), getRegion());
+        }
         return tess.getAllText();
     }
+
+    default Element activate() {
+        getRobot().setActive(this);
+        return this;
+    }
+
+    default void debugCapture() {
+        Region region = getRegion();
+        OpenCvUtils.show(region.captureColor(), region.toString());
+    }
+
+    default String debugExtract() {
+        return extract(null, true);
+    }
+    
+    default String debugExtract(String lang) {
+        return extract(lang, true);
+    }    
 
 }

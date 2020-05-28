@@ -62,6 +62,7 @@ public abstract class RobotBase implements Robot, Plugin {
     public final int highlightDuration;
     public final Region screen;
     public final String tessData;
+    public final String tessLang;
 
     protected ScriptBridge bridge;
 
@@ -117,6 +118,7 @@ public abstract class RobotBase implements Robot, Plugin {
             highlightDuration = get("highlightDuration", Config.DEFAULT_HIGHLIGHT_DURATION);
             autoDelay = get("autoDelay", 0);
             tessData = get("tessData", "tessdata");
+            tessLang = get("tessLang", "eng");
             toolkit = Toolkit.getDefaultToolkit();
             dimension = toolkit.getScreenSize();
             screen = new Region(this, 0, 0, dimension.width, dimension.height);
@@ -467,9 +469,12 @@ public abstract class RobotBase implements Robot, Plugin {
         return locate(getHighlightDuration(), getSearchRoot(), locator).release();
     }
     
-    private static StringUtils.Pair parseOcr(String raw) {
+    private StringUtils.Pair parseOcr(String raw) { // TODO make object
         int pos = raw.indexOf('}');
         String lang = raw.substring(1, pos);
+        if (lang.length() < 2) {
+            lang = lang + tessLang;
+        }
         String text = raw.substring(pos + 1);
         return StringUtils.pair(lang, text);
     }
@@ -541,7 +546,7 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     protected Element getSearchRoot() {
-        return currentWindow == null ? getDesktop() : currentWindow;
+        return currentWindow == null ? getRoot() : currentWindow;
     }
 
     @Override
@@ -595,7 +600,7 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     @Override
-    public Element getWindow() {
+    public Element getActive() {
         if (currentWindow == null) {
             throw new RuntimeException("no window has been selected or activated");
         }
@@ -603,7 +608,7 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     @Override
-    public Robot setWindow(Element e) {
+    public Robot setActive(Element e) {
         if (e.isPresent()) {
             currentWindow = e;
         }
@@ -611,7 +616,7 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     @Override
-    public abstract Element getDesktop();
+    public abstract Element getRoot();
 
     @Override
     public abstract Element getFocused();

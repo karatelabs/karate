@@ -78,7 +78,8 @@ key | description
 `retryCount` | default [normally `3`](https://github.com/intuit/karate#retry-until) - overrides the default [`retry()`](#retry) count, this applies only for finding the `window` *after* a `fork` was executed 
 `retryInterval` | default [normally `3000`](https://github.com/intuit/karate#retry-until) - overrides the default [`retry()`](#retry) interval, this applies only for finding the `window` *after* a `fork` was executed 
 `autoDelay` | default `0` - time delay added (in milliseconds) after a native action (key press, mouse click), you can set this to a small value e.g. `40` only in case of any issues with keystrokes being too fast, etc
-`tessData` | default 'tessdata' - the path to a directory where the Tesseract (OCR engine) [data files](#ocr-locators) will be looked for, this is needed only if you use an [OCR Locator](#ocr-locators) or attempt to call [`Element.extract()`](#elementextract). Note that the default *value* `tessdata` is all lower-case.
+`tessData` | default `tessdata` - the path to a directory where the Tesseract (OCR engine) [data files](#ocr-locators) will be looked for, this is needed only if you use an [OCR Locator](#ocr-locators) or attempt to call [`Element.extract()`](#elementextract). Note that the default *value* "`tessdata`" is all lower-case.
+`tessLang` | default `eng` - the default OCR language to use, see [OCR Locator](#ocr-locators)
 
 # API
 Please refer to the available methods in [`Robot.java`](src/main/java/com/intuit/karate/robot/Robot.java). Most of them are "chainable". The built-in `robot` JS object is where you script UI automation. It will be initialized only after the [`robot`](#robot) keyword has been used to start / attach to a desktop window.
@@ -157,7 +158,7 @@ So any string that ends with `.png` will be treated as an "image locator".
 ## OCR Locators
 Any string that starts with the `{lang}` pattern will be treated as an OCR locator. 
 
-Karate uses the [Tesseract](https://tesseract-ocr.github.io) OCR engine (v4.X). You will need to acquire [data files](https://tesseract-ocr.github.io/tessdoc/Data-Files.html) for the language of your choice, e.g. English (`eng`). You can choose between the options "tessdata", "tessdata-fast" and "tessdata-best" depending on the quality vs speed (and data-file size) compromise you are willing to make. So for example here is the English data file for "tessdata-best": [link](https://github.com/tesseract-ocr/tessdata_best/blob/master/eng.traineddata). You can download it and make it available in a directory called "tessdata" in the root directory of the project you are working in. To change the "tessdata" location, look at the `tessdata` [configuration option](#robot-options).
+Karate uses the [Tesseract](https://tesseract-ocr.github.io) OCR engine (v4.X). You will need to acquire [data files](https://tesseract-ocr.github.io/tessdoc/Data-Files.html) for the language of your choice, e.g. English (`eng`). You can choose between the options "tessdata", "tessdata-fast" and "tessdata-best" depending on the quality vs speed (and data-file size) compromise you are willing to make. So for example here is the English data file for "tessdata-best": [link](https://github.com/tesseract-ocr/tessdata_best/blob/master/eng.traineddata). You can download it and make it available in a directory called "tessdata" in the root directory of the project you are working in. To change the "tessdata" location, look at the `tessData` [configuration option](#robot-options).
 
 So to find the text "Click Me" and click on it:
 
@@ -171,19 +172,31 @@ A variation is that if the language-key is prefixed with a `-`, the screen or el
 * click('{-eng}Dark Mode')
 ```
 
+You can omit the language in which can the `tessLang` [configuration option](#robot-options) will be used:
+
+```
+* click('{}Some Text')
+```
+
+For debugging and troubleshooting, there is an [`Element.debugExtract()`](#element-api) API. This will highlight all the words found within the given `Element`. This is super-useful during a step-through debugger session.
+
 ### `Element.extract()`
 The [`Element`](#element-api) has an `extract()` method which can scrape out the text via OCR from the bounds of an Element position on the screen. Results may vary and include line-breaks and white-space, but you may be able to pull-off some string-contains comparisons:
 
 ```cucumber
-* match locate('somePane').extract('eng') contains 'Search Results'
+* match locate('Some Pane').extract('eng') contains 'Search Results'
 ```
 
-Note that you have to pass the language-key to the `extract()` method like you see `eng` above.
-
-To extract the text from the whole screen, you can do this via the [`robot.desktop`](#robotdesktop) API:
+If you don't pass the language-key to the `extract()` method like you see `eng` above, the default `tessLang` [configured](#robot-options) will be used:
 
 ```cucumber
-* def text = robot.desktop.extract('eng')
+* def text = locate('Some Pane').extract()
+```
+
+To extract the text from the whole screen (desktop), you can do this via the [`robot.root`](#robotroot) API:
+
+```cucumber
+* def text = robot.root.extract()
 ```
 
 ## Windows Locators
@@ -207,6 +220,7 @@ Locator | Description
 
 Use a tool like [Inspect.exe](https://docs.microsoft.com/en-us/windows/win32/winauto/inspect-objects) to identify the properties needed for automation from an application window.
 
+### Control Type
 The [control "type"](https://docs.microsoft.com/en-us/windows/win32/winauto/uiauto-controltypesoverview) is case-insensitive. Examples are `edit`, `button` and `checkbox`. The complete list of types can be [found here](src/main/java/com/intuit/karate/robot/win/ControlType.java). You don't have to rely on the `LocalizedControlType` shown in tools such as "Inspect.exe" because Karate uses the `ControlType`.
 
 Similarly, the "class name" is not case-sensitive. This can be useful in some cases, for example in Delphi you can use values such as `TScrollBox` and `TEdit`.
@@ -257,11 +271,31 @@ Returns `true` or `false` and will not set or "activate" the current window.
 ## `window()`
 Sets focus (and activates as "current") to the window by title, prefix with `^` for a string "contains" match or `~` for a regular-expression match. The "active" window will be used as the root of all operations such as [locating controls](#windows-locators).
 
-## `robot.desktop`
-Gets the root of all other Windows objects as an [`Element`](#element-api) reference. Useful when you want to search within the entire "Desktop".
+## `activate()`
+Short-cut to activate any `Element` by locator. The difference from [`window()`](#window) is that this uses the [Windows Locator](#windows-locators) system to find elements. If you do this at the start of a test without a window activated or if [`robot.active`](#robotactive) is `null`, the search-root will be [`robot.root`](#robotroot) or the "Desktop". This can be useful in rare cases where the application under test lives under a "pane" [Control Type](#control-type) instead of a "window".
 
-## `robot.window`
-Returns the currently "active" window set after a previous call to [`window()`](#window) or [`windowOptional()`](#windowoptional). This will fail the test if a window has not been activated.
+```cucumber
+* activate('//pane{Some Name}')
+```
+
+## `robot.root`
+Gets the root of all available objects as an [`Element`](#element-api) reference. Useful when you want to search within the entire "Desktop" on Windows. Try to avoid "any-depth" e.g. `robot.root.locate('//button')` kinds of searches on this element, and stick to things like `robot.root.locate('/pane')`.
+
+## `robot.active`
+Returns the currently "active" element, typically set after a previous call to [`window()`](#window) or [`windowOptional()`](#windowoptional). This will fail the test if a window (or any other `Element` type) has not been "activated".
+
+The [`Element`](#element-api) API has an `activate()` method, so you can do this:
+
+```cucumber
+* robot.root.locate('//pane{Some Name}').activate()
+```
+
+But it can be more convenient to use the below pattern, as `active` is also a "setter" property on the `robot` object:
+
+```cucumber
+* def e = locate('//{Some Name}')
+* robot.active = e
+```
 
 ## `robot.focused`
 Returns the [`Element`](#element) that currently has "focus" on the screen, no matter where or what type it is.
@@ -271,6 +305,18 @@ Returns an array of all windows that exist on the desktop. This is convenient to
 
 ```cucumber
 * print robot.allWindows
+```
+
+Note that this is equivalent to the below, but with the difference that the returned elements are of type [`Window`](#window-api) for the above but are of type [`Element`](#element-api) for the below.
+
+```cucumber
+* print robot.root.locateAll('//window')
+```
+
+Also note that you can use [`Element.children`](#element-api) to get all direct children of any element:
+
+```cucumber
+* print robot.root.children
 ```
 
 ## `locate()`
@@ -295,6 +341,18 @@ This can be convenient if you need to loop over a bunch of element and do someth
 
 ## `highlight()`
 Designed for use within a [debug session](https://github.com/intuit/karate/wiki/IDE-Support#visual-studio-code), very convenient to interactively locate an element by trial and error.
+
+```cucumber
+* highlight('Some Name')
+```
+
+Note that the [`Element` API](#element-api) also has an `activate()` method so you can do things like this in debug mode:
+
+```
+* robot.active.highlight()
+```
+
+Which will highlight the [currently "active"](#robotactive) element.
 
 ## `highlightAll()`
 Like [`highlight()`](#highlight) and super convenient, you can try doing the following to show *all* buttons on a window !

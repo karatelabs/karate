@@ -101,35 +101,52 @@ public class Tesseract {
         }
     }
 
-    public static final Tesseract init(RobotBase robot, String lang, Region searchRegion, boolean negative) {
-        BufferedImage bi = searchRegion.captureGreyScale();
-        Mat mat = OpenCvUtils.toMat(bi);
+    public static final Tesseract init(RobotBase robot, String lang, Region region, boolean negative) {
         File file = new File(robot.tessData);
         Tesseract tess = new Tesseract(file, lang);
-        tess.process(mat, negative);
+        tess.process(region, negative);
         return tess;
     }
 
-    public static Element find(RobotBase robot, String lang, Region searchRegion, String text, boolean negative) {
-        Tesseract tess = init(robot, lang, searchRegion, negative);
+    public static Element find(RobotBase robot, String lang, Region sr, String text, boolean negative) {
+        Tesseract tess = init(robot, lang, sr, negative);
         List<int[]> list = tess.find(false, text);
         if (list.isEmpty()) {
             return null;
         }
         int[] b = list.get(0);
-        Region region = new Region(robot, b[0], b[1], b[2], b[3]);
+        Region region = new Region(robot, sr.x + b[0], sr.y + b[1], b[2], b[3]);
         return new ImageElement(region);
     }
 
-    public static List<Element> findAll(RobotBase robot, String lang, Region searchRegion, String text, boolean negative) {
-        Tesseract tess = init(robot, lang, searchRegion, negative);
+    public static List<Element> findAll(RobotBase robot, String lang, Region sr, String text, boolean negative) {
+        Tesseract tess = init(robot, lang, sr, negative);
         List<int[]> list = tess.find(true, text);
         List<Element> found = new ArrayList(list.size());
         for (int[] b : list) {
-            Region region = new Region(robot, b[0], b[1], b[2], b[3]);
+            Region region = new Region(robot, sr.x + b[0], sr.y + b[1], b[2], b[3]);
             found.add(new ImageElement(region));
         }
         return found;
+    }
+
+    public void process(Region region, boolean negative) {
+        BufferedImage bi = region.captureGreyScale();
+        if (region.robot.highlight) {
+            region.highlight();
+        }
+        Mat mat = OpenCvUtils.toMat(bi);
+        process(mat, negative);
+    }
+
+    public void highlightWords(RobotBase robot, Region parent) {
+        List<Element> elements = new ArrayList();
+        for (Tesseract.Word word : words) {
+            Region region = new Region(robot, parent.x + word.x, parent.y + word.y, word.width, word.height);
+            Element e = new ImageElement(region);
+            elements.add(e);
+        }
+        RobotUtils.highlightAll(parent, elements, robot.highlightDuration);
     }
 
     public void process(Mat mat, boolean negative) {

@@ -145,13 +145,18 @@ public interface Robot extends Plugin {
     @AutoDef
     Element waitForAny(String[] locators);
     
-    List<Window> getAllWindows(); // purely for debug convenience
+    @AutoDef
+    default Element activate(String locator) {
+        return locate(locator).activate();
+    }
     
-    Element getWindow(); // getter
+    List<Window> getAllWindows(); // purely for debug convenience        
     
-    Robot setWindow(Element e); // setter
+    Element getActive(); // getter
+    
+    Robot setActive(Element e); // setter    
 
-    Element getDesktop(); // getter
+    Element getRoot(); // getter
 
     Element getFocused(); // getter
 

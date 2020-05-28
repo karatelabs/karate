@@ -39,7 +39,7 @@ public class TesseractRunner {
             elements.add(e);
         }
         RobotUtils.highlightAll(window.getRegion(), elements, 2000);
-        List<int[]> list = tess.find(true, "Choose File");
+        List<int[]> list = tess.find(true, "Notifications");
         List<Element> es = new ArrayList(list.size());
         for (int[] b : list) {
             es.add(new ImageElement(new Region(robot, b[0], b[1], b[2], b[3])));

@@ -35,11 +35,6 @@ public interface Window extends Element {
     
     void minimize();
     
-    void maximize();
-    
-    default Element activate() {
-        getRobot().setWindow(this);
-        return this;
-    }
+    void maximize();    
     
 }

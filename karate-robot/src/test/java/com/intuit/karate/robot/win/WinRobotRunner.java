@@ -19,7 +19,7 @@ public class WinRobotRunner {
     @Test
     public void testRobot() {
         Robot robot = ChromeJavaRunner.getRobot();
-        Element e = robot.getDesktop();
+        Element e = robot.getRoot();
         assertEquals("Desktop", e.getName());
         Element win = robot.window("^NetBeans");
         assertNotNull(win);

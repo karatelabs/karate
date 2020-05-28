@@ -257,15 +257,12 @@ public class OpenCvUtils {
     }
 
     public static void show(Mat mat, String title) {
-        OpenCVFrameConverter.ToMat converter = new OpenCVFrameConverter.ToMat();
-        CanvasFrame canvas = new CanvasFrame(title, 1);
-        canvas.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        canvas.showImage(converter.convert(mat));
+        show(toBufferedImage(mat), title);
     }
 
     public static void show(Image image, String title) {
         CanvasFrame canvas = new CanvasFrame(title, 1);
-        canvas.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        canvas.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         canvas.showImage(image);
     }
 

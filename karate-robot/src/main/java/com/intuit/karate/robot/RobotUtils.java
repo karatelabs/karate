@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
 public class RobotUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(RobotUtils.class);
-    
+
     public static void highlight(Region region, int time) {
         JFrame f = new JFrame();
         f.setUndecorated(true);
