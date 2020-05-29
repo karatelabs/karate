@@ -100,10 +100,10 @@ java -jar karate.jar -h
 ```
 
 ### Mock Server
-To start a mock server, the 2 mandatory arguments are the path of the feature file 'mock' `-m` and the port `-p`
+To start a mock server, the 2 mandatory arguments are the path of the feature file 'mocks' `-m` and the port `-p`
 
 ```
-java -jar karate.jar -m my-mock.feature -p 8080
+java -jar karate.jar -m my-mock.feature -m my-2nd-mock.feature -p 8080
 ```
 
 Note that this server will be able to act as an HTTPS proxy server if needed. If you need to specify a custom certificate and key combination, see below.
@@ -285,7 +285,7 @@ Teams that are using the [standalone JAR](#standalone-jar) and *don't* want to u
 
 For more control, the argument to `karate.start()` can be a JSON with the following keys expected, only the `mock` is mandatory:
 
-* `mock` - (string) path to the mock feature file, e.g. `classpath:my-mock.feature` or relative paths work just like [`read()`](https://github.com/intuit/karate#reading-files).
+* `mocks` - (string[]) path to the mock feature file, e.g. `classpath:my-mock.feature` or relative paths work just like [`read()`](https://github.com/intuit/karate#reading-files).
 * `port` - (int) defaults to `0`, see section on [embedding](#embedding) above
 * `ssl` - (boolean) defaults to `false`, see above
 * `cert` - (string) see above
@@ -404,7 +404,7 @@ Scenario: pathMatches('/v1/cats/{id}')
 JSON variable (not a function) allowing you to extract values by name. See [`pathMatches()`](#pathmatches) above.
 
 ## `methodIs()`
-Helper function that you will use a lot along with [`pathMatches()`](#pathmatches). Lower-case is fine. For example:
+Helper function that you will use a lot along with [`pathMatches()`](#pathmatches). Lower-case is fine. Allows for array of possible values. For example:
 
 ```cucumber
 Scenario: pathMatches('/v1/cats/{id}') && methodIs('get')

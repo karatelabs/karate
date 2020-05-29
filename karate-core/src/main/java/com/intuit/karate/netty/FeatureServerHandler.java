@@ -25,6 +25,7 @@ package com.intuit.karate.netty;
 
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.FeatureBackend;
+import com.intuit.karate.core.FeaturesBackend;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.MultiValuedMap;
@@ -56,12 +57,12 @@ import java.util.function.Supplier;
  */
 public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
-    private final FeatureBackend backend;
+    private final FeaturesBackend backend;
     private final Runnable stopFunction;    
     private final boolean ssl;
     private final Supplier<SslContext> contextSupplier;
 
-    public FeatureServerHandler(FeatureBackend backend, boolean ssl, Supplier<SslContext> contextSupplier, Runnable stopFunction) {
+    public FeatureServerHandler(FeaturesBackend backend, boolean ssl, Supplier<SslContext> contextSupplier, Runnable stopFunction) {
         this.backend = backend;
         this.ssl = ssl;
         this.contextSupplier = contextSupplier;
@@ -85,7 +86,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             ByteBuf responseBuf = Unpooled.copiedBuffer("stopped", CharsetUtil.UTF_8);
             nettyResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, responseBuf);
             stopFunction.run();
-        } else if (HttpMethod.CONNECT.equals(msg.method())) { // HTTPS proxy         
+        } else if (HttpMethod.CONNECT.equals(msg.method())) { // HTTPS proxy
             SslContext sslContext = contextSupplier.get();
             SslHandler sslHandler = sslContext.newHandler(ctx.alloc());
             FullHttpResponse response = NettyUtils.connectionEstablished();

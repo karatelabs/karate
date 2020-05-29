@@ -76,6 +76,9 @@ public class ScriptBindings implements Bindings {
     public static final String HEADER_CONTAINS = "headerContains";
     public static final String PARAM_VALUE = "paramValue";
     public static final String PATH_PARAMS = "pathParams";
+    public static final String PATH_MATCH_SCORES = "pathMatchScores";
+    public static final String METHOD_MATCH = "methodMatch";
+    public static final String HEADERS_MATCH_SCORE = "headersMatchScore";
     public static final String BODY_PATH = "bodyPath";
     public static final String SERVER_PORT = "serverPort";
 

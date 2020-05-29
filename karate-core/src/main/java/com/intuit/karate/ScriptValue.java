@@ -45,6 +45,7 @@ public class ScriptValue {
 
     public static final ScriptValue NULL = new ScriptValue(null);
     public static final ScriptValue FALSE = new ScriptValue(false);
+    public static final ScriptValue ZERO = new ScriptValue(0);
 
     public static enum Type {
         NULL,
