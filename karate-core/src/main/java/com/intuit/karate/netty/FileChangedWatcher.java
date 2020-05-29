@@ -31,6 +31,9 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.util.Arrays;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +41,7 @@ public class FileChangedWatcher {
 
     private static final Logger logger = LoggerFactory.getLogger(FileChangedWatcher.class);
 
-    private final File file;
+    private final List<File> files;
     private FeatureServer server;
     private final Integer port;
     private final boolean ssl;
@@ -46,7 +49,11 @@ public class FileChangedWatcher {
     private final File key;
 
     public FileChangedWatcher(File mock, FeatureServer server, Integer port, boolean ssl, File cert, File key) {
-        this.file = mock;
+        this(Arrays.asList(mock), server, port, ssl, cert, key);
+    }
+
+    public FileChangedWatcher(List<File> mocks, FeatureServer server, Integer port, boolean ssl, File cert, File key) {
+        this.files = mocks;
         this.server = server;
         this.port = port;
         this.ssl = ssl;
@@ -56,14 +63,19 @@ public class FileChangedWatcher {
 
     public void watch() throws InterruptedException, IOException {
         try {
-            final Path directoryPath = file.toPath().getParent();
             final WatchService watchService = FileSystems.getDefault().newWatchService();
-            directoryPath.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY);
+            for(File file: files) {
+                final Path directoryPath = file.toPath().getParent();
+
+                directoryPath.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY);
+            }
+
             while (true) {
                 final WatchKey wk = watchService.take();
                 for (WatchEvent<?> event : wk.pollEvents()) {
                     final Path fileChangedPath = (Path) event.context();
-                    if (fileChangedPath.endsWith(file.getName())) {
+
+                    if (files.stream().anyMatch((file) -> fileChangedPath.endsWith(file.getName()))) {
                         onModified();
                     }
                 }
@@ -77,7 +89,7 @@ public class FileChangedWatcher {
     public void onModified() {
         if (server != null) {
             server.stop();
-            server = FeatureServer.start(file, port, ssl, cert, key, null);
+            server = FeatureServer.start(files, port, ssl, cert, key, null);
         }
     }
 

@@ -30,6 +30,7 @@ import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureBackend;
+import com.intuit.karate.core.FeaturesBackend;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScriptBridge;
 import com.intuit.karate.http.HttpRequest;
@@ -84,7 +85,7 @@ public abstract class DevToolsDriver implements Driver {
         return ++nextId;
     }
 
-    private FeatureBackend backend;
+    private FeaturesBackend backend;
 
     protected final Logger logger;
 
@@ -954,7 +955,7 @@ public abstract class DevToolsDriver implements Driver {
             throw new RuntimeException("'mock' is not a feature file: " + config + ", " + mockSv);
         }
         Feature feature = mockSv.getValue(Feature.class);
-        backend = new FeatureBackend(feature);
+        backend = new FeaturesBackend(feature);
         method("Fetch.enable").param("patterns", patterns).send();
     }
 

@@ -25,8 +25,8 @@ package com.intuit.karate.netty;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureBackend;
 import com.intuit.karate.core.FeatureParser;
+import com.intuit.karate.core.FeaturesBackend;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -43,6 +43,9 @@ import io.netty.handler.ssl.util.SelfSignedCertificate;
 import java.io.File;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -60,11 +63,19 @@ public class FeatureServer {
     public static final String DEFAULT_KEY_NAME = "key.pem";
 
     public static FeatureServer start(File featureFile, int port, boolean ssl, Map<String, Object> arg) {
-        return new FeatureServer(featureFile, port, ssl, arg);
+        return start(Collections.singletonList(featureFile), port, ssl, arg);
+    }
+
+    public static FeatureServer start(List<File> featureFiles, int port, boolean ssl, Map<String, Object> arg) {
+        return new FeatureServer(featureFiles.toArray(new File[0]), port, ssl, arg);
     }
 
     public static FeatureServer start(File featureFile, int port, boolean ssl, File certFile, File privateKeyFile, Map<String, Object> arg) {
-        return new FeatureServer(featureFile, port, ssl, certFile, privateKeyFile, arg);
+        return start(Collections.singletonList(featureFile), port, ssl, certFile, privateKeyFile, arg);
+    }
+
+    public static FeatureServer start(List<File> featureFiles, int port, boolean ssl, File certFile, File privateKeyFile, Map<String, Object> arg) {
+        return new FeatureServer(featureFiles.toArray(new File[0]), port, ssl, certFile, privateKeyFile, arg);
     }
 
     private final Channel channel;
@@ -73,7 +84,7 @@ public class FeatureServer {
     private final boolean ssl;
     private final EventLoopGroup bossGroup;
     private final EventLoopGroup workerGroup;
-    private final FeatureBackend backend;
+    private final FeaturesBackend backend;
     
     public String getBaseUrl() {
         return (ssl ? "https" : "http") + "://" + host + ":" + port;
@@ -139,19 +150,32 @@ public class FeatureServer {
     }
 
     public FeatureServer(Feature feature, int port, boolean ssl, InputStream certStream, InputStream keyStream, Map<String, Object> arg) {
-        this(feature, port, ssl, getContextSupplierFromStreams(certStream, keyStream), arg);
+        this(new Feature[]{feature}, port, ssl, certStream, keyStream, arg);
     }
 
-    private FeatureServer(File file, int port, boolean ssl, File certificate, File privateKey, Map<String, Object> arg) {
-        this(toFeature(file), port, ssl, getContextSupplier(certificate, privateKey), arg);
+    public FeatureServer(Feature[] features, int port, boolean ssl, InputStream certStream, InputStream keyStream, Map<String, Object> arg) {
+        this(features, port, ssl, getContextSupplierFromStreams(certStream, keyStream), arg);
+    }
+
+    private FeatureServer(File[] files, int port, boolean ssl, File certificate, File privateKey, Map<String, Object> arg) {
+        this(toFeatures(files), port, ssl, getContextSupplier(certificate, privateKey), arg);
     }
 
     public FeatureServer(Feature feature, int port, boolean ssl, Map<String, Object> arg) {
-        this(feature, port, ssl, getContextSupplier(null, null), arg);
+        this(new Feature[]{feature}, port, ssl, arg);
     }
 
-    private FeatureServer(File file, int port, boolean ssl, Map<String, Object> arg) {
-        this(toFeature(file), port, ssl, getContextSupplier(null, null), arg);
+    public FeatureServer(Feature[] features, int port, boolean ssl, Map<String, Object> arg) {
+        this(features, port, ssl, getContextSupplier(null, null), arg);
+    }
+
+    private FeatureServer(File[] files, int port, boolean ssl, Map<String, Object> arg) {
+        this(toFeatures(files), port, ssl, getContextSupplier(null, null), arg);
+    }
+
+    private static Feature[] toFeatures(File[] files) {
+
+        return Arrays.stream(files).map((f) -> toFeature(f)).toArray(Feature[]::new);
     }
 
     private static Feature toFeature(File file) {
@@ -162,11 +186,11 @@ public class FeatureServer {
         return FeatureParser.parse(file);
     }
 
-    private FeatureServer(Feature feature, int requestedPort, boolean ssl, Supplier<SslContext> contextSupplier, Map<String, Object> arg) {
+    private FeatureServer(Feature[] features, int requestedPort, boolean ssl, Supplier<SslContext> contextSupplier, Map<String, Object> arg) {
         this.ssl = ssl;
         bossGroup = new NioEventLoopGroup(1);
         workerGroup = new NioEventLoopGroup();
-        backend = new FeatureBackend(feature, arg);
+        backend = new FeaturesBackend(features, arg);
         try {
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup)

@@ -26,18 +26,18 @@ package com.intuit.karate.core;
 import com.intuit.karate.CallContext;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptBindings;
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.JsonUtils;
-import com.intuit.karate.Match;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.XmlUtils;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -47,13 +47,49 @@ import java.util.Map;
  */
 public class FeatureBackend {
 
+    private static final String ALLOWED_METHODS = "GET, HEAD, POST, PUT, DELETE, PATCH";
+
     private final Feature feature;
     private final StepActions actions;
 
-    private boolean corsEnabled;
-
     private final ScenarioContext context;
     private final String featureName;
+
+    public static class FeatureScenarioMatch {
+        private final FeatureBackend featureBackend;
+        private final Scenario scenario;
+        private final List<Integer> scores;
+
+        public FeatureScenarioMatch(FeatureBackend featureBackend, Scenario scenario, List<Integer> scores) {
+            this.scenario = scenario;
+            this.scores = Collections.unmodifiableList(scores);
+            this.featureBackend = featureBackend;
+        }
+
+        public FeatureBackend getFeatureBackend() {
+            return featureBackend;
+        }
+
+        public Scenario getScenario() {
+            return scenario;
+        }
+
+        public List<Integer> getScores() {
+            return scores;
+        }
+
+        public int compareScores(FeatureScenarioMatch other) {
+            for(int i = 0; i < scores.size(); i++) {
+                Integer score = scores.get(i);
+                Integer otherScore = other.getScores().get(i);
+                int compareTo = score.compareTo(otherScore);
+                if(compareTo != 0) {
+                    return compareTo;
+                }
+            }
+            return 0;
+        }
+    }
 
     private static void putBinding(String name, ScenarioContext context) {
         String function = "function(a){ return " + ScriptBindings.KARATE + "." + name + "(a) }";
@@ -65,12 +101,12 @@ public class FeatureBackend {
         context.vars.put(name, Script.evalJsExpression(function, context));
     }    
 
-    public boolean isCorsEnabled() {
-        return corsEnabled;
-    }
-
     public ScenarioContext getContext() {
         return context;
+    }
+
+    public String getFeatureName() {
+        return featureName;
     }
 
     public FeatureBackend(Feature feature) {
@@ -105,15 +141,31 @@ public class FeatureBackend {
                 }
             }
         }
-        // this is a special case, we support the auto-handling of cors
-        // only if '* configure cors = true' has been done in the Background
-        corsEnabled = context.getConfig().isCorsEnabled(); 
-        context.logger.info("backend initialized");
+        context.logger.info("backend {} initialized", featureName);
     }
 
-    public ScriptValueMap handle(ScriptValueMap args) {
-        boolean matched = false;
+    public ScriptValueMap handle(ScriptValueMap args, Scenario scenario) {
         context.vars.putAll(args);
+        // This forces context to be refreshed by matching scenarios context variables
+        isMatchingScenario(scenario);
+        for (Step step : scenario.getSteps()) {
+            Result result = Engine.executeStep(step, actions);
+            if (result.isAborted()) {
+                context.logger.debug("abort at {}:{}", featureName, step.getLine());
+                break;
+            }
+            if (result.isFailed()) {
+                String message = "server-side scenario failed - " + featureName + ":" + step.getLine();
+                context.logger.error(message);
+                throw new KarateException(message, result.getError());
+            }
+        }
+        return context.vars;
+    }
+
+    public List<FeatureScenarioMatch> getMatchingScenarios(ScriptValueMap args) {
+        context.vars.putAll(args);
+        List<FeatureScenarioMatch> matchingScenarios = new ArrayList<>();
         for (FeatureSection fs : feature.getSections()) {
             if (fs.isOutline()) {
                 context.logger.warn("skipping scenario outline - {}:{}", featureName, fs.getScenarioOutline().getLine());
@@ -121,34 +173,26 @@ public class FeatureBackend {
             }
             Scenario scenario = fs.getScenario();
             if (isMatchingScenario(scenario)) {
-                matched = true;
-                for (Step step : scenario.getSteps()) {
-                    Result result = Engine.executeStep(step, actions);
-                    if (result.isAborted()) {
-                        context.logger.debug("abort at {}:{}", featureName, step.getLine());
-                        break;
-                    }
-                    if (result.isFailed()) {
-                        String message = "server-side scenario failed - " + featureName + ":" + step.getLine();
-                        context.logger.error(message);
-                        throw new KarateException(message, result.getError());
-                    }
-                }
-                break; // process only first matching scenario
+                List<Integer> scores = new ArrayList<>();
+                ScriptValue pathMatchScoresValue = context.vars.getOrDefault(ScriptBindings.PATH_MATCH_SCORES, ScriptValue.NULL);
+                boolean methodMatch = context.vars.getOrDefault(ScriptBindings.METHOD_MATCH, ScriptValue.FALSE).getValue(Boolean.class);
+                int headersMatchScore = context.vars.getOrDefault(ScriptBindings.HEADERS_MATCH_SCORE, ScriptValue.ZERO).getAsInt();
+
+                scores.addAll(pathMatchScoresValue.isNull() ? Arrays.asList(0, 0, 0) : pathMatchScoresValue.getAsList());
+                scores.add(methodMatch ? 1 : 0);
+                scores.add(headersMatchScore);
+
+                matchingScenarios.add(new FeatureScenarioMatch(this, scenario, scores));
             }
         }
-        if (!matched) {
-            context.logger.warn("no scenarios matched");
-        }
-        return context.vars;
+        return matchingScenarios;
     }
 
     private boolean isMatchingScenario(Scenario scenario) {
-        String expression = StringUtils.trimToNull(scenario.getName() + scenario.getDescription());
-        if (expression == null) {
-            context.logger.debug("scenario matched: (empty)");
-            return true;
+        if(isDefaultScenario(scenario)) {
+            return false;
         }
+        String expression = StringUtils.trimToNull(scenario.getName() + scenario.getDescription());
         try {
             ScriptValue sv = Script.evalJsExpression(expression, context);
             if (sv.isBooleanTrue()) {
@@ -163,12 +207,26 @@ public class FeatureBackend {
             return false;
         }
     }
+
+    public Scenario getDefaultScenario(ScriptValueMap args) {
+        for (FeatureSection fs : feature.getSections()) {
+
+            Scenario scenario = fs.getScenario();
+            if (isDefaultScenario(scenario)) {
+                return scenario;
+            }
+        }
+        return null;
+    }
+
+    private boolean isDefaultScenario(Scenario scenario) {
+        return StringUtils.trimToNull(scenario.getName() + scenario.getDescription()) == null;
+    }
     
     private static final String VAR_AFTER_SCENARIO = "afterScenario";
-    private static final String ALLOWED_METHODS = "GET, HEAD, POST, PUT, DELETE, PATCH";
-    
-    public HttpResponse buildResponse(HttpRequest request, long startTime) {
-        if (corsEnabled && "OPTIONS".equals(request.getMethod())) {
+
+    public HttpResponse corsCheck(HttpRequest request, long startTime) {
+        if (context.getConfig().isCorsEnabled()) {
             HttpResponse response = new HttpResponse(startTime, System.currentTimeMillis());
             response.setStatus(200);
             response.addHeader(HttpUtils.HEADER_ALLOW, ALLOWED_METHODS);
@@ -177,42 +235,19 @@ public class FeatureBackend {
             List requestHeaders = request.getHeaders().get(HttpUtils.HEADER_AC_REQUEST_HEADERS);
             if (requestHeaders != null) {
                 response.putHeader(HttpUtils.HEADER_AC_ALLOW_HEADERS, requestHeaders);
-            }            
+            }
             return response;
         }
-        Match match = new Match()
-                .text(ScriptValueMap.VAR_REQUEST_URL_BASE, request.getUrlBase())
-                .text(ScriptValueMap.VAR_REQUEST_URI, request.getUri())
-                .text(ScriptValueMap.VAR_REQUEST_METHOD, request.getMethod())
-                .def(ScriptValueMap.VAR_REQUEST_HEADERS, request.getHeaders())
-                .def(ScriptValueMap.VAR_RESPONSE_STATUS, 200)
-                .def(ScriptValueMap.VAR_REQUEST_PARAMS, request.getParams());
-        byte[] requestBytes = request.getBody();
-        if (requestBytes != null) {
-            match.def(ScriptValueMap.VAR_REQUEST_BYTES, requestBytes);
-            String requestString = FileUtils.toString(requestBytes);
-            Object requestBody = requestString;
-            if (Script.isJson(requestString)) {
-                try {
-                    requestBody = JsonUtils.toJsonDoc(requestString);
-                } catch (Exception e) {
-                    context.logger.warn("json parsing failed, request data type set to string: {}", e.getMessage());
-                }
-            } else if (Script.isXml(requestString)) {
-                try {
-                    requestBody = XmlUtils.toXmlDoc(requestString);
-                } catch (Exception e) {
-                    context.logger.warn("xml parsing failed, request data type set to string: {}", e.getMessage());
-                }
-            }
-            match.def(ScriptValueMap.VAR_REQUEST, requestBody);
-        }
+        return null;
+    }
+
+    public HttpResponse buildResponse(HttpRequest request, long startTime, Scenario scenario, ScriptValueMap args) {
         ScriptValue responseValue, responseStatusValue, responseHeaders, afterScenario;
         Map<String, Object> responseHeadersMap, configResponseHeadersMap;
         // this is a sledgehammer approach to concurrency !
         // which is why for simulating 'delay', users should use the VAR_AFTER_SCENARIO (see end)
         synchronized (this) { // BEGIN TRANSACTION !
-            ScriptValueMap result = handle(match.vars());
+            ScriptValueMap result = handle(args, scenario);
             ScriptValue configResponseHeaders = context.getConfig().getResponseHeaders();
             responseValue = result.remove(ScriptValueMap.VAR_RESPONSE);
             responseStatusValue = result.remove(ScriptValueMap.VAR_RESPONSE_STATUS);
@@ -260,7 +295,7 @@ public class FeatureBackend {
         if (!contentTypeHeaderExists && responseValue != null) {
             response.addHeader(HttpUtils.HEADER_CONTENT_TYPE, HttpUtils.getContentType(responseValue));
         }        
-        if (corsEnabled) {
+        if (context.getConfig().isCorsEnabled()) {
             response.addHeader(HttpUtils.HEADER_AC_ALLOW_ORIGIN, "*");
         }
         // functions here are outside of the 'transaction' and should not mutate global state !
@@ -269,6 +304,6 @@ public class FeatureBackend {
             afterScenario.invokeFunction(context, null);
         }
         return response;
-    }    
+    }
 
 }
