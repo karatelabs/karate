@@ -9,5 +9,5 @@ Scenario:
 * click('Add')
 * click('2')
 * click('Equals')
-* match locate('{text}3').name == '3'
+* match locate('//text{3}').name == '3'
 * screenshot()
