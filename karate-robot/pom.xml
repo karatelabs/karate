@@ -138,7 +138,7 @@
                                             <exclude>*:*:jar:ios-*:*</exclude>
                                             <exclude>*:*:jar:linux-*:*</exclude>
                                             <exclude>*:*:jar:macosx-*:*</exclude>
-                                            <exclude>*:*:jar:windows-x86:*</exclude>
+                                            <!-- <exclude>*:*:jar:windows-x86:*</exclude> -->
                                             <!-- <exclude>*:*:jar:windows-x86_64:*</exclude> -->
                                         </excludes>                                        
                                     </artifactSet>
