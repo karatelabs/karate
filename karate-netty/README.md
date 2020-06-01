@@ -293,6 +293,14 @@ For more details, refer to this [answer on Stack Overflow](https://stackoverflow
 ## Within a Karate Test
 Teams that are using the [standalone JAR](#standalone-jar) and *don't* want to use Java at all can directly start a mock from within a Karate test script using the `karate.start()` API. The argument can be a string or JSON. If a string, it is processed as the path to the mock feature file, and behaves like the [`read()`](https://github.com/intuit/karate#reading-files) function.
 
+So starting a mock from a Karate test is simple. This example also shows how [conditional logic](https://github.com/intuit/karate#conditional-logic) can be used effectively.
+
+```feature
+Background:
+  * def port = karate.env == 'mock' ? karate.start('cats-mock.feature').port : 8080
+  * url 'http://localhost:' + port + '/cats'
+```
+
 For more control, the argument to `karate.start()` can be a JSON with the following keys expected, only the `mock` is mandatory:
 
 * `mock` - (string) path to the mock feature file, e.g. `classpath:my-mock.feature` or relative paths work just like [`read()`](https://github.com/intuit/karate#reading-files).
@@ -302,12 +310,10 @@ For more control, the argument to `karate.start()` can be a JSON with the follow
 * `key` - (string) see above
 * `arg` - (json) see above
 
-So starting a mock from a Karate test is simple. This example also shows how [conditional logic](https://github.com/intuit/karate#conditional-logic) can be used effectively.
+So if you want to "hard-code" the port, you can do this:
 
-```feature
-Background:
-  * def port = karate.env == 'mock' ? karate.start('cats-mock.feature').port : 8080
-  * url 'http://localhost:' + port + '/cats'
+```
+* karate.start({ mock: 'cats-mock.feature', port: 9000 })
 ```
 
 For the full example, look at [`cats-test.feature`](../karate-demo/src/test/java/mock/web/cats-test.feature).
