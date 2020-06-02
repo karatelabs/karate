@@ -638,6 +638,7 @@ public class ScriptBridge implements PerfContext {
 
     public boolean pathMatches(String path) {
         String uri = getAsString(ScriptValueMap.VAR_REQUEST_URI);
+
         Map<String, String> pathParams = HttpUtils.parseUriPattern(path, uri);
         set(ScriptBindings.PATH_PARAMS, pathParams);
         boolean matched = pathParams != null;
@@ -674,6 +675,22 @@ public class ScriptBridge implements PerfContext {
             return list.get(0);
         }
         return list;
+    }
+
+    public boolean paramContains(String name, String test) {
+        Map<String, List<String>> params = (Map) getValue(ScriptValueMap.VAR_REQUEST_PARAMS).getValue();
+        if(params == null) {
+            return false;
+        }
+        List<String> values = params.getOrDefault(name, Collections.emptyList());
+        for(String value : values) {
+            if(value != null && value.contains(test)) {
+                int existingValue = (int) get(ScriptBindings.QUERY_MATCH_SCORE, 0);
+                set(ScriptBindings.QUERY_MATCH_SCORE, existingValue+1);
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean headerContains(String name, String test) {

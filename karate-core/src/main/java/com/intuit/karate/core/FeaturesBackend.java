@@ -160,7 +160,7 @@ public class FeaturesBackend {
 
             matches.addAll(featureMatches);
             if(defaultMatch != null)
-                defaults.add(new FeatureBackend.FeatureScenarioMatch(featureBackend, defaultMatch, Arrays.asList(0, 0, 0, 0, 0)));
+                defaults.add(new FeatureBackend.FeatureScenarioMatch(featureBackend, defaultMatch));
 
         }
         if(matches.isEmpty() && defaults.isEmpty()) {

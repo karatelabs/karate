@@ -60,6 +60,14 @@ public class FeatureBackend {
         private final Scenario scenario;
         private final List<Integer> scores;
 
+        private static final List<Integer> DEFAULT_SCORES = Collections.unmodifiableList(Arrays.asList(0, 0, 0, 0, 0, 0));
+
+        public FeatureScenarioMatch(FeatureBackend featureBackend, Scenario scenario) {
+            this.scenario = scenario;
+            this.scores = DEFAULT_SCORES;
+            this.featureBackend = featureBackend;
+        }
+
         public FeatureScenarioMatch(FeatureBackend featureBackend, Scenario scenario, List<Integer> scores) {
             this.scenario = scenario;
             this.scores = Collections.unmodifiableList(scores);
@@ -123,6 +131,7 @@ public class FeatureBackend {
         putBinding(ScriptBindings.PATH_MATCHES, context);
         putBinding(ScriptBindings.METHOD_IS, context);
         putBinding(ScriptBindings.PARAM_VALUE, context);
+        putBinding(ScriptBindings.PARAM_CONTAINS, context);
         putBinding(ScriptBindings.TYPE_CONTAINS, context);
         putBinding(ScriptBindings.ACCEPT_CONTAINS, context);
         putBinding2(ScriptBindings.HEADER_CONTAINS, context);
@@ -177,9 +186,11 @@ public class FeatureBackend {
                 ScriptValue pathMatchScoresValue = context.vars.getOrDefault(ScriptBindings.PATH_MATCH_SCORES, ScriptValue.NULL);
                 boolean methodMatch = context.vars.getOrDefault(ScriptBindings.METHOD_MATCH, ScriptValue.FALSE).getValue(Boolean.class);
                 int headersMatchScore = context.vars.getOrDefault(ScriptBindings.HEADERS_MATCH_SCORE, ScriptValue.ZERO).getAsInt();
+                int queryMatchScore = context.vars.getOrDefault(ScriptBindings.QUERY_MATCH_SCORE, ScriptValue.ZERO).getAsInt();
 
                 scores.addAll(pathMatchScoresValue.isNull() ? Arrays.asList(0, 0, 0) : pathMatchScoresValue.getAsList());
                 scores.add(methodMatch ? 1 : 0);
+                scores.add(queryMatchScore);
                 scores.add(headersMatchScore);
 
                 matchingScenarios.add(new FeatureScenarioMatch(this, scenario, scores));
