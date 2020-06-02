@@ -38,6 +38,7 @@ public class HttpResponse {
     private MultiValuedMap headers;
     private byte[] body;
     private int status;
+    private long delay;
     private final long startTime;
     private final long endTime;
 
@@ -79,8 +80,16 @@ public class HttpResponse {
         return status;
     }
 
+    public long getDelay() {
+        return delay;
+    }
+
     public void setStatus(int status) {
         this.status = status;
+    }
+
+    public void setDelay(long delay) {
+        this.delay = delay;
     }
 
     public void setBody(byte[] body) {

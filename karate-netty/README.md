@@ -554,25 +554,43 @@ Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: GET, HEAD, POST, PUT, DELETE, PATCH
 ```
 
-## `afterScenario`
-Use this to add an artificial delay instead of calling `Thread.sleep()` directly which will block all other threads. For example:
+## `responseDelay`
+You can easily set response delay in milliseconds
 
 ```cucumber
-* def afterScenario = function(){ java.lang.Thread.sleep(3000) }
+Scenario: pathMatches('/v1/test')
+    * def responseDelay = 4000
 ```
 
+## `def responseDelay`
+You can also configure a randomised delay across all scenarios. Here is an example of setting a random delay between 200 to 600 milliseconds:
+
+```cucumber
+Background:
+    * def responseDelay = 200 + Math.random() * 400
+```
 Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).
 
+## `afterScenario`
+Use this to add re-use any behaviour after scenario run, e.g. logging. For example:
+
+```cucumber
+* def afterScenario =
+"""
+function(){
+    karate.log('finished')
+}
+"""
+```
+
 ### `configure afterScenario`
-Just like the above, but you can set this "globally" for all route-handlers in the [`Background`](#background). Here is an example of setting a random delay between 200 to 600 milliseconds.
+Just like the above, but you can set this "globally" for all route-handlers in the [`Background`](#background).
 
 ```cucumber
 * configure afterScenario =
 """
 function(){
-    var millis = 200 + Math.random() * 400;
     karate.log('sleeping for:', millis, 'millis')
-    java.lang.Thread.sleep(millis); 
 }
 """
 ```

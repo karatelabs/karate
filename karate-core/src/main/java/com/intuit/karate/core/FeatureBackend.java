@@ -242,26 +242,26 @@ public class FeatureBackend {
     }
 
     public HttpResponse buildResponse(HttpRequest request, long startTime, Scenario scenario, ScriptValueMap args) {
-        ScriptValue responseValue, responseStatusValue, responseHeaders, afterScenario;
+        ScriptValue responseValue, responseStatusValue, responseHeaders, afterScenario, responseDelayValue;
         Map<String, Object> responseHeadersMap, configResponseHeadersMap;
-        // this is a sledgehammer approach to concurrency !
-        // which is why for simulating 'delay', users should use the VAR_AFTER_SCENARIO (see end)
-        synchronized (this) { // BEGIN TRANSACTION !
-            ScriptValueMap result = handle(args, scenario);
-            ScriptValue configResponseHeaders = context.getConfig().getResponseHeaders();
-            responseValue = result.remove(ScriptValueMap.VAR_RESPONSE);
-            responseStatusValue = result.remove(ScriptValueMap.VAR_RESPONSE_STATUS);
-            responseHeaders = result.remove(ScriptValueMap.VAR_RESPONSE_HEADERS);
-            afterScenario = result.remove(VAR_AFTER_SCENARIO);
-            if (afterScenario == null) {
-                afterScenario = context.getConfig().getAfterScenario();
-            }
-            configResponseHeadersMap = configResponseHeaders == null ? null : configResponseHeaders.evalAsMap(context);
-            responseHeadersMap = responseHeaders == null ? null : responseHeaders.evalAsMap(context);
-        } // END TRANSACTION !!
+        ScriptValueMap result = handle(args, scenario);
+        ScriptValue configResponseHeaders = context.getConfig().getResponseHeaders();
+        responseValue = result.remove(ScriptValueMap.VAR_RESPONSE);
+        responseStatusValue = result.remove(ScriptValueMap.VAR_RESPONSE_STATUS);
+        responseDelayValue = result.remove(ScriptValueMap.VAR_RESPONSE_DELAY);
+        responseHeaders = result.remove(ScriptValueMap.VAR_RESPONSE_HEADERS);
+        afterScenario = result.remove(VAR_AFTER_SCENARIO);
+        if (afterScenario == null) {
+            afterScenario = context.getConfig().getAfterScenario();
+        }
+        configResponseHeadersMap = configResponseHeaders == null ? null : configResponseHeaders.evalAsMap(context);
+        responseHeadersMap = responseHeaders == null ? null : responseHeaders.evalAsMap(context);
+
         int responseStatus = responseStatusValue == null ? 200 : Integer.valueOf(responseStatusValue.getAsString());
+        long delay = responseDelayValue == null || responseDelayValue.isNull() ? 0L : Double.valueOf(responseDelayValue.getAsString()).longValue();
         HttpResponse response = new HttpResponse(startTime, System.currentTimeMillis());
         response.setStatus(responseStatus);
+        response.setDelay(delay);
         if (responseValue != null && !responseValue.isNull()) {
             response.setBody(responseValue.getAsByteArray());
         }
