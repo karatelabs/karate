@@ -24,7 +24,6 @@
 package com.intuit.karate.robot;
 
 import com.intuit.karate.Config;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 

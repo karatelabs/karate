@@ -53,7 +53,7 @@ public class WinElement implements Element {
 
     @Override
     public boolean isPresent() {
-        return !e.isValid() && !e.isNull();
+        return e.isValid() && !e.isNull();
     }
 
     @Override

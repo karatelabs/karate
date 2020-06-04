@@ -58,9 +58,10 @@ In development mode, you can switch on a red highlight border around areas that 
 * robot { window: '^Chrome', highlight: true }
 ```
 
-You can use `fork` to run a console command to start an application if needed, before "activating" it.
+You can use `fork` to run a console command to start an application if needed, before "activating" it. Also see [`karate.fork()`](#karatefork)
 
 > If you want to do conditional logic depending on the OS, you can use [`karate.os`](https://github.com/intuit/karate#karate-os) - for e.g. `* if (karate.os.type == 'windows') karate.set('filename', 'start.bat')`
+ 
 
 ### `robot` options
 
@@ -80,6 +81,32 @@ key | description
 `autoDelay` | default `0` - time delay added (in milliseconds) after a native action (key press, mouse click), you can set this to a small value e.g. `40` only in case of any issues with keystrokes being too fast, etc
 `tessData` | default `tessdata` - the path to a directory where the Tesseract (OCR engine) [data files](#ocr-locators) will be looked for, this is needed only if you use an [OCR Locator](#ocr-locators) or attempt to call [`Element.extract()`](#elementextract). Note that the default *value* "`tessdata`" is all lower-case.
 `tessLang` | default `eng` - the default OCR language to use, see [OCR Locator](#ocr-locators)
+
+### `karate.fork()`
+The `fork` option simply calls [`karate.fork()`](https://github.com/intuit/karate#karate-fork) which means that you can use it directly within a test any time you want to start any OS process. This is convenient to implement conditional logic, for e.g. to start an application involving a *different* main window - if a certain window [does not exist](#windowexists).
+
+Here's an example using [`karate.call()`](https://github.com/intuit/karate#call-vs-read):
+
+```cucumber
+* robot { highlight: true, highlightDuration: 500, autoClose: false }
+* if (!windowExists('^Main Window')) karate.call('sign-in.feature')
+```
+
+And `sign-in.feature` looks like this. This example code below also showcases a few Karate capabilities extremely relevant for testing GUI-s such as [`retry()`](#retry) and [`waitFor()`](#waitfor).
+
+```cucumber
+@ignore
+Feature:
+
+Scenario:
+* karate.fork('C:/MyDir/my.exe')
+* retry(5).window('Sign In')
+* waitFor('#userid').input(testUser)
+* input('#password', testPassword)
+* click('#submit-btn')
+```
+
+Note how you can [inject variables from global config](https://github.com/intuit/karate#karate-configjs) e.g. `testUser` and `testPassword` using Karate.
 
 # API
 Please refer to the available methods in [`Robot.java`](src/main/java/com/intuit/karate/robot/Robot.java). Most of them are "chainable". The built-in `robot` JS object is where you script UI automation. It will be initialized only after the [`robot`](#robot) keyword has been used to start / attach to a desktop window.
@@ -411,7 +438,7 @@ Release mouse button, useful for simulating a drag and drop operation.
 Will save a screenshot of the viewport, which will appear in the HTML report. Note that this returns a byte-array of the PNG image.
 
 # Standalone JAR
-The `karate-robot` for Windows and Mac OSX is around 100 MB and hence not distributed with the [ZIP Release](https://github.com/intuit/karate/wiki/ZIP-Release). But you can download it separately, and it can be easily added to the classpath. You can find instructions [here](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot).
+The `karate-robot` for Windows is around 150 MB and hence not distributed with the [ZIP Release](https://github.com/intuit/karate/wiki/ZIP-Release). But you can download it separately, and it can be easily added to the classpath. You can find instructions [here](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot).
 
 ## Building
-For Linux, Android or iOS, you can build a stand-alone JAR by following the [Developer Guide](https://github.com/intuit/karate/wiki/Developer-Guide#build-standalone-karate-robot-jar).
+For MacOSX, Linux, Android or iOS, you can build a stand-alone JAR by following the [Developer Guide](https://github.com/intuit/karate/wiki/Developer-Guide#build-standalone-karate-robot-jar).
