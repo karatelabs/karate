@@ -497,7 +497,8 @@ public class ScriptBridge implements PerfContext {
                         result = JsonUtils.toJsonDoc(json);
                         context.logger.info("callSingleCache hit: {}", cacheFile);
                     } else {
-                        context.logger.info("callSingleCache stale, last modified {} - is before {} (minutes: {})", lastModified, since, minutes);
+                        context.logger.info("callSingleCache stale, last modified {} - is before {} (minutes: {})", lastModified, since,
+                                            minutes);
                     }
                 } else {
                     context.logger.info("callSingleCache file does not exist, will create: {}", cacheFile);
@@ -644,7 +645,7 @@ public class ScriptBridge implements PerfContext {
         boolean matched = pathParams != null;
 
         List<Integer> pathMatchScores = null;
-        if(matched) {
+        if (matched) {
             pathMatchScores = HttpUtils.calculatePathMatchScore(path);
         }
 
@@ -675,6 +676,10 @@ public class ScriptBridge implements PerfContext {
             return list.get(0);
         }
         return list;
+    }
+
+    public boolean paramExists(String name) {
+        return paramContains(name, "");
     }
 
     public boolean paramContains(String name, String test) {

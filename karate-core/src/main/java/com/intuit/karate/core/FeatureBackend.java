@@ -132,6 +132,7 @@ public class FeatureBackend {
         putBinding(ScriptBindings.METHOD_IS, context);
         putBinding(ScriptBindings.PARAM_VALUE, context);
         putBinding(ScriptBindings.PARAM_CONTAINS, context);
+        putBinding(ScriptBindings.PARAM_EXISTS, context);
         putBinding(ScriptBindings.TYPE_CONTAINS, context);
         putBinding(ScriptBindings.ACCEPT_CONTAINS, context);
         putBinding2(ScriptBindings.HEADER_CONTAINS, context);
