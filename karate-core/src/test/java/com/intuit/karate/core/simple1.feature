@@ -2,9 +2,7 @@
 Feature: simple 1
 
 Background:
-* print 'background: sleeping ...'
-* java.lang.Thread.sleep(1000)
-* print 'background: done'
+* configure responseDelay = 1000
 
 Scenario: 1-one
 * print '1-one'

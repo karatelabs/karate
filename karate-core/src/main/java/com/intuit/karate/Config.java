@@ -63,6 +63,7 @@ public class Config {
     private ScriptValue headers = ScriptValue.NULL;
     private ScriptValue cookies = ScriptValue.NULL;
     private ScriptValue responseHeaders = ScriptValue.NULL;
+    private long responseDelay = 0L;
     private boolean lowerCaseResponseHeaders = false;
     private boolean corsEnabled = false;
     private boolean logPrettyRequest;
@@ -111,6 +112,9 @@ public class Config {
                 return false;
             case "responseHeaders":
                 responseHeaders = value;
+                return false;
+            case "responseDelay":
+                responseDelay = value.isNull() ? 0L : Double.valueOf(value.getAsString()).longValue();
                 return false;
             case "lowerCaseResponseHeaders":
                 lowerCaseResponseHeaders = value.isBooleanTrue();

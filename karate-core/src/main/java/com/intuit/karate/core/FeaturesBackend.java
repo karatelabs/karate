@@ -128,6 +128,7 @@ public class FeaturesBackend {
 
             return matchingFeature.buildResponse(request, startTime, matchingScenario, match.vars());
         }
+        //Delays should be configured using def/configure responseDelay semantics instead of Thread.sleep
     }
 
     public HttpResponse corsCheck(HttpRequest request, long startTime) {

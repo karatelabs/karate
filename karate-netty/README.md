@@ -400,7 +400,7 @@ Scenario: pathMatches('/v1/headers') && karate.get('requestHeaders.val[0]') == '
 Note that you can define your custom JS re-usable functions in the `Background` which can make complex matching logic easier to implement.
 
 ## `requestParams`
-A map-like' object of all query-string parameters and the values will always be an array. The built-in convenience functions [`paramExists()`](#paramexists) and [`paramContains()`](#paramcontains) is what you would use most of the time.
+A map-like' object of all query-string parameters and the values will always be an array. The built-in convenience function [`paramExists()`](#paramexists) is what you would use most of the time.
 
 ## `pathMatches()`
 Helper function that makes it easy to match a URI pattern as well as set [path parameters](#pathparams) up for extraction later using curly-braces. For example:
@@ -425,12 +425,6 @@ Scenario: pathMatches('/v1/cats/{id}') && methodIs('get')
 Function (not a variable) designed to match request on query parameter instead of [`requestParams`](#requestparams). Returns a boolean.
 ```cucumber
 Scenario: pathMatches('/greeting') && paramExists('name')
-```
-
-## `paramContains()`
-Function (not a variable) designed to match request on query parameter containing a string instead of [`requestParams`](#requestparams). Returns a boolean.
-```cucumber
-Scenario: pathMatches('/greeting') && paramContains('name', 'Bob')
 ```
 
 ## `paramValue()`

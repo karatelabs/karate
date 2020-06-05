@@ -664,11 +664,7 @@ public class ScriptBridge implements PerfContext {
     }
 
     public Object paramValue(String name) {
-        Map<String, List<String>> params = (Map) getValue(ScriptValueMap.VAR_REQUEST_PARAMS).getValue();
-        if (params == null) {
-            return null;
-        }
-        List<String> list = params.get(name);
+        List<String> list = paramValues(name);
         if (list == null) {
             return null;
         }
@@ -678,24 +674,17 @@ public class ScriptBridge implements PerfContext {
         return list;
     }
 
-    public boolean paramExists(String name) {
-        return paramContains(name, "");
+    private List<String> paramValues(String name) {
+        Map<String, List<String>> params = (Map) getValue(ScriptValueMap.VAR_REQUEST_PARAMS).getValue();
+        if (params == null) {
+            return null;
+        }
+        return params.get(name);
     }
 
-    public boolean paramContains(String name, String test) {
-        Map<String, List<String>> params = (Map) getValue(ScriptValueMap.VAR_REQUEST_PARAMS).getValue();
-        if(params == null) {
-            return false;
-        }
-        List<String> values = params.getOrDefault(name, Collections.emptyList());
-        for(String value : values) {
-            if(value != null && value.contains(test)) {
-                int existingValue = (int) get(ScriptBindings.QUERY_MATCH_SCORE, 0);
-                set(ScriptBindings.QUERY_MATCH_SCORE, existingValue+1);
-                return true;
-            }
-        }
-        return false;
+    public boolean paramExists(String name) {
+        List<String> list = paramValues(name);
+        return list != null && !list.isEmpty();
     }
 
     public boolean headerContains(String name, String test) {

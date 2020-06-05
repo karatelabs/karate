@@ -131,7 +131,6 @@ public class FeatureBackend {
         putBinding(ScriptBindings.PATH_MATCHES, context);
         putBinding(ScriptBindings.METHOD_IS, context);
         putBinding(ScriptBindings.PARAM_VALUE, context);
-        putBinding(ScriptBindings.PARAM_CONTAINS, context);
         putBinding(ScriptBindings.PARAM_EXISTS, context);
         putBinding(ScriptBindings.TYPE_CONTAINS, context);
         putBinding(ScriptBindings.ACCEPT_CONTAINS, context);
@@ -310,8 +309,6 @@ public class FeatureBackend {
         if (context.getConfig().isCorsEnabled()) {
             response.addHeader(HttpUtils.HEADER_AC_ALLOW_ORIGIN, "*");
         }
-        // functions here are outside of the 'transaction' and should not mutate global state !
-        // typically this is where users can set up an artificial delay or sleep
         if (afterScenario != null && afterScenario.isFunction()) {
             afterScenario.invokeFunction(context, null);
         }
