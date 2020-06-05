@@ -3,14 +3,102 @@
 ## Desktop Automation Made `Simple.`
 > Version 0.9.6.RC3 is available, and experimental. Please test and contribute if you can !
 
-### Capabilities
+# Index
+
+<table>
+<tr>
+  <th>Start</th>
+  <td>
+      <a href="https://github.com/intuit/karate/wiki/ZIP-Release">ZIP Release</a>
+    | <a href="#maven">Maven</a>
+    | <a href="https://github.com/intuit/karate/wiki/Karate-Robot-Windows-Install-Guide">Windows Install Guide</a>
+    | <a href="https://github.com/intuit/karate#index">Karate - Main Index</a>
+  </td>
+</tr>
+<tr>
+  <th>Config</th>
+  <td>
+      <a href="#robot"><code>driver</code></a>
+    | <a href="#robot-options"><code>robot</code> options</a>
+  </td>
+</tr>
+<tr>
+  <th>Concepts</th>
+  <td>
+      <a href="#methods">Methods</a>
+    | <a href="#element-api"><code>Element</code></a>
+    | <a href="#window-api"><code>Window</code></a>
+    | <a href="#finding-windows">Finding Windows</a>
+    | <a href="https://github.com/intuit/karate/wiki/Karate-Robot-Windows-Install-Guide#debug-mode">Debugging</a>
+    | <a href="#retry">Retries</a>
+    | <a href="#karatefork"><code>karate.fork()</code></a>
+  </td>
+</tr>
+<tr>
+  <th>Locators</th>
+  <td>
+      <a href="#windows-locators">Windows Locators</a>
+    | <a href="#image-locators">Image Locators</a> 
+    | <a href="#ocr-locators">OCR Locators</a>
+  </td>
+</tr>
+<tr>
+  <th>App</th>
+  <td>
+      <a href="#window"><code>window()</code></a>    
+    | <a href="#windowexists"><code>windowExists()</code></a> 
+    | <a href="#windowoptional"><code>windowOptional()</code></a> 
+    | <a href="#robotroot"><code>robot.root</code></a> 
+    | <a href="#robotactive"><code>robot.active</code></a>   
+    | <a href="#robotfocused"><code>robot.focused</code></a>
+    | <a href="#robotallwindows"><code>robot.allWindows</code></a>
+    | <a href="#screenshot"><code>screenshot()</code></a>  
+    | <a href="#screenshotactive"><code>screenshotActive()</code></a>    
+  </td>
+</tr>
+<tr>
+  <th>Actions</th>
+  <td>
+      <a href="#click"><code>click()</code></a>
+    | <a href="#doubleclick"><code>doubleClick()</code></a>
+    | <a href="#move"><code>move()</code></a>
+    | <a href="#press"><code>press()</code></a>
+    | <a href="#release"><code>release()</code></a>
+    | <a href="#input"><code>input()</code></a>
+    | <a href="#focus"><code>focus()</code></a>
+    | <a href="#select"><code>select()</code></a>
+    | <a href="#highlight"><code>highlight()</code></a>
+    | <a href="#highlightall"><code>highlightAll()</code></a>
+  </td>
+</tr>
+<tr>
+  <th>State</th>
+  <td>
+      <a href="#exists"><code>exists()</code></a>
+    | <a href="#optional"><code>optional()</code></a>    
+    | <a href="#locate"><code>locate()</code></a>    
+    | <a href="#locateall"><code>locateAll()</code></a>
+  </td>
+</tr>
+<tr>
+  <th>Wait / JS</th>
+  <td>
+      <a href="#retry"><code>retry()</code></a>
+    | <a href="#waitfor"><code>waitFor()</code></a>
+    | <a href="#waituntil"><code>waitUntil()</code></a>    
+    | <a href="#delay"><code>delay()</code></a>
+  </td>
+</tr>
+</table>
+
+## Capabilities
 * Available as a standalone binary via the [ZIP Release](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot)
 * Native Mouse Events
 * Native Keyboard Events
 * Windows object-recognition using [Microsoft UI Automation](https://docs.microsoft.com/en-us/windows/win32/winauto/entry-uiauto-win32)
 * [Navigation via image detection](#image-locators) - cross-platform (mac, win, linux) via [JavaCPP and OpenCV](https://github.com/bytedeco/javacpp-presets/tree/master/opencv)
 * [OCR driven navigation](#ocr-locators) and text extraction - cross-platform (mac, win, linux) via [JavaCPP and Tesseract](https://github.com/bytedeco/javacpp-presets/tree/master/tesseract)
-* Tightly integrated into Karate - which means a [debugger, HTML reports](https://twitter.com/ptrthomas/status/1261183808985948160), and more
+* Tightly integrated into [Karate](https://github.com/intuit/karate) - which means a [debugger, HTML reports](https://twitter.com/ptrthomas/status/1261183808985948160), and more
 
 ### Demo Videos
 * Clicking the *native* "File Upload" button in a Web Page - [Link](https://twitter.com/ptrthomas/status/1253373486384295936)
@@ -78,7 +166,7 @@ key | description
 `highlightDuration` | default `3000` - time to `highlight` in milliseconds
 `retryCount` | default [normally `3`](https://github.com/intuit/karate#retry-until) - overrides the default [`retry()`](#retry) count, this applies only for finding the `window` *after* a `fork` was executed 
 `retryInterval` | default [normally `3000`](https://github.com/intuit/karate#retry-until) - overrides the default [`retry()`](#retry) interval, this applies only for finding the `window` *after* a `fork` was executed 
-`autoDelay` | default `0` - time delay added (in milliseconds) after a native action (key press, mouse click), you can set this to a small value e.g. `40` only in case of any issues with keystrokes being too fast, etc
+`autoDelay` | default `0` - time delay added (in milliseconds) after a native action (key press, mouse click), you can set this to a small value e.g. `40` only in case of any issues with OS actions being too fast, etc
 `tessData` | default `tessdata` - the path to a directory where the Tesseract (OCR engine) [data files](#ocr-locators) will be looked for, this is needed only if you use an [OCR Locator](#ocr-locators) or attempt to call [`Element.extract()`](#elementextract). Note that the default *value* "`tessdata`" is all lower-case.
 `tessLang` | default `eng` - the default OCR language to use, see [OCR Locator](#ocr-locators)
 
@@ -108,6 +196,31 @@ Scenario:
 
 Note how you can [inject variables from global config](https://github.com/intuit/karate#karate-configjs) e.g. `testUser` and `testPassword` using Karate.
 
+### Finding Windows
+Finding Windows and dialogs is a critical aspect of UI automation and Karate makes easy the process of handling even dynamic Window titles or un-predictable Windows.
+
+Here's a typical situation with some challenges, and the script that solves them:
+
+* if the app is already running, don't start it
+* the window title is un-predictable, it can be "MyApp" or "MYAPP"
+* the app takes almost 20 seconds to start
+* after the application starts, a modal dialog with the title "Tips on Startup" may or may not appear
+
+```cucumber
+* def windowName = '~MyApp|MYAPP'
+* robot { window: '#(windowName)', fork: 'C:/Program Files (x86)/MyApp/myapp.exe', retryCount: 10 }
+* windowOptional('Tips on Startup').locate('Close').click()
+* window(windowName)
+```
+
+Explanation:
+* `robot { window: '<name>' }` will not call [`fork`](#karatefork) if the window was found to be already present
+* the `~` prefix means that Karate will use a regex (regular expression) match to find the window by title
+* `retryCount: 10` means that if `fork` was executed, Karate will wait `10 x 3000` milliseconds where `3000` is the default [`retryDuration`](#retry)
+* [`windowOptional()`](#windowoptional) will do nothing if the window does not exist
+* note how the variable `windowName` can be used as an [embedded expression](https://github.com/intuit/karate#embedded-expressions) or directly when within "round brackets", e.g. [`window(windowName)`](#window)
+* the last line makes sure that we switch back to the main window and make it ["active"](#robotactive)
+
 # API
 Please refer to the available methods in [`Robot.java`](src/main/java/com/intuit/karate/robot/Robot.java). Most of them are "chainable". The built-in `robot` JS object is where you script UI automation. It will be initialized only after the [`robot`](#robot) keyword has been used to start / attach to a desktop window.
 
@@ -119,6 +232,8 @@ Any method on the [`Robot`](#api) type that returns [`Element`](src/main/java/co
 ```
 
 This [locates](#windows-locators) a UI control by name, and then within the bounds of that element, proceeds to click the mouse at an inner offset of 20 pixels(horizontal) and 40 pixels (vertical) from the top-left corner of the element.
+
+Also see [`windowOptional()`](#windowoptional) for a good example of chaining a [`click()`](#click) after calling [`locate()`](#locate).
 
 ## `Window` API
 A call to [`window()`](#window) will set the current or "active" window and also return an object of type [`Window`](src/main/java/com/intuit/karate/robot/Window.java) (which extends [`Element`](#element-api)). So to set the window and `restore()` it in one step you could do this:
@@ -285,19 +400,61 @@ Convenient to wait for an element. Try to use this only when necessary, for exam
 ```
 
 ## `waitUntil()`
+Wait for the [JS function](https://github.com/intuit/karate#javascript-functions) to evaluate to `true`. Will poll using the [retry()](#retry) settings configured.
+
+```cucumber
+* def fun = function(){ return optional('Close').enabled }
+* waitUntil(fun)
+```
+
+This gives you a lot of flexibility. Note that Karate can call OS commands using [`karate.exec()`](https://github.com/intuit/karate#karate-exec) or even make [HTTP API requests](https://github.com/intuit/karate#core-keywords). You can even [call Java code](https://github.com/intuit/karate#calling-java) if required.
 
 ## `optional()`
+Will return a "real" [`Element`](#element-api) if it exists or a "fake" object if it does not.
+
+This is useful to perform conditional logic as one-liners:
+
+```cucumber
+* optional('//pane{Warning}').locate('Close').click()
+```
+
+Note that `optional()`, [`exists()`](#exists), [`windowExists()`](#windowexists) and [`windowOptional()`](#windowoptional) are a little different from the other actions such as [`locate()`](#locate), because they will *not* honor any intent to [`retry()`](#retry) and *immediately* check the [active window](#robotactive) for the given locator. This is important because they are designed to answer the question: "*does the element exist in the application __right now__ ?*"
 
 ## `windowOptional()`
 Returns an "optional" [`Window`](#window-api) object and will not update the "active" window. You can call `activate()` on the returned `Window` object to set it as the current, typically after [checking that it exists](#optional) (by using the `present` property getter).
 
+Here's an example of clicking a button within an "optional" modal pop-up only if it exists:
+
+```cucumber
+* windowOptional('Tips on Startup').locate('Close').click()
+```
+
+Note that on the [`Element` API](#element-api), there is no `click(locator)` API, but you can chain a [`locate()`](#locate) and then call [`click()`](#click).
+
+Also see [finding windows](#finding-windows).
+
 ## `exists()`
+Similar to [`optional()`](#optional) but returns a boolean, convenient to use with the [`assert`](https://github.com/intuit/karate#assert) keyword:
+
+```cucumber
+* assert exists('//pane{Main}')
+```
+
+The above is functionally equivalent to:
+
+```cucumber
+* assert optional('//pane{Main}').present
+```
 
 ## `windowExists()`
 Returns `true` or `false` and will not set or "activate" the current window.
 
+See also [`windowOptional()`](#windowoptional).
+
 ## `window()`
 Sets focus (and activates as "current") to the window by title, prefix with `^` for a string "contains" match or `~` for a regular-expression match. The "active" window will be used as the root of all operations such as [locating controls](#windows-locators).
+
+Also see [finding windows](#finding-windows).
 
 ## `activate()`
 Short-cut to activate any `Element` by locator. The difference from [`window()`](#window) is that this uses the [Windows Locator](#windows-locators) system to find elements. If you do this at the start of a test without a window activated or if [`robot.active`](#robotactive) is `null`, the search-root will be [`robot.root`](#robotroot) or the "Desktop". This can be useful in rare cases where the application under test lives under a "pane" [Control Type](#control-type) instead of a "window".
@@ -312,7 +469,7 @@ Gets the root of all available objects as an [`Element`](#element-api) reference
 ## `robot.active`
 Returns the currently "active" element, typically set after a previous call to [`window()`](#window) or [`windowOptional()`](#windowoptional). This will fail the test if a window (or any other `Element` type) has not been "activated".
 
-The [`Element`](#element-api) API has an `activate()` method, so you can do this:
+The [`Element`](#element-api) API has an `activate()` method, so you can also do this:
 
 ```cucumber
 * robot.root.locate('//pane{Some Name}').activate()
@@ -351,10 +508,10 @@ Also note that you can use [`Element.children`](#element-api) to get all direct 
 Rarely used, but when you want to just instantiate an [`Element`](src/main/java/com/intuit/karate/robot/Element.java) instance, typically when you are writing custom re-usable functions, or using an element as a "waypoint" to access other elements in a large, complex "tree".
 
 ```cucumber
-* def e = locate('{pane}Some Pane')
+* def e = locate('//pane{Some Pane}')
 # now you can have multiple steps refer to "e"
-* e.locate('{edit}').input('foo')
-* e.locate('{button}').click()
+* e.locate('//edit').input('foo')
+* e.locate('//button').click()
 ```
 Note that `locate()` will fail the test if the element was not found. Think of it as just like [`waitFor()`](#waitfor) but without the "wait" part.
 
@@ -402,6 +559,9 @@ You can also click on any X and Y co-ordinate. Note that (0, 0) is the top, left
 * click(100, 200)
 ```
 
+## `doubleClick()`
+Performs a double-click at the current mouse position. Note that you can also chain this off an [`Element`](#element-api).
+
 ## `move()`
 Argument can be `x, y` co-ordinates or typically the name of an image, which will be looked for in the [`basePath`](#robot). Note that relative paths will work.
 
@@ -421,6 +581,24 @@ If you need to simulate key combinations, just ensure that the [modifier keys](#
 * input(Key.META + 't')
 ```
 
+For convenience, you can pass an array of strings as a single argument, convenient for a lot of "brute force" keyboard navigation:
+
+```cucumber
+* input([Key.DOWN, Key.RIGHT, Key.ENTER])
+```
+
+And you can also add a second argument to the above case, convenient when you want to slow-down things because for e.g. Karate is too fast for the UI to perform validations or refresh:
+
+```cucumber
+* input([Key.DOWN, Key.RIGHT, Key.ENTER], 100)
+```
+
+And a string argument is also supported in which case each the delay is before each character.
+
+```cucumber
+* input('type this slowly', 100)
+```
+
 ## `select()`
 To select from a drop-down, for elements with a control-type of `itemtype`. The pattern is to get a reference to the item and call `select()` on it:
 
@@ -435,7 +613,30 @@ A mouse press that will be held down, useful for simulating a drag and drop oper
 Release mouse button, useful for simulating a drag and drop operation.
 
 ## `screenshot()`
-Will save a screenshot of the viewport, which will appear in the HTML report. Note that this returns a byte-array of the PNG image.
+Will save a screenshot of the viewport (entire desktop), which will appear in the HTML report. Note that this returns a byte-array of the PNG image.
+
+```cucumber
+* screenshot()
+```
+
+Note that you can call this *on* an [`Element`](#element-api) instance if you really want to "zoom in":
+
+```cucumber
+* locate('//pane{Tree}').screenshot()
+```
+
+## `screenshotActive()`
+This will screenshot only the [active](#robotactive) control, typically the [window](#window) having focus.
+
+```cucumber
+* screenshotActive()
+```
+
+Note that this is a convenience short-cut for:
+
+```cucumber
+* robot.active.screenshot()
+```
 
 # Standalone JAR
 The `karate-robot` for Windows is around 150 MB and hence not distributed with the [ZIP Release](https://github.com/intuit/karate/wiki/ZIP-Release). But you can download it separately, and it can be easily added to the classpath. You can find instructions [here](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot).

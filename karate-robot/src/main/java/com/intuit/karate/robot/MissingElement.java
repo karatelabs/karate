@@ -50,7 +50,7 @@ public class MissingElement implements Element {
 
     @Override
     public boolean isEnabled() {
-        return true; // hmm
+        return false;
     }
 
     @Override

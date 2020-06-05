@@ -723,6 +723,12 @@ And an extra convenience third argument is a time-delay (in milliseconds) that w
 * input('input[name=someName]', ['a', 'b', 'c', Key.ENTER], 200)
 ```
 
+And for extra convenience, you can pass a string as the second argument above, in which case Karate will split the string and fire the delay before each character:
+
+```cucumber
+* input('input[name=someName]', 'type this slowly', 100)
+```
+
 If you need to send input to the "whole page" (not a specific input field), just use `body` as the selector:
 
 ```cucumber

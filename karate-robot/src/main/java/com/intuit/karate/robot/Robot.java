@@ -71,6 +71,12 @@ public interface Robot extends Plugin {
 
     @AutoDef
     Robot input(String[] values);
+    
+    @AutoDef
+    Robot input(String[] values, int delay);  
+    
+    @AutoDef
+    Robot input(String chars, int delay);
 
     @AutoDef
     Robot input(String value);
@@ -81,6 +87,9 @@ public interface Robot extends Plugin {
     @AutoDef
     byte[] screenshot();
 
+    @AutoDef
+    byte[] screenshotActive();
+    
     @AutoDef
     Robot move(int x, int y);
 
@@ -103,14 +112,10 @@ public interface Robot extends Plugin {
     Element optional(String locator);
 
     @AutoDef
-    default boolean exists(String locator) {
-        return optional(locator).isPresent();
-    }
+    boolean exists(String locator);
 
     @AutoDef
-    default boolean windowExists(String locator) {
-        return windowOptional(locator).isPresent();
-    }
+    boolean windowExists(String locator);
 
     @AutoDef
     Element windowOptional(String locator);
@@ -146,9 +151,7 @@ public interface Robot extends Plugin {
     Element waitForAny(String[] locators);
     
     @AutoDef
-    default Element activate(String locator) {
-        return locate(locator).activate();
-    }
+    Element activate(String locator);
     
     List<Window> getAllWindows(); // purely for debug convenience        
     

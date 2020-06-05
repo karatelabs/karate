@@ -124,7 +124,7 @@ public abstract class RobotBase implements Robot, Plugin {
             screen = new Region(this, 0, 0, dimension.width, dimension.height);
             robot = new java.awt.Robot();
             robot.setAutoDelay(autoDelay);
-            robot.setAutoWaitForIdle(true);            
+            robot.setAutoWaitForIdle(true);
             //==================================================================
             autoClose = get("autoClose", true);
             boolean attach = get("attach", true);
@@ -276,7 +276,24 @@ public abstract class RobotBase implements Robot, Plugin {
 
     @Override
     public Robot input(String[] values) {
+        return input(values, 0);
+    }
+
+    @Override
+    public Robot input(String chars, int delay) {
+        String[] array = new String[chars.length()];
+        for (int i = 0; i < array.length; i++) {
+            array[i] = Character.toString(chars.charAt(i));
+        }
+        return input(array, delay);
+    }
+
+    @Override
+    public Robot input(String[] values, int delay) {
         for (String s : values) {
+            if (delay > 0) {
+                delay(delay);
+            }
             input(s);
         }
         return this;
@@ -345,6 +362,11 @@ public abstract class RobotBase implements Robot, Plugin {
         return screenshot(screen);
     }
 
+    @Override
+    public byte[] screenshotActive() {
+        return getActive().screenshot();
+    }
+
     public byte[] screenshot(int x, int y, int width, int height) {
         return screenshot(new Region(this, x, y, width, height));
     }
@@ -388,9 +410,19 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     @Override
+    public boolean exists(String locator) {
+        return optional(locator).isPresent();
+    }
+
+    @Override
     public Element optional(String locator) {
         return optional(getSearchRoot(), locator);
     }
+
+    @Override
+    public boolean windowExists(String locator) {
+        return windowOptional(locator).isPresent();
+    }        
 
     @Override
     public Element windowOptional(String locator) {
@@ -468,7 +500,7 @@ public abstract class RobotBase implements Robot, Plugin {
     public Element release(String locator) {
         return locate(getHighlightDuration(), getSearchRoot(), locator).release();
     }
-    
+
     private StringUtils.Pair parseOcr(String raw) { // TODO make object
         int pos = raw.indexOf('}');
         String lang = raw.substring(1, pos);
@@ -478,7 +510,7 @@ public abstract class RobotBase implements Robot, Plugin {
         String text = raw.substring(pos + 1);
         return StringUtils.pair(lang, text);
     }
-    
+
     public List<Element> locateAllText(Element searchRoot, String path) {
         StringUtils.Pair pair = parseOcr(path);
         String lang = pair.left;
@@ -489,8 +521,8 @@ public abstract class RobotBase implements Robot, Plugin {
         String text = pair.right;
         return Tesseract.findAll(this, lang, searchRoot.getRegion(), text, negative);
     }
-    
-    public Element locateText(Element searchRoot, String path) { 
+
+    public Element locateText(Element searchRoot, String path) {
         StringUtils.Pair pair = parseOcr(path);
         String lang = pair.left;
         boolean negative = lang.charAt(0) == '-';
@@ -508,7 +540,7 @@ public abstract class RobotBase implements Robot, Plugin {
             list.add(new ImageElement(region));
         }
         return list;
-    }        
+    }
 
     public Element locateImage(Region region, String path) {
         return locateImage(region, readBytes(path));
@@ -598,6 +630,11 @@ public abstract class RobotBase implements Robot, Plugin {
             return locateInternal(searchRoot, locator);
         }
     }
+
+    @Override
+    public Element activate(String locator) {
+        return locate(locator).activate();
+    }        
 
     @Override
     public Element getActive() {
