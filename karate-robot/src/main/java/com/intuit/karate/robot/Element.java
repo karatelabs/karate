@@ -104,6 +104,18 @@ public interface Element {
         getRobot().retry(count);
         return this;
     }
+    
+    default Element waitFor(String locator) {
+        return getRobot().retryForAny(this, locator);
+    }
+    
+    default Element waitForAny(String locator1, String locator2) {
+        return getRobot().retryForAny(this, locator1, locator2);
+    }
+    
+    default Element waitForAny(String[] locators) {
+        return getRobot().retryForAny(this, locators);
+    }    
 
     default Element retry(Integer count, Integer interval) {
         getRobot().retry(count, interval);

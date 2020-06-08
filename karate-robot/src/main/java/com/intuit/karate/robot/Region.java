@@ -41,6 +41,10 @@ public class Region  {
     public final int y;
     public final int width;
     public final int height;
+    
+    Region toAbsolute(Region offset) {
+        return new Region(robot, x + offset.x, y + offset.y, width, height);
+    }
 
     public Region(RobotBase robot, int x, int y) {
         this(robot, x, y, 0, 0);

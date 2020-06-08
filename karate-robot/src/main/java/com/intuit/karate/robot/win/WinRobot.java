@@ -74,8 +74,8 @@ public class WinRobot extends RobotBase {
                 list.add(new WinWindow(this, e));
             }
         }
-        return list;        
-    }        
+        return list;
+    }
 
     @Override
     protected Element windowInternal(String title) {
@@ -89,12 +89,22 @@ public class WinRobot extends RobotBase {
         int count = windows.getLength();
         for (int i = 0; i < count; i++) {
             IUIAutomationElement child = windows.getElement(i);
+            if (!child.isValid()) {
+                logger.warn("invalid window: {}", child);
+                continue;
+            }
             String name = child.getCurrentName();
+            if (name == null) {
+                logger.warn("name is null for window: {}", child);
+                continue;
+            }
             if (logger.isTraceEnabled()) {
                 logger.trace("scanning window: {}", name);
             }
             if (condition.test(name)) {
-                logger.debug("found window: {}", name);
+                if (logger.isTraceEnabled()) {
+                    logger.trace("found window: {}", name);
+                }
                 return new WinWindow(this, child).focus();
             }
         }

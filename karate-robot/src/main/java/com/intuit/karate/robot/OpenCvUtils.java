@@ -42,6 +42,7 @@ import static org.bytedeco.opencv.global.opencv_core.minMaxLoc;
 import static org.bytedeco.opencv.global.opencv_core.bitwise_not;
 import static org.bytedeco.opencv.global.opencv_imgcodecs.*;
 import static org.bytedeco.opencv.global.opencv_imgproc.*;
+import org.bytedeco.opencv.opencv_core.AbstractScalar;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Point;
 import org.bytedeco.opencv.opencv_core.Point2f;
@@ -64,20 +65,29 @@ public class OpenCvUtils {
         // only static methods
     }
     
-    public static Region find(RobotBase robot, Region source, byte[] bytes, boolean resize) {
-        return find(robot, toMat(source.captureGreyScale()), read(bytes), resize);
+    public static Region find(int strictness, RobotBase robot, Region source, byte[] bytes, boolean resize) {
+        Region found = find(strictness, robot, toMat(source.captureGreyScale()), read(bytes), resize);
+        if (found == null) {
+            return null;
+        }
+        return found.toAbsolute(source);
     }
 
-    public static Region find(RobotBase robot, Mat source, Mat target, boolean resize) {
-        List<Region> found = find(false, robot, source, target, resize);
+    public static Region find(int strictness, RobotBase robot, Mat source, Mat target, boolean resize) {
+        List<Region> found = find(strictness, false, robot, source, target, resize);
         if (found.isEmpty()) {
             return null;
         }
         return found.get(0);
     }
 
-    public static List<Region> findAll(RobotBase robot, BufferedImage source, byte[] bytes, boolean resize) {
-        return find(true, robot, OpenCvUtils.toMat(source), read(bytes), resize);
+    public static List<Region> findAll(int strictness, RobotBase robot, Region source, byte[] bytes, boolean resize) {
+        List<Region> found = find(strictness, true, robot, toMat(source.captureGreyScale()), read(bytes), resize);
+        List<Region> list = new ArrayList(found.size());
+        for (Region r : found) {
+            list.add(r.toAbsolute(source));
+        }
+        return list;
     }
 
     public static Mat rescale(Mat mat, double scale) {
@@ -86,7 +96,7 @@ public class OpenCvUtils {
         return resized;
     }
 
-    private static final int TARGET_MINVAL_FACTOR = 450; // magic number, lower is stricter
+    private static final int TARGET_MINVAL_FACTOR = 150; // magic number, lower is stricter
     private static final int BLOCK_SIZE = 5;
 
     private static List<int[]> getPointsBelowThreshold(Mat src, double threshold) {
@@ -142,7 +152,7 @@ public class OpenCvUtils {
         return new Region(robot, x, y, width, height);
     }
 
-    private static int[] templateAndMin(double scale, Mat source, Mat target, Mat result) {
+    private static int[] templateAndMin(int strictness, double scale, Mat source, Mat target, Mat result) {
         Mat resized = scale == 1 ? source : rescale(source, scale);
         matchTemplate(resized, target, result, CV_TM_SQDIFF);
         DoublePointer minValPtr = new DoublePointer(1);
@@ -156,17 +166,23 @@ public class OpenCvUtils {
         return new int[]{x, y, minVal};
     }
 
-    private static int collect(List<Region> found, boolean findAll, RobotBase robot, Mat source, Mat target, double scale) {
+    private static int collect(int strictness, List<Region> found, boolean findAll, RobotBase robot, Mat source, Mat target, double scale) {
         int targetWidth = target.cols();
         int targetHeight = target.rows();
-        int targetMinVal = targetWidth * targetHeight * TARGET_MINVAL_FACTOR;  
+        int targetMinVal = targetWidth * targetHeight * TARGET_MINVAL_FACTOR * strictness;  
         Mat result = new Mat();
-        int[] min = templateAndMin(scale, source, target, result);
-        if (min[2] > targetMinVal) {
-            logger.debug("no match at scale {}, minVal: {} / {} at {}:{}", scale, min[2], targetMinVal, min[0], min[1]);
-            return min[2];
+        int[] minData = templateAndMin(strictness, scale, source, target, result);
+        int minValue = minData[2];
+        if (minValue > targetMinVal) {
+            logger.debug("no match at scale {}, minVal: {} / {} at {}:{}", scale, minValue, targetMinVal, minData[0], minData[1]);
+            if (robot != null && robot.debug) {
+                Rect rect = new Rect(minData[0], minData[1], targetWidth, targetHeight);
+                Mat temp = drawOnImage(source, rect, Scalar.RED);
+                show(temp, scale + " " +  minData[0] + ":" + minData[1] + " " + minValue + " / " + targetMinVal);
+            }
+            return minData[2];
         }
-        logger.debug("found match at scale {}, minVal: {} / {} at {}:{}", scale, min[2], targetMinVal, min[0], min[1]);
+        logger.debug("found match at scale {}, minVal: {} / {} at {}:{}", scale, minValue, targetMinVal, minData[0], minData[1]);
         if (findAll) {
             List<int[]> points = getPointsBelowThreshold(result, targetMinVal);
             for (int[] p : points) {
@@ -174,31 +190,38 @@ public class OpenCvUtils {
                 found.add(region);
             }
         } else {
-            Region region = toRegion(robot, min, scale, targetWidth, targetHeight);
+            Region region = toRegion(robot, minData, scale, targetWidth, targetHeight);
             found.add(region);
         }
-        return min[2];
+        return minValue;
     }
 
-    public static List<Region> find(boolean findAll, RobotBase robot, Mat source, Mat target, boolean resize) {
+    public static List<Region> find(int strictness, boolean findAll, RobotBase robot, Mat source, Mat target, boolean resize) {
         List<Region> found = new ArrayList();
-        collect(found, findAll, robot, source, target, 1);
+        collect(strictness, found, findAll, robot, source, target, 1);
         if (!found.isEmpty()) {
             return found;
         }
-        int stepUp = collect(found, findAll, robot, source, target, 1.1);
+        int stepUp = collect(strictness, found, findAll, robot, source, target, 1.1);
         if (!found.isEmpty()) {
             return found;
         }
-        int stepDown = collect(found, findAll, robot, source, target, 0.9);
+        int stepDown = collect(strictness, found, findAll, robot, source, target, 0.9);
         if (!found.isEmpty()) {
             return found;
         }
-        boolean goUp = stepUp < stepDown;
+        boolean goUpFirst = stepUp < stepDown;
         for (int step = 2; step < 6; step++) {
-            double scale = 1 + 0.1 * step * (goUp ? 1 : -1);
-            collect(found, findAll, robot, source, target, scale);
+            double scale = 1 + 0.1 * step * (goUpFirst ? 1 : -1);
+            collect(strictness, found, findAll, robot, source, target, scale);
         }
+        if (!findAll && !found.isEmpty()) {
+            return found;
+        }
+        for (int step = 2; step < 6; step++) {
+            double scale = 1 + 0.1 * step * (goUpFirst ? -1 : 1);
+            collect(strictness, found, findAll, robot, source, target, scale);
+        }        
         return found;
     }
 
@@ -255,6 +278,11 @@ public class OpenCvUtils {
             throw new RuntimeException(e);
         }
     }
+    
+    public static void show(byte[] bytes, String title) {
+        Mat mat = read(bytes);
+        show(toBufferedImage(mat), title);
+    }    
 
     public static void show(Mat mat, String title) {
         show(toBufferedImage(mat), title);

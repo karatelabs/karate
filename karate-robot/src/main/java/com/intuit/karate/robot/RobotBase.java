@@ -78,6 +78,13 @@ public abstract class RobotBase implements Robot, Plugin {
     private Integer retryIntervalOverride = null;
     private Integer retryCountOverride = null;
 
+    // debug
+    protected boolean debug;
+
+    public void setDebug(boolean debug) {
+        this.debug = debug;
+    }        
+
     public void disableRetry() {
         retryEnabled = false;
         retryCountOverride = null;
@@ -152,7 +159,7 @@ public abstract class RobotBase implements Robot, Plugin {
                         retryCountOverride = get("retryCount", null);
                         retryIntervalOverride = get("retryInterval", null);
                         currentWindow = window(window); // will retry
-                        logger.debug("attached to process window: {} - {}", window, command.getArgList());
+                        logger.debug("attached to process window: {} - {}", currentWindow, command.getArgList());
                     }
                 }
                 if (currentWindow == null && window != null) {
@@ -160,7 +167,8 @@ public abstract class RobotBase implements Robot, Plugin {
                 }
             }
         } catch (Exception e) {
-            throw new KarateException("robot init failed", e);
+            String message = "robot init failed: " + e.getMessage();
+            throw new KarateException(message, e);
         }
     }
 
@@ -422,7 +430,7 @@ public abstract class RobotBase implements Robot, Plugin {
     @Override
     public boolean windowExists(String locator) {
         return windowOptional(locator).isPresent();
-    }        
+    }
 
     @Override
     public Element windowOptional(String locator) {
@@ -534,7 +542,14 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     public List<Element> locateAllImages(Element searchRoot, String path) {
-        List<Region> found = OpenCvUtils.findAll(this, searchRoot.getRegion().captureGreyScale(), readBytes(path), true);
+        int strictness; // TODO code dup
+        if (path.charAt(1) == ':') {
+            strictness = Integer.valueOf(path.substring(0, 1));
+            path = path.substring(2);
+        } else {
+            strictness = 10;
+        }
+        List<Region> found = OpenCvUtils.findAll(strictness, this, searchRoot.getRegion(), readBytes(path), true);
         List<Element> list = new ArrayList(found.size());
         for (Region region : found) {
             list.add(new ImageElement(region));
@@ -543,11 +558,18 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     public Element locateImage(Region region, String path) {
-        return locateImage(region, readBytes(path));
+        int strictness;
+        if (path.charAt(1) == ':') {
+            strictness = Integer.valueOf(path.substring(0, 1));
+            path = path.substring(2);
+        } else {
+            strictness = 10;
+        }        
+        return locateImage(region, strictness, readBytes(path));
     }
 
-    public Element locateImage(Region searchRegion, byte[] bytes) {
-        Region region = OpenCvUtils.find(this, searchRegion, bytes, true);
+    public Element locateImage(Region searchRegion, int strictness, byte[] bytes) {
+        Region region = OpenCvUtils.find(strictness, this, searchRegion, bytes, true);
         if (region == null) {
             return null;
         }
@@ -563,7 +585,7 @@ public abstract class RobotBase implements Robot, Plugin {
         Predicate<String> condition = new StringMatcher(title);
         currentWindow = retry ? retry(() -> windowInternal(condition), w -> w != null, "find window", true) : windowInternal(condition);
         if (currentWindow != null && highlight) { // currentWindow can be null
-            currentWindow.highlight(highlightDuration);
+            currentWindow.highlight(getHighlightDuration());
         }
         return currentWindow;
     }
@@ -572,13 +594,17 @@ public abstract class RobotBase implements Robot, Plugin {
     public Element window(Predicate<String> condition) {
         currentWindow = retry(() -> windowInternal(condition), w -> w != null, "find window", true);
         if (currentWindow != null && highlight) { // currentWindow can be null
-            currentWindow.highlight(highlightDuration);
+            currentWindow.highlight(getHighlightDuration());
         }
         return currentWindow;
     }
 
     protected Element getSearchRoot() {
-        return currentWindow == null ? getRoot() : currentWindow;
+        if (currentWindow == null) {
+            logger.warn("using desktop as search root, activate a window or parent element for better performance");
+            return getRoot();
+        }
+        return currentWindow;
     }
 
     @Override
@@ -601,11 +627,11 @@ public abstract class RobotBase implements Robot, Plugin {
         return retryForAny(getSearchRoot(), locators);
     }
 
-    private Element retryForAny(Element searchRoot, String... locators) {
+    protected Element retryForAny(Element searchRoot, String... locators) {
         return retry(() -> waitForAny(searchRoot, locators), r -> r != null, "find by locator(s): " + Arrays.asList(locators), true);
     }
 
-    protected Element waitForAny(Element searchRoot, String... locators) {
+    private Element waitForAny(Element searchRoot, String... locators) {
         for (String locator : locators) {
             Element found = locateImageOrElement(searchRoot, locator);
             if (found != null) {
@@ -634,7 +660,7 @@ public abstract class RobotBase implements Robot, Plugin {
     @Override
     public Element activate(String locator) {
         return locate(locator).activate();
-    }        
+    }
 
     @Override
     public Element getActive() {
@@ -650,6 +676,11 @@ public abstract class RobotBase implements Robot, Plugin {
             currentWindow = e;
         }
         return this;
+    }
+
+    public void debugImage(String path) {
+        byte[] bytes = readBytes(path);
+        OpenCvUtils.show(bytes, path);
     }
 
     @Override

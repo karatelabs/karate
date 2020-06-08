@@ -32,6 +32,8 @@
     | <a href="https://github.com/intuit/karate/wiki/Karate-Robot-Windows-Install-Guide#debug-mode">Debugging</a>
     | <a href="#retry">Retries</a>
     | <a href="#karatefork"><code>karate.fork()</code></a>
+    | <a href="#utility-functions">Utility Functions</a>
+    | <a href="#conditional-start">Conditional Start</a>
   </td>
 </tr>
 <tr>
@@ -81,7 +83,7 @@
   </td>
 </tr>
 <tr>
-  <th>Wait / JS</th>
+  <th>Retry / Wait</th>
   <td>
       <a href="#retry"><code>retry()</code></a>
     | <a href="#waitfor"><code>waitFor()</code></a>
@@ -193,6 +195,8 @@ Scenario:
 * input('#password', testPassword)
 * click('#submit-btn')
 ```
+
+Also see [Conditional Start](#conditional-start) which is a more advanced version of the above flow, when the "Sign In" window title is different.
 
 Note how you can [inject variables from global config](https://github.com/intuit/karate#karate-configjs) e.g. `testUser` and `testPassword` using Karate.
 
@@ -431,7 +435,7 @@ Here's an example of clicking a button within an "optional" modal pop-up only if
 
 Note that on the [`Element` API](#element-api), there is no `click(locator)` API, but you can chain a [`locate()`](#locate) and then call [`click()`](#click).
 
-Also see [finding windows](#finding-windows).
+Also see [finding windows](#finding-windows) and [conditional start](#conditional-start).
 
 ## `exists()`
 Similar to [`optional()`](#optional) but returns a boolean, convenient to use with the [`assert`](https://github.com/intuit/karate#assert) keyword:
@@ -637,6 +641,62 @@ Note that this is a convenience short-cut for:
 ```cucumber
 * robot.active.screenshot()
 ```
+
+# Conditional Start
+A useful pattern is to run an app-boot and sign-in sequence only if the main application window is not present. Note how [`karate.abort()`](https://github.com/intuit/karate#karate-abort) can be used to conditionaly exit a "called" feature early.
+
+This is also a great example of using [`windowOptional()`](#windowoptional).
+
+```cucumber
+* def mainWindowName = '^MyApp'
+* robot {}
+* def mainWindow = windowOptional(mainWindowName)
+* if (mainWindow.present) { mainWindow.activate(); karate.abort() }
+* karate.fork('C:/myapp/app.exe')
+* retry(10).window('Sign In')
+* waitFor('#userid').input('john@smith.com')
+* input('#password', 'Test@123')
+* click('#submit-btn')
+* retry(10).window(lacWindowName)
+```
+
+And the "calling feature" can directly jump into the flow to be tested after making a [`call`](https://github.com/intuit/karate#calling-other-feature-files) to the above:
+
+```cucumber
+Feature: main
+
+Background:
+* call read('start.feature')
+
+Scenario:
+# main flow
+* click('#some-btn')
+```
+
+Also see [finding windows](#finding-windows).
+
+# Utility Functions
+Some of the [Karate JS API](https://github.com/intuit/karate#the-karate-object) that are more relevant to desktop or Windows app testing are described here:
+
+## [`karate.toAbsolutePath()`](https://github.com/intuit/karate#karate-toabsolutepath)
+This will return the OS specific path form, for example on Windows, back-slash characters will be used. This is useful to generate file-names needed to [`input()`](#input) into file-chooser dialogs and the like.
+
+Here is an example of creating a random file-name on Windows. Also refer to [commonly needed utilities](https://github.com/intuit/karate#commonly-needed-utilities). The reason we use `target` here is that because it is the standard build-output directory where temp-files and reports are created.
+
+```cucumber
+* def random = function(){ return java.lang.System.currentTimeMillis() + '' }
+* def dataFolder = function(){ return karate.toAbsolutePath('file:target') }
+* def tempTextFile = function(){ return dataFolder() + '\\' + random() + '.txt' }
+```
+
+The [multiple functions in one file](https://github.com/intuit/karate#multiple-functions-in-one-file) pattern can be used to set up these common utilities, and now within a feature-file you can do this:
+
+```cucumber
+* def tempFile = tempTextFile()
+```
+
+## [`karate.exec()`](https://github.com/intuit/karate#karate-exec)
+Can execute any OS command, wait for it it terminate, and return the system / console output as a string.
 
 # Standalone JAR
 The `karate-robot` for Windows is around 150 MB and hence not distributed with the [ZIP Release](https://github.com/intuit/karate/wiki/ZIP-Release). But you can download it separately, and it can be easily added to the classpath. You can find instructions [here](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot).
