@@ -275,6 +275,7 @@ public class Config {
         headers = parent.headers;
         cookies = parent.cookies;
         responseHeaders = parent.responseHeaders;
+        responseDelay = parent.responseDelay;
         lowerCaseResponseHeaders = parent.lowerCaseResponseHeaders;
         corsEnabled = parent.corsEnabled;
         logPrettyRequest = parent.logPrettyRequest;
@@ -390,6 +391,10 @@ public class Config {
 
     public ScriptValue getResponseHeaders() {
         return responseHeaders;
+    }
+
+    public long getResponseDelay() {
+        return responseDelay;
     }
 
     public boolean isLowerCaseResponseHeaders() {
