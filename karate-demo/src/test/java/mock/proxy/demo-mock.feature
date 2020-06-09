@@ -5,7 +5,7 @@ Background:
 * def nextId = function(){ return ~~curId++ }
 * def cats = {}
 
-Scenario: pathMatches('/greeting') && paramValue('name') != null
+Scenario: pathMatches('/greeting') && paramExists('name')
     * def content = 'Hello ' + paramValue('name') + '!'
     * def response = { id: '#(nextId())', content: '#(content)' }
 

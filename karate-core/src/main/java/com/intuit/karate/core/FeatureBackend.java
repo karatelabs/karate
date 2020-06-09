@@ -60,6 +60,14 @@ public class FeatureBackend {
         private final Scenario scenario;
         private final List<Integer> scores;
 
+        private static final List<Integer> DEFAULT_SCORES = Collections.unmodifiableList(Arrays.asList(0, 0, 0, 0, 0, 0));
+
+        public FeatureScenarioMatch(FeatureBackend featureBackend, Scenario scenario) {
+            this.scenario = scenario;
+            this.scores = DEFAULT_SCORES;
+            this.featureBackend = featureBackend;
+        }
+
         public FeatureScenarioMatch(FeatureBackend featureBackend, Scenario scenario, List<Integer> scores) {
             this.scenario = scenario;
             this.scores = Collections.unmodifiableList(scores);
@@ -123,6 +131,7 @@ public class FeatureBackend {
         putBinding(ScriptBindings.PATH_MATCHES, context);
         putBinding(ScriptBindings.METHOD_IS, context);
         putBinding(ScriptBindings.PARAM_VALUE, context);
+        putBinding(ScriptBindings.PARAM_EXISTS, context);
         putBinding(ScriptBindings.TYPE_CONTAINS, context);
         putBinding(ScriptBindings.ACCEPT_CONTAINS, context);
         putBinding2(ScriptBindings.HEADER_CONTAINS, context);
@@ -177,9 +186,11 @@ public class FeatureBackend {
                 ScriptValue pathMatchScoresValue = context.vars.getOrDefault(ScriptBindings.PATH_MATCH_SCORES, ScriptValue.NULL);
                 boolean methodMatch = context.vars.getOrDefault(ScriptBindings.METHOD_MATCH, ScriptValue.FALSE).getValue(Boolean.class);
                 int headersMatchScore = context.vars.getOrDefault(ScriptBindings.HEADERS_MATCH_SCORE, ScriptValue.ZERO).getAsInt();
+                int queryMatchScore = context.vars.getOrDefault(ScriptBindings.QUERY_MATCH_SCORE, ScriptValue.ZERO).getAsInt();
 
                 scores.addAll(pathMatchScoresValue.isNull() ? Arrays.asList(0, 0, 0) : pathMatchScoresValue.getAsList());
                 scores.add(methodMatch ? 1 : 0);
+                scores.add(queryMatchScore);
                 scores.add(headersMatchScore);
 
                 matchingScenarios.add(new FeatureScenarioMatch(this, scenario, scores));
@@ -242,26 +253,27 @@ public class FeatureBackend {
     }
 
     public HttpResponse buildResponse(HttpRequest request, long startTime, Scenario scenario, ScriptValueMap args) {
-        ScriptValue responseValue, responseStatusValue, responseHeaders, afterScenario;
+        ScriptValue responseValue, responseStatusValue, responseHeaders, afterScenario, responseDelayValue;
         Map<String, Object> responseHeadersMap, configResponseHeadersMap;
-        // this is a sledgehammer approach to concurrency !
-        // which is why for simulating 'delay', users should use the VAR_AFTER_SCENARIO (see end)
-        synchronized (this) { // BEGIN TRANSACTION !
-            ScriptValueMap result = handle(args, scenario);
-            ScriptValue configResponseHeaders = context.getConfig().getResponseHeaders();
-            responseValue = result.remove(ScriptValueMap.VAR_RESPONSE);
-            responseStatusValue = result.remove(ScriptValueMap.VAR_RESPONSE_STATUS);
-            responseHeaders = result.remove(ScriptValueMap.VAR_RESPONSE_HEADERS);
-            afterScenario = result.remove(VAR_AFTER_SCENARIO);
-            if (afterScenario == null) {
-                afterScenario = context.getConfig().getAfterScenario();
-            }
-            configResponseHeadersMap = configResponseHeaders == null ? null : configResponseHeaders.evalAsMap(context);
-            responseHeadersMap = responseHeaders == null ? null : responseHeaders.evalAsMap(context);
-        } // END TRANSACTION !!
+        ScriptValueMap result = handle(args, scenario);
+        ScriptValue configResponseHeaders = context.getConfig().getResponseHeaders();
+        responseValue = result.remove(ScriptValueMap.VAR_RESPONSE);
+        responseStatusValue = result.remove(ScriptValueMap.VAR_RESPONSE_STATUS);
+        long configResponseDelayValue = context.getConfig().getResponseDelay();
+        responseDelayValue = result.remove(ScriptValueMap.VAR_RESPONSE_DELAY);
+        responseHeaders = result.remove(ScriptValueMap.VAR_RESPONSE_HEADERS);
+        afterScenario = result.remove(VAR_AFTER_SCENARIO);
+        if (afterScenario == null) {
+            afterScenario = context.getConfig().getAfterScenario();
+        }
+        configResponseHeadersMap = configResponseHeaders == null ? null : configResponseHeaders.evalAsMap(context);
+        responseHeadersMap = responseHeaders == null ? null : responseHeaders.evalAsMap(context);
+
         int responseStatus = responseStatusValue == null ? 200 : Integer.valueOf(responseStatusValue.getAsString());
+        long delay = responseDelayValue == null || responseDelayValue.isNull() ? configResponseDelayValue : Double.valueOf(responseDelayValue.getAsString()).longValue();
         HttpResponse response = new HttpResponse(startTime, System.currentTimeMillis());
         response.setStatus(responseStatus);
+        response.setDelay(delay);
         if (responseValue != null && !responseValue.isNull()) {
             response.setBody(responseValue.getAsByteArray());
         }
@@ -298,8 +310,6 @@ public class FeatureBackend {
         if (context.getConfig().isCorsEnabled()) {
             response.addHeader(HttpUtils.HEADER_AC_ALLOW_ORIGIN, "*");
         }
-        // functions here are outside of the 'transaction' and should not mutate global state !
-        // typically this is where users can set up an artificial delay or sleep
         if (afterScenario != null && afterScenario.isFunction()) {
             afterScenario.invokeFunction(context, null);
         }

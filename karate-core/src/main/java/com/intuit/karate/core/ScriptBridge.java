@@ -497,7 +497,8 @@ public class ScriptBridge implements PerfContext {
                         result = JsonUtils.toJsonDoc(json);
                         context.logger.info("callSingleCache hit: {}", cacheFile);
                     } else {
-                        context.logger.info("callSingleCache stale, last modified {} - is before {} (minutes: {})", lastModified, since, minutes);
+                        context.logger.info("callSingleCache stale, last modified {} - is before {} (minutes: {})", lastModified, since,
+                                            minutes);
                     }
                 } else {
                     context.logger.info("callSingleCache file does not exist, will create: {}", cacheFile);
@@ -638,12 +639,13 @@ public class ScriptBridge implements PerfContext {
 
     public boolean pathMatches(String path) {
         String uri = getAsString(ScriptValueMap.VAR_REQUEST_URI);
+
         Map<String, String> pathParams = HttpUtils.parseUriPattern(path, uri);
         set(ScriptBindings.PATH_PARAMS, pathParams);
         boolean matched = pathParams != null;
 
         List<Integer> pathMatchScores = null;
-        if(matched) {
+        if (matched) {
             pathMatchScores = HttpUtils.calculatePathMatchScore(path);
         }
 
@@ -662,11 +664,7 @@ public class ScriptBridge implements PerfContext {
     }
 
     public Object paramValue(String name) {
-        Map<String, List<String>> params = (Map) getValue(ScriptValueMap.VAR_REQUEST_PARAMS).getValue();
-        if (params == null) {
-            return null;
-        }
-        List<String> list = params.get(name);
+        List<String> list = paramValues(name);
         if (list == null) {
             return null;
         }
@@ -674,6 +672,19 @@ public class ScriptBridge implements PerfContext {
             return list.get(0);
         }
         return list;
+    }
+
+    private List<String> paramValues(String name) {
+        Map<String, List<String>> params = (Map) getValue(ScriptValueMap.VAR_REQUEST_PARAMS).getValue();
+        if (params == null) {
+            return null;
+        }
+        return params.get(name);
+    }
+
+    public boolean paramExists(String name) {
+        List<String> list = paramValues(name);
+        return list != null && !list.isEmpty();
     }
 
     public boolean headerContains(String name, String test) {

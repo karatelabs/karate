@@ -7,7 +7,7 @@ Background:
 * def targetUrlBase = demoServerPort ? 'http://127.0.0.1:' + demoServerPort : null
 * print 'init target url:', targetUrlBase
 
-Scenario: pathMatches('/greeting') && paramValue('name') != null
+Scenario: pathMatches('/greeting') && paramExists('name', '')
     * karate.proceed(targetUrlBase)
 
 # 'catch-all' rule

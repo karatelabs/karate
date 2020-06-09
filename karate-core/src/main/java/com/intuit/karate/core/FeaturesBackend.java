@@ -89,41 +89,46 @@ public class FeaturesBackend {
         if("OPTIONS".equals(request.getMethod()) && isCorsEnabled()) {
             return corsCheck(request, startTime);
         }
-        //This is not expected to be an actual scenario
-        Match match = new Match()
-                .text(ScriptValueMap.VAR_REQUEST_URL_BASE, request.getUrlBase())
-                .text(ScriptValueMap.VAR_REQUEST_URI, request.getUri())
-                .text(ScriptValueMap.VAR_REQUEST_METHOD, request.getMethod())
-                .def(ScriptValueMap.VAR_REQUEST_HEADERS, request.getHeaders())
-                .def(ScriptValueMap.VAR_RESPONSE_STATUS, 200)
-                .def(ScriptValueMap.VAR_REQUEST_PARAMS, request.getParams());
-        byte[] requestBytes = request.getBody();
-        if (requestBytes != null) {
-            match.def(ScriptValueMap.VAR_REQUEST_BYTES, requestBytes);
-            String requestString = FileUtils.toString(requestBytes);
-            Object requestBody = requestString;
-            if (Script.isJson(requestString)) {
-                try {
-                    requestBody = JsonUtils.toJsonDoc(requestString);
-                } catch (Exception e) {
-                    getContext().logger.warn("json parsing failed, request data type set to string: {}", e.getMessage());
+        // this is a sledgehammer approach to concurrency !
+        // which is why for simulating 'delay', users should use the VAR_AFTER_SCENARIO (see end)
+        synchronized (this) { // BEGIN TRANSACTION !
+            //This is not expected to be an actual scenario
+            Match match = new Match()
+                    .text(ScriptValueMap.VAR_REQUEST_URL_BASE, request.getUrlBase())
+                    .text(ScriptValueMap.VAR_REQUEST_URI, request.getUri())
+                    .text(ScriptValueMap.VAR_REQUEST_METHOD, request.getMethod())
+                    .def(ScriptValueMap.VAR_REQUEST_HEADERS, request.getHeaders())
+                    .def(ScriptValueMap.VAR_RESPONSE_STATUS, 200)
+                    .def(ScriptValueMap.VAR_REQUEST_PARAMS, request.getParams());
+            byte[] requestBytes = request.getBody();
+            if (requestBytes != null) {
+                match.def(ScriptValueMap.VAR_REQUEST_BYTES, requestBytes);
+                String requestString = FileUtils.toString(requestBytes);
+                Object requestBody = requestString;
+                if (Script.isJson(requestString)) {
+                    try {
+                        requestBody = JsonUtils.toJsonDoc(requestString);
+                    } catch (Exception e) {
+                        getContext().logger.warn("json parsing failed, request data type set to string: {}", e.getMessage());
+                    }
+                } else if (Script.isXml(requestString)) {
+                    try {
+                        requestBody = XmlUtils.toXmlDoc(requestString);
+                    } catch (Exception e) {
+                        getContext().logger.warn("xml parsing failed, request data type set to string: {}", e.getMessage());
+                    }
                 }
-            } else if (Script.isXml(requestString)) {
-                try {
-                    requestBody = XmlUtils.toXmlDoc(requestString);
-                } catch (Exception e) {
-                    getContext().logger.warn("xml parsing failed, request data type set to string: {}", e.getMessage());
-                }
+                match.def(ScriptValueMap.VAR_REQUEST, requestBody);
             }
-            match.def(ScriptValueMap.VAR_REQUEST, requestBody);
+
+
+            FeatureBackend.FeatureScenarioMatch matchingInfo = getMatchingScenario(match.vars());
+            FeatureBackend matchingFeature = matchingInfo.getFeatureBackend();
+            Scenario matchingScenario = matchingInfo.getScenario();
+
+            return matchingFeature.buildResponse(request, startTime, matchingScenario, match.vars());
         }
-
-
-        FeatureBackend.FeatureScenarioMatch matchingInfo = getMatchingScenario(match.vars());
-        FeatureBackend matchingFeature = matchingInfo.getFeatureBackend();
-        Scenario matchingScenario = matchingInfo.getScenario();
-
-        return matchingFeature.buildResponse(request, startTime, matchingScenario, match.vars());
+        //Delays should be configured using def/configure responseDelay semantics instead of Thread.sleep
     }
 
     public HttpResponse corsCheck(HttpRequest request, long startTime) {
@@ -160,7 +165,7 @@ public class FeaturesBackend {
 
             matches.addAll(featureMatches);
             if(defaultMatch != null)
-                defaults.add(new FeatureBackend.FeatureScenarioMatch(featureBackend, defaultMatch, Arrays.asList(0, 0, 0, 0, 0)));
+                defaults.add(new FeatureBackend.FeatureScenarioMatch(featureBackend, defaultMatch));
 
         }
         if(matches.isEmpty() && defaults.isEmpty()) {
