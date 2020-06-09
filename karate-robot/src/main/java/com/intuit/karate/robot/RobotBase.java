@@ -83,7 +83,7 @@ public abstract class RobotBase implements Robot, Plugin {
 
     public void setDebug(boolean debug) {
         this.debug = debug;
-    }        
+    }
 
     public void disableRetry() {
         retryEnabled = false;
@@ -541,15 +541,27 @@ public abstract class RobotBase implements Robot, Plugin {
         return Tesseract.find(this, lang, searchRoot.getRegion(), text, negative);
     }
 
-    public List<Element> locateAllImages(Element searchRoot, String path) {
-        int strictness; // TODO code dup
-        if (path.charAt(1) == ':') {
-            strictness = Integer.valueOf(path.substring(0, 1));
-            path = path.substring(2);
-        } else {
-            strictness = 10;
+    private static class PathAndStrict {
+
+        final int strictness;
+        final String path;
+
+        public PathAndStrict(String path) {
+            int pos = path.indexOf(':');
+            if (pos > 0 && pos < 3) {
+                strictness = Integer.valueOf(path.substring(0, pos));
+                this.path = path.substring(pos + 1);
+            } else {
+                strictness = 10;
+                this.path = path;
+            }
         }
-        List<Region> found = OpenCvUtils.findAll(strictness, this, searchRoot.getRegion(), readBytes(path), true);
+
+    }
+
+    public List<Element> locateAllImages(Element searchRoot, String path) {
+        PathAndStrict ps = new PathAndStrict(path);
+        List<Region> found = OpenCvUtils.findAll(ps.strictness, this, searchRoot.getRegion(), readBytes(ps.path), true);
         List<Element> list = new ArrayList(found.size());
         for (Region region : found) {
             list.add(new ImageElement(region));
@@ -558,14 +570,8 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     public Element locateImage(Region region, String path) {
-        int strictness;
-        if (path.charAt(1) == ':') {
-            strictness = Integer.valueOf(path.substring(0, 1));
-            path = path.substring(2);
-        } else {
-            strictness = 10;
-        }        
-        return locateImage(region, strictness, readBytes(path));
+        PathAndStrict ps = new PathAndStrict(path);
+        return locateImage(region, ps.strictness, readBytes(ps.path));
     }
 
     public Element locateImage(Region searchRegion, int strictness, byte[] bytes) {

@@ -100,7 +100,7 @@
 * Windows object-recognition using [Microsoft UI Automation](https://docs.microsoft.com/en-us/windows/win32/winauto/entry-uiauto-win32)
 * [Navigation via image detection](#image-locators) - cross-platform (mac, win, linux) via [JavaCPP and OpenCV](https://github.com/bytedeco/javacpp-presets/tree/master/opencv)
 * [OCR driven navigation](#ocr-locators) and text extraction - cross-platform (mac, win, linux) via [JavaCPP and Tesseract](https://github.com/bytedeco/javacpp-presets/tree/master/tesseract)
-* Tightly integrated into [Karate](https://github.com/intuit/karate) - which means a [debugger, HTML reports](https://twitter.com/ptrthomas/status/1261183808985948160), and more
+* Tightly integrated into [Karate](https://github.com/intuit/karate) - which means a [debugger, HTML reports](#debugger), and more
 
 ### Demo Videos
 * Clicking the *native* "File Upload" button in a Web Page - [Link](https://twitter.com/ptrthomas/status/1253373486384295936)
@@ -132,6 +132,11 @@ Add this to the `<dependencies>`:
 ```
 
 This may result in a few large JAR files getting downloaded by default because of the [`javacpp-presets`](https://github.com/bytedeco/javacpp-presets) dependency. But you can narrow down to what is sufficient for your OS by [following these instructions](https://github.com/bytedeco/javacpp-presets/wiki/Reducing-the-Number-of-Dependencies).
+
+## Debugging
+This is one of the highlights of Karate's capabilities. You can see a video of it in action [here](https://twitter.com/ptrthomas/status/1261183808985948160).
+
+Refer to the documentation on how to set it up and use it: [Karate Robot Windows Install Guide](https://github.com/intuit/karate/wiki/Karate-Robot-Windows-Install-Guide#install-visual-studio-code).
 
 ## `robot`
 Karate Robot is designed to only activate when you use the `robot` keyword, and if the `karate-robot` Java / JAR dependency is present in the project classpath.
@@ -301,6 +306,19 @@ Images have to be in PNG format, and with the extension `*.png`. Karate will att
 
 So any string that ends with `.png` will be treated as an "image locator".
 
+### Image Match Strictness
+You can optionally prefix a number and `:` to the image path like this:
+
+```cucumber
+* click('5:someimage.png')
+```
+
+This number is a "strictness" factor, 1 for being the most strict and 10 (the default) for "normal". As of now, consider this experimental while we try to arrive at the values that will work for most real-life situations.
+
+In case you find it really hard to get a "match", you can try providing values greater than 10 which means Karate will look for more "lenient" matches.
+
+Tip: use the [debugger](#debugging) and [`highlight()`](#highlight) or [`highlightAll()`](#highlightall) to troubleshoot image matching.
+
 ## OCR Locators
 Any string that starts with the `{lang}` pattern will be treated as an OCR locator. 
 
@@ -344,7 +362,7 @@ To extract the text from the whole screen (desktop), you can do this via the [`r
 ```
 
 ### `Element.debugExtract()`
-For debugging and troubleshooting, there is an [`Element.debugExtract()`](#element-api) API. This will highlight all the words found within the given `Element`. This is super-useful during a step-through debugger session.
+For debugging and troubleshooting, there is an [`Element.debugExtract()`](#element-api) API. This will highlight all the words found within the given `Element`. This is super-useful during a [step-through debugger session](#debugging).
 
 ## Windows Locators
 Prefixing with a `#` means using the "Automation ID" which may or may not be available depending on the application under test. And finding by "name" is the default, if the first character is not `/` or `#`. As a convenience, you can use the `^` prefix for a name "contains" match and `~` for a name regular-expression match.
@@ -490,7 +508,7 @@ But it can be more convenient to use the below pattern, as `active` is also a "s
 Returns the [`Element`](#element) that currently has "focus" on the screen, no matter where or what type it is.
 
 ## `robot.allWindows`
-Returns an array of all windows that exist on the desktop. This is convenient to quickly list all window names on the console, especially in debug mode. Also you could loop over all of them and call methods on the [`Element`](#element-api) or [`Window`](#window-api) instance.
+Returns an array of all windows that exist on the desktop. This is convenient to quickly list all window names on the console, especially in [debug mode](#debugging). Also you could loop over all of them and call methods on the [`Element`](#element-api) or [`Window`](#window-api) instance.
 
 ```cucumber
 * print robot.allWindows
@@ -529,7 +547,7 @@ This can be convenient if you need to loop over a bunch of element and do someth
 ```
 
 ## `highlight()`
-Designed for use within a [debug session](https://github.com/intuit/karate/wiki/IDE-Support#visual-studio-code), very convenient to interactively locate an element by trial and error.
+Designed for use within a [debug session](#debugging), very convenient to interactively locate an element by trial and error.
 
 ```cucumber
 * highlight('Some Name')
