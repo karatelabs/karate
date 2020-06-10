@@ -12,6 +12,7 @@
       <a href="https://github.com/intuit/karate/wiki/ZIP-Release">ZIP Release</a>
     | <a href="#maven">Maven</a>
     | <a href="https://github.com/intuit/karate/wiki/Karate-Robot-Windows-Install-Guide">Windows Install Guide</a>
+    | <a href="#debugging">Debugging</a>
     | <a href="https://github.com/intuit/karate#index">Karate - Main Index</a>
   </td>
 </tr>
@@ -100,7 +101,7 @@
 * Windows object-recognition using [Microsoft UI Automation](https://docs.microsoft.com/en-us/windows/win32/winauto/entry-uiauto-win32)
 * [Navigation via image detection](#image-locators) - cross-platform (mac, win, linux) via [JavaCPP and OpenCV](https://github.com/bytedeco/javacpp-presets/tree/master/opencv)
 * [OCR driven navigation](#ocr-locators) and text extraction - cross-platform (mac, win, linux) via [JavaCPP and Tesseract](https://github.com/bytedeco/javacpp-presets/tree/master/tesseract)
-* Tightly integrated into [Karate](https://github.com/intuit/karate) - which means a [debugger, HTML reports](#debugger), and more
+* Tightly integrated into [Karate](https://github.com/intuit/karate) - which means a [debugger, HTML reports](#debugging), and more
 
 ### Demo Videos
 * Clicking the *native* "File Upload" button in a Web Page - [Link](https://twitter.com/ptrthomas/status/1253373486384295936)
