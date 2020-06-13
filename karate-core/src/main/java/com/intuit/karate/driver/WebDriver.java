@@ -494,7 +494,7 @@ public abstract class WebDriver implements Driver {
                 return http.path("element", id, "screenshot").get().jsonPath("$.value").asString();
             });
         }
-        byte[] bytes = Base64.getDecoder().decode(temp);
+        byte[] bytes = getDecoder().decode(temp);
         if (embed) {
             options.embedPngImage(bytes);
         }
@@ -557,6 +557,10 @@ public abstract class WebDriver implements Driver {
             }
             return null;
         });
+    }
+
+    protected Base64.Decoder getDecoder(){
+        return Base64.getDecoder();
     }
 
 }
