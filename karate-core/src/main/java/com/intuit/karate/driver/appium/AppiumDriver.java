@@ -139,4 +139,15 @@ public abstract class AppiumDriver extends WebDriver {
         return http.path("element", id, "text").get().jsonPath("$.value").asString();
     }
 
+    @Override
+    protected Base64.Decoder getDecoder(){
+        return Base64.getMimeDecoder();
+    }
+
+    @Override
+    public void close() {
+        // TODO
+    }
+
+
 }
