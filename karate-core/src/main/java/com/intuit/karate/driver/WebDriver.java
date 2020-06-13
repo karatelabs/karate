@@ -44,7 +44,7 @@ public abstract class WebDriver implements Driver {
     protected final Command command;
     protected final Http http;
     private final String sessionId;
-    private final String windowId;
+    //private final String windowId;
 
     protected boolean open = true;
 
@@ -67,8 +67,8 @@ public abstract class WebDriver implements Driver {
         sessionId = response.jsonPath("get[0] response..sessionId").asString();
         logger.debug("init session id: {}", sessionId);
         http.url("/session/" + sessionId);
-        windowId = http.path("window").get().jsonPath("$.value").asString();
-        logger.debug("init window id: {}", windowId);
+        //windowId = http.path("window").get().jsonPath("$.value").asString();
+        //logger.debug("init window id: {}", windowId);
         if (options.start) {
             activate();
         }
