@@ -43,10 +43,10 @@ import java.util.Map;
 public class FeatureResult {
 
     private final Results results;
-    private final Feature feature;
-    private final String displayName;
+    private final Feature feature;    
     private final List<ScenarioResult> scenarioResults = new ArrayList();
 
+    private String displayName; // mutable for users who want to customize
     private int scenarioCount;
     private int failedCount;
     private List<Throwable> errors;
@@ -116,6 +116,10 @@ public class FeatureResult {
         this.feature = feature;
         displayName = FileUtils.removePrefix(feature.getRelativePath());
     }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }        
 
     public Feature getFeature() {
         return feature;
