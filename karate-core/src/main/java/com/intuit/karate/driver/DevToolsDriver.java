@@ -864,6 +864,23 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
+    public void switchPage(int index) {
+        if (index == -1) {
+            return;
+        }
+        DevToolsMessage dtm = method("Target.getTargets").send();
+        List<Map> targets = dtm.getResult("targetInfos").getAsList();
+        if (index < targets.size()) {
+            Map target = targets.get(index);
+            String targetId = (String) target.get("targetId");
+            method("Target.activateTarget").param("targetId", targetId).send();
+            currentUrl = (String) target.get("url");
+        } else {
+            logger.warn("unable to switch frame by index: {}", index);
+        }
+    }
+
+    @Override
     public void switchFrame(int index) {
         if (index == -1) {
             executionContextId = null;

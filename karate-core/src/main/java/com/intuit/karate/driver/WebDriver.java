@@ -527,6 +527,15 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
+    public void switchPage(int index) {
+        if (index == -1) {
+            return;
+        }
+        String json = new Json().set("id", index).toString();
+        http.path("window").post(json);
+    }
+
+    @Override
     public void switchFrame(int index) {
         if (index == -1) {
             http.path("frame", "parent").post("{}");
