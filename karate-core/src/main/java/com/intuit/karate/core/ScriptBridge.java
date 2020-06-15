@@ -805,26 +805,19 @@ public class ScriptBridge implements PerfContext {
         return Command.waitForHttp(url);
     }
 
+    public String exec(List<String> args) {
+        return exec(Collections.singletonMap("args", args));
+    }    
+    
     public String exec(String line) {
-        Runtime runtime = Runtime.getRuntime();
-        try {
-            InputStream is = runtime.exec(line).getInputStream();
-            return FileUtils.toString(is);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        return exec(Collections.singletonMap("line", line));
     }
-
-    public String exec(List<String> argList) {
-        String[] args = argList.toArray(new String[argList.size()]);
-        Runtime runtime = Runtime.getRuntime();
-        try {
-            InputStream is = runtime.exec(args).getInputStream();
-            return FileUtils.toString(is);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    
+    public String exec(Map<String, Object> options) {
+        Command command = toCommand(false, options);
+        command.waitSync();
+        return command.getAppender().collect();
+    }    
 
     public Command fork(List<String> args) {
         return fork(Collections.singletonMap("args", args));
@@ -835,6 +828,10 @@ public class ScriptBridge implements PerfContext {
     }
 
     public Command fork(Map<String, Object> options) {
+        return toCommand(true, options);
+    }
+    
+    private Command toCommand(boolean useLineFeed, Map<String, Object> options) {
         options = new ScriptValue(options).getAsMap(); // TODO fix nashorn quirks
         List<String> list = (List) options.get("args");
         String[] args;
@@ -849,9 +846,9 @@ public class ScriptBridge implements PerfContext {
         }
         String workingDir = (String) options.get("workingDir");
         File workingFile = workingDir == null ? null : new File(workingDir);
-        Command command = new Command(true, context.logger, null, null, workingFile, args);
+        Command command = new Command(useLineFeed, context.logger, null, null, workingFile, args);
         command.start();
-        return command;
+        return command;        
     }
 
     public void log(Object... objects) {

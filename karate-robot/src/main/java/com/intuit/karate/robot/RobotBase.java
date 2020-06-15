@@ -500,6 +500,11 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     @Override
+    public Element select(String locator) {
+        return locate(getHighlightDuration(), getSearchRoot(), locator).select();
+    }        
+
+    @Override
     public Element press(String locator) {
         return locate(getHighlightDuration(), getSearchRoot(), locator).press();
     }

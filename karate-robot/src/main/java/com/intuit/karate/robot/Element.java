@@ -68,6 +68,11 @@ public interface Element {
     }
 
     Element click();
+    
+    default Element click(String locator) {
+        RobotBase robot = getRobot();
+        return robot.locate(robot.getHighlightDuration(), this, locator).click();
+    }
 
     Element clear();
 
@@ -168,25 +173,31 @@ public interface Element {
     String getDebugString();
 
     Element select();
+    
+    default Element select(String locator) {
+        RobotBase robot = getRobot();
+        return robot.locate(robot.getHighlightDuration(), this, locator).select();        
+    }
 
     default String extract() {
         return extract(null, false);
     }
 
     default String extract(String lang, boolean debug) {
+        RobotBase robot = getRobot();
         if (lang == null) {
-            lang = getRobot().tessLang;
+            lang = robot.tessLang;
         }
         if (lang.length() < 2) {
-            lang = lang + getRobot().tessLang;
+            lang = lang + robot.tessLang;
         }
         boolean negative = lang.charAt(0) == '-';
         if (negative) {
             lang = lang.substring(1);
         }
-        Tesseract tess = Tesseract.init(getRobot(), lang, getRegion(), negative);
+        Tesseract tess = Tesseract.init(robot, lang, getRegion(), negative);
         if (debug) {
-            tess.highlightWords(getRobot(), getRegion(), Config.DEFAULT_HIGHLIGHT_DURATION);
+            tess.highlightWords(robot, getRegion(), Config.DEFAULT_HIGHLIGHT_DURATION);
         }
         return tess.getAllText();
     }
