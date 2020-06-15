@@ -74,6 +74,16 @@ public class MissingElement implements Element {
     }
 
     @Override
+    public Element click(String locator) {
+        return this;
+    }     
+
+    @Override
+    public Element click(int fromLeft, int fromTop) {
+        return this;
+    }        
+
+    @Override
     public Element move() {
         return this;
     }
@@ -148,5 +158,10 @@ public class MissingElement implements Element {
     public Element select() {
         return this;
     }
+
+    @Override
+    public Element select(String locator) {
+        return this;
+    }        
 
 }

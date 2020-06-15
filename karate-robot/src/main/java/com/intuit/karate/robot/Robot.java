@@ -115,12 +115,6 @@ public interface Robot extends Plugin {
     boolean exists(String locator);
 
     @AutoDef
-    boolean windowExists(String locator);
-
-    @AutoDef
-    Element windowOptional(String locator);
-
-    @AutoDef
     Element move(String locator);
 
     @AutoDef
@@ -140,12 +134,27 @@ public interface Robot extends Plugin {
 
     @AutoDef
     Element window(Predicate<String> condition);
+    
+    @AutoDef
+    boolean windowExists(String locator);
+
+    @AutoDef
+    Element windowOptional(String locator);   
+    
+    @AutoDef
+    Element waitForWindowOptional(String locator);     
 
     @AutoDef
     Object waitUntil(Supplier<Object> condition);
+    
+    @AutoDef
+    Object waitUntilOptional(Supplier<Object> condition);    
 
     @AutoDef
     Element waitFor(String locator);
+    
+    @AutoDef
+    Element waitForOptional(String locator);    
 
     @AutoDef
     Element waitForAny(String locator1, String locator2);

@@ -136,8 +136,12 @@ public class WinRobot extends RobotBase {
             locator = "//*{" + locator + "}";
         }
         if (locator.startsWith("/")) {
+            if (locator.startsWith("/root")) {
+                locator = locator.substring(5);
+                parent = UIA.getRootElement();                
+            }
             List<Element> searchResults = new ArrayList();
-            PathSearch search = new PathSearch(locator, true);
+            PathSearch search = new PathSearch(locator, true);            
             walkPathAndFind(searchResults, search, UIA.getControlViewWalker(), parent, 0);
             return searchResults;
         } else if (locator.startsWith("#")) {
@@ -157,6 +161,10 @@ public class WinRobot extends RobotBase {
             locator = "//*{" + locator + "}";
         }
         if (locator.startsWith("/")) {
+            if (locator.startsWith("/root")) {
+                locator = locator.substring(5);
+                parent = UIA.getRootElement();                
+            }            
             List<Element> searchResults = new ArrayList();
             PathSearch search = new PathSearch(locator, false);
             walkPathAndFind(searchResults, search, UIA.getControlViewWalker(), parent, 0);

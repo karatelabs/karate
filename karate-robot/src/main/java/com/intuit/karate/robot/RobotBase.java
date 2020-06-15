@@ -434,14 +434,27 @@ public abstract class RobotBase implements Robot, Plugin {
 
     @Override
     public Element windowOptional(String locator) {
+        return waitForWindowOptional(locator, false, false);
+    }
+    
+    @Override
+    public Element waitForWindowOptional(String locator) {
+        return waitForWindowOptional(locator, true, false);
+    }
+    
+    protected Element waitForWindowOptional(String locator, boolean retry, boolean failWithException) {
         Element prevWindow = currentWindow;
-        Element window = window(locator, false); // will update currentWindow     
+        Element window = window(locator, retry); // will update currentWindow     
         currentWindow = prevWindow; // so we reset it
         if (window == null) {
-            return new MissingElement(this);
+            if (failWithException) {
+                throw new RuntimeException("failed to find window: " + locator);
+            } else {
+                return new MissingElement(this);
+            }            
         }
-        // note that currentWindow will point to the new window located
-        return window;
+        // note that currentWindow will NOT point to the new window located
+        return window;        
     }
 
     protected Element optional(Element searchRoot, String locator) {
@@ -459,7 +472,7 @@ public abstract class RobotBase implements Robot, Plugin {
     protected Element locate(int duration, Element searchRoot, String locator) {
         Element found;
         if (retryEnabled) {
-            found = retryForAny(searchRoot, locator);
+            found = retryForAny(true, searchRoot, locator);
         } else {
             found = locateImageOrElement(searchRoot, locator);
             if (found == null) {
@@ -620,26 +633,41 @@ public abstract class RobotBase implements Robot, Plugin {
 
     @Override
     public Object waitUntil(Supplier<Object> condition) {
-        return retry(() -> condition.get(), o -> o != null, "waitUntil (function)", true);
+        return waitUntil(condition, true);
+    }
+    
+    @Override
+    public Object waitUntilOptional(Supplier<Object> condition) {
+        return waitUntil(condition, false);
+    }    
+    
+    protected Object waitUntil(Supplier<Object> condition, boolean failWithException) {
+        return retry(() -> condition.get(), o -> o != null, "waitUntil (function)", failWithException);
     }
 
     @Override
     public Element waitFor(String locator) {
-        return retryForAny(getSearchRoot(), locator);
+        return retryForAny(true, getSearchRoot(), locator);
     }
+    
+    @Override
+    public Element waitForOptional(String locator) {
+        return retryForAny(false, getSearchRoot(), locator);
+    }    
 
     @Override
     public Element waitForAny(String locator1, String locator2) {
-        return retryForAny(getSearchRoot(), locator1, locator2);
+        return retryForAny(true, getSearchRoot(), locator1, locator2);
     }
 
     @Override
     public Element waitForAny(String[] locators) {
-        return retryForAny(getSearchRoot(), locators);
+        return retryForAny(true, getSearchRoot(), locators);
     }
 
-    protected Element retryForAny(Element searchRoot, String... locators) {
-        return retry(() -> waitForAny(searchRoot, locators), r -> r != null, "find by locator(s): " + Arrays.asList(locators), true);
+    protected Element retryForAny(boolean failWithException, Element searchRoot, String... locators) {
+        Element found = retry(() -> waitForAny(searchRoot, locators), r -> r != null, "find by locator(s): " + Arrays.asList(locators), failWithException);
+        return found == null ? new MissingElement(this) : found;
     }
 
     private Element waitForAny(Element searchRoot, String... locators) {

@@ -111,15 +111,15 @@ public interface Element {
     }
     
     default Element waitFor(String locator) {
-        return getRobot().retryForAny(this, locator);
+        return getRobot().retryForAny(true, this, locator);
     }
     
     default Element waitForAny(String locator1, String locator2) {
-        return getRobot().retryForAny(this, locator1, locator2);
+        return getRobot().retryForAny(true, this, locator1, locator2);
     }
     
     default Element waitForAny(String[] locators) {
-        return getRobot().retryForAny(this, locators);
+        return getRobot().retryForAny(true, this, locators);
     }    
 
     default Element retry(Integer count, Integer interval) {
