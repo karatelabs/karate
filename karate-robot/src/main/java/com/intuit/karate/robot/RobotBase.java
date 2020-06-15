@@ -606,21 +606,28 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     private Element window(String title, boolean retry) {
-        Predicate<String> condition = new StringMatcher(title);
-        currentWindow = retry ? retry(() -> windowInternal(condition), w -> w != null, "find window", true) : windowInternal(condition);
-        if (currentWindow != null && highlight) { // currentWindow can be null
-            currentWindow.highlight(getHighlightDuration());
-        }
-        return currentWindow;
+        return window(new StringMatcher(title), retry);
     }
 
     @Override
     public Element window(Predicate<String> condition) {
-        currentWindow = retry(() -> windowInternal(condition), w -> w != null, "find window", true);
+        return window(condition, true);
+    }
+    
+    private Element window(Predicate<String> condition, boolean retry) {
+        try {
+            currentWindow = retry ? retry(() -> windowInternal(condition), w -> w != null, "find window", true) : windowInternal(condition);
+        } catch (Exception e) {
+            if (retry) {
+                throw e;
+            }
+            logger.warn("failed to find window: {}", e.getMessage());
+            currentWindow = null;
+        }
         if (currentWindow != null && highlight) { // currentWindow can be null
             currentWindow.highlight(getHighlightDuration());
         }
-        return currentWindow;
+        return currentWindow;        
     }
 
     protected Element getSearchRoot() {
