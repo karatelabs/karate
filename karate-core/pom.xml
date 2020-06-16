@@ -12,7 +12,7 @@
     
     <properties>
         <antlr.version>4.7.1</antlr.version>
-        <netty.version>4.1.48.Final</netty.version>
+        <netty.version>4.1.50.Final</netty.version>
     </properties>    
 
     <dependencies>
