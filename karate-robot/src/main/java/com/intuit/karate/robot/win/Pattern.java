@@ -32,7 +32,7 @@ import java.util.Map;
  */
 public enum Pattern {
 
-    Invoke(10000),
+    Invoke(10000, IUIAutomationInvokePattern.class),
     Selection(10001),
     Value(10002, IUIAutomationValuePattern.class),
     RangeValue(10003),

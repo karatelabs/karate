@@ -116,6 +116,9 @@ public interface Robot extends Plugin {
 
     @AutoDef
     Element move(String locator);
+    
+    @AutoDef
+    Element focus(String locator);    
 
     @AutoDef
     Element click(String locator);

@@ -137,7 +137,7 @@ public abstract class RobotBase implements Robot, Plugin {
             boolean attach = get("attach", true);
             String window = get("window", null);
             if (window != null) {
-                currentWindow = window(window, false); // don't retry
+                currentWindow = window(window, false, false); // don't retry
             }
             if (currentWindow != null && attach) {
                 logger.debug("window found, will re-use: {}", window);
@@ -408,6 +408,11 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     @Override
+    public Element focus(String locator) {
+        return locate(getHighlightDuration(), getSearchRoot(), locator).focus();
+    }    
+    
+    @Override
     public Element locate(String locator) {
         return locate(getHighlightDuration(), getSearchRoot(), locator);
     }
@@ -434,27 +439,23 @@ public abstract class RobotBase implements Robot, Plugin {
 
     @Override
     public Element windowOptional(String locator) {
-        return waitForWindowOptional(locator, false, false);
+        return waitForWindowOptional(locator, false);
     }
-    
+
     @Override
     public Element waitForWindowOptional(String locator) {
-        return waitForWindowOptional(locator, true, false);
+        return waitForWindowOptional(locator, true);
     }
-    
-    protected Element waitForWindowOptional(String locator, boolean retry, boolean failWithException) {
+
+    protected Element waitForWindowOptional(String locator, boolean retry) {
         Element prevWindow = currentWindow;
-        Element window = window(locator, retry); // will update currentWindow     
+        Element window = window(locator, retry, false); // will update currentWindow     
         currentWindow = prevWindow; // so we reset it
         if (window == null) {
-            if (failWithException) {
-                throw new RuntimeException("failed to find window: " + locator);
-            } else {
-                return new MissingElement(this);
-            }            
+            return new MissingElement(this);
         }
         // note that currentWindow will NOT point to the new window located
-        return window;        
+        return window;
     }
 
     protected Element optional(Element searchRoot, String locator) {
@@ -515,7 +516,7 @@ public abstract class RobotBase implements Robot, Plugin {
     @Override
     public Element select(String locator) {
         return locate(getHighlightDuration(), getSearchRoot(), locator).select();
-    }        
+    }
 
     @Override
     public Element press(String locator) {
@@ -602,23 +603,23 @@ public abstract class RobotBase implements Robot, Plugin {
 
     @Override
     public Element window(String title) {
-        return window(title, true);
+        return window(title, true, true);
     }
 
-    private Element window(String title, boolean retry) {
-        return window(new StringMatcher(title), retry);
+    private Element window(String title, boolean retry, boolean failWithException) {
+        return window(new StringMatcher(title), retry, failWithException);
     }
 
     @Override
     public Element window(Predicate<String> condition) {
-        return window(condition, true);
+        return window(condition, true, true);
     }
-    
-    private Element window(Predicate<String> condition, boolean retry) {
+
+    private Element window(Predicate<String> condition, boolean retry, boolean failWithException) {
         try {
-            currentWindow = retry ? retry(() -> windowInternal(condition), w -> w != null, "find window", true) : windowInternal(condition);
+            currentWindow = retry ? retry(() -> windowInternal(condition), w -> w != null, "find window", failWithException) : windowInternal(condition);
         } catch (Exception e) {
-            if (retry) {
+            if (failWithException) {
                 throw e;
             }
             logger.warn("failed to find window: {}", e.getMessage());
@@ -627,7 +628,7 @@ public abstract class RobotBase implements Robot, Plugin {
         if (currentWindow != null && highlight) { // currentWindow can be null
             currentWindow.highlight(getHighlightDuration());
         }
-        return currentWindow;        
+        return currentWindow;
     }
 
     protected Element getSearchRoot() {
@@ -642,12 +643,12 @@ public abstract class RobotBase implements Robot, Plugin {
     public Object waitUntil(Supplier<Object> condition) {
         return waitUntil(condition, true);
     }
-    
+
     @Override
     public Object waitUntilOptional(Supplier<Object> condition) {
         return waitUntil(condition, false);
-    }    
-    
+    }
+
     protected Object waitUntil(Supplier<Object> condition, boolean failWithException) {
         return retry(() -> condition.get(), o -> o != null, "waitUntil (function)", failWithException);
     }
@@ -656,11 +657,11 @@ public abstract class RobotBase implements Robot, Plugin {
     public Element waitFor(String locator) {
         return retryForAny(true, getSearchRoot(), locator);
     }
-    
+
     @Override
     public Element waitForOptional(String locator) {
         return retryForAny(false, getSearchRoot(), locator);
-    }    
+    }
 
     @Override
     public Element waitForAny(String locator1, String locator2) {

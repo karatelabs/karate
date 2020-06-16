@@ -85,7 +85,12 @@ public class WinElement implements Element {
 
     @Override
     public Element click() {
-        getClickablePoint().click();
+        if (isInvokePatternAvailable()) {
+            IUIAutomationInvokePattern invokePattern = e.getCurrentPattern(IUIAutomationInvokePattern.class);
+            invokePattern.invoke();
+        } else {
+            getClickablePoint().click();
+        }
         return this;
     }
 
@@ -116,6 +121,11 @@ public class WinElement implements Element {
         Variant.VARIANT variant = e.getCurrentPropertyValue(Property.IsValuePatternAvailable);
         return variant.booleanValue();
     }
+    
+    private boolean isInvokePatternAvailable() {
+        Variant.VARIANT variant = e.getCurrentPropertyValue(Property.IsInvokePatternAvailable);
+        return variant.booleanValue();
+    }    
 
     @Override
     public String getValue() {
