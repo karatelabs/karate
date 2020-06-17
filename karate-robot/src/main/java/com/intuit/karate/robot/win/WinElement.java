@@ -82,15 +82,20 @@ public class WinElement implements Element {
         e.setFocus();
         return this;
     }
-
-    @Override
-    public Element click() {
+    
+    public Element invoke() {
         if (isInvokePatternAvailable()) {
             IUIAutomationInvokePattern invokePattern = e.getCurrentPattern(IUIAutomationInvokePattern.class);
             invokePattern.invoke();
         } else {
-            getClickablePoint().click();
+            click();
         }
+        return this;
+    }
+
+    @Override
+    public Element click() {
+        getClickablePoint().click();
         return this;
     }
 
@@ -121,11 +126,11 @@ public class WinElement implements Element {
         Variant.VARIANT variant = e.getCurrentPropertyValue(Property.IsValuePatternAvailable);
         return variant.booleanValue();
     }
-    
+
     private boolean isInvokePatternAvailable() {
         Variant.VARIANT variant = e.getCurrentPropertyValue(Property.IsInvokePatternAvailable);
         return variant.booleanValue();
-    }    
+    }
 
     @Override
     public String getValue() {
@@ -211,7 +216,7 @@ public class WinElement implements Element {
         pattern.select();
         return this;
     }
-    
+
     public Object as(String patternName) {
         Pattern pattern = Pattern.fromName(patternName);
         if (pattern == null) {

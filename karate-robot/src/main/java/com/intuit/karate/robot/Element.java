@@ -61,6 +61,11 @@ public interface Element {
     }
 
     Element focus();
+    
+    default Element focus(String locator) {
+        RobotBase robot = getRobot();
+        return robot.locate(robot.getHighlightDuration(), this, locator).focus();
+    }    
 
     default Element move(int fromLeft, int fromTop) {
         offset(fromLeft, fromTop).move();
