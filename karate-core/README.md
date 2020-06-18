@@ -912,7 +912,7 @@ The rare need to "double-click" is supported as a `doubleClick()` method:
 Close the page / tab.
 
 ## `quit()`
-Close the browser.
+Closes the browser. You normally *never* need to use this in a test, Karate will close the browser automatically after a `Scenario` unless the `driver` instance was created before entering the `Scenario`.
 
 ## `html()`
 Get the [`outerHTML`](https://developer.mozilla.org/en-US/docs/Web/API/Element/outerHTML), so will include the markup of the selected element. Useful for [`match contains`](https://github.com/intuit/karate#match-contains) assertions. Example:

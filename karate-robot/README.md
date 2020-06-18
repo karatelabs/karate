@@ -51,6 +51,7 @@
       <a href="#window"><code>window()</code></a>    
     | <a href="#windowexists"><code>windowExists()</code></a> 
     | <a href="#windowoptional"><code>windowOptional()</code></a> 
+    | <a href="#waitforwindowoptional"><code>waitForWindowOptional()</code></a> 
     | <a href="#robotroot"><code>robot.root</code></a> 
     | <a href="#robotactive"><code>robot.active</code></a>   
     | <a href="#robotfocused"><code>robot.focused</code></a>
@@ -78,7 +79,8 @@
   <th>State</th>
   <td>
       <a href="#exists"><code>exists()</code></a>
-    | <a href="#optional"><code>optional()</code></a>    
+    | <a href="#optional"><code>optional()</code></a> 
+    | <a href="#waitforoptional"><code>waitForOptional()</code></a>    
     | <a href="#locate"><code>locate()</code></a>    
     | <a href="#locateall"><code>locateAll()</code></a>
   </td>
@@ -386,6 +388,15 @@ Locator | Description
 
 Use a tool like [Inspect.exe](https://docs.microsoft.com/en-us/windows/win32/winauto/inspect-objects) to identify the properties needed for automation from an application window.
 
+### Root Scope
+By default, all the locators above would be from the currently [active](#robotactive) Window or Element, but you can force the search from the Desktop onwards like this:
+
+```cucumber
+* def allPopUps = locateAll('/root//window')
+```
+
+This is of course extremely useful in some situations.
+
 ### Control Type
 The [control "type"](https://docs.microsoft.com/en-us/windows/win32/winauto/uiauto-controltypesoverview) is case-insensitive. Examples are `edit`, `button` and `checkbox`. The complete list of types can be [found here](src/main/java/com/intuit/karate/robot/win/ControlType.java). You don't have to rely on the `LocalizedControlType` shown in tools such as "Inspect.exe" because Karate uses the `ControlType`.
 
@@ -443,6 +454,8 @@ This is useful to perform conditional logic as one-liners:
 
 Note that `optional()`, [`exists()`](#exists), [`windowExists()`](#windowexists) and [`windowOptional()`](#windowoptional) are a little different from the other actions such as [`locate()`](#locate), because they will *not* honor any intent to [`retry()`](#retry) and *immediately* check the [active window](#robotactive) for the given locator. This is important because they are designed to answer the question: "*does the element exist in the application __right now__ ?*"
 
+If you want to *wait* but move on even if something was not found, you can use [`waitForOptional()`](#waitforoptional) and [`waitForWindowOptional()`](#waitforwindowoptional).
+
 ## `windowOptional()`
 Returns an "optional" [`Window`](#window-api) object and will not update the "active" window. You can call `activate()` on the returned `Window` object to set it as the current, typically after [checking that it exists](#optional) (by using the `present` property getter).
 
@@ -455,6 +468,20 @@ Here's an example of clicking a button within an "optional" modal pop-up only if
 Note that on the [`Element` API](#element-api), there is no `click(locator)` API, but you can chain a [`locate()`](#locate) and then call [`click()`](#click).
 
 Also see [finding windows](#finding-windows) and [conditional start](#conditional-start).
+
+## `waitForOptional()`
+Useful for those cases, where you want to *wait* for something that may *not* appear. Note that since the [retry()](#retry) count defaults to 3, you may want to tone-down the wait like this:
+
+```cucumber
+* retry(1).waitForOptional('Schrodingers Pane')
+```
+
+## `waitForWindowOptional()`
+Just like `windowOptional()` but can [retry](#retry) *and* move on:
+
+```cucumber
+* retry(1).waitForWindowOptional('^My Window')
+```
 
 ## `exists()`
 Similar to [`optional()`](#optional) but returns a boolean, convenient to use with the [`assert`](https://github.com/intuit/karate#assert) keyword:
@@ -488,6 +515,8 @@ Short-cut to activate any `Element` by locator. The difference from [`window()`]
 
 ## `robot.root`
 Gets the root of all available objects as an [`Element`](#element-api) reference. Useful when you want to search within the entire "Desktop" on Windows. Try to avoid "any-depth" e.g. `robot.root.locate('//button')` kinds of searches on this element, and stick to things like `robot.root.locate('/pane')`.
+
+Note that using the [`/root`](#root-scope) as the start of a [locator](#windows-locators) can be used instead.
 
 ## `robot.active`
 Returns the currently "active" element, typically set after a previous call to [`window()`](#window) or [`windowOptional()`](#windowoptional). This will fail the test if a window (or any other `Element` type) has not been "activated".

@@ -844,9 +844,13 @@ public class ScriptBridge implements PerfContext {
         } else {
             args = list.toArray(new String[list.size()]);
         }
-        String workingDir = (String) options.get("workingDir");
-        File workingFile = workingDir == null ? null : new File(workingDir);
+        String workingDir = (String) options.get("workingDir");        
+        File workingFile = workingDir == null ? null : new File(workingDir);        
         Command command = new Command(useLineFeed, context.logger, null, null, workingFile, args);
+        Map env = (Map) options.get("env");
+        if (env != null) {
+            command.setEnvironment(env);
+        }
         command.start();
         return command;        
     }
