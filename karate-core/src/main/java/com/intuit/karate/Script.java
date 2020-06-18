@@ -352,6 +352,9 @@ public class Script {
         if (sv == null) {
             throw new KarateException("xpath does not exist: " + path + " on " + name);
         }
+        if (path.startsWith("count")) { // special case
+            sv = new ScriptValue(sv.getAsInt());
+        }
         return sv;
     }
 
@@ -363,8 +366,13 @@ public class Script {
             nodeList = XmlUtils.getNodeListByPath(doc, path);
         } catch (Exception e) {
             // hack, this happens for xpath functions that don't return nodes (e.g. count)
-            String strValue = XmlUtils.getTextValueByPath(doc, path);
-            return new ScriptValue(strValue);
+            String strValue = XmlUtils.getTextValueByPath(doc, path);            
+            ScriptValue sv = new ScriptValue(strValue);
+            if (path.startsWith("count")) { // special case
+                return new ScriptValue(sv.getAsInt());
+            } else {
+                return sv;
+            }
         }
         int count = nodeList.getLength();
         if (count == 0) { // xpath / node does not exist !
@@ -733,7 +741,14 @@ public class Script {
     }
 
     public static AssertionResult matchString(MatchType matchType, ScriptValue actual, String expected, String path, ScenarioContext context) {
-        ScriptValue expectedValue = evalKarateExpression(expected, context);
+        ScriptValue expectedValue = evalKarateExpression(expected, context);        
+        if (expectedValue.isPrimitive() && !expectedValue.isString()) {
+            if (matchType == MatchType.NOT_EQUALS) {
+                return AssertionResult.PASS;
+            } else {
+                return matchFailed(matchType, path, actual.getValue(), expected, "actual value is a string");
+            }
+        }
         expected = expectedValue.getAsString();
         return matchStringOrPattern('*', path, matchType, null, null, actual, expected, context);
     }

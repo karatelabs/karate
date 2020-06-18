@@ -63,6 +63,14 @@ public class ScriptTest {
         assertEquals(ScriptValue.Type.PRIMITIVE, value.getType());
         assertEquals(3.0, value.getValue());
     }
+    
+    @Test
+    public void testMatchPrimitiveStrings() {
+        ScenarioContext ctx = getContext();
+        ctx.vars.put("a", "3");
+        ctx.vars.put("b", 3);  
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "a", null, "b", ctx).pass);
+    }    
 
     @Test
     public void testEvalMapsAndLists() {
@@ -1350,7 +1358,6 @@ public class ScriptTest {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "<records>\n  <record>a</record>\n  <record>b</record>\n  <record>c</record>\n</records>", ctx);
         Script.assign("count", "get foo count(//record)", ctx);
-        assertTrue(Script.matchNamed(MatchType.EQUALS, "count", null, "3", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "count", null, "3", ctx).pass);
     }
 
