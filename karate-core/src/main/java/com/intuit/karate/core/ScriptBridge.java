@@ -222,7 +222,7 @@ public class ScriptBridge implements PerfContext {
         List res = new ArrayList(list.size());
         for (int i = 0; i < list.size(); i++) {
             Object y = som.call(som, list.get(i), i);
-            res.add(y);
+            res.add(new ScriptValue(y).getValue()); // TODO graal
         }
         return res;
     }
@@ -293,7 +293,7 @@ public class ScriptBridge implements PerfContext {
         List res = new ArrayList();
         for (int i = 0; i < n; i++) {
             Object o = som.call(som, i);
-            res.add(o);
+            res.add(new ScriptValue(o).getValue()); // TODO graal
         }
         return res;
     }
