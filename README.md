@@ -557,7 +557,7 @@ mvn test -Dtest=CatsRunner
 When your Java test "runner" is linked to multiple feature files, which will be the case when you use the recommended [parallel runner](#parallel-execution), you can narrow down your scope to a single feature (or even directory) via the command-line, useful in dev-mode. Note how even [tags](#tags) to exclude (or include) can be specified using the [Karate options](#karate-options).
 
 ```
-mvn test -Dkarate.options="--tags ~@ignore classpath:demo/cats/cats.feature" -Dtest=DemoTestParallel
+mvn test "-Dkarate.options=--tags ~@ignore classpath:demo/cats/cats.feature" -Dtest=DemoTestParallel
 ```
 
 Multiple feature files (or paths) can be specified, de-limited by the space character. They should be at the end of the `karate.options`.
@@ -589,7 +589,7 @@ And then the above command in Gradle would look like:
 One way to define 'test-suites' in Karate is to have a JUnit class at a level 'above' (in terms of folder hierarchy) all the `*.feature` files in your project. So if you take the previous [folder structure example](#naming-conventions), you can do this on the command-line:
 
 ```
-mvn test -Dkarate.options="--tags ~@ignore" -Dtest=AnimalsTest
+mvn test "-Dkarate.options=--tags ~@ignore" -Dtest=AnimalsTest
 ```
 
 Here, `AnimalsTest` is the name of the Java class we designated to run the multiple `*.feature` files that make up your test-suite. There is a neat way to [tag your tests](#tags) and the above example demonstrates how to run all tests _except_ the ones tagged `@ignore`.
