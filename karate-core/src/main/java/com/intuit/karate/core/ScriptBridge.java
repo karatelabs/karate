@@ -439,27 +439,49 @@ public class ScriptBridge implements PerfContext {
         }
         List<Map<String, Object>> list = sv.getAsList();
         return JsonUtils.toCsv(list);
-    }
+    } 
 
     public Object call(String fileName) {
-        return call(fileName, null);
+        return call(false, fileName, null);
+    }
+    
+    public Object call(String fileName, Object arg) {
+        return call(false, fileName, arg);
+    }
+    
+    public Object call(boolean sharedScope, String fileName) {
+        return call(sharedScope, fileName, null);
     }
 
-    public Object call(String fileName, Object arg) {
-        ScriptValue sv = FileUtils.readFile(fileName, context);
-        switch (sv.getType()) {
+    // note that the implementation is subtly different from context.call()
+    // because we are within a JS block
+    public Object call(boolean sharedScope, String fileName, Object arg) {
+        ScriptValue called = FileUtils.readFile(fileName, context);
+        ScriptValue result;
+        switch (called.getType()) {
             case FEATURE:
-                Feature feature = sv.getValue(Feature.class);
+                Feature feature = called.getValue(Feature.class);
                 // last param is for edge case where this.context is from function 
                 // inited before call hierarchy was determined, see CallContext
-                return Script.evalFeatureCall(feature, arg, context, false).getValue();
+                result = Script.evalFeatureCall(feature, arg, context, sharedScope);
+                break;
             case JS_FUNCTION:
-                ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
-                return Script.evalJsFunctionCall(som, arg, context).getValue();
-            default:
-                context.logger.warn("not a js function or feature file: {} - {}", fileName, sv);
+                ScriptObjectMirror som = called.getValue(ScriptObjectMirror.class);
+                result = Script.evalJsFunctionCall(som, arg, context);
+                break;
+            default: // TODO remove ?
+                context.logger.warn("not a js function or feature file: {} - {}", fileName, called);
                 return null;
         }
+        if (!sharedScope) {
+            return result.getValue();
+        }
+        if (result.isMapLike()) {
+            result.getAsMap().forEach((k, v) -> context.vars.put(k, v));
+        } else {
+            context.logger.trace("no vars returned from function call result: {}", called);
+        }       
+        return null; // nothing returned if shared scope
     }
 
     public Object callSingle(String fileName) {
