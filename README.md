@@ -3687,16 +3687,37 @@ And this may give you more ideas. You can always use a [JavaScript function](#ja
 * match response == expected
 ```
 
+### JSON Lookup
+You can always use a JavaScript [`switch case`](https://www.w3schools.com/js/js_switch.asp) within an [`eval`](#eval) or [function](#javascript-functions) block. But one pattern that you should be aware of is that JSON is actually a great data-structure for looking up data.
+
+```cucumber
+* def data =
+"""
+{
+   foo: 'hello',
+   bar: 'world'  
+}
+"""
+# in real-life key can be dynamic
+* def key = 'bar'
+# and used to lookup data
+* match (data[key]) == 'world'
+```
+
+You can find more details [here](https://stackoverflow.com/a/59162760/143475). Also note how you can wrap the LHS of the [`match`](#match) in parentheses in the rare cases where the parser expects JsonPath by default.
+
+### Abort and Fail
+
 In some rare cases you need to exit a `Scenario` based on some condition. You can use [`karate.abort()`](#karate-abort) like so:
 
 ```cucumber
 * if (responseStatus == 404) karate.abort()
 ```
 
-Using `karate.abort()` will *not* fail the test. Conditionally making a test fail is easy with JavaScript:
+Using `karate.abort()` will *not* fail the test. Conditionally making a test fail is easy with [`karate.fail()`](#karate-fail)
 
 ```cucumber
-* if (condition) throw 'a custom message'
+* if (condition) karate.fail('a custom message')
 ```
 
 But normally a [`match`](#match) statement is preferred unless you want a really descriptive error message.
