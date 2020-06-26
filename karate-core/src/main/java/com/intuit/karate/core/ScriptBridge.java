@@ -727,11 +727,16 @@ public class ScriptBridge implements PerfContext {
     }
 
     public FeatureServer start(String mock) {
-        return start(Collections.singletonMap("mock", mock == null ? null : Arrays.asList(mock)));
+        return start(Collections.singletonMap("mock", mock));
     }
 
     public FeatureServer start(Map<String, Object> config) {
-        List<String> mocks = (List<String>) config.get("mock");
+        List<String> mocks;
+        if(config.get("mock") instanceof String) {
+            mocks = Arrays.asList((String)config.get("mock"));
+        } else {
+            mocks = (List<String>) config.get("mock");
+        }
         if (mocks == null || mocks.size() == 0) {
             throw new RuntimeException("'mock' is missing: " + config);
         }

@@ -5,7 +5,7 @@ import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValue.Type;
 import com.intuit.karate.StringUtils;
-import org.glassfish.jersey.uri.internal.UriTemplateParser;
+import org.glassfish.jersey.karate.uri.internal.UriTemplateParser;
 
 import static com.intuit.karate.http.HttpClient.*;
 import java.io.InputStream;

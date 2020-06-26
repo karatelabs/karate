@@ -13,8 +13,7 @@
     <properties>
         <antlr.version>4.7.1</antlr.version>
         <netty.version>4.1.48.Final</netty.version>
-        <jersey.version>2.30</jersey.version>
-    </properties>    
+    </properties>
 
     <dependencies>
         <dependency>
@@ -70,11 +69,6 @@
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
             <version>4.0.3</version>
-        </dependency>
-        <dependency>
-            <groupId>org.glassfish.jersey.core</groupId>
-            <artifactId>jersey-common</artifactId>
-            <version>${jersey.version}</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
