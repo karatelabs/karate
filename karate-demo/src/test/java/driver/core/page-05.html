@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Page Five</title>
+    <script src="karate.js"></script>
+    <script>
+      function keyLogger(e){ karate.setHtml('eg01Div', 'code:' + e.keyCode) }
+    </script>
+  </head>
+  <body onkeyup="keyLogger(event)">
+    <div id="eg01Div"></div>
+    <input id="eg01Input"/>
+    <input id="eg01Input2"/>
+  </body>
+</html>

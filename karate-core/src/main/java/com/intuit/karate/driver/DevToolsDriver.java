@@ -522,9 +522,6 @@ public abstract class DevToolsDriver implements Driver {
                 case 9:
                     dtm.param("key", "Tab");
                     break;
-                case 13:
-                    dtm.param("key", "Enter");
-                    break;
                 default:
                     dtm.param("windowsVirtualKeyCode", keyCode);
             }
@@ -556,6 +553,7 @@ public abstract class DevToolsDriver implements Driver {
             } else {
                 if (keyCode != null) {
                     sendKey(c, modifier, "keyDown", keyCode);
+                    sendKey(c, modifier, "keyUp", keyCode);
                 } else {
                     logger.warn("unknown character / key code: {}", c);
                     sendKey(c, modifier, "char", null);
