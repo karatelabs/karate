@@ -33,6 +33,7 @@ import com.intuit.karate.Script;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.exception.KarateFailException;
@@ -48,9 +49,6 @@ import com.intuit.karate.shell.Command;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -60,7 +58,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -440,16 +437,16 @@ public class ScriptBridge implements PerfContext {
         }
         List<Map<String, Object>> list = sv.getAsList();
         return JsonUtils.toCsv(list);
-    } 
+    }
 
     public Object call(String fileName) {
         return call(false, fileName, null);
     }
-    
+
     public Object call(String fileName, Object arg) {
         return call(false, fileName, arg);
     }
-    
+
     public Object call(boolean sharedScope, String fileName) {
         return call(sharedScope, fileName, null);
     }
@@ -481,7 +478,7 @@ public class ScriptBridge implements PerfContext {
             result.getAsMap().forEach((k, v) -> context.vars.put(k, v));
         } else {
             context.logger.trace("no vars returned from function call result: {}", called);
-        }       
+        }
         return null; // nothing returned if shared scope
     }
 
@@ -830,17 +827,17 @@ public class ScriptBridge implements PerfContext {
 
     public String exec(List<String> args) {
         return exec(Collections.singletonMap("args", args));
-    }    
-    
+    }
+
     public String exec(String line) {
         return exec(Collections.singletonMap("line", line));
     }
-    
+
     public String exec(Map<String, Object> options) {
         Command command = toCommand(false, options);
         command.waitSync();
         return command.getAppender().collect();
-    }    
+    }
 
     public Command fork(List<String> args) {
         return fork(Collections.singletonMap("args", args));
@@ -853,9 +850,22 @@ public class ScriptBridge implements PerfContext {
     public Command fork(Map<String, Object> options) {
         return toCommand(true, options);
     }
-    
+
+    private static String[] toArgs(String line) {
+        switch (FileUtils.getOsType()) {
+            case WINDOWS:
+                return new String[]{"cmd", "/c", line};
+            default:
+                return new String[]{"sh", "-c", line};
+        }
+    }
+
     private Command toCommand(boolean useLineFeed, Map<String, Object> options) {
         options = new ScriptValue(options).getAsMap(); // TODO fix nashorn quirks
+        Boolean useShell = (Boolean) options.get("useShell");
+        if (useShell == null) {
+            useShell = false;
+        }
         List<String> list = (List) options.get("args");
         String[] args;
         if (list == null) {
@@ -863,12 +873,13 @@ public class ScriptBridge implements PerfContext {
             if (line == null) {
                 throw new RuntimeException("'line' or 'args' is required");
             }
-            args = Command.tokenize(line);
+            args = useShell ? toArgs(line) : Command.tokenize(line);
         } else {
-            args = list.toArray(new String[list.size()]);
+            String joined = StringUtils.join(list, ' ');
+            args = useShell ? toArgs(joined) : list.toArray(new String[list.size()]);
         }
-        String workingDir = (String) options.get("workingDir");        
-        File workingFile = workingDir == null ? null : new File(workingDir);        
+        String workingDir = (String) options.get("workingDir");
+        File workingFile = workingDir == null ? null : new File(workingDir);
         Command command = new Command(useLineFeed, context.logger, null, null, workingFile, args);
         Map env = (Map) options.get("env");
         if (env != null) {
@@ -879,8 +890,14 @@ public class ScriptBridge implements PerfContext {
             Script.evalJsFunctionCall(som, "TEST", context);
             command.setListener(s -> Script.evalJsFunctionCall(som, s, context));
         }
-        command.start();
-        return command;        
+        Boolean start = (Boolean) options.get("start");
+        if (start == null) {
+            start = true;
+        }
+        if (start) {
+            command.start();
+        }
+        return command;
     }
 
     public void log(Object... objects) {

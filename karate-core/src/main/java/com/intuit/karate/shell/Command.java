@@ -49,6 +49,7 @@ public class Command extends Thread {
 
     protected static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Command.class);
 
+    private final boolean useLineFeed;
     private final File workingDir;
     private final String uniqueName;
     private final Logger logger;
@@ -59,6 +60,10 @@ public class Command extends Thread {
 
     private Map<String, String> environment;
     private Consumer<String> listener;
+    private Consumer<String> errorListener;
+    private final StringBuilder errorBuffer = new StringBuilder();
+    private boolean start = true;
+    private boolean redirectErrorStream = true;
     private Process process;
     private int exitCode = -1;
     private Exception failureReason;
@@ -78,11 +83,27 @@ public class Command extends Thread {
     public void setListener(Consumer<String> listener) {
         this.listener = listener;
     }        
+
+    public void setErrorListener(Consumer<String> errorListener) {
+        this.errorListener = errorListener;
+    }        
+
+    public void setRedirectErrorStream(boolean redirectErrorStream) {
+        this.redirectErrorStream = redirectErrorStream;
+    }        
+
+    public void setStart(boolean start) {
+        this.start = start;
+    }        
     
-    public String getBuffer() {
+    public String getSysOut() {
         return appender.getBuffer();
     }
 
+    public String getSysErr() {
+        return errorBuffer.toString();
+    }
+    
     public static String exec(boolean useLineFeed, File workingDir, String... args) {
         Command command = new Command(useLineFeed, workingDir, args);        
         command.start();
@@ -211,6 +232,7 @@ public class Command extends Thread {
     }
 
     public Command(boolean useLineFeed, Logger logger, String uniqueName, String logFile, File workingDir, String... args) {
+        this.useLineFeed = useLineFeed;
         setDaemon(true);
         this.uniqueName = uniqueName == null ? System.currentTimeMillis() + "" : uniqueName;
         setName(this.uniqueName);
@@ -295,15 +317,32 @@ public class Command extends Thread {
             if (workingDir != null) {
                 pb.directory(workingDir);
             }
-            pb.redirectErrorStream(true);
+            pb.redirectErrorStream(redirectErrorStream);
             process = pb.start();
-            BufferedReader in = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String line;
-            while ((line = in.readLine()) != null) {
-                appender.append(line);                
-                logger.debug("{}", line);
+            BufferedReader outReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            BufferedReader errReader = null;
+            if (!redirectErrorStream) {
+                errReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+            }
+            String outLine;
+            while ((outLine = outReader.readLine()) != null) {
+                if (errReader != null) {
+                    String errLine = errReader.readLine();
+                    if (errLine != null) {                        
+                        logger.debug("[syserr] {}", outLine);
+                        errorBuffer.append(errLine);
+                        if (useLineFeed) {
+                            errorBuffer.append('\n');
+                        }
+                        if (errorListener != null) {
+                            errorListener.accept(errLine);
+                        }
+                    }
+                }                
+                appender.append(outLine);                
+                logger.debug("{}", outLine);
                 if (listener != null) {
-                    listener.accept(line);
+                    listener.accept(outLine);
                 }
             }
             exitCode = process.waitFor();
