@@ -5,18 +5,24 @@ import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValue.Type;
 import com.intuit.karate.StringUtils;
+import org.glassfish.jersey.uri.internal.UriTemplateParser;
+
 import static com.intuit.karate.http.HttpClient.*;
 import java.io.InputStream;
 import java.net.HttpCookie;
 import java.nio.charset.Charset;
 import java.security.KeyStore;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -42,6 +48,9 @@ public class HttpUtils {
     public static final Set<String> HTTP_METHODS
             = Stream.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD", "CONNECT", "TRACE")
                     .collect(Collectors.toSet());
+
+    public static final List<Integer> DEFAULT_PATH_SCORE = Collections.unmodifiableList(Arrays.asList(0, 0, 0));
+    private static final Map<String, UriTemplateParser> TEMPLATE_PARSER_CACHE = new ConcurrentHashMap<>();
 
     private HttpUtils() {
         // only static methods
@@ -147,32 +156,74 @@ public class HttpUtils {
     }
 
     public static Map<String, String> parseUriPattern(String pattern, String url) {
-        int qpos = url.indexOf('?');
-        if (qpos != -1) {
-            url = url.substring(0, qpos);
+        pattern = normaliseUriPath(pattern);
+        url = normaliseUriPath(url);
+        if(!pattern.contains("{") || !pattern.contains("}")) {
+            return url.equals(pattern) ? Collections.emptyMap() : null;
         }
-        List<String> leftList = StringUtils.split(pattern, '/');
-        List<String> rightList = StringUtils.split(url, '/');
-        int leftSize = leftList.size();
-        int rightSize = rightList.size();
-        if (rightSize != leftSize) {
-            return null;
-        }
-        Map<String, String> map = new LinkedHashMap(leftSize);
-        for (int i = 0; i < leftSize; i++) {
-            String left = leftList.get(i);
-            String right = rightList.get(i);
-            if (left.equals(right)) {
-                continue;
+        UriTemplateParser templateParser = getUriParserForPattern(pattern);
+        Matcher urlMatcher = templateParser.getPattern().matcher(url);
+        if(urlMatcher.matches()) {
+            if(templateParser.getGroupIndexes().length == 0){
+                return Collections.emptyMap();
             }
-            if (left.startsWith("{") && left.endsWith("}")) {
-                left = left.substring(1, left.length() - 1);
-                map.put(left, right);
-            } else {
-                return null; // match failed
-            }
+           Map<String, String> pathParams = new LinkedHashMap<>();
+           int index = 0;
+           for(String name: templateParser.getNames()) {
+               String value = urlMatcher.group(templateParser.getGroupIndexes()[index]);
+               if(name == null || pathParams.containsKey(name)) {
+                   pathParams.put(name + "@" + (index+1), value);
+               }
+               else {
+                   pathParams.put(name, value);
+               }
+               index++;
+           }
+           return pathParams;
         }
-        return map;
+        return null;
+    }
+
+    private static UriTemplateParser getUriParserForPattern(String pattern) {
+        pattern = pattern.replaceAll("\\{}", "{ignored}"); //JAX-RS doesn't like params with no names - so we give it one
+
+        UriTemplateParser templateParser = TEMPLATE_PARSER_CACHE.get(pattern);
+        if(templateParser == null) {
+            TEMPLATE_PARSER_CACHE.put(pattern, (templateParser = new UriTemplateParser(pattern)));
+        }
+        return templateParser;
+    }
+
+    public static final String normaliseUriPath(String uri) {
+        uri = uri.indexOf('?') == -1 ? uri : uri.substring(0, uri.indexOf('?'));
+        if(uri.endsWith("/")) {
+            uri = uri.substring(0, uri.length() - 1);
+        }
+        if(!uri.startsWith("/")) {
+            uri="/" + uri;
+        }
+        return uri;
+    }
+
+
+    /***
+     * Calculates path scores List(3) by using JAX-RS path matching logic:
+     *  <ol>
+     *  <li>number of literal characters</li>
+     *  <li>>path params without regex expression</li>
+     *  <li>path params with regex expression</li>
+     *  </ol>
+     **/
+    public static List<Integer> calculatePathMatchScore(String path) {
+        path = normaliseUriPath(path);
+        UriTemplateParser templateParser = getUriParserForPattern(path);
+
+        int pathScore = templateParser.getNumberOfLiteralCharacters();
+        int paramScore = templateParser.getNumberOfRegexGroups() - templateParser.getNumberOfExplicitRegexes();
+        int regexScore = templateParser.getNumberOfExplicitRegexes();
+
+        List<Integer> scores = Arrays.asList(pathScore, paramScore, regexScore);
+        return scores;
     }
 
     private static final AtomicInteger BOUNDARY_COUNTER = new AtomicInteger();

@@ -50,6 +50,7 @@ import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -516,7 +517,8 @@ public class ScriptBridge implements PerfContext {
                         result = JsonUtils.toJsonDoc(json);
                         context.logger.info("callSingleCache hit: {}", cacheFile);
                     } else {
-                        context.logger.info("callSingleCache stale, last modified {} - is before {} (minutes: {})", lastModified, since, minutes);
+                        context.logger.info("callSingleCache stale, last modified {} - is before {} (minutes: {})", lastModified, since,
+                                            minutes);
                     }
                 } else {
                     context.logger.info("callSingleCache file does not exist, will create: {}", cacheFile);
@@ -657,22 +659,32 @@ public class ScriptBridge implements PerfContext {
 
     public boolean pathMatches(String path) {
         String uri = getAsString(ScriptValueMap.VAR_REQUEST_URI);
-        Map<String, String> map = HttpUtils.parseUriPattern(path, uri);
-        set(ScriptBindings.PATH_PARAMS, map);
-        return map != null;
+
+        Map<String, String> pathParams = HttpUtils.parseUriPattern(path, uri);
+        set(ScriptBindings.PATH_PARAMS, pathParams);
+        boolean matched = pathParams != null;
+
+        List<Integer> pathMatchScores = null;
+        if (matched) {
+            pathMatchScores = HttpUtils.calculatePathMatchScore(path);
+        }
+
+        set(ScriptBindings.PATH_MATCH_SCORES, pathMatchScores);
+        return matched;
     }
 
-    public boolean methodIs(String method) {
+    public boolean methodIs(String... methods) {
         String actual = getAsString(ScriptValueMap.VAR_REQUEST_METHOD);
-        return actual.equalsIgnoreCase(method);
+        boolean match = Arrays.stream(methods).anyMatch((m) -> actual.equalsIgnoreCase(m));
+
+        boolean existingValue = (Boolean) get(ScriptBindings.METHOD_MATCH, Boolean.FALSE);
+        set(ScriptBindings.METHOD_MATCH, match || existingValue);
+
+        return match;
     }
 
     public Object paramValue(String name) {
-        Map<String, List<String>> params = (Map) getValue(ScriptValueMap.VAR_REQUEST_PARAMS).getValue();
-        if (params == null) {
-            return null;
-        }
-        List<String> list = params.get(name);
+        List<String> list = paramValues(name);
         if (list == null) {
             return null;
         }
@@ -680,6 +692,19 @@ public class ScriptBridge implements PerfContext {
             return list.get(0);
         }
         return list;
+    }
+
+    private List<String> paramValues(String name) {
+        Map<String, List<String>> params = (Map) getValue(ScriptValueMap.VAR_REQUEST_PARAMS).getValue();
+        if (params == null) {
+            return null;
+        }
+        return params.get(name);
+    }
+
+    public boolean paramExists(String name) {
+        List<String> list = paramValues(name);
+        return list != null && !list.isEmpty();
     }
 
     public boolean headerContains(String name, String test) {
@@ -693,6 +718,8 @@ public class ScriptBridge implements PerfContext {
         }
         for (String s : list) {
             if (s != null && s.contains(test)) {
+                int existingValue = (int) get(ScriptBindings.HEADERS_MATCH_SCORE, 0);
+                set(ScriptBindings.HEADERS_MATCH_SCORE, existingValue+1);
                 return true;
             }
         }
@@ -724,15 +751,24 @@ public class ScriptBridge implements PerfContext {
     }
 
     public FeatureServer start(Map<String, Object> config) {
-        String mock = (String) config.get("mock");
-        if (mock == null) {
+        List<String> mocks;
+        if(config.get("mock") instanceof String) {
+            mocks = Arrays.asList((String)config.get("mock"));
+        } else {
+            mocks = (List<String>) config.get("mock");
+        }
+        if (mocks == null || mocks.size() == 0) {
             throw new RuntimeException("'mock' is missing: " + config);
         }
-        ScriptValue mockSv = FileUtils.readFile(mock, context);
-        if (!mockSv.isFeature()) {
-            throw new RuntimeException("'mock' is not a feature file: " + config + ", " + mockSv);
+        List<Feature> features = new ArrayList<>();
+        for (String mock: mocks) {
+            ScriptValue mockSv = FileUtils.readFile(mock, context);
+            if (!mockSv.isFeature()) {
+                throw new RuntimeException("'mock' is not a feature file: " + config + ", " + mockSv);
+            }
+            Feature feature = mockSv.getValue(Feature.class);
+            features.add(feature);
         }
-        Feature feature = mockSv.getValue(Feature.class);
         String certFile = (String) config.get("cert");
         String keyFile = (String) config.get("key");
         Boolean ssl = (Boolean) config.get("ssl");
@@ -753,9 +789,9 @@ public class ScriptBridge implements PerfContext {
             if (!keySv.isStream()) {
                 throw new RuntimeException("'key' is not valid: " + config + ", " + keySv);
             }
-            return new FeatureServer(feature, port, ssl, certSv.getAsStream(), keySv.getAsStream(), arg);
+            return new FeatureServer(features.toArray(new Feature[0]), port, ssl, certSv.getAsStream(), keySv.getAsStream(), arg);
         } else {
-            return new FeatureServer(feature, port, ssl, arg);
+            return new FeatureServer(features.toArray(new Feature[0]), port, ssl, arg);
         }
     }
 

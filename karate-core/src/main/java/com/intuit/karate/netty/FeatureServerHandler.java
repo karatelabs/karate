@@ -24,7 +24,7 @@
 package com.intuit.karate.netty;
 
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.FeatureBackend;
+import com.intuit.karate.core.FeaturesBackend;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.MultiValuedMap;
@@ -48,6 +48,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.CharsetUtil;
 
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
@@ -56,12 +57,12 @@ import java.util.function.Supplier;
  */
 public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
-    private final FeatureBackend backend;
+    private final FeaturesBackend backend;
     private final Runnable stopFunction;    
     private final boolean ssl;
     private final Supplier<SslContext> contextSupplier;
 
-    public FeatureServerHandler(FeatureBackend backend, boolean ssl, Supplier<SslContext> contextSupplier, Runnable stopFunction) {
+    public FeatureServerHandler(FeaturesBackend backend, boolean ssl, Supplier<SslContext> contextSupplier, Runnable stopFunction) {
         this.backend = backend;
         this.ssl = ssl;
         this.contextSupplier = contextSupplier;
@@ -80,12 +81,13 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         long startTime = System.currentTimeMillis();
         backend.getContext().logger.debug("handling method: {}, uri: {}", msg.method(), msg.uri());
         FullHttpResponse nettyResponse;
+        long delay = 0L;
         if (msg.uri().startsWith(STOP_URI)) {
             backend.getContext().logger.info("stop uri invoked, shutting down");
             ByteBuf responseBuf = Unpooled.copiedBuffer("stopped", CharsetUtil.UTF_8);
             nettyResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, responseBuf);
             stopFunction.run();
-        } else if (HttpMethod.CONNECT.equals(msg.method())) { // HTTPS proxy         
+        } else if (HttpMethod.CONNECT.equals(msg.method())) { // HTTPS proxy
             SslContext sslContext = contextSupplier.get();
             SslHandler sslHandler = sslContext.newHandler(ctx.alloc());
             FullHttpResponse response = NettyUtils.connectionEstablished();
@@ -129,9 +131,15 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
                 HttpHeaders nettyHeaders = nettyResponse.headers();
                 karateHeaders.forEach((k, v) -> nettyHeaders.add(k, v));
             }
+            if(response.getDelay() != 0L) {
+                delay = response.getDelay() - response.getResponseTime();
+            }
         }
-        ctx.write(nettyResponse);
-        ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+        ctx.executor().schedule(() -> {
+            ctx.write(nettyResponse);
+            ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+        }, delay, TimeUnit.MILLISECONDS)
+           .addListener((future) -> backend.getContext().logger.debug("response {} written after {} milliseconds", future.isSuccess() ? "successfully" : "not",  System.currentTimeMillis() - startTime));
     }
 
     @Override

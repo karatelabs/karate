@@ -26,12 +26,15 @@ package com.intuit.karate.core;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Match;
 import com.intuit.karate.ScriptValueMap;
-import java.io.File;
 import java.util.List;
 import java.util.Map;
+
+import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.hamcrest.CoreMatchers.containsString;
 
 /**
  *
@@ -49,15 +52,32 @@ public class FeatureBackendTest {
 
     @Test
     public void testServer() {
-        File file = FileUtils.getFileRelativeTo(getClass(), "server.feature");
-        Feature feature = FeatureParser.parse(file);
-        FeatureBackend backend = new FeatureBackend(feature);
+        Feature feature = FeatureParser.parse(FileUtils.getFileRelativeTo(getClass(), "server.feature"));
+        FeaturesBackend backend = new FeaturesBackend(feature);
         ScriptValueMap vars = backend.handle(getRequest("Billie"));
         Match.equals(vars.get("response").getAsMap(), "{ id: 1, name: 'Billie' }");
         vars = backend.handle(getRequest("Wild"));
         Match.equals(vars.get("response").getAsMap(), "{ id: 2, name: 'Wild' }");
         List<Map> list = vars.get("cats").getAsList();
         Match.equals(list, "[{ id: 1, name: 'Billie' }, { id: 2, name: 'Wild' }]");
+    }
+
+    @Test
+    public void testMultipleServerFeatures() {
+        Feature feature = FeatureParser.parse(FileUtils.getFileRelativeTo(getClass(), "server.feature"));
+        Feature feature2 = FeatureParser.parse(FileUtils.getFileRelativeTo(getClass(), "server-path-matching.feature"));
+        FeaturesBackend backend = new FeaturesBackend(new Feature[]{feature, feature2});
+
+        Match match = new Match()
+                .text(ScriptValueMap.VAR_REQUEST_URI, "/v10/cats")
+                .text(ScriptValueMap.VAR_REQUEST_METHOD, "GET");
+
+        FeatureBackend.FeatureScenarioMatch matchingInfo = backend.getMatchingScenario(match.vars());
+
+        Assert.assertNotNull(matchingInfo.getFeatureBackend());
+        Assert.assertNotNull(matchingInfo.getScenario());
+        Assert.assertEquals("server-path-matching.feature", matchingInfo.getFeatureBackend().getFeatureName());
+        Assert.assertThat(matchingInfo.getScenario().getName(), containsString("/v10/cats"));
     }
 
 }

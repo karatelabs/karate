@@ -110,10 +110,10 @@ java -jar karate.jar -h
 ```
 
 ### Mock Server
-To start a mock server, the 2 mandatory arguments are the path of the feature file 'mock' `-m` and the port `-p`
+To start a mock server, the 2 mandatory arguments are the path of the feature file 'mocks' `-m` and the port `-p`
 
 ```
-java -jar karate.jar -m my-mock.feature -p 8080
+java -jar karate.jar -m my-mock.feature -m my-2nd-mock.feature -p 8080
 ```
 
 Note that this server will be able to act as an HTTPS proxy server if needed. If you need to specify a custom certificate and key combination, see below.
@@ -303,7 +303,7 @@ Background:
 
 For more control, the argument to `karate.start()` can be a JSON with the following keys expected, only the `mock` is mandatory:
 
-* `mock` - (string) path to the mock feature file, e.g. `classpath:my-mock.feature` or relative paths work just like [`read()`](https://github.com/intuit/karate#reading-files).
+* `mocks` - (string[]) path to the mock feature file, e.g. `classpath:my-mock.feature` or relative paths work just like [`read()`](https://github.com/intuit/karate#reading-files).
 * `port` - (int) defaults to `0`, see section on [embedding](#embedding) above
 * `ssl` - (boolean) defaults to `false`, see above
 * `cert` - (string) see above
@@ -406,7 +406,7 @@ Scenario: pathMatches('/v1/headers') && karate.get('requestHeaders.val[0]') == '
 Note that you can define your custom JS re-usable functions in the `Background` which can make complex matching logic easier to implement.
 
 ## `requestParams`
-A map-like' object of all query-string parameters and the values will always be an array. The built-in convenience function [`paramValue()`](#paramValue) is what you would use most of the time.
+A map-like' object of all query-string parameters and the values will always be an array. The built-in convenience function [`paramExists()`](#paramexists) is what you would use most of the time.
 
 ## `pathMatches()`
 Helper function that makes it easy to match a URI pattern as well as set [path parameters](#pathparams) up for extraction later using curly-braces. For example:
@@ -420,18 +420,24 @@ Scenario: pathMatches('/v1/cats/{id}')
 JSON variable (not a function) allowing you to extract values by name. See [`pathMatches()`](#pathmatches) above.
 
 ## `methodIs()`
-Helper function that you will use a lot along with [`pathMatches()`](#pathmatches). Lower-case is fine. For example:
+Helper function that you will use a lot along with [`pathMatches()`](#pathmatches). Lower-case is fine. Allows for array of possible values. For example:
 
 ```cucumber
 Scenario: pathMatches('/v1/cats/{id}') && methodIs('get')
     * def response = cats[pathParams.id]
 ```
 
+## `paramExists()`
+Function (not a variable) designed to match request on query parameter instead of [`requestParams`](#requestparams). Returns a boolean.
+```cucumber
+Scenario: pathMatches('/greeting') && paramExists('name')
+```
+
 ## `paramValue()`
 Function (not a variable) designed to make it easier to work with query parameters instead of [`requestParams`](#requestparams). It will return a single (string) value (instead of an array) if the size of the parameter-list for that name is 1, which is what you need most of the time. For example:
 
 ```cucumber
-Scenario: pathMatches('/greeting') && paramValue('name') != null
+Scenario: pathMatches('/greeting') && paramExists('name')
     * def content = 'Hello ' + paramValue('name') + '!'
     * def response = { id: '#(nextId())', content: '#(content)' }
 ```
@@ -560,25 +566,43 @@ Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: GET, HEAD, POST, PUT, DELETE, PATCH
 ```
 
-## `afterScenario`
-Use this to add an artificial delay instead of calling `Thread.sleep()` directly which will block all other threads. For example:
+## `responseDelay`
+You can easily set response delay in milliseconds
 
 ```cucumber
-* def afterScenario = function(){ java.lang.Thread.sleep(3000) }
+Scenario: pathMatches('/v1/test')
+    * def responseDelay = 4000
 ```
 
+## `def responseDelay`
+You can also configure a randomised delay across all scenarios. Here is an example of setting a random delay between 200 to 600 milliseconds:
+
+```cucumber
+Background:
+    * def responseDelay = 200 + Math.random() * 400
+```
 Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).
 
+## `afterScenario`
+Use this to add re-use any behaviour after scenario run, e.g. logging. For example:
+
+```cucumber
+* def afterScenario =
+"""
+function(){
+    karate.log('finished')
+}
+"""
+```
+
 ### `configure afterScenario`
-Just like the above, but you can set this "globally" for all route-handlers in the [`Background`](#background). Here is an example of setting a random delay between 200 to 600 milliseconds.
+Just like the above, but you can set this "globally" for all route-handlers in the [`Background`](#background).
 
 ```cucumber
 * configure afterScenario =
 """
 function(){
-    var millis = 200 + Math.random() * 400;
     karate.log('sleeping for:', millis, 'millis')
-    java.lang.Thread.sleep(millis); 
 }
 """
 ```
