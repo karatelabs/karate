@@ -13,6 +13,7 @@
     <properties>
         <antlr.version>4.7.1</antlr.version>
         <netty.version>4.1.48.Final</netty.version>
+        <jersey.version>2.30</jersey.version>
     </properties>
 
     <dependencies>
@@ -69,6 +70,11 @@
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
             <version>4.0.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-common</artifactId>
+            <version>${jersey.version}</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -141,7 +147,8 @@
                                     <artifactSet>
                                         <includes>
                                             <include>io.netty:*</include>
-                                            <include>org.antlr:*</include>                                  
+                                            <include>org.antlr:*</include>
+                                            <include>org.glassfish.jersey.core:*</include>
                                         </includes>
                                     </artifactSet>
                                     <relocations>
@@ -152,7 +159,11 @@
                                         <relocation>
                                             <pattern>org.antlr.v4</pattern>
                                             <shadedPattern>org.antlr.karate</shadedPattern>
-                                        </relocation>                                        
+                                        </relocation>
+                                        <relocation>
+                                            <pattern>org.glassfish.jersey</pattern>
+                                            <shadedPattern>org.glassfish.jersey.karate</shadedPattern>
+                                        </relocation>
                                     </relocations>
                                 </configuration>
                             </execution>
