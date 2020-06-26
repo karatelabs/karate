@@ -60,6 +60,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -872,6 +873,11 @@ public class ScriptBridge implements PerfContext {
         Map env = (Map) options.get("env");
         if (env != null) {
             command.setEnvironment(env);
+        }
+        ScriptObjectMirror som = (ScriptObjectMirror) options.get("listener");
+        if (som != null) {
+            Script.evalJsFunctionCall(som, "TEST", context);
+            command.setListener(s -> Script.evalJsFunctionCall(som, s, context));
         }
         command.start();
         return command;        

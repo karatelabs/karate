@@ -236,6 +236,11 @@ public class DebugThread implements ExecutionHook, LogAppender {
     }
 
     @Override
+    public String getBuffer() {
+        return appender.getBuffer();
+    }        
+
+    @Override
     public String collect() {
         return appender.collect();
     }

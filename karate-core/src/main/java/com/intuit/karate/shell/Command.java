@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 public class Command extends Thread {
 
@@ -57,6 +58,7 @@ public class Command extends Thread {
     private final LogAppender appender;
 
     private Map<String, String> environment;
+    private Consumer<String> listener;
     private Process process;
     private int exitCode = -1;
     private Exception failureReason;
@@ -71,6 +73,14 @@ public class Command extends Thread {
 
     public void setEnvironment(Map<String, String> environment) {
         this.environment = environment;
+    }
+
+    public void setListener(Consumer<String> listener) {
+        this.listener = listener;
+    }        
+    
+    public String getBuffer() {
+        return appender.getBuffer();
     }
 
     public static String exec(boolean useLineFeed, File workingDir, String... args) {
@@ -290,8 +300,11 @@ public class Command extends Thread {
             BufferedReader in = new BufferedReader(new InputStreamReader(process.getInputStream()));
             String line;
             while ((line = in.readLine()) != null) {
-                appender.append(line);
+                appender.append(line);                
                 logger.debug("{}", line);
+                if (listener != null) {
+                    listener.accept(line);
+                }
             }
             exitCode = process.waitFor();
             if (!sharedAppender) {

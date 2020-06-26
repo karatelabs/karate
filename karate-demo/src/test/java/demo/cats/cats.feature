@@ -12,7 +12,7 @@ Given path 'cats'
 And request { name: 'Billie' }
 When method post
 Then status 200
-And match response == { id: '#number', name: 'Billie' }
+And match response == { id: '#number', name: 'Billi' }
 
 * def id = response.id
 

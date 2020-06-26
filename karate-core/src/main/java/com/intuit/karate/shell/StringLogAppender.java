@@ -40,6 +40,11 @@ public class StringLogAppender implements LogAppender {
     }
 
     @Override
+    public String getBuffer() {
+        return sb.toString();
+    }        
+
+    @Override
     public String collect() {
         String temp = sb.toString();
         sb.setLength(0);
