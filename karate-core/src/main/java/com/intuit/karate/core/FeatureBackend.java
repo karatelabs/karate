@@ -304,6 +304,7 @@ public class FeatureBackend {
                 }                
             }
         }
+        response.addHeader("X-Karate-Request-Id", request.getRequestId());
         if (!contentTypeHeaderExists && responseValue != null) {
             response.addHeader(HttpUtils.HEADER_CONTENT_TYPE, HttpUtils.getContentType(responseValue));
         }        
