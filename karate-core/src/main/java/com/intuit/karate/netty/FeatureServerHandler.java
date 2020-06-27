@@ -47,6 +47,7 @@ import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.CharsetUtil;
+import org.slf4j.MDC;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -79,6 +80,8 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest msg) {
         long startTime = System.currentTimeMillis();
+        String requestId = System.identityHashCode(msg) + ""; //Simple requestId based on distinct JVM objectId
+        MDC.put("karateRequestId", requestId);
         backend.getContext().logger.debug("handling method: {}, uri: {}", msg.method(), msg.uri());
         FullHttpResponse nettyResponse;
         long delay = 0L;
@@ -107,6 +110,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             }
             request.setUri(url.right);
             request.setMethod(msg.method().name());
+            request.setRequestId(requestId);
             msg.headers().forEach(h -> request.addHeader(h.getKey(), h.getValue()));
             QueryStringDecoder decoder = new QueryStringDecoder(url.right);
             decoder.parameters().forEach((k, v) -> request.putParam(k, v));

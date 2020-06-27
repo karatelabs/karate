@@ -34,6 +34,7 @@ import java.util.List;
  */
 public class HttpRequest {
 
+    private String requestId;
     private long startTime;
     private long endTime;
     private double responseTime;
@@ -117,6 +118,14 @@ public class HttpRequest {
 
     public void setUri(String uri) {
         this.uri = uri;
+    }
+
+    public String getRequestId(){
+        return requestId;
+    }
+
+    public void setRequestId(String requestId) {
+        this.requestId = requestId;
     }
 
     public MultiValuedMap getHeaders() {

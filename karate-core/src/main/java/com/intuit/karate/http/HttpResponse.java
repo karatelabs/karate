@@ -33,6 +33,7 @@ import java.util.Map;
  */
 public class HttpResponse {
 
+    private String requestId;
     private String uri;
     private Map<String, Cookie> cookies;
     private MultiValuedMap headers;

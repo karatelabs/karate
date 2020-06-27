@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -123,6 +124,15 @@ public class FeaturesBackend {
 
 
             FeatureBackend.FeatureScenarioMatch matchingInfo = getMatchingScenario(match.vars());
+            if(matchingInfo == null) {
+                getContext().logger.warn("no matching scenarios in backend feature files");
+                HttpResponse response = new HttpResponse(startTime, System.currentTimeMillis());
+                response.getHeaders().add("Content-Type", "text/plain");
+                response.getHeaders().add("X-Karate-Request-Id", request.getRequestId());
+                response.setStatus(404);
+                response.setBody("no matching scenarios in backend feature files".getBytes(Charset.forName("UTF-8")));
+                return response;
+            }
             FeatureBackend matchingFeature = matchingInfo.getFeatureBackend();
             Scenario matchingScenario = matchingInfo.getScenario();
 
