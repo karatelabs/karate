@@ -130,6 +130,7 @@ public class Keys {
         CODES.put(TAB, 9);
         CODES.put(CLEAR, 12);
         CODES.put(NULL, 12); // same as clear
+        CODES.put(RETURN, 13); // same as enter
         CODES.put(ENTER, 13);
         CODES.put(SHIFT, 16);
         CODES.put(CONTROL, 17);

@@ -4,10 +4,9 @@ Scenario Outline: <type>
   * def webUrlBase = karate.properties['web.url.base']
   * configure driver = { type: '#(type)', showDriverLog: true }
 
-  * driver webUrlBase + '/page-05'
-  * input('#eg01Input', Key.ENTER)
-  * input('#eg01Input', Key.TAB)
-  * karate.stop(9000)
+        Given driver 'https://google.com'
+        When input('input[name=q]', 'karate dsl' + Key.ENTER)
+        Then waitFor('{h3}intuit/karate: Test Automation Made Simple - GitHub')
 
 Examples:
 | type         |

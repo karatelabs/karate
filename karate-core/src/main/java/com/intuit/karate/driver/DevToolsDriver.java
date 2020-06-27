@@ -513,20 +513,25 @@ public abstract class DevToolsDriver implements Driver {
         return DriverElement.locatorExists(this, locator);
     }
 
-    private void sendKey(char c, int modifier, String type, Integer keyCode) {
+    private void sendKey(char c, int modifiers, String type, Integer keyCode) {
         DevToolsMessage dtm = method("Input.dispatchKeyEvent")
-                .param("modifier", modifier)
+                .param("modifiers", modifiers)
                 .param("type", type);
-        if (keyCode != null) {
-            switch (keyCode) { // TODO wtf
-                case 9:
-                    dtm.param("key", "Tab");
-                    break;
-                default:
-                    dtm.param("windowsVirtualKeyCode", keyCode);
-            }
-        } else {
-            dtm.param("text", c + "");
+        switch (keyCode) {
+            case 13:
+                dtm.param("text", "\r"); // important ! \n does NOT work for chrome
+                dtm.param("windowsVirtualKeyCode", keyCode);
+                break;
+            case 9:
+                if ("char".equals(type)) {
+                    return; // special case
+                }
+                dtm.param("text", "");
+                dtm.param("windowsVirtualKeyCode", keyCode);
+                break;
+            default:
+                dtm.param("text", c + "");
+                dtm.param("windowsVirtualKeyCode", keyCode);                
         }
         dtm.send();
     }
@@ -539,25 +544,15 @@ public abstract class DevToolsDriver implements Driver {
         Input input = new Input(value);
         while (input.hasNext()) {
             char c = input.next();
-            int modifier = input.getModifierFlags();
+            int modifiers = input.getModifierFlags();
             Integer keyCode = Keys.code(c);
-            if (Keys.isNormal(c)) {
-                if (keyCode != null) {
-                    // sendKey(c, modifier, "rawKeyDown", keyCode);
-                    sendKey(c, modifier, "keyDown", null);
-                    sendKey(c, modifier, "keyUp", keyCode);
-                } else {
-                    logger.warn("unknown character / key code: {}", c);
-                    sendKey(c, modifier, "char", null);
-                }
+            if (keyCode != null) {
+                sendKey(c, modifiers, "rawKeyDown", keyCode);
+                sendKey(c, modifiers, "char", keyCode);
+                sendKey(c, modifiers, "keyUp", keyCode);
             } else {
-                if (keyCode != null) {
-                    sendKey(c, modifier, "keyDown", keyCode);
-                    sendKey(c, modifier, "keyUp", keyCode);
-                } else {
-                    logger.warn("unknown character / key code: {}", c);
-                    sendKey(c, modifier, "char", null);
-                }
+                logger.warn("unknown character / key code: {}", c);
+                sendKey(c, modifiers, "char", null);
             }
         }
         return DriverElement.locatorExists(this, locator);
