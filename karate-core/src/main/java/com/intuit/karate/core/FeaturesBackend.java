@@ -39,22 +39,23 @@ import com.intuit.karate.XmlUtils;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
+import com.intuit.karate.http.MultiValuedMap;
 
 /**
- * A wrapper class to run multiple mock files, picking first match based on path, method, header.
+ * A wrapper class to run multiple mock files, picking first match based on
+ * path, method, header.
  *
  */
 public class FeaturesBackend {
 
     private final List<FeatureBackend> featureBackends;
     private static final String ALLOWED_METHODS = "GET, HEAD, POST, PUT, DELETE, PATCH";
-    private static final String DUMMY_FEATURE =
-            "@ignore\nFeature:\n\nBackground:\n\nScenario:\n\n";
+    private static final String DUMMY_FEATURE
+            = "@ignore\nFeature:\n\nBackground:\n\nScenario:\n\n";
 
 //    private final Feature serverFeature;
 //    private final StepActions actions;
 //    private final ScenarioContext context;
-
     public FeaturesBackend(Feature feature) {
         this(new Feature[]{feature});
     }
@@ -87,7 +88,7 @@ public class FeaturesBackend {
     }
 
     public HttpResponse buildResponse(HttpRequest request, long startTime) {
-        if("OPTIONS".equals(request.getMethod()) && isCorsEnabled()) {
+        if ("OPTIONS".equals(request.getMethod()) && isCorsEnabled()) {
             return corsCheck(request, startTime);
         }
         // this is a sledgehammer approach to concurrency !
@@ -122,13 +123,12 @@ public class FeaturesBackend {
                 match.def(ScriptValueMap.VAR_REQUEST, requestBody);
             }
 
-
             FeatureBackend.FeatureScenarioMatch matchingInfo = getMatchingScenario(match.vars());
-            if(matchingInfo == null) {
+            if (matchingInfo == null) {
                 getContext().logger.warn("no matching scenarios in backend feature files");
                 HttpResponse response = new HttpResponse(startTime, System.currentTimeMillis());
-                response.getHeaders().add("Content-Type", "text/plain");
-                response.getHeaders().add("X-Karate-Request-Id", request.getRequestId());
+                response.addHeader("Content-Type", "text/plain");
+                response.addHeader("X-Karate-Request-Id", request.getRequestId());
                 response.setStatus(404);
                 response.setBody("no matching scenarios in backend feature files".getBytes(Charset.forName("UTF-8")));
                 return response;
@@ -168,27 +168,26 @@ public class FeaturesBackend {
         FeatureBackend.FeatureScenarioMatch matching = null;
         List<FeatureBackend.FeatureScenarioMatch> matches = new ArrayList<>();
         List<FeatureBackend.FeatureScenarioMatch> defaults = new ArrayList<>();
-        for(FeatureBackend featureBackend: featureBackends) {
+        for (FeatureBackend featureBackend : featureBackends) {
             //This can be optimised by saying give me the first one
             List<FeatureBackend.FeatureScenarioMatch> featureMatches = featureBackend.getMatchingScenarios(args);
             Scenario defaultMatch = featureBackend.getDefaultScenario(args);
 
             matches.addAll(featureMatches);
-            if(defaultMatch != null)
+            if (defaultMatch != null) {
                 defaults.add(new FeatureBackend.FeatureScenarioMatch(featureBackend, defaultMatch));
+            }
 
         }
-        if(matches.isEmpty() && defaults.isEmpty()) {
+        if (matches.isEmpty() && defaults.isEmpty()) {
             getContext().logger.error("no scenarios matched request");
             return null;
-        }
-        else {
+        } else {
             matching = matches.stream().max((left, right) -> left.compareScores(right)).orElse(null);
-            if(matching == null) {
+            if (matching == null) {
                 matching = defaults.stream().findFirst().get();
                 getContext().logger.debug("scenario defaulted: {}#{}", matching.getFeatureBackend().getFeatureName(), matching.getScenario().getName());
-            }
-            else {
+            } else {
                 getContext().logger.debug("scenario picked: {}#{}", matching.getFeatureBackend().getFeatureName(), matching.getScenario().getName());
             }
 
