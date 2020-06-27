@@ -22,12 +22,13 @@ public class QueueConsumer {
     private final Connection connection;
     private final MessageConsumer consumer;
     private final String queueName;
+    private final Session session;
 
     public QueueConsumer(String queueName) {
         this.queueName = queueName;
         this.connection = QueueUtils.getConnection();
         try {
-            Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+            session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
             Destination destination = session.createQueue(queueName);
             consumer = session.createConsumer(destination);
         } catch (Exception e) {
@@ -81,7 +82,8 @@ public class QueueConsumer {
 
     public void stop() {
         try {
-            connection.close();
+            consumer.close();
+            session.close();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
