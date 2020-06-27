@@ -51,3 +51,10 @@ a .step-ref { font-weight: bold; color: blue; }
 .passed { background-color: #92DD96; } 
 .failed { background-color: #F2928C; } 
 .skipped { background-color: #f5f28f; }
+
+.features-table th { border: 1px solid gray; background-color: #f2f2f2; }
+.features-table td { border: 1px solid gray; }
+.passed-lt td { background-color: #CCffCC; } 
+.failed-lt td { background-color: #FFCCCC; } 
+.skipped-lt td { background-color: #FFFFCC; }
+

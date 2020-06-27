@@ -51,16 +51,18 @@ public class HtmlSummaryReport extends HtmlReport {
         Element tr = node("tr", null);
         thead.appendChild(tr);
         tr.appendChild(th("Feature", null));
+        tr.appendChild(th("Title", null));
         tr.appendChild(th("Passed", "num"));
         tr.appendChild(th("Failed", "num"));
         tr.appendChild(th("Scenarios", "num"));
-        tr.appendChild(th("Duration (ms)", "num"));
+        tr.appendChild(th("Time (ms)", "num"));
         tbody = node("tbody", null);
         table.appendChild(tbody);
     }
 
     public void addFeatureResult(FeatureResult result) {
-        Element tr = node("tr", null);
+        String rowClass = result.isFailed() ? "failed-lt" : "passed-lt";
+        Element tr = node("tr", rowClass);
         tbody.appendChild(tr);
         String featureUri = result.getDisplayUri();
         String featurePath = getHtmlFileName(result);
@@ -70,6 +72,7 @@ public class HtmlSummaryReport extends HtmlReport {
         tdFeature.appendChild(featureLink);
         featureLink.setTextContent(featureUri);
         featureLink.setAttribute("href", featurePath);
+        tr.appendChild(td(result.getFeature().getNameAndDescription(), null));
         tr.appendChild(td(result.getPassedCount() + "", "num"));
         tr.appendChild(td(result.getFailedCount() + "", "num"));
         tr.appendChild(td(result.getScenarioCount() + "", "num"));
