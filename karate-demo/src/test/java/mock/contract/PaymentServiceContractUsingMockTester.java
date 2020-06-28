@@ -16,7 +16,7 @@ import org.junit.runner.RunWith;
  */
 @RunWith(Karate.class)
 @KarateOptions(features = "classpath:mock/contract/payment-service.feature")
-public class PaymentServiceContractUsingMockTest {
+public class PaymentServiceContractUsingMockTester {
     
     private static FeatureServer server;
     
@@ -24,7 +24,7 @@ public class PaymentServiceContractUsingMockTest {
     public static void beforeClass() {
         String queueName = "DEMO.CONTRACT.MOCK";
         System.setProperty("karate.env", "contract");        
-        File file = FileUtils.getFileRelativeTo(PaymentServiceContractUsingMockTest.class, "payment-service-mock.feature");
+        File file = FileUtils.getFileRelativeTo(PaymentServiceContractUsingMockTester.class, "payment-service-mock.feature");
         server = FeatureServer.start(file, 0, false, Collections.singletonMap("queueName", queueName));
         String paymentServiceUrl = "http://localhost:" + server.getPort();
         System.setProperty("payment.service.url", paymentServiceUrl);

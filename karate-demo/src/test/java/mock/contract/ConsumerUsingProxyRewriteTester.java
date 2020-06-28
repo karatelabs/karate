@@ -16,7 +16,7 @@ import org.springframework.context.ConfigurableApplicationContext;
  *
  * @author pthomas3
  */
-public class ConsumerUsingProxyRewriteTest {
+public class ConsumerUsingProxyRewriteTester {
     
     private static ConfigurableApplicationContext context;
     private static FeatureServer server;
@@ -29,7 +29,7 @@ public class ConsumerUsingProxyRewriteTest {
         context = PaymentService.start(queueName, false);
         String paymentServiceUrl = "http://localhost:" + PaymentService.getPort(context);
         // proxy
-        File file = FileUtils.getFileRelativeTo(ConsumerUsingProxyRewriteTest.class, "payment-service-proxy.feature");                        
+        File file = FileUtils.getFileRelativeTo(ConsumerUsingProxyRewriteTester.class, "payment-service-proxy.feature");                        
         Map config = Collections.singletonMap("paymentServiceUrl", paymentServiceUrl);
         // requests will be forwarded / url re-written to paymentServiceUrl
         server = FeatureServer.start(file, 0, false, config);
