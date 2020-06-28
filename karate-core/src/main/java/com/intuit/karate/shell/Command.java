@@ -340,6 +340,19 @@ public class Command extends Thread {
                     listener.accept(outLine);
                 }
             }
+            if (errReader != null) { // to ensure err is collected even when no stdout
+                String errLine = errReader.readLine();
+                if (errLine != null) {
+                    logger.debug("[syserr] {}", outLine);
+                    errorBuffer.append(errLine);
+                    if (useLineFeed) {
+                        errorBuffer.append('\n');
+                    }
+                    if (errorListener != null) {
+                        errorListener.accept(errLine);
+                    }
+                }
+            }
             exitCode = process.waitFor();
             if (!sharedAppender) {
                 appender.close();
