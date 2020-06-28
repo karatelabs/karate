@@ -24,6 +24,7 @@
 package com.intuit.karate.driver.appium;
 
 import com.intuit.karate.*;
+import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.Embed;
 import com.intuit.karate.driver.DriverElement;
 import com.intuit.karate.driver.DriverOptions;
@@ -35,14 +36,22 @@ import java.io.FileOutputStream;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
  * @author babusekaran
  */
 public abstract class AppiumDriver extends WebDriver {
 
+    private boolean isBrowserSession;
+
     protected AppiumDriver(DriverOptions options) {
         super(options);
+        // flag to know if driver runs for browser on mobile
+        Map<String, Object> sessionPayload = (Map<String, Object>)options.getWebDriverSessionPayload();
+        Map<String, Object> desiredCapabilities = (Map<String, Object>)sessionPayload.get("desiredCapabilities");
+        isBrowserSession = (desiredCapabilities.get("browserName") != null) ? true : false;
     }
 
     @Override
@@ -53,6 +62,9 @@ public abstract class AppiumDriver extends WebDriver {
 
     @Override
     protected String selectorPayload(String id) {
+        if (isBrowserSession){ // use WebDriver selector strategies for mobile browser
+            return super.selectorPayload(id);
+        }
         Json json = new Json();
         if (id.startsWith("/")) {
             json.set("using", "xpath").set("value", id);
@@ -149,5 +161,22 @@ public abstract class AppiumDriver extends WebDriver {
         // TODO
     }
 
+    @Override
+    public Object script(String expression) {
+        if (isBrowserSession){ // use WebDriver script for mobile browser
+            return super.script(expression);
+        }
+        return eval(expression).getValue();
+    }
+
+    public Object script(String expression, List<Map<String, Object>> args) {
+        return eval(expression, args).getValue();
+    }
+
+    public Object script(String expression, Map<String, Object> args) {
+        List<Map<String, Object>> scriptArgs = new ArrayList<>(1);
+        scriptArgs.add(args);
+        return eval(expression, scriptArgs).getValue();
+    }
 
 }
