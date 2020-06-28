@@ -324,7 +324,7 @@ public class Command extends Thread {
                 if (errReader != null) {
                     String errLine = errReader.readLine();
                     if (errLine != null) {
-                        logger.debug("[syserr] {}", outLine);
+                        logger.debug("[syserr] {}", errLine);
                         errorBuffer.append(errLine);
                         if (useLineFeed) {
                             errorBuffer.append('\n');
@@ -341,15 +341,17 @@ public class Command extends Thread {
                 }
             }
             if (errReader != null) { // to ensure err is collected even when no stdout
-                String errLine = errReader.readLine();
-                if (errLine != null) {
-                    logger.debug("[syserr] {}", outLine);
-                    errorBuffer.append(errLine);
-                    if (useLineFeed) {
-                        errorBuffer.append('\n');
-                    }
-                    if (errorListener != null) {
-                        errorListener.accept(errLine);
+                String errLine;
+                while((errLine = errReader.readLine()) != null) {
+                    if (errLine != null) {
+                        logger.debug("[syserr] {}", errLine);
+                        errorBuffer.append(errLine);
+                        if (useLineFeed) {
+                            errorBuffer.append('\n');
+                        }
+                        if (errorListener != null) {
+                            errorListener.accept(errLine);
+                        }
                     }
                 }
             }
