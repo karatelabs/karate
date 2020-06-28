@@ -62,7 +62,6 @@ public class Command extends Thread {
     private Consumer<String> listener;
     private Consumer<String> errorListener;
     private final StringBuilder errorBuffer = new StringBuilder();
-    private boolean start = true;
     private boolean redirectErrorStream = true;
     private Process process;
     private int exitCode = -1;
@@ -70,11 +69,11 @@ public class Command extends Thread {
 
     public boolean isFailed() {
         return failureReason != null;
-    }      
+    }
 
     public Exception getFailureReason() {
         return failureReason;
-    }        
+    }
 
     public void setEnvironment(Map<String, String> environment) {
         this.environment = environment;
@@ -82,20 +81,16 @@ public class Command extends Thread {
 
     public void setListener(Consumer<String> listener) {
         this.listener = listener;
-    }        
+    }
 
     public void setErrorListener(Consumer<String> errorListener) {
         this.errorListener = errorListener;
-    }        
+    }
 
     public void setRedirectErrorStream(boolean redirectErrorStream) {
         this.redirectErrorStream = redirectErrorStream;
-    }        
+    }
 
-    public void setStart(boolean start) {
-        this.start = start;
-    }        
-    
     public String getSysOut() {
         return appender.getBuffer();
     }
@@ -103,13 +98,13 @@ public class Command extends Thread {
     public String getSysErr() {
         return errorBuffer.toString();
     }
-    
+
     public static String exec(boolean useLineFeed, File workingDir, String... args) {
-        Command command = new Command(useLineFeed, workingDir, args);        
+        Command command = new Command(useLineFeed, workingDir, args);
         command.start();
         command.waitSync();
         return command.appender.collect();
-    }  
+    }
 
     public static String[] tokenize(String command) {
         StringTokenizer st = new StringTokenizer(command);
@@ -152,7 +147,7 @@ public class Command extends Thread {
             throw new RuntimeException(e);
         }
     }
-    
+
     private static void sleep(int millis) {
         try {
             LOGGER.trace("sleeping for millis: {}", millis);
@@ -160,11 +155,11 @@ public class Command extends Thread {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }    
-    
+    }
+
     private static final int SLEEP_TIME = 2000;
     private static final int POLL_ATTEMPTS_MAX = 30;
-    
+
     public static boolean waitForPort(String host, int port) {
         int attempts = 0;
         do {
@@ -179,7 +174,7 @@ public class Command extends Thread {
             }
         } while (attempts++ < POLL_ATTEMPTS_MAX);
         return false;
-    }    
+    }
 
     public static boolean waitForHttp(String url) {
         int attempts = 0;
@@ -221,8 +216,8 @@ public class Command extends Thread {
             LOGGER.warn("*** wait thread failed: {}", e.getMessage());
             return false;
         }
-    }    
-    
+    }
+
     public Command(String... args) {
         this(false, null, null, null, null, args);
     }
@@ -328,7 +323,7 @@ public class Command extends Thread {
             while ((outLine = outReader.readLine()) != null) {
                 if (errReader != null) {
                     String errLine = errReader.readLine();
-                    if (errLine != null) {                        
+                    if (errLine != null) {
                         logger.debug("[syserr] {}", outLine);
                         errorBuffer.append(errLine);
                         if (useLineFeed) {
@@ -338,8 +333,8 @@ public class Command extends Thread {
                             errorListener.accept(errLine);
                         }
                     }
-                }                
-                appender.append(outLine);                
+                }
+                appender.append(outLine);
                 logger.debug("{}", outLine);
                 if (listener != null) {
                     listener.accept(outLine);
