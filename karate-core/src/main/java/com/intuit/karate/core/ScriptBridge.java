@@ -921,15 +921,12 @@ public class ScriptBridge implements PerfContext {
         if (env != null) {
             command.setEnvironment(env);
         }
-
         Boolean redirectErrorStream = (Boolean) options.get("redirectErrorStream");
         if (redirectErrorStream != null) {
-            command.setRedirectErrorStream(redirectErrorStream.booleanValue());
+            command.setRedirectErrorStream(redirectErrorStream);
         }
-
         ScriptObjectMirror som = (ScriptObjectMirror) options.get("listener");
         if (som != null) {
-            Script.evalJsFunctionCall(som, "TEST", context);
             command.setListener(s -> Script.evalJsFunctionCall(som, s, context));
         }
         Boolean start = (Boolean) options.get("start");
