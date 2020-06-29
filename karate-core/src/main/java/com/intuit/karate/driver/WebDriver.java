@@ -145,8 +145,8 @@ public abstract class WebDriver implements Driver {
         return DriverElement.locatorExists(this, locator);
     }
 
-    private ScriptValue eval(String expression) {
-        Json json = new Json().set("script", expression).set("args", "[]");
+    protected ScriptValue eval(String expression, Object args) {
+        Json json = new Json().set("script", expression).set("args", (args == null) ? "[]" : args);
         Http.Response res = http.path("execute", "sync").post(json);
         if (isJavaScriptError(res)) {
             logger.warn("javascript failed, will retry once: {}", res.body().asString());
@@ -159,6 +159,10 @@ public abstract class WebDriver implements Driver {
             }
         }
         return res.jsonPath("$.value").value();
+    }
+
+    protected ScriptValue eval(String expression) {
+        return eval(expression, (Map[]) null);
     }
 
     protected String getElementKey() {
