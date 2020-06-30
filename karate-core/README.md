@@ -267,6 +267,7 @@ key | description
 `webDriverPath` | optional, and rarely used only in case you need to append a path such as `/wd/hub` - typically needed for Appium (or a Selenium Grid) on `localhost`, where `host`, `port` / `executable` etc. are involved.
 `highlight` | default `false`, useful for demos or for running a test in "slow motion" where before each navigation action, the HTML element for the current [locator](#locators) is highlighted for a duration of `highlightDuration`
 `highlightDuration` | default 3000 (milliseconds), duration to apply the `highlight`
+`attach` | optional, only for `type: 'chrome'` and `start: false` when you want to attach to an existing page in a Chrome DevTools session, uses a "contains" match against the URL
 
 For more advanced options such as for Docker, CI, headless, cloud-environments or custom needs, see [`configure driverTarget`](#configure-drivertarget).
 

@@ -11,11 +11,11 @@ Feature: browser automation 2
     When click('input[name=btnI]')
     Then waitForUrl('https://github.com/intuit/karate')
 
-    When click('{a}Find file')
+    When click('{a}Go to file')
     And def searchField = waitFor('input[name=query]')
     Then match driver.url == 'https://github.com/intuit/karate/find/master'
 
-    When searchField.input('karate-logo.png')
+    When searchField.input('karate-logo.png')    
     And def innerText = function(locator){ return scriptAll(locator, '_.innerText') }
     And def searchFunction =
       """

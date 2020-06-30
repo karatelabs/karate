@@ -2,11 +2,11 @@ Feature: scratch pad 2
 
 Scenario Outline: <type>
   * def webUrlBase = karate.properties['web.url.base']
-  * configure driver = { type: '#(type)', showDriverLog: true }
+  * configure driver = { type: '#(type)', showDriverLog: true, start: false, port: 9222, attach: 'reddit' }
 
-        Given driver 'https://google.com'
-        When input('input[name=q]', 'karate dsl' + Key.ENTER)
-        Then waitFor('{h3}intuit/karate: Test Automation Made Simple - GitHub')
+        * driver null
+        * highlightAll('a')
+        * karate.stop(9000)
 
 Examples:
 | type         |

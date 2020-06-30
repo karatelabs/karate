@@ -96,6 +96,7 @@ public class DriverOptions {
     public final String videoFile;
     public final boolean highlight;
     public final int highlightDuration;
+    public final String attach;
 
     // mutable during a test
     private boolean retryEnabled;
@@ -183,6 +184,7 @@ public class DriverOptions {
         pollInterval = get("pollInterval", 250);
         highlight = get("highlight", false);
         highlightDuration = get("highlightDuration", Config.DEFAULT_HIGHLIGHT_DURATION);
+        attach = get("attach", null);
         // do this last to ensure things like logger, start-flag, webDriverUrl etc. are set
         port = resolvePort(defaultPort);
     }
