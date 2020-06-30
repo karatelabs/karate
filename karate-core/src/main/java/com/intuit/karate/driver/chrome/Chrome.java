@@ -72,6 +72,7 @@ public class Chrome extends DevToolsDriver {
             }
             throw new RuntimeException("chrome server returned empty list from " + http.urlBase);
         }
+        String attachUrl = null;
         String webSocketUrl = null;
         List<Map<String, Object>> targets = res.body().asList();
         for (Map<String, Object> target : targets) {
@@ -88,6 +89,7 @@ public class Chrome extends DevToolsDriver {
                 break;
             }
             if (targetUrl.contains(options.attach)) {
+                attachUrl = targetUrl;
                 break;
             }
         }
@@ -101,6 +103,9 @@ public class Chrome extends DevToolsDriver {
         chrome.enableTargetEvents();
         if (!options.headless) {
             chrome.initWindowIdAndState();
+        }
+        if (attachUrl != null) {
+            chrome.currentUrl = attachUrl;
         }
         return chrome;
     }
