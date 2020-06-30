@@ -35,7 +35,7 @@ public class QueueUtils {
     }
 
     public static void send(String queueName, String text, int delayMillis) {
-        // new Thread(() -> {
+         new Thread(() -> {
             try {
                 logger.info("*** artificial delay {}: {}", queueName, delayMillis);
                 Thread.sleep(delayMillis);
@@ -50,7 +50,7 @@ public class QueueUtils {
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
-        // }).start();
+         }).start();
     }
 
 }

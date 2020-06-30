@@ -16,7 +16,7 @@ import org.springframework.context.ConfigurableApplicationContext;
  *
  * @author pthomas3
  */
-public class ConsumerUsingProxyHttpTest {
+public class ConsumerUsingProxyHttpTester {
     
     private static ConfigurableApplicationContext context;
     private static FeatureServer server;
@@ -29,7 +29,7 @@ public class ConsumerUsingProxyHttpTest {
         context = PaymentService.start(queueName, false);        
         String paymentServiceUrl = "http://localhost:" + PaymentService.getPort(context);        
         // proxy
-        File file = FileUtils.getFileRelativeTo(ConsumerUsingProxyHttpTest.class, "payment-service-proxy.feature");        
+        File file = FileUtils.getFileRelativeTo(ConsumerUsingProxyHttpTester.class, "payment-service-proxy.feature");        
         // setting 'paymentServiceUrl' to null uses request url as-is (no re-writing) - so acts as an http proxy
         Map config = Collections.singletonMap("paymentServiceUrl", null);
         server = FeatureServer.start(file, 0, false, config);

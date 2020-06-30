@@ -13,7 +13,7 @@ import org.springframework.context.ConfigurableApplicationContext;
  */
 @RunWith(Karate.class)
 @KarateOptions(features = "classpath:mock/contract/payment-service.feature")
-public class PaymentServiceContractTest {
+public class PaymentServiceContractTester {
     
     private static ConfigurableApplicationContext context;
     
