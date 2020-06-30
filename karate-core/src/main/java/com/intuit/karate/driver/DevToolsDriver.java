@@ -517,21 +517,29 @@ public abstract class DevToolsDriver implements Driver {
         DevToolsMessage dtm = method("Input.dispatchKeyEvent")
                 .param("modifiers", modifiers)
                 .param("type", type);
-        switch (keyCode) {
-            case 13:
-                dtm.param("text", "\r"); // important ! \n does NOT work for chrome
-                dtm.param("windowsVirtualKeyCode", keyCode);
-                break;
-            case 9:
-                if ("char".equals(type)) {
-                    return; // special case
-                }
-                dtm.param("text", "");
-                dtm.param("windowsVirtualKeyCode", keyCode);
-                break;
-            default:
-                dtm.param("text", c + "");
-                dtm.param("windowsVirtualKeyCode", keyCode);                
+        if (keyCode == null) {
+            dtm.param("text", c + "");
+        } else {
+            switch (keyCode) {
+                case 13:
+                    dtm.param("text", "\r"); // important ! \n does NOT work for chrome
+                    break;
+                case 9: // TAB
+                    if ("char".equals(type)) {
+                        return; // special case
+                    }
+                    dtm.param("text", "");
+                    break;
+                case 46: // DOT
+                    if ("rawKeyDown".equals(type)) {
+                        dtm.param("type", "keyDown"); // special case
+                    }
+                    dtm.param("text", ".");
+                    break;
+                default:                   
+                    dtm.param("text", c + "");
+            }
+            dtm.param("windowsVirtualKeyCode", keyCode);
         }
         dtm.send();
     }
