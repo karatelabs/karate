@@ -56,6 +56,7 @@ public class FeatureBackend {
     private final String featureName;
 
     public static class FeatureScenarioMatch {
+
         private final FeatureBackend featureBackend;
         private final Scenario scenario;
         private final List<Integer> scores;
@@ -87,11 +88,11 @@ public class FeatureBackend {
         }
 
         public int compareScores(FeatureScenarioMatch other) {
-            for(int i = 0; i < scores.size(); i++) {
+            for (int i = 0; i < scores.size(); i++) {
                 Integer score = scores.get(i);
                 Integer otherScore = other.getScores().get(i);
                 int compareTo = score.compareTo(otherScore);
-                if(compareTo != 0) {
+                if (compareTo != 0) {
                     return compareTo;
                 }
             }
@@ -103,11 +104,11 @@ public class FeatureBackend {
         String function = "function(a){ return " + ScriptBindings.KARATE + "." + name + "(a) }";
         context.vars.put(name, Script.evalJsExpression(function, context));
     }
-    
+
     private static void putBinding2(String name, ScenarioContext context) {
         String function = "function(a, b){ return " + ScriptBindings.KARATE + "." + name + "(a, b) }";
         context.vars.put(name, Script.evalJsExpression(function, context));
-    }    
+    }
 
     public ScenarioContext getContext() {
         return context;
@@ -200,7 +201,7 @@ public class FeatureBackend {
     }
 
     private boolean isMatchingScenario(Scenario scenario) {
-        if(isDefaultScenario(scenario)) {
+        if (isDefaultScenario(scenario)) {
             return false;
         }
         String expression = StringUtils.trimToNull(scenario.getName() + scenario.getDescription());
@@ -233,7 +234,7 @@ public class FeatureBackend {
     private boolean isDefaultScenario(Scenario scenario) {
         return StringUtils.trimToNull(scenario.getName() + scenario.getDescription()) == null;
     }
-    
+
     private static final String VAR_AFTER_SCENARIO = "afterScenario";
 
     public HttpResponse corsCheck(HttpRequest request, long startTime) {
@@ -299,15 +300,18 @@ public class FeatureBackend {
                 }
                 if (v instanceof List) { // MultiValueMap returned by proceed / response.headers
                     response.putHeader(k, (List) v);
-                } else if (v != null) {                    
+                } else if (v != null) {
                     response.addHeader(k, v.toString());
-                }                
+                }
             }
         }
-        response.addHeader("X-Karate-Request-Id", request.getRequestId());
+        String requestId = request.getRequestId();
+        if (requestId != null) {
+            response.addHeader("X-Karate-Request-Id", requestId);
+        }
         if (!contentTypeHeaderExists && responseValue != null) {
             response.addHeader(HttpUtils.HEADER_CONTENT_TYPE, HttpUtils.getContentType(responseValue));
-        }        
+        }
         if (context.getConfig().isCorsEnabled()) {
             response.addHeader(HttpUtils.HEADER_AC_ALLOW_ORIGIN, "*");
         }

@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2018 Intuit Inc.
+ * Copyright 2020 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -35,11 +35,11 @@ import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Match;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptValueMap;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
-import com.intuit.karate.http.MultiValuedMap;
 
 /**
  * A wrapper class to run multiple mock files, picking first match based on
@@ -50,12 +50,7 @@ public class FeaturesBackend {
 
     private final List<FeatureBackend> featureBackends;
     private static final String ALLOWED_METHODS = "GET, HEAD, POST, PUT, DELETE, PATCH";
-    private static final String DUMMY_FEATURE
-            = "@ignore\nFeature:\n\nBackground:\n\nScenario:\n\n";
 
-//    private final Feature serverFeature;
-//    private final StepActions actions;
-//    private final ScenarioContext context;
     public FeaturesBackend(Feature feature) {
         this(new Feature[]{feature});
     }
@@ -67,15 +62,7 @@ public class FeaturesBackend {
     public FeaturesBackend(Feature[] features, Map<String, Object> arg) {
         this.featureBackends = Arrays.stream(features).map((feature) -> new FeatureBackend(feature, arg)).collect(
                 Collectors.toList());
-//        serverFeature = FeatureParser.parseText(null, DUMMY_FEATURE);
-//        serverFeature.setName(this.getClass().getName());
-//        serverFeature.setCallName(this.getClass().getName());
-//        CallContext callContext = new CallContext(null, false);
-//        FeatureContext featureContext = new FeatureContext(null, serverFeature, null);
-//        actions = new StepActions(featureContext, callContext, null, null);
-//        context = actions.context;
         //TODO would be good to pass the root context to backends
-
         getContext().logger.info("all backends initialized");
     }
 
@@ -128,7 +115,10 @@ public class FeaturesBackend {
                 getContext().logger.warn("no matching scenarios in backend feature files");
                 HttpResponse response = new HttpResponse(startTime, System.currentTimeMillis());
                 response.addHeader("Content-Type", "text/plain");
-                response.addHeader("X-Karate-Request-Id", request.getRequestId());
+                String requestId = request.getRequestId();
+                if (requestId != null) {
+                    response.addHeader("X-Karate-Request-Id", requestId);
+                }
                 response.setStatus(404);
                 response.setBody("no matching scenarios in backend feature files".getBytes(Charset.forName("UTF-8")));
                 return response;
@@ -160,12 +150,8 @@ public class FeaturesBackend {
         return matchingInfo.getFeatureBackend().handle(args, matchingInfo.getScenario());
     }
 
-    /**
-     * @param args
-     * @return
-     */
     public FeatureBackend.FeatureScenarioMatch getMatchingScenario(ScriptValueMap args) {
-        FeatureBackend.FeatureScenarioMatch matching = null;
+        FeatureBackend.FeatureScenarioMatch matched = null;
         List<FeatureBackend.FeatureScenarioMatch> matches = new ArrayList<>();
         List<FeatureBackend.FeatureScenarioMatch> defaults = new ArrayList<>();
         for (FeatureBackend featureBackend : featureBackends) {
@@ -183,15 +169,23 @@ public class FeaturesBackend {
             getContext().logger.error("no scenarios matched request");
             return null;
         } else {
-            matching = matches.stream().max((left, right) -> left.compareScores(right)).orElse(null);
-            if (matching == null) {
-                matching = defaults.stream().findFirst().get();
-                getContext().logger.debug("scenario defaulted: {}#{}", matching.getFeatureBackend().getFeatureName(), matching.getScenario().getName());
+            matched = matches.stream().max((left, right) -> left.compareScores(right)).orElse(null);
+            if (matched == null) {
+                matched = defaults.stream().findFirst().get();
+                getContext().logger.debug("scenario defaulted: {}", matchInfo(matched));
             } else {
-                getContext().logger.debug("scenario picked: {}#{}", matching.getFeatureBackend().getFeatureName(), matching.getScenario().getName());
+                getContext().logger.debug("scenario matched: {}", matchInfo(matched));
             }
 
         }
-        return matching;
+        return matched;
     }
+
+    private static String matchInfo(FeatureBackend.FeatureScenarioMatch matched) {
+        Scenario scenario = matched.getScenario();
+        String featureInfo = matched.getFeatureBackend().getFeatureName() + " " + scenario.getDisplayMeta();
+        String scenarioName = scenario.getName();
+        return StringUtils.isBlank(scenarioName) ? featureInfo : featureInfo + " " + scenarioName;
+    }
+
 }

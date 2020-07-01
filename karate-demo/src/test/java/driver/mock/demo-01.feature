@@ -13,7 +13,7 @@ Scenario:
 * driver.intercept({ patterns: [{ urlPattern: '*randomuser.me/*' }], mock: 'mock-01.feature' })
 
 # useful for demo-ing this
-# * karate.stop()
+# * karate.stop(9000)
 
 * click('{}Get New User')
 * delay(2000)
