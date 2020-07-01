@@ -44,6 +44,7 @@
     | <a href="#proxy">Proxy</a>
     | <a href="#intercepting-http-requests">Intercepting HTTP Requests</a>
     | <a href="#file-upload">File Upload</a>
+    | <a href="#code-reuse">Code Reuse</a>
   </td>
 </tr>
 <tr>
@@ -1479,6 +1480,41 @@ in a new terminal (or open the URL in a web-browser) to proceed ...
 ```
 
 In most IDE-s, you would even see the URL above as a clickable hyperlink, so just clicking it would end the `stop()`. This is really convenient in "dev-local" mode. The integer port argument is mandatory and you have to choose one that is not being used.
+
+# Code Reuse
+You will often need to move steps (for e.g. a login flow) into a common feature that can be called from multiple test-scripts. When using a browser-driver, a [`call` in "shared scope"](https://github.com/intuit/karate#shared-scope) *has* to be used. This means:
+
+* a single driver instance is used for any `call`-s, even if nested
+* even if the driver is instantiated (using the [`driver`](#driver) keyword) within a "called" feature - it will remain in the context after the `call` returns
+
+A typical pattern will look like this:
+
+```cucumber
+Feature: main
+
+Background:
+* call read('login.feature')
+
+Scenario:
+* click('#someButton')
+# the rest of your flow
+```
+
+Where `login.feature` would look something like:
+
+```
+Feature: login
+
+Scenario:
+* configure driver = { type: 'chrome' }
+* driver urlBase + '/login'
+* input('#username', 'john')
+* input('#password', 'secret')
+* click('#loginButton')
+* waitForUrl('/dashboard')
+```
+
+There are many ways to parameterize the driver config or perform environment-switching, read [this](https://stackoverflow.com/a/60581024/143475) for more details.
 
 # Locator Lookup
 Other UI automation frameworks spend a lot of time encouraging you to follow a so-called "[Page Object Model](https://martinfowler.com/bliki/PageObject.html)" for your tests. The Karate project team is of the opinion that things can be made simpler.
