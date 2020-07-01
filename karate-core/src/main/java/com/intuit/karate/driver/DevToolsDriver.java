@@ -357,8 +357,10 @@ public abstract class DevToolsDriver implements Driver {
 
     protected void initWindowIdAndState() {
         DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", rootFrameId).send();
-        windowId = dtm.getResult("windowId").getValue(Integer.class);
-        windowState = (String) dtm.getResult("bounds").getAsMap().get("windowState");
+        if (!dtm.isResultError()) {
+            windowId = dtm.getResult("windowId").getValue(Integer.class);
+            windowState = (String) dtm.getResult("bounds").getAsMap().get("windowState");
+        }
     }
 
     @Override
@@ -536,7 +538,7 @@ public abstract class DevToolsDriver implements Driver {
                     }
                     dtm.param("text", ".");
                     break;
-                default:                   
+                default:
                     dtm.param("text", c + "");
             }
             dtm.param("windowsVirtualKeyCode", keyCode);

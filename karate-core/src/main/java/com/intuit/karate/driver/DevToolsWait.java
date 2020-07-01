@@ -38,7 +38,7 @@ public class DevToolsWait {
     private Predicate<DevToolsMessage> condition;
     private DevToolsMessage lastReceived;
 
-    private final Predicate<DevToolsMessage> DEFAULT = m -> lastSent.getId().equals(m.getId()) && m.isResultPresent();
+    private final Predicate<DevToolsMessage> DEFAULT = m -> lastSent.getId().equals(m.getId());
     public static final Predicate<DevToolsMessage> FRAME_RESIZED = forEvent("Page.frameResized");
     public static final Predicate<DevToolsMessage> INSPECTOR_DETACHED = forEvent("Inspector.detached");
     public static final Predicate<DevToolsMessage> DIALOG_OPENING = forEvent("Page.javascriptDialogOpening");
@@ -114,7 +114,11 @@ public class DevToolsWait {
     public void receive(DevToolsMessage dtm) {
         synchronized (this) {
             if (condition.test(dtm)) {
-                logger.trace("<< notify: {}", dtm);
+                if (dtm.isResultError()) {
+                    logger.warn("devtools error: {}", dtm);
+                } else {
+                    logger.trace("<< notify: {}", dtm);
+                }                
                 lastReceived = dtm;
                 notify();
             } else {
