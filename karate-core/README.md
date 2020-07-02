@@ -34,7 +34,7 @@
       <a href="#syntax">Syntax</a>
     | <a href="#special-keys">Special Keys</a>
     | <a href="#short-cuts">Short Cuts</a>
-    | <a href="#chaining">Chaining</a>  
+    | <a href="#chaining">Chaining</a> 
     | <a href="#function-composition">Function Composition</a>
     | <a href="#script">Browser JavaScript</a>
     | <a href="#debugging">Debugging</a>
@@ -53,6 +53,7 @@
       <a href="#locators">Locator Types</a>
     | <a href="#wildcard-locators">Wildcards</a> 
     | <a href="#friendly-locators">Friendly Locators</a> 
+    | <a href="#tree-walking">Tree Walking</a>
     | <a href="#rightof"><code>rightOf()</code></a>
     | <a href="#leftOf"><code>leftOf()</code></a>
     | <a href="#above"><code>above()</code></a>
@@ -1460,6 +1461,22 @@ Note that the duration is in milliseconds. As a convenience, to "reset" the valu
 * driver 'http://mydomain/some/slow/page'
 # reset to defaults for the rest of the test ...
 * timeout()
+```
+
+## Tree Walking
+The [Element](#chaining) API has "getters" for the following properties:
+* `parent`
+* `children` (returns an array of `Element`-s)
+* `firstChild`
+* `lastChild`
+* `previousSibling`
+* `nextSibling`
+
+This can be convenient in some cases, for example as an alternative to [Friendly Locators](#friendly-locators). For example, where it is easy (or you already have a reference) to locate some element and you want to use that as a "base" to perform something on some other element which may not have a unique `id` or css / XPath locator.
+
+```cucumber
+* locate('#someDiv').parent.firstChild.click()
+* locate('#foo').parent.children[3].click()
 ```
 
 # Debugging

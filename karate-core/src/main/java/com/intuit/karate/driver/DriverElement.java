@@ -203,15 +203,15 @@ public class DriverElement implements Element {
         try {
             String childRef = (String) driver.script(childRefScript);
             return DriverElement.locatorExists(driver, DriverOptions.karateLocator(childRef));
-        } catch (Exception e) {            
+        } catch (Exception e) {
             return new MissingElement(driver, locator);
         }
-    }    
+    }
 
     @Override
     public boolean exists(String locator) {
         return optional(locator).isPresent();
-    }        
+    }
 
     @Override
     public Element locate(String locator) {
@@ -226,12 +226,16 @@ public class DriverElement implements Element {
     public List<Element> locateAll(String locator) {
         String childRefScript = driver.getOptions().scriptAllSelector(locator, DriverOptions.KARATE_REF_GENERATOR, thisLocator());
         List<String> childRefs = (List) driver.script(childRefScript);
-        List<Element> elements = new ArrayList(childRefs.size());
-        for (String childRef : childRefs) {
-            String karateLocator = DriverOptions.karateLocator(childRef);
+        return refsToElements(childRefs);
+    }
+    
+    private List<Element> refsToElements(List<String> refs) {
+        List<Element> elements = new ArrayList(refs.size());
+        for (String ref : refs) {
+            String karateLocator = DriverOptions.karateLocator(ref);
             elements.add(DriverElement.locatorExists(driver, karateLocator));
         }
-        return elements;
+        return elements;        
     }
 
     @Override
@@ -275,6 +279,47 @@ public class DriverElement implements Element {
     public void setValue(String value) {
         driver.value(locator, value);
     }
+    
+    private Element relationLocator(String relation) {
+        String js = "var gen = " + DriverOptions.KARATE_REF_GENERATOR + "; var e = " 
+                + DriverOptions.selector(locator) + "; return gen(e." + relation + ")";
+        String karateRef = (String) driver.script(DriverOptions.wrapInFunctionInvoke(js));
+        return DriverElement.locatorExists(driver, DriverOptions.karateLocator(karateRef));        
+    }
+
+    @Override
+    public Element getParent() {
+        return relationLocator("parentElement");
+    }
+
+    @Override
+    public List<Element> getChildren() {
+        String js = "var gen = " + DriverOptions.KARATE_REF_GENERATOR + "; var es = " 
+                + DriverOptions.selector(locator) + ".children; var res = []; var i;"
+                + " for(i = 0; i < es.length; i++) res.push(gen(es[i])); return res";
+        List<String> childRefs = (List) driver.script(DriverOptions.wrapInFunctionInvoke(js));
+        return refsToElements(childRefs);
+    }        
+
+    @Override
+    public Element getFirstChild() {
+        return relationLocator("firstElementChild");
+    }  
+
+    @Override
+    public Element getLastChild() {
+        return relationLocator("lastElementChild");
+    }     
+
+    @Override
+    public Element getPreviousSibling() {
+        return relationLocator("previousElementSibling");
+    }  
+
+    @Override
+    public Element getNextSibling() {
+        return relationLocator("nextElementSibling");
+    }        
 
     @Override
     public Finder rightOf() {

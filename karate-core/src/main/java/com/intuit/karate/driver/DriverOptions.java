@@ -391,7 +391,7 @@ public class DriverOptions {
 
     private static final String DOCUMENT = "document";
 
-    public String selector(String locator) {
+    public static String selector(String locator) {
         return selector(locator, DOCUMENT);
     }
 

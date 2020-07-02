@@ -106,6 +106,18 @@ public interface Element {
     
     String property(String name);
     
+    Element getParent(); // getter
+    
+    Element getFirstChild(); // getter
+            
+    Element getLastChild(); // getter
+    
+    Element getPreviousSibling(); // getter
+    
+    Element getNextSibling(); // getter
+    
+    List<Element> getChildren();
+    
     Finder rightOf();
     
     Finder leftOf();

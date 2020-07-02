@@ -170,12 +170,12 @@ public class MissingElement implements Element {
     @Override
     public Element optional(String locator) {
         return this;
-    }        
+    }
 
     @Override
     public boolean exists(String locator) {
         return false;
-    }        
+    }
 
     @Override
     public Element locate(String locator) {
@@ -225,6 +225,36 @@ public class MissingElement implements Element {
     @Override
     public void setValue(String value) {
 
+    }
+
+    @Override
+    public Element getParent() {
+        return this;
+    }
+
+    @Override
+    public List<Element> getChildren() {
+        return Collections.EMPTY_LIST;
+    }
+
+    @Override
+    public Element getFirstChild() {
+        return this;
+    }
+
+    @Override
+    public Element getLastChild() {
+        return this;
+    }
+
+    @Override
+    public Element getPreviousSibling() {
+        return this;
+    }
+
+    @Override
+    public Element getNextSibling() {
+        return this;
     }
 
     @Override
