@@ -239,20 +239,22 @@ java -jar -Dlogback.configurationFile=my-logback.xml karate.jar my-test.feature
 ```
 Here is the 'out-of-the-box' default which you can customize. Note that the default creates a folder called `target` and within it, logs will be in `karate.log`.
 
+Note that MDC's `karateRequestId` can be used to correlate log statements against response `X-Karate-Request-Id` header.
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
  
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %mdc{karateRequestId} %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
   
     <appender name="FILE" class="ch.qos.logback.core.FileAppender">
         <file>${karate.output.dir}/karate.log</file>
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %mdc{karateRequestId} %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>    
    

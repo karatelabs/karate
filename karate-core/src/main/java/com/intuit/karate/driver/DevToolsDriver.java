@@ -40,6 +40,8 @@ import com.intuit.karate.netty.NettyUtils;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
 import com.intuit.karate.shell.Command;
+import org.slf4j.MDC;
+
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -228,6 +230,9 @@ public abstract class DevToolsDriver implements Driver {
             request.setUrlBase(pair.left);
             request.setUri(pair.right);
             request.setMethod(method);
+            String karateRequestId = System.identityHashCode(dtm) + "";
+            MDC.put("karateRequestId", karateRequestId);
+            request.setRequestId(karateRequestId);
             headers.forEach((k, v) -> request.addHeader(k, v));
             if (postData != null) {
                 request.setBody(FileUtils.toBytes(postData));
