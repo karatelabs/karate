@@ -1626,7 +1626,6 @@ public class Script {
             name = nameAndPath.left;
             path = nameAndPath.right;
         }
-        validateVariableName(name);
         if (isJsonPath(path)) {
             ScriptValue target = context.vars.get(name);
             if (target == null || target.isNull()) {
