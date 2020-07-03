@@ -9,12 +9,16 @@ import org.junit.AfterClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.junit.BeforeClass;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class ConsumerUsingMockTest {
+    
+    private static final Logger logger = LoggerFactory.getLogger(ConsumerUsingMockTest.class);
     
     private static FeatureServer server;
     private static Consumer consumer;
@@ -29,7 +33,7 @@ public class ConsumerUsingMockTest {
     }    
     
     @Test
-    public void testPaymentCreate() throws Exception {
+    public void testPaymentCreate() {
         Payment payment = new Payment();
         payment.setAmount(5.67);
         payment.setDescription("test one");
@@ -46,7 +50,11 @@ public class ConsumerUsingMockTest {
             }
         });
         synchronized(this) {
-            wait();
+            try {
+                wait(10000);
+            } catch (InterruptedException e) {
+                logger.error("listen for 'shipped' message timed out: {}", e.getMessage());
+            }
         }       
     }
     
