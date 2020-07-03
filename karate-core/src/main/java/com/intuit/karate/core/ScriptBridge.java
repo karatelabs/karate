@@ -472,15 +472,11 @@ public class ScriptBridge implements PerfContext {
                 context.logger.warn("not a js function or feature file: {} - {}", fileName, called);
                 return null;
         }
-        if (!sharedScope) {
-            return result.getValue();
-        }
-        if (result.isMapLike()) {
+        // if shared scope, a called feature would update the context directly
+        if (sharedScope && !called.isFeature() && result.isMapLike()) {
             result.getAsMap().forEach((k, v) -> context.vars.put(k, v));
-        } else {
-            context.logger.trace("no vars returned from function call result: {}", called);
         }
-        return null; // nothing returned if shared scope
+        return result.getValue();
     }
 
     public Object callSingle(String fileName) {

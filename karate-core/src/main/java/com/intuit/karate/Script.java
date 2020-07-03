@@ -196,39 +196,45 @@ public class Script {
         return evalKarateExpression(text, context);
     }
 
-    private static ScriptValue callWithCache(String text, String arg, ScenarioContext context, boolean reuseParentConfig) {
+    private static ScriptValue result(ScriptValue called, CallResult result, boolean reuseParentConfig, ScenarioContext context) {
+        if (reuseParentConfig) { // if shared scope
+            context.configure(new Config(result.config)); // re-apply config from time of snapshot
+            if (result.vars != null) {
+                context.vars.clear();
+                context.vars.putAll(result.vars.copy(false)); // clone for safety 
+            }
+        }
+        return result.value.copy(false); // clone result for safety       
+    }
+
+    private static ScriptValue callWithCache(String callKey, ScriptValue called, String arg, ScenarioContext context, boolean reuseParentConfig) {
         // IMPORTANT: the call result is always shallow-cloned before returning
         // so that call result (if java Map) is not mutated by other scenarios
         final FeatureContext featureContext = context.featureContext;
-        CallResult result = featureContext.callCache.get(text);
+        CallResult result = featureContext.callCache.get(callKey);
         if (result != null) {
-            context.logger.trace("callonce cache hit for: {}", text);
-            if (reuseParentConfig) { // if shared scope
-                context.configure(new Config(result.config)); // re-apply config from time of snapshot
-            }
-            return result.value.copy(false); // clone result for safety, another routine will apply globally if needed
+            context.logger.trace("callonce cache hit for: {}", callKey);
+            return result(called, result, reuseParentConfig, context);
         }
         long startTime = System.currentTimeMillis();
-        context.logger.trace("callonce waiting for lock: {}", text);
+        context.logger.trace("callonce waiting for lock: {}", callKey);
         synchronized (featureContext) {
-            result = featureContext.callCache.get(text); // retry
+            result = featureContext.callCache.get(callKey); // retry
             if (result != null) {
                 long endTime = System.currentTimeMillis() - startTime;
-                context.logger.warn("this thread waited {} milliseconds for callonce lock: {}", endTime, text);
-                if (reuseParentConfig) { // if shared scope
-                    context.configure(new Config(result.config)); // re-apply config from time of snapshot
-                }
-                return result.value.copy(false); // clone result for safety, another routine will apply globally if needed
+                context.logger.warn("this thread waited {} milliseconds for callonce lock: {}", endTime, callKey);
+                return result(called, result, reuseParentConfig, context);
             }
             // this thread is the 'winner'
-            context.logger.info(">> lock acquired, begin callonce: {}", text);
-            ScriptValue resultValue = call(text, arg, context, reuseParentConfig);
+            context.logger.info(">> lock acquired, begin callonce: {}", callKey);
+            ScriptValue resultValue = call(called, arg, context, reuseParentConfig);
             // we clone result (and config) here, to snapshot state at the point the callonce was invoked
             // this prevents the state from being clobbered by the subsequent steps of this
             // first scenario that is about to use the result
-            result = new CallResult(resultValue.copy(false), new Config(context.getConfig()));
-            featureContext.callCache.put(text, result);
-            context.logger.info("<< lock released, cached callonce: {}", text);
+            ScriptValueMap clonedVars = called.isFeature() && reuseParentConfig ? context.vars.copy(false) : null;
+            result = new CallResult(resultValue.copy(false), new Config(context.getConfig()), clonedVars);
+            featureContext.callCache.put(callKey, result);
+            context.logger.info("<< lock released, cached callonce: {}", callKey);
             return resultValue; // another routine will apply globally if needed
         }
     }
@@ -263,10 +269,11 @@ public class Script {
                 text = text.substring(5);
             }
             StringUtils.Pair pair = parseCallArgs(text);
+            ScriptValue called = evalKarateExpression(pair.left, context);
             if (callOnce) {
-                return callWithCache(pair.left, pair.right, context, false);
+                return callWithCache(pair.left, called, pair.right, context, false);
             } else {
-                return call(pair.left, pair.right, context, false);
+                return call(called, pair.right, context, false);
             }
         } else if (isJsonPath(text)) {
             return evalJsonPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
@@ -366,7 +373,7 @@ public class Script {
             nodeList = XmlUtils.getNodeListByPath(doc, path);
         } catch (Exception e) {
             // hack, this happens for xpath functions that don't return nodes (e.g. count)
-            String strValue = XmlUtils.getTextValueByPath(doc, path);            
+            String strValue = XmlUtils.getTextValueByPath(doc, path);
             ScriptValue sv = new ScriptValue(strValue);
             if (path.startsWith("count")) { // special case
                 return new ScriptValue(sv.getAsInt());
@@ -741,7 +748,7 @@ public class Script {
     }
 
     public static AssertionResult matchString(MatchType matchType, ScriptValue actual, String expected, String path, ScenarioContext context) {
-        ScriptValue expectedValue = evalKarateExpression(expected, context);        
+        ScriptValue expectedValue = evalKarateExpression(expected, context);
         if (expectedValue.isPrimitive() && !expectedValue.isString()) {
             if (matchType == MatchType.NOT_EQUALS) {
                 return AssertionResult.PASS;
@@ -1435,14 +1442,13 @@ public class Script {
                     || matchType == MatchType.CONTAINS_ONLY
                     || matchType == MatchType.CONTAINS_ANY
                     || matchType == MatchType.NOT_CONTAINS
-                    || matchType == MatchType.CONTAINS_DEEP
-            ) { // just checks for existence (or non-existence)
+                    || matchType == MatchType.CONTAINS_DEEP) { // just checks for existence (or non-existence)
                 for (Object expListObject : expList) { // for each expected item in the list
                     boolean found = false;
                     for (int i = 0; i < actCount; i++) {
                         Object actListObject = actList.get(i);
                         String listPath = buildListPath(delimiter, path, i);
-                        MatchType childMatchType = matchType.equals(MatchType.CONTAINS_DEEP)? MatchType.CONTAINS_DEEP : MatchType.EQUALS;
+                        MatchType childMatchType = matchType.equals(MatchType.CONTAINS_DEEP) ? MatchType.CONTAINS_DEEP : MatchType.EQUALS;
                         AssertionResult ar = matchNestedObject(delimiter, listPath, childMatchType, actRoot, actListObject, actListObject, expListObject, context);
                         if (ar.pass) { // exact match, we found it
                             found = true;
@@ -1671,15 +1677,14 @@ public class Script {
         }
     }
 
-    public static ScriptValue call(String name, String argString, ScenarioContext context, boolean reuseParentConfig) {
+    public static ScriptValue call(ScriptValue called, String argString, ScenarioContext context, boolean reuseParentConfig) {
         ScriptValue argValue = evalKarateExpression(argString, context);
-        ScriptValue sv = evalKarateExpression(name, context);
-        switch (sv.getType()) {
+        switch (called.getType()) {
             case JAVA_FUNCTION:
-                Function function = sv.getValue(Function.class);
+                Function function = called.getValue(Function.class);
                 return evalJavaFunctionCall(function, argValue.getValue(), context);
             case JS_FUNCTION:
-                ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
+                ScriptObjectMirror som = called.getValue(ScriptObjectMirror.class);
                 return evalJsFunctionCall(som, argValue.getAfterConvertingFromJsonOrXmlIfNeeded(), context);
             case FEATURE:
                 Object callArg = null;
@@ -1698,10 +1703,10 @@ public class Script {
                     default:
                         throw new RuntimeException("only json/map or list/array allowed as feature call argument");
                 }
-                Feature feature = sv.getValue(Feature.class);
+                Feature feature = called.getValue(Feature.class);
                 return evalFeatureCall(feature, callArg, context, reuseParentConfig);
             default:
-                context.logger.warn("not a js function or feature file: {} - {}", name, sv);
+                context.logger.warn("not a js function or feature file: {}", called);
                 return ScriptValue.NULL;
         }
     }
@@ -1788,7 +1793,7 @@ public class Script {
     }
 
     private static ScriptValue evalFeatureCall(CallContext callContext) {
-        // the call is always going to execute synchronously ! TODO improve  
+        // the call is always going to execute synchronously !
         FeatureResult result = Engine.executeFeatureSync(null, callContext.feature, null, callContext);
         // hack to pass call result back to caller step
         callContext.context.addCallResult(result);
@@ -1799,7 +1804,7 @@ public class Script {
         }
         return new ScriptValue(result.getResultAsPrimitiveMap());
     }
-    
+
     public static StringUtils.Pair parseCallArgs(String line) {
         int pos = line.indexOf("read(");
         if (pos != -1) {
@@ -1807,26 +1812,27 @@ public class Script {
             if (pos == -1) {
                 throw new RuntimeException("failed to parse call arguments: " + line);
             }
-            return new StringUtils.Pair(line.substring(0, pos + 1), line.substring(pos + 1)); 
+            return new StringUtils.Pair(line.substring(0, pos + 1), line.substring(pos + 1));
         }
         pos = line.indexOf(' ');
         if (pos == -1) {
             return new StringUtils.Pair(line, null);
         }
-        return new StringUtils.Pair(line.substring(0, pos), line.substring(pos));        
+        return new StringUtils.Pair(line.substring(0, pos), line.substring(pos));
     }
 
     public static void callAndUpdateConfigAndAlsoVarsIfMapReturned(boolean callOnce, String name, String arg, ScenarioContext context) {
+        ScriptValue called = evalKarateExpression(name, context);
         ScriptValue sv;
         if (callOnce) {
-            sv = callWithCache(name, arg, context, true);
+            sv = callWithCache(name, called, arg, context, true);
         } else {
-            sv = call(name, arg, context, true);
+            sv = call(called, arg, context, true);
         }
-        if (sv.isMapLike()) {
+        // feature calls will update context automatically
+        if (!called.isFeature() && sv.isMapLike()) {
+            context.logger.trace("auto-adding vars returned from function call result: {}", sv);
             sv.getAsMap().forEach((k, v) -> context.vars.put(k, v));
-        } else {
-            context.logger.trace("no vars returned from function call result: {}", sv);
         }
     }
 

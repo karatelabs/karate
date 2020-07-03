@@ -31,10 +31,12 @@ public class CallResult {
     
     protected final ScriptValue value;
     protected final Config config;
+    protected final ScriptValueMap vars;
     
-    public CallResult(ScriptValue value, Config config) {
+    public CallResult(ScriptValue value, Config config, ScriptValueMap vars) {
         this.value = value;
         this.config = config;
+        this.vars = vars;
     }
     
 }

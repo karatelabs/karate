@@ -59,7 +59,6 @@ import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.File;
 import java.io.InputStream;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -878,7 +877,7 @@ public class ScenarioContext {
                 if (exp == null) {
                     sb.append("null");
                 } else {
-                    ScriptValue sv = Script.getIfVariableReference(exp, this);
+                    ScriptValue sv = Script.getIfVariableReference(exp.trim(), this); // trim is important
                     if (sv == null) {
                         try {
                             sv = Script.evalJsExpression(exp, this);
