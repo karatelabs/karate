@@ -26,7 +26,7 @@ public class QueueUtils {
 
     static {
         try {
-            ActiveMQConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://localhost");
+            ActiveMQConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://localhost?broker.persistent=false&waitForStart=10000");
             connection = connectionFactory.createConnection();
             connection.start();
         } catch (Exception e) {
