@@ -555,6 +555,18 @@ public class ScriptBridge implements PerfContext {
         ScriptValue sv = Script.evalJsExpression(exp, context);
         return sv.getValue();
     }
+    
+    public ScriptValue fromString(String exp) {
+        try {
+            return Script.evalKarateExpression(exp, context);
+        } catch (Exception e) {            
+            return new ScriptValue(exp);
+        }
+    }
+    
+    public ScriptValue fromObject(Object o) {
+        return new ScriptValue(o);
+    }    
 
     public List<String> getTags() {
         return context.tags;
