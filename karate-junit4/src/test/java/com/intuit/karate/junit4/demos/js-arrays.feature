@@ -537,9 +537,20 @@ Scenario: contains / not contains
 
 Scenario: match in js
     * def foo = { hello: 'world' }
-    * def result = karate.match(foo, { hello: '#string'} )
-    * match result == { pass: true, message: null }
-    * if (result.pass) karate.log('*** passed')
+    * def res = karate.match(foo, { hello: '#string' } )
+    * match res == { pass: true, message: null }
+    * def res = karate.match(foo, { hello: '#number' } )
+    * match res == { pass: false, message: '#notnull' }
+
+Scenario: advanced match in js
+    * def foo = { a: 1, b: 'foo' }
+    * def res = karate.match("foo contains { a: '#number' }")
+    * match res == { pass: true, message: null }
+    * def res = karate.match("foo == { a: '#number' }")
+    * match res == { pass: false, message: '#notnull' }
+    * def foo = [1, 2, 3]
+    * def res = karate.match("each foo == '#number'")
+    * match res == { pass: true, message: null }
 
 Scenario: karate.os
     * def temp = karate.os

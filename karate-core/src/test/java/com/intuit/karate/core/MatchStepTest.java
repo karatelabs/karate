@@ -1,7 +1,5 @@
 package com.intuit.karate.core;
 
-import com.intuit.karate.core.MatchStep;
-import com.intuit.karate.core.MatchType;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import static com.intuit.karate.core.MatchType.*;

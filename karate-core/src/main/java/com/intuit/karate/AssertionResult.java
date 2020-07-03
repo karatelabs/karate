@@ -23,29 +23,39 @@
  */
 package com.intuit.karate;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  *
  * @author pthomas3
  */
 public class AssertionResult {
-    
+
     public final String message;
     public final boolean pass;
-    
+
     public static final AssertionResult PASS = new AssertionResult(true, null);
-    
+
     private AssertionResult(boolean pass, String message) {
         this.pass = pass;
         this.message = message;
     }
-    
+
     public static AssertionResult fail(String message) {
         return new AssertionResult(false, message);
     }
 
     @Override
     public String toString() {
-        return pass ? "passed" : "assertion failed: " + message;            
-    }        
-    
+        return pass ? "passed" : "assertion failed: " + message;
+    }
+
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap(2);
+        map.put("pass", pass);
+        map.put("message", message);
+        return map;
+    }
+
 }

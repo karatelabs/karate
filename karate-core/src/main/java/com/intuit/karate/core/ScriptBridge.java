@@ -186,11 +186,14 @@ public class ScriptBridge implements PerfContext {
     }
 
     public Map<String, Object> match(Object actual, Object expected) {
-        AssertionResult result = Script.matchNestedObject('.', "$", MatchType.EQUALS, actual, null, actual, expected, context);
-        Map<String, Object> map = new HashMap(2);
-        map.put("pass", result.pass);
-        map.put("message", result.message);
-        return map;
+        AssertionResult ar = Script.matchNestedObject('.', "$", MatchType.EQUALS, actual, null, actual, expected, context);
+        return ar.toMap();
+    }
+    
+    public Map<String, Object> match(String exp) {
+        MatchStep ms = new MatchStep(exp);
+        AssertionResult ar = Script.matchNamed(ms.type, ms.name, ms.path, ms.expected, context);
+        return ar.toMap();
     }
 
     public void forEach(Map<String, Object> map, ScriptObjectMirror som) {
