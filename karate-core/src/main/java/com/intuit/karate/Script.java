@@ -163,10 +163,10 @@ public class Script {
     public static final boolean isDollarPrefixedJsonPath(String text) {
         return text.startsWith("$.") || text.startsWith("$[") || text.equals("$");
     }
-    
+
     public static final boolean isDollarPrefixedParen(String text) {
         return text.startsWith("$(");
-    }    
+    }
 
     public static final boolean isDollarPrefixed(String text) {
         return text.startsWith("$");
@@ -721,6 +721,15 @@ public class Script {
                 || (!name.startsWith("(") && !path.endsWith(")") && !path.contains(")."))
                 && (isDollarPrefixed(path) || isJsonPath(path) || isXmlPath(path))) {
             actual = evalKarateExpression(name, context);
+            // edge case: java property getter, e.g. "driver.cookies"
+            if (!actual.isJsonLike() && !isXmlPath(path) && !isXmlPathFunction(path)) {
+                // super rare edge case "match $.foo == '#notnull'" for response (which is not json, and will fail match)
+                if (expression.startsWith("$")) {
+                    expression = name + expression.substring(1);
+                }
+                actual = evalKarateExpression(expression, context); // fall back to JS eval
+                path = VAR_ROOT;
+            }
         } else {
             actual = evalKarateExpression(expression, context);
             path = VAR_ROOT; // we have eval-ed the entire LHS, so match RHS to "$"
