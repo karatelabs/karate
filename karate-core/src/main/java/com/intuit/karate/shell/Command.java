@@ -29,10 +29,8 @@ import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.SocketAddress;
@@ -61,8 +59,9 @@ public class Command extends Thread {
     private Map<String, String> environment;
     private Consumer<String> listener;
     private Consumer<String> errorListener;
-    private final StringBuilder errorBuffer = new StringBuilder();
     private boolean redirectErrorStream = true;
+    private Console sysOut;
+    private Console sysErr;
     private Process process;
     private int exitCode = -1;
     private Exception failureReason;
@@ -92,18 +91,18 @@ public class Command extends Thread {
     }
 
     public String getSysOut() {
-        return appender.getBuffer();
+        return sysOut == null ? null : sysOut.getBuffer();
     }
 
-    public String getSysErr() {
-        return errorBuffer.toString();
+    public String getSysErr() {        
+        return sysErr == null ? null : sysErr.getBuffer();
     }
 
     public static String exec(boolean useLineFeed, File workingDir, String... args) {
         Command command = new Command(useLineFeed, workingDir, args);
         command.start();
         command.waitSync();
-        return command.appender.collect();
+        return command.getSysOut();
     }
 
     public static String[] tokenize(String command) {
@@ -314,55 +313,22 @@ public class Command extends Thread {
             }
             pb.redirectErrorStream(redirectErrorStream);
             process = pb.start();
-            BufferedReader outReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            BufferedReader errReader = null;
-            if (!redirectErrorStream) {
-                errReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-            }
-            String outLine;
-            while ((outLine = outReader.readLine()) != null) {
-                if (errReader != null) {
-                    String errLine = errReader.readLine();
-                    if (errLine != null) {
-                        logger.debug("[syserr] {}", errLine);
-                        errorBuffer.append(errLine);
-                        if (useLineFeed) {
-                            errorBuffer.append('\n');
-                        }
-                        if (errorListener != null) {
-                            errorListener.accept(errLine);
-                        }
-                    }
-                }
-                appender.append(outLine);
-                logger.debug("{}", outLine);
-                if (listener != null) {
-                    listener.accept(outLine);
-                }
-            }
-            if (errReader != null) { // to ensure err is collected even when no stdout
-                String errLine;
-                while((errLine = errReader.readLine()) != null) {
-                    if (errLine != null) {
-                        logger.debug("[syserr] {}", errLine);
-                        errorBuffer.append(errLine);
-                        if (useLineFeed) {
-                            errorBuffer.append('\n');
-                        }
-                        if (errorListener != null) {
-                            errorListener.accept(errLine);
-                        }
-                    }
-                }
-            }
+            sysOut = new Console(uniqueName + "-out", useLineFeed, process.getInputStream(), logger, appender, listener);
+            sysOut.start();
+            sysErr = new Console(uniqueName + "-err", useLineFeed, process.getErrorStream(), logger, appender, errorListener);
+            sysErr.start();
             exitCode = process.waitFor();
-            if (!sharedAppender) {
-                appender.close();
-            }
             if (exitCode == 0) {
                 LOGGER.debug("command complete, exit code: {} - {}", exitCode, argList);
             } else {
                 LOGGER.warn("exit code was non-zero: {} - {}", exitCode, argList);
+            }
+            // the consoles actually can take more time to flush even after the process has exited
+            sysErr.join();
+            sysOut.join();
+            LOGGER.debug("console readers complete");
+            if (!sharedAppender) {
+                appender.close();
             }
         } catch (Exception e) {
             failureReason = e;
