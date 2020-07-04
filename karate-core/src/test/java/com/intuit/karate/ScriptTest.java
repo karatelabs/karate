@@ -1742,6 +1742,7 @@ public class ScriptTest {
         Script.assign("fun", "function(){ return { a: 1 } }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "fun()", null, "{ a: 1 }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "fun().a", null, "1", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "(fun().a)", null, "1", ctx).pass);
     }
 
     @Test

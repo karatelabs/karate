@@ -120,6 +120,10 @@ public class Script {
         return text.startsWith("{") || text.startsWith("[");
     }
 
+    public static final boolean isJsonPath(String text) {
+        return text.indexOf('*') != -1 || text.contains("..") || text.contains("[?");
+    }
+
     public static final boolean isXml(String text) {
         return text.startsWith("<");
     }
@@ -156,9 +160,13 @@ public class Script {
         return text.startsWith("!^");
     }
 
-    public static final boolean isJsonPath(String text) {
+    public static final boolean isDollarPrefixedJsonPath(String text) {
         return text.startsWith("$.") || text.startsWith("$[") || text.equals("$");
     }
+    
+    public static final boolean isDollarPrefixedParen(String text) {
+        return text.startsWith("$(");
+    }    
 
     public static final boolean isDollarPrefixed(String text) {
         return text.startsWith("$");
@@ -275,7 +283,7 @@ public class Script {
             } else {
                 return call(called, pair.right, context, false);
             }
-        } else if (isJsonPath(text)) {
+        } else if (isDollarPrefixedJsonPath(text)) {
             return evalJsonPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
         } else if (isGetSyntax(text) || isDollarPrefixed(text)) { // special case in form
             // get json[*].path
@@ -294,7 +302,7 @@ public class Script {
             }
             String left;
             String right;
-            if (isJsonPath(text)) { // edge case get[0] $..foo
+            if (isDollarPrefixedJsonPath(text)) { // edge case get[0] $..foo
                 left = ScriptValueMap.VAR_RESPONSE;
                 right = text;
             } else if (isVariableAndSpaceAndPath(text)) {
@@ -684,7 +692,7 @@ public class Script {
 
     public static AssertionResult matchNamed(MatchType matchType, String expression, String path, String expected, ScenarioContext context) {
         String name = StringUtils.trimToEmpty(expression);
-        if (isJsonPath(name) || isXmlPath(name)) { // short-cut for operating on response
+        if (isDollarPrefixedJsonPath(name) || isXmlPath(name)) { // short-cut for operating on response
             path = name;
             name = ScriptValueMap.VAR_RESPONSE;
         }
@@ -693,28 +701,29 @@ public class Script {
         }
         path = StringUtils.trimToNull(path);
         if (path == null) {
-            int pos = name.lastIndexOf(')');
-            // unfortunate edge-case to support "driver.location" and the like
-            // if the LHS ends with a right-paren (function invoke) or involves a function-invoke + property accessor
-            if (name.startsWith("driver.") || (pos != -1 && (pos == name.length() - 1 || name.charAt(pos + 1) == '.'))) {
-                ScriptValue actual = evalKarateExpression(expression, context); // attempt to evaluate LHS as-is
-                return matchScriptValue(matchType, actual, VAR_ROOT, expected, context);
-            }
             StringUtils.Pair pair = parseVariableAndPath(name);
             name = pair.left;
             path = pair.right;
         }
-        ScriptValue actual = context.vars.get(name);
-        if (actual == null) {
-            if (VAR_HEADER.equals(name)) { // convenience shortcut for asserting against response header
-                return matchNamed(matchType, ScriptValueMap.VAR_RESPONSE_HEADERS, "$['" + path + "'][0]", expected, context);
-            }
-            // evaluate ANY karate expression even on LHS
-            // will throw exception if variable does not exist
+        if (VAR_HEADER.equals(name)) { // convenience shortcut for asserting against response header
+            return matchNamed(matchType, ScriptValueMap.VAR_RESPONSE_HEADERS, "$['" + path + "'][0]", expected, context);
+        }
+        ScriptValue actual;
+        // karate started out by "defaulting" to JsonPath on the LHS of a match so we have this kludge
+        // but we now handle JS expressions of almost any shape on the LHS, if in doubt, wrap in parentheses
+        // actually it is not too bad - the XPath function check is the only odd one out
+        // rules:
+        // if not XPath function, wrapped in parentheses, involves function call
+        //      [then] JS eval
+        // else if XPath, JsonPath, JsonPath wildcard ".." or "*" or "[?"
+        //      [then] eval name, and do a JsonPath or XPath using the parsed path
+        if (isXmlPathFunction(path) 
+                || (!name.startsWith("(") && !path.endsWith(")") && !path.contains(")."))
+                && (isDollarPrefixed(path) || isJsonPath(path) || isXmlPath(path))) {
+            actual = evalKarateExpression(name, context);
+        } else {
             actual = evalKarateExpression(expression, context);
-            if (actual.isJsonLike()) { // we have eval-ed the LHS, so match RHS to the entire LHS doc
-                path = VAR_ROOT;
-            }
+            path = VAR_ROOT; // we have eval-ed the entire LHS, so match RHS to "$"
         }
         return matchScriptValue(matchType, actual, path, expected, context);
     }
@@ -1626,7 +1635,7 @@ public class Script {
             name = nameAndPath.left;
             path = nameAndPath.right;
         }
-        if (isJsonPath(path)) {
+        if (isDollarPrefixedJsonPath(path)) {
             ScriptValue target = context.vars.get(name);
             if (target == null || target.isNull()) {
                 if (viaTable) { // auto create if using set via cucumber table as a convenience
