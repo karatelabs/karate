@@ -486,6 +486,8 @@ You can experiment by using XPath snippets like the "`span/a`" seen above for ev
 ## Friendly Locators
 The ["wildcard" locators](#wildcard-locators) are great when the human-facing visible text is *within* the HTML element that you want to interact with. But this approach doesn't work when you have to deal with data-entry and `<input>` fields. This is where the "friendly locators" come in. You can ask for an element by its *relative position* to another element which is visible - such as a `<span>`, `<div>` or `<label>` and for which the [locator](#locators) is easy to obtain.
 
+> Also see [Tree Walking](#tree-walking).
+
 Method | Finds Element
 ------ | -----------
 [`rightOf()`](#rightof) | to *right* of given locator
