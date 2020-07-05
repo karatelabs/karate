@@ -602,11 +602,6 @@ public class DriverOptions {
         return out;
     }
 
-    public String removeProtocol(String url) {
-        int pos = url.indexOf("://");
-        return pos == -1 ? url : url.substring(pos + 3);
-    }
-
     public void embedPngImage(byte[] bytes) {
         if (context != null) { // can be null if chrome java api
             context.embed(bytes, "image/png");

@@ -29,7 +29,6 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureBackend;
 import com.intuit.karate.core.FeaturesBackend;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScriptBridge;
@@ -851,7 +850,6 @@ public abstract class DevToolsDriver implements Driver {
         if (titleOrUrl == null) {
             return;
         }
-        titleOrUrl = options.removeProtocol(titleOrUrl);
         DevToolsMessage dtm = method("Target.getTargets").send();
         List<Map> targets = dtm.getResult("targetInfos").getAsList();
         String targetId = null;
@@ -859,8 +857,8 @@ public abstract class DevToolsDriver implements Driver {
         for (Map map : targets) {
             String title = (String) map.get("title");
             String url = (String) map.get("url");
-            String trimmed = options.removeProtocol(url);
-            if (titleOrUrl.equals(title) || titleOrUrl.equals(trimmed)) {
+            if ((title != null && title.contains(titleOrUrl))
+                    || (url != null && url.contains(titleOrUrl))) {
                 targetId = (String) map.get("targetId");
                 targetUrl = url;
                 break;
@@ -869,6 +867,8 @@ public abstract class DevToolsDriver implements Driver {
         if (targetId != null) {
             method("Target.activateTarget").param("targetId", targetId).send();
             currentUrl = targetUrl;
+        } else {
+            logger.warn("failed to switch page to {}", titleOrUrl);
         }
     }
 

@@ -519,12 +519,11 @@ public abstract class WebDriver implements Driver {
         for (String handle : list) {
             http.path("window").post(getJsonForHandle(handle));
             String title = getTitle();
-            if (titleOrUrl.equals(title)) {
+            if (title != null && title.contains(titleOrUrl)) {
                 return;
             }
-            String temp = options.removeProtocol(titleOrUrl);
-            String url = options.removeProtocol(getUrl());
-            if (temp.equals(url)) {
+            String url = getUrl();
+            if (url != null && url.contains(titleOrUrl)) {
                 return;
             }
         }
