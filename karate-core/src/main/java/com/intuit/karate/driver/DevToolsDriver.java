@@ -885,7 +885,7 @@ public abstract class DevToolsDriver implements Driver {
             method("Target.activateTarget").param("targetId", targetId).send();
             currentUrl = (String) target.get("url");
         } else {
-            logger.warn("unable to switch frame by index: {}", index);
+            logger.warn("failed to switch frame by index: {}", index);
         }
     }
 

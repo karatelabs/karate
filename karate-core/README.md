@@ -1394,10 +1394,16 @@ Also works as a "getter" to retrieve the text of the currently visible dialog:
 ```
 
 ## `switchPage()`
-When multiple browser tabs are present, allows you to switch to one based on page title (or URL).
+When multiple browser tabs are present, allows you to switch to one based on page title *or* URL.
 
 ```cucumber
 When switchPage('Page Two')
+```
+
+For convenience, a string "contains" match is used. So you can do this, without needing the `https://` part:
+
+```cucumber
+* switchPage('mydomain.com/dashboard')
 ```
 
 ## `switchFrame()`
