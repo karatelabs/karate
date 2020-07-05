@@ -74,6 +74,9 @@ public interface Driver extends Plugin {
     void switchPage(String titleOrUrl);
 
     @AutoDef
+    void switchPage(int index);
+
+    @AutoDef
     void switchFrame(int index);
 
     @AutoDef
