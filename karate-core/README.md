@@ -1406,6 +1406,12 @@ For convenience, a string "contains" match is used. So you can do this, without 
 * switchPage('mydomain.com/dashboard')
 ```
 
+You can also switch by page index if you know it:
+
+```cucumber
+* switchPage(1)
+```
+
 ## `switchFrame()`
 This "sets context" to a chosen frame (or `<iframe>`) within the page. There are 2 variants, one that takes an integer as the param, in which case the frame is selected based on the order of appearance in the page:
 
