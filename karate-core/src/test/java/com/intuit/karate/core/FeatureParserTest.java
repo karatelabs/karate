@@ -95,6 +95,8 @@ public class FeatureParserTest {
         for (StepResult step : result.getScenarioResults().get(0).getStepResults()) {
             assertEquals("passed", step.getResult().getStatus());
         }
+        Map<String, Object> map = result.getResultAsPrimitiveMap();
+        Match.equalsText(map.get("backSlash"), "C:\\foo\\bar\\");        
     }
 
     @Test

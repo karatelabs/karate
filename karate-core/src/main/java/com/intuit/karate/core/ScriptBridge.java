@@ -96,6 +96,11 @@ public class ScriptBridge implements PerfContext {
     public String readAsString(String fileName) {
         return FileUtils.readFileAsString(fileName, context);
     }
+    
+    public String toString(Object o) {
+        ScriptValue sv = new ScriptValue(o);
+        return sv.getAsString();
+    }
 
     public String pretty(Object o) {
         ScriptValue sv = new ScriptValue(o);

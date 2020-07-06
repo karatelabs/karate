@@ -191,7 +191,7 @@ public class FeatureParser extends KarateParserBaseListener {
         List<List<String>> rows = new ArrayList(rowCount);
         List<Integer> lineNumbers = new ArrayList(rowCount);
         for (TerminalNode node : nodes) {
-            List<String> tokens = StringUtils.split(node.getText().trim(), '|');
+            List<String> tokens = StringUtils.split(node.getText().trim(), '|', true);
             int count = tokens.size();
             for (int i = 0; i < count; i++) {
                 tokens.set(i, tokens.get(i).trim());
@@ -219,7 +219,7 @@ public class FeatureParser extends KarateParserBaseListener {
         int quotePos = temp.indexOf(TRIPLE_QUOTES);
         int endPos = temp.lastIndexOf(TRIPLE_QUOTES);
         String raw = temp.substring(quotePos + 3, endPos).replaceAll("\r", "");
-        List<String> lines = StringUtils.split(raw, '\n');
+        List<String> lines = StringUtils.split(raw, '\n', false);
         StringBuilder sb = new StringBuilder();
         int marginPos = -1;
         Iterator<String> iterator = lines.iterator();

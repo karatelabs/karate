@@ -66,7 +66,7 @@ public class MacRobot extends RobotBase {
         String res = Command.exec(true, null, "osascript", "-e", MAC_GET_PROCS);
         res = res + ", ";
         res = res.replace(", |, ", "\n");
-        return StringUtils.split(res, '\n');
+        return StringUtils.split(res, '\n', false);
     }
 
     @Override

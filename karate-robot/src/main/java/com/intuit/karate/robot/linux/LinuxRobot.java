@@ -59,9 +59,9 @@ public class LinuxRobot extends RobotBase {
     @Override
     public Element windowInternal(Predicate<String> condition) {
         String res = Command.exec(true, null, "wmctrl", "-l");
-        List<String> lines = StringUtils.split(res, '\n');
+        List<String> lines = StringUtils.split(res, '\n', false);
         for (String line : lines) {
-            List<String> cols = StringUtils.split(line, ' ');
+            List<String> cols = StringUtils.split(line, ' ', false);
             String id = cols.get(0);
             String host = cols.get(2);
             int pos = line.indexOf(host);

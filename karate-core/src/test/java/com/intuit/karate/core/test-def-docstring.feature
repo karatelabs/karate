@@ -5,4 +5,7 @@ Scenario: first
 """
 { hello: 'world' }
 """
-
+* text backSlash =
+"""
+C:\foo\bar\
+"""

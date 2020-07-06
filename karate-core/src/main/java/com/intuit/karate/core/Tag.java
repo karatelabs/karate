@@ -48,7 +48,7 @@ public class Tag {
             if (temp.isEmpty()) { // edge case '@id='
                 values = Collections.EMPTY_LIST;
             } else {
-                values = StringUtils.split(temp, ',');
+                values = StringUtils.split(temp, ',', false);
             }
         } else {
             name = this.text;

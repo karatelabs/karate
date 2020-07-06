@@ -164,7 +164,7 @@ public class XmlUtils {
             return path;
         }
         StringBuilder sb = new StringBuilder();
-        for (String s : StringUtils.split(path, '/')) {
+        for (String s : StringUtils.split(path, '/', false)) {
             sb.append('/');
             int pos = s.lastIndexOf(':');
             if (pos == -1) {

@@ -125,7 +125,7 @@ public class StringUtils {
         return sb.toString();
     }
 
-    public static List<String> split(String s, char delimiter) {
+    public static List<String> split(String s, char delimiter, boolean skipBackSlash) {
         int pos = s.indexOf(delimiter);
         if (pos == -1) {
             return Collections.singletonList(s);
@@ -134,7 +134,7 @@ public class StringUtils {
         int startPos = 0;
         int searchPos = 0;
         while (pos != -1) {
-            if (pos > 0 && s.charAt(pos - 1) == '\\') {
+            if (skipBackSlash && pos > 0 && s.charAt(pos - 1) == '\\') {
                 s = s.substring(0, pos - 1) + s.substring(pos);
                 searchPos = pos;
             } else {

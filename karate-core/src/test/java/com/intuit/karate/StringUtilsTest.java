@@ -70,25 +70,25 @@ public class StringUtilsTest {
 
     @Test
     public void testSplit() {
-        List<String> list = StringUtils.split("", '/');
+        List<String> list = StringUtils.split("", '/', false);
         assertEquals(1, list.size());
         assertEquals("", list.get(0));
-        list = StringUtils.split("//", '/');
+        list = StringUtils.split("//", '/', false);
         assertEquals(0, list.size());
-        list = StringUtils.split("foo", '/');
+        list = StringUtils.split("foo", '/', false);
         assertEquals(1, list.size());
         assertEquals("foo", list.get(0));
-        list = StringUtils.split("foo/", '/');
+        list = StringUtils.split("foo/", '/', false);
         assertEquals(1, list.size());
         assertEquals("foo", list.get(0));
-        list = StringUtils.split("/foo", '/');
+        list = StringUtils.split("/foo", '/', false);
         assertEquals(1, list.size());
         assertEquals("foo", list.get(0));
-        list = StringUtils.split("/foo/bar", '/');
+        list = StringUtils.split("/foo/bar", '/', false);
         assertEquals(2, list.size());
         assertEquals("foo", list.get(0));
         assertEquals("bar", list.get(1));
-        list = StringUtils.split("|pi\\|pe|blah|", '|');
+        list = StringUtils.split("|pi\\|pe|blah|", '|', true);
         assertEquals(2, list.size());
         assertEquals("pi|pe", list.get(0));
         assertEquals("blah", list.get(1));

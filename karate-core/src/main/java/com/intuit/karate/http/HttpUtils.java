@@ -102,7 +102,7 @@ public class HttpUtils {
     }
 
     public static Map<String, String> parseContentTypeParams(String mimeType) {
-        List<String> items = StringUtils.split(mimeType, ';');
+        List<String> items = StringUtils.split(mimeType, ';', false);
         int count = items.size();
         if (count <= 1) {
             return null;

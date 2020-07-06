@@ -48,7 +48,7 @@ public class MethodMatch {
         for (String arg : args) {
             Class type = types[i];
             if (List.class.isAssignableFrom(type)) {
-                result[i] = StringUtils.split(arg, ',');
+                result[i] = StringUtils.split(arg, ',', false);
             } else if (int.class.isAssignableFrom(type)) {
                 result[i] = Integer.valueOf(arg);
             } else { // string
