@@ -55,6 +55,7 @@
     | <a href="#robotroot"><code>robot.root</code></a> 
     | <a href="#robotactive"><code>robot.active</code></a>   
     | <a href="#robotfocused"><code>robot.focused</code></a>
+    | <a href="#robotclipboard"><code>robot.clipboard</code></a>
     | <a href="#robotallwindows"><code>robot.allWindows</code></a>
     | <a href="#screenshot"><code>screenshot()</code></a>  
     | <a href="#screenshotactive"><code>screenshotActive()</code></a>    
@@ -536,6 +537,16 @@ But it can be more convenient to use the below pattern, as `active` is also a "s
 
 ## `robot.focused`
 Returns the [`Element`](#element) that currently has "focus" on the screen, no matter where or what type it is.
+
+## `robot.clipboard`
+Returns the clipboard contents as text. This can be convenient to validate text in non-standard controls where `Element.value` does not work.
+
+```cucumber
+# assume that a control containing text has focus
+* input(Key.CONTROL + 'a')
+* input(Key.CONTROL + 'c')
+* match robot.clipboard == 'hello world'
+```
 
 ## `robot.allWindows`
 Returns an array of all windows that exist on the desktop. This is convenient to quickly list all window names on the console, especially in [debug mode](#debugging). Also you could loop over all of them and call methods on the [`Element`](#element-api) or [`Window`](#window-api) instance.

@@ -178,4 +178,6 @@ public interface Robot extends Plugin {
 
     Element getFocused(); // getter
 
+    String getClipboard(); // getter
+    
 }

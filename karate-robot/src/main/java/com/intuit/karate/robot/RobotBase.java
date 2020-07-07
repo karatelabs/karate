@@ -36,6 +36,7 @@ import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.shell.Command;
 import java.awt.Dimension;
 import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
 import java.awt.event.InputEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -729,6 +730,16 @@ public abstract class RobotBase implements Robot, Plugin {
         byte[] bytes = readBytes(path);
         OpenCvUtils.show(bytes, path);
     }
+
+    @Override
+    public String getClipboard() {
+        try {
+            return (String) toolkit.getSystemClipboard().getData(DataFlavor.stringFlavor);
+        } catch (Exception e) {
+            logger.warn("unable to return clipboard as string: {}", e.getMessage());
+            return null;
+        }
+    }        
 
     @Override
     public abstract Element getRoot();
