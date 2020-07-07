@@ -180,4 +180,6 @@ public interface Robot extends Plugin {
 
     String getClipboard(); // getter
     
+    Location getLocation(); // getter
+    
 }

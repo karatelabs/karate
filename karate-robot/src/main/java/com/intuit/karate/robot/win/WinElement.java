@@ -72,9 +72,8 @@ public class WinElement implements Element {
         return new Region(robot, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
     }
 
-    private Location getClickablePoint() {
-        WinDef.POINT point = e.getClickablePoint();
-        return new Location(robot, point.x, point.y);
+    private Location getCenter() {
+        return getRegion().getCenter();
     }
 
     @Override
@@ -95,25 +94,25 @@ public class WinElement implements Element {
 
     @Override
     public Element click() {
-        getClickablePoint().click();
+        getCenter().click();
         return this;
     }
 
     @Override
     public Element move() {
-        getClickablePoint().move();
+        getCenter().move();
         return this;
     }
 
     @Override
     public Element press() {
-        getClickablePoint().press();
+        getCenter().press();
         return this;
     }
 
     @Override
     public Element release() {
-        getClickablePoint().release();
+        getCenter().release();
         return this;
     }
 

@@ -35,12 +35,9 @@ public interface Element {
 
     RobotBase getRobot();
 
-    default Location offset(int fromLeft, int fromTop) {
+    default Location inset(int fromLeft, int fromTop) {
         Region r = getRegion();
         Location l = new Location(r.robot, r.x + fromLeft, r.y + fromTop);
-        if (l.robot.highlight) {
-            l.highlight();
-        }
         return l;
     }
 
@@ -68,7 +65,7 @@ public interface Element {
     }    
 
     default Element move(int fromLeft, int fromTop) {
-        offset(fromLeft, fromTop).move();
+        inset(fromLeft, fromTop).move();
         return this;
     }
 
@@ -82,12 +79,12 @@ public interface Element {
     Element clear();
 
     default Element click(int fromLeft, int fromTop) {
-        offset(fromLeft, fromTop).click();
+        inset(fromLeft, fromTop).click();
         return this;
     }
 
     default Element doubleClick(int fromLeft, int fromTop) {
-        offset(fromLeft, fromTop).doubleClick();
+        inset(fromLeft, fromTop).doubleClick();
         return this;
     }
 
@@ -189,22 +186,7 @@ public interface Element {
     }
 
     default String extract(String lang, boolean debug) {
-        RobotBase robot = getRobot();
-        if (lang == null) {
-            lang = robot.tessLang;
-        }
-        if (lang.length() < 2) {
-            lang = lang + robot.tessLang;
-        }
-        boolean negative = lang.charAt(0) == '-';
-        if (negative) {
-            lang = lang.substring(1);
-        }
-        Tesseract tess = Tesseract.init(robot, lang, getRegion(), negative);
-        if (debug) {
-            tess.highlightWords(robot, getRegion(), Config.DEFAULT_HIGHLIGHT_DURATION);
-        }
-        return tess.getAllText();
+        return getRegion().extract(lang, debug);
     }
 
     default Element activate() {
@@ -213,8 +195,7 @@ public interface Element {
     }
 
     default void debugCapture() {
-        Region region = getRegion();
-        OpenCvUtils.show(region.captureColor(), region.toString());
+        getRegion().debugCapture();
     }
 
     default String debugExtract() {

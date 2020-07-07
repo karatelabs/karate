@@ -133,7 +133,7 @@ public class Tesseract {
     public void process(Region region, boolean negative) {
         BufferedImage bi = region.captureGreyScale();
         if (region.robot.highlight) {
-            region.highlight();
+            region.highlight(region.robot.highlightDuration);
         }
         Mat mat = OpenCvUtils.toMat(bi);
         process(mat, negative);

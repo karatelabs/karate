@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.robot;
 
+import com.intuit.karate.Config;
 import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.Rectangle;
@@ -66,20 +67,24 @@ public class Region  {
         return bi;
     }    
     
-    public BufferedImage captureColor() {
-        return capture(BufferedImage.TYPE_INT_RGB);
+    public BufferedImage capture() {
+        return Region.this.capture(BufferedImage.TYPE_INT_RGB);
     }
     
     public BufferedImage captureGreyScale() {
-        return capture(BufferedImage.TYPE_BYTE_GRAY);
+        return Region.this.capture(BufferedImage.TYPE_BYTE_GRAY);
     }    
 
-    public Location center() {
+    public Location getCenter() {
         return new Location(robot, x + width / 2, y + height / 2);
+    }
+    
+    public Location inset(int deltaX, int deltaY) {
+        return new Location(robot, x + deltaX, y + deltaY);
     }
 
     public void highlight() {
-        highlight(robot.highlightDuration);
+        highlight(Config.DEFAULT_HIGHLIGHT_DURATION);
     }
     
     public void highlight(int millis) {
@@ -91,27 +96,27 @@ public class Region  {
     }
 
     public Region click(int num) {
-        center().click(num);
+        getCenter().click(num);
         return this;
     }
 
     public Region move() {
-        center().move();
+        getCenter().move();
         return this;
     }
 
     public Region press() {
-        center().press();
+        getCenter().press();
         return this;
     }
     
     public Region release() {
-        center().release();
+        getCenter().release();
         return this;
     }    
     
     public Map<String, Object> getPosition() {
-        Map<String, Object> map = new HashMap();
+        Map<String, Object> map = new HashMap(4);
         map.put("x", x);
         map.put("y", y);
         map.put("width", width);
@@ -122,6 +127,36 @@ public class Region  {
     public byte[] screenshot() {
         return robot.screenshot(this);
     }   
+    
+    public String extract(String lang, boolean debug) {
+        if (lang == null) {
+            lang = robot.tessLang;
+        }
+        if (lang.length() < 2) {
+            lang = lang + robot.tessLang;
+        }
+        boolean negative = lang.charAt(0) == '-';
+        if (negative) {
+            lang = lang.substring(1);
+        }
+        Tesseract tess = Tesseract.init(robot, lang, this, negative);
+        if (debug) {
+            tess.highlightWords(robot, this, Config.DEFAULT_HIGHLIGHT_DURATION);
+        }
+        return tess.getAllText();
+    }    
+    
+    public void debugCapture() {
+        OpenCvUtils.show(capture(), toString());
+    } 
+    
+    public String debugExtract() {
+        return extract(null, true);
+    }
+    
+    public String debugExtract(String lang) {
+        return extract(lang, true);
+    }    
 
     @Override
     public String toString() {

@@ -55,6 +55,8 @@
     | <a href="#robotroot"><code>robot.root</code></a> 
     | <a href="#robotactive"><code>robot.active</code></a>   
     | <a href="#robotfocused"><code>robot.focused</code></a>
+    | <a href="#robotlocation"><code>robot.location</code></a>
+    | <a href="#robotregion"><code>robot.region()</code></a>
     | <a href="#robotclipboard"><code>robot.clipboard</code></a>
     | <a href="#robotallwindows"><code>robot.allWindows</code></a>
     | <a href="#screenshot"><code>screenshot()</code></a>  
@@ -537,6 +539,25 @@ But it can be more convenient to use the below pattern, as `active` is also a "s
 
 ## `robot.focused`
 Returns the [`Element`](#element) that currently has "focus" on the screen, no matter where or what type it is.
+
+## `robot.location`
+Returns a [`Location`](src/main/java/com/intuit/karate/robot/Location.java) instance that represents the mouse position, useful for troubleshooting in debug mode.
+
+```cucumber
+* def region = locate('foo').region
+* region.inset(30, region.height / 6).move()
+* robot.location.highlight()
+# you can also construct a location
+* robot.location(885, 406).highlight()
+```
+
+## `robot.region()`
+Constructs a [`Region`](src/main/java/com/intuit/karate/robot/Region.java) instance that can be used for debugging:
+
+```cucumber
+* def region = robot.region({ x: 100, y: 100, width: 100, height: 100 })
+* region.debugCapture()
+```
 
 ## `robot.clipboard`
 Returns the clipboard contents as text. This can be convenient to validate text in non-standard controls where `Element.value` does not work.

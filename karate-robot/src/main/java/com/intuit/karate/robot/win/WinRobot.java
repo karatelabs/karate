@@ -26,12 +26,18 @@ package com.intuit.karate.robot.win;
 import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.Element;
+import com.intuit.karate.robot.Location;
+import com.intuit.karate.robot.Robot;
 import com.intuit.karate.robot.RobotBase;
 import com.intuit.karate.robot.StringMatcher;
 import com.intuit.karate.robot.Window;
+import com.sun.jna.platform.win32.BaseTSD.ULONG_PTR;
 
 import com.sun.jna.platform.win32.User32;
+import com.sun.jna.platform.win32.WinDef.DWORD;
+import com.sun.jna.platform.win32.WinDef.LONG;
 import com.sun.jna.platform.win32.WinUser;
+import com.sun.jna.platform.win32.WinUser.INPUT;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -138,10 +144,10 @@ public class WinRobot extends RobotBase {
         if (locator.startsWith("/")) {
             if (locator.startsWith("/root")) {
                 locator = locator.substring(5);
-                parent = UIA.getRootElement();                
+                parent = UIA.getRootElement();
             }
             List<Element> searchResults = new ArrayList();
-            PathSearch search = new PathSearch(locator, true);            
+            PathSearch search = new PathSearch(locator, true);
             walkPathAndFind(searchResults, search, UIA.getControlViewWalker(), parent, 0);
             return searchResults;
         } else if (locator.startsWith("#")) {
@@ -163,8 +169,8 @@ public class WinRobot extends RobotBase {
         if (locator.startsWith("/")) {
             if (locator.startsWith("/root")) {
                 locator = locator.substring(5);
-                parent = UIA.getRootElement();                
-            }            
+                parent = UIA.getRootElement();
+            }
             List<Element> searchResults = new ArrayList();
             PathSearch search = new PathSearch(locator, false);
             walkPathAndFind(searchResults, search, UIA.getControlViewWalker(), parent, 0);
@@ -244,6 +250,32 @@ public class WinRobot extends RobotBase {
                 walkPathAndFind(searchResults, search, walker, child, depth + 1);
             }
         }
+    }
+
+    @Override
+    public Robot move(int x, int y) {
+        super.move(x, y);
+        Location loc = getLocation();
+        moveInternal(-loc.x / 4, -loc.y / 4);
+        while (getLocation().x < x - 1) {
+            moveInternal(1, 0);
+        }
+        while (getLocation().y < y - 1) {
+            moveInternal(0, 1);
+        }
+        return this;
+    }
+
+    private static void moveInternal(int x, int y) {
+        INPUT input = new INPUT();
+        input.type = new DWORD(INPUT.INPUT_MOUSE);
+        input.input.setType("mi");
+        input.input.mi.dx = new LONG(x);
+        input.input.mi.dy = new LONG(y);
+        input.input.mi.time = new DWORD(0);
+        input.input.mi.dwExtraInfo = new ULONG_PTR(0);
+        input.input.mi.dwFlags = new DWORD(1); // mouse move
+        User32.INSTANCE.SendInput(new DWORD(1), new INPUT[]{input}, input.size());
     }
 
 }

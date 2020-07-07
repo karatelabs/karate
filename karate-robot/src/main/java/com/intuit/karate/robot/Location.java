@@ -23,6 +23,10 @@
  */
 package com.intuit.karate.robot;
 
+import com.intuit.karate.Config;
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  *
  * @author pthomas3
@@ -53,12 +57,12 @@ public class Location {
         robot.click(num);
         return this;
     }
-    
+
     public Location doubleClick() {
-        robot.move(x, y); // do not chain, causes recursion
+        robot.move(x, y); // do not chain, causes recursion        
         robot.doubleClick();
         return this;
-    }    
+    }
 
     public Location press() {
         robot.move(x, y); // do not chain, causes recursion
@@ -73,8 +77,24 @@ public class Location {
     }
     
     public Location highlight() {
-        new Region(robot, x - 5, y - 5, 10, 10).highlight();
+        return highlight(Config.DEFAULT_HIGHLIGHT_DURATION);
+    }
+
+    public Location highlight(int duration) {
+        new Region(robot, x - 5, y - 5, 10, 10).highlight(duration);
         return this;
+    }
+
+    public Map<String, Object> asMap() {
+        Map<String, Object> map = new HashMap(2);
+        map.put("x", x);
+        map.put("y", y);
+        return map;
+    }
+
+    @Override
+    public String toString() {
+        return asMap().toString();
     }
 
 }

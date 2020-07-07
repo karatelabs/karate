@@ -35,6 +35,8 @@ import com.intuit.karate.driver.Keys;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.shell.Command;
 import java.awt.Dimension;
+import java.awt.MouseInfo;
+import java.awt.Point;
 import java.awt.Toolkit;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.event.InputEvent;
@@ -57,10 +59,9 @@ public abstract class RobotBase implements Robot, Plugin {
     public final Toolkit toolkit;
     public final Dimension dimension;
     public final Map<String, Object> options;
-    public final boolean highlight;
+
     public final boolean autoClose;
     public final int autoDelay;
-    public final int highlightDuration;
     public final Region screen;
     public final String tessData;
     public final String tessLang;
@@ -81,10 +82,20 @@ public abstract class RobotBase implements Robot, Plugin {
 
     // debug
     protected boolean debug;
-
+    public boolean highlight;    
+    public int highlightDuration;
+    
     public void setDebug(boolean debug) {
         this.debug = debug;
     }
+
+    public void setHighlight(boolean highlight) {
+        this.highlight = highlight;
+    }        
+
+    public void setHighlightDuration(int highlightDuration) {
+        this.highlightDuration = highlightDuration;
+    }        
 
     public void disableRetry() {
         retryEnabled = false;
@@ -130,6 +141,7 @@ public abstract class RobotBase implements Robot, Plugin {
             toolkit = Toolkit.getDefaultToolkit();
             dimension = toolkit.getScreenSize();
             screen = new Region(this, 0, 0, dimension.width, dimension.height);
+            logger.debug("screen dimensions: {}", screen);
             robot = new java.awt.Robot();
             robot.setAutoDelay(autoDelay);
             robot.setAutoWaitForIdle(true);
@@ -257,6 +269,9 @@ public abstract class RobotBase implements Robot, Plugin {
 
     @Override
     public Robot click(int num) {
+        if (highlight) {
+            getLocation().highlight(highlightDuration);
+        }
         int mask = mask(num);
         robot.mousePress(mask);
         robot.mouseRelease(mask);
@@ -381,7 +396,7 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     public byte[] screenshot(Region region) {
-        BufferedImage image = region.captureColor();
+        BufferedImage image = region.capture();
         byte[] bytes = OpenCvUtils.toBytes(image);
         context.embed(bytes, "image/png");
         return bytes;
@@ -684,7 +699,7 @@ public abstract class RobotBase implements Robot, Plugin {
             Element found = locateImageOrElement(searchRoot, locator);
             if (found != null) {
                 if (highlight) {
-                    found.getRegion().highlight();
+                    found.getRegion().highlight(highlightDuration);
                 }
                 return found;
             }
@@ -741,6 +756,20 @@ public abstract class RobotBase implements Robot, Plugin {
         }
     }        
 
+    @Override
+    public Location getLocation() {
+        Point p = MouseInfo.getPointerInfo().getLocation();
+        return new Location(this, p.x, p.y);
+    }   
+    
+    public Location location(int x, int y) {
+        return new Location(this, x, y);
+    }
+    
+    public Region region(Map<String, Integer> map) {
+        return new Region(this, map.get("x"), map.get("y"), map.get("width"), map.get("height"));
+    }
+    
     @Override
     public abstract Element getRoot();
 
