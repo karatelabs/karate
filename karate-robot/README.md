@@ -183,6 +183,14 @@ key | description
 `tessData` | default `tessdata` - the path to a directory where the Tesseract (OCR engine) [data files](#ocr-locators) will be looked for, this is needed only if you use an [OCR Locator](#ocr-locators) or attempt to call [`Element.extract()`](#elementextract). Note that the default *value* "`tessdata`" is all lower-case.
 `tessLang` | default `eng` - the default OCR language to use, see [OCR Locator](#ocr-locators)
 
+### `configure robot`
+For comvenience, the same pattern using in [Karate UI](https://github.com/intuit/karate/tree/master/karate-core#configure-driver) is supported, where you can have a "central" config, perhaps in [`karate-config.js`](https://github.com/intuit/karate#configuration) and have your tests specify the "intent" (or even over-ride "global" config) more clearly:
+
+```cucumber
+* configure robot = { highlight: true }
+* robot { window: '^My App' }
+```
+
 ### `karate.fork()`
 The `fork` option simply calls [`karate.fork()`](https://github.com/intuit/karate#karate-fork) which means that you can use it directly within a test any time you want to start any OS process. This is convenient to implement conditional logic, for e.g. to start an application involving a *different* main window - if a certain window [does not exist](#windowexists).
 

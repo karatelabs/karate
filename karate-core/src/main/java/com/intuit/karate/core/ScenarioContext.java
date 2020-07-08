@@ -1060,16 +1060,19 @@ public class ScenarioContext {
     public void robot(String expression) {
         ScriptValue sv = Script.evalKarateExpression(expression, this);
         if (robot == null) {
-            Map<String, Object> robotConfig = null;
+            Map<String, Object> options = config.getRobotOptions();
+            if (options == null) {
+                options = new HashMap();
+            }
             if (sv.isMapLike()) {
-                robotConfig = sv.getAsMap();
+                options.putAll(sv.getAsMap());
             } else if (sv.isString()) {
-                robotConfig = Collections.singletonMap("window", sv.getAsString());
+                options.put("window", sv.getAsString());
             }
             try {
                 Class clazz = Class.forName("com.intuit.karate.robot.RobotFactory");
                 PluginFactory factory = (PluginFactory) clazz.newInstance();
-                robot = factory.create(this, robotConfig);
+                robot = factory.create(this, options);
             } catch (KarateException ke) {
                 throw ke;
             } catch (Exception e) {

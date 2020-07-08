@@ -76,6 +76,7 @@ public class Config {
     private Map<String, Object> userDefined;
     private Target driverTarget;
     private Map<String, Object> driverOptions;
+    private Map<String, Object> robotOptions; // TODO make generic plugin model
     private ScriptValue afterScenario = ScriptValue.NULL;
     private ScriptValue afterFeature = ScriptValue.NULL;
     private HttpLogModifier logModifier;
@@ -153,6 +154,9 @@ public class Config {
             case "driver":
                 driverOptions = value.getAsMap();
                 return false;
+            case "robot":
+                robotOptions = value.getAsMap();
+                return false;                
             case "driverTarget":
                 if (value.isMapLike()) {
                     Map<String, Object> map = value.getAsMap();
@@ -285,6 +289,7 @@ public class Config {
         clientInstance = parent.clientInstance;
         userDefined = parent.userDefined;
         driverOptions = parent.driverOptions;
+        robotOptions = parent.robotOptions;
         driverTarget = parent.driverTarget;
         afterScenario = parent.afterScenario;
         afterFeature = parent.afterFeature;
@@ -428,6 +433,10 @@ public class Config {
     public Map<String, Object> getDriverOptions() {
         return driverOptions;
     }
+
+    public Map<String, Object> getRobotOptions() {
+        return robotOptions;
+    }        
 
     public HttpClient getClientInstance() {
         return clientInstance;
