@@ -42,7 +42,7 @@ public class QueueUtilsTest {
             }
         });
         synchronized (consumer) {
-            consumer.wait();
+            consumer.wait(10000);
         }
         assertTrue(passed);
     }

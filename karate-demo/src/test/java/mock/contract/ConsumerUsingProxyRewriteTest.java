@@ -56,7 +56,7 @@ public class ConsumerUsingProxyRewriteTest {
             }
         });
         synchronized(this) {
-            wait();
+            wait(10000);
         }      
     }
     

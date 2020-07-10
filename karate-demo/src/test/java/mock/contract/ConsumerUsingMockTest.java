@@ -33,7 +33,7 @@ public class ConsumerUsingMockTest {
     }    
     
     @Test
-    public void testPaymentCreate() {
+    public void testPaymentCreate() throws Exception {
         Payment payment = new Payment();
         payment.setAmount(5.67);
         payment.setDescription("test one");
@@ -50,11 +50,7 @@ public class ConsumerUsingMockTest {
             }
         });
         synchronized(this) {
-            try {
-                wait(10000);
-            } catch (InterruptedException e) {
-                logger.error("listen for 'shipped' message timed out: {}", e.getMessage());
-            }
+            wait(10000);
         }       
     }
     
