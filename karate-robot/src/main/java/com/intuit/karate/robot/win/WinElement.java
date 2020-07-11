@@ -72,8 +72,9 @@ public class WinElement implements Element {
         return new Region(robot, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
     }
 
-    private Location getCenter() {
-        return getRegion().getCenter();
+    private Location getClickablePoint() {
+        WinDef.POINT p = e.getClickablePoint();
+        return p == null ? getRegion().getCenter() : new Location(robot, p.x, p.y);
     }
 
     @Override
@@ -81,7 +82,7 @@ public class WinElement implements Element {
         e.setFocus();
         return this;
     }
-    
+
     public Element invoke() {
         if (isInvokePatternAvailable()) {
             IUIAutomationInvokePattern invokePattern = e.getCurrentPattern(IUIAutomationInvokePattern.class);
@@ -94,25 +95,25 @@ public class WinElement implements Element {
 
     @Override
     public Element click() {
-        getCenter().click();
+        getClickablePoint().click();
         return this;
     }
 
     @Override
     public Element move() {
-        getCenter().move();
+        getClickablePoint().move();
         return this;
     }
 
     @Override
     public Element press() {
-        getCenter().press();
+        getClickablePoint().press();
         return this;
     }
 
     @Override
     public Element release() {
-        getCenter().release();
+        getClickablePoint().release();
         return this;
     }
 
@@ -180,7 +181,7 @@ public class WinElement implements Element {
         }
         return list;
     }
-    
+
     private IUIAutomationTreeWalker walk() {
         return WinRobot.UIA.getControlViewWalker();
     }
@@ -193,19 +194,19 @@ public class WinElement implements Element {
     public Element getFirstChild() {
         return new WinElement(robot, walk().getFirstChildElement(e));
     }
-    
+
     public Element getLastChild() {
         return new WinElement(robot, walk().getLastChildElement(e));
-    } 
-    
+    }
+
     public Element getNextSibling() {
         return new WinElement(robot, walk().getNextSiblingElement(e));
-    }   
-    
+    }
+
     public Element getPreviousSibling() {
         return new WinElement(robot, walk().getPreviousSiblingElement(e));
-    }     
-    
+    }
+
     @Override
     public IUIAutomationElement toNative() {
         return e;

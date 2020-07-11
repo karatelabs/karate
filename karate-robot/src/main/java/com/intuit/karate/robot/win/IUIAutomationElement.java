@@ -72,6 +72,7 @@ public class IUIAutomationElement extends IUIAutomationBase {
         invoke("GetClickablePoint", point, status);
         if (!status.getValue().booleanValue()) {
             logger.warn("failed to get clickable point");
+            return null;
         }
         return point;
     }
