@@ -180,13 +180,32 @@ public class WinElement implements Element {
         }
         return list;
     }
+    
+    private IUIAutomationTreeWalker walk() {
+        return WinRobot.UIA.getControlViewWalker();
+    }
 
     @Override
     public Element getParent() {
-        IUIAutomationTreeWalker walker = WinRobot.UIA.getControlViewWalker();
-        return new WinElement(robot, walker.getParentElement(e));
+        return new WinElement(robot, walk().getParentElement(e));
     }
 
+    public Element getFirstChild() {
+        return new WinElement(robot, walk().getFirstChildElement(e));
+    }
+    
+    public Element getLastChild() {
+        return new WinElement(robot, walk().getLastChildElement(e));
+    } 
+    
+    public Element getNextSibling() {
+        return new WinElement(robot, walk().getNextSiblingElement(e));
+    }   
+    
+    public Element getPreviousSibling() {
+        return new WinElement(robot, walk().getPreviousSiblingElement(e));
+    }     
+    
     @Override
     public IUIAutomationElement toNative() {
         return e;

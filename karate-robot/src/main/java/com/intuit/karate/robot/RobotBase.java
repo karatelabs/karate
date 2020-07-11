@@ -55,6 +55,8 @@ import java.util.function.Supplier;
  */
 public abstract class RobotBase implements Robot, Plugin {
 
+    private static final int CLICK_POST_DELAY = 500;
+
     public final java.awt.Robot robot;
     public final Toolkit toolkit;
     public final Dimension dimension;
@@ -82,20 +84,20 @@ public abstract class RobotBase implements Robot, Plugin {
 
     // debug
     protected boolean debug;
-    public boolean highlight;    
+    public boolean highlight;
     public int highlightDuration;
-    
+
     public void setDebug(boolean debug) {
         this.debug = debug;
     }
 
     public void setHighlight(boolean highlight) {
         this.highlight = highlight;
-    }        
+    }
 
     public void setHighlightDuration(int highlightDuration) {
         this.highlightDuration = highlightDuration;
-    }        
+    }
 
     public void disableRetry() {
         retryEnabled = false;
@@ -266,14 +268,25 @@ public abstract class RobotBase implements Robot, Plugin {
     public Robot click() {
         return click(1);
     }
+    
+    @Override
+    public Robot rightClick() {
+        return click(3);
+    }    
 
     @Override
     public Robot click(int num) {
-        if (highlight) {
-            getLocation().highlight(highlightDuration);
-        }
         int mask = mask(num);
         robot.mousePress(mask);
+        if (highlight) {
+            getLocation().highlight(highlightDuration);
+            int toDelay = CLICK_POST_DELAY - highlightDuration;
+            if (toDelay > 0) {
+                RobotUtils.delay(toDelay);
+            }
+        } else {
+            RobotUtils.delay(CLICK_POST_DELAY);
+        }
         robot.mouseRelease(mask);
         return this;
     }
@@ -426,8 +439,8 @@ public abstract class RobotBase implements Robot, Plugin {
     @Override
     public Element focus(String locator) {
         return locate(getHighlightDuration(), getSearchRoot(), locator).focus();
-    }    
-    
+    }
+
     @Override
     public Element locate(String locator) {
         return locate(getHighlightDuration(), getSearchRoot(), locator);
@@ -754,22 +767,22 @@ public abstract class RobotBase implements Robot, Plugin {
             logger.warn("unable to return clipboard as string: {}", e.getMessage());
             return null;
         }
-    }        
+    }
 
     @Override
     public Location getLocation() {
         Point p = MouseInfo.getPointerInfo().getLocation();
         return new Location(this, p.x, p.y);
-    }   
-    
+    }
+
     public Location location(int x, int y) {
         return new Location(this, x, y);
     }
-    
+
     public Region region(Map<String, Integer> map) {
         return new Region(this, map.get("x"), map.get("y"), map.get("width"), map.get("height"));
     }
-    
+
     @Override
     public abstract Element getRoot();
 

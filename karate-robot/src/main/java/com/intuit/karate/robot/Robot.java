@@ -62,6 +62,9 @@ public interface Robot extends Plugin {
 
     @AutoDef
     Robot doubleClick();
+    
+    @AutoDef
+    Robot rightClick();    
 
     @AutoDef
     Robot press();

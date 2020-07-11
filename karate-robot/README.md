@@ -68,6 +68,7 @@
   <td>
       <a href="#click"><code>click()</code></a>
     | <a href="#doubleclick"><code>doubleClick()</code></a>
+    | <a href="#rightclick"><code>rightClick()</code></a>
     | <a href="#move"><code>move()</code></a>
     | <a href="#press"><code>press()</code></a>
     | <a href="#release"><code>release()</code></a>
@@ -184,11 +185,14 @@ key | description
 `tessLang` | default `eng` - the default OCR language to use, see [OCR Locator](#ocr-locators)
 
 ### `configure robot`
-For comvenience, the same pattern using in [Karate UI](https://github.com/intuit/karate/tree/master/karate-core#configure-driver) is supported, where you can have a "central" config, perhaps in [`karate-config.js`](https://github.com/intuit/karate#configuration) and have your tests specify the "intent" (or even over-ride "global" config) more clearly:
+For convenience, the same pattern in [Karate UI](https://github.com/intuit/karate/tree/master/karate-core#configure-driver) is supported, where you can have a "central" config, perhaps set-up in [`karate-config.js`](https://github.com/intuit/karate#configuration) - and have your tests specify the "intent" (or even over-ride "global" config) more clearly:
 
 ```cucumber
 * configure robot = { highlight: true }
+# and then later
 * robot { window: '^My App' }
+# or even
+* robot '^My App'
 ```
 
 ### `karate.fork()`
@@ -257,6 +261,24 @@ Any method on the [`Robot`](#api) type that returns [`Element`](src/main/java/co
 This [locates](#windows-locators) a UI control by name, and then within the bounds of that element, proceeds to click the mouse at an inner offset of 20 pixels(horizontal) and 40 pixels (vertical) from the top-left corner of the element.
 
 Also see [`windowOptional()`](#windowoptional) for a good example of chaining a [`click()`](#click) after calling [`locate()`](#locate).
+
+### Tree Walking
+The following *properties* (Java getters) are available on an [`Element`](#element-api) instance:
+
+* `parent`
+* `children` (returns a list / array of `Element`-s)
+* `firstChild`
+* `lastChild`
+* `nextSibling`
+* `previousSibling`
+
+This is convenient in some cases, for example:
+
+```cucumber
+* locate('SomeName').parent.click('Close')
+* waitFor('//pane{Info}').children[3].click()
+
+```
 
 ## `Window` API
 A call to [`window()`](#window) will set the current or "active" window and also return an object of type [`Window`](src/main/java/com/intuit/karate/robot/Window.java) (which extends [`Element`](#element-api)). So to set the window and `restore()` it in one step you could do this:
@@ -654,6 +676,9 @@ You can also click on any X and Y co-ordinate. Note that (0, 0) is the top, left
 ## `doubleClick()`
 Performs a double-click at the current mouse position. Note that you can also chain this off an [`Element`](#element-api).
 
+## `doubleClick()`
+Performs a right-click at the current mouse position.
+
 ## `move()`
 Argument can be `x, y` co-ordinates or typically the name of an image, which will be looked for in the [`basePath`](#robot). Note that relative paths will work.
 
@@ -785,6 +810,8 @@ The [multiple functions in one file](https://github.com/intuit/karate#multiple-f
 
 ## [`karate.exec()`](https://github.com/intuit/karate#karate-exec)
 Can execute any OS command, wait for it it terminate, and return the system / console output as a string.
+
+Also see [`karate.fork()`](#karatefork)
 
 # Standalone JAR
 The `karate-robot` for Windows is around 150 MB and hence not distributed with the [ZIP Release](https://github.com/intuit/karate/wiki/ZIP-Release). But you can download it separately, and it can be easily added to the classpath. You can find instructions [here](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot).

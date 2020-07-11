@@ -327,8 +327,8 @@ public class ScenarioExecutionUnit implements Runnable {
             }
             stop();
         } catch (Exception e) {            
-            result.addError("scenario init failed", e);
-            LOGGER.error("scenario init failed: {}", e.getMessage());
+            result.addError("scenario execution failed", e);
+            LOGGER.error("scenario execution failed: {}", e.getMessage());
         } finally {
             if (next != null) {
                 next.run();

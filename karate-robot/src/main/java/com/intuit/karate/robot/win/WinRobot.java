@@ -254,7 +254,7 @@ public class WinRobot extends RobotBase {
 
     @Override
     public Robot move(int x, int y) {
-        super.move(x, y);
+        // super.move(x, y);
         Location loc = getLocation();
         moveInternal(-loc.x / 4, -loc.y / 4);
         while (getLocation().x < x - 1) {
