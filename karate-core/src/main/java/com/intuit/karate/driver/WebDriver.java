@@ -535,4 +535,7 @@ public abstract class WebDriver implements Driver {
         });
     }
 
+    public void setEmulateDevice(Map<String, Object> emulateDeviceParams) {
+        logger.info("Not implemented yet !!!");
+    }
 }

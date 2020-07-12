@@ -99,6 +99,7 @@ public class DriverOptions {
     public final String beforeStart;
     public final String afterStop;
     public final String videoFile;
+    public Map<String, Object> emulateDevice;
 
     // mutable during a test
     private boolean retryEnabled;
@@ -182,6 +183,9 @@ public class DriverOptions {
         videoFile = get("videoFile", null);
         pollAttempts = get("pollAttempts", 20);
         pollInterval = get("pollInterval", 250);
+        emulateDevice = get("emulateDevice", new HashMap<String, Object>());
+        logger.info("emulateDevice={}", emulateDevice);
+
         // do this last to ensure things like logger, start-flag, webDriverUrl etc. are set
         port = resolvePort(defaultPort);
     }
