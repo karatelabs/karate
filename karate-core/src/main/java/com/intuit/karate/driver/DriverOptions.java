@@ -97,6 +97,7 @@ public class DriverOptions {
     public final boolean highlight;
     public final int highlightDuration;
     public final String attach;
+    public Map<String, Object> emulateDevice;
 
     // mutable during a test
     private boolean retryEnabled;
@@ -185,6 +186,9 @@ public class DriverOptions {
         highlight = get("highlight", false);
         highlightDuration = get("highlightDuration", Config.DEFAULT_HIGHLIGHT_DURATION);
         attach = get("attach", null);
+        emulateDevice = get("emulateDevice", new HashMap<String, Object>());
+        logger.info("emulateDevice={}", emulateDevice);
+
         // do this last to ensure things like logger, start-flag, webDriverUrl etc. are set
         port = resolvePort(defaultPort);
     }

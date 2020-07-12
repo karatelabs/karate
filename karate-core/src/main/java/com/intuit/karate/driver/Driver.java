@@ -90,6 +90,8 @@ public interface Driver extends Plugin {
 
     void setDimensions(Map<String, Object> map); // setter
 
+    void setEmulateDevice(Map<String, Object> emulateDeviceParams);
+
     String getTitle(); // getter
 
     List<String> getPages(); // getter
