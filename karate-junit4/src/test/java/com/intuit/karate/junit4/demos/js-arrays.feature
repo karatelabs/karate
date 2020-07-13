@@ -331,6 +331,28 @@ Scenario: [contains deep] should not recurse in reverse
     # * match original !contains deep compared
     * match compared contains deep original
 
+Scenario: contains deep should support multi-line / docstring r.h.s
+    * def message =
+      """
+      {
+          order_id: 5,
+          products: [
+            { product_id: 100, name: "bicycle" },
+            { product_id: 101, name: "car" }
+          ]
+      }
+      """
+    * match message contains deep
+      """
+      {
+          order_id: 5,
+          products: [
+            { product_id: 101, name: "car" },
+            { product_id: 100, name: "bicycle" }
+          ]
+      }
+      """
+
 Scenario: js eval
     * def temperature = { celsius: 100, fahrenheit: 212 }
     * string expression = 'temperature.celsius'
