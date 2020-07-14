@@ -153,6 +153,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#match-contains"><code>match contains</code></a>
     | <a href="#match-contains-only"><code>match contains only</code></a>
     | <a href="#match-contains-any"><code>match contains any</code></a>
+    | <a href="#match-contains-deep"><code>match contains deep</code></a>    
     | <a href="#not-contains"><code>match !contains</code></a>
     | <a href="#match-each"><code>match each</code></a>
     | <a href="#match-header"><code>match header</code></a>    
@@ -2693,6 +2694,23 @@ And this happens to work as expected for JSON object keys as well:
 ```cucumber
 * def data = { a: 1, b: 'x' }
 * match data contains any { b: 'x', c: true }
+```
+
+#### `match contains deep`
+This modifies the behavior of [`match contains`](#match-contains) so that nested lists or objects are processed for a "deep contains" match instead of a "deep equals" one which is the default. This is convenient for complex nested payloads where you are sure that you only want to check for *some* values in the various "trees" of data.
+
+Here is an example:
+
+```cucumber
+Scenario: recurse nested json
+  * def original = { a: 1, b: 2, c: 3, d: { a: 1, b: 2 } }
+  * def expected = { a: 1, c: 3, d: { b: 2 } }
+  * match original contains deep expected
+
+Scenario: recurse nested array
+  * def original = { a: 1, arr: [ { b: 2, c: 3 }, { b: 3, c: 4 } ] }
+  * def expected = { a: 1, arr: [ { b: 2 }, { c: 4 } ] }
+  * match original contains deep expected
 ```
 
 ## Validate every element in a JSON array

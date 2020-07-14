@@ -161,7 +161,7 @@ Scenario: parsing json, xml or string
     * assert temp.string
     * match temp.value == 'random text'
 
-Scenario: parsing json, xml or string within a js block    
+Scenario: parsing json, xml or string within a js block (use asMap)   
     * eval
     """
     var temp = karate.fromString('{ "foo": "bar" }');
