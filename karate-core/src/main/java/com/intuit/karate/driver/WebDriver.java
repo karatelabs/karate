@@ -574,8 +574,4 @@ public abstract class WebDriver implements Driver {
     protected Base64.Decoder getDecoder(){
         return Base64.getDecoder();
     }
-
-    public void setEmulateDevice(Map<String, Object> emulateDeviceParams) {
-        logger.info("Not implemented yet !!!");
-    }
 }

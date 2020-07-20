@@ -393,58 +393,21 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     /**
-     * This method takes the parameters needed to emulate a device.
-     *
-     * @param emulateDeviceParams
-     *        This object looks for the below keys needed to emulate a device.
-     *        By default it's configured to have width and height of a Iphone X mobile.
-     *
-     *        userAgent : It's needed to be passed in every request emulating the device agent
-     *        width : Width of the device emulating.
-     *        height : Height of the device emulating.
-     *
+     * @param width of the device emulating.
+     * @param height of the device emulating.
+     * @param userAgent to be passed in every request emulating the device agent
      */
-    private void setEmulateDeviceInternal(Map<String, Object> emulateDeviceParams) {
-        if(emulateDeviceParams != null && !emulateDeviceParams.isEmpty()) {
-            if(emulateDeviceParams.containsKey("userAgent")) {
-                String userAgent = (String) emulateDeviceParams.get("userAgent");
-                logger.info("Setting userAgent={}", userAgent);
-                method("Network.setUserAgentOverride").param("userAgent", userAgent).send();
-            }
+    public void emulateDevice(Integer width, Integer height, String userAgent) {
 
-            // Defaulting to Iphone x settings
-            Integer width = 375;
-            Integer height = 812;
-            Integer deviceScaleFactor = 1;
+        logger.info("Setting deviceMetrics width={}, height={}, userAgent={}", width, height, userAgent);
+        method("Network.setUserAgentOverride").param("userAgent", userAgent).send();
+        method("Emulation.setDeviceMetricsOverride")
+                .param("width", width)
+                .param("height", height)
+                .param("deviceScaleFactor", 1)
+                .param("mobile", true)
+                .send();
 
-            Object widthObj = emulateDeviceParams.get("width");
-            if(widthObj != null) {
-                width = (Integer) widthObj;
-            }
-
-            Object heightObj = emulateDeviceParams.get("height");
-            if(heightObj != null) {
-                height = (Integer) heightObj;
-            }
-
-            Object deviceScaleFactorObj = emulateDeviceParams.get("deviceScaleFactor");
-            if(deviceScaleFactorObj != null) {
-                deviceScaleFactor = (Integer) deviceScaleFactorObj;
-            }
-
-            logger.info("Setting deviceMetrics width={}, height={}, deviceScaleFactor={}", width, height, deviceScaleFactor);
-            method("Emulation.setDeviceMetricsOverride")
-                    .param("width", width)
-                    .param("height", height)
-                    .param("deviceScaleFactor", deviceScaleFactor)
-                    .param("mobile", true)
-                    .send();
-        }
-
-    }
-
-    public void setEmulateDevice(Map<String, Object> emulateDeviceParams) {
-        setEmulateDeviceInternal(emulateDeviceParams);
     }
 
     @Override

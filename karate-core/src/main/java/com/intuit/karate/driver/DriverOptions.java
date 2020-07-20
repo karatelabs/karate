@@ -97,7 +97,7 @@ public class DriverOptions {
     public final boolean highlight;
     public final int highlightDuration;
     public final String attach;
-   
+
     // mutable during a test
     private boolean retryEnabled;
     private Integer retryInterval = null;
