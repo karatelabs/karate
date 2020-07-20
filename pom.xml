@@ -58,7 +58,7 @@
         <module>karate-mock-servlet</module>
         <module>karate-jersey</module>    
         <module>karate-archetype</module>    
-  </modules>
+    </modules>
 
     <dependencies>
         <dependency>
@@ -122,6 +122,9 @@
                                 <goals>
                                     <goal>jar</goal>
                                 </goals>
+                                <configuration>
+                                    <additionalparam>-Xdoclint:none</additionalparam>
+                                </configuration>                                
                             </execution>
                         </executions>
                     </plugin>

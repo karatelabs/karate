@@ -306,16 +306,15 @@ public class StepActions implements Actions {
     }
 
     @Override
-    @When("^match (.+)(=|contains|any|only|deep)$")
-    public void matchDocstring(String expression, String operators, String rhs) {
-        MatchStep m = new MatchStep(expression + operators);
-        context.match(m.type, m.name, m.path, rhs);
-    }
-
-    @Override
-    @When("^match (.+)(=|contains|any|only|deep)( .+)$")
-    public void match(String expression, String operators, String rhs) {
-        MatchStep m = new MatchStep(expression + operators + rhs);
+    @When("^match (.+)(=|contains|any|only|deep)(.*)")
+    public void match(String expression, String op1, String op2, String rhs) {
+        if (op2 == null) {
+            op2 = "";
+        }
+        if (rhs == null) {
+            rhs = "";
+        }
+        MatchStep m = new MatchStep(expression + op1 + op2 + rhs);
         context.match(m.type, m.name, m.path, m.expected);
     }
 

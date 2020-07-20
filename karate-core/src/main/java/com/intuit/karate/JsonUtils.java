@@ -478,9 +478,7 @@ public class JsonUtils {
         return sw.toString();        
     }
 
-    /**
-     * use bracket notation if needed instead of dot notation
-     */
+    // use bracket notation if needed instead of dot notation
     public static String buildPath(String parentPath, String key) {
         boolean needsQuotes = key.indexOf('-') != -1 || key.indexOf(' ') != -1 || key.indexOf('.') != -1;
         return needsQuotes ? parentPath + "['" + key + "']" : parentPath + '.' + key;

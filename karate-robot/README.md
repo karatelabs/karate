@@ -1,7 +1,7 @@
 # Karate Robot
 
 ## Desktop Automation Made `Simple.`
-> Version 0.9.6.RC3 is available, and experimental. Please test and contribute if you can !
+> Version 0.9.6.RC4 is available, and experimental. Please test and contribute if you can !
 
 # Index
 
@@ -122,7 +122,7 @@
 ## Using
 If you are not that experienced with programming - or don't want to set up a Java development environment, please look at the [ZIP Release](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot) which you can run using [Visual Studio Code](https://github.com/intuit/karate/wiki/IDE-Support#visual-studio-code).
 
-Maven (or Gradle) users can read on below.
+Maven (or Gradle) users can read on below. Make sure you follow the [Karate conventions](https://github.com/intuit/karate#folder-structure) and you can use the [`examples/robot-test`](../examples/robot-test) project as a template.
 
 The `karate-robot` capabilities are not part of the `karate-core`, because they bring in a few extra dependencies.
 
