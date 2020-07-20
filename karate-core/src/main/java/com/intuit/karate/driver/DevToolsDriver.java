@@ -112,7 +112,6 @@ public abstract class DevToolsDriver implements Driver {
             receive(dtm);
         });
         client = new WebSocketClient(wsOptions, logger);
-        setEmulateDeviceInternal(options.emulateDevice);
     }
 
     public int waitSync() {
@@ -444,7 +443,6 @@ public abstract class DevToolsDriver implements Driver {
 
     }
 
-    @Override
     public void setEmulateDevice(Map<String, Object> emulateDeviceParams) {
         setEmulateDeviceInternal(emulateDeviceParams);
     }
