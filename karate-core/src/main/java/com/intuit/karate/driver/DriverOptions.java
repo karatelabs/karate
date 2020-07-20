@@ -97,8 +97,7 @@ public class DriverOptions {
     public final boolean highlight;
     public final int highlightDuration;
     public final String attach;
-    public Map<String, Object> emulateDevice;
-
+   
     // mutable during a test
     private boolean retryEnabled;
     private Integer retryInterval = null;
