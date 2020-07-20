@@ -185,6 +185,7 @@ public class DriverOptions {
         highlight = get("highlight", false);
         highlightDuration = get("highlightDuration", Config.DEFAULT_HIGHLIGHT_DURATION);
         attach = get("attach", null);
+
         // do this last to ensure things like logger, start-flag, webDriverUrl etc. are set
         port = resolvePort(defaultPort);
     }

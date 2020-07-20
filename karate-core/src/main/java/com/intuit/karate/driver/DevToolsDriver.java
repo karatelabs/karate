@@ -392,6 +392,24 @@ public abstract class DevToolsDriver implements Driver {
                 .param("bounds", temp).send();
     }
 
+    /**
+     * @param width of the device emulating.
+     * @param height of the device emulating.
+     * @param userAgent to be passed in every request emulating the device agent
+     */
+    public void emulateDevice(Integer width, Integer height, String userAgent) {
+
+        logger.info("Setting deviceMetrics width={}, height={}, userAgent={}", width, height, userAgent);
+        method("Network.setUserAgentOverride").param("userAgent", userAgent).send();
+        method("Emulation.setDeviceMetricsOverride")
+                .param("width", width)
+                .param("height", height)
+                .param("deviceScaleFactor", 1)
+                .param("mobile", true)
+                .send();
+
+    }
+
     @Override
     public void close() {
         method("Page.close").send();

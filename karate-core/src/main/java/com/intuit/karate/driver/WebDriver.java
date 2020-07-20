@@ -574,5 +574,4 @@ public abstract class WebDriver implements Driver {
     protected Base64.Decoder getDecoder(){
         return Base64.getDecoder();
     }
-
 }

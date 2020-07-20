@@ -154,6 +154,7 @@
     | <a href="#driverscreenshotfull"><code>driver.screenshotFull()</code></a>
     | <a href="#driverintercept"><code>driver.intercept()</code></a>
     | <a href="#driverinputfile"><code>driver.inputFile()</code></a>
+    | <a href="#emulatedevice"><code>driver.emulateDevice()</code></a> 
   </td> 
 </tr>
 <tr>
@@ -1690,6 +1691,16 @@ File-upload is supported natively only by type: `chrome`. You need to call a met
 ```
 
 The `driver.inputFile()` can take an array or varargs as the second argument. Note how Karate is able to resolve a [relative path](https://github.com/intuit/karate#reading-files) to an actual OS file-path behind the scenes. If you want to point to a real file, use the `file:` prefix.
+
+## `driver.emulateDevice()`
+Emulating a device is supported natively only by type: `chrome`. You need to call a method on the `driver` object directly:
+
+Below example has the width, height and userAgent of Iphone X.
+
+```cucumber
+  And driver.emulateDevice(375, 812, 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1')
+```
+
 
 ## Using `multipart file`
 This is the recommended, browser-agnostic approach that uses Karate's core-competency as an HTTP API client i.e. [`multipart file`](https://github.com/intuit/karate#multipart-file).
