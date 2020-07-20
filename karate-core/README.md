@@ -1692,7 +1692,7 @@ File-upload is supported natively only by type: `chrome`. You need to call a met
 
 The `driver.inputFile()` can take an array or varargs as the second argument. Note how Karate is able to resolve a [relative path](https://github.com/intuit/karate#reading-files) to an actual OS file-path behind the scenes. If you want to point to a real file, use the `file:` prefix.
 
-## `driver.emulateDevice`
+## `driver.emulateDevice()`
 Emulating a device is supported natively only by type: `chrome`. You need to call a method on the `driver` object directly:
 
 Below example has the width, height and userAgent of Iphone X.
