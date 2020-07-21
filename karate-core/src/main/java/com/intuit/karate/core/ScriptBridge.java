@@ -789,7 +789,7 @@ public class ScriptBridge implements PerfContext {
         } else {
             mocks = (List<String>) config.get("mock");
         }
-        if (mocks == null || mocks.size() == 0) {
+        if (mocks == null || mocks.isEmpty()) {
             throw new RuntimeException("'mock' is missing: " + config);
         }
         List<Feature> features = new ArrayList<>();

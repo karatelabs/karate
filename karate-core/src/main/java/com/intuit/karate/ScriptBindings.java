@@ -78,13 +78,13 @@ public class ScriptBindings implements Bindings {
     public static final String QUERY_MATCH_SCORE = "queryMatchScore";
     public static final String BODY_PATH = "bodyPath";
     public static final String SERVER_PORT = "serverPort";
-    
+
     // all threads will share this ! thread isolation is via Bindings (this class)
     private static final ScriptEngine NASHORN = new ScriptEngineManager(null).getEngineByName("nashorn");
 
     public final ScriptBridge bridge;
     private final ScriptValueMap vars;
-    public final Map<String, Object> adds;    
+    public final Map<String, Object> adds;
 
     public ScriptBindings(ScenarioContext context) {
         this.vars = context.vars;
@@ -150,8 +150,9 @@ public class ScriptBindings implements Bindings {
         } catch (KarateFailException | KarateAbortException | KarateFileNotFoundException ke) {
             throw ke; // reduce log bloat for common file-not-found situation / handle karate.abort() / karate.fail()
         } catch (Exception e) {
-            String append = e.getMessage() == null ? exp : e.getMessage();
-            throw new RuntimeException("evaluation (js) failed: " + exp + ", " + append, e);
+            String message = e.getMessage() == null ? exp : e.getMessage();
+            message = message + "\nstack trace: " + e.getStackTrace()[0];
+            throw new RuntimeException("evaluation (js) failed: " + exp + ", " + message, e);
         }
     }
 
