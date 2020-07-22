@@ -44,9 +44,15 @@ class KarateAction(val name: String, val tags: Seq[String], val protocol: Karate
 
   def pause(time: Int) = {
     val duration = Duration(time, MILLISECONDS)
-    implicit val timeout = Timeout(Duration(time + 5000, MILLISECONDS))
+    implicit val timeout = Timeout(duration) // same as pause duration !
     val future = getActor() ? duration
-    Await.result(future, Duration.Inf)
+    try {
+      Await.result(future, duration) // timeout same as pause duration !
+    } catch {
+      // we do all this to achieve a non-blocking "pause"
+      // and the timeout exception will ALWAYS be thrown
+      case e: Throwable => // do nothing
+    }
   }
 
   override def execute(session: Session) = {
