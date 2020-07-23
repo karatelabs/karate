@@ -1,7 +1,5 @@
 package com.intuit.karate.gatling
 
-import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.ActorSystem
 import com.intuit.karate.core.ScenarioContext
 import com.intuit.karate.http.{HttpRequestBuilder, HttpUtils}
@@ -19,7 +17,6 @@ class KarateProtocol(val uriPatterns: Map[String, Seq[MethodPause]]) extends Pro
     val methodPause = uriPatterns.getOrElse(requestName, Nil).find(mp => method.equalsIgnoreCase(mp.method))
     if (methodPause.isDefined) methodPause.get.pause else 0
   }
-  val actorCount = new AtomicInteger()
   val defaultNameResolver = (req: HttpRequestBuilder, ctx: ScenarioContext) => {
     val pathPair = NettyUtils.parseUriIntoUrlBaseAndPath(req.getUrlAndPath)
     val matchedUri = pathMatches(pathPair.right)

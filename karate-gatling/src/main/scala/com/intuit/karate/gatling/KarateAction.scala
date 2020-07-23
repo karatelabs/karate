@@ -3,9 +3,7 @@ package com.intuit.karate.gatling
 import java.util.Collections
 import java.util.function.Consumer
 
-import akka.actor.{Actor, ActorSystem, Props}
-import akka.pattern.ask
-import akka.util.Timeout
+import akka.actor.ActorSystem
 import com.intuit.karate.{Results, Runner}
 import com.intuit.karate.core._
 import com.intuit.karate.http.HttpRequestBuilder
@@ -19,26 +17,13 @@ import scala.collection.JavaConverters._
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.concurrent.duration.{Duration, MILLISECONDS}
 
-class PauseActor extends Actor {
-  override def receive: Receive = {
-    case d: Duration => // do nothing
-  }
-}
-
 class KarateAction(val name: String, val tags: Seq[String], val protocol: KarateProtocol, val system: ActorSystem,
                    val statsEngine: StatsEngine, val clock: Clock, val next: Action) extends ExitableAction {
 
-  val pauseActor = {
-    val actorName = "karate-" + protocol.actorCount.incrementAndGet()
-    system.actorOf(Props[PauseActor], actorName)
-  }
-
   def pause(time: Int) = {
     val duration = Duration(time, MILLISECONDS)
-    implicit val timeout = Timeout(duration) // same as pause duration !
-    val future = pauseActor ? duration
     try {
-      Await.result(future, duration) // timeout same as pause duration !
+      Await.result(Future.never, duration)
     } catch {
       // we do all this to achieve a non-blocking "pause"
       // and the timeout exception will ALWAYS be thrown
