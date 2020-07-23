@@ -17,7 +17,6 @@ import io.gatling.core.stats.StatsEngine
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Duration, FiniteDuration, MILLISECONDS}
 
 class KarateActor extends Actor {
@@ -26,11 +25,7 @@ class KarateActor extends Actor {
       m.run()
       context.stop(self)
     }
-    case m: FiniteDuration => {
-      val waiter = sender()
-      val task: Runnable = () => waiter ! Nil
-      context.system.scheduler.scheduleOnce(m, self, task)
-    }
+    case m: FiniteDuration => Unit // pause, do nothing
   }
 }
 
@@ -42,10 +37,12 @@ class KarateAction(val name: String, val tags: Seq[String], val protocol: Karate
     system.actorOf(Props[KarateActor], actorName)
   }
 
+  val pauseActor = getActor()
+
   def pause(time: Int) = {
     val duration = Duration(time, MILLISECONDS)
     implicit val timeout = Timeout(duration) // same as pause duration !
-    val future = getActor() ? duration
+    val future = pauseActor ? duration
     try {
       Await.result(future, duration) // timeout same as pause duration !
     } catch {

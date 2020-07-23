@@ -313,5 +313,27 @@ The `karate` object happens to implement the `PerfContext` interface and keeps y
 
 Like the built-in HTTP support, any test failures are automatically linked to the previous "perf event" captured.
 
+## Advanced Configuration
+The defaults should suffice most of the time, but if you see odd behavior such as freezing of a test, you can change the settings for the underlying Akka engine. A typical situation is when one of your responses takes a very long time to respond (30-60 seconds) and the system is stuck waiting for threads to be freed.
+
+Add a file called [`gatling-akka.conf`](src/test/resources/gatling-akka.conf) to the root of the classpath (typically `src/test/resources`). Here is an example:
+
+```
+akka {
+  actor {
+    default-dispatcher {
+      type = Dispatcher
+      executor = "thread-pool-executor"
+      thread-pool-executor {
+        fixed-pool-size = 100
+      }
+      throughput = 1
+    }
+  }
+}
+```
+
+So now the system can go up to 100 threads waiting for responses. You can experiment with more settings as [described here](https://doc.akka.io/docs/akka/current/typed/dispatchers.html). Of course a lot will depend on the compute resources (CPU, RAM) available on the machine on which you are running a test.
+
 ## Distributed Testing
 See wiki: [Distributed Testing](https://github.com/intuit/karate/wiki/Distributed-Testing#gatling)
