@@ -3,7 +3,7 @@ package com.intuit.karate.gatling
 import java.util.Collections
 import java.util.function.Consumer
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.intuit.karate.{Results, Runner}
@@ -16,28 +16,22 @@ import io.gatling.core.session.Session
 import io.gatling.core.stats.StatsEngine
 
 import scala.collection.JavaConverters._
-import scala.concurrent.Await
-import scala.concurrent.duration.{Duration, FiniteDuration, MILLISECONDS}
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
+import scala.concurrent.duration.{Duration, MILLISECONDS}
 
-class KarateActor extends Actor {
+class PauseActor extends Actor {
   override def receive: Receive = {
-    case m: Runnable => {
-      m.run()
-      context.stop(self)
-    }
-    case m: FiniteDuration => Unit // pause, do nothing
+    case d: Duration => // do nothing
   }
 }
 
 class KarateAction(val name: String, val tags: Seq[String], val protocol: KarateProtocol, val system: ActorSystem,
                    val statsEngine: StatsEngine, val clock: Clock, val next: Action) extends ExitableAction {
 
-  def getActor(): ActorRef = {
+  val pauseActor = {
     val actorName = "karate-" + protocol.actorCount.incrementAndGet()
-    system.actorOf(Props[KarateActor], actorName)
+    system.actorOf(Props[PauseActor], actorName)
   }
-
-  val pauseActor = getActor()
 
   def pause(time: Int) = {
     val duration = Duration(time, MILLISECONDS)
@@ -88,7 +82,8 @@ class KarateAction(val name: String, val tags: Seq[String], val protocol: Karate
 
     }
 
-    val asyncSystem: Consumer[Runnable] = r => getActor() ! r
+    implicit val executor: ExecutionContextExecutor = system.dispatcher
+    val asyncSystem: Consumer[Runnable] = r => Future { r.run() }
     val pauseFunction: Consumer[java.lang.Number] = t => pause(t.intValue())
     val asyncNext: Runnable = () => next ! session
     val attribs: Object = (session.attributes + ("userId" -> session.userId) + ("pause" -> pauseFunction))
