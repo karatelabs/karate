@@ -249,6 +249,8 @@ And now, whenever you need, you can add a pause between API invocations in a fea
 
 You can see how the `pause()` function can be a no-op when *not* a Gatling test, which is probably what you would do most of the time. You can have your "think-times" apply *only* when running as a load test.
 
+Refer to the main documentation on how to [achieve code re-use](https://github.com/intuit/karate/tree/develop#multiple-functions-in-one-file) if you don't want to define the `pause` function in multiple features.
+
 ## `configure localAddress`
 > This is implemented only for the `karate-apache` HTTP client. Note that the IP address needs to be [*physically assigned* to the local machine](https://www.blazemeter.com/blog/how-to-send-jmeter-requests-from-different-ips/).
 

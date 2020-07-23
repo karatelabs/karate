@@ -3808,6 +3808,8 @@ Scenario: function re-use, isolated / name-spaced scope
     * assert utils.world() == 'world'
 ```
 
+You can even move commonly used routines into [`karate-config.js`](#restrictions-on-global-variables) which means that they become "global". But we recommend that you do this only if you are sure that these routines are needed in almost *all* `*.feature` files. Bloating your configuration can lead to loss of performance, and maintainability may suffer.
+
 ## Async
 The JS API has a couple of methods - [`karate.signal(result)`](#karate-signal) and [`karate.listen(timeout)`](#karate-listen) that are useful for involving asynchronous flows into a test. This is best [explained](https://github.com/intuit/karate/tree/master/karate-netty#consumer-provider-example) in this [example](karate-demo/src/test/java/mock/contract/payment-service.feature) that involves listening to an ActiveMQ / JMS queue. Note how [JS functions](#javascript-functions) defined at run-time can be mixed with custom [Java code](#java-interop) to get things done.
 
