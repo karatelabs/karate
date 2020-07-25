@@ -2,6 +2,77 @@
 ## API Test-Doubles Made `Simple.`
 And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html) made easy.
 
+# Index
+
+<table>
+<tr>
+  <th>Start</th>
+  <td>
+      <a href="#standalone-jar">Standalone JAR</a>
+    | <a href="#downloading">Downloading</a>
+    | <a href="#quick-start">Quick Start</a>
+    | <a href="#usage">Usage</a>
+    | <a href="#logging">Logging</a>
+    | <a href="#the-worlds-smallest-microservice-">The World's Smallest Microservice</a>
+  </td>
+</tr>
+<tr>
+  <th>Life Cycle</th>
+  <td>
+      <a href="#embedding">Java / JUnit</a>
+    | <a href="#within-a-karate-test">Within a Karate Test</a>  
+    | <a href="#background"><code>Background</code></a>
+    | <a href="#scenario"><code>Scenario</code></a>
+    | <a href="#stopping">Stopping</a>
+  </td>
+</tr>
+<tr>
+  <th>Request</th>
+  <td>
+      <a href="#request"><code>request</code></a>
+    | <a href="#requestbytes"><code>requestBytes</code></a>
+    | <a href="#requesturlbase"><code>requestUrlBase</code></a>
+    | <a href="#requesturi"><code>requestUri</code></a>
+    | <a href="#requestmethod"><code>requestMethod</code></a>
+    | <a href="#requestheaders"><code>requestHeaders</code></a>
+    | <a href="#requestparams"><code>requestParams</code></a>
+    | <a href="#pathmatches"><code>pathMatches()</code></a>
+    | <a href="#pathparams"><code>pathParams</code></a>
+    | <a href="#methodis"><code>methodIs()</code></a>
+    | <a href="#paramexists"><code>paramExists()</code></a>
+    | <a href="#paramvalue"><code>paramValue()</code></a>
+    | <a href="#typecontains"><code>typeContains()</code></a>
+    | <a href="#acceptcontains"><code>acceptContains()</code></a>
+    | <a href="#headercontains"><code>headerContains()</code></a>
+    | <a href="#bodypath"><code>bodyPath()</code></a>
+  </td>
+</tr>
+<tr>
+  <th>Response</th>
+  <td>
+      <a href="#response"><code>response</code></a>
+    | <a href="#responsestatus"><code>responseStatus</code></a>
+    | <a href="#responseheaders"><code>responseHeaders</code></a>
+    | <a href="#responsedelay"><code>responseDelay</code></a>
+    | <a href="#afterscenario"><code>afterScenario</code></a>
+    | <a href="#karateabort"><code>karate.abort()</code></a>
+    | <a href="#responsestatus"><code>responseStatus</code></a>
+  </td>
+</tr>
+<tr>
+  <th>Advanced</th>
+  <td>
+      <a href="#configure-cors"><code>configure cors</code></a>    
+    | <a href="#configure-afterscenario"><code>configure afterScenario</code></a>
+    | <a href="#configure-responseheaders"><code>configure responseHeaders</code></a>    
+    | <a href="#proxy-mode"><code>Proxy Mode</code></a>
+    | <a href="#karateabort"><code>karate.abort()</code></a>
+    | <a href="#karateproceed"><code>karate.proceed()</code></a>
+    | <a href="#consumer-provider-example"><code>Consumer Driven Contracts</code></a>       
+  </td>
+</tr>
+</table>
+
 ### Capabilities
 * Everything on `localhost` or within your network, no need to worry about your data leaking into the cloud
 * Super-easy 'hard-coded' mocks ([example](../karate-junit4/src/test/java/com/intuit/karate/mock/_mock.feature))
@@ -18,6 +89,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 * Start and stop mock servers in milliseconds
 * Super-fast HTTP response times (~20ms) for typical in-memory CRUD / JsonPath (as long as you don't do I/O)
 * Thread-safe - use concurrent consumers or async flows without fear
+* Simulate [slow, delayed](), error or malformed responses with ease
 * Zero errors even under load / stress - see this [benchmark comparison with other tools](https://twitter.com/KarateDSL/status/1083775218873581571)
 * Easy integration into Java / JUnit test-suites via API
 * Server can dynamically choose free port
@@ -494,15 +566,6 @@ Refer to this example: [`server.feature`](src/test/java/com/intuit/karate/server
 # Response Building
 Shaping the HTTP response is very easy - you just set a bunch of variables. This is surprisingly effective, and gives you the flexibility to perform multiple steps as part of request processing. You don't need to build the whole response and "return" it on the last line. And the order of what you define does not matter.
 
-## `responseStatus`
-The HTTP response code. This defaults to `200` for convenience, so you don't need to set it at all for "happy path" cases. Here's an example of conditionally setting a `404`:
-
-```cucumber
-Scenario: pathMatches('/v1/cats/{id}') && methodIs('get')
-    * def response = cats[pathParams.id]
-    * def responseStatus = response ? 200 : 404
-```
-
 ## `response`
 The actual response body or payload. Can be any [Karate data-type](https://github.com/intuit/karate#native-data-types) such as JSON or XML.
 
@@ -531,6 +594,15 @@ To give you some interesting ideas, say you had a program written in a different
 ```
 
 Because of Karate's [Java interop capabilities](https://github.com/intuit/karate#calling-java) there is no limit to what you can do. Need to call a database and return data ? No problem ! Of course at this point you may need to stop and think if you need to use a *real* app server. But that said, Karate gives you a way to create full fledged micro-services in minutes - far faster than how you would using traditional technologies such as Tomcat, Node / Express, Flask / Django and the like.
+
+## `responseStatus`
+The HTTP response code. This defaults to `200` for convenience, so you don't need to set it at all for "happy path" cases. Here's an example of conditionally setting a `404`:
+
+```cucumber
+Scenario: pathMatches('/v1/cats/{id}') && methodIs('get')
+    * def response = cats[pathParams.id]
+    * def responseStatus = response ? 200 : 404
+```
 
 ## `responseHeaders`
 You can easily set multiple headers as JSON in one step as follows:

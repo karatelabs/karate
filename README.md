@@ -718,6 +718,8 @@ A `timeline.html` file will also be saved to the report output directory mention
 ### `@parallel=false`
 In rare cases you may want to suppress the default of `Scenario`-s executing in parallel and the special [`tag`](#tags) `@parallel=false` can be used. If you place it above the [`Feature`](#script-structure) keyword, it will apply to all `Scenario`-s. And if you just want one or two `Scenario`-s to NOT run in parallel, you can place this tag above only *those* `Scenario`-s. See [example](karate-demo/src/test/java/demo/encoding/encoding.feature).
 
+Note that forcing `Scenario`-s to run in a particular sequence [is an anti-pattern](https://stackoverflow.com/a/46080568/143475), and should be avoided as far as possible.
+
 ## Test Reports
 As mentioned above, most CI tools would be able to process the JUnit XML output of the [parallel runner](#parallel-execution) and determine the status of the build as well as generate reports.
 

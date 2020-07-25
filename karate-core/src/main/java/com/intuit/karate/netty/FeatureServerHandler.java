@@ -59,7 +59,7 @@ import java.util.function.Supplier;
 public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     private final FeaturesBackend backend;
-    private final Runnable stopFunction;    
+    private final Runnable stopFunction;
     private final boolean ssl;
     private final Supplier<SslContext> contextSupplier;
 
@@ -135,7 +135,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
                 HttpHeaders nettyHeaders = nettyResponse.headers();
                 karateHeaders.forEach((k, v) -> nettyHeaders.add(k, v));
             }
-            if(response.getDelay() != 0L) {
+            if (response.getDelay() != 0L) {
                 delay = response.getDelay() - response.getResponseTime();
             }
         }
@@ -143,7 +143,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             ctx.write(nettyResponse);
             ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
         }, delay, TimeUnit.MILLISECONDS)
-           .addListener((future) -> backend.getContext().logger.debug("response {} written after {} milliseconds", future.isSuccess() ? "successfully" : "not",  System.currentTimeMillis() - startTime));
+                .addListener((future) -> backend.getContext().logger.debug("response {} written after {} milliseconds", future.isSuccess() ? "successfully" : "not", System.currentTimeMillis() - startTime));
     }
 
     @Override

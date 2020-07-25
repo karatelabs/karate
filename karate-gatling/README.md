@@ -1,5 +1,47 @@
 # Karate Gatling
 ## API Perf-Testing Made `Simple.`
+
+# Index
+
+<table>
+<tr>
+  <th>Start</th>
+  <td>
+      <a href="#maven">Maven</a>
+    | <a href="#gradle">Gradle</a>
+    | <a href="#logging">Logging</a>
+    | <a href="#limitations">Limitations</a>
+    | <a href="#usage">Usage</a>    
+  </td>
+</tr>
+<tr>
+  <th>API</th>
+  <td>
+      <a href="#karateprotocol"><code>karateProtocol()</code></a>
+    | <a href="#nameresolver"><code>nameResolver</code></a>
+    | <a href="#pausefor"><code>pauseFor()</code></a>
+    | <a href="#karatefeature"><code>karateFeature()</code></a>
+    | <a href="#tag-selector">Tag Selector</a>
+    | <a href="#ignore-tags">Ignore Tags</a>
+  </td>
+</tr>
+<tr>
+  <th>Advanced</th>
+  <td>
+      <a href="#gatling-session">Session</a>
+    | <a href="#feeders">Feeders</a>
+    | <a href="#karatecallsingle"><code>karate.callSingle()</code></a>
+    | <a href="#detecting-gatling-at-run-time">Detecting Gatling At Run Time</a>
+    | <a href="#think-time">Think Time</a>
+    | <a href="#configure-localaddress"><code>configure localAddress</code></a>
+    | <a href="#custom">Profiling Custom Java Code</a>
+    | <a href="#captureperfevent"><code>PerfContext.capturePerfEvent()</code></a>
+    | <a href="#increasing-thread-pool-size">Increasing Thread Pool Size</a>
+    | <a href="#distributed-testing">Distributed Testing</a>   
+  </td>
+</tr>
+</table>
+
 ### Capabilities
 * Re-use Karate tests as performance tests executed by [Gatling](https://gatling.io)
 * Use Gatling (and Scala) only for defining the load-model, everything else can be in Karate
@@ -315,7 +357,7 @@ The `karate` object happens to implement the `PerfContext` interface and keeps y
 
 Like the built-in HTTP support, any test failures are automatically linked to the previous "perf event" captured.
 
-## Advanced Configuration
+## Increasing Thread Pool Size
 The defaults should suffice most of the time, but if you see odd behavior such as freezing of a test, you can change the settings for the underlying Akka engine. A typical situation is when one of your responses takes a very long time to respond (30-60 seconds) and the system is stuck waiting for threads to be freed.
 
 Add a file called [`gatling-akka.conf`](src/test/resources/gatling-akka.conf) to the root of the classpath (typically `src/test/resources`). Here is an example:
