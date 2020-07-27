@@ -37,10 +37,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.zip.GZIPInputStream;
 import javax.ws.rs.client.ClientRequestContext;
 import javax.ws.rs.client.ClientRequestFilter;
 import javax.ws.rs.client.ClientResponseContext;
 import javax.ws.rs.client.ClientResponseFilter;
+import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 
@@ -122,7 +124,7 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
         StringBuilder sb = new StringBuilder();
         HttpLogModifier requestModifier = logModifier == null ? null : logModifier.enableForUri(uri) ? logModifier : null;
         String maskedUri = requestModifier == null ? uri : requestModifier.uri(uri);
-        sb.append("request\n").append(id).append(" > ").append(method).append(' ').append(maskedUri).append('\n');        
+        sb.append("request\n").append(id).append(" > ").append(method).append(' ').append(maskedUri).append('\n');
         logHeaders(requestModifier, sb, id, '>', request.getStringHeaders(), actual);
         LoggingFilterOutputStream out = (LoggingFilterOutputStream) request.getProperty(LoggingFilterOutputStream.KEY);
         if (out != null) {
@@ -145,6 +147,10 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
         logHeaders(requestModifier, sb, id, '<', response.getHeaders(), null);
         if (response.hasEntity() && isPrintable(response.getMediaType())) {
             InputStream is = response.getEntityStream();
+            String contentEncoding = response.getHeaders().getFirst(HttpHeaders.CONTENT_ENCODING);
+            if (contentEncoding != null && "gzip".equalsIgnoreCase(contentEncoding)) {
+                is = new GZIPInputStream(is);
+            }
             if (!is.markSupported()) {
                 is = new BufferedInputStream(is);
             }
@@ -155,9 +161,11 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
             }
             if (requestModifier != null) {
                 buffer = requestModifier.request(uri, buffer);
-            }            
+            }
             sb.append(buffer).append('\n');
-            is.reset();
+            if(is.markSupported()) {
+                is.reset();
+            }
             response.setEntityStream(is); // in case it was swapped
         }
         context.logger.debug(sb.toString());
