@@ -62,7 +62,8 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 <tr>
   <th>Advanced</th>
   <td>
-      <a href="#configure-cors"><code>configure cors</code></a>    
+      <a href="#configure-cors"><code>configure cors</code></a>
+    | <a href="#configure-responsedelay"><code>configure responseDelay</code></a>    
     | <a href="#configure-afterscenario"><code>configure afterScenario</code></a>
     | <a href="#configure-responseheaders"><code>configure responseHeaders</code></a>    
     | <a href="#proxy-mode"><code>Proxy Mode</code></a>
@@ -648,14 +649,17 @@ Scenario: pathMatches('/v1/test')
     * def responseDelay = 4000
 ```
 
-## `def responseDelay`
-You can also configure a randomised delay across all scenarios. Here is an example of setting a random delay between 200 to 600 milliseconds:
+Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).
+
+## `configure responseDelay`
+You can also configure a delay that will "globally" apply across all scenarios in the [`Background`](#background).
 
 ```cucumber
 Background:
-    * def responseDelay = 200 + Math.random() * 400
+    * configure responseDelay = 400
 ```
-Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).
+
+For more dynamic "global" behavior such as a random delay, look at [`configure afterScenario`](#configure-afterscenario).
 
 ## `afterScenario`
 Use this to add re-use any behaviour after scenario run, e.g. logging. For example:
@@ -670,15 +674,11 @@ function(){
 ```
 
 ### `configure afterScenario`
-Just like the above, but you can set this "globally" for all route-handlers in the [`Background`](#background).
+Just like the above, but you can set this "globally" for all route-handlers in the [`Background`](#background). Here is an example of setting a random delay.
 
 ```cucumber
-* configure afterScenario =
-"""
-function(){
-    karate.log('sleeping for:', millis, 'millis')
-}
-"""
+Background:
+* configure afterScenario = function(){ java.lang.Thread.sleep(200 + Math.random() * 400) }
 ```
 
 ## `karate.abort()`
