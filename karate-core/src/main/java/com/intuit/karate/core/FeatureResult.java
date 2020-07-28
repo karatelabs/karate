@@ -170,8 +170,12 @@ public class FeatureResult {
         if (callArg == null) {
             return null;
         }
-        Map temp = JsonUtils.removeCyclicReferences(callArg);
-        return JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(temp));
+        try {
+            Map temp = JsonUtils.removeCyclicReferences(callArg);
+            return JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(temp));
+        } catch (Throwable t) {
+            return "#error: " + t.getMessage();
+        }
     }
 
     public Map<String, Object> getCallArg() {
