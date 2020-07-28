@@ -1,4 +1,3 @@
-@ignore
 Feature:
 
 Scenario:
@@ -6,4 +5,3 @@ Scenario:
     Given header Accept-Encoding = 'gzip'
     When method get
     Then status 200
-
