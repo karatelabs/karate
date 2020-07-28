@@ -5,7 +5,7 @@ import com.intuit.karate.junit4.Karate;
 import org.junit.runner.RunWith;
 
 @RunWith(Karate.class)
-@KarateOptions(features = "classpath:com/intuit/karate/junit4/xml/xml.feature")
-public class XmlRunner {
+@KarateOptions(features = "classpath:com/intuit/karate/junit4/xml/xml-call.feature")
+public class XmlCallRunner {
 
 }

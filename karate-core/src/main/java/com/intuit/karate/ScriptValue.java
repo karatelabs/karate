@@ -209,12 +209,17 @@ public class ScriptValue {
                 String json = getValue(DocumentContext.class).jsonString();
                 return new ScriptValue(JsonPath.parse(json));
             case MAP:
-                if (deep) {                    
+                if (deep) {
                     Map mapSource = getValue(Map.class);
-                    String strSource = JsonPath.parse(mapSource).jsonString();
-                    Map mapDest = JsonPath.parse(strSource).read("$");
-                    // only care about JS functions for treating specially
-                    retainRootKeyValuesWhichAreFunctions(mapSource, mapDest, false);
+                    Map mapDest;
+                    try {
+                        String strSource = JsonPath.parse(mapSource).jsonString();
+                        mapDest = JsonPath.parse(strSource).read("$");
+                        // only care about JS functions for treating specially
+                        retainRootKeyValuesWhichAreFunctions(mapSource, mapDest, false);
+                    } catch (Throwable t) { // json serialization failed, fall-back
+                        mapDest = new LinkedHashMap(mapSource);
+                    }
                     return new ScriptValue(mapDest);
                 } else {
                     return new ScriptValue(new LinkedHashMap(getValue(Map.class)));
@@ -345,10 +350,11 @@ public class ScriptValue {
             case MAP:
                 Map map = JsonUtils.removeCyclicReferences(getAsMap());
                 return JsonUtils.toJsonDoc(map).jsonString();
-            default: return getAsString();
+            default:
+                return getAsString();
         }
     }
-    
+
     public String getAsString() {
         switch (type) {
             case NULL:

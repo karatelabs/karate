@@ -96,7 +96,7 @@ public class JsonUtils {
 
     }
     
-    private static class ElementJsonWriter implements JsonWriterI<Element> {
+    private static class DriverElementJsonWriter implements JsonWriterI<Element> {
 
         @Override
         public <E extends Element> void writeJSONString(E value, Appendable out, JSONStyle compression) throws IOException {
@@ -109,7 +109,7 @@ public class JsonUtils {
         // prevent things like the karate script bridge getting serialized (especially in the javafx ui)
         JSONValue.registerWriter(ScriptObjectMirror.class, new NashornObjectJsonWriter());
         JSONValue.registerWriter(Feature.class, new FeatureJsonWriter());
-        JSONValue.registerWriter(DriverElement.class, new ElementJsonWriter());
+        JSONValue.registerWriter(DriverElement.class, new DriverElementJsonWriter());
         // ensure that even if jackson (databind?) is on the classpath, don't switch provider
         Configuration.setDefaults(new Configuration.Defaults() {
 
