@@ -24,15 +24,14 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.core.Engine;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.core.FeatureResult;
+import net.minidev.json.JSONArray;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.util.Map;
+import java.util.function.IntBinaryOperator;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -96,5 +95,25 @@ public class FeatureResultTest {
         // noskip should have both steps as passed
         assertTrue(contents.contains("Then assert a != 3 ........................................................ passed"));
         assertTrue(contents.contains("And assert a != 4 ......................................................... passed"));
+    }
+
+    /**
+     * Function used on testLambdaFunctionsInScenarioFeature() unit test to demonstrate the inclusion
+     * of a functional interface via the Java interloop called from the .feature file
+     * @param map
+     */
+    public static void addLambdaFunctionToMap(Map<String, Object> map) {
+        IntBinaryOperator plusOperation = (a, b) -> a + b;
+        map.put("javaSum", plusOperation);
+    }
+
+    @Test
+    public void testLambdaFunctionsInScenarioFeature() throws Exception {
+        FeatureResult result = result("caller-with-lambda-arg.feature");
+        assertEquals(0, result.getFailedCount());
+
+        JSONArray dataArr = (JSONArray) result.getResultAsPrimitiveMap().get("data");
+        assertTrue( ((Map) dataArr.get(0)).get("javaSum") instanceof IntBinaryOperator);
+        System.out.println();
     }
 }

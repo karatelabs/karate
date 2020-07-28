@@ -23,10 +23,13 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.ScenarioContext;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import org.w3c.dom.Node;
+
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -34,8 +37,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
-import org.w3c.dom.Node;
 
 /**
  *
@@ -457,7 +458,8 @@ public class ScriptValue {
         if (value instanceof ScriptObjectMirror) {
             ScriptObjectMirror som = (ScriptObjectMirror) value;
             if (!som.isFunction()) {
-                value = JsonUtils.toJsonDoc(value).read("$"); // results in Map or List
+                Object o = JsonUtils.nashornObjectToJavaJSON(value);
+                value = JsonPath.parse(o).read("$"); // results in Map or List
                 if (value instanceof Map) {
                     Map map = (Map) value;
                     retainRootKeyValuesWhichAreFunctions(som, map, true);
