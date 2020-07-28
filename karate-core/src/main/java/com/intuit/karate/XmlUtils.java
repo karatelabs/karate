@@ -342,8 +342,11 @@ public class XmlUtils {
     }
 
     public static Object toObject(Node node, boolean removeNamespace) {
-        if (node.getNodeType() == Node.DOCUMENT_NODE) {
+        if (node.getNodeType() == Node.DOCUMENT_NODE) {            
             node = node.getFirstChild();
+            while (node.getNodeType() != Node.ELEMENT_NODE) { // ignore comments etc
+                node = node.getNextSibling();
+            }
             String name = removeNamespace
                     ? node.getNodeName().replaceFirst("(^.*:)", "") : node.getNodeName();
             Map<String, Object> map = new LinkedHashMap<>(1);

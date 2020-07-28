@@ -456,3 +456,19 @@ Scenario: matching ignores xml prefixes
     </foo:phoneNumberSearchOption>
     """
     * match xml /Envelope/Body/getAccountByPhoneNumber/phoneNumberSearchOption == phoneNumberSearchOption
+
+Scenario: xml to map conversion should ignore comments
+* def temp =
+"""
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2001-2019 3rd party which has been removed. All rights reserved. -->
+
+<!-- PRODUCTION HEADER
+     produced on:        machine of third party
+     production time:    20190912T162512,4Z
+     production module:  3rd party module
+-->
+<hello>world</hello>
+"""
+* def message = karate.xmlPath(temp, "/hello")
+* match message == "world"
