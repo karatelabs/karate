@@ -29,13 +29,13 @@ import com.intuit.karate.Results;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.exception.KarateException;
+import com.jayway.jsonpath.JsonPath;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
 /**
  *
  * @author pthomas3
@@ -172,7 +172,7 @@ public class FeatureResult {
         }
         try {
             Map temp = JsonUtils.removeCyclicReferences(callArg);
-            return JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(temp));
+            return JsonUtils.toPrettyJsonString(JsonPath.parse(temp));
         } catch (Throwable t) {
             return "#error: " + t.getMessage();
         }

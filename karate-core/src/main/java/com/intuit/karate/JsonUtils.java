@@ -52,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import net.minidev.json.JSONArray;
 import net.minidev.json.JSONStyle;
 import net.minidev.json.JSONValue;
 import net.minidev.json.parser.JSONParser;
@@ -233,6 +234,27 @@ public class JsonUtils {
 
     public static String escapeValue(String raw) {
         return JSONValue.escape(raw, JSONStyle.LT_COMPRESS);
+    }
+
+    public static Object nashornObjectToJavaJSON(Object jsObj) {
+        if (jsObj instanceof ScriptObjectMirror) {
+            ScriptObjectMirror jsObjectMirror = (ScriptObjectMirror) jsObj;
+            if (jsObjectMirror.isArray()) {
+                List list = new JSONArray();
+                for (Map.Entry<String, Object> entry : jsObjectMirror.entrySet()) {
+                    list.add(nashornObjectToJavaJSON(entry.getValue()));
+                }
+                return list;
+            } else {
+                Map<String, Object> map = new LinkedHashMap<>();
+                for (Map.Entry<String, Object> entry : jsObjectMirror.entrySet()) {
+                    map.put(entry.getKey(), nashornObjectToJavaJSON(entry.getValue()));
+                }
+                return map;
+            }
+        } else {
+            return jsObj;
+        }
     }
 
     public static void removeKeysWithNullValues(Object o) {
