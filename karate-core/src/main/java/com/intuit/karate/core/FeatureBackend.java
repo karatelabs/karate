@@ -261,7 +261,6 @@ public class FeatureBackend {
         responseValue = result.remove(ScriptValueMap.VAR_RESPONSE);
         responseStatusValue = result.remove(ScriptValueMap.VAR_RESPONSE_STATUS);
         long configResponseDelayValue = context.getConfig().getResponseDelay();
-        responseDelayValue = result.remove(ScriptValueMap.VAR_RESPONSE_DELAY);
         responseHeaders = result.remove(ScriptValueMap.VAR_RESPONSE_HEADERS);
         afterScenario = result.remove(VAR_AFTER_SCENARIO);
         if (afterScenario == null) {
@@ -271,10 +270,8 @@ public class FeatureBackend {
         responseHeadersMap = responseHeaders == null ? null : responseHeaders.evalAsMap(context);
 
         int responseStatus = responseStatusValue == null ? 200 : Integer.valueOf(responseStatusValue.getAsString());
-        long delay = responseDelayValue == null || responseDelayValue.isNull() ? configResponseDelayValue : Double.valueOf(responseDelayValue.getAsString()).longValue();
         HttpResponse response = new HttpResponse(startTime, System.currentTimeMillis());
         response.setStatus(responseStatus);
-        response.setDelay(delay);
         if (responseValue != null && !responseValue.isNull()) {
             response.setBody(responseValue.getAsByteArray());
         }
@@ -317,6 +314,12 @@ public class FeatureBackend {
         }
         if (afterScenario != null && afterScenario.isFunction()) {
             afterScenario.invokeFunction(context, null);
+        }
+        responseDelayValue = result.remove(ScriptValueMap.VAR_RESPONSE_DELAY);
+        if (responseDelayValue == null || responseDelayValue.isNull()) {
+            response.setDelay(configResponseDelayValue);
+        } else {
+            response.setDelay(Double.valueOf(responseDelayValue.getAsString()).longValue());
         }
         return response;
     }
