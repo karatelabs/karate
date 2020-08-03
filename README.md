@@ -555,13 +555,17 @@ Note that the `mvn test` command only runs test classes that follow the `*Test.j
 mvn test -Dtest=CatsRunner
 ```
 
-When your Java test "runner" is linked to multiple feature files, which will be the case when you use the recommended [parallel runner](#parallel-execution), you can narrow down your scope to a single feature (or even directory) via the command-line, useful in dev-mode. Note how even [tags](#tags) to exclude (or include) can be specified using the [Karate options](#karate-options).
+When your Java test "runner" is linked to multiple feature files, which will be the case when you use the recommended [parallel runner](#parallel-execution), you can narrow down your scope to a single feature, scenario or directory via the command-line, useful in dev-mode. Note how even [tags](#tags) to exclude (or include) can be specified using the [Karate options](#karate-options).
 
 ```
 mvn test "-Dkarate.options=--tags ~@ignore classpath:demo/cats/cats.feature" -Dtest=DemoTestParallel
 ```
 
-Multiple feature files (or paths) can be specified, de-limited by the space character. They should be at the end of the `karate.options`.
+Multiple feature files (or paths) can be specified, de-limited by the space character. They should be at the end of the `karate.options`. To run only a single scenario, append the line number on which the scenario is defined, de-limited by `:`.
+```
+mvn test "-Dkarate.options=PathToFeatureFiles/order.feature:12" -Dtest=DemoTestParallel
+```
+Note that this is currently not supported for [JUnit 5](#junit-5)  `@Karate.Test` annotation.
 
 ### Command Line - Gradle
 
