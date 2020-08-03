@@ -1519,6 +1519,8 @@ You will often need to move steps (for e.g. a login flow) into a common feature 
 * a single driver instance is used for any `call`-s, even if nested
 * even if the driver is instantiated (using the [`driver`](#driver) keyword) within a "called" feature - it will remain in the context after the `call` returns
 
+> Note `callonce` is not supported for a `driver` instance. Separate `Scenario`-s that can run in parallel are encouraged. If you really want a long-running flow that combines steps from multiple features, you can `call` them from a single "top-level" `Scenario` if needed.
+
 A typical pattern will look like this:
 
 ```cucumber
