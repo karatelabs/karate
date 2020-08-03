@@ -678,7 +678,7 @@ Just like the above, but you can set this "globally" for all route-handlers in t
 
 ```cucumber
 Background:
-* configure afterScenario = function(){ java.lang.Thread.sleep(200 + Math.random() * 400) }
+* configure afterScenario = function(){ karate.set('responseDelay', 200 + Math.random() * 400) }
 ```
 
 ## `karate.abort()`
