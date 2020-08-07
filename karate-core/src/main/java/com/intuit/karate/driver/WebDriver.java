@@ -87,6 +87,10 @@ public abstract class WebDriver implements Driver {
         return timeout(null);
     }
 
+    public String getSessionId() {
+        return sessionId;
+    }        
+
     // can be used directly if you know what you are doing !
     public Http getHttp() {
         return http;

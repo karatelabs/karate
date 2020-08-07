@@ -26,6 +26,7 @@
     | <a href="#karate-chrome">Docker / <code>karate-chrome</code></a>
     | <a href="#driver-types">Driver Types</a> 
     | <a href="#timeout"><code>timeout()</code></a>
+    | <a href="#driversessionid"><code>driver.sessionId</code></a>
   </td>
 </tr>
 <tr>
@@ -320,6 +321,8 @@ Here are some of the things that you can customize, but note that these depend o
 * [`moz:firefoxOptions`](https://developer.mozilla.org/en-US/docs/Web/WebDriver/Capabilities/firefoxOptions#firefoxOptions) - e.g. for headless FireFox
 
 Note that some capabilities such as "headless" may be possible via the command-line to the local executable, so using [`addOptions`](#configure-driver) may work instead.
+
+Also see [`driver.sessionId`](#driversessionid).
 
 ## `configure driverTarget`
 The [`configure driver`](#configure-driver) options are fine for testing on "`localhost`" and when not in `headless` mode. But when the time comes for running your web-UI automation tests on a continuous integration server, things get interesting. To support all the various options such as Docker, headless Chrome, cloud-providers etc., Karate introduces the concept of a pluggable [`Target`](src/main/java/com/intuit/karate/driver/Target.java) where you just have to implement two methods:
@@ -1476,6 +1479,13 @@ Note that the duration is in milliseconds. As a convenience, to "reset" the valu
 * driver 'http://mydomain/some/slow/page'
 # reset to defaults for the rest of the test ...
 * timeout()
+```
+
+## `driver.sessionId`
+Only applies to WebDriver based driver sessions, and useful in case you need the session id to download any test-reports / video etc.
+
+```cucumber
+* def sessionId = driver.sessionId
 ```
 
 ## Tree Walking
