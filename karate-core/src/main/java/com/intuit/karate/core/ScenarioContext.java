@@ -83,6 +83,7 @@ public class ScenarioContext {
     public final int callDepth;
     public final boolean reuseParentContext;
     public final ScenarioContext parentContext;
+    public final Scenario scenario;
     public final List<String> tags;
     public final Map<String, List<String>> tagValues;
     public final ScriptValueMap vars;
@@ -240,8 +241,19 @@ public class ScenarioContext {
             info.put("scenarioName", unit.scenario.getName());
             info.put("scenarioDescription", unit.scenario.getDescription());
             info.put("scenarioType", unit.scenario.getKeyword());
+            info.put("scenarioExampleIndex", unit.scenario.getExampleIndex());
+            info.put("scenarioExampleData", unit.scenario.getExampleData());
             String errorMessage = unit.getError() == null ? null : unit.getError().getMessage();
             info.put("errorMessage", errorMessage);
+        }
+        else {
+            if (context.scenario != null) {
+                info.put("scenarioName", context.scenario.getName());
+                info.put("scenarioDescription", context.scenario.getDescription());
+                info.put("scenarioType", context.scenario.getKeyword());
+                info.put("scenarioExampleIndex", context.scenario.getExampleIndex());
+                info.put("scenarioExampleData", context.scenario.getExampleData());
+            }
         }
         return info;        
     }
@@ -326,7 +338,9 @@ public class ScenarioContext {
             Tags tagsEffective = scenario.getTagsEffective();
             tags = tagsEffective.getTags();
             tagValues = tagsEffective.getTagValues();
+            this.scenario = scenario;
         } else {
+            this.scenario = null;
             tags = null;
             tagValues = null;
         }
@@ -432,6 +446,7 @@ public class ScenarioContext {
         executionHooks = sc.executionHooks;
         perfMode = sc.perfMode;
         tags = sc.tags;
+        scenario = sc.scenario;
         tagValues = sc.tagValues;
         vars = sc.vars.copy(true); // deep / snap-shot copy
         config = new Config(sc.config); // safe copy
