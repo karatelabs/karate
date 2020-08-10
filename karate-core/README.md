@@ -1530,7 +1530,7 @@ You will often need to move steps (for e.g. a login flow) into a common feature 
 * a single driver instance is used for any [`call`-s](https://github.com/intuit/karate#call), even if nested
 * even if the driver is instantiated (using the [`driver`](#driver) keyword) within a "called" feature - it will remain in the context after the `call` returns
 
-> Note [`callonce`](https://github.com/intuit/karate#callonce) is not supported for a `driver` instance. Separate `Scenario`-s that can run in parallel are encouraged. If you really want a long-running flow that combines steps from multiple features, you can `call` them from a single "top-level" `Scenario` if needed.
+> Note [`callonce`](https://github.com/intuit/karate#callonce) is not supported for a `driver` instance. Separate `Scenario`-s that can run in parallel are encouraged.
 
 A typical pattern will look like this:
 
@@ -1560,6 +1560,19 @@ Scenario:
 ```
 
 There are many ways to parameterize the driver config or perform environment-switching, read [this](https://stackoverflow.com/a/60581024/143475) for more details.
+
+If you really want a long-running flow that combines steps from multiple features, you can make a `call` to each of them from the single "top-level" `Scenario`. But this is not recommended, Karate is designed to encourage short, independent tests, and parallel execution:
+
+```cucumber
+Feature: main
+
+Background:
+* call read('login.feature')
+
+Scenario:
+* call read('some.feature')
+* call read('another.feature@someTag')
+```
 
 # Locator Lookup
 Other UI automation frameworks spend a lot of time encouraging you to follow a so-called "[Page Object Model](https://martinfowler.com/bliki/PageObject.html)" for your tests. The Karate project team is of the opinion that things can be made simpler.
