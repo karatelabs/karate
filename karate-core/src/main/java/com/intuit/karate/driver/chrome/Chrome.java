@@ -57,7 +57,9 @@ public class Chrome extends DevToolsDriver {
                 FileUtils.isOsWindows() ? DEFAULT_PATH_WIN : FileUtils.isOsMacOsX() ? DEFAULT_PATH_MAC : DEFAULT_PATH_LINUX);
         options.arg("--remote-debugging-port=" + options.port);
         options.arg("--no-first-run");
-        options.arg("--user-data-dir=" + options.workingDirPath);
+        if (options.userDataDir != null) {
+            options.arg("--user-data-dir=" + options.userDataDir);
+        }
         options.arg("--disable-popup-blocking");
         if (options.headless) {
             options.arg("--headless");

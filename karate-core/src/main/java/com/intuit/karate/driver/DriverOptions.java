@@ -81,7 +81,7 @@ public class DriverOptions {
     public final Logger driverLogger;
     public final String uniqueName;
     public final File workingDir;
-    public final String workingDirPath;
+    public final String userDataDir;
     public final String processLogFile;
     public final int maxPayloadSize;
     public final List<String> addOptions;
@@ -168,7 +168,11 @@ public class DriverOptions {
             }
         }
         workingDir = new File(FileUtils.getBuildDir() + File.separator + uniqueName);
-        workingDirPath = get("workingDirPath", workingDir.getAbsolutePath());
+        if (options.containsKey("userDataDir")) { // special case allow user-specified null
+            userDataDir = (String) options.get("userDataDir");
+        } else {
+            userDataDir = workingDir.getAbsolutePath();
+        }        
         processLogFile = workingDir.getPath() + File.separator + type + ".log";
         maxPayloadSize = get("maxPayloadSize", 4194304);
         target = get("target", null);

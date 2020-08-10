@@ -45,7 +45,9 @@ public class ChromeWebDriver extends WebDriver {
     public static ChromeWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
         DriverOptions options = new DriverOptions(context, map, appender, 9515, "chromedriver");
         options.arg("--port=" + options.port);
-        options.arg("--user-data-dir=" + options.workingDirPath);
+        if (options.userDataDir != null) {
+            options.arg("--user-data-dir=" + options.userDataDir);
+        }
         return new ChromeWebDriver(options);
     }
 
@@ -70,18 +72,18 @@ public class ChromeWebDriver extends WebDriver {
     protected boolean isJavaScriptError(Http.Response res) {
         ScriptValue value = res.jsonPath("$.value").value();
         return !value.isNull() && value.getAsString().contains("javascript error");
-    }        
+    }
 
     @Override
     protected boolean isLocatorError(Http.Response res) {
         ScriptValue value = res.jsonPath("$.value").value();
         return value.getAsString().contains("no such element");
-    }  
+    }
 
     @Override
     protected boolean isCookieError(Http.Response res) {
         ScriptValue value = res.jsonPath("$.value").value();
         return !value.isNull() && value.getAsString().contains("unable to set cookie");
-    }        
+    }
 
 }
