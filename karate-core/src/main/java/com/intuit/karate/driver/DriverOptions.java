@@ -168,7 +168,7 @@ public class DriverOptions {
             }
         }
         workingDir = new File(FileUtils.getBuildDir() + File.separator + uniqueName);
-        workingDirPath = workingDir.getAbsolutePath();
+        workingDirPath = get("workingDirPath", workingDir.getAbsolutePath());
         processLogFile = workingDir.getPath() + File.separator + type + ".log";
         maxPayloadSize = get("maxPayloadSize", 4194304);
         target = get("target", null);

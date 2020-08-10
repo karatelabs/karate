@@ -272,6 +272,7 @@ key | description
 `highlight` | default `false`, useful for demos or for running a test in "slow motion" where before each navigation action, the HTML element for the current [locator](#locators) is highlighted for a duration of `highlightDuration`
 `highlightDuration` | default 3000 (milliseconds), duration to apply the `highlight`
 `attach` | optional, only for `type: 'chrome'` and `start: false` when you want to attach to an existing page in a Chrome DevTools session, uses a "contains" match against the URL
+`workingDirPath` | optional, by default Karate will auto-create a [user dir](https://chromium.googlesource.com/chromium/src.git/+/master/docs/user_data_dir.md) for Chrome and other browsers, but if you want to provide the path to an existing folder (which can reduce disk space usage in some situations)
 
 For more advanced options such as for Docker, CI, headless, cloud-environments or custom needs, see [`configure driverTarget`](#configure-drivertarget).
 
