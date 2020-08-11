@@ -596,28 +596,8 @@ public class ScriptBridge implements PerfContext {
         return context.getScenarioInfo();
     }
 
-    public Map<String, Object> getScenario() {
-        Scenario scenario = context.getScenario();
-        Map<String, Object> info = new HashMap(6);
-
-        if (scenario != null) {
-            info.put("scenarioName", scenario.getName());
-            info.put("scenarioDescription", scenario.getDescription());
-            info.put("scenarioType", scenario.getKeyword());
-            info.put("scenarioIndex", scenario.getIndex());
-            info.put("scenarioExampleIndex", scenario.getExampleIndex());
-            info.put("scenarioExampleData", scenario.getExampleData());
-        }
-        else {
-            info.put("scenarioName", null);
-            info.put("scenarioDescription", null);
-            info.put("scenarioType", null);
-            info.put("scenarioIndex", null);
-            info.put("scenarioExampleIndex", null);
-            info.put("scenarioExampleData", null);
-        }
-
-        return info;
+    public Scenario getScenario() {
+        return context.getScenario();
     }
 
     public void proceed() {
