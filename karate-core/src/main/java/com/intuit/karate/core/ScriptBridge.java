@@ -596,6 +596,10 @@ public class ScriptBridge implements PerfContext {
         return context.getScenarioInfo();
     }
 
+    public Scenario getScenario() {
+        return context.getScenario();
+    }
+
     public void proceed() {
         proceed(null);
     }

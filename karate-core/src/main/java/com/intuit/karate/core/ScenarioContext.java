@@ -126,6 +126,9 @@ public class ScenarioContext {
     // debug support
     private ScenarioExecutionUnit executionUnit;
 
+    // scenario
+    private final Scenario scenario;
+
     // async
     private final Object LOCK = new Object();
     private Object signalResult;
@@ -182,6 +185,14 @@ public class ScenarioContext {
 
     public void setExecutionUnit(ScenarioExecutionUnit executionUnit) {
         this.executionUnit = executionUnit;
+    }
+
+    public Scenario getScenario() {
+        ScenarioContext threadContext = Engine.THREAD_CONTEXT.get();
+        ScenarioContext scenarioContext = (threadContext != null) ? threadContext : this;
+        ScenarioExecutionUnit unit = scenarioContext.executionUnit;
+
+        return (unit != null) ? unit.scenario : scenarioContext.scenario;
     }
 
     public void setPrevRequest(HttpRequest prevRequest) {
@@ -326,7 +337,9 @@ public class ScenarioContext {
             Tags tagsEffective = scenario.getTagsEffective();
             tags = tagsEffective.getTags();
             tagValues = tagsEffective.getTagValues();
+            this.scenario = scenario;
         } else {
+            this.scenario = null;
             tags = null;
             tagValues = null;
         }
@@ -432,6 +445,7 @@ public class ScenarioContext {
         executionHooks = sc.executionHooks;
         perfMode = sc.perfMode;
         tags = sc.tags;
+        scenario = sc.scenario;
         tagValues = sc.tagValues;
         vars = sc.vars.copy(true); // deep / snap-shot copy
         config = new Config(sc.config); // safe copy
