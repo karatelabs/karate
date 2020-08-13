@@ -358,6 +358,7 @@ public abstract class WebDriver implements Driver {
         if (command != null) {
             command.close(true);
         }
+        options.getContext().setDriver(null);
     }
 
     @Override

@@ -191,7 +191,6 @@ public class ScenarioContext {
         ScenarioContext threadContext = Engine.THREAD_CONTEXT.get();
         ScenarioContext scenarioContext = (threadContext != null) ? threadContext : this;
         ScenarioExecutionUnit unit = scenarioContext.executionUnit;
-
         return (unit != null) ? unit.scenario : scenarioContext.scenario;
     }
 
@@ -238,7 +237,7 @@ public class ScenarioContext {
     public InputStream getResourceAsStream(String name) {
         return classLoader.getResourceAsStream(name);
     }
-    
+
     private static Map<String, Object> info(ScenarioContext context) {
         Map<String, Object> info = new HashMap(6);
         Path featurePath = context.featureContext.feature.getPath();
@@ -254,7 +253,7 @@ public class ScenarioContext {
             String errorMessage = unit.getError() == null ? null : unit.getError().getMessage();
             info.put("errorMessage", errorMessage);
         }
-        return info;        
+        return info;
     }
 
     public Map<String, Object> getScenarioInfo() {
@@ -1029,8 +1028,11 @@ public class ScenarioContext {
         }
     }
 
-    private void setDriver(Driver driver) {
+    public void setDriver(Driver driver) {
         this.driver = driver;
+        if (driver == null) {
+            return; // intent was to clear driver after quit()
+        }
         driver.setContext(this);
         bindings.putAdditionalVariable(ScriptBindings.DRIVER, driver);
         if (robot != null) {
@@ -1059,8 +1061,11 @@ public class ScenarioContext {
         }
     }
 
-    private void setRobot(Plugin robot) {
+    public void setRobot(Plugin robot) {
         this.robot = robot;
+        if (robot == null) {
+            return;
+        }
         robot.setContext(this);
         bindings.putAdditionalVariable(ScriptBindings.ROBOT, robot);
         if (driver != null) {

@@ -57,39 +57,39 @@ import java.util.function.Predicate;
  * @author pthomas3
  */
 public abstract class DevToolsDriver implements Driver {
-
+    
     protected final DriverOptions options;
     protected final Command command;
     protected final WebSocketClient client;
-
+    
     private final DevToolsWait wait;
     protected final String rootFrameId;
-
+    
     private Integer windowId;
     private String windowState;
     private Integer executionContextId;
     protected String sessionId;
-
+    
     protected boolean domContentEventFired;
     protected final Set<String> framesStillLoading = new HashSet();
     private final Map<String, String> frameSessions = new HashMap();
     private boolean submit;
-
+    
     protected String currentUrl;
     protected String currentDialogText;
     protected int currentMouseXpos;
     protected int currentMouseYpos;
-
+    
     private int nextId;
-
+    
     public int nextId() {
         return ++nextId;
     }
-
+    
     private FeaturesBackend backend;
-
+    
     protected final Logger logger;
-
+    
     protected DevToolsDriver(DriverOptions options, Command command, String webSocketUrl) {
         logger = options.driverLogger;
         this.options = options;
@@ -113,25 +113,25 @@ public abstract class DevToolsDriver implements Driver {
         });
         client = new WebSocketClient(wsOptions, logger);
     }
-
+    
     public int waitSync() {
         if (command == null) {
             return -1;
         }
         return command.waitSync();
     }
-
+    
     @Override
     public Driver timeout(Integer millis) {
         options.setTimeout(millis);
         return this;
     }
-
+    
     @Override
     public Driver timeout() {
         return timeout(null);
     }
-
+    
     public DevToolsMessage method(String method) {
         return new DevToolsMessage(this, method);
     }
@@ -142,13 +142,13 @@ public abstract class DevToolsDriver implements Driver {
         dtm.setId(nextId());
         return sendAndWait(dtm, null).toMap();
     }
-
+    
     public void send(DevToolsMessage dtm) {
         String json = JsonUtils.toJson(dtm.toMap());
         logger.debug(">> {}", json);
         client.send(json);
     }
-
+    
     public DevToolsMessage sendAndWait(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
         send(dtm);
         boolean wasSubmit = submit;
@@ -162,7 +162,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         return result;
     }
-
+    
     public void receive(DevToolsMessage dtm) {
         if (dtm.methodIs("Page.domContentEventFired")) {
             domContentEventFired = true;
@@ -214,7 +214,7 @@ public abstract class DevToolsDriver implements Driver {
         // all needed state is set above before we get into conditional checks
         wait.receive(dtm);
     }
-
+    
     private void handleInterceptedRequest(DevToolsMessage dtm) {
         String requestId = dtm.get("requestId", String.class);
         String requestUrl = dtm.get("request.url", String.class);
@@ -279,11 +279,11 @@ public abstract class DevToolsDriver implements Driver {
         }
         return toSend.send();
     }
-
+    
     protected DevToolsMessage eval(String expression) {
         return eval(expression, false);
     }
-
+    
     private DevToolsMessage eval(String expression, boolean quickly) {
         DevToolsMessage dtm = evalOnce(expression, quickly, false);
         if (dtm.isResultError()) {
@@ -301,7 +301,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         return dtm;
     }
-
+    
     protected void retryIfEnabled(String locator) {
         if (options.isRetryEnabled()) {
             waitFor(locator); // will throw exception if not found
@@ -312,11 +312,11 @@ public abstract class DevToolsDriver implements Driver {
             evalOnce(highlightJs, true, true); // do it safely, i.e. fire and forget
         }
     }
-
+    
     protected int getRootNodeId() {
         return method("DOM.getDocument").param("depth", 0).send().getResult("root.nodeId", Integer.class);
     }
-
+    
     @Override
     public Integer elementId(String locator) {
         DevToolsMessage dtm = method("DOM.querySelector")
@@ -327,7 +327,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         return dtm.getResult("nodeId").getAsInt();
     }
-
+    
     @Override
     public List elementIds(String locator) {
         if (locator.startsWith("/")) { // special handling for xpath
@@ -348,17 +348,17 @@ public abstract class DevToolsDriver implements Driver {
         }
         return dtm.getResult("nodeIds").getAsList();
     }
-
+    
     @Override
     public DriverOptions getOptions() {
         return options;
     }
-
+    
     @Override
     public void activate() {
         method("Target.activateTarget").param("targetId", rootFrameId).send();
     }
-
+    
     protected void initWindowIdAndState() {
         DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", rootFrameId).send();
         if (!dtm.isResultError()) {
@@ -366,7 +366,7 @@ public abstract class DevToolsDriver implements Driver {
             windowState = (String) dtm.getResult("bounds").getAsMap().get("windowState");
         }
     }
-
+    
     @Override
     public Map<String, Object> getDimensions() {
         DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", rootFrameId).send();
@@ -377,7 +377,7 @@ public abstract class DevToolsDriver implements Driver {
         map.put("y", y);
         return map;
     }
-
+    
     @Override
     public void setDimensions(Map<String, Object> map) {
         Integer left = (Integer) map.remove("x");
@@ -391,7 +391,7 @@ public abstract class DevToolsDriver implements Driver {
                 .param("windowId", windowId)
                 .param("bounds", temp).send();
     }
-
+    
     public void emulateDevice(int width, int height, String userAgent) {
         logger.info("Setting deviceMetrics width={}, height={}, userAgent={}", width, height, userAgent);
         method("Network.setUserAgentOverride").param("userAgent", userAgent).send();
@@ -402,12 +402,12 @@ public abstract class DevToolsDriver implements Driver {
                 .param("mobile", true)
                 .send();
     }
-
+    
     @Override
     public void close() {
         method("Page.close").send();
     }
-
+    
     @Override
     public void quit() {
         // don't wait, may fail and hang
@@ -417,24 +417,25 @@ public abstract class DevToolsDriver implements Driver {
         if (command != null) {
             command.close(true);
         }
+        options.getContext().setDriver(null);
     }
-
+    
     @Override
     public void setUrl(String url) {
         method("Page.navigate").param("url", url)
                 .send(DevToolsWait.ALL_FRAMES_LOADED);
     }
-
+    
     @Override
     public void refresh() {
         method("Page.reload").send(DevToolsWait.ALL_FRAMES_LOADED);
     }
-
+    
     @Override
     public void reload() {
         method("Page.reload").param("ignoreCache", true).send();
     }
-
+    
     private void history(int delta) {
         DevToolsMessage dtm = method("Page.getNavigationHistory").send();
         int currentIndex = dtm.getResult("currentIndex").getValue(Integer.class);
@@ -447,17 +448,17 @@ public abstract class DevToolsDriver implements Driver {
         Integer id = (Integer) entry.get("id");
         method("Page.navigateToHistoryEntry").param("entryId", id).send(DevToolsWait.ALL_FRAMES_LOADED);
     }
-
+    
     @Override
     public void back() {
         history(-1);
     }
-
+    
     @Override
     public void forward() {
         history(1);
     }
-
+    
     private void setWindowState(String state) {
         if (!"normal".equals(windowState)) {
             method("Browser.setWindowBounds")
@@ -474,62 +475,62 @@ public abstract class DevToolsDriver implements Driver {
             windowState = state;
         }
     }
-
+    
     @Override
     public void maximize() {
         setWindowState("maximized");
     }
-
+    
     @Override
     public void minimize() {
         setWindowState("minimized");
     }
-
+    
     @Override
     public void fullscreen() {
         setWindowState("fullscreen");
     }
-
+    
     @Override
     public Element click(String locator) {
         retryIfEnabled(locator);
         eval(options.selector(locator) + ".click()");
         return DriverElement.locatorExists(this, locator);
     }
-
+    
     @Override
     public Element select(String locator, String text) {
         retryIfEnabled(locator);
         eval(options.optionSelector(locator, text));
         return DriverElement.locatorExists(this, locator);
     }
-
+    
     @Override
     public Element select(String locator, int index) {
         retryIfEnabled(locator);
         eval(options.optionSelector(locator, index));
         return DriverElement.locatorExists(this, locator);
     }
-
+    
     @Override
     public Driver submit() {
         submit = true;
         return this;
     }
-
+    
     @Override
     public Element focus(String locator) {
         retryIfEnabled(locator);
         eval(options.focusJs(locator));
         return DriverElement.locatorExists(this, locator);
     }
-
+    
     @Override
     public Element clear(String locator) {
         eval(options.selector(locator) + ".value = ''");
         return DriverElement.locatorExists(this, locator);
     }
-
+    
     private void sendKey(char c, int modifiers, String type, Integer keyCode) {
         DevToolsMessage dtm = method("Input.dispatchKeyEvent")
                 .param("modifiers", modifiers)
@@ -560,7 +561,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         dtm.send();
     }
-
+    
     @Override
     public Element input(String locator, String value) {
         retryIfEnabled(locator);
@@ -582,7 +583,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         return DriverElement.locatorExists(this, locator);
     }
-
+    
     @Override
     public void actions(List<Map<String, Object>> sequence) {
         boolean submitRequested = submit;
@@ -614,7 +615,7 @@ public abstract class DevToolsDriver implements Driver {
                         break;
                     default:
                         chromeType = null;
-
+                    
                 }
                 if (chromeType == null) {
                     logger.warn("unexpected action type: {}", action);
@@ -645,18 +646,18 @@ public abstract class DevToolsDriver implements Driver {
             }
         }
     }
-
+    
     @Override
     public String text(String id) {
         return property(id, "textContent");
     }
-
+    
     private <T> T callFunctionOnNode(int nodeId, String function, Class<T> type) {
         DevToolsMessage dtm = method("DOM.resolveNode").param("nodeId", nodeId).send();
         String objectId = dtm.getResult("object.objectId", String.class);
         return callFunctionOnObject(objectId, function, type);
     }
-
+    
     private <T> T callFunctionOnObject(String objectId, String function, Class<T> type) {
         DevToolsMessage dtm = method("Runtime.callFunctionOn")
                 .param("objectId", objectId)
@@ -664,45 +665,45 @@ public abstract class DevToolsDriver implements Driver {
                 .send();
         return dtm.getResult().getValue(type);
     }
-
+    
     @Override
     public String html(String id) {
         return property(id, "outerHTML");
     }
-
+    
     @Override
     public String value(String locator) {
         return property(locator, "value");
     }
-
+    
     @Override
     public Element value(String locator, String value) {
         retryIfEnabled(locator);
         eval(options.selector(locator) + ".value = '" + value + "'");
         return DriverElement.locatorExists(this, locator);
     }
-
+    
     @Override
     public String attribute(String id, String name) {
         retryIfEnabled(id);
         DevToolsMessage dtm = eval(options.selector(id) + ".getAttribute('" + name + "')");
         return dtm.getResult().getAsString();
     }
-
+    
     @Override
     public String property(String id, String name) {
         retryIfEnabled(id);
         DevToolsMessage dtm = eval(options.selector(id) + "['" + name + "']");
         return dtm.getResult().getAsString();
     }
-
+    
     @Override
     public boolean enabled(String id) {
         retryIfEnabled(id);
         DevToolsMessage dtm = eval(options.selector(id) + ".disabled");
         return !dtm.getResult().isBooleanTrue();
     }
-
+    
     @Override
     public boolean waitUntil(String expression) {
         return options.retry(() -> {
@@ -714,29 +715,29 @@ public abstract class DevToolsDriver implements Driver {
             }
         }, b -> b, "waitUntil (js)", true);
     }
-
+    
     @Override
     public Object script(String expression) {
         return eval(expression).getResult().getValue();
     }
-
+    
     @Override
     public String getTitle() {
         DevToolsMessage dtm = eval("document.title");
         return dtm.getResult().getAsString();
     }
-
+    
     @Override
     public String getUrl() {
         return currentUrl;
     }
-
+    
     @Override
     public List<Map> getCookies() {
         DevToolsMessage dtm = method("Network.getAllCookies").send();
         return dtm.getResult("cookies").getAsList();
     }
-
+    
     @Override
     public Map<String, Object> cookie(String name) {
         List<Map> list = getCookies();
@@ -750,7 +751,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         return null;
     }
-
+    
     @Override
     public void cookie(Map<String, Object> cookie) {
         if (cookie.get("url") == null && cookie.get("domain") == null) {
@@ -759,22 +760,22 @@ public abstract class DevToolsDriver implements Driver {
         }
         method("Network.setCookie").params(cookie).send();
     }
-
+    
     @Override
     public void deleteCookie(String name) {
         method("Network.deleteCookies").param("name", name).param("url", currentUrl).send();
     }
-
+    
     @Override
     public void clearCookies() {
         method("Network.clearBrowserCookies").send();
     }
-
+    
     @Override
     public void dialog(boolean accept) {
         dialog(accept, null);
     }
-
+    
     @Override
     public void dialog(boolean accept, String text) {
         DevToolsMessage temp = method("Page.handleJavaScriptDialog").param("accept", accept);
@@ -784,23 +785,23 @@ public abstract class DevToolsDriver implements Driver {
             temp.param("promptText", text).send();
         }
     }
-
+    
     @Override
     public String getDialog() {
         return currentDialogText;
     }
-
+    
     public byte[] pdf(Map<String, Object> options) {
         DevToolsMessage dtm = method("Page.printToPDF").params(options).send();
         String temp = dtm.getResult("data").getAsString();
         return Base64.getDecoder().decode(temp);
     }
-
+    
     @Override
     public byte[] screenshot(boolean embed) {
         return screenshot(null, embed);
     }
-
+    
     @Override
     public Map<String, Object> position(String locator) {
         boolean submitTemp = submit; // in case we are prepping for a submit().mouse(locator).click()
@@ -814,7 +815,7 @@ public abstract class DevToolsDriver implements Driver {
         submit = submitTemp;
         return options.newMapWithSelectedKeys(dtm.getResult().getAsMap(), "x", "y", "width", "height");
     }
-
+    
     @Override
     public byte[] screenshot(String id, boolean embed) {
         DevToolsMessage dtm;
@@ -849,13 +850,13 @@ public abstract class DevToolsDriver implements Driver {
         String temp = dtm.getResult("data").getAsString();
         return Base64.getDecoder().decode(temp);
     }
-
+    
     @Override
     public List<String> getPages() {
         DevToolsMessage dtm = method("Target.getTargets").send();
         return dtm.getResult("targetInfos.targetId").getAsList();
     }
-
+    
     @Override
     public void switchPage(String titleOrUrl) {
         if (titleOrUrl == null) {
@@ -882,7 +883,7 @@ public abstract class DevToolsDriver implements Driver {
             logger.warn("failed to switch page to {}", titleOrUrl);
         }
     }
-
+    
     @Override
     public void switchPage(int index) {
         if (index == -1) {
@@ -899,7 +900,7 @@ public abstract class DevToolsDriver implements Driver {
             logger.warn("failed to switch frame by index: {}", index);
         }
     }
-
+    
     @Override
     public void switchFrame(int index) {
         if (index == -1) {
@@ -915,7 +916,7 @@ public abstract class DevToolsDriver implements Driver {
             logger.warn("unable to switch frame by index: {}", index);
         }
     }
-
+    
     @Override
     public void switchFrame(String locator) {
         if (locator == null) {
@@ -930,7 +931,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         setExecutionContext(nodeId, locator);
     }
-
+    
     private void setExecutionContext(int nodeId, Object locator) {
         DevToolsMessage dtm = method("DOM.describeNode")
                 .param("nodeId", nodeId)
@@ -952,26 +953,26 @@ public abstract class DevToolsDriver implements Driver {
             logger.warn("execution context is null, unable to switch frame by locator: {}", locator);
         }
     }
-
+    
     public void enableNetworkEvents() {
         method("Network.enable").send();
     }
-
+    
     public void enablePageEvents() {
         method("Page.enable").send();
     }
-
+    
     public void enableRuntimeEvents() {
         method("Runtime.enable").send();
     }
-
+    
     public void enableTargetEvents() {
         method("Target.setAutoAttach")
                 .param("autoAttach", true)
                 .param("waitForDebuggerOnStart", false)
                 .param("flatten", true).send();
     }
-
+    
     public void intercept(Map<String, Object> config) {
         config = new ScriptValue(config).getAsMap(); // ensure js is pre-processed, TODO graal
         List<String> patterns = (List) config.get("patterns");
@@ -994,7 +995,7 @@ public abstract class DevToolsDriver implements Driver {
         backend = new FeaturesBackend(feature);
         method("Fetch.enable").param("patterns", patterns).send();
     }
-
+    
     public void inputFile(String locator, String... relativePaths) {
         List<String> files = new ArrayList(relativePaths.length);
         ScriptBridge bridge = options.getContext().bindings.bridge;
@@ -1004,5 +1005,5 @@ public abstract class DevToolsDriver implements Driver {
         Integer nodeId = elementId(locator);
         method("DOM.setFileInputFiles").param("files", files).param("nodeId", nodeId).send();
     }
-
+    
 }
