@@ -7,7 +7,7 @@ Feature: browser automation 2
   Scenario: google search, land on the karate github page, and search for a file
 
     Given driver 'https://google.com'
-    And input('input[name=q]', 'karate dsl')
+    And input('input[name=q]', 'github karate dsl')
     When click('input[name=btnI]')
     Then waitForUrl('https://github.com/intuit/karate')
 
@@ -15,7 +15,7 @@ Feature: browser automation 2
     And def searchField = waitFor('input[name=query]')
     Then match driver.url == 'https://github.com/intuit/karate/find/master'
 
-    When searchField.input('karate-logo.png')    
+    When searchField.input('karate-logo.png')
     And def innerText = function(locator){ return scriptAll(locator, '_.innerText') }
     And def searchFunction =
       """
