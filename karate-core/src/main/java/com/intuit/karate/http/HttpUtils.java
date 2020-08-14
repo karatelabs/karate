@@ -158,37 +158,35 @@ public class HttpUtils {
     public static Map<String, String> parseUriPattern(String pattern, String url) {
         pattern = normaliseUriPath(pattern);
         url = normaliseUriPath(url);
-        if(!pattern.contains("{") || !pattern.contains("}")) {
+        if (!pattern.contains("{") || !pattern.contains("}")) {
             return url.equals(pattern) ? Collections.emptyMap() : null;
         }
         UriTemplateParser templateParser = getUriParserForPattern(pattern);
         Matcher urlMatcher = templateParser.getPattern().matcher(url);
-        if(urlMatcher.matches()) {
-            if(templateParser.getGroupIndexes().length == 0){
+        if (urlMatcher.matches()) {
+            if (templateParser.getGroupIndexes().length == 0) {
                 return Collections.emptyMap();
             }
-           Map<String, String> pathParams = new LinkedHashMap<>();
-           int index = 0;
-           for(String name: templateParser.getNames()) {
-               String value = urlMatcher.group(templateParser.getGroupIndexes()[index]);
-               if(name == null || pathParams.containsKey(name)) {
-                   pathParams.put(name + "@" + (index+1), value);
-               }
-               else {
-                   pathParams.put(name, value);
-               }
-               index++;
-           }
-           return pathParams;
+            Map<String, String> pathParams = new LinkedHashMap<>();
+            int index = 0;
+            for (String name : templateParser.getNames()) {
+                String value = urlMatcher.group(templateParser.getGroupIndexes()[index]);
+                if (name == null || pathParams.containsKey(name)) {
+                    pathParams.put(name + "@" + (index + 1), value);
+                } else {
+                    pathParams.put(name, value);
+                }
+                index++;
+            }
+            return pathParams;
         }
         return null;
     }
 
     private static UriTemplateParser getUriParserForPattern(String pattern) {
         pattern = pattern.replaceAll("\\{}", "{ignored}"); //JAX-RS doesn't like params with no names - so we give it one
-
         UriTemplateParser templateParser = TEMPLATE_PARSER_CACHE.get(pattern);
-        if(templateParser == null) {
+        if (templateParser == null) {
             TEMPLATE_PARSER_CACHE.put(pattern, (templateParser = new UriTemplateParser(pattern)));
         }
         return templateParser;
@@ -196,24 +194,25 @@ public class HttpUtils {
 
     public static final String normaliseUriPath(String uri) {
         uri = uri.indexOf('?') == -1 ? uri : uri.substring(0, uri.indexOf('?'));
-        if(uri.endsWith("/")) {
+        if (uri.endsWith("/")) {
             uri = uri.substring(0, uri.length() - 1);
         }
-        if(!uri.startsWith("/")) {
-            uri="/" + uri;
+        if (!uri.startsWith("/")) {
+            uri = "/" + uri;
         }
         return uri;
     }
 
-
-    /***
+    /**
+     * *
      * Calculates path scores List(3) by using JAX-RS path matching logic:
-     *  <ol>
-     *  <li>number of literal characters</li>
-     *  <li>>path params without regex expression</li>
-     *  <li>path params with regex expression</li>
-     *  </ol>
-     **/
+     * <ol>
+     * <li>number of literal characters</li>
+     * <li>>path params without regex expression</li>
+     * <li>path params with regex expression</li>
+     * </ol>
+     *
+     */
     public static List<Integer> calculatePathMatchScore(String path) {
         path = normaliseUriPath(path);
         UriTemplateParser templateParser = getUriParserForPattern(path);
