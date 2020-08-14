@@ -1030,9 +1030,6 @@ public class ScenarioContext {
 
     public void setDriver(Driver driver) {
         this.driver = driver;
-        if (driver == null) {
-            return; // intent was to clear driver after quit()
-        }
         driver.setContext(this);
         bindings.putAdditionalVariable(ScriptBindings.DRIVER, driver);
         if (robot != null) {
@@ -1045,7 +1042,9 @@ public class ScenarioContext {
 
     public void driver(String expression) {
         ScriptValue sv = Script.evalKarateExpression(expression, this);
-        if (driver == null) {
+         // re-create driver within a test if needed
+         // but user is expected to call quit()
+        if (driver == null || sv.isMapLike()) {
             Map<String, Object> options = config.getDriverOptions();
             if (options == null) {
                 options = new HashMap();
@@ -1063,9 +1062,6 @@ public class ScenarioContext {
 
     public void setRobot(Plugin robot) {
         this.robot = robot;
-        if (robot == null) {
-            return;
-        }
         robot.setContext(this);
         bindings.putAdditionalVariable(ScriptBindings.ROBOT, robot);
         if (driver != null) {
