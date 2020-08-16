@@ -57,12 +57,19 @@ public class Chrome extends DevToolsDriver {
                 FileUtils.isOsWindows() ? DEFAULT_PATH_WIN : FileUtils.isOsMacOsX() ? DEFAULT_PATH_MAC : DEFAULT_PATH_LINUX);
         options.arg("--remote-debugging-port=" + options.port);
         options.arg("--no-first-run");
-        if (options.userDataDir != null) {
-            options.arg("--user-data-dir=" + options.userDataDir);
-        }
         options.arg("--disable-popup-blocking");
         if (options.headless) {
             options.arg("--headless");
+        }
+        if (options.userDataDir != null) {
+            options.arg("--user-data-dir=" + options.userDataDir);
+        }
+        //Chrome Custom Stuff
+        if (options.userAgent != null) {
+            options.arg("--user-agent=\'" + options.userAgent.replaceAll("\'", "") + "\'");
+        }
+        if (options.disableNotifications) {
+            options.arg("--disable-notifications");
         }
         Command command = options.startProcess();
         Http http = options.getHttp();
