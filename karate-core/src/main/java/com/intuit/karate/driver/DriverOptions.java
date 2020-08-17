@@ -81,6 +81,8 @@ public class DriverOptions {
     public final Logger driverLogger;
     public final String uniqueName;
     public final File workingDir;
+    public final boolean disableNotifications;
+    public final String userAgent;
     public final String userDataDir;
     public final String processLogFile;
     public final int maxPayloadSize;
@@ -167,12 +169,20 @@ public class DriverOptions {
                 args.add(executable);
             }
         }
-        workingDir = new File(FileUtils.getBuildDir() + File.separator + uniqueName);
-        if (options.containsKey("userDataDir")) { // special case allow user-specified null
-            userDataDir = (String) options.get("userDataDir");
-        } else {
+        disableNotifications = get("disableNotifications", false);
+        userAgent = get("userAgent", null);
+        String place = get("userDataDir", null);
+        if (place != null) { // special case allow user-specified null
+            if (place.startsWith(".")){
+                workingDir = new File((new File(place)).getAbsolutePath());
+            } else{
+                workingDir = new File(place);
+            }
             userDataDir = workingDir.getAbsolutePath();
-        }        
+        } else {
+            workingDir = new File(FileUtils.getBuildDir() + File.separator + uniqueName);
+            userDataDir = workingDir.getAbsolutePath();
+        }
         processLogFile = workingDir.getPath() + File.separator + type + ".log";
         maxPayloadSize = get("maxPayloadSize", 4194304);
         target = get("target", null);
