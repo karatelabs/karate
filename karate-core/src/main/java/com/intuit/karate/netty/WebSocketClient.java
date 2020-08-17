@@ -140,7 +140,7 @@ public class WebSocketClient implements WebSocketListener {
             channel = b.connect(options.getUri().getHost(), options.getPort()).sync().channel();
             handler.handshakeFuture().sync();
         } catch (Exception e) {
-            logger.error("websocket server init failed: {}", e.getMessage());
+            logger.error("websocket client init failed: {}", e.getMessage());
             throw new RuntimeException(e);
         }
     }

@@ -2,7 +2,7 @@ Feature: scratch pad 2
 
 Scenario Outline: <type>
   * def webUrlBase = karate.properties['web.url.base']
-  * configure driver = { type: '#(type)', showDriverLog: true }
+  * configure driver = { type: '#(type)', showDriverLog: true, showProcessLog: true }
 
   * driver webUrlBase + '/page-03'
   * match driver.cookies == '#[]'

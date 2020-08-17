@@ -171,19 +171,24 @@ public class DriverOptions {
         }
         disableNotifications = get("disableNotifications", false);
         userAgent = get("userAgent", null);
-        String place = get("userDataDir", null);
-        if (place != null) { // special case allow user-specified null
-            if (place.startsWith(".")){
-                workingDir = new File((new File(place)).getAbsolutePath());
-            } else{
-                workingDir = new File(place);
+        if (options.containsKey("userDataDir")) {
+            String temp = get("userDataDir", null);
+            if (temp != null) {
+                workingDir = new File(temp);
+                userDataDir = workingDir.getAbsolutePath();
+            } else { // special case allow user-specified null
+                userDataDir = null;
+                workingDir = null;
             }
-            userDataDir = workingDir.getAbsolutePath();
         } else {
             workingDir = new File(FileUtils.getBuildDir() + File.separator + uniqueName);
             userDataDir = workingDir.getAbsolutePath();
         }
-        processLogFile = workingDir.getPath() + File.separator + type + ".log";
+        if (workingDir == null) {
+            processLogFile = FileUtils.getBuildDir() + File.separator + uniqueName + ".log";
+        } else {
+            processLogFile = workingDir.getPath() + File.separator + type + ".log";
+        }
         maxPayloadSize = get("maxPayloadSize", 4194304);
         target = get("target", null);
         host = get("host", "localhost");
@@ -494,7 +499,7 @@ public class DriverOptions {
     private static final String HIGHLIGHT_FN = "function(e){ var old = e.getAttribute('style');"
             + " e.setAttribute('style', 'background: yellow; border: 2px solid red;');"
             + " setTimeout(function(){ e.setAttribute('style', old) }, %d) }";
-    
+
     private static String highlightFn(int millis) {
         return String.format(HIGHLIGHT_FN, millis);
     }
