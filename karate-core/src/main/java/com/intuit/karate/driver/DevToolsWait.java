@@ -89,7 +89,7 @@ public class DevToolsWait {
         this.condition = condition;
     }
 
-    public DevToolsMessage send(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
+    public DevToolsMessage send(DevToolsMessage dtm, Predicate<DevToolsMessage> condition, DevToolsDriver dtd) {
         lastReceived = null;
         lastSent = dtm;
         this.condition = condition == null ? DEFAULT : condition;        
@@ -97,6 +97,7 @@ public class DevToolsWait {
         synchronized (this) {
             logger.trace(">> wait: {}", dtm);
             try {
+                dtd.send(dtm);
                 wait(timeout);
             } catch (InterruptedException e) {
                 logger.error("interrupted: {} wait: {}", e.getMessage(), dtm);

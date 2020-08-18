@@ -150,13 +150,13 @@ public abstract class DevToolsDriver implements Driver {
     }
     
     public DevToolsMessage sendAndWait(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
-        send(dtm);
         boolean wasSubmit = submit;
         if (condition == null && submit) {
             submit = false;
             condition = DevToolsWait.ALL_FRAMES_LOADED;
         }
-        DevToolsMessage result = wait.send(dtm, condition);
+        //Do stuff inside this to avoid missing messages
+        DevToolsMessage result = wait.send(dtm, condition, this);
         if (result == null && !wasSubmit) {
             throw new RuntimeException("failed to get reply for: " + dtm);
         }
