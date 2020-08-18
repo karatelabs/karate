@@ -94,7 +94,7 @@ public abstract class DevToolsDriver implements Driver {
         logger = options.driverLogger;
         this.options = options;
         this.command = command;
-        this.wait = new DevToolsWait(options);
+        this.wait = new DevToolsWait(this, options);
         int pos = webSocketUrl.lastIndexOf('/');
         rootFrameId = webSocketUrl.substring(pos + 1);
         logger.debug("root frame id: {}", rootFrameId);
@@ -150,12 +150,12 @@ public abstract class DevToolsDriver implements Driver {
     }
     
     public DevToolsMessage sendAndWait(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
-        send(dtm);
         boolean wasSubmit = submit;
         if (condition == null && submit) {
             submit = false;
             condition = DevToolsWait.ALL_FRAMES_LOADED;
         }
+        //Do stuff inside wait to avoid missing messages
         DevToolsMessage result = wait.send(dtm, condition);
         if (result == null && !wasSubmit) {
             throw new RuntimeException("failed to get reply for: " + dtm);

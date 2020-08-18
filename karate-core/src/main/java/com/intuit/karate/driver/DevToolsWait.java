@@ -33,6 +33,7 @@ import java.util.function.Predicate;
 public class DevToolsWait {
 
     private final DriverOptions options;
+    private final DevToolsDriver driver;
 
     private DevToolsMessage lastSent;
     private Predicate<DevToolsMessage> condition;
@@ -73,7 +74,8 @@ public class DevToolsWait {
         return m -> name.equals(m.getMethod());
     }
 
-    public DevToolsWait(DriverOptions options) {
+    public DevToolsWait(DevToolsDriver driver, DriverOptions options) {
+        this.driver = driver;
         this.options = options;
         logger = options.driverLogger;
     }
@@ -97,6 +99,7 @@ public class DevToolsWait {
         synchronized (this) {
             logger.trace(">> wait: {}", dtm);
             try {
+                driver.send(dtm);
                 wait(timeout);
             } catch (InterruptedException e) {
                 logger.error("interrupted: {} wait: {}", e.getMessage(), dtm);
