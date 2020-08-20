@@ -308,12 +308,12 @@ public interface Driver extends Plugin {
         delay(millis);
         return DriverElement.locatorExists(this, locator);
     }
-    
+
     @AutoDef
     default void highlightAll(String locator) {
         highlightAll(locator, Config.DEFAULT_HIGHLIGHT_DURATION);
     }
-    
+
     default void highlightAll(String locator, int millis) {
         script(getOptions().highlightAll(locator, millis));
         delay(millis);
@@ -394,8 +394,8 @@ public interface Driver extends Plugin {
     @AutoDef
     default boolean exists(String locator) {
         return getOptions().optional(this, locator).isPresent();
-    }    
-    
+    }
+
     @AutoDef
     default Element optional(String locator) {
         return getOptions().optional(this, locator);
@@ -419,7 +419,7 @@ public interface Driver extends Plugin {
     }
 
     @AutoDef
-    default List scriptAll(String locator, String expression) {       
+    default List scriptAll(String locator, String expression) {
         String js = getOptions().scriptAllSelector(locator, expression);
         return (List) script(js);
     }
@@ -437,7 +437,9 @@ public interface Driver extends Plugin {
     }
 
     // for internal use ========================================================
-    //    
+    //        
+    boolean isTerminated();
+
     DriverOptions getOptions();
 
     Object elementId(String locator);

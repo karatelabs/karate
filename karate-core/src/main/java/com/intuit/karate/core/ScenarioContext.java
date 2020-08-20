@@ -1043,8 +1043,8 @@ public class ScenarioContext {
     public void driver(String expression) {
         ScriptValue sv = Script.evalKarateExpression(expression, this);
          // re-create driver within a test if needed
-         // but user is expected to call quit()
-        if (driver == null || sv.isMapLike()) {
+         // but user is expected to call quit() OR use the driver keyword with a JSON argument
+        if (driver == null || driver.isTerminated() || sv.isMapLike()) {
             Map<String, Object> options = config.getDriverOptions();
             if (options == null) {
                 options = new HashMap();
@@ -1114,7 +1114,7 @@ public class ScenarioContext {
             if (webSocketClients != null) {
                 webSocketClients.forEach(WebSocketClient::close);
             }
-            if (driver != null) { // TODO afterScenario plugin unification
+            if (driver != null) {
                 driver.quit();
                 DriverOptions options = driver.getOptions();
                 if (options.target != null) {

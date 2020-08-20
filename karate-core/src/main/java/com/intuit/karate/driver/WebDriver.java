@@ -44,6 +44,7 @@ public abstract class WebDriver implements Driver {
     protected final Command command;
     protected final Http http;
     private final String sessionId;
+    private boolean terminated;
     //private final String windowId;
 
     protected boolean open = true;
@@ -89,7 +90,7 @@ public abstract class WebDriver implements Driver {
 
     public String getSessionId() {
         return sessionId;
-    }        
+    }
 
     // can be used directly if you know what you are doing !
     public Http getHttp() {
@@ -345,7 +346,16 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
+    public boolean isTerminated() {
+        return terminated;
+    }
+
+    @Override
     public void quit() {
+        if (terminated) {
+            return;
+        }
+        terminated = true;
         if (open) {
             close();
         }
@@ -575,7 +585,7 @@ public abstract class WebDriver implements Driver {
         });
     }
 
-    protected Base64.Decoder getDecoder(){
+    protected Base64.Decoder getDecoder() {
         return Base64.getDecoder();
     }
 }
