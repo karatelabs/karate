@@ -1510,6 +1510,8 @@ This can be convenient in some cases, for example as an alternative to [Friendly
 * locate('#foo').parent.children[3].click()
 ```
 
+Also note that [`locate()`](#locate) and [`locateAll()`](#locateall) can be called *on* an [`Element`](#chaining), so that the "search scope" is limited to that `Element` and it's children.
+
 # Debugging
 You can use the [Visual Studio Karate entension](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) for stepping through and debugging a test. You can see a [demo video here](https://twitter.com/KarateDSL/status/1167533484560142336). We recommend that you get comfortable with this because it is going to save you lots of time. And creating tests may actually turn out to be fun !
 

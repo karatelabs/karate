@@ -1,7 +1,6 @@
 # Karate Robot
 
 ## Desktop Automation Made `Simple.`
-> Version 0.9.6.RC4 is available, and experimental. Please test and contribute if you can !
 
 # Index
 

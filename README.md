@@ -281,13 +281,13 @@ So you need two `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-apache</artifactId>
-    <version>0.9.5</version>
+    <version>0.9.6</version>
     <scope>test</scope>
 </dependency>
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit5</artifactId>
-    <version>0.9.5</version>
+    <version>0.9.6</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -300,8 +300,8 @@ If you want to use [JUnit 4](#junit-4), use `karate-junit4` instead of `karate-j
 Alternatively for [Gradle](https://gradle.org) you need these two entries:
 
 ```yml
-    testCompile 'com.intuit.karate:karate-junit5:0.9.5'
-    testCompile 'com.intuit.karate:karate-apache:0.9.5'
+    testCompile 'com.intuit.karate:karate-junit5:0.9.6'
+    testCompile 'com.intuit.karate:karate-apache:0.9.6'
 ```
 
 Also refer to the wiki for using [Karate with Gradle](https://github.com/intuit/karate/wiki/Gradle).
@@ -317,7 +317,7 @@ You can replace the values of `com.mycompany` and `myproject` as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.9.5 \
+-DarchetypeVersion=0.9.6 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
