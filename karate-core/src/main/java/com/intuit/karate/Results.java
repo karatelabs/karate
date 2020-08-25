@@ -36,7 +36,7 @@ import java.util.Map;
  */
 public class Results {
 
-    private final int threadCount;
+    private int threadCount;
     private int featureCount;
     private int scenarioCount;
     private int failCount;
@@ -79,7 +79,7 @@ public class Results {
         map.put("passed", getPassCount());
         map.put("elapsedTime", getElapsedTime());
         map.put("totalTime", getTimeTakenMillis());
-        map.put("efficiency", getEfficiency());        
+        map.put("efficiency", getEfficiency());
         map.put("failures", failedMap);
         return map;
     }
@@ -87,6 +87,28 @@ public class Results {
     private Results(long startTime, int threadCount) {
         this.startTime = startTime;
         this.threadCount = threadCount;
+    }
+
+    /**
+     * Merge two results @author cvaditya1
+     * @param results
+     * @return
+     */
+    public Results merge(Results results) {
+        appendResultsToAnother(this, results);
+        return this;
+    }
+
+    private static void appendResultsToAnother(Results parentResults, Results childResults){
+        parentResults.threadCount += childResults.getThreadCount();
+        parentResults.featureCount += childResults.getFeatureCount();
+        parentResults.scenarioCount += childResults.getScenarioCount();
+        parentResults.failCount += childResults.getFailCount();
+        parentResults.addToSkipCount(childResults.getSkipCount());
+        parentResults.addToTimeTaken(childResults.getTimeTakenMillis());
+        parentResults.endTime = childResults.getEndTime();
+        parentResults.failedMap.putAll(childResults.getFailedMap());
+        parentResults.addScenarioResults(childResults.getScenarioResults());
     }
 
     public void addToFailedList(String name, String errorMessage) {
@@ -119,10 +141,10 @@ public class Results {
     public void addToScenarioCount(int count) {
         scenarioCount += count;
     }
-    
+
     public void incrementFeatureCount() {
         featureCount++;
-    }    
+    }
 
     public void addToFailCount(int count) {
         failCount += count;
@@ -177,6 +199,10 @@ public class Results {
 
     public int getFeatureCount() {
         return featureCount;
+    }
+
+    public int getSkipCount() {
+        return skipCount;
     }
 
     public int getScenarioCount() {
