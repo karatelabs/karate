@@ -48,6 +48,7 @@ import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.PathNotFoundException;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -58,6 +59,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -1552,7 +1554,7 @@ public class Script {
     }
 
     private static BigDecimal convertToBigDecimal(Object o) {
-        DecimalFormat df = new DecimalFormat();
+        DecimalFormat df = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
         df.setParseBigDecimal(true);
         try {
             return (BigDecimal) df.parse(o.toString());
