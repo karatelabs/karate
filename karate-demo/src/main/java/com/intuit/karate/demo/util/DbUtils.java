@@ -43,4 +43,11 @@ public class DbUtils {
         return jdbc.queryForList(query);
     }     
     
+    public void insertRow(final String sql) {
+    	jdbc.batchUpdate(new String[] {sql});
+    }
+    
+    public void deleteRow(final String sql) {
+    	jdbc.execute(sql);
+    }
 }
