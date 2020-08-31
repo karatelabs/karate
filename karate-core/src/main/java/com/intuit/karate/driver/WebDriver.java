@@ -588,4 +588,11 @@ public abstract class WebDriver implements Driver {
     protected Base64.Decoder getDecoder() {
         return Base64.getDecoder();
     }
+
+    @Override
+    public byte[] pdf(Map<String, Object> printOptions){
+        String temp = http.path("print").post(printOptions).jsonPath("$.value").asString();
+        return Base64.getDecoder().decode(temp);
+    }
+
 }

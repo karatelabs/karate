@@ -800,6 +800,7 @@ public abstract class DevToolsDriver implements Driver {
         return currentDialogText;
     }
 
+    @Override
     public byte[] pdf(Map<String, Object> options) {
         DevToolsMessage dtm = method("Page.printToPDF").params(options).send();
         String temp = dtm.getResult("data").getAsString();

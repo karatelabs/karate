@@ -436,6 +436,9 @@ public interface Driver extends Plugin {
         return after;
     }
 
+    @AutoDef
+    public byte[] pdf(Map<String, Object> options);
+
     // for internal use ========================================================
     //        
     boolean isTerminated();
