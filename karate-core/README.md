@@ -88,6 +88,7 @@
     | <a href="#close"><code>close()</code></a>    
     | <a href="#drivertitle"><code>driver.title</code></a>
     | <a href="#screenshot"><code>screenshot()</code></a>    
+    | <a href="#pdf"><code>pdf()</code></a>    
   </td>
 </tr>
 <tr>
@@ -1460,6 +1461,14 @@ If you want to disable the "auto-embedding" into the HTML report, pass an additi
 * screenshot('#someDiv', false)
 ```
 
+## `pdf()`
+To create paginated pdf document from the page loaded.
+
+```cucumber
+* def pdfDoc = pdf({'orientation': 'landscape'})
+* karate.write(pdfDoc, "pdfDoc.pdf")
+```
+
 ## `highlight()`
 To visually highlight an element in the browser, especially useful when working in the [debugger](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin). Uses the [configured `highlightDuration`](#configure-driver).
 
@@ -1815,9 +1824,6 @@ For more control or custom options, the `start()` method takes a `Map<String, Ob
 
 ## `driver.screenshotFull()`
 Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api). This will snapshot the entire page, not just what is visible in the viewport.
-
-## `driver.pdf()`
-Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api).
 
 # Proxy
 For driver type [`chrome`](#driver-types), you can use the `addOption` key to pass command-line options that [Chrome supports](https://www.linuxbabe.com/desktop-linux/configure-proxy-chromium-google-chrome-command-line):
