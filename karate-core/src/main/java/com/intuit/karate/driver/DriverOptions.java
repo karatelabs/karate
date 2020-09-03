@@ -109,6 +109,7 @@ public class DriverOptions {
     private Integer timeoutOverride;
 
     // mutable when we return from called features
+    // TODO consider using Engine.THREAD_CONTEXT.get()
     private ScenarioContext context;
 
     public static final String SCROLL_JS_FUNCTION = "function(e){ var d = window.getComputedStyle(e).display;"

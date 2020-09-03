@@ -188,10 +188,7 @@ public class ScenarioContext {
     }
 
     public Scenario getScenario() {
-        ScenarioContext threadContext = Engine.THREAD_CONTEXT.get();
-        ScenarioContext scenarioContext = (threadContext != null) ? threadContext : this;
-        ScenarioExecutionUnit unit = scenarioContext.executionUnit;
-        return (unit != null) ? unit.scenario : scenarioContext.scenario;
+        return (executionUnit != null) ? executionUnit.scenario : scenario;
     }
 
     public void setPrevRequest(HttpRequest prevRequest) {
@@ -238,31 +235,21 @@ public class ScenarioContext {
         return classLoader.getResourceAsStream(name);
     }
 
-    private static Map<String, Object> info(ScenarioContext context) {
+    public Map<String, Object> getScenarioInfo() {
         Map<String, Object> info = new HashMap(6);
-        Path featurePath = context.featureContext.feature.getPath();
+        Path featurePath = featureContext.feature.getPath();
         if (featurePath != null) {
             info.put("featureDir", featurePath.getParent().toString());
             info.put("featureFileName", featurePath.getFileName().toString());
         }
-        ScenarioExecutionUnit unit = context.executionUnit;
-        if (unit != null) { // should never happen
-            info.put("scenarioName", unit.scenario.getName());
-            info.put("scenarioDescription", unit.scenario.getDescription());
-            info.put("scenarioType", unit.scenario.getKeyword());
-            String errorMessage = unit.getError() == null ? null : unit.getError().getMessage();
+        if (executionUnit != null) { // should never happen
+            info.put("scenarioName", executionUnit.scenario.getName());
+            info.put("scenarioDescription", executionUnit.scenario.getDescription());
+            info.put("scenarioType", executionUnit.scenario.getKeyword());
+            String errorMessage = executionUnit.getError() == null ? null : executionUnit.getError().getMessage();
             info.put("errorMessage", errorMessage);
         }
         return info;
-    }
-
-    public Map<String, Object> getScenarioInfo() {
-        ScenarioContext threadContext = Engine.THREAD_CONTEXT.get();
-        if (threadContext != null) {
-            return info(threadContext);
-        } else {
-            return info(this);
-        }
     }
 
     public boolean hotReload() {
@@ -1042,8 +1029,8 @@ public class ScenarioContext {
 
     public void driver(String expression) {
         ScriptValue sv = Script.evalKarateExpression(expression, this);
-         // re-create driver within a test if needed
-         // but user is expected to call quit() OR use the driver keyword with a JSON argument
+        // re-create driver within a test if needed
+        // but user is expected to call quit() OR use the driver keyword with a JSON argument
         if (driver == null || driver.isTerminated() || sv.isMapLike()) {
             Map<String, Object> options = config.getDriverOptions();
             if (options == null) {
