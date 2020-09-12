@@ -1,11 +1,13 @@
+@mock-servlet-todo
 Feature: file upload retry
 
 Background:
 * url demoBaseUrl
 
 Scenario: upload file
-    * def count = 0
-    * def done = function(){ var temp = karate.get('count'); temp = temp + 1; karate.set('count', temp); return temp > 1 }
+    * def count = { value: 0 }
+    * configure retry = { interval: 100 }
+    * def done = function(){ return count.value++ == 1 }
     Given path 'files'    
     And multipart file myFile = { read: 'test.pdf', filename: 'upload-name.pdf', contentType: 'application/pdf' }
     And multipart field message = 'hello world'

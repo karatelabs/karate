@@ -24,10 +24,8 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.Logger;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
+import java.util.Iterator;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -41,9 +39,7 @@ public class FeatureExecutionUnit implements Runnable {
     public final ExecutionContext exec;
     private final boolean parallelScenarios;
 
-    private CountDownLatch latch;
-    private List<ScenarioExecutionUnit> units;
-    private List<ScenarioResult> results;
+    private Iterator<ScenarioExecutionUnit> units;
     private Runnable next;
 
     public FeatureExecutionUnit(ExecutionContext exec) {
@@ -51,7 +47,7 @@ public class FeatureExecutionUnit implements Runnable {
         parallelScenarios = exec.scenarioExecutor != null;
     }
 
-    public List<ScenarioExecutionUnit> getScenarioExecutionUnits() {
+    public Iterator<ScenarioExecutionUnit> getScenarioExecutionUnits() {
         return units;
     }
 
@@ -67,16 +63,13 @@ public class FeatureExecutionUnit implements Runnable {
                     hookResult = false;
                 }
                 if (hookResult == false) {
-                    units = Collections.EMPTY_LIST;
+                    units = Collections.emptyIterator();
                 }
             }
         }
         if (units == null) { // no hook failed
-            units = exec.featureContext.feature.getScenarioExecutionUnits(exec);
+            units = exec.featureContext.feature.getScenarioExecutionUnits(exec).iterator();
         }
-        int count = units.size();
-        results = new ArrayList(count);
-        latch = new CountDownLatch(count);
     }
 
     public void setNext(Runnable next) {
@@ -90,30 +83,49 @@ public class FeatureExecutionUnit implements Runnable {
         if (units == null) {
             init();
         }
-        for (ScenarioExecutionUnit unit : units) {
-            if (isSelected(unit) && run(unit)) {
-                // unit.next should count down latch when done
-            } else { // un-selected / failed scenario
-                latch.countDown();
+        Subscriber<ScenarioResult> subscriber = new Subscriber<ScenarioResult>() {
+            @Override
+            public void onNext(ScenarioResult result) {
+                exec.result.addResult(result);
             }
-        }
-        try {
-            latch.await();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        stop();
-        if (next != null) {
-            next.run();
-        }
+
+            @Override
+            public void onComplete() {
+                stop();
+                if (next != null) {
+                    next.run();
+                }
+            }
+        };
+        ParallelProcessor<ScenarioExecutionUnit, ScenarioResult> processor = new ParallelProcessor<ScenarioExecutionUnit, ScenarioResult>(exec.scenarioExecutor, units) {
+            @Override
+            public Iterator<ScenarioResult> process(ScenarioExecutionUnit unit) {
+                if (isSelected(unit) && !unit.result.isFailed()) { // can happen for dynamic scenario outlines with a failed background !
+                    unit.run();
+                    // we also hold a reference to the last scenario-context that executed
+                    // for cases where the caller needs a result                
+                    lastContextExecuted = unit.getContext();
+                    return Collections.singletonList(unit.result).iterator();
+                } else {
+                    return Collections.emptyIterator();
+                }
+            }
+
+            @Override
+            public boolean runSync(ScenarioExecutionUnit unit) {
+                if (!parallelScenarios) {
+                    return true;
+                }
+                Tags tags = unit.scenario.getTagsEffective();
+                return tags.valuesFor("parallel").isAnyOf("false");
+            }
+
+        };
+        processor.subscribe(subscriber);
     }
 
+    // extracted for junit 5
     public void stop() {
-        // this is where the feature gets "populated" with stats
-        // but best of all, the original order is retained
-        for (ScenarioResult sr : results) {
-            exec.result.addResult(sr);
-        }
         if (lastContextExecuted != null) {
             // set result map that caller will see
             exec.result.setResultVars(lastContextExecuted.vars);
@@ -173,30 +185,6 @@ public class FeatureExecutionUnit implements Runnable {
         }
         logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
         return false;
-    }
-
-    public boolean run(ScenarioExecutionUnit unit) {
-        // this is an elegant solution to retaining the order of scenarios 
-        // in the final report - even if they run in parallel !            
-        results.add(unit.result);
-        if (unit.result.isFailed()) { // can happen for dynamic scenario outlines with a failed background !
-            return false;
-        }
-        Tags tags = unit.scenario.getTagsEffective();
-        unit.setNext(() -> {
-            latch.countDown();
-            // we also hold a reference to the last scenario-context that executed
-            // for cases where the caller needs a result                
-            lastContextExecuted = unit.getContext(); // IMPORTANT: will handle if actions is null
-        });
-        boolean sequential = !parallelScenarios || tags.valuesFor("parallel").isAnyOf("false");
-        // main            
-        if (sequential) {
-            unit.run();
-        } else {
-            exec.scenarioExecutor.submit(unit);
-        }
-        return true;
     }
 
 }

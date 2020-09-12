@@ -56,7 +56,6 @@ public class ScenarioExecutionUnit implements Runnable {
     private boolean stopped = false;
     private boolean aborted = false;
     private StepResult lastStepResult;
-    private Runnable next;
     private boolean last;
     private Step currentStep;
 
@@ -119,10 +118,6 @@ public class ScenarioExecutionUnit implements Runnable {
 
     public boolean isStopped() {
         return stopped;
-    }
-
-    public void setNext(Runnable next) {
-        this.next = next;
     }
 
     public void setLast(boolean last) {
@@ -329,10 +324,6 @@ public class ScenarioExecutionUnit implements Runnable {
         } catch (Exception e) {            
             result.addError("scenario execution failed", e);
             LOGGER.error("scenario execution failed: {}", e.getMessage());
-        } finally {
-            if (next != null) {
-                next.run();
-            }
         }
     }
 

@@ -32,9 +32,7 @@ import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.HtmlFeatureReport;
 import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.ScenarioExecutionUnit;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DynamicTest;
 
@@ -49,8 +47,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     public final FeatureExecutionUnit featureUnit;
     public final HtmlSummaryReport summary;
     public final String reportDir;
-
-    Iterator<ScenarioExecutionUnit> iterator;
+    public final Iterator<ScenarioExecutionUnit> iterator;
 
     public FeatureNode(String reportDir, HtmlSummaryReport summary, Feature feature, String tagSelector) {
         this.reportDir = reportDir;
@@ -61,16 +58,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
         exec = new ExecutionContext(null, System.currentTimeMillis(), featureContext, callContext, null, null, null);
         featureUnit = new FeatureExecutionUnit(exec);
         featureUnit.init();
-        List<ScenarioExecutionUnit> selected = new ArrayList();
-        for (ScenarioExecutionUnit unit : featureUnit.getScenarioExecutionUnits()) {
-            if (featureUnit.isSelected(unit)) { // tag filtering
-                selected.add(unit);
-            }
-        }
-        if (!selected.isEmpty()) { // make sure we trigger junit html report on last unit (after tag filtering)
-            selected.get(selected.size() - 1).setLast(true);
-        }
-        iterator = selected.iterator();
+        iterator = featureUnit.getScenarioExecutionUnits();
     }
 
     @Override
@@ -82,9 +70,11 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     public DynamicTest next() {
         ScenarioExecutionUnit unit = iterator.next();
         return DynamicTest.dynamicTest(unit.scenario.getNameForReport(), () -> {
-            featureUnit.run(unit);
+            if (featureUnit.isSelected(unit)) {
+                unit.run();
+            }
             boolean failed = unit.result.isFailed();
-            if (unit.isLast()) {
+            if (!iterator.hasNext()) {
                 featureUnit.stop();
                 FeatureResult result = exec.result;
                 if (!result.isEmpty()) {

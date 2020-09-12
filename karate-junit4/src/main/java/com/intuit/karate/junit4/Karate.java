@@ -131,7 +131,7 @@ public class Karate extends ParentRunner<Feature> {
         FeatureInfo info = featureMap.get(feature.getRelativePath());
         info.setNotifier(notifier);
         info.unit.run();
-        FeatureResult result = info.exec.result;
+        FeatureResult result = info.unit.exec.result;
         if (!result.isEmpty()) {
             result.printStats(null);
             HtmlFeatureReport.saveFeatureResult(targetDir, result);

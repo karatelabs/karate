@@ -34,7 +34,6 @@ import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
@@ -50,7 +49,6 @@ import org.junit.runner.notification.RunNotifier;
 public class FeatureInfo implements ExecutionHook {
 
     public final Feature feature;
-    public final ExecutionContext exec;
     public final Description description;
     public final FeatureExecutionUnit unit;
 
@@ -69,13 +67,9 @@ public class FeatureInfo implements ExecutionHook {
         description = Description.createSuiteDescription(feature.getNameForReport(), feature.getResource().getPackageQualifiedName());
         FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
         CallContext callContext = new CallContext(null, true, this);
-        exec = new ExecutionContext(null, System.currentTimeMillis(), featureContext, callContext, null, null, null);
+        ExecutionContext exec = new ExecutionContext(null, System.currentTimeMillis(), featureContext, callContext, null, null, null);
         unit = new FeatureExecutionUnit(exec);
         unit.init();
-        for (ScenarioExecutionUnit u : unit.getScenarioExecutionUnits()) {
-            Description scenarioDescription = getScenarioDescription(u.scenario);
-            description.addChild(scenarioDescription);
-        }
     }
 
     @Override
@@ -131,8 +125,8 @@ public class FeatureInfo implements ExecutionHook {
     @Override
     public void afterStep(StepResult result, ScenarioContext context) {
 
-    }    
-    
+    }
+
     @Override
 
     public String getPerfEventName(HttpRequestBuilder req, ScenarioContext context) {
