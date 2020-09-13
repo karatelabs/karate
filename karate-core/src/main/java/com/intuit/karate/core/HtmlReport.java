@@ -199,11 +199,13 @@ public abstract class HtmlReport {
             String featureName = s.getFeature().getResource().getFileNameWithoutExtension();
             String content = featureName + s.getDisplayMeta();
             item.put("content", content);
-            item.put("start", sr.getStartTime());
-            item.put("end", sr.getEndTime());
-            String startTime = dateFormat.format(new Date(sr.getStartTime()));
-            String endTime = dateFormat.format(new Date(sr.getEndTime()));
-            content = content + " " + startTime + "-" + endTime;
+            long startTime = sr.getStartTime();
+            item.put("start", startTime);
+            long endTime = sr.getEndTime() - 1; // avoid overlap when rendering
+            item.put("end", endTime); 
+            String startTimeString = dateFormat.format(new Date(startTime));
+            String endTimeString = dateFormat.format(new Date(endTime));
+            content = content + " " + startTimeString + "-" + endTimeString;
             String scenarioTitle = StringUtils.trimToEmpty(s.getName());
             if (!scenarioTitle.isEmpty()) {
                 content = content + " " + scenarioTitle;
