@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import java.util.Collections;
 import java.util.Iterator;
 
 /**
@@ -37,13 +36,5 @@ public interface Processor<I, O> {
     void subscribe(Subscriber<O> s);
 
     Iterator<O> process(I i);
-
-    default <T> Iterator single(T t) {
-        return Collections.singletonList(t).iterator();
-    }
-    
-    default <T> Iterator empty() {
-        return Collections.emptyIterator();
-    }
 
 }
