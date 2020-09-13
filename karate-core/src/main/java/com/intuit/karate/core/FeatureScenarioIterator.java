@@ -45,8 +45,8 @@ public class FeatureScenarioIterator implements Iterator<ScenarioExecutionUnit> 
     private ScenarioExecutionUnit next;
 
     // dynamic
+    private ScriptValue expressionValue;
     private int index;
-    private List list;
     ScenarioExecutionUnit bgUnit;
 
     public FeatureScenarioIterator(ExecutionContext exec, Iterator<FeatureSection> sections) {
@@ -75,7 +75,7 @@ public class FeatureScenarioIterator implements Iterator<ScenarioExecutionUnit> 
             if (scenarios.hasNext()) {
                 currentScenario = scenarios.next();
                 index = 0;
-                list = null;
+                expressionValue = null;
                 bgUnit = null;
             } else {
                 scenarios = null;
@@ -92,11 +92,15 @@ public class FeatureScenarioIterator implements Iterator<ScenarioExecutionUnit> 
                     return true; // exit early
                 }
             }
-            if (list == null) {
+            if (expressionValue == null) {
                 String expression = currentScenario.getDynamicExpression();
-                ScriptValue listValue;
                 try {
-                    listValue = Script.evalKarateExpression(expression, bgUnit.getContext());
+                    expressionValue = Script.evalKarateExpression(expression, bgUnit.getContext());
+                    if (expressionValue.isListLike() || expressionValue.isFunction()) {
+                        // all good
+                    } else {
+                        throw new RuntimeException("result is neither list nor function: " + expressionValue);
+                    }
                 } catch (Exception e) {
                     String message = "dynamic expression evaluation failed: " + expression;
                     bgUnit.result.addError(message, e);
@@ -104,20 +108,27 @@ public class FeatureScenarioIterator implements Iterator<ScenarioExecutionUnit> 
                     next = bgUnit;
                     return true; // exit early
                 }
-                if (!listValue.isListLike()) {
-                    bgUnit.getContext().logger.warn("ignoring dynamic expression, did not evaluate to list: {} - {}", expression, listValue);
-                    currentScenario = null;
-                    next = bgUnit;
-                    return true; // exit early
-                }
-                list = listValue.getAsList();
-            }
-            if (index >= list.size()) {
-                currentScenario = null;
-                return hasNext();
             }
             final int rowIndex = index++;
-            ScriptValue rowValue = new ScriptValue(list.get(rowIndex));
+            ScriptValue rowValue;
+            if (expressionValue.isFunction()) {
+                try {
+                    rowValue = expressionValue.invokeFunction(bgUnit.getContext(), rowIndex);
+                } catch (Exception e) {
+                    String message = "dynamic function expression evaluation failed at index " + rowIndex + ": " + e.getMessage();
+                    bgUnit.result.addError(message, e);
+                    currentScenario = null;
+                    next = bgUnit;
+                    return true; // exit early                    
+                }
+            } else { // is list
+                List list = expressionValue.getAsList();
+                if (rowIndex >= list.size()) {
+                    currentScenario = null;
+                    return hasNext();
+                }
+                rowValue = new ScriptValue(list.get(rowIndex));
+            }
             if (rowValue.isMapLike()) {
                 Scenario dynamic = currentScenario.copy(rowIndex); // this will set exampleIndex
                 dynamic.setBackgroundDone(true);
@@ -129,8 +140,9 @@ public class FeatureScenarioIterator implements Iterator<ScenarioExecutionUnit> 
                 });
                 next = new ScenarioExecutionUnit(dynamic, bgUnit.result.getStepResults(), exec, bgUnit.getContext());
                 return true;
-            } else {
-                bgUnit.getContext().logger.warn("ignoring dynamic expression list item {}, not map-like: {}", index, rowValue);
+            } else { // assume that this is signal to stop the dynamic scenario outline
+                bgUnit.getContext().logger.debug("dynamic expression complete at index: {}, not map-like: {}", rowIndex, rowValue);
+                currentScenario = null;
                 return hasNext();
             }
         } else {
