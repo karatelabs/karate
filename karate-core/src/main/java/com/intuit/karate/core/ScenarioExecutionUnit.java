@@ -56,7 +56,6 @@ public class ScenarioExecutionUnit implements Runnable {
     private boolean stopped = false;
     private boolean aborted = false;
     private StepResult lastStepResult;
-    private boolean last;
     private Step currentStep;
 
     private LogAppender appender;
@@ -118,14 +117,6 @@ public class ScenarioExecutionUnit implements Runnable {
 
     public boolean isStopped() {
         return stopped;
-    }
-
-    public void setLast(boolean last) {
-        this.last = last;
-    }
-
-    public boolean isLast() {
-        return last;
     }
 
     public void init() {

@@ -36,7 +36,6 @@ import com.intuit.karate.core.HtmlFeatureReport;
 import com.intuit.karate.core.HtmlReport;
 import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.ParallelProcessor;
-import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.core.Subscriber;
 import com.intuit.karate.core.Tags;
 import com.intuit.karate.job.JobConfig;
@@ -330,8 +329,7 @@ public class Runner {
                             r -> featureExecutor.submit(r), featureExecutor, classLoader);
                     featureResults.add(execContext.result);
                     if (jobServer != null) {
-                        List<ScenarioExecutionUnit> units = feature.getScenarioExecutionUnits(execContext);
-                        jobServer.addFeature(execContext, units, () -> {
+                        jobServer.addFeature(execContext, feature.getScenarioExecutionUnits(execContext), () -> {
                             onFeatureDone(results, execContext, reportDir, ++index, count);
                             future.complete(Boolean.TRUE);
                         });

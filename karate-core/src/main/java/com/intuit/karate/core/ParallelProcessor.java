@@ -50,31 +50,36 @@ public abstract class ParallelProcessor<I, O> implements Processor<I, O> {
         this.publisher = publisher;
     }
 
-    private void execute(I in) {
+    private void execute(final boolean sync, final I in, final Subscriber<O> s) {
         Iterator<O> out = process(in);
-        out.forEachRemaining(o -> {
-            synchronized (this) { // synchronized is important if multiple threads
-                subscriber.onNext(o);
-            }
-        });
+        if (sync) {
+            out.forEachRemaining(s::onNext);
+        } else {
+            out.forEachRemaining(o -> {
+                synchronized (s) { // synchronized is important if multiple threads
+                    s.onNext(o);
+                }
+            });
+        }
     }
 
     @Override
-    public void onNext(I in) {
-        if (runSync(in)) {
-            execute(in);
+    public void onNext(final I in) {
+        boolean sync = shouldRunSynchronously(in);
+        if (sync) {
+            execute(sync, in, subscriber);
         } else {
             CompletableFuture<Boolean> cf = new CompletableFuture();
             futures.add(cf);
             executor.submit(() -> {
-                execute(in);
+                execute(sync, in, subscriber);
                 cf.complete(Boolean.TRUE);
             });
         }
     }
 
     @Override
-    public void subscribe(Subscriber<O> subscriber) {
+    public void subscribe(final Subscriber<O> subscriber) {
         this.subscriber = subscriber;
         publisher.forEachRemaining(this::onNext);
         CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
@@ -91,7 +96,7 @@ public abstract class ParallelProcessor<I, O> implements Processor<I, O> {
     @Override
     public abstract Iterator<O> process(I in);
 
-    public boolean runSync(I in) {
+    public boolean shouldRunSynchronously(I in) {
         return false;
     }
 

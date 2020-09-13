@@ -39,7 +39,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.util.List;
+import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.LoggerFactory;
 
@@ -95,7 +95,7 @@ public abstract class JobServer {
         }
     }    
 
-    public abstract void addFeature(ExecutionContext exec, List<ScenarioExecutionUnit> units, Runnable onComplete);
+    public abstract void addFeature(ExecutionContext exec, Iterator<ScenarioExecutionUnit> units, Runnable onComplete);
 
     public abstract ChunkResult getNextChunk(String executorId);
 

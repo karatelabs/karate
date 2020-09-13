@@ -36,6 +36,7 @@ import static com.intuit.karate.job.JobServer.LOGGER;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -55,12 +56,13 @@ public class ScenarioJobServer extends JobServer {
     }
 
     @Override
-    public void addFeature(ExecutionContext exec, List<ScenarioExecutionUnit> units, Runnable onComplete) {
+    public void addFeature(ExecutionContext exec, Iterator<ScenarioExecutionUnit> units, Runnable onComplete) {
         Logger logger = new Logger();
-        List<Scenario> selected = new ArrayList(units.size());
-        for (ScenarioExecutionUnit unit : units) {
-            if (FeatureExecutionUnit.isSelected(exec.featureContext, unit.scenario, logger)) {
-                selected.add(unit.scenario);
+        List<Scenario> selected = new ArrayList();
+        while (units.hasNext()) {
+            Scenario scenario = units.next().scenario;
+            if (FeatureExecutionUnit.isSelected(exec.featureContext, scenario, logger)) {
+                selected.add(scenario);
             }
         }
         if (selected.isEmpty()) {

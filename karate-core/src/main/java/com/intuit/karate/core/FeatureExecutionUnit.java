@@ -68,7 +68,7 @@ public class FeatureExecutionUnit implements Runnable {
             }
         }
         if (units == null) { // no hook failed
-            units = exec.featureContext.feature.getScenarioExecutionUnits(exec).iterator();
+            units = exec.featureContext.feature.getScenarioExecutionUnits(exec);
         }
     }
 
@@ -92,6 +92,7 @@ public class FeatureExecutionUnit implements Runnable {
             @Override
             public void onComplete() {
                 stop();
+                exec.result.sortScenarioResults();
                 if (next != null) {
                     next.run();
                 }
@@ -112,7 +113,7 @@ public class FeatureExecutionUnit implements Runnable {
             }
 
             @Override
-            public boolean runSync(ScenarioExecutionUnit unit) {
+            public boolean shouldRunSynchronously(ScenarioExecutionUnit unit) {
                 if (!parallelScenarios) {
                     return true;
                 }
