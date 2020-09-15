@@ -43,9 +43,9 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class WebSocketServer {
+public class WebSocketProxyServer {
 
-    private static final Logger logger = LoggerFactory.getLogger(WebSocketServer.class);
+    private static final Logger logger = LoggerFactory.getLogger(WebSocketProxyServer.class);
 
     private final Channel channel;
     private final int port;
@@ -71,7 +71,7 @@ public class WebSocketServer {
         logger.info("stop: shutdown complete");
     }
 
-    public WebSocketServer(int port, String path, String url) {
+    public WebSocketProxyServer(int port, String path, String url) {
         this.port = port;
         bossGroup = new NioEventLoopGroup(1);
         workerGroup = new NioEventLoopGroup(8);
