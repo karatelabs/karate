@@ -13,10 +13,10 @@ public class WebSocketProxyRunner {
     
     @Test
     public void testProxy() {
-        String url = "ws://127.0.0.1:49156/e543365b10ee4dca01cdd99171a58c5d";
+        String url = "ws://127.0.0.1:60168/97d3d6788b8e1063c0af0aae463f8d6d";
         String path = url.substring(url.lastIndexOf('/') + 1);
         logger.debug("path: {}", path);
-        WebSocketProxyServer server = new WebSocketProxyServer(8080, path, url);
+        WebSocketProxyServer server = new WebSocketProxyServer(8090, path, url);
         server.waitSync();        
     }
     

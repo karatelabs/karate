@@ -179,6 +179,7 @@
 * No need to learn complicated programming concepts such as "callbacks" "`await`" and "promises"
 * Option to use [wildcard](#wildcard-locators) and ["friendly" locators](#friendly-locators) without needing to inspect the HTML-page source, CSS, or internal XPath structure
 * Chrome-native automation using the [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) (equivalent to [Puppeteer](https://pptr.dev))
+* [Playwright](https://playwright.dev) support for cross-browser and headless options, which can connect to a server or Docker container using the Playwright wire-protocol
 * [W3C WebDriver](https://w3c.github.io/webdriver/) support built-in, which can also use [remote / grid providers](https://twitter.com/ptrthomas/status/1222790566598991873)
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
 * [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI environment or [Docker](#configure-drivertarget) - without needing a "master node" or "grid"
@@ -268,6 +269,8 @@ key | description
 `videoFile` | default `null`, the path to the video file that will be added to the end of the test report, if it does not exist, it will be ignored
 `httpConfig` | optional, and typically only used for remote WebDriver usage where the HTTP client [configuration](https://github.com/intuit/karate#configure) needs to be tweaked, e.g. `{ readTimeout: 120000 }` (also see `timeout` below)
 `timeout` | default `30000`,  amount of time (in milliseconds) that type `chrome` will wait for an operation that takes time (typically navigating to a new page) - and as a convenience for WebDriver, this will be equivalent to setting the `readTimeout` for the `httpConfig` (see above) - also see [`timeout()`](#timeout)
+`playwrightUrl` | only applies to `{ type: 'playwright' }`, the [Playwright](https://playwright.dev) wire-protocol (websockets) server URL, also see [`playwrightOptions`](#playwrightoptions)
+`playwrightOptions` | optional, see [`playwrightOptions`](#playwrightoptions)
 `webDriverUrl` | see [`webDriverUrl`](#webdriverurl)
 `webDriverSession` | see [`webDriverSession`](#webdriversession)
 `webDriverPath` | optional, and rarely used only in case you need to append a path such as `/wd/hub` - typically needed for Appium (or a Selenium Grid) on `localhost`, where `host`, `port` / `executable` etc. are involved.
@@ -326,6 +329,10 @@ Here are some of the things that you can customize, but note that these depend o
 Note that some capabilities such as "headless" may be possible via the command-line to the local executable, so using [`addOptions`](#configure-driver) may work instead.
 
 Also see [`driver.sessionId`](#driversessionid).
+
+## `playwrightOptions`
+This can take the following keys:
+* `context` - JSON which will be passed as the argument of the Playwright [`browser.newContext()`](https://playwright.dev/#path=docs%2Fapi.md&q=browsernewcontextoptions) call, needed typically to set the page dimensions
 
 ## `configure driverTarget`
 The [`configure driver`](#configure-driver) options are fine for testing on "`localhost`" and when not in `headless` mode. But when the time comes for running your web-UI automation tests on a continuous integration server, things get interesting. To support all the various options such as Docker, headless Chrome, cloud-providers etc., Karate introduces the concept of a pluggable [`Target`](src/main/java/com/intuit/karate/driver/Target.java) where you just have to implement two methods:
@@ -434,6 +441,7 @@ The recommendation is that you prefer `chrome` for development, and once you hav
 type | default port | default executable | description
 ---- | ------------ | ------------------ | -----------
 [`chrome`](https://chromedevtools.github.io/devtools-protocol/) | 9222 | mac: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`<br/>win: `C:/Program Files (x86)/Google/Chrome/Application/chrome.exe` | "native" Chrome automation via the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/)
+[`playwright`](https://playwright.dev) | 4444 | `playwright` | see [`playwrightOptions`](#playwrightoptions)
 [`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) | 9515 | `chromedriver` | W3C Chrome Driver
 [`geckodriver`](https://github.com/mozilla/geckodriver) | 4444 | `geckodriver` | W3C Gecko Driver (Firefox)
 [`safaridriver`](https://webkit.org/blog/6900/webdriver-support-in-safari-10/) | 5555 | `safaridriver` | W3C Safari Driver

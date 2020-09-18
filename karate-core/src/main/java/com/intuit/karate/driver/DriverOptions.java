@@ -41,6 +41,7 @@ import com.intuit.karate.driver.appium.IosDriver;
 import com.intuit.karate.driver.microsoft.MsEdgeDriver;
 import com.intuit.karate.driver.safari.SafariWebDriver;
 import com.intuit.karate.driver.microsoft.WinAppDriver;
+import com.intuit.karate.driver.playwright.PlaywrightDriver;
 import com.intuit.karate.shell.Command;
 
 import java.io.File;
@@ -99,6 +100,8 @@ public class DriverOptions {
     public final boolean highlight;
     public final int highlightDuration;
     public final String attach;
+    public final String playwrightUrl;
+    public final Map<String, Object> playwrightOptions;
 
     // mutable during a test
     private boolean retryEnabled;
@@ -205,7 +208,8 @@ public class DriverOptions {
         highlight = get("highlight", false);
         highlightDuration = get("highlightDuration", Config.DEFAULT_HIGHLIGHT_DURATION);
         attach = get("attach", null);
-
+        playwrightUrl = get("playwrightUrl", null);
+        playwrightOptions = get("playwrightOptions", null);
         // do this last to ensure things like logger, start-flag, webDriverUrl etc. are set
         port = resolvePort(defaultPort);
     }
@@ -307,6 +311,8 @@ public class DriverOptions {
                     return AndroidDriver.start(context, options, appender);
                 case "ios":
                     return IosDriver.start(context, options, appender);
+                case "playwright":
+                    return PlaywrightDriver.start(context, options, appender);
                 default:
                     logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
                     options.put("type", "chrome");
@@ -610,6 +616,12 @@ public class DriverOptions {
             }
         } while (attempts++ < pollAttempts);
         return false;
+    }
+    
+    public static String getPositionJs(String locator) {
+        String temp = "var r = " + selector(locator, DOCUMENT) 
+                + ".getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }";
+        return wrapInFunctionInvoke(temp);        
     }
 
     public Map<String, Object> newMapWithSelectedKeys(Map<String, Object> map, String... keys) {

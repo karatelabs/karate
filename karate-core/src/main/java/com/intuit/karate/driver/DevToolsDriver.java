@@ -115,13 +115,6 @@ public abstract class DevToolsDriver implements Driver {
         client = new WebSocketClient(wsOptions, logger);
     }
 
-    public int waitSync() {
-        if (command == null) {
-            return -1;
-        }
-        return command.waitSync();
-    }
-
     @Override
     public Driver timeout(Integer millis) {
         options.setTimeout(millis);
@@ -156,7 +149,7 @@ public abstract class DevToolsDriver implements Driver {
             submit = false;
             condition = DevToolsWait.ALL_FRAMES_LOADED;
         }
-        //Do stuff inside wait to avoid missing messages
+        // do stuff inside wait to avoid missing messages
         DevToolsMessage result = wait.send(dtm, condition);
         if (result == null && !wasSubmit) {
             throw new RuntimeException("failed to get reply for: " + dtm);
@@ -170,26 +163,26 @@ public abstract class DevToolsDriver implements Driver {
             logger.trace("** set dom ready flag to true");
         }
         if (dtm.methodIs("Page.javascriptDialogOpening")) {
-            currentDialogText = dtm.getParam("message").getAsString();
+            currentDialogText = dtm.getParam("message", String.class);
             // this will stop waiting NOW
             wait.setCondition(DevToolsWait.DIALOG_OPENING);
         }
         if (dtm.methodIs("Page.frameNavigated")) {
-            String frameNavId = dtm.get("frame.id", String.class);
-            String frameNavUrl = dtm.get("frame.url", String.class);
+            String frameNavId = dtm.getParam("frame.id");
+            String frameNavUrl = dtm.getParam("frame.url");
             if (rootFrameId.equals(frameNavId)) { // root page navigated
                 currentUrl = frameNavUrl;
             }
         }
         if (dtm.methodIs("Page.navigatedWithinDocument")) { // js variant of above (SPA, history nav)
-            String frameNavId = dtm.get("frameId", String.class);
-            String frameNavUrl = dtm.get("url", String.class);
+            String frameNavId = dtm.getParam("frameId");
+            String frameNavUrl = dtm.getParam("url");
             if (rootFrameId.equals(frameNavId)) { // root page navigated
                 currentUrl = frameNavUrl;
             }
         }
         if (dtm.methodIs("Page.frameStartedLoading")) {
-            String frameLoadingId = dtm.get("frameId", String.class);
+            String frameLoadingId = dtm.getParam("frameId");
             if (rootFrameId.equals(frameLoadingId)) { // root page is loading
                 domContentEventFired = false;
                 framesStillLoading.clear();
@@ -201,12 +194,12 @@ public abstract class DevToolsDriver implements Driver {
             }
         }
         if (dtm.methodIs("Page.frameStoppedLoading")) {
-            String frameLoadedId = dtm.get("frameId", String.class);
+            String frameLoadedId = dtm.getParam("frameId");
             framesStillLoading.remove(frameLoadedId);
             logger.trace("** frame stopped loading: {}, remaining in-progress: {}", frameLoadedId, framesStillLoading);
         }
         if (dtm.methodIs("Target.attachedToTarget")) {
-            frameSessions.put(dtm.get("targetInfo.targetId", String.class), dtm.get("sessionId", String.class));
+            frameSessions.put(dtm.getParam("targetInfo.targetId"), dtm.getParam("sessionId"));
             logger.trace("** added frame session: {}", frameSessions);
         }
         if (dtm.methodIs("Fetch.requestPaused")) {
@@ -217,12 +210,12 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     private void handleInterceptedRequest(DevToolsMessage dtm) {
-        String requestId = dtm.get("requestId", String.class);
-        String requestUrl = dtm.get("request.url", String.class);
+        String requestId = dtm.getParam("requestId");
+        String requestUrl = dtm.getParam("request.url");
         if (backend != null) {
-            String method = dtm.get("request.method", String.class);
-            Map<String, String> headers = dtm.get("request.headers", Map.class);
-            String postData = dtm.get("request.postData", String.class);
+            String method = dtm.getParam("request.method");
+            Map<String, String> headers = dtm.getParam("request.headers", Map.class);
+            String postData = dtm.getParam("request.postData");
             logger.debug("intercepting request for url: {}", requestUrl);
             HttpRequest request = new HttpRequest();
             // needed pre-processing for mock feature backend
@@ -503,7 +496,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public Element click(String locator) {
         retryIfEnabled(locator);
-        eval(options.selector(locator) + ".click()");
+        eval(DriverOptions.selector(locator) + ".click()");
         return DriverElement.locatorExists(this, locator);
     }
 
@@ -536,7 +529,7 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public Element clear(String locator) {
-        eval(options.selector(locator) + ".value = ''");
+        eval(DriverOptions.selector(locator) + ".value = ''");
         return DriverElement.locatorExists(this, locator);
     }
 
@@ -661,20 +654,6 @@ public abstract class DevToolsDriver implements Driver {
         return property(id, "textContent");
     }
 
-    private <T> T callFunctionOnNode(int nodeId, String function, Class<T> type) {
-        DevToolsMessage dtm = method("DOM.resolveNode").param("nodeId", nodeId).send();
-        String objectId = dtm.getResult("object.objectId", String.class);
-        return callFunctionOnObject(objectId, function, type);
-    }
-
-    private <T> T callFunctionOnObject(String objectId, String function, Class<T> type) {
-        DevToolsMessage dtm = method("Runtime.callFunctionOn")
-                .param("objectId", objectId)
-                .param("functionDeclaration", function)
-                .send();
-        return dtm.getResult().getValue(type);
-    }
-
     @Override
     public String html(String id) {
         return property(id, "outerHTML");
@@ -688,28 +667,28 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public Element value(String locator, String value) {
         retryIfEnabled(locator);
-        eval(options.selector(locator) + ".value = '" + value + "'");
+        eval(DriverOptions.selector(locator) + ".value = '" + value + "'");
         return DriverElement.locatorExists(this, locator);
     }
 
     @Override
     public String attribute(String id, String name) {
         retryIfEnabled(id);
-        DevToolsMessage dtm = eval(options.selector(id) + ".getAttribute('" + name + "')");
+        DevToolsMessage dtm = eval(DriverOptions.selector(id) + ".getAttribute('" + name + "')");
         return dtm.getResult().getAsString();
     }
 
     @Override
     public String property(String id, String name) {
         retryIfEnabled(id);
-        DevToolsMessage dtm = eval(options.selector(id) + "['" + name + "']");
+        DevToolsMessage dtm = eval(DriverOptions.selector(id) + "['" + name + "']");
         return dtm.getResult().getAsString();
     }
 
     @Override
     public boolean enabled(String id) {
         retryIfEnabled(id);
-        DevToolsMessage dtm = eval(options.selector(id) + ".disabled");
+        DevToolsMessage dtm = eval(DriverOptions.selector(id) + ".disabled");
         return !dtm.getResult().isBooleanTrue();
     }
 
@@ -817,13 +796,9 @@ public abstract class DevToolsDriver implements Driver {
         boolean submitTemp = submit; // in case we are prepping for a submit().mouse(locator).click()
         submit = false;
         retryIfEnabled(locator);
-        String expression = options.selector(locator) + ".getBoundingClientRect()";
-        //  important to not set returnByValue to true
-        DevToolsMessage dtm = method("Runtime.evaluate").param("expression", expression).send();
-        String objectId = dtm.getResult("objectId").getAsString();
-        dtm = method("Runtime.getProperties").param("objectId", objectId).param("accessorPropertiesOnly", true).send();
+        Map<String, Object> map = eval(DriverOptions.getPositionJs(locator)).getResult().getAsMap();
         submit = submitTemp;
-        return options.newMapWithSelectedKeys(dtm.getResult().getAsMap(), "x", "y", "width", "height");
+        return map;
     }
 
     @Override

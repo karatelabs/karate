@@ -139,7 +139,7 @@ public abstract class WebDriver implements Driver {
     }
 
     private Element evalLocator(String locator, String dotExpression) {
-        eval(prefixReturn(options.selector(locator) + "." + dotExpression));
+        eval(prefixReturn(DriverOptions.selector(locator) + "." + dotExpression));
         // if the js above did not throw an exception, the element exists
         return DriverElement.locatorExists(this, locator);
     }
@@ -376,7 +376,7 @@ public abstract class WebDriver implements Driver {
     }
 
     private String evalReturn(String locator, String dotExpression) {
-        return eval("return " + options.selector(locator) + "." + dotExpression).getAsString();
+        return eval("return " + DriverOptions.selector(locator) + "." + dotExpression).getAsString();
     }
 
     @Override
@@ -412,13 +412,13 @@ public abstract class WebDriver implements Driver {
     @Override
     public Map<String, Object> position(String locator) {
         return retryIfEnabled(locator, ()
-                -> eval("return " + options.selector(locator) + ".getBoundingClientRect()").getAsMap());
+                -> eval("return " + DriverOptions.selector(locator) + ".getBoundingClientRect()").getAsMap());
     }
 
     @Override
     public boolean enabled(String locator) {
         return retryIfEnabled(locator, ()
-                -> eval("return !" + options.selector(locator) + ".disabled").isBooleanTrue());
+                -> eval("return !" + DriverOptions.selector(locator) + ".disabled").isBooleanTrue());
     }
 
     private String prefixReturn(String expression) {
