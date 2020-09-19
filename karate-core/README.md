@@ -269,7 +269,7 @@ key | description
 `videoFile` | default `null`, the path to the video file that will be added to the end of the test report, if it does not exist, it will be ignored
 `httpConfig` | optional, and typically only used for remote WebDriver usage where the HTTP client [configuration](https://github.com/intuit/karate#configure) needs to be tweaked, e.g. `{ readTimeout: 120000 }` (also see `timeout` below)
 `timeout` | default `30000`,  amount of time (in milliseconds) that type `chrome` will wait for an operation that takes time (typically navigating to a new page) - and as a convenience for WebDriver, this will be equivalent to setting the `readTimeout` for the `httpConfig` (see above) - also see [`timeout()`](#timeout)
-`playwrightUrl` | only applies to `{ type: 'playwright' }`, the [Playwright](https://playwright.dev) wire-protocol (websockets) server URL, also see [`playwrightOptions`](#playwrightoptions)
+`playwrightUrl` | only applies for `{ type: 'playwright', start: false }`, the [Playwright](https://playwright.dev) wire-protocol (websockets) server URL, also see [`playwrightOptions`](#playwrightoptions)
 `playwrightOptions` | optional, see [`playwrightOptions`](#playwrightoptions)
 `webDriverUrl` | see [`webDriverUrl`](#webdriverurl)
 `webDriverSession` | see [`webDriverSession`](#webdriversession)
@@ -332,7 +332,57 @@ Also see [`driver.sessionId`](#driversessionid).
 
 ## `playwrightOptions`
 This can take the following keys:
+* `browserType` - defaults to `chromium`, can be set to the other types that Playwright supports, e.g. `firefox` and `webkit`
 * `context` - JSON which will be passed as the argument of the Playwright [`browser.newContext()`](https://playwright.dev/#path=docs%2Fapi.md&q=browsernewcontextoptions) call, needed typically to set the page dimensions
+
+Note that there is a top-level config flag for `headless` mode. The default is: `* configure driver = { headless: false }`
+
+### Playwright
+To use Playwright, you need to start a Playwright server. If you have one pre-started, you need to use the [`playwrightUrl`](#configure-driver) driver config.
+
+Or you can set up an executable that can do it and log the URL to the console when the server is ready. The websocket URL will look like this: `ws://127.0.0.1:4444/0e0bd1c0bb2d4eb550d02c91046dd6e0`.
+
+Here's a simple recipe to set up this mechanism on your local machine. NodeJS is a pre-requisite and you can choose a folder (e.g. `playwright`) for the "start scripts" to live. Within that folder, [you can run](https://playwright.dev/#?path=docs/intro.md):
+
+```
+npm i -D playwright
+```
+
+Now create a file called `playwright/server.js` with the following code:
+
+```js
+const playwright = require('playwright');
+
+const port = process.argv[2] || 4444;
+const browserType = process.argv[3] || 'chromium';
+const headless = process.argv[4] == 'true';
+console.log('using port:', port, 'browser:', browserType, 'headless:', headless);
+
+const serverPromise = playwright[browserType].launchServer({ headless: headless, port: port });
+serverPromise.then(bs => console.log(bs.wsEndpoint()));
+```
+
+The main thing here is that the server URL should be logged to the console when it starts. Karate will scan the log for any string that starts with `ws://` and kick things off from there.
+
+Also Karate will call the executable with three arguments in this order:
+* `browserType`
+* `port`
+* `headless`
+
+So this is how you can communicate your cross-browser config from your Karate test to the executable.
+
+The final piece of the puzzle is to set up a batch file to start the server:
+
+```bash
+#!/bin/bash
+exec node /some/path/playwright/server.js $*
+```
+
+The [`exec`](http://veithen.io/2014/11/16/sigterm-propagation.html) is important here so that Karate can stop the node process cleanly.
+
+Now you can use the path of the batch file in the driver config. For convenience, Karate assumes that the executable name is `playwright` and that it exists in the System [`PATH`](https://www.java.com/en/download/help/path.xml). Make sure that the batch file is made executable depending on your OS.
+
+Based on the above details, you should be able to come up with a custom strategy to connect Karate to Playwright. And you can consider a [`driverTarget`](#custom-target) approach for complex needs such as using a Docker container for CI.
 
 ## `configure driverTarget`
 The [`configure driver`](#configure-driver) options are fine for testing on "`localhost`" and when not in `headless` mode. But when the time comes for running your web-UI automation tests on a continuous integration server, things get interesting. To support all the various options such as Docker, headless Chrome, cloud-providers etc., Karate introduces the concept of a pluggable [`Target`](src/main/java/com/intuit/karate/driver/Target.java) where you just have to implement two methods:
@@ -441,7 +491,7 @@ The recommendation is that you prefer `chrome` for development, and once you hav
 type | default port | default executable | description
 ---- | ------------ | ------------------ | -----------
 [`chrome`](https://chromedevtools.github.io/devtools-protocol/) | 9222 | mac: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`<br/>win: `C:/Program Files (x86)/Google/Chrome/Application/chrome.exe` | "native" Chrome automation via the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/)
-[`playwright`](https://playwright.dev) | 4444 | `playwright` | see [`playwrightOptions`](#playwrightoptions)
+[`playwright`](https://playwright.dev) | 4444 | `playwright` | see [`playwrightOptions`](#playwrightoptions) and [Playwright](#playwright)
 [`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) | 9515 | `chromedriver` | W3C Chrome Driver
 [`geckodriver`](https://github.com/mozilla/geckodriver) | 4444 | `geckodriver` | W3C Gecko Driver (Firefox)
 [`safaridriver`](https://webkit.org/blog/6900/webdriver-support-in-safari-10/) | 5555 | `safaridriver` | W3C Safari Driver
@@ -1405,6 +1455,14 @@ Then match driver.cookies == '#[0]'
 
 ## `dialog()`
 There are two forms. The first takes a single boolean argument - whether to "accept" or "cancel". The second form has an additional string argument which is the text to enter for cases where the dialog is expecting user input.
+
+```cucumber
+# cancel
+* dialog(false)
+
+# enter text and accept
+* dialog(true, 'some text')
+```
 
 Also works as a "getter" to retrieve the text of the currently visible dialog:
 

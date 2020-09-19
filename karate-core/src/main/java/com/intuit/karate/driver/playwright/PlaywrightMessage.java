@@ -24,6 +24,7 @@
 package com.intuit.karate.driver.playwright;
 
 import com.intuit.karate.Json;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -140,21 +141,30 @@ public class PlaywrightMessage {
             return null;
         }
         String key = raw.keySet().iterator().next();
-        Object val = raw.get(key);      
+        Object val = raw.get(key);
         switch (key) {
             case "o":
-                List<Map<String, Object>> list = (List) val;
-                Map<String, Object> map = new HashMap(list.size());
-                for (Map<String, Object> entry : list) {
+                List<Map<String, Object>> objectItems = (List) val;
+                Map<String, Object> map = new HashMap(objectItems.size());
+                for (Map<String, Object> entry : objectItems) {
                     String entryKey = (String) entry.get("k");
                     Map<String, Object> entryValue = (Map) entry.get("v");
                     map.put(entryKey, recurse(entryValue));
                 }
                 return map;
-            default: // s: string, n: number, b: boolean
+            case "a":
+                List<Map<String, Object>> arrayItems = (List) val;
+                List<Object> list = new ArrayList(arrayItems.size());
+                for (Map<String, Object> entry : arrayItems) {
+                    list.add(recurse(entry));
+                }
+                return list;
+        default: // s: string, n: number, b: boolean
                 return val;
         }
     }
+
+    
 
     public boolean isError() {
         return error != null;
@@ -203,8 +213,6 @@ public class PlaywrightMessage {
         map.put("method", method);
         if (params != null) {
             map.put("params", params.asMap());
-        } else {
-            map.put("params", Collections.EMPTY_MAP);
         }
         return map;
     }

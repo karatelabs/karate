@@ -55,6 +55,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -251,8 +252,12 @@ public class DriverOptions {
     public void arg(String arg) {
         args.add(arg);
     }
-
+    
     public Command startProcess() {
+        return startProcess(null);
+    }
+
+    public Command startProcess(Consumer<String> listener) {
         if (beforeStart != null) {
             Command.execLine(null, beforeStart);
         }
@@ -264,6 +269,9 @@ public class DriverOptions {
                 args.addAll(addOptions);
             }
             command = new Command(false, processLogger, uniqueName, processLogFile, workingDir, args.toArray(new String[]{}));
+            if (listener != null) {
+                command.setListener(listener);
+            }
             command.start();
         }
         if (start) { // wait for a slow booting browser / driver process

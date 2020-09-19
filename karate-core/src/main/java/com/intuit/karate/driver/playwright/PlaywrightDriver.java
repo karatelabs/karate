@@ -29,7 +29,6 @@ import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.driver.DevToolsMessage;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverElement;
 
@@ -38,10 +37,16 @@ import com.intuit.karate.driver.Element;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
 import com.intuit.karate.shell.Command;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 
 /**
@@ -57,12 +62,11 @@ public class PlaywrightDriver implements Driver {
     private final Logger logger;
 
     private boolean submit;
+    private boolean initialized;
     private boolean terminated;
 
     private String browserGuid;
     private String browserContextGuid;
-    private String pageGuid;
-    private String frameGuid;
 
     private final Object LOCK = new Object();
 
@@ -77,6 +81,7 @@ public class PlaywrightDriver implements Driver {
     }
 
     protected void unlockAndProceed() {
+        initialized = true;
         synchronized (LOCK) {
             LOCK.notify();
         }
@@ -94,7 +99,45 @@ public class PlaywrightDriver implements Driver {
 
     public static PlaywrightDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
         DriverOptions options = new DriverOptions(context, map, appender, 4444, "playwright");
-        return new PlaywrightDriver(options, null, options.playwrightUrl);
+        String playwrightUrl;
+        Command command;
+        if (options.start) {
+            Map<String, Object> pwOptions = options.playwrightOptions == null ? Collections.EMPTY_MAP : options.playwrightOptions;
+            options.arg(options.port + "");
+            String browserType = (String) pwOptions.get("browserType");
+            if (browserType == null) {
+                browserType = "chromium";
+            }
+            options.arg(browserType);
+            if (options.headless) {
+                options.arg("true");
+            }
+            CompletableFuture<String> future = new CompletableFuture();
+            command = options.startProcess(s -> {
+                int pos = s.indexOf("ws://");
+                if (pos != -1) {
+                    s = s.substring(pos).trim();
+                    pos = s.indexOf(' ');
+                    if (pos != -1) {
+                        s = s.substring(0, pos);
+                    }
+                    future.complete(s);
+                }
+            });
+            try {
+                playwrightUrl = future.get();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            options.processLogger.debug("playwright server url ready: {}", playwrightUrl);
+        } else {
+            command = null;
+            playwrightUrl = options.playwrightUrl;
+            if (playwrightUrl == null) {
+                throw new RuntimeException("playwrightUrl is mandatory if start == false");
+            }
+        }
+        return new PlaywrightDriver(options, command, playwrightUrl);
     }
 
     public PlaywrightDriver(DriverOptions options, Command command, String webSocketUrl) {
@@ -117,19 +160,12 @@ public class PlaywrightDriver implements Driver {
         });
         client = new WebSocketClient(wsOptions, logger);
         lockAndWait();
-        logger.debug("contexts ready, frame: {}, page: {}, browser-context: {}, browser: {}", frameGuid, pageGuid, browserContextGuid, browserGuid);
+        logger.debug("contexts ready, frame: {}, page: {}, browser-context: {}, browser: {}",
+                currentFrame, currentPage, browserContextGuid, browserGuid);
     }
 
     private PlaywrightMessage method(String method, String guid) {
         return new PlaywrightMessage(this, method, guid);
-    }
-
-    private PlaywrightMessage page(String method) {
-        return method(method, pageGuid);
-    }
-
-    private PlaywrightMessage frame(String method) {
-        return method(method, frameGuid);
     }
 
     public void send(PlaywrightMessage pwm) {
@@ -138,9 +174,54 @@ public class PlaywrightDriver implements Driver {
         client.send(json);
     }
 
+    private String currentDialog;
+    private String currentDialogText;
+    private String currentDialogType;
+    private boolean dialogAccept = true;
+    private String dialogInput = "";
+
+    private String currentFrame;
+    private String currentPage;
+    private final Map<String, Set<String>> pageFrames = new LinkedHashMap();
+
+    private PlaywrightMessage page(String method) {
+        return method(method, currentPage);
+    }
+
+    private PlaywrightMessage frame(String method) {
+        return method(method, currentFrame);
+    }
+
     public void receive(PlaywrightMessage pwm) {
         if (pwm.methodIs("__create__")) {
-            if (pwm.paramHas("type", "RemoteBrowser")) {
+            if (pwm.paramHas("type", "Page")) {
+                String pageGuid = pwm.getParam("guid");
+                String frameGuid = pwm.getParam("initializer.mainFrame.guid");
+                Set<String> frames = pageFrames.get(pageGuid);
+                if (frames == null) {
+                    frames = new HashSet();
+                    pageFrames.put(pageGuid, frames);
+                }
+                frames.add(frameGuid);
+                if (!initialized) {
+                    currentPage = pageGuid;
+                    currentFrame = frameGuid;
+                    unlockAndProceed();
+                }
+            } else if (pwm.paramHas("type", "Dialog")) {
+                currentDialog = pwm.getParam("guid");
+                currentDialogText = pwm.getParam("initializer.message");
+                currentDialogType = pwm.getParam("initializer.type");
+                if ("alert".equals(currentDialogType)) {
+                    method("dismiss", currentDialog).sendWithoutWaiting();
+                } else {
+                    if (dialogInput == null) {
+                        dialogInput = "";
+                    }                    
+                    method(dialogAccept ? "accept" : "dismiss", currentDialog)
+                            .param("promptText", dialogInput).sendWithoutWaiting();
+                }
+            } else if (pwm.paramHas("type", "RemoteBrowser")) {
                 browserGuid = pwm.getParam("initializer.browser.guid");
                 Map<String, Object> map = new HashMap();
                 if (!options.headless) {
@@ -156,13 +237,8 @@ public class PlaywrightDriver implements Driver {
             } else if (pwm.paramHas("type", "BrowserContext")) {
                 browserContextGuid = pwm.getParam("guid");
                 method("newPage", browserContextGuid).sendWithoutWaiting();
-            } else if (pwm.paramHas("type", "Frame")) {
-                frameGuid = pwm.getParam("guid");
-            } else if (pwm.paramHas("type", "Page")) {
-                pageGuid = pwm.getParam("guid");
-                unlockAndProceed();
             } else {
-                logger.trace("ignoring message: {}", pwm);
+                logger.trace("ignoring __create__: {}", pwm);
             }
         } else {
             wait.receive(pwm);
@@ -261,7 +337,7 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public void setUrl(String url) {
-        method("goto", frameGuid).param("url", url).param("waitUntil", "load").send();
+        frame("goto").param("url", url).param("waitUntil", "load").send();
     }
 
     @Override
@@ -318,8 +394,9 @@ public class PlaywrightDriver implements Driver {
         method("close", browserGuid).sendWithoutWaiting();
         client.close();
         if (command != null) {
-            command.close(true);
-        }        
+            // cannot force else node process does not terminate gracefully
+            command.close(false);
+        }
     }
 
     @Override
@@ -434,32 +511,52 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public void switchPage(int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        if (index == -1 || index >= pageFrames.size()) {
+            logger.warn("not switching page for size {}: {}", pageFrames.size(), index);
+            return;
+        }
+        List<String> temp = getPages();
+        currentPage = temp.get(index);
+        currentFrame = pageFrames.get(currentPage).iterator().next();
+        activate();
     }
 
     @Override
     public void switchFrame(int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        List<String> temp = new ArrayList(pageFrames.get(currentPage));
+        if (index == -1) {
+            index = 0;
+        }
+        if (index < temp.size()) {
+            currentFrame = temp.get(index);
+        } else {
+            logger.warn("not switching frame for size {}: {}", temp.size(), index);
+        }
     }
 
     @Override
     public void switchFrame(String locator) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        if (locator == null) {
+            switchFrame(-1);
+        } else {
+            logger.warn("switch frame by selector not supported, use index");
+        }
     }
 
     @Override
     public Map<String, Object> getDimensions() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        logger.warn("getDimensions() not supported");
+        return Collections.EMPTY_MAP;
     }
 
     @Override
     public List<String> getPages() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return new ArrayList(pageFrames.keySet());
     }
 
     @Override
     public String getDialog() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return currentDialogText;
     }
 
     @Override
@@ -494,12 +591,13 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public void dialog(boolean accept) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        dialog(accept, null);
     }
 
     @Override
     public void dialog(boolean accept, String input) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        this.dialogAccept = accept;
+        this.dialogInput = input;
     }
 
     @Override
@@ -524,12 +622,11 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public byte[] screenshot(String locator, boolean embed) {
-        PlaywrightMessage pwm;
-        if (locator == null) {
-            pwm = page("screenshot").param("type", "png").send();
-        } else {
-            pwm = null;
+        PlaywrightMessage toSend = page("screenshot").param("type", "png");
+        if (locator != null) {
+            toSend.param("clip", position(locator));
         }
+        PlaywrightMessage pwm = toSend.send();
         String data = pwm.getResult("binary");
         byte[] bytes = Base64.getDecoder().decode(data);
         if (embed) {
