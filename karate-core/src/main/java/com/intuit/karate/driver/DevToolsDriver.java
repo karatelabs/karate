@@ -76,10 +76,7 @@ public abstract class DevToolsDriver implements Driver {
     private final Map<String, String> frameSessions = new HashMap();
     private boolean submit;
 
-    protected String currentUrl;
     protected String currentDialogText;
-    protected int currentMouseXpos;
-    protected int currentMouseYpos;
 
     private int nextId;
 
@@ -166,20 +163,6 @@ public abstract class DevToolsDriver implements Driver {
             currentDialogText = dtm.getParam("message", String.class);
             // this will stop waiting NOW
             wait.setCondition(DevToolsWait.DIALOG_OPENING);
-        }
-        if (dtm.methodIs("Page.frameNavigated")) {
-            String frameNavId = dtm.getParam("frame.id");
-            String frameNavUrl = dtm.getParam("frame.url");
-            if (rootFrameId.equals(frameNavId)) { // root page navigated
-                currentUrl = frameNavUrl;
-            }
-        }
-        if (dtm.methodIs("Page.navigatedWithinDocument")) { // js variant of above (SPA, history nav)
-            String frameNavId = dtm.getParam("frameId");
-            String frameNavUrl = dtm.getParam("url");
-            if (rootFrameId.equals(frameNavId)) { // root page navigated
-                currentUrl = frameNavUrl;
-            }
         }
         if (dtm.methodIs("Page.frameStartedLoading")) {
             String frameLoadingId = dtm.getParam("frameId");
@@ -586,6 +569,9 @@ public abstract class DevToolsDriver implements Driver {
         return DriverElement.locatorExists(this, locator);
     }
 
+    protected int currentMouseXpos;
+    protected int currentMouseYpos;
+
     @Override
     public void actions(List<Map<String, Object>> sequence) {
         boolean submitRequested = submit;
@@ -616,12 +602,8 @@ public abstract class DevToolsDriver implements Driver {
                         chromeType = "mouseReleased";
                         break;
                     default:
-                        chromeType = null;
-
-                }
-                if (chromeType == null) {
-                    logger.warn("unexpected action type: {}", action);
-                    continue;
+                        logger.warn("unexpected action type: {}", action);
+                        continue;
                 }
                 Integer x = (Integer) action.get("x");
                 Integer y = (Integer) action.get("y");
@@ -711,13 +693,12 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public String getTitle() {
-        DevToolsMessage dtm = eval("document.title");
-        return dtm.getResult().getAsString();
+        return eval("document.title").getResult().getAsString();
     }
 
     @Override
     public String getUrl() {
-        return currentUrl;
+        return eval("document.location.href").getResult().getAsString();
     }
 
     @Override
@@ -744,14 +725,14 @@ public abstract class DevToolsDriver implements Driver {
     public void cookie(Map<String, Object> cookie) {
         if (cookie.get("url") == null && cookie.get("domain") == null) {
             cookie = new HashMap(cookie); // don't mutate test
-            cookie.put("url", currentUrl);
+            cookie.put("url", getUrl());
         }
         method("Network.setCookie").params(cookie).send();
     }
 
     @Override
     public void deleteCookie(String name) {
-        method("Network.deleteCookies").param("name", name).param("url", currentUrl).send();
+        method("Network.deleteCookies").param("name", name).param("url", getUrl()).send();
     }
 
     @Override
@@ -850,20 +831,17 @@ public abstract class DevToolsDriver implements Driver {
         DevToolsMessage dtm = method("Target.getTargets").send();
         List<Map> targets = dtm.getResult("targetInfos").getAsList();
         String targetId = null;
-        String targetUrl = null;
         for (Map map : targets) {
             String title = (String) map.get("title");
             String url = (String) map.get("url");
             if ((title != null && title.contains(titleOrUrl))
                     || (url != null && url.contains(titleOrUrl))) {
                 targetId = (String) map.get("targetId");
-                targetUrl = url;
                 break;
             }
         }
         if (targetId != null) {
             method("Target.activateTarget").param("targetId", targetId).send();
-            currentUrl = targetUrl;
         } else {
             logger.warn("failed to switch page to {}", titleOrUrl);
         }
@@ -880,7 +858,6 @@ public abstract class DevToolsDriver implements Driver {
             Map target = targets.get(index);
             String targetId = (String) target.get("targetId");
             method("Target.activateTarget").param("targetId", targetId).send();
-            currentUrl = (String) target.get("url");
         } else {
             logger.warn("failed to switch frame by index: {}", index);
         }

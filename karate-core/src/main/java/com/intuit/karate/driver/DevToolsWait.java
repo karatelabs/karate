@@ -40,9 +40,11 @@ public class DevToolsWait {
     private DevToolsMessage lastReceived;
 
     private final Predicate<DevToolsMessage> DEFAULT = m -> lastSent.getId().equals(m.getId());
+    
     public static final Predicate<DevToolsMessage> FRAME_RESIZED = forEvent("Page.frameResized");
     public static final Predicate<DevToolsMessage> INSPECTOR_DETACHED = forEvent("Inspector.detached");
     public static final Predicate<DevToolsMessage> DIALOG_OPENING = forEvent("Page.javascriptDialogOpening");
+    
     public static final Predicate<DevToolsMessage> ALL_FRAMES_LOADED = m -> {
         // page is considered ready only when the dom is ready
         // AND all child frames that STARTED loading BEFORE the dom became ready

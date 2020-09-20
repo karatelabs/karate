@@ -179,9 +179,9 @@
 * No need to learn complicated programming concepts such as "callbacks" "`await`" and "promises"
 * Option to use [wildcard](#wildcard-locators) and ["friendly" locators](#friendly-locators) without needing to inspect the HTML-page source, CSS, or internal XPath structure
 * Chrome-native automation using the [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) (equivalent to [Puppeteer](https://pptr.dev))
-* [Playwright](https://playwright.dev) support for cross-browser and headless options, which can connect to a server or Docker container using the Playwright wire-protocol
 * [W3C WebDriver](https://w3c.github.io/webdriver/) support built-in, which can also use [remote / grid providers](https://twitter.com/ptrthomas/status/1222790566598991873)
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
+* [Playwright](https://playwright.dev) support (experimental) for even more cross-browser and headless options, that can connect to a server or Docker container using the Playwright wire-protocol
 * [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI environment or [Docker](#configure-drivertarget) - without needing a "master node" or "grid"
 * You can even run tests in parallel across [different machines](#distributed-testing) - and Karate will aggregate the results
 * Embed [video-recordings of tests](#karate-chrome) into the HTML report from a Docker container

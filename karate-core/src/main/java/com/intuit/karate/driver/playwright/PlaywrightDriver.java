@@ -29,11 +29,14 @@ import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.driver.DevToolsWait;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverElement;
 
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Element;
+import com.intuit.karate.driver.Input;
+import com.intuit.karate.driver.Keys;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
 import com.intuit.karate.shell.Command;
@@ -42,7 +45,9 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -183,6 +188,7 @@ public class PlaywrightDriver implements Driver {
     private String currentFrame;
     private String currentPage;
     private final Map<String, Set<String>> pageFrames = new LinkedHashMap();
+    private final Map<String, Frame> frameInfo = new HashMap();
 
     private PlaywrightMessage page(String method) {
         return method(method, currentPage);
@@ -192,14 +198,48 @@ public class PlaywrightDriver implements Driver {
         return method(method, currentFrame);
     }
 
+    private static class Frame {
+
+        final String frameGuid;
+        final String url;
+        final String name;
+
+        Frame(String frameGuid, String url, String name) {
+            this.frameGuid = frameGuid;
+            this.url = url;
+            this.name = name;
+        }
+
+    }
+
     public void receive(PlaywrightMessage pwm) {
-        if (pwm.methodIs("__create__")) {
+        if (pwm.methodIs("frameAttached")) {
+            String pageGuid = pwm.getGuid();
+            String frameGuid = pwm.getParam("frame.guid");
+            Set<String> frames = pageFrames.get(pageGuid);
+            if (frames == null) {
+                frames = new LinkedHashSet(); // order important !!
+                pageFrames.put(pageGuid, frames);
+            }
+            frames.add(frameGuid);
+        } else if (pwm.methodIs("frameDetached")) {
+            String pageGuid = pwm.getGuid();
+            String frameGuid = pwm.getParam("frame.guid");
+            frameInfo.remove(frameGuid);
+            Set<String> frames = pageFrames.get(pageGuid);
+            frames.remove(frameGuid);
+        } else if (pwm.methodIs("navigated")) {
+            String frameGuid = pwm.getGuid();
+            String url = pwm.getParam("url");
+            String name = pwm.getParam("name");
+            frameInfo.put(frameGuid, new Frame(frameGuid, url, name));
+        } else if (pwm.methodIs("__create__")) {
             if (pwm.paramHas("type", "Page")) {
                 String pageGuid = pwm.getParam("guid");
                 String frameGuid = pwm.getParam("initializer.mainFrame.guid");
                 Set<String> frames = pageFrames.get(pageGuid);
                 if (frames == null) {
-                    frames = new HashSet();
+                    frames = new LinkedHashSet(); // order important !!
                     pageFrames.put(pageGuid, frames);
                 }
                 frames.add(frameGuid);
@@ -217,7 +257,7 @@ public class PlaywrightDriver implements Driver {
                 } else {
                     if (dialogInput == null) {
                         dialogInput = "";
-                    }                    
+                    }
                     method(dialogAccept ? "accept" : "dismiss", currentDialog)
                             .param("promptText", dialogInput).sendWithoutWaiting();
                 }
@@ -246,9 +286,14 @@ public class PlaywrightDriver implements Driver {
     }
 
     public PlaywrightMessage sendAndWait(PlaywrightMessage pwm, Predicate<PlaywrightMessage> condition) {
+        boolean wasSubmit = submit;
+        if (condition == null && submit) {
+            submit = false;
+            condition = PlaywrightWait.DOM_CONTENT_LOADED;
+        }
         // do stuff inside wait to avoid missing messages
         PlaywrightMessage result = wait.send(pwm, condition);
-        if (result == null) {
+        if (result == null && !wasSubmit) {
             throw new RuntimeException("failed to get reply for: " + pwm);
         }
         return result;
@@ -504,9 +549,36 @@ public class PlaywrightDriver implements Driver {
         return map;
     }
 
+    private PlaywrightMessage evalFrame(String frameGuid, String expression) {
+        return method("evaluateExpression", frameGuid)
+                .param("expression", expression)
+                .param("isFunction", false)
+                .param("arg", NO_ARGS).send();
+    }
+
     @Override
     public void switchPage(String titleOrUrl) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        if (titleOrUrl == null) {
+            return;
+        }
+        for (String pageGuid : pageFrames.keySet()) {
+            String frameGuid = pageFrames.get(pageGuid).iterator().next();
+            String title = evalFrame(frameGuid, "document.title").getResultValue();
+            if (title != null && title.contains(titleOrUrl)) {
+                currentPage = pageGuid;
+                currentFrame = frameGuid;
+                activate();
+                return;
+            }
+            String url = evalFrame(frameGuid, "document.location.href").getResultValue();
+            if (url != null && url.contains(titleOrUrl)) {
+                currentPage = pageGuid;
+                currentFrame = frameGuid;
+                activate();
+                return;
+            }
+        }
+        logger.warn("failed to find page by title / url: {}", titleOrUrl);
     }
 
     @Override
@@ -521,14 +593,25 @@ public class PlaywrightDriver implements Driver {
         activate();
     }
 
+    private void waitForFrame(String previousFrame) {
+        String previousFrameUrl = frameInfo.get(previousFrame).url;
+        logger.debug("waiting for frame url to switch from: {} - {}", previousFrame, previousFrameUrl);
+        Integer retryInterval = options.getRetryInterval();
+        options.setRetryInterval(1000); // reduce retry interval for this special case
+        options.retry(() -> evalFrame(currentFrame, "document.location.href"),
+                pwm -> !pwm.isError() && !pwm.getResultValue().equals(previousFrameUrl), "waiting for frame context", false);
+        options.setRetryInterval(retryInterval); // restore        
+    }
+
     @Override
     public void switchFrame(int index) {
+        String previousFrame = currentFrame;
         List<String> temp = new ArrayList(pageFrames.get(currentPage));
-        if (index == -1) {
-            index = 0;
-        }
+        index = index + 1; // the root frame is always zero, api here is consistent with webdriver etc
         if (index < temp.size()) {
             currentFrame = temp.get(index);
+            logger.debug("switched to frame: {} - pages: {}", currentFrame, pageFrames);
+            waitForFrame(previousFrame);
         } else {
             logger.warn("not switching frame for size {}: {}", temp.size(), index);
         }
@@ -536,10 +619,21 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public void switchFrame(String locator) {
+        String previousFrame = currentFrame;
         if (locator == null) {
             switchFrame(-1);
         } else {
-            logger.warn("switch frame by selector not supported, use index");
+            if (locator.startsWith("#")) { // TODO get reference to frame element via locator
+                locator = locator.substring(1);
+            }
+            for (Frame frame : frameInfo.values()) {
+                if (frame.url.contains(locator) || frame.name.contains(locator)) {
+                    currentFrame = frame.frameGuid;
+                    logger.debug("switched to frame: {} - pages: {}", currentFrame, pageFrames);
+                    waitForFrame(previousFrame);
+                    return;
+                }
+            }
         }
     }
 
@@ -566,27 +660,48 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public Map<String, Object> cookie(String name) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        List<Map> list = getCookies();
+        if (list == null) {
+            return null;
+        }
+        for (Map<String, Object> map : list) {
+            if (map != null && name.equals(map.get("name"))) {
+                return map;
+            }
+        }
+        return null;
     }
 
     @Override
     public void cookie(Map<String, Object> cookie) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        if (cookie.get("url") == null && cookie.get("domain") == null) {
+            cookie = new HashMap(cookie); // don't mutate test
+            cookie.put("url", getUrl());
+        }
+        method("addCookies", browserContextGuid).param("cookies", Collections.singletonList(cookie)).send();
     }
 
     @Override
     public void deleteCookie(String name) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        List<Map> cookies = getCookies();
+        List<Map> filtered = new ArrayList(cookies.size());
+        for (Map m : cookies) {
+            if (!name.equals(m.get("name"))) {
+                filtered.add(m);
+            }
+        }
+        clearCookies();
+        method("addCookies", browserContextGuid).param("cookies", filtered).send();
     }
 
     @Override
     public void clearCookies() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        method("clearCookies", browserContextGuid).send();
     }
 
     @Override
     public List<Map> getCookies() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return method("cookies", browserContextGuid).param("urls", Collections.EMPTY_LIST).send().getResult("cookies", List.class);
     }
 
     @Override
@@ -602,22 +717,106 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public Element input(String locator, String value) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        retryIfEnabled(locator);
+        // focus
+        eval(options.focusJs(locator));
+        Input input = new Input(value);
+        Set<String> pressed = new HashSet();
+        while (input.hasNext()) {
+            char c = input.next();
+            String keyValue = Keys.keyValue(c);
+            if (keyValue != null) {
+                if (Keys.isModifier(c)) {
+                    pressed.add(keyValue);
+                    page("keyboardDown").param("key", keyValue).send();
+                } else {
+                    page("keyboardPress").param("key", keyValue).send();
+                }
+            } else {
+                page("keyboardType").param("text", c + "").send();
+            }
+        }
+        for (String keyValue : pressed) {
+            page("keyboardUp").param("key", keyValue).send();
+        }
+        return DriverElement.locatorExists(this, locator);
+    }
+
+    protected int currentMouseXpos;
+    protected int currentMouseYpos;
+
+    @Override
+    public void actions(List<Map<String, Object>> sequence) {
+        boolean submitRequested = submit;
+        submit = false; // make sure only LAST action is handled as a submit()
+        for (Map<String, Object> map : sequence) {
+            List<Map<String, Object>> actions = (List) map.get("actions");
+            if (actions == null) {
+                logger.warn("no actions property found: {}", sequence);
+                return;
+            }
+            Iterator<Map<String, Object>> iterator = actions.iterator();
+            while (iterator.hasNext()) {
+                Map<String, Object> action = iterator.next();
+                String type = (String) action.get("type");
+                if (type == null) {
+                    logger.warn("no type property found: {}", action);
+                    continue;
+                }
+                String pageAction;
+                switch (type) {
+                    case "pointerMove":
+                        pageAction = "mouseMove";
+                        break;
+                    case "pointerDown":
+                        pageAction = "mouseDown";
+                        break;
+                    case "pointerUp":
+                        pageAction = "mouseUp";
+                        break;
+                    default:
+                        logger.warn("unexpected action type: {}", action);
+                        continue;
+
+                }
+                Integer x = (Integer) action.get("x");
+                Integer y = (Integer) action.get("y");
+                if (x != null) {
+                    currentMouseXpos = x;
+                }
+                if (y != null) {
+                    currentMouseYpos = y;
+                }
+                Integer duration = (Integer) action.get("duration");
+                PlaywrightMessage toSend = page(pageAction);
+                if ("mouseMove".equals(pageAction) && x != null && y != null) {
+                    toSend.param("x", x).param("y", y);
+                } else {
+                    toSend.params(Collections.EMPTY_MAP);
+                }
+                if (!iterator.hasNext() && submitRequested) {
+                    submit = true;
+                }
+                toSend.send();
+                if (duration != null) {
+                    options.sleep(duration);
+                }
+            }
+        }
     }
 
     @Override
     public Element select(String locator, String text) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        retryIfEnabled(locator);
+        eval(options.optionSelector(locator, text));
+        return DriverElement.locatorExists(this, locator);
     }
 
     @Override
     public Element select(String locator, int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void actions(List<Map<String, Object>> actions) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        retryIfEnabled(locator);
+        eval(options.optionSelector(locator, index));
+        return DriverElement.locatorExists(this, locator);
     }
 
     @Override
@@ -637,7 +836,12 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public byte[] pdf(Map<String, Object> options) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        if (options == null) {
+            options = Collections.EMPTY_MAP;
+        }
+        PlaywrightMessage pwm = page("pdf").params(options).send();
+        String temp = pwm.getResult("pdf");
+        return Base64.getDecoder().decode(temp);
     }
 
     @Override

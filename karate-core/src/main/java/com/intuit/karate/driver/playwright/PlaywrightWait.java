@@ -24,10 +24,7 @@
 package com.intuit.karate.driver.playwright;
 
 import com.intuit.karate.Logger;
-import com.intuit.karate.driver.DevToolsDriver;
-import com.intuit.karate.driver.DevToolsMessage;
 import com.intuit.karate.driver.DriverOptions;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 
 /**
@@ -42,9 +39,10 @@ public class PlaywrightWait {
     private PlaywrightMessage lastSent;
     private Predicate<PlaywrightMessage> condition;
     private PlaywrightMessage lastReceived;
-    private final AtomicBoolean waiting = new AtomicBoolean();
 
     private final Predicate<PlaywrightMessage> DEFAULT = m -> lastSent.getId().equals(m.getId());
+    
+    public static final Predicate<PlaywrightMessage> DOM_CONTENT_LOADED = m -> m.methodIs("domcontentloaded");
 
     public PlaywrightWait(PlaywrightDriver driver, DriverOptions options) {
         this.driver = driver;
@@ -59,10 +57,6 @@ public class PlaywrightWait {
         this.logger = logger;
     }
     
-    public boolean isWaiting() {
-        return waiting.get();
-    }
-    
     public PlaywrightMessage send(PlaywrightMessage pwm, Predicate<PlaywrightMessage> condition) {
         lastReceived = null;
         lastSent = pwm;
@@ -72,13 +66,11 @@ public class PlaywrightWait {
             logger.trace(">> wait: {}", pwm);
             try {
                 driver.send(pwm);
-                // waiting.set(Boolean.TRUE);
                 wait(timeout);
             } catch (InterruptedException e) {
                 logger.error("interrupted: {} wait: {}", e.getMessage(), pwm);
             }
         }
-        waiting.set(Boolean.FALSE);
         if (lastReceived != null) {
             logger.trace("<< notified: {}", pwm);
         } else {
