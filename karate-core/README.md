@@ -176,7 +176,7 @@
 * Simple, clean syntax that is well suited for people new to programming or test-automation
 * All-in-one framework that includes [parallel-execution](https://github.com/intuit/karate#parallel-execution), [HTML reports](https://github.com/intuit/karate#junit-html-report), [environment-switching](https://github.com/intuit/karate#switching-the-environment), and [CI integration](https://github.com/intuit/karate#test-reports)
 * Cross-platform - with even the option to run as a programming-language *neutral* [stand-alone executable](https://github.com/intuit/karate/wiki/ZIP-Release)
-* No need to learn complicated programming concepts such as "callbacks" "`await`" and "promises"
+* No need to learn complicated programming concepts such as "callbacks", "`async` / `await`" and "promises"
 * Option to use [wildcard](#wildcard-locators) and ["friendly" locators](#friendly-locators) without needing to inspect the HTML-page source, CSS, or internal XPath structure
 * Chrome-native automation using the [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) (equivalent to [Puppeteer](https://pptr.dev))
 * [W3C WebDriver](https://w3c.github.io/webdriver/) support built-in, which can also use [remote / grid providers](https://twitter.com/ptrthomas/status/1222790566598991873)
@@ -188,6 +188,7 @@
 * Windows [Desktop application automation](https://twitter.com/KarateDSL/status/1052432964804640768) using the Microsoft [WinAppDriver](https://github.com/Microsoft/WinAppDriver)
 * [Android and iOS mobile support](https://github.com/intuit/karate/issues/743) via [Appium](http://appium.io)
 * Seamlessly mix API and UI tests within the same script, for example [sign-in using an API](https://github.com/intuit/karate#http-basic-authentication-example) and speed-up your tests
+* [Intercept HTTP requests](#intercepting-http-requests) made by the browser and re-use [Karate mocks](https://github.com/intuit/karate/tree/master/karate-netty) to stub / modify server responses and even replace HTML content
 * Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI assertions
 * Simple [retry](#retry) and [wait](#wait-api) strategy, no need to graduate from any test-automation university to understand the difference between "implicit waits", "explicit waits" and "fluent waits" :)
 * Simpler, [elegant, and *DRY* alternative](#locator-lookup) to the so-called "Page Object Model" pattern
@@ -380,7 +381,7 @@ exec node /some/path/playwright/server.js $*
 
 The [`exec`](http://veithen.io/2014/11/16/sigterm-propagation.html) is important here so that Karate can stop the node process cleanly.
 
-Now you can use the path of the batch file in the driver config. For convenience, Karate assumes that the executable name is `playwright` and that it exists in the System [`PATH`](https://www.java.com/en/download/help/path.xml). Make sure that the batch file is made executable depending on your OS.
+Now you can use the path of the batch file in the driver config. For convenience, Karate assumes by default that the executable name is `playwright` and that it exists in the System [`PATH`](https://www.java.com/en/download/help/path.xml). Make sure that the batch file is made executable depending on your OS.
 
 Based on the above details, you should be able to come up with a custom strategy to connect Karate to Playwright. And you can consider a [`driverTarget`](#custom-target) approach for complex needs such as using a Docker container for CI.
 

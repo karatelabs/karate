@@ -29,7 +29,6 @@ import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.driver.DevToolsWait;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverElement;
 

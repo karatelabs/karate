@@ -45,8 +45,8 @@ public class PlaywrightMessage {
     protected final PlaywrightDriver driver;
 
     private Integer id;
-    private String guid;
-    private String method;
+    private final String guid;
+    private final String method;
     private Json params;
     private Json result;
     private Json error;
@@ -162,9 +162,7 @@ public class PlaywrightMessage {
         default: // s: string, n: number, b: boolean
                 return val;
         }
-    }
-
-    
+    }    
 
     public boolean isError() {
         return error != null;
