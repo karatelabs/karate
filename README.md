@@ -369,7 +369,7 @@ With the above in place, you don't have to keep switching between your `src/test
 Once you get used to this, you may even start wondering why projects need a `src/test/resources` folder at all !
 
 ### Spring Boot Example
-[Soumendra Daas](https://twitter.com/sdaas) has created a nice example and guide that you can use as a reference here: [`hello-karate`](https://github.com/Sdaas/hello-karate). This demonstrates a Java Maven + JUnit4 project set up to test a [Spring Boot](http://projects.spring.io/spring-boot/) app.
+[Soumendra Daas](https://twitter.com/sdaas) has created a nice example and guide that you can use as a reference here: [`hello-karate`](https://github.com/Sdaas/hello-karate). This demonstrates a Java Maven + JUnit 5 project set up to test a [Spring Boot](http://projects.spring.io/spring-boot/) app.
 
 ## Naming Conventions
 
