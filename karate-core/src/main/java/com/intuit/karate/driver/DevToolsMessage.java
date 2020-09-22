@@ -91,7 +91,14 @@ public class DevToolsMessage {
         if (params == null) {
             return null;
         }
-        return params.get(path, clazz);
+        try {
+            return params.get(path, clazz);
+        } catch (Exception e) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("get param - json path failed: {} - {}", path, params);
+            }
+            return null;
+        }
     }
 
     public ScriptValue getResult() {
