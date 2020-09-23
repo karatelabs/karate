@@ -345,7 +345,9 @@ Note that MDC's `karateRequestId` can be used to correlate log statements agains
 Starting and stopping a Karate server can be done via the Java API and this easily allows you to mix Karate into Java code, JUnit tests and Continuous Integration pipelines.
 
 The `com.intuit.karate.netty.FeatureServer` class has a static `start()` method that takes 4 arguments:
-* `file`: a `java.io.File` reference to the `*.feature` file you want to run as a server
+*  Feature file(s)
+    * `file`: a `java.io.File` reference to the `*.feature` file you want to run as a server 
+    * `files`: a `List<java.io.File>` as above, if you have multiple
 * `port`: `int` value of the port you want to use. `0` means, Karate will dynamically choose a free port (the value of which you can retrieve later)
 * `ssl`: `boolean` flag that if true, starts an HTTPS server and auto-generates a certificate if it doesn't find one, see [SSL](#ssl)
 * `arg`: `java.util.Map` of key-value pairs that can be used to pass custom [variables](https://github.com/intuit/karate#setting-and-using-variables) into the `*.feature` evaluation context - or `null` if not-applicable
@@ -490,6 +492,7 @@ Helper function that makes it easy to match a URI pattern as well as set [path p
 Scenario: pathMatches('/v1/cats/{id}')
     * def id = pathParams.id
 ```
+This functionality is implemented using [JAX-RS specification](https://docs.oracle.com/cd/E19798-01/821-1841/6nmq2cp26/index.html).
 
 ## `pathParams`
 JSON variable (not a function) allowing you to extract values by name. See [`pathMatches()`](#pathmatches) above.
