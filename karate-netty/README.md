@@ -90,7 +90,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 * Start and stop mock servers in milliseconds
 * Super-fast HTTP response times (~20ms) for typical in-memory CRUD / JsonPath (as long as you don't do I/O)
 * Thread-safe - use concurrent consumers or async flows without fear
-* Simulate [slow, delayed](), error or malformed responses with ease
+* Simulate [slow, delayed](#configure-responsedelay), error or malformed responses with ease
 * Zero errors even under load / stress - see this [benchmark comparison with other tools](https://twitter.com/KarateDSL/status/1083775218873581571)
 * Easy integration into Java / JUnit test-suites via API
 * Server can dynamically choose free port
