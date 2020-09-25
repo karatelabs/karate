@@ -2593,13 +2593,7 @@ In some cases where the response JSON is wildly dynamic, you may want to only ch
 # * match foo == { bar:1, baz: 'hello' }
 ```
 
-Note that `match contains` will "recurse", so any nested JSON chunks will also be matched using `match contains`:
-
-```cucumber
-* def original = { a: 1, b: 2, c: 3, d: { a: 1, b: 2 } }
-* def expected = { a: 1, c: 3, d: { b: 2 } }
-* match original contains expected
-```
+Note that `match contains` will *not* "recurse" any nested JSON chunks so use [`match contains deep`](#match-contains-deep) instead.
 
 Also note that [`match contains any`](#match-contains-any) is possible for JSON objects as well as [JSON arrays](#json-arrays).
 
