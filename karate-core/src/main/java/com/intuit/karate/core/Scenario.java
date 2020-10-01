@@ -262,7 +262,7 @@ public class Scenario {
     }
 
     public void setBackgroundDone(boolean backgroundDone) {
-        this.backgroundDone = backgroundDone;
+        this.backgroundDone = backgroundDone; // TODO remove this
     }
 
     public Map<String, Object> getExampleData() {

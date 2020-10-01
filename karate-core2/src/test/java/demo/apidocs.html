@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>API Docs</title>
+    <script ka:src="app.js"></script>
+    <link rel="stylesheet" href="app.css" type="text/css"/>
+  </head>
+  <body>
+    <script ka:lang="js">
+      var url = 'https://httpbin.org/post';
+      var req = { hello: 'world' };
+      var res = context.http(url).post(req).body;
+    </script>    
+    <div>
+      <h2>POST <span th:text="url"></span></h2>
+      <p>Request</p>
+      <code th:text="req"></code>
+      <p>Response</p>
+      <code th:text="res"></code>      
+    </div>
+  </body>
+</html>

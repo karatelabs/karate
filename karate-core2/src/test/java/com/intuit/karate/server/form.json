@@ -1,0 +1,8 @@
+{
+    "path": "/person",
+    "isBase64Encoded": false,
+    "multiValueQueryStringParameters": null,
+    "multiValueHeaders": { "Content-Type": ["application/x-www-form-urlencoded"], "hx-request": ["true"], "cookie": ["%%cookie%%"] },
+    "httpMethod": "POST",
+    "body": "firstName=John&lastName=Smith&email=john%40smith.com"
+}

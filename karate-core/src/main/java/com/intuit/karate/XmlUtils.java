@@ -342,7 +342,7 @@ public class XmlUtils {
     }
 
     public static Object toObject(Node node, boolean removeNamespace) {
-        if (node.getNodeType() == Node.DOCUMENT_NODE) {            
+        if (node.getNodeType() == Node.DOCUMENT_NODE) {
             node = node.getFirstChild();
             while (node.getNodeType() != Node.ELEMENT_NODE) { // ignore comments etc
                 node = node.getNextSibling();
@@ -467,6 +467,16 @@ public class XmlUtils {
 
     public static String toXml(Object o) {
         return toString(toXmlDoc(o));
+    }
+
+    public static boolean isXml(String s) {
+        if (s == null || s.isEmpty()) {
+            return false;
+        }
+        if (s.charAt(0) == ' ') {
+            s = s.trim();
+        }
+        return s.charAt(0) == '<';
     }
 
 }

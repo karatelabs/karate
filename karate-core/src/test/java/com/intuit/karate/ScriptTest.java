@@ -63,14 +63,14 @@ public class ScriptTest {
         assertEquals(ScriptValue.Type.PRIMITIVE, value.getType());
         assertEquals(3.0, value.getValue());
     }
-    
+
     @Test
     public void testMatchPrimitiveStrings() {
         ScenarioContext ctx = getContext();
         ctx.vars.put("a", "3");
-        ctx.vars.put("b", 3);  
+        ctx.vars.put("b", 3);
         assertFalse(Script.matchNamed(MatchType.EQUALS, "a", null, "b", ctx).pass);
-    }    
+    }
 
     @Test
     public void testEvalMapsAndLists() {
@@ -265,14 +265,14 @@ public class ScriptTest {
         Script.assign("bar", "{ hello: '#(foo.a)', world: '##(foo.b)'  }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "bar", null, "{ hello: null }", ctx).pass);
     }
-    
+
     @Test
     public void testEvalEmbeddedExpressionStream() {
-         ScenarioContext ctx = getContext();
-         ctx.vars.put("inputStream", new ScriptValue(new ByteArrayInputStream("hello world".getBytes())));
-         Script.assign("doc", "{ foo: '#(inputStream)' }", ctx);
-         assertTrue(Script.matchNamed(MatchType.EQUALS, "doc", null, "{ foo: 'hello world' }", ctx).pass);
-     }    
+        ScenarioContext ctx = getContext();
+        ctx.vars.put("inputStream", new ScriptValue(new ByteArrayInputStream("hello world".getBytes())));
+        Script.assign("doc", "{ foo: '#(inputStream)' }", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "doc", null, "{ foo: 'hello world' }", ctx).pass);
+    }
 
     @Test
     public void testVariableNameValidation() {
@@ -1744,7 +1744,7 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "fun().a", null, "1", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "(fun().a)", null, "1", ctx).pass);
     }
-    
+
     @Test
     public void testKarateToJson() {
         ScenarioContext ctx = getContext();
@@ -1767,12 +1767,12 @@ public class ScriptTest {
         Script.assign("bar", "karate.toJson(sp, true)", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "sp.foo", null, "null", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "sp.bar", null, "10", ctx).pass);
-    }    
+    }
 
     @Test
-    public void notEqualMatchTest(){
+    public void notEqualMatchTest() {
         Map<String, Object> result = Runner.runFeature(getClass(), "core/notEqualMatch.feature", null, true);
-        assertNotEquals(result.get("a"),result.get("b"));
+        assertNotEquals(result.get("a"), result.get("b"));
     }
 
 }

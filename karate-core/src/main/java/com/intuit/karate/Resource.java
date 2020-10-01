@@ -49,6 +49,17 @@ public class Resource {
 
     public static final Resource EMPTY = new Resource(Paths.get(""), "", -1);
 
+    public static Resource of(Path path, String text) {
+        return new Resource(path, null, -1) {
+            final InputStream is = FileUtils.toInputStream(text);
+
+            @Override
+            public InputStream getStream() {
+                return is;
+            }
+        };
+    }
+
     public Resource(File file, String relativePath) {
         this(file.toPath(), relativePath, -1);
     }

@@ -48,7 +48,6 @@ public class ScenarioExecutionUnit implements Runnable {
     private final ExecutionContext exec;
     public final ScenarioResult result;
     private final boolean reportDisabled;
-    private boolean executed = false;
 
     private Collection<ExecutionHook> hooks;
     private List<Step> steps;
@@ -173,13 +172,6 @@ public class ScenarioExecutionUnit implements Runnable {
         }
         result.setThreadName(Thread.currentThread().getName());
         result.setStartTime(System.currentTimeMillis() - exec.startTime);
-    }
-
-    // for karate ui
-    public void reset(ScenarioContext context) {
-        setExecuted(false);
-        result.reset();
-        actions = new StepActions(context);
     }
 
     private StepResult afterStep(StepResult result) {
@@ -316,14 +308,6 @@ public class ScenarioExecutionUnit implements Runnable {
             result.addError("scenario execution failed", e);
             LOGGER.error("scenario execution failed: {}", e.getMessage());
         }
-    }
-
-    public boolean isExecuted() {
-        return executed;
-    }
-
-    public void setExecuted(boolean executed) {
-        this.executed = executed;
     }
 
 }

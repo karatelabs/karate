@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -221,5 +222,17 @@ public class StringUtils {
             return text;
         }
     }
+    
+    public static <T> T getIgnoreKeyCase(Map<String, T> map, String name) {
+        if (map == null || name == null) {
+            return null;
+        }
+        for (String key : map.keySet()) {
+            if (name.equalsIgnoreCase(key)) {
+                return map.get(key);
+            }
+        }
+        return null;
+    }    
 
 }

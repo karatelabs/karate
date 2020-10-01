@@ -47,7 +47,8 @@
     </properties>
 
     <modules>
-        <module>karate-core</module>        
+        <module>karate-core</module>
+        <module>karate-core2</module>   
         <module>karate-apache</module>
         <module>karate-junit4</module>
         <module>karate-junit5</module>        
@@ -57,7 +58,7 @@
         <module>karate-robot</module>
         <module>karate-mock-servlet</module>
         <module>karate-jersey</module>    
-        <module>karate-archetype</module>    
+        <module>karate-archetype</module>        
     </modules>
 
     <dependencies>
