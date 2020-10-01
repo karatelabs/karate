@@ -71,32 +71,32 @@ public class MatchValue {
         } else {
             type = Type.OTHER;
         }
-    }    
-    
+    }
+
     public boolean isBoolean() {
         return type == Type.BOOLEAN;
-    }    
+    }
 
     public boolean isNumber() {
         return type == Type.NUMBER;
-    }     
-    
+    }
+
     public boolean isString() {
         return type == Type.STRING;
-    }     
-    
+    }
+
     public boolean isNull() {
         return type == Type.NULL;
-    } 
-    
+    }
+
     public boolean isMap() {
         return type == Type.MAP;
-    }    
-    
+    }
+
     public boolean isList() {
         return type == Type.LIST;
     }
-    
+
     public boolean isXml() {
         return type == Type.XML;
     }
@@ -121,14 +121,10 @@ public class MatchValue {
         mo.execute();
         return mo.pass ? MatchResult.PASS : MatchResult.fail(mo.getFailureReasons());
     }
-    
+
     public String getAsXmlString() {
         if (type == Type.MAP) {
-            Map<String, Object> map = getValue();
-            if (map.containsKey("_")) {
-                return null;
-            }
-            Node node = XmlUtils.fromMap(map);
+            Node node = XmlUtils.fromMap(getValue());
             return XmlUtils.toString(node);
         } else {
             return getDisplayString();

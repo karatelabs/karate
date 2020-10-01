@@ -65,7 +65,7 @@ public class MatchOperation {
         if (context == null) {
             this.failures = new ArrayList();
             if (actual.isXml()) {
-                this.context = new MatchContext(this, true, 0, "", "/", -1);
+                this.context = new MatchContext(this, true, 0, "/", "/", -1);
             } else {
                 this.context = new MatchContext(this, false, 0, "$", "", -1);
             }
@@ -171,9 +171,9 @@ public class MatchOperation {
             String expStr = expected.getValue();
             if (expStr.startsWith("#")) {
                 if (type == MatchType.EQUALS) {
-                    return macroEqualsExpected(expStr) ? pass() : fail(" not equals");
+                    return macroEqualsExpected(expStr) ? pass() : fail(null);
                 } else {
-                    return macroEqualsExpected(expStr) ? fail("equals") : pass();
+                    return macroEqualsExpected(expStr) ? fail("is equal") : pass();
                 }
             }
         }
@@ -197,7 +197,7 @@ public class MatchOperation {
             case EQUALS:
                 return actualEqualsExpected() ? pass() : fail("not equal");
             case NOT_EQUALS:
-                return actualEqualsExpected() ? fail("equal") : pass();
+                return actualEqualsExpected() ? fail("is equal") : pass();
             case CONTAINS:
             case CONTAINS_ANY:
             case CONTAINS_ONLY:
@@ -434,7 +434,8 @@ public class MatchOperation {
                 }
                 unMatchedKeysAct.remove(key);
             } else if (type == MatchType.EQUALS) {
-                return fail("match failed for key: '" + key + "'");
+                return fail("match failed for name: '" + key + "'");
+
             }
         }
         if (type == MatchType.CONTAINS_ANY) {
@@ -526,11 +527,11 @@ public class MatchOperation {
     }
 
     private boolean fail(String reason) {
-        if (!pass) { // use the more specific reason already set
+        pass = false;
+        if (reason == null) {
             return false;
         }
-        pass = false;
-        failReason = reason;
+        failReason = failReason == null ? reason : reason + " | " + failReason;
         context.root.failures.add(this);
         return false;
     }
@@ -538,35 +539,32 @@ public class MatchOperation {
     public String getFailureReasons() {
         return collectFailureReasons(this);
     }
+    
+    private boolean isXmlAttributeOrMap() {
+        return context.xml && actual.isMap() 
+                && (context.name.equals("@") || actual.<Map>getValue().containsKey("_"));
+    }    
 
     private static String collectFailureReasons(MatchOperation root) {
         StringBuilder sb = new StringBuilder();
-        sb.append('\n');
+        sb.append("match failed: ").append(root.type).append('\n');
         int depth = 0;
         Collections.reverse(root.failures);
         Iterator<MatchOperation> iterator = root.failures.iterator();
         Set previousPaths = new HashSet();
         while (iterator.hasNext()) {
             MatchOperation mo = iterator.next();
-            if (previousPaths.contains(mo.context.path)) {
+            if (previousPaths.contains(mo.context.path) || mo.isXmlAttributeOrMap()) {
                 continue;
             }
             previousPaths.add(mo.context.path);
             String prefix = StringUtils.repeat(' ', depth++ * 2);
-            boolean xmlAttributeParent = mo.context.xml && mo.context.name.equals("@");
-            if (!xmlAttributeParent) {
-                sb.append(prefix).append(mo.context.path).append(" | ").append(mo.failReason);
-                sb.append(" (").append(mo.actual.type).append(':').append(mo.expected.type).append(")");
-                sb.append('\n');
-            }
+            sb.append(prefix).append(mo.context.path).append(" | ").append(mo.failReason);
+            sb.append(" (").append(mo.actual.type).append(':').append(mo.expected.type).append(")");
+            sb.append('\n');
             if (mo.context.xml) {
-                if (!xmlAttributeParent) {
-                    String actualXml = mo.actual.getAsXmlString();
-                    if (actualXml != null) { // else is special "_" map
-                        sb.append(prefix).append(actualXml).append('\n');
-                        sb.append(prefix).append(mo.expected.getAsXmlString()).append('\n');
-                    }
-                }
+                sb.append(prefix).append(mo.actual.getAsXmlString()).append('\n');
+                sb.append(prefix).append(mo.expected.getAsXmlString()).append('\n');
             } else {
                 sb.append(prefix).append(mo.actual.getDisplayString()).append('\n');
                 sb.append(prefix).append(mo.expected.getDisplayString()).append('\n');

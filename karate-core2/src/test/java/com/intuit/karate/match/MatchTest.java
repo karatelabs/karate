@@ -157,9 +157,9 @@ class MatchTest {
         match("{ a: 1, b: 2, c: 3 }", CONTAINS, "{ b: 2 }");
         match("{ a: 1, b: 2, c: 3 }", CONTAINS_ANY, "{ z: 9, b: 2 }");
         match("{ a: 1, b: 2, c: 3 }", CONTAINS, "{ z: 9, x: 2 }", FAILS);
-        message("$ | actual does not contain key - 'z'");
+        message("$ | actual does not contain expected | actual does not contain key - 'z'");
         match("{ a: 1, b: 2, c: 3 }", CONTAINS_ANY, "{ z: 9, x: 2 }", FAILS);
-        message("$ | no key-values matched");
+        message("$ | actual does not contain expected | no key-values matched");
         message("$.x | data types don't match");
         message("$.z | data types don't match");
     }
@@ -175,8 +175,12 @@ class MatchTest {
     @Test
     void testXmlFailureMessages() {
         match("<a><b><c>1</c></b></a>", EQUALS, "<a><b><c>2</c></b></a>", FAILS);
+        message("/ | not equal | match failed for name: 'a'");
+        message("/a | not equal | match failed for name: 'b'");
+        message("/a/b | not equal | match failed for name: 'c'");
         message("/a/b/c | not equal");
         match("<hello foo=\"bar\">world</hello>", EQUALS, "<hello foo=\"baz\">world</hello>", FAILS);
+        message("/ | not equal | match failed for name: 'hello'");
         message("/hello/@foo | not equal");
     }    
 
