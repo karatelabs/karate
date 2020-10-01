@@ -31,6 +31,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -170,9 +171,9 @@ public class MatchOperation {
             String expStr = expected.getValue();
             if (expStr.startsWith("#")) {
                 if (type == MatchType.EQUALS) {
-                    return macroEqualsExpected(expStr) ? pass() : fail();
+                    return macroEqualsExpected(expStr) ? pass() : fail(" not equals");
                 } else {
-                    return macroEqualsExpected(expStr) ? fail() : pass();
+                    return macroEqualsExpected(expStr) ? fail("equals") : pass();
                 }
             }
         }
@@ -409,7 +410,7 @@ public class MatchOperation {
                     }
                 }
                 if (type != MatchType.CONTAINS_ANY) {
-                    return fail("actual does not contain key - " + key);
+                    return fail("actual does not contain key - '" + key + "'");
                 }
             }
             MatchValue childActValue = new MatchValue(actMap.get(key));
@@ -524,16 +525,13 @@ public class MatchOperation {
         return true;
     }
 
-    private boolean fail() {
-        return fail(null);
-    }
-
     private boolean fail(String reason) {
-        pass = false;
-        if (reason != null) {
-            failReason = reason;
-            context.root.failures.add(this);
+        if (!pass) { // use the more specific reason already set
+            return false;
         }
+        pass = false;
+        failReason = reason;
+        context.root.failures.add(this);
         return false;
     }
 
@@ -547,8 +545,13 @@ public class MatchOperation {
         int depth = 0;
         Collections.reverse(root.failures);
         Iterator<MatchOperation> iterator = root.failures.iterator();
+        Set previousPaths = new HashSet();
         while (iterator.hasNext()) {
             MatchOperation mo = iterator.next();
+            if (previousPaths.contains(mo.context.path)) {
+                continue;
+            }
+            previousPaths.add(mo.context.path);
             String prefix = StringUtils.repeat(' ', depth++ * 2);
             boolean xmlAttributeParent = mo.context.xml && mo.context.name.equals("@");
             if (!xmlAttributeParent) {
