@@ -191,7 +191,7 @@ public class MatchOperation {
                 default:
                 // do nothing
             }
-            return type == MatchType.NOT_EQUALS ? pass() : fail("data types don't match - " + actual.type + ":" + expected.type);
+            return type == MatchType.NOT_EQUALS ? pass() : fail("data types don't match");
         }
         switch (type) {
             case EQUALS:

@@ -162,6 +162,7 @@ class MatchTest {
         message("$ | actual does not contain expected | no key-values matched");
         message("$.x | data types don't match");
         message("$.z | data types don't match");
+        log();
     }
 
     @Test
