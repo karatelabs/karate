@@ -3586,7 +3586,7 @@ This is how it can be called from a test-script via [JavaScript](#javascript-fun
 * assert result == 'hello world'
 ```
 
-Note that JSON gets auto-converted to `Map` (or `List`) when making the cross-over to Java. Refer to the [`cats-java.feature`](karate-demo/src/test/java/demo/java/cats-java.feature) demo for an example.
+Note that methods must be explicitly declared `public`. Java methods with no access declaration are visible within the same package, and Karate is not in that package. Also be aware that JSON gets auto-converted to `Map` (or `List`) when making the cross-over to Java. Refer to the [`cats-java.feature`](karate-demo/src/test/java/demo/java/cats-java.feature) demo for an example.
 
 Another example is [`dogs.feature`](karate-demo/src/test/java/demo/dogs/dogs.feature) -  which actually makes JDBC (database) calls, and since the data returned from the Java code is JSON, the last section of the test is able to use [`match`](#match) *very* effectively for data assertions.
 
