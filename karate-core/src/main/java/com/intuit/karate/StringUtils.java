@@ -222,4 +222,27 @@ public class StringUtils {
         }
     }
 
+  /**
+   * Removes the single occurrence of double quote from the start and end of the supplied string.
+   *
+   * <p>A {@code null} input String returns {@code null}.
+   *
+   * <pre>
+   * StringUtils.trimDoubleQuotes(null)           = null
+   * StringUtils.trimDoubleQuotes("")             = ""
+   * StringUtils.trimDoubleQuotes(" ")            = " "
+   * StringUtils.trimDoubleQuotes("\"foo\"")      = "foo"
+   * StringUtils.trimDoubleQuotes("\"foo")        = "foo"
+   * StringUtils.trimDoubleQuotes("\"\"foo\"\"")  = "\"foo\""
+   * </pre>
+   *
+   * @param str the String to remove quotes from, may be null
+   * @return the stripped String, {@code null} if null String input
+   */
+  public static String trimDoubleQuotes(String str) {
+    if (null == str) {
+      return str;
+    }
+    return str.replaceAll("^\"|\"$", EMPTY);
+  }
 }

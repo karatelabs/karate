@@ -157,4 +157,15 @@ public class StringUtilsTest {
                 StringUtils.wrappedLinesEstimate("", 2));
     }
     
+    @Test
+    public void testTrimDoubleQuotes() {
+        assertEquals("foo", StringUtils.trimDoubleQuotes("\"foo\""));
+        assertEquals("", StringUtils.trimDoubleQuotes(""));
+        assertEquals(" ", StringUtils.trimDoubleQuotes(" "));
+        assertEquals(null, StringUtils.trimDoubleQuotes(null));
+        assertEquals(" ", StringUtils.trimDoubleQuotes(" "));
+        assertEquals("foo", StringUtils.trimDoubleQuotes("\"foo"));
+        assertEquals("\"foo\"", StringUtils.trimDoubleQuotes("\"\"foo\"\""));
+        assertEquals("foo", StringUtils.trimDoubleQuotes("foo\""));
+    }
 }

@@ -115,7 +115,7 @@ public class HttpUtils {
                 continue;
             }
             String key = item.substring(0, pos).trim();
-            String val = item.substring(pos + 1).trim();
+            String val = StringUtils.trimDoubleQuotes(item.substring(pos + 1).trim());
             map.put(key, val);
         }
         return map;
