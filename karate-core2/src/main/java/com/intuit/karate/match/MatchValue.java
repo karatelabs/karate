@@ -24,6 +24,7 @@
 package com.intuit.karate.match;
 
 import com.intuit.karate.XmlUtils;
+import com.intuit.karate.data.Json;
 import com.intuit.karate.data.JsonUtils;
 import java.util.List;
 import java.util.Map;
@@ -124,6 +125,14 @@ public class MatchValue {
         MatchOperation mo = new MatchOperation(mt, this, new MatchValue(o));
         mo.execute();
         return mo.pass ? MatchResult.PASS : MatchResult.fail(mo.getFailureReasons());
+    }
+
+    public MatchResult isEqualTo(Object o) {
+        return is(MatchType.EQUALS, o);
+    }
+
+    public MatchResult isEqualToJson(String s) {
+        return is(MatchType.EQUALS, new Json(s).asMapOrList());
     }
 
     public String getAsXmlString() {

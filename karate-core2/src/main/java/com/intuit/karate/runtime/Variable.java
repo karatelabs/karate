@@ -27,6 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.data.Json;
 import com.intuit.karate.data.JsonUtils;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -183,6 +184,8 @@ public class Variable {
                 return JsonUtils.fromJsonString(json);
             case XML:
                 return XmlUtils.toObject(getValue());
+            case OTHER: // pojo
+                return new Json(value).asMapOrList();
             default:
                 throw new RuntimeException("cannot convert to json: " + this);
         }

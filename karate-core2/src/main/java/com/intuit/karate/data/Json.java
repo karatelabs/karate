@@ -54,8 +54,16 @@ public class Json {
         this(JsonPath.parse(json));
     }
 
-    public Json(Object o) {
+    public Json(Map o) {
         this(JsonPath.parse(o));
+    }
+    
+    public Json(List o) {
+        this(JsonPath.parse(o));
+    }    
+    
+    public Json(Object o) {
+        this(JsonUtils.toJson(o));
     }
 
     private Json(DocumentContext doc) {
