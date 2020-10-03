@@ -162,6 +162,9 @@ public abstract class HttpClient<T> {
         }
         if (request.getHeaders() != null) {
             for (Map.Entry<String, List> entry : request.getHeaders().entrySet()) {
+                if (entry.getValue() == null) { // TODO seems to happen for retry-until and __arg
+                    continue;
+                }
                 for (Object value : entry.getValue()) {
                     buildHeader(entry.getKey(), value, false);
                 }
@@ -251,7 +254,7 @@ public abstract class HttpClient<T> {
                 PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, 0);
                 context.capturePerfEvent(pe);
                 // failure flag and message should be set by ScenarioContext.logLastPerfEvent()
-            }      
+            }
             context.logger.error(e.getMessage() + ", " + message);
             throw new KarateException(message, e);
         }
