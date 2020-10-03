@@ -48,8 +48,6 @@ import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
  *
@@ -340,7 +338,7 @@ public class ScenarioEngine {
         if (matcher.end() == text.length()) {
             path = "";
         } else {
-            path = text.substring(matcher.end());
+            path = text.substring(matcher.end()).trim();
         }
         if (isXmlPath(path) || isXmlPathFunction(path)) {
             // xml, don't prefix for json

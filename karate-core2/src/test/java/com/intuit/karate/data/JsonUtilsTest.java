@@ -21,7 +21,7 @@ class JsonUtilsTest {
         String temp = JsonUtils.toStrictJson("{redirect:{url:'/index'}}");
         assertEquals(temp, "{\"redirect\":{\"url\":\"\\/index\"}}");
     }
-    
+
     @Test
     void testDetect() {
         assertTrue(JsonUtils.isJson("{}"));
@@ -31,14 +31,14 @@ class JsonUtilsTest {
         assertFalse(JsonUtils.isJson(null));
         assertFalse(JsonUtils.isJson(""));
     }
-    
+
     @Test
     void testBeanConversion() {
         SimplePojo pojo = new SimplePojo();
         String s = JsonUtils.toJson(pojo);
         assertEquals("{\"bar\":0,\"foo\":null}", s);
         Map<String, Object> map = new Json(pojo).asMap();
-        assertTrue(Match.that(map).isEqualToJson("{ foo: null, bar: 0 }").pass);
+        assertTrue(Match.that(map).isEqualTo("{ foo: null, bar: 0 }").pass);
     }
 
 }

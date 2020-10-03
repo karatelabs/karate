@@ -570,8 +570,8 @@ public class MatchOperation {
                 sb.append(prefix).append(mo.actual.getAsXmlString()).append('\n');
                 sb.append(prefix).append(mo.expected.getAsXmlString()).append('\n');
             } else {
-                sb.append(prefix).append(mo.actual.getDisplayString()).append('\n');
-                sb.append(prefix).append(mo.expected.getDisplayString()).append('\n');
+                sb.append(prefix).append(mo.actual.getWithinSingleQuotesIfString()).append('\n');
+                sb.append(prefix).append(mo.expected.getWithinSingleQuotesIfString()).append('\n');
             }
         }
         return sb.toString();

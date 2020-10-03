@@ -131,8 +131,35 @@ public class MatchValue {
         return is(MatchType.EQUALS, o);
     }
 
-    public MatchResult isEqualToJson(String s) {
-        return is(MatchType.EQUALS, new Json(s).asMapOrList());
+    public MatchResult isEqualTo(String s) {
+        if (JsonUtils.isJson(s)) {
+            return is(MatchType.EQUALS, new Json(s).asMapOrList());
+        } else {
+            if (s.charAt(0) == '\\') {
+                s = s.substring(1);
+            }
+            return is(MatchType.EQUALS, s);
+        }
+    }
+
+    public String getWithinSingleQuotesIfString() {
+        if (type == Type.STRING) {
+            return "'" + value + "'";
+        } else {
+            return getAsString();
+        }
+    }
+
+    public String getAsString() {
+        switch (type) {
+            case LIST:
+            case MAP:
+                return JsonUtils.toJson(value);
+            case XML:
+                return XmlUtils.toString(getValue());
+            default:
+                return value + "";
+        }
     }
 
     public String getAsXmlString() {
@@ -140,24 +167,7 @@ public class MatchValue {
             Node node = XmlUtils.fromMap(getValue());
             return XmlUtils.toString(node);
         } else {
-            return getDisplayString();
-        }
-    }
-
-    public String getDisplayString() {
-        switch (type) {
-            case BYTES:
-                byte[] bytes = (byte[]) value;
-                return "(length: " + bytes.length + ")";
-            case LIST:
-            case MAP:
-                return JsonUtils.toJson(value);
-            case XML:
-                return XmlUtils.toString(getValue());
-            case STRING:
-                return "'" + value + "'";
-            default:
-                return value + "";
+            return getAsString();
         }
     }
 

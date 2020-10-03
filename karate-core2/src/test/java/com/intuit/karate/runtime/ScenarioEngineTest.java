@@ -1,6 +1,7 @@
 package com.intuit.karate.runtime;
 
 import com.intuit.karate.AssignType;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchType;
@@ -74,6 +75,21 @@ public class ScenarioEngineTest {
         assertFalse(ScenarioEngine.isValidVariableName("0"));
         assertFalse(ScenarioEngine.isValidVariableName("2foo"));
     }
+    
+    @Test
+    void testParsingVariableAndJsonPath() {
+        assertEquals(StringUtils.pair("foo", "$"), ScenarioEngine.parseVariableAndPath("foo"));
+        assertEquals(StringUtils.pair("foo", "$.bar"), ScenarioEngine.parseVariableAndPath("foo.bar"));
+        assertEquals(StringUtils.pair("foo", "$['bar']"), ScenarioEngine.parseVariableAndPath("foo['bar']"));
+        assertEquals(StringUtils.pair("foo", "$[0]"), ScenarioEngine.parseVariableAndPath("foo[0]"));
+        assertEquals(StringUtils.pair("foo", "$[0].bar"), ScenarioEngine.parseVariableAndPath("foo[0].bar"));
+        assertEquals(StringUtils.pair("foo", "$[0]['bar']"), ScenarioEngine.parseVariableAndPath("foo[0]['bar']"));
+        assertEquals(StringUtils.pair("foo", "/bar"), ScenarioEngine.parseVariableAndPath("foo/bar"));
+        assertEquals(StringUtils.pair("foo", "/"), ScenarioEngine.parseVariableAndPath("foo/"));
+        assertEquals(StringUtils.pair("foo", "/"), ScenarioEngine.parseVariableAndPath("foo /"));
+        assertEquals(StringUtils.pair("foo", "/bar"), ScenarioEngine.parseVariableAndPath("foo /bar"));
+        assertEquals(StringUtils.pair("foo", "/bar/baz[1]/ban"), ScenarioEngine.parseVariableAndPath("foo/bar/baz[1]/ban"));
+    }    
 
     @Test
     void testJsFunction() {
@@ -170,6 +186,9 @@ public class ScenarioEngineTest {
         // match xml using json-path
         matchEquals("bar.record", "['a', 'b', 'c']");
         assertTrue(engine.assertTrue("foo.records.record.length == 3"));
+        assign("myXml", "<cat><name>Billie</name><scores><score>2</score><score>5</score></scores></cat>");
+        matchEquals("myXml/cat/scores/score[2]", "'5'");
+        matchEquals("myXml.cat.scores.score[1]", "'5'");        
         // xml with an empty tag, value should be null
         assign("foo", "<records>\n  <record>a</record>\n  <record/>\n</records>");
         assign("bar", "foo.records");
@@ -312,12 +331,32 @@ public class ScenarioEngineTest {
         // xml to string
         engine.assign(AssignType.STRING, "myStr", "<root><foo>bar</foo></root>", false);
         matchEquals("myStr", "'<root><foo>bar</foo></root>'");
+        // xml attributes get re-ordered
+        engine.assign(AssignType.STRING, "myStr", "<foo><bar bbb=\"2\" aaa=\"1\"/></foo>", false);
+        matchEquals("myStr", "'<foo><bar aaa=\"1\" bbb=\"2\"/></foo>'");
         // pojo to json
         assign("myPojo", "new com.intuit.karate.runtime.SimplePojo()");
         value = engine.vars.get("myPojo");
         assertTrue(value.isOther());  
         engine.assign(AssignType.JSON, "myJson", "myPojo", false);
         matchEquals("myJson", "{ foo: null, bar: 0 }");
+        // pojo to xml
+        engine.assign(AssignType.XML, "myXml", "myPojo", false);
+        matchEquals("myXml", "<root><foo></foo><bar>0</bar></root>");        
+    }
+    
+    @Test
+    void testResponseShortCuts() {
+        assign("response", "{ foo: 'bar' }");
+        matchEquals("response", "{ foo: 'bar' }");
+        matchEquals("$", "{ foo: 'bar' }");
+        matchEquals("response.foo", "'bar'");
+        matchEquals("$.foo", "'bar'");
+        assign("response", "<root><foo>bar</foo></root>");
+        matchEquals("response", "<root><foo>bar</foo></root>");
+        matchEquals("/", "<root><foo>bar</foo></root>");
+        matchEquals("response/", "<root><foo>bar</foo></root>");
+        matchEquals("response /", "<root><foo>bar</foo></root>");
     }
 
 }
