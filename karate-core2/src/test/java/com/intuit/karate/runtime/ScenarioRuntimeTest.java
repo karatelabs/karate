@@ -39,5 +39,10 @@ class ScenarioRuntimeTest {
         Variable a = sr.engine.eval("a");
         assertEquals(3, a.<Number>getValue());
     }
+    
+    @Test
+    void testBridge() {
+        ScenarioRuntime sr = scenario("karate.sayHello()");
+    }
 
 }

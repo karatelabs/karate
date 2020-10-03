@@ -37,7 +37,7 @@ class JsonTest {
     }
 
     @Test
-    void testPath() {
+    void testSetAndRemove() {
         Json json = new Json();
         match(json, "{}");
         assertTrue(json.pathExists("$"));
@@ -49,8 +49,11 @@ class JsonTest {
         assertFalse(json.pathExists("bar"));
         json.set("bar.baz", "ban");
         match(json, "{ foo: 'bar', bar: { baz: 'ban' } }");
-
-        json = new Json();
+        json.remove("foo");
+        match(json, "{ bar: { baz: 'ban' } }");
+        json.remove("bar.baz");
+        match(json, "{ bar: { } }");
+        json.remove("bar");
         match(json, "{}");
         json.set("foo.bar", "[1, 2]");
         match(json, "{ foo: { bar: [1, 2] } }");
@@ -58,12 +61,22 @@ class JsonTest {
         match(json, "{ foo: { bar: [9, 2] } }");
         json.set("foo.bar[]", 8);
         match(json, "{ foo: { bar: [9, 2, 8] } }");
-
+        json.remove("foo.bar[0]");
+        match(json, "{ foo: { bar: [2, 8] } }");
+        json.remove("foo.bar[1]");
+        match(json, "{ foo: { bar: [2] } }");
+        json.remove("foo.bar");
+        match(json, "{ foo: {} }");
+        json.remove("foo");
+        match(json, "{}");
         json = new Json("[]");
         match(json, "[]");
         json.set("$[0].foo", "[1, 2]");
         match(json, "[{ foo: [1, 2] }]");
-
+        json.set("$[1].foo", "[3, 4]");
+        match(json, "[{ foo: [1, 2] }, { foo: [3, 4] }]");
+        json.remove("$[0]");
+        match(json, "[{ foo: [3, 4] }]");        
         json = new Json();
         json.set("$.foo[]", "a");
         match(json, "{ foo: ['a'] }");

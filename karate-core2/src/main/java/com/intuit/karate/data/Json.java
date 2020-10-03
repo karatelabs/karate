@@ -56,7 +56,7 @@ public class Json {
 
     public Json(String json) {
         this(JsonPath.parse(json));
-    }
+    } 
 
     public Json(Map o) {
         this(JsonPath.parse(o));
@@ -113,11 +113,16 @@ public class Json {
         if (JsonUtils.isJson(s)) {
             setInternal(path, new Json(s).asMapOrList());
         } else {
-            if (s.charAt(0) == '\\') {
+            if (s != null && s.charAt(0) == '\\') {
                 s = s.substring(1);
             }
             setInternal(path, s);
         }
+        return this;
+    }
+
+    public Json remove(String path) {
+        doc.delete(path);
         return this;
     }
 
@@ -222,7 +227,7 @@ public class Json {
             }
         }
     }
-    
+
     public static StringUtils.Pair toParentAndLeaf(String path) {
         int pos = path.lastIndexOf('.');
         int temp = path.lastIndexOf("['");
@@ -235,6 +240,6 @@ public class Json {
         }
         String left = path.substring(0, pos == -1 ? 0 : pos);
         return StringUtils.pair(left, right);
-    }     
+    }
 
 }

@@ -2,6 +2,7 @@ package com.intuit.karate.runtime;
 
 import com.intuit.karate.AssignType;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.data.Json;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchType;
@@ -75,7 +76,7 @@ public class ScenarioEngineTest {
         assertFalse(ScenarioEngine.isValidVariableName("0"));
         assertFalse(ScenarioEngine.isValidVariableName("2foo"));
     }
-    
+
     @Test
     void testParsingVariableAndJsonPath() {
         assertEquals(StringUtils.pair("foo", "$"), ScenarioEngine.parseVariableAndPath("foo"));
@@ -89,7 +90,7 @@ public class ScenarioEngineTest {
         assertEquals(StringUtils.pair("foo", "/"), ScenarioEngine.parseVariableAndPath("foo /"));
         assertEquals(StringUtils.pair("foo", "/bar"), ScenarioEngine.parseVariableAndPath("foo /bar"));
         assertEquals(StringUtils.pair("foo", "/bar/baz[1]/ban"), ScenarioEngine.parseVariableAndPath("foo/bar/baz[1]/ban"));
-    }    
+    }
 
     @Test
     void testJsFunction() {
@@ -188,7 +189,7 @@ public class ScenarioEngineTest {
         assertTrue(engine.assertTrue("foo.records.record.length == 3"));
         assign("myXml", "<cat><name>Billie</name><scores><score>2</score><score>5</score></scores></cat>");
         matchEquals("myXml/cat/scores/score[2]", "'5'");
-        matchEquals("myXml.cat.scores.score[1]", "'5'");        
+        matchEquals("myXml.cat.scores.score[1]", "'5'");
         // xml with an empty tag, value should be null
         assign("foo", "<records>\n  <record>a</record>\n  <record/>\n</records>");
         assign("bar", "foo.records");
@@ -231,7 +232,7 @@ public class ScenarioEngineTest {
         assign("temp", "get myXml /root/foo");
         matchEquals("temp", "<foo><bar>baz</bar></foo>");
         assign("temp", "get myMap /root/foo");
-        matchEquals("temp", "<foo><bar>baz</bar></foo>");        
+        matchEquals("temp", "<foo><bar>baz</bar></foo>");
     }
 
     @Test
@@ -301,7 +302,7 @@ public class ScenarioEngineTest {
         matchEquals("json", "fun()");
         matchEquals("expected", "[1, 2]");
     }
-    
+
     @Test
     void testTypeConversion() {
         engine.assign(AssignType.STRING, "myStr", "{ foo: { hello: 'world' } }", false);
@@ -317,12 +318,12 @@ public class ScenarioEngineTest {
         assign("myStr", "'{\"root\":{\"foo\":\"bar\"}}'");
         engine.assign(AssignType.JSON, "myJson", "myStr", false);
         value = engine.vars.get("myJson");
-        assertTrue(value.isMap());        
+        assertTrue(value.isMap());
         matchEquals("myJson", "{ root: { foo: 'bar' } }");
         // json to xml
         engine.assign(AssignType.XML, "myXml", "{ root: { foo: 'bar' } }", false);
         value = engine.vars.get("myXml");
-        assertTrue(value.isXml());        
+        assertTrue(value.isXml());
         matchEquals("myXml", "<root><foo>bar</foo></root>");
         // string to xml
         assign("myStr", "'<root><foo>bar</foo></root>'");
@@ -337,14 +338,14 @@ public class ScenarioEngineTest {
         // pojo to json
         assign("myPojo", "new com.intuit.karate.runtime.SimplePojo()");
         value = engine.vars.get("myPojo");
-        assertTrue(value.isOther());  
+        assertTrue(value.isOther());
         engine.assign(AssignType.JSON, "myJson", "myPojo", false);
         matchEquals("myJson", "{ foo: null, bar: 0 }");
         // pojo to xml
         engine.assign(AssignType.XML, "myXml", "myPojo", false);
-        matchEquals("myXml", "<root><foo></foo><bar>0</bar></root>");        
+        matchEquals("myXml", "<root><foo></foo><bar>0</bar></root>");
     }
-    
+
     @Test
     void testResponseShortCuts() {
         assign("response", "{ foo: 'bar' }");
@@ -357,6 +358,35 @@ public class ScenarioEngineTest {
         matchEquals("/", "<root><foo>bar</foo></root>");
         matchEquals("response/", "<root><foo>bar</foo></root>");
         matchEquals("response /", "<root><foo>bar</foo></root>");
+    }
+
+    @Test
+    void testSetAndRemove() {
+        assign("test", "{ foo: 'bar' }");
+        engine.set("test", "$.bar", "'baz'");
+        matchEquals("test", "{ foo: 'bar', bar: 'baz' }");
+        engine.set("test", "$.foo", "null");
+        matchEquals("test", "{ foo: null, bar: 'baz' }");
+        engine.remove("test", "$.foo");
+        matchEquals("test", "{ bar: 'baz' }");
+        assign("test", "<root><foo>bar</foo></root>");
+        engine.set("test", "/root/baz", "'ban'");
+        matchEquals("test", "<root><foo>bar</foo><baz>ban</baz></root>");
+        engine.remove("test", "/root/foo");
+        matchEquals("test", "<root><baz>ban</baz></root>");
+    }
+
+    @Test
+    void testSetViaTable() {
+        Json json = new Json("[{path: 'bar', value: \"'baz'\" }]");
+        engine.set("foo", null, json.asList());
+        matchEquals("foo", "{ bar: 'baz' }");
+        json = new Json("[{path: 'bar', value: 'null' }]"); // has no effect
+        engine.set("foo", null, json.asList());
+        matchEquals("foo", "{ bar: 'baz' }");
+        json = new Json("[{path: 'bar', value: '(null)' }]"); // has effect
+        engine.set("foo", null, json.asList());
+        matchEquals("foo", "{ bar: null }");
     }
 
 }

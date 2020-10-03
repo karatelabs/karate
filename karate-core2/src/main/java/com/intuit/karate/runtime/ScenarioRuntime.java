@@ -55,6 +55,7 @@ public class ScenarioRuntime implements Runnable {
     public final Logger logger = new Logger();
     public final ScenarioResult result;
     public final ScenarioEngine engine;
+    public final ScenarioBridge bridge;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
         this(featureRuntime, scenario, null);
@@ -70,8 +71,9 @@ public class ScenarioRuntime implements Runnable {
             this.background = background;
             result = new ScenarioResult(scenario, background.result.getStepResults());
         }
-        actions = new ScenarioActions(this);
         engine = new ScenarioEngine();
+        bridge = new ScenarioBridge(this);
+        actions = new ScenarioActions(this);
         // TODO caller
         // TODO config
     }
@@ -167,6 +169,7 @@ public class ScenarioRuntime implements Runnable {
 
     public void init() {
         engine.init();
+        engine.putHidden(VariableNames.KARATE, bridge);
         if (scenario.isDynamic()) {
             steps = scenario.getBackgroundSteps();
         } else {
@@ -205,7 +208,8 @@ public class ScenarioRuntime implements Runnable {
         }
     }
 
-    // these can get re-built or swapped, so cannot be final
+    // these can get re-built or swapped, so cannot be final ===================
+    //
     private Config config = new Config();
 
     //==========================================================================
@@ -230,16 +234,16 @@ public class ScenarioRuntime implements Runnable {
         }
     }
 
-    public void set(String name, String path, String value) {
-
+    public void set(String name, String path, String exp) {
+        engine.set(name, path, exp);
     }
 
     public void set(String name, String path, List<Map<String, String>> table) {
-
+        engine.set(name, path, table);
     }
 
     public void remove(String name, String path) {
-
+        engine.remove(name, path);
     }
 
     public void table(String name, List<Map<String, String>> table) {

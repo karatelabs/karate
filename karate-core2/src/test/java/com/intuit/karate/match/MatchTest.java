@@ -43,6 +43,11 @@ class MatchTest {
             assertFalse(mr.pass);
         }
     }
+    
+    @Test
+    void testApi() {
+        assertTrue(Match.that(null).isEqualTo(null).pass);
+    }
 
     @Test
     void testNull() {

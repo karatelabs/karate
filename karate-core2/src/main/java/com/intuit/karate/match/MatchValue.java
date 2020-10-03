@@ -135,7 +135,7 @@ public class MatchValue {
         if (JsonUtils.isJson(s)) {
             return is(MatchType.EQUALS, new Json(s).asMapOrList());
         } else {
-            if (s.charAt(0) == '\\') {
+            if (s != null && s.charAt(0) == '\\') {
                 s = s.substring(1);
             }
             return is(MatchType.EQUALS, s);

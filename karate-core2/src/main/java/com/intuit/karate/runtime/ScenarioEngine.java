@@ -54,37 +54,45 @@ import org.w3c.dom.NodeList;
  * @author pthomas3
  */
 public class ScenarioEngine {
-    
+
     private final Logger logger;
     public final Map<String, Variable> vars = new HashMap();
     private JsEngine JS;
-    
+
     public ScenarioEngine() {
         this(new Logger());
     }
-    
+
     public ScenarioEngine(Logger logger) {
         this.logger = logger;
     }
-    
+
     public void init() {
         JsEngine.remove(); // reset JS engine for this thread
         JS = JsEngine.global();
     }
-    
+
     public Variable eval(String exp) {
         vars.forEach((k, v) -> JS.put(k, v.getValueForJsEngine()));
         return new Variable(JS.eval(exp));
     }
-    
-    public void put(String key, Variable value) {
-        vars.put(key, value);
+
+    public void putHidden(String key, Object value) {
+        if (value instanceof Variable) {
+            JS.put(key, ((Variable) value).getValue());
+        } else {
+            JS.put(key, value);
+        }
     }
-    
+
     public void put(String key, Object value) {
-        vars.put(key, new Variable(value));
+        if (value instanceof Variable) {
+            vars.put(key, (Variable) value);
+        } else {
+            vars.put(key, new Variable(value));
+        }
     }
-    
+
     private static void validateVariableName(String name) {
         if (!isValidVariableName(name)) {
             throw new RuntimeException("invalid variable name: " + name);
@@ -96,7 +104,7 @@ public class ScenarioEngine {
             throw new RuntimeException("'" + name + "' is a reserved name, also use the form '* " + name + " <expression>' instead");
         }
     }
-    
+
     private Variable evalAndCastTo(AssignType assignType, String exp) {
         Variable v = evalKarateExpression(exp);
         switch (assignType) {
@@ -121,7 +129,7 @@ public class ScenarioEngine {
                 return v; // as is
         }
     }
-    
+
     public void assign(AssignType assignType, String name, String exp, boolean validateName) {
         name = StringUtils.trimToEmpty(name);
         if (validateName) {
@@ -136,11 +144,11 @@ public class ScenarioEngine {
             put(name, evalAndCastTo(assignType, exp));
         }
     }
-    
+
     public boolean assertTrue(String expression) {
         return eval(expression).isTrue();
     }
-    
+
     public Variable getIfVariableReference(String name) {
         // don't re-evaluate if this is clearly a direct reference to a variable
         // this avoids un-necessary conversion of xml into a map in some cases
@@ -148,31 +156,31 @@ public class ScenarioEngine {
         // also e.g. 'print foo'        
         return vars.containsKey(name) ? vars.get(name) : null;
     }
-    
+
     private static boolean isEmbeddedExpression(String text) {
         return (text.startsWith("#(") || text.startsWith("##(")) && text.endsWith(")");
     }
-    
+
     private static class EmbedAction {
-        
+
         final boolean remove;
         final Object value;
-        
+
         private EmbedAction(boolean remove, Object value) {
             this.remove = remove;
             this.value = value;
         }
-        
+
         static EmbedAction remove() {
             return new EmbedAction(true, null);
         }
-        
+
         static EmbedAction update(Object value) {
             return new EmbedAction(false, value);
         }
-        
+
     }
-    
+
     public Variable evalEmbeddedExpressions(Variable value) {
         switch (value.type) {
             case STRING:
@@ -190,7 +198,7 @@ public class ScenarioEngine {
                 return value;
         }
     }
-    
+
     private EmbedAction recurseEmbeddedExpressions(Variable node) {
         switch (node.type) {
             case LIST:
@@ -251,7 +259,7 @@ public class ScenarioEngine {
                 return null;
         }
     }
-    
+
     private void recurseXmlEmbeddedExpressions(Node node) {
         if (node.getNodeType() == Node.DOCUMENT_NODE) {
             node = node.getFirstChild();
@@ -329,7 +337,137 @@ public class ScenarioEngine {
             grandParent.removeChild(parent);
         }
     }
-    
+
+    public void remove(String name, String path) {
+        set(name, path, null, true, false);
+    }
+
+    public void set(String name, String path, String exp) {
+        set(name, path, exp, false, false);
+    }
+
+    public void set(String name, String path, String exp, boolean delete, boolean viaTable) {
+        name = StringUtils.trimToEmpty(name);
+        path = StringUtils.trimToNull(path);
+        Variable value = evalKarateExpression(exp);
+        if (viaTable && value.isNull() && !isWithinParentheses(exp)) {
+            // by default, skip any expression that evaluates to null unless the user expressed
+            // intent to over-ride by enclosing the expression in parentheses
+            return;
+        }
+        if (path == null) {
+            StringUtils.Pair nameAndPath = parseVariableAndPath(name);
+            name = nameAndPath.left;
+            path = nameAndPath.right;
+        }
+        Variable target = vars.get(name);
+        if (isDollarPrefixedJsonPath(path)) {
+            if (target == null || target.isNull()) {
+                if (viaTable) { // auto create if using set via cucumber table as a convenience
+                    Json json;
+                    if (path.startsWith("$[") && !path.startsWith("$['")) {
+                        json = new Json("[]");
+                    } else {
+                        json = new Json("{}");
+                    }
+                    target = new Variable(json.asMapOrList());
+                    vars.put(name, target);
+                } else {
+                    throw new RuntimeException("variable is null or not set '" + name + "'");
+                }
+            }
+            Json json;
+            if (target.isMap()) {
+                json = new Json(target.<Map>getValue());
+            } else if (target.isList()) {
+                json = new Json(target.<List>getValue());
+            } else {
+                throw new RuntimeException("cannot set json path on type: " + target);
+            }
+            if (delete) {
+                json.remove(path);
+            } else {
+                json.set(path, value.getValue());
+            }
+        } else if (isXmlPath(path)) {
+            if (target == null || target.isNull()) {
+                if (viaTable) { // auto create if using set via cucumber table as a convenience
+                    Document empty = XmlUtils.newDocument();
+                    target = new Variable(empty);
+                    vars.put(name, target);
+                } else {
+                    throw new RuntimeException("variable is null or not set '" + name + "'");
+                }
+            }
+            Document doc = target.getValue();
+            if (delete) {
+                XmlUtils.removeByPath(doc, path);
+            } else if (value.isXml()) {
+                Node node = value.getValue();
+                XmlUtils.setByPath(doc, path, node);
+            } else if (value.isMap()) { // cast to xml
+                Node node = XmlUtils.fromMap(value.getValue());
+                XmlUtils.setByPath(doc, path, node);
+            } else {
+                XmlUtils.setByPath(doc, path, value.getAsString());
+            }
+        } else {
+            throw new RuntimeException("unexpected path: " + path);
+        }
+    }
+
+    private static final String PATH = "path";
+
+    public void set(String name, String path, List<Map<String, String>> list) {
+        name = StringUtils.trimToEmpty(name);
+        path = StringUtils.trimToNull(path);
+        if (path == null) {
+            StringUtils.Pair nameAndPath = parseVariableAndPath(name);
+            name = nameAndPath.left;
+            path = nameAndPath.right;
+        }
+        for (Map<String, String> map : list) {
+            String append = (String) map.get(PATH);
+            if (append == null) {
+                continue;
+            }
+            List<String> keys = new ArrayList(map.keySet());
+            keys.remove(PATH);
+            int columnCount = keys.size();
+            for (int i = 0; i < columnCount; i++) {
+                String key = keys.get(i);
+                String expression = StringUtils.trimToNull(map.get(key));
+                if (expression == null) { // cucumber cell was left blank
+                    continue; // skip
+                    // default behavior is to skip nulls when the expression evaluates 
+                    // this is driven by the routine in setValueByPath
+                    // and users can over-ride this by simple enclosing the expression in parentheses
+                }
+                String suffix;
+                try {
+                    int arrayIndex = Integer.valueOf(key);
+                    suffix = "[" + arrayIndex + "]";
+                } catch (NumberFormatException e) { // default to the column position as the index
+                    suffix = columnCount > 1 ? "[" + i + "]" : "";
+                }
+                String finalPath;
+                if (append.startsWith("/") || (path != null && path.startsWith("/"))) { // XML
+                    if (path == null) {
+                        finalPath = append + suffix;
+                    } else {
+                        finalPath = path + suffix + '/' + append;
+                    }
+                } else {
+                    if (path == null) {
+                        path = "$";
+                    }
+                    finalPath = path + suffix + '.' + append;
+                }
+                set(name, finalPath, expression, false, true);
+            }
+        }
+    }
+
     public static StringUtils.Pair parseVariableAndPath(String text) {
         Matcher matcher = VAR_AND_PATH_PATTERN.matcher(text);
         matcher.find();
@@ -347,7 +485,7 @@ public class ScenarioEngine {
         }
         return StringUtils.pair(name, path);
     }
-    
+
     public MatchResult match(MatchType matchType, String expression, String path, String expected) {
         String name = StringUtils.trimToEmpty(expression);
         if (isDollarPrefixedJsonPath(name) || isXmlPath(name)) { // 
@@ -402,16 +540,16 @@ public class ScenarioEngine {
         MatchValue actualValue = new MatchValue(actual.getValue());
         return Match.execute(matchType, actualValue, expectedValue);
     }
-    
+
     private static final Pattern VAR_AND_PATH_PATTERN = Pattern.compile("\\w+");
     private static final String VARIABLE_PATTERN_STRING = "[a-zA-Z][\\w]*";
     private static final Pattern VARIABLE_PATTERN = Pattern.compile(VARIABLE_PATTERN_STRING);
     private static final Pattern FUNCTION_PATTERN = Pattern.compile("^function[^(]*\\(");
-    
+
     public static boolean isJavaScriptFunction(String text) {
         return FUNCTION_PATTERN.matcher(text).find();
     }
-    
+
     public static String fixJavaScriptFunction(String text) {
         Matcher matcher = FUNCTION_PATTERN.matcher(text);
         if (matcher.find()) {
@@ -420,59 +558,63 @@ public class ScenarioEngine {
             return text;
         }
     }
-    
+
     public static boolean isValidVariableName(String name) {
         return VARIABLE_PATTERN.matcher(name).matches();
     }
-    
+
     public static final boolean isVariableAndSpaceAndPath(String text) {
         return text.matches("^" + VARIABLE_PATTERN_STRING + "\\s+.+");
     }
-    
+
     public static final boolean isVariable(String text) {
         return VARIABLE_PATTERN.matcher(text).matches();
     }
-    
+
+    public static final boolean isWithinParentheses(String text) {
+        return text.startsWith("(") && text.endsWith(")");
+    }
+
     public static final boolean isCallSyntax(String text) {
         return text.startsWith("call ");
     }
-    
+
     public static final boolean isCallOnceSyntax(String text) {
         return text.startsWith("callonce ");
     }
-    
+
     public static final boolean isGetSyntax(String text) {
         return text.startsWith("get ") || text.startsWith("get[");
     }
-    
+
     public static final boolean isJson(String text) {
         return text.startsWith("{") || text.startsWith("[");
     }
-    
+
     public static final boolean isXml(String text) {
         return text.startsWith("<");
     }
-    
+
     public static boolean isXmlPath(String text) {
         return text.startsWith("/");
     }
-    
+
     public static boolean isXmlPathFunction(String text) {
         return text.matches("^[a-z-]+\\(.+");
     }
-    
+
     public static final boolean isJsonPath(String text) {
         return text.indexOf('*') != -1 || text.contains("..") || text.contains("[?");
     }
-    
+
     public static final boolean isDollarPrefixed(String text) {
         return text.startsWith("$");
     }
-    
+
     public static final boolean isDollarPrefixedJsonPath(String text) {
         return text.startsWith("$.") || text.startsWith("$[") || text.equals("$");
     }
-    
+
     public static StringUtils.Pair parseCallArgs(String line) {
         int pos = line.indexOf("read(");
         if (pos != -1) {
@@ -488,15 +630,15 @@ public class ScenarioEngine {
         }
         return new StringUtils.Pair(line.substring(0, pos), line.substring(pos));
     }
-    
+
     public static Variable call(Variable called, String argString, boolean reuseParentConfig) {
         return null;
     }
-    
+
     private static Variable callWithCache(String callKey, Variable called, String arg, boolean reuseParentConfig) {
         return null;
     }
-    
+
     public Variable evalJsonPath(Variable v, String path) {
         Json json = new Json(v.getValueForJsonConversion());
         try {
@@ -505,7 +647,7 @@ public class ScenarioEngine {
             return Variable.NOT_PRESENT;
         }
     }
-    
+
     public Variable evalXmlPath(Variable xml, String path) {
         NodeList nodeList;
         Node doc = xml.getAsXml();
@@ -535,7 +677,7 @@ public class ScenarioEngine {
         }
         return new Variable(list);
     }
-    
+
     private static Variable nodeToValue(Node node) {
         int childElementCount = XmlUtils.getChildElementCount(node);
         if (childElementCount == 0) {
@@ -548,15 +690,15 @@ public class ScenarioEngine {
             return new Variable(XmlUtils.toNewDocument(node));
         }
     }
-    
+
     public Variable evalJsonPathOnVariableByName(String name, String path) {
         return evalJsonPath(vars.get(name), path);
     }
-    
+
     public Variable evalXmlPathOnVariableByName(String name, String path) {
         return evalXmlPath(vars.get(name), path);
     }
-    
+
     public Variable evalKarateExpression(String text) {
         text = StringUtils.trimToNull(text);
         if (text == null) {
@@ -641,5 +783,5 @@ public class ScenarioEngine {
             return eval(text);
         }
     }
-    
+
 }
