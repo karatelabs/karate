@@ -65,7 +65,7 @@ public class MatchOperation {
         if (context == null) {
             this.failures = new ArrayList();
             if (actual.isXml()) {
-                this.context = new MatchContext(this, true, 0, "/", "/", -1);
+                this.context = new MatchContext(this, true, 0, "/", "", -1);
             } else {
                 this.context = new MatchContext(this, false, 0, "$", "", -1);
             }
@@ -298,9 +298,13 @@ public class MatchOperation {
                     } else {
                         Validator validator = Match.VALIDATORS.get(validatorName);
                         if (validator != null) {
-                            ValidatorResult vr = validator.apply(actual);
-                            if (!vr.pass) {
-                                return fail(vr.message);
+                            if (optional && actual.isNotPresent()) {
+                                // pass
+                            } else {
+                                ValidatorResult vr = validator.apply(actual);
+                                if (!vr.pass) {
+                                    return fail(vr.message);
+                                }
                             }
                         } else { // validator part was not used
                             macro = validatorName + macro;

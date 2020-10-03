@@ -36,7 +36,7 @@ class ScenarioRuntimeTest {
     @Test
     void testDef() {
         ScenarioRuntime sr = scenario("print 'hello'", "def a = 1 + 2");
-        Variable a = sr.eval("a");
+        Variable a = sr.engine.eval("a");
         assertEquals(3, a.<Number>getValue());
     }
 

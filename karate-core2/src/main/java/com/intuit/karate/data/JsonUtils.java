@@ -24,16 +24,28 @@
 package com.intuit.karate.data;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.ScriptValue;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.spi.json.JsonProvider;
 import com.jayway.jsonpath.spi.json.JsonSmartJsonProvider;
 import com.jayway.jsonpath.spi.mapper.JsonSmartMappingProvider;
 import com.jayway.jsonpath.spi.mapper.MappingProvider;
+import de.siegmar.fastcsv.reader.CsvContainer;
+import de.siegmar.fastcsv.reader.CsvReader;
+import de.siegmar.fastcsv.reader.CsvRow;
+import de.siegmar.fastcsv.writer.CsvWriter;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import net.minidev.json.JSONValue;
 import net.minidev.json.parser.JSONParser;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
  *
@@ -68,7 +80,7 @@ public class JsonUtils {
             }
         });
     }
-    
+
     public static boolean isJson(String s) {
         if (s == null || s.isEmpty()) {
             return false;
@@ -99,6 +111,54 @@ public class JsonUtils {
 
     public static Object fromJsonString(String json) {
         return JSONValue.parse(json);
+    }
+
+    public static Map<String, Object> fromYaml(String raw) {
+        Yaml yaml = new Yaml(new SafeConstructor());
+        return yaml.load(raw);
+    }
+
+    public static List<Map> fromCsv(String raw) {
+        CsvReader reader = new CsvReader();
+        reader.setContainsHeader(true);
+        try {
+            CsvContainer csv = reader.read(new StringReader(raw));
+            List<Map> rows = new ArrayList(csv.getRowCount());
+            for (CsvRow row : csv.getRows()) {
+                rows.add(row.getFieldMap());
+            }
+            return rows;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static String toCsv(List<Map<String, Object>> list) {
+        List<String[]> csv = new ArrayList(list.size() + 1);
+        // header row
+        boolean first = true;
+        for (Map<String, Object> map : list) {
+            int colCount = map.size();
+            if (first) {
+                Set<String> keys = map.keySet();
+                csv.add(keys.toArray(new String[colCount]));
+                first = false;
+            }
+            String[] row = new String[colCount];
+            List cols = new ArrayList(map.values());
+            for (int i = 0; i < colCount; i++) {
+                row[i] = new ScriptValue(cols.get(i)).getAsString();
+            }
+            csv.add(row);
+        }
+        CsvWriter csvWriter = new CsvWriter();
+        StringWriter sw = new StringWriter();
+        try {
+            csvWriter.write(sw, csv);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return sw.toString();
     }
 
 }

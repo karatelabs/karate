@@ -44,9 +44,9 @@ public class Match {
         VALIDATORS.put("null", v -> v.isNull() ? PASS : fail("not null"));
         VALIDATORS.put("number", v -> v.isNumber() ? PASS : fail("not a number"));
         VALIDATORS.put("object", v -> v.isMap() ? PASS : fail("not an object or map"));
-        VALIDATORS.put("present", v -> PASS); // remaining logic in MatchOperation
-        VALIDATORS.put("notpresent", v -> fail("present")); // remaining logic in MatchOperation
-        VALIDATORS.put("string", v -> v.isString() ? PASS : fail("not a string"));
+        VALIDATORS.put("present", v -> v.isNotPresent() ? fail("not present") : PASS);
+        VALIDATORS.put("notpresent", v -> v.isNotPresent() ? PASS : fail("present"));
+        VALIDATORS.put("string", v -> v.isNotPresent() ? fail("not present") : v.isString() ? PASS : fail("not a string"));
         VALIDATORS.put("uuid", v -> {
             if (!v.isString()) {
                 return fail("not a string");

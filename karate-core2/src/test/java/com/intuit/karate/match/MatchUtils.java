@@ -9,7 +9,7 @@ import com.intuit.karate.data.JsonUtils;
  * @author pthomas3
  */
 public class MatchUtils {
-    
+
     public static Object parse(Object o) {
         if (o instanceof String) {
             String s = (String) o;
@@ -23,6 +23,6 @@ public class MatchUtils {
         } else {
             return o;
         }
-    }    
-    
+    }
+
 }

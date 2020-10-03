@@ -37,5 +37,11 @@ public class VariableTest {
         Variable res = fun.invokeFunction(1, 2);
         assertEquals(3, res.<Number>getValue());
     }
+    
+    @Test
+    void testPojo() {
+        JsValue jv = je.eval("new com.intuit.karate.runtime.SimplePojo()");
+        assertTrue(jv.isOther());
+    }
 
 }

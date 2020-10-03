@@ -215,11 +215,11 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public void assign(AssignType assignType, String name, String exp) {
-        engine.assign(assignType, name, exp);
+        engine.assign(assignType, name, exp, false);
     }
 
-    public Variable eval(String exp) {
-        return engine.eval(exp);
+    public void eval(String exp) {
+        engine.eval(exp);
     }
 
     public void match(MatchType matchType, String expression, String path, String expected) {
@@ -255,7 +255,11 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public void assertTrue(String expression) {
-
+        if (!engine.assertTrue(expression)) {
+            String message = "did not evaluate to 'true': " + expression;
+            logger.error("{}", message);
+            throw new KarateException(message);
+        }
     }
 
     public void print(List<String> exps) {

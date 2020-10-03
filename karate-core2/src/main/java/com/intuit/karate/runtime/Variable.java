@@ -23,9 +23,13 @@
  */
 package com.intuit.karate.runtime;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.data.JsonUtils;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -35,7 +39,7 @@ import org.w3c.dom.Node;
  *
  * @author pthomas3
  */
-public class Variable {        
+public class Variable {
 
     public static enum Type {
         NULL,
@@ -53,6 +57,7 @@ public class Variable {
     }
 
     public static final Variable NULL = new Variable(null);
+    public static final Variable NOT_PRESENT = new Variable("#notpresent");
 
     public final Type type;
     private final Object value;
@@ -64,28 +69,17 @@ public class Variable {
 
     public Variable(Object o, String description) {
         this.description = description;
-        Object tempValue = o;
+        if (o instanceof JsValue) {
+            JsValue jsValue = (JsValue) o;
+            if (!jsValue.isFunction()) { // only in case of JS_FUNCTION keep the JsValue as-is
+                o = jsValue.getValue();
+            }
+        }
+        value = o;
         if (o == null) {
             type = Type.NULL;
         } else if (o instanceof JsValue) {
-            JsValue jsValue = (JsValue) o;
-            switch (jsValue.type) {
-                case ARRAY:
-                    tempValue = jsValue.getAsList();
-                    type = Type.LIST;
-                    break;
-                case OBJECT:
-                    tempValue = jsValue.getAsMap();
-                    type = Type.MAP;
-                    break;
-                case FUNCTION:
-                    tempValue = jsValue;
-                    type = Type.JS_FUNCTION;
-                    break;
-                default:
-                    tempValue = jsValue.getValue();
-                    type = tempValue == null ? Type.NULL : Type.OTHER;
-            }
+            type = Type.JS_FUNCTION; // see logic above
         } else if (o instanceof Node) {
             type = Type.XML;
         } else if (o instanceof List) {
@@ -107,11 +101,14 @@ public class Variable {
         } else {
             type = Type.OTHER;
         }
-        this.value = tempValue;
     }
 
     public <T> T getValue() {
         return (T) value;
+    }
+
+    public boolean isString() {
+        return type == Type.STRING;
     }
 
     public boolean isList() {
@@ -121,17 +118,29 @@ public class Variable {
     public boolean isMap() {
         return type == Type.MAP;
     }
-    
+
     public boolean isXml() {
         return type == Type.XML;
+    }
+
+    public boolean isNumber() {
+        return type == Type.NUMBER;
     }
 
     public boolean isNull() {
         return type == Type.NULL;
     }
+    
+    public boolean isOther() {
+        return type == Type.OTHER;
+    }
 
     public boolean isFunction() {
         return type == Type.JS_FUNCTION || type == Type.JAVA_FUNCTION;
+    }
+
+    public boolean isTrue() {
+        return type == Type.BOOLEAN && ((Boolean) value);
     }
 
     public Variable invokeFunction(Object... args) {
@@ -144,23 +153,70 @@ public class Variable {
             Object result = function.apply(args);
             return new Variable(result);
         }
-    }    
-    
+    }
+
+    public Node getAsXml() {
+        switch (type) {
+            case XML:
+                return getValue();
+            case MAP:
+                return XmlUtils.fromMap(getValue());
+            case STRING:
+            case BYTES:
+                String xml = getAsString();
+                return XmlUtils.toXmlDoc(xml);
+            case OTHER: // POJO
+                return XmlUtils.toXmlDoc(value);
+            default:
+                throw new RuntimeException("cannot convert to xml:" + this);
+        }
+    }
+
+    public Object getValueForJsonConversion() {
+        switch (type) {
+            case LIST:
+            case MAP:
+                return value;
+            case STRING:
+            case BYTES:
+                String json = getAsString();
+                return JsonUtils.fromJsonString(json);
+            case XML:
+                return XmlUtils.toObject(getValue());
+            default:
+                throw new RuntimeException("cannot convert to json: " + this);
+        }
+
+    }
+
+    public byte[] getAsByteArray() {
+        if (type == Type.BYTES) {
+            return getValue();
+        } else {
+            return FileUtils.toBytes(getAsString());
+        }
+    }
+
     public String getAsString() {
         switch (type) {
             case NULL:
-                return "null";
+                return null;
+            case BYTES:
+                return FileUtils.toString((byte[]) value);
+            case LIST:
+            case MAP:
+                return JsonUtils.toJson(value);
+            case XML:
+                return XmlUtils.toString(getValue());
             default:
                 return value.toString();
-        }        
+        }
     }
 
     public String getAsPrettyString() {
         switch (type) {
-            case NULL:
-                return "(null)";
             default:
-                return value.toString();
+                return getAsString();
         }
     }
 
@@ -170,6 +226,35 @@ public class Variable {
                 return XmlUtils.toObject(getValue());
             default:
                 return value;
+        }
+    }
+
+    public int getAsInt() {
+        if (isNumber()) {
+            return ((Number) value).intValue();
+        } else {
+            return Integer.valueOf(getAsString());
+        }
+    }
+
+    public Variable copy(boolean deep) {
+        switch (type) {
+            case LIST:
+                if (deep) {
+                    return new Variable(JsonUtils.fromJsonString(getAsString()));
+                } else {
+                    return new Variable(new ArrayList((List) value));
+                }
+            case MAP:
+                if (deep) {
+                    return new Variable(JsonUtils.fromJsonString(getAsString()));
+                } else {
+                    return new Variable(new LinkedHashMap((Map) value));
+                }
+            case XML:
+                return new Variable(XmlUtils.toXmlDoc(getAsString()));
+            default:
+                return this;
         }
     }
 

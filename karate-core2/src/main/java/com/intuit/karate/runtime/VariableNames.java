@@ -33,6 +33,8 @@ public class VariableNames {
         // only static methods
     }
     
+    public static final String KARATE = "karate";
+    
     public static final String RESPONSE = "response";
     public static final String RESPONSE_BYTES = "responseBytes";
     public static final String RESPONSE_COOKIES = "responseCookies";

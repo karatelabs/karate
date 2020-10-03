@@ -101,6 +101,10 @@ public class MatchValue {
         return type == Type.XML;
     }
 
+    public boolean isNotPresent() {
+        return "#notpresent".equals(value);
+    }
+
     public boolean isMapOrListOrXml() {
         switch (type) {
             case MAP:

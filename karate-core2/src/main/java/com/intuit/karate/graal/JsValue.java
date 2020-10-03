@@ -63,6 +63,9 @@ public class JsValue {
                 value = v.as(Object.class);
                 type = Type.OTHER;
             }
+        } else if (v.isHostObject()) { // pojo
+            value = v.asHostObject();
+            type = Type.OTHER;
         } else if (v.canExecute()) {
             value = v.as(Object.class);
             type = Type.FUNCTION;
@@ -94,7 +97,7 @@ public class JsValue {
         return value;
     }
 
-    public <T> T getValue(Class<T> clazz) {
+    public <T> T getOriginalAs(Class<T> clazz) {
         return original.as(clazz);
     }
 
@@ -121,7 +124,7 @@ public class JsValue {
     public boolean isArray() {
         return type == Type.ARRAY;
     }
-    
+
     public boolean isTrue() {
         if (type != Type.OTHER || !Boolean.class.equals(value.getClass())) {
             return false;
@@ -131,6 +134,10 @@ public class JsValue {
 
     public boolean isFunction() {
         return type == Type.FUNCTION;
+    }
+
+    public boolean isOther() {
+        return type == Type.OTHER;
     }
 
     public String asString() {

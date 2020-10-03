@@ -208,6 +208,7 @@ public class StringUtils {
         return estimate;
     }
 
+    // TODO remove js function utils
     private static final Pattern FUNCTION_PATTERN = Pattern.compile("^function[^(]*\\(");
 
     public static boolean isJavaScriptFunction(String text) {
