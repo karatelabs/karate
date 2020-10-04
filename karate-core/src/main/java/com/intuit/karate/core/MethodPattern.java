@@ -59,6 +59,7 @@ public class MethodPattern {
             }
             return args;
         } else {
+            throw new RuntimeException("invalid string pattern: " + text);
             return null;
         }
     } 

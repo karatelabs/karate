@@ -257,6 +257,7 @@ public class Script {
                 return value;
             }
         }
+        throw new RuntimeException("invalid string pattern: " + text);
         return null;
     }
 
