@@ -229,7 +229,7 @@ public class ScenarioContext {
 
     public URL getResource(String name) {
         return classLoader.getResource(name);
-    }
+    }       
 
     public InputStream getResourceAsStream(String name) {
         return classLoader.getResourceAsStream(name);

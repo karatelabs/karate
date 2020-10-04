@@ -31,25 +31,27 @@ import com.intuit.karate.core.FeatureResult;
  * @author pthomas3
  */
 public class FeatureRuntime implements Runnable {
-    
+
     public final SuiteRuntime suite;
+    public final ScenarioCall parentCall;
     public final Feature feature;
     public final FeatureResult result;
-    private final ScenarioGenerator scenarios;    
-    
-    public FeatureRuntime(SuiteRuntime suite, Feature feature) {
+    private final ScenarioGenerator scenarios;
+
+    public FeatureRuntime(SuiteRuntime suite, Feature feature, ScenarioCall parentCall) {
         this.suite = suite;
         this.feature = feature;
+        this.parentCall = parentCall;
         result = new FeatureResult(suite.results, feature);
-        scenarios = new ScenarioGenerator(this, feature.getSections().iterator());        
+        scenarios = new ScenarioGenerator(this, feature.getSections().iterator());
     }
 
     @Override
     public void run() {
-        while (scenarios.hasNext()) {           
+        while (scenarios.hasNext()) {
             ScenarioRuntime sr = scenarios.next();
             sr.run();
         }
     }
-    
+
 }

@@ -78,7 +78,7 @@ public class FileUtils {
     public static final String THIS_COLON = "this:";
     public static final String FILE_COLON = "file:";
     public static final String SRC_TEST_JAVA = "src/test/java";
-    public static final String SRC_TEST_RESOURCES = "src/test/resources";
+    public static final String SRC_TEST_RESOURCES = "src/test/resources";    
     private static final ClassLoader CLASS_LOADER = FileUtils.class.getClassLoader();
 
     private FileUtils() {
@@ -167,7 +167,7 @@ public class FileUtils {
         return pos == -1 ? text : text.substring(pos + 1);
     }
 
-    private static StringUtils.Pair parsePathAndTags(String text) {
+    public static StringUtils.Pair parsePathAndTags(String text) {
         int pos = text.indexOf('@');
         if (pos == -1) {
             text = StringUtils.trimToEmpty(text);
@@ -188,7 +188,7 @@ public class FileUtils {
 
     public static Resource toResource(String path, ScenarioContext context) {
         if (isClassPath(path)) {
-            return new Resource(context, path);
+            return new Resource(context.classLoader, path);
         } else if (isFilePath(path)) {
             String temp = removePrefix(path);
             return new Resource(new File(temp), path);

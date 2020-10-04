@@ -24,23 +24,28 @@
 package com.intuit.karate.runtime;
 
 import com.intuit.karate.AssignType;
-import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.core.ExecutionHook;
+import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.core.Result;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
 import com.intuit.karate.exception.KarateException;
+import com.intuit.karate.http.Cookie;
+import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchType;
 import com.intuit.karate.shell.FileLogAppender;
 import java.io.File;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  *
@@ -50,19 +55,22 @@ public class ScenarioRuntime implements Runnable {
 
     public final FeatureRuntime featureRuntime;
     public final ScenarioRuntime background;
+    public final ScenarioCall parentCall;
     public final Scenario scenario;
     public final ScenarioActions actions;
     public final Logger logger = new Logger();
     public final ScenarioResult result;
     public final ScenarioEngine engine;
-    public final ScenarioBridge bridge;
+    public final Collection<ExecutionHook> executionHooks;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
         this(featureRuntime, scenario, null);
     }
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario, ScenarioRuntime background) {
+        executionHooks = featureRuntime.suite.resolveHooks();
         this.featureRuntime = featureRuntime;
+        this.parentCall = featureRuntime.parentCall;
         this.scenario = scenario;
         if (background == null) {
             this.background = null;
@@ -72,11 +80,11 @@ public class ScenarioRuntime implements Runnable {
             result = new ScenarioResult(scenario, background.result.getStepResults());
         }
         engine = new ScenarioEngine(logger);
-        bridge = new ScenarioBridge(this);
         actions = new ScenarioActions(this);
         // TODO appender for perf
         // TODO caller
         // TODO config
+        config = new Config();
     }
 
     public boolean isFailed() {
@@ -123,16 +131,16 @@ public class ScenarioRuntime implements Runnable {
     private int nextStepIndex() {
         return stepIndex++;
     }
-    
+
     private void logError(String message) {
         if (currentStep != null) {
-            message = currentStep.getDebugInfo() 
+            message = currentStep.getDebugInfo()
                     + "\n" + currentStep.toString()
                     + "\n" + message;
         }
         logger.error("{}", message);
     }
-    
+
     @Override
     public void run() {
         try { // make sure we call afterRun() even on crashes
@@ -157,7 +165,7 @@ public class ScenarioRuntime implements Runnable {
         }
     }
 
-    private static final ThreadLocal<ScenarioRuntime> LOCAL = new ThreadLocal<ScenarioRuntime>();
+    protected static final ThreadLocal<ScenarioRuntime> LOCAL = new ThreadLocal<ScenarioRuntime>();
 
     private static final ThreadLocal<LogAppender> APPENDER = new ThreadLocal<LogAppender>() {
         @Override
@@ -174,7 +182,7 @@ public class ScenarioRuntime implements Runnable {
         logger.setAppender(appender);
         LOCAL.set(this);
         engine.init();
-        engine.putHidden(VariableNames.KARATE, bridge);
+        engine.putHidden(VariableNames.KARATE, new ScenarioBridge());
         if (scenario.isDynamic()) {
             steps = scenario.getBackgroundSteps();
         } else {
@@ -245,16 +253,12 @@ public class ScenarioRuntime implements Runnable {
         }
     }
 
-    // these can get re-built or swapped, so cannot be final ===================
+    // engine ==================================================================
     //
-    private Config config = new Config();
-
-    // ENGINE ==================================================================
-    //
-    public void configure(String key, String exp) {
-
-    }
-
+    public final Function<String, Object> read = s -> {
+        return null;
+    };    
+    
     public void call(boolean callonce, String line) {
 
     }
@@ -314,8 +318,66 @@ public class ScenarioRuntime implements Runnable {
         engine.print(exps);
     }
 
-    // HTTP ====================================================================
-    //
+    // gatling =================================================================
+    //   
+    private PerfEvent prevPerfEvent;
+
+    public void logLastPerfEvent(String failureMessage) {
+        if (prevPerfEvent != null && executionHooks != null) {
+            if (failureMessage != null) {
+                prevPerfEvent.setFailed(true);
+                prevPerfEvent.setMessage(failureMessage);
+            }
+            executionHooks.forEach(h -> h.reportPerfEvent(prevPerfEvent));
+        }
+        prevPerfEvent = null;
+    }
+
+    public void capturePerfEvent(PerfEvent event) {
+        logLastPerfEvent(null);
+        prevPerfEvent = event;
+    }
+
+    // http ====================================================================
+    //        
+    private Config config;
+    private ScenarioHttpClient http;
+    private HttpRequest prevRequest;
+
+    public HttpRequest getPrevRequest() {
+        return prevRequest;
+    }
+
+    public Config getConfig() {
+        return config;
+    }
+
+    public void updateConfigCookies(Map<String, Cookie> cookies) {
+        if (cookies == null) {
+            return;
+        }
+        if (config.getCookies().isNull()) {
+            config.setCookies(new Variable(cookies));
+        } else {
+            Map<String, Object> map = config.getCookies().evalAsMap();
+            map.putAll(cookies);
+            config.setCookies(new Variable(map));
+        }
+    }
+
+    public void configure(String key, String exp) {
+        Variable v = new Variable(exp);
+        key = StringUtils.trimToEmpty(key);
+        // if next line returns true, http-client needs re-building
+        if (config.configure(key, v)) {
+            if (key.startsWith("httpClient")) { // special case
+                http = ScenarioHttpClient.construct(config);
+            } else {
+                http.configure(config);
+            }
+        }
+    }
+
     public void url(String exp) {
 
     }
@@ -392,7 +454,7 @@ public class ScenarioRuntime implements Runnable {
 
     }
 
-    // UI ======================================================================
+    // ui driver / robot =======================================================
     //
     public void driver(String expression) {
 

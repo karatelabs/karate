@@ -23,7 +23,6 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.ScenarioContext;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -84,9 +83,9 @@ public class Resource {
         this(path, null, -1);
     }
 
-    public Resource(ScenarioContext sc, String relativePath) {
+    public Resource(ClassLoader cl, String relativePath) {
         String strippedPath = FileUtils.removePrefix(relativePath);
-        URL url = sc.getResource(strippedPath);
+        URL url = cl.getResource(strippedPath);
         if (url != null) {
             this.path = FileUtils.urlToPath(url, strippedPath);
         } else {

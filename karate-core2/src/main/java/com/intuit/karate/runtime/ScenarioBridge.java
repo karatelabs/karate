@@ -23,20 +23,31 @@
  */
 package com.intuit.karate.runtime;
 
+import com.intuit.karate.PerfContext;
+import com.intuit.karate.core.PerfEvent;
+
 /**
  *
  * @author pthomas3
  */
-public class ScenarioBridge {
-    
-    public final ScenarioRuntime runtime;
-    
-    public ScenarioBridge(ScenarioRuntime runtime) {
-        this.runtime = runtime;
+public class ScenarioBridge implements PerfContext {
+
+    private ScenarioRuntime runtime() {
+        return ScenarioRuntime.LOCAL.get();
     }
-    
+
+    public ScenarioRuntime getRuntime() {
+        return runtime();
+    }
+
+    @Override
+    public void capturePerfEvent(String name, long startTime, long endTime) {
+        PerfEvent event = new PerfEvent(startTime, endTime, name, 200);
+        runtime().capturePerfEvent(event);
+    }
+
     public void sayHello() {
         System.out.println("*** hello");
     }
-    
+
 }

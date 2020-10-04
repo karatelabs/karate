@@ -23,30 +23,34 @@
  */
 package com.intuit.karate.runtime;
 
-import com.intuit.karate.Results;
-import com.intuit.karate.core.ExecutionHook;
-import com.intuit.karate.core.ExecutionHookFactory;
-import java.util.ArrayList;
-import java.util.Collection;
+import com.intuit.karate.core.Feature;
 
 /**
  *
  * @author pthomas3
  */
-public class SuiteRuntime {
+public class ScenarioCall {
+
+    public static final ScenarioCall NONE = new ScenarioCall(null, null);
+
+    public final ScenarioRuntime parentRuntime;
+    public final Feature feature;
+    public final FeatureRuntime featureRuntime;
+    public final int callDepth;
     
-    public final Results results = Results.startTimer(1);    
-    public final Collection<ExecutionHook> executionHooks = new ArrayList();
-    public final ExecutionHookFactory hookFactory = null;    
-    private boolean hooksResolved;
-    
-    public Collection<ExecutionHook> resolveHooks() {
-        if (hookFactory == null || hooksResolved) {
-            return executionHooks;
+    private boolean callonce;
+    private Object arg;            
+
+    public ScenarioCall(Feature feature, ScenarioRuntime parentRuntime) {
+        this.feature = feature;
+        this.parentRuntime = parentRuntime;
+        if (parentRuntime == null) {            
+            callDepth = 0;
+            featureRuntime = null;
+        } else {
+            callDepth = parentRuntime.parentCall.callDepth + 1;
+            featureRuntime = new FeatureRuntime(parentRuntime.featureRuntime.suite, feature, this);
         }
-        hooksResolved = true;
-        executionHooks.add(hookFactory.create());
-        return executionHooks;
-    }    
-    
+    }
+
 }

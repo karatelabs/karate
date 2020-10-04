@@ -93,7 +93,7 @@ public class JarLoadingTest {
     @Test
     public void testClassPathJarResource() throws Exception {
         String relativePath = "classpath:example/dependency.feature";
-        Resource resource = new Resource(getContext(), relativePath);
+        Resource resource = new Resource(getJarClassLoader2(), relativePath);
         String temp = resource.getAsString();
         logger.debug("string: {}", temp);
     }

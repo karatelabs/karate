@@ -107,6 +107,10 @@ public class Variable {
     public <T> T getValue() {
         return (T) value;
     }
+    
+    public boolean isBytes() {
+        return type == Type.BYTES;
+    }
 
     public boolean isString() {
         return type == Type.STRING;
@@ -159,6 +163,15 @@ public class Variable {
             return new Variable(result);
         }
     }
+    
+    public Map<String, Object> evalAsMap() {
+        if (isFunction()) {
+            Variable v = invokeFunction();
+            return v.isMap() ? v.getValue() : null;
+        } else {
+            return isMap() ? getValue() : null;
+        }
+    }    
 
     public Node getAsXml() {
         switch (type) {

@@ -18,8 +18,7 @@ public class RuntimeUtils {
             sb.append("* ").append(line).append('\n');
         }
         Feature feature = FeatureParser.parse(Resource.of(Paths.get("target/temp.feature"), sb.toString()));
-        SuiteRuntime suite = new SuiteRuntime();
-        FeatureRuntime fr = new FeatureRuntime(suite, feature);
+        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature, ScenarioCall.NONE);
         ScenarioGenerator sg = new ScenarioGenerator(fr, feature.getSections().iterator());
         sg.hasNext();
         ScenarioRuntime sr = sg.next();
@@ -29,7 +28,7 @@ public class RuntimeUtils {
 
     public static FeatureRuntime runFeature(String path) {
         Feature feature = FeatureParser.parse(path);
-        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature);
+        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature, ScenarioCall.NONE);
         fr.run();
         return fr;
     }
