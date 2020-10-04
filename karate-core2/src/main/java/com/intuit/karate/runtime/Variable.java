@@ -120,6 +120,10 @@ public class Variable {
         return type == Type.MAP;
     }
 
+    public boolean isMapOrList() {
+        return type == Type.MAP || type == Type.LIST;
+    }
+
     public boolean isXml() {
         return type == Type.XML;
     }
@@ -131,7 +135,7 @@ public class Variable {
     public boolean isNull() {
         return type == Type.NULL;
     }
-    
+
     public boolean isOther() {
         return type == Type.OTHER;
     }

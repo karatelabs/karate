@@ -71,28 +71,17 @@ public class ScenarioRuntime implements Runnable {
             this.background = background;
             result = new ScenarioResult(scenario, background.result.getStepResults());
         }
-        engine = new ScenarioEngine();
+        engine = new ScenarioEngine(logger);
         bridge = new ScenarioBridge(this);
         actions = new ScenarioActions(this);
+        // TODO appender for perf
         // TODO caller
         // TODO config
     }
 
-    public void addError(String message, Throwable t) {
-
-    }
-
     public boolean isFailed() {
-        return false;
+        return error != null || result.isFailed();
     }
-
-    private static final ThreadLocal<LogAppender> APPENDER = new ThreadLocal<LogAppender>() {
-        @Override
-        protected LogAppender initialValue() {
-            String fileName = FileUtils.getBuildDir() + File.separator + Thread.currentThread().getName() + ".log";
-            return new FileLogAppender(new File(fileName));
-        }
-    };
 
     public Step getCurrentStep() {
         return currentStep;
@@ -106,7 +95,9 @@ public class ScenarioRuntime implements Runnable {
     private LogAppender appender;
     private StepResult lastStepResult;
     private Step currentStep;
+    private Throwable error;
     private boolean stopped;
+    private boolean aborted;
     private int stepIndex;
 
     public void stepBack() {
@@ -132,42 +123,56 @@ public class ScenarioRuntime implements Runnable {
     private int nextStepIndex() {
         return stepIndex++;
     }
-
+    
+    private void logError(String message) {
+        if (currentStep != null) {
+            message = currentStep.getDebugInfo() 
+                    + "\n" + currentStep.toString()
+                    + "\n" + message;
+        }
+        logger.error("{}", message);
+    }
+    
     @Override
     public void run() {
-        if (appender == null) { // not perf, not ui
-            appender = APPENDER.get();
-        }
-        logger.setAppender(appender);
-        if (steps == null) {
-            init();
-        }
-        try { // make sure we call next() even on crashes
+        try { // make sure we call afterRun() even on crashes
             // and operate countdown latches, else we may hang the parallel runner
             if (steps == null) {
-                init();
+                beforeRun();
             }
             int count = steps.size();
             int index = 0;
             while ((index = nextStepIndex()) < count) {
-                Step step = steps.get(index);
-                lastStepResult = execute(step);
+                currentStep = steps.get(index);
+                lastStepResult = execute(currentStep);
                 if (lastStepResult == null) { // debug step-back !
                     continue;
                 }
                 result.addStepResult(lastStepResult);
-                if (lastStepResult.isStopped()) {
-                    stopped = true;
-                }
             }
-            stop();
         } catch (Exception e) {
-            result.addError("scenario execution failed", e);
-            logger.error("scenario execution failed: {}", e.getMessage());
+            logError(e.getMessage());
+        } finally {
+            afterRun();
         }
     }
 
-    public void init() {
+    private static final ThreadLocal<ScenarioRuntime> LOCAL = new ThreadLocal<ScenarioRuntime>();
+
+    private static final ThreadLocal<LogAppender> APPENDER = new ThreadLocal<LogAppender>() {
+        @Override
+        protected LogAppender initialValue() {
+            String fileName = FileUtils.getBuildDir() + File.separator + Thread.currentThread().getName() + ".log";
+            return new FileLogAppender(new File(fileName));
+        }
+    };
+
+    public void beforeRun() {
+        if (appender == null) { // not perf, not debug
+            appender = APPENDER.get();
+        }
+        logger.setAppender(appender);
+        LOCAL.set(this);
         engine.init();
         engine.putHidden(VariableNames.KARATE, bridge);
         if (scenario.isDynamic()) {
@@ -188,23 +193,55 @@ public class ScenarioRuntime implements Runnable {
 
     // extracted for debug
     public StepResult execute(Step step) {
-        Result stepResult = StepRuntime.execute(step, actions);
-        StepResult sr = new StepResult(step, stepResult, null, null, null);
-        // after step hooks
-        return sr;
+        if (stopped) {
+            Result stepResult;
+            if (aborted && config.isAbortedStepsShouldPass()) {
+                stepResult = Result.passed(0);
+            } else {
+                stepResult = Result.skipped();
+            }
+            StepResult sr = new StepResult(step, stepResult, null, null, null);
+            // log / step visibility
+            // after step hooks
+            return sr;
+        } else {
+            Result stepResult = StepRuntime.execute(step, actions);
+            // collect embeds
+            // log / step visibility
+            // collect log
+            if (stepResult.isAborted()) { // we log only aborts for visibility
+                aborted = true;
+                stopped = true;
+                logger.debug("abort at {}", step.getDebugInfo());
+            } else if (stepResult.isFailed()) {
+                stopped = true;
+                error = stepResult.getError();
+            }
+            LOCAL.set(this); // restore, since a call may have switched this
+            StepResult sr = new StepResult(step, stepResult, null, null, null);
+            // after step hooks           
+            return sr;
+        }
     }
 
-    public void stop() {
-        result.setEndTime(System.currentTimeMillis() - featureRuntime.suite.results.getStartTime());
-        featureRuntime.result.addResult(result);
-        // check if context is not-null
-        // gatling clean up
-        // after-scenario hook
-        // embed collection for afterScenario
-        // stop browser automation if running
-        if (lastStepResult != null) {
-            String stepLog = StringUtils.trimToNull(appender.collect());
-            lastStepResult.appendToStepLog(stepLog);
+    public void afterRun() {
+        try {
+            result.setEndTime(System.currentTimeMillis() - featureRuntime.suite.results.getStartTime());
+            featureRuntime.result.addResult(result);
+            // check if context is not-null
+            // gatling clean up
+            // after-scenario hook
+            // embed collection for afterScenario
+            // stop browser automation if running
+            if (lastStepResult != null) {
+                String stepLog = StringUtils.trimToNull(appender.collect());
+                lastStepResult.appendToStepLog(stepLog);
+            }
+        } catch (Exception e) {
+            logError(e.getMessage());
+        } finally {
+            LOCAL.remove();
+            // next
         }
     }
 
@@ -212,8 +249,12 @@ public class ScenarioRuntime implements Runnable {
     //
     private Config config = new Config();
 
-    //==========================================================================
+    // ENGINE ==================================================================
     //
+    public void configure(String key, String exp) {
+
+    }
+
     public void call(boolean callonce, String line) {
 
     }
@@ -229,7 +270,7 @@ public class ScenarioRuntime implements Runnable {
     public void match(MatchType matchType, String expression, String path, String expected) {
         MatchResult mr = engine.match(matchType, expression, path, expected);
         if (!mr.pass) {
-            logger.error("{}", mr);
+            logError(mr.message);
             throw new KarateException(mr.message);
         }
     }
@@ -239,7 +280,7 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public void set(String name, String path, List<Map<String, String>> table) {
-        engine.set(name, path, table);
+        engine.setViaTable(name, path, table);
     }
 
     public void remove(String name, String path) {
@@ -247,21 +288,21 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public void table(String name, List<Map<String, String>> table) {
-
-    }
-
-    public void replace(String name, List<Map<String, String>> table) {
-
+        engine.table(name, table);
     }
 
     public void replace(String name, String token, String value) {
+        engine.replace(name, token, value);
+    }
 
+    public void replace(String name, List<Map<String, String>> table) {
+        engine.replaceTable(name, table);
     }
 
     public void assertTrue(String expression) {
         if (!engine.assertTrue(expression)) {
             String message = "did not evaluate to 'true': " + expression;
-            logger.error("{}", message);
+            logError(message);
             throw new KarateException(message);
         }
     }
@@ -270,36 +311,11 @@ public class ScenarioRuntime implements Runnable {
         if (!config.isPrintEnabled()) {
             return;
         }
-        String prev = ""; // handle rogue commas embedded in string literals
-        StringBuilder sb = new StringBuilder();
-        sb.append("[print]");
-        for (String exp : exps) {
-            if (!prev.isEmpty()) {
-                exp = prev + StringUtils.trimToNull(exp);
-            }
-            if (exp == null) {
-                sb.append("null");
-            } else {
-                Variable v = engine.getIfVariableReference(exp.trim()); // trim is important
-                if (v == null) {
-                    try {
-                        v = engine.eval(exp);
-                        prev = ""; // eval success, reset rogue comma detector
-                    } catch (Exception e) {
-                        prev = exp + ", ";
-                        continue;
-                    }
-                }
-                sb.append(' ').append(v.getAsPrettyString());
-            }
-        }
-        logger.info("{}", sb);
+        engine.print(exps);
     }
 
-    public void configure(String key, String exp) {
-
-    }
-
+    // HTTP ====================================================================
+    //
     public void url(String exp) {
 
     }
@@ -376,6 +392,8 @@ public class ScenarioRuntime implements Runnable {
 
     }
 
+    // UI ======================================================================
+    //
     public void driver(String expression) {
 
     }

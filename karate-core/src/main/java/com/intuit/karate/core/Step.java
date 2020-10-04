@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.StringUtils;
 import java.util.List;
 
 /**
@@ -45,11 +44,7 @@ public class Step {
     private Table table;
 
     public String getDebugInfo() {
-        String message = "feature: " + feature.getRelativePath();
-        if (!isBackground()) {
-            message = message + ", scenario: " + StringUtils.trimToNull(scenario.getName());
-        }
-        return message + ", line: " + line;
+        return feature.getRelativePath() + ":" + line;
     }
 
     public boolean isPrint() {

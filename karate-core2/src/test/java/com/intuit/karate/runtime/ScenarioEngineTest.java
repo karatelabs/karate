@@ -6,7 +6,7 @@ import com.intuit.karate.data.Json;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchType;
-import com.intuit.karate.match.MatchUtils;
+import com.intuit.karate.match.MatchValue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -28,10 +28,10 @@ public class ScenarioEngineTest {
         engine.init();
     }
 
-    private void match(Object before, Object after) {
-        Variable actual = new Variable(MatchUtils.parse(before));
+    private void matchEval(Object before, Object after) {
+        Variable actual = new Variable(MatchValue.parseIfJsonOrXml(before));
         Variable expected = engine.evalEmbeddedExpressions(actual);
-        MatchResult mr = Match.that(expected.getValue()).is(MatchType.EQUALS, MatchUtils.parse(after));
+        MatchResult mr = Match.that(expected.getValue()).is(MatchType.EQUALS, MatchValue.parseIfJsonOrXml(after));
         assertTrue(mr.pass, mr.message);
     }
 
@@ -104,38 +104,38 @@ public class ScenarioEngineTest {
 
     @Test
     void testEmbeddedString() {
-        match("hello", "hello");
-        match("#(1)", 1);
-        match("#(null)", null);
-        match("#('foo')", "foo");
-        match("##('foo')", "foo");
-        match("##(null)", null);
+        matchEval("hello", "hello");
+        matchEval("#(1)", 1);
+        matchEval("#(null)", null);
+        matchEval("#('foo')", "foo");
+        matchEval("##('foo')", "foo");
+        matchEval("##(null)", null);
         engine.eval("var bar = null");
-        match("##(bar)", null);
+        matchEval("##(bar)", null);
     }
 
     @Test
     void testEmbeddedList() {
         engine.eval("var foo = 3");
-        match("[1, 2, '#(foo)']", "[1, 2, 3]");
+        matchEval("[1, 2, '#(foo)']", "[1, 2, 3]");
         engine.eval("var foo = [3, 4]");
-        match("[1, 2, '#(foo)']", "[1, 2, [3, 4]]");
+        matchEval("[1, 2, '#(foo)']", "[1, 2, [3, 4]]");
         engine.eval("var foo = null");
-        match("[1, 2, '#(foo)']", "[1, 2, null]");
-        match("[1, 2, '##(foo)']", "[1, 2]");
-        match("[1, '##(foo)', 3]", "[1, 3]");
+        matchEval("[1, 2, '#(foo)']", "[1, 2, null]");
+        matchEval("[1, 2, '##(foo)']", "[1, 2]");
+        matchEval("[1, '##(foo)', 3]", "[1, 3]");
         engine.eval("var bar = null");
-        match("['##(foo)', 2, '##(bar)']", "[2]");
+        matchEval("['##(foo)', 2, '##(bar)']", "[2]");
     }
 
     @Test
     void testEmbeddedMap() {
         engine.eval("var foo = 2");
-        match("{ a: 1, b: '#(foo)', c: 3}", "{ a: 1, b: 2, c: 3}");
-        match("{ a: 1, b: '#(foo)', c: '#(foo)'}", "{ a: 1, b: 2, c: 2}");
+        matchEval("{ a: 1, b: '#(foo)', c: 3}", "{ a: 1, b: 2, c: 3}");
+        matchEval("{ a: 1, b: '#(foo)', c: '#(foo)'}", "{ a: 1, b: 2, c: 2}");
         engine.eval("var bar = null");
-        match("{ a: 1, b: '#(bar)', c: '#(foo)'}", "{ a: 1, b: null, c: 2}");
-        match("{ a: 1, b: '##(bar)', c: '#(foo)'}", "{ a: 1, c: 2}");
+        matchEval("{ a: 1, b: '#(bar)', c: '#(foo)'}", "{ a: 1, b: null, c: 2}");
+        matchEval("{ a: 1, b: '##(bar)', c: '#(foo)'}", "{ a: 1, c: 2}");
         assign("a", "1");
         assign("b", "2");
         assign("myJson", "{ foo: '#(a + b)' }");
@@ -154,7 +154,7 @@ public class ScenarioEngineTest {
         assign("b", "2");
         assign("myXml", "<root><foo>#(a + b)</foo></root>");
         Variable value = engine.evalXmlPathOnVariableByName("myXml", "/root/foo");
-        match(value.getValue(), "3"); // TODO BREAKING '3' before graal  
+        matchEval(value.getValue(), "3"); // TODO BREAKING '3' before graal  
         assign("hello", "<hello>world</hello>");
         assign("myXml", "<foo><bar>#(hello)</bar></foo>");
         matchEquals("myXml", "<foo><bar><hello>world</hello></bar></foo>");
@@ -196,9 +196,9 @@ public class ScenarioEngineTest {
         matchEquals("bar.record", "['a', null]");
         assign("myXml", "<root><foo>bar</foo></root>");
         Variable value = engine.evalXmlPathOnVariableByName("myXml", "/root/foo");
-        match(value.getValue(), "bar");
+        matchEval(value.getValue(), "bar");
         value = engine.evalKarateExpression("$myXml/root/foo");
-        match(value.getValue(), "bar");
+        matchEval(value.getValue(), "bar");
         // present / notpresent
         assign("xml", "<root><foo>bar</foo><baz/><ban></ban></root>");
         matchEquals("xml/root/foo", "'bar'");
@@ -251,12 +251,12 @@ public class ScenarioEngineTest {
         assertEquals(2, value.<Number>getValue());
         value = engine.evalJsonPathOnVariableByName("myJson", "$.baz");
         assertTrue(value.isList());
-        match(value.getValue(), "[1, 2]");
+        matchEval(value.getValue(), "[1, 2]");
         value = engine.evalJsonPathOnVariableByName("myJson", "$.ban");
         assertTrue(value.isMap());
-        match(value.getValue(), "{ hello: 'world' }");
+        matchEval(value.getValue(), "{ hello: 'world' }");
         value = engine.evalKarateExpression("$myJson.ban");
-        match(value.getValue(), "{ hello: 'world' }");
+        matchEval(value.getValue(), "{ hello: 'world' }");
         // tricky json-path
         assign("foo", "{ a: 1, b: 2, c: 3 }");
         assign("bar", "{ 'sp ace': '#(foo.a)', 'hy-phen': '#(foo.b)', 'full.stop': '#(foo.c)' }");
@@ -379,14 +379,38 @@ public class ScenarioEngineTest {
     @Test
     void testSetViaTable() {
         Json json = new Json("[{path: 'bar', value: \"'baz'\" }]");
-        engine.set("foo", null, json.asList());
+        engine.setViaTable("foo", null, json.asList());
         matchEquals("foo", "{ bar: 'baz' }");
         json = new Json("[{path: 'bar', value: 'null' }]"); // has no effect
-        engine.set("foo", null, json.asList());
+        engine.setViaTable("foo", null, json.asList());
         matchEquals("foo", "{ bar: 'baz' }");
         json = new Json("[{path: 'bar', value: '(null)' }]"); // has effect
-        engine.set("foo", null, json.asList());
+        engine.setViaTable("foo", null, json.asList());
         matchEquals("foo", "{ bar: null }");
+    }
+
+    @Test
+    void testTable() {
+        Json json = new Json("[{foo: '1', bar: \"'baz'\" }]");
+        engine.table("tab", json.asList());
+        matchEquals("tab", "[{ foo: 1, bar: 'baz' }]");
+        json = new Json("[{foo: '', bar: \"'baz'\" }]");
+        engine.table("tab", json.asList());
+        matchEquals("tab", "[{ bar: 'baz' }]");
+        json = new Json("[{foo: '(null)', bar: \"'baz'\" }]");
+        engine.table("tab", json.asList());
+        matchEquals("tab", "[{ foo: null, bar: 'baz' }]");
+    }
+
+    @Test
+    void testReplace() {
+        assign("foo", "'hello <world>'");
+        engine.replace("foo", "world", "'blah'");
+        matchEquals("foo", "'hello blah'");
+        assign("str", "'ha <foo> ha'");
+        Json json = new Json("[{token: 'foo', value: \"'bar'\" }]");
+        engine.replaceTable("str", json.asList());
+        matchEquals("str", "'ha bar ha'");
     }
 
 }

@@ -44,7 +44,7 @@ public class MatchResult {
 
     @Override
     public String toString() {
-        return pass ? "passed" : "assertion failed: " + message;
+        return pass ? "[pass]" : message;
     }
 
     public static MatchResult fail(String message) {

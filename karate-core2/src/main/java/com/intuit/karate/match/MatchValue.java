@@ -121,25 +121,32 @@ public class MatchValue {
         return (T) value;
     }
 
+    public static Object parseIfJsonOrXml(Object o) {
+        if (o instanceof String) {
+            String s = (String) o;
+            if (s.isEmpty()) {
+                return o;
+            } else if (JsonUtils.isJson(s)) {
+                return new Json(s).asMapOrList();
+            } else if (XmlUtils.isXml(s)) {
+                return XmlUtils.toXmlDoc(s);
+            } else {
+                if (s.charAt(0) == '\\') {
+                    return s.substring(1);
+                }
+            }
+        }
+        return o;
+    }
+
     public MatchResult is(MatchType mt, Object o) {
-        MatchOperation mo = new MatchOperation(mt, this, new MatchValue(o));
+        MatchOperation mo = new MatchOperation(mt, this, new MatchValue(parseIfJsonOrXml(o)));
         mo.execute();
         return mo.pass ? MatchResult.PASS : MatchResult.fail(mo.getFailureReasons());
     }
 
     public MatchResult isEqualTo(Object o) {
         return is(MatchType.EQUALS, o);
-    }
-
-    public MatchResult isEqualTo(String s) {
-        if (JsonUtils.isJson(s)) {
-            return is(MatchType.EQUALS, new Json(s).asMapOrList());
-        } else {
-            if (s != null && s.charAt(0) == '\\') {
-                s = s.substring(1);
-            }
-            return is(MatchType.EQUALS, s);
-        }
     }
 
     public String getWithinSingleQuotesIfString() {

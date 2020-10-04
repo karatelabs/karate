@@ -35,7 +35,7 @@ class MatchTest {
     }
 
     private void match(Object actual, MatchType mt, Object expected, boolean fails) {
-        MatchResult mr = Match.that(MatchUtils.parse(actual)).is(mt, MatchUtils.parse(expected));
+        MatchResult mr = Match.that(actual).is(mt, expected);
         message = mr.message;
         if (!fails) {
             assertTrue(mr.pass);

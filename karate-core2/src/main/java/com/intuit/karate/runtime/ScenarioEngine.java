@@ -38,6 +38,8 @@ import com.jayway.jsonpath.PathNotFoundException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -338,6 +340,76 @@ public class ScenarioEngine {
         }
     }
 
+    private String getVarAsString(String name) {
+        Variable v = vars.get(name);
+        if (v == null) {
+            throw new RuntimeException("no variable found with name: " + name);
+        }
+        return v.getAsString();
+    }
+
+    public String replacePlaceholderText(String text, String token, String replaceWith) {
+        if (text == null) {
+            return null;
+        }
+        replaceWith = StringUtils.trimToNull(replaceWith);
+        if (replaceWith == null) {
+            return text;
+        }
+        try {
+            Variable v = evalKarateExpression(replaceWith);
+            replaceWith = v.getAsString();
+        } catch (Exception e) {
+            throw new RuntimeException("expression error (replace string values need to be within quotes): " + e.getMessage());
+        }
+        if (replaceWith == null) { // ignore if eval result is null
+            return text;
+        }
+        token = StringUtils.trimToNull(token);
+        if (token == null) {
+            return text;
+        }
+        char firstChar = token.charAt(0);
+        if (Character.isLetterOrDigit(firstChar)) {
+            token = '<' + token + '>';
+        }
+        return text.replace(token, replaceWith);
+    }
+
+    public void replace(String name, String token, String value) {
+        name = name.trim();
+        String text = getVarAsString(name);
+        String replaced = replacePlaceholderText(text, token, value);
+        vars.put(name, new Variable(replaced));
+    }
+    
+    private static final String TOKEN = "token";
+
+    public void replaceTable(String text, List<Map<String, String>> list) {
+        if (text == null) {
+            return;
+        }
+        if (list == null) {
+            return;
+        }
+        for (Map<String, String> map : list) {
+            String token = map.get(TOKEN);
+            if (token == null) {
+                continue;
+            }
+            // the verbosity below is to be lenient with table second column name
+            List<String> keys = new ArrayList(map.keySet());
+            keys.remove(TOKEN);
+            Iterator<String> iterator = keys.iterator();
+            if (iterator.hasNext()) {
+                String key = keys.iterator().next();
+                String value = map.get(key);
+                replace(text, token, value);
+            }
+        }
+ 
+    }    
+
     public void remove(String name, String path) {
         set(name, path, null, true, false);
     }
@@ -418,7 +490,7 @@ public class ScenarioEngine {
 
     private static final String PATH = "path";
 
-    public void set(String name, String path, List<Map<String, String>> list) {
+    public void setViaTable(String name, String path, List<Map<String, String>> list) {
         name = StringUtils.trimToEmpty(name);
         path = StringUtils.trimToNull(path);
         if (path == null) {
@@ -466,6 +538,59 @@ public class ScenarioEngine {
                 set(name, finalPath, expression, false, true);
             }
         }
+    }
+
+    public void print(List<String> exps) {
+        String prev = ""; // handle rogue commas embedded in string literals
+        StringBuilder sb = new StringBuilder();
+        sb.append("[print]");
+        for (String exp : exps) {
+            if (!prev.isEmpty()) {
+                exp = prev + StringUtils.trimToNull(exp);
+            }
+            if (exp == null) {
+                sb.append("null");
+            } else {
+                Variable v = getIfVariableReference(exp.trim()); // trim is important
+                if (v == null) {
+                    try {
+                        v = eval(exp);
+                        prev = ""; // eval success, reset rogue comma detector
+                    } catch (Exception e) {
+                        prev = exp + ", ";
+                        continue;
+                    }
+                }
+                sb.append(' ').append(v.getAsPrettyString());
+            }
+        }
+        logger.info("{}", sb);
+    }
+
+    public void table(String name, List<Map<String, String>> rows) {
+        List<Map<String, Object>> result = new ArrayList<>(rows.size());
+        for (Map<String, String> map : rows) {
+            Map<String, Object> row = new LinkedHashMap<>(map);
+            List<String> toRemove = new ArrayList(map.size());
+            for (Map.Entry<String, Object> entry : row.entrySet()) {
+                String exp = (String) entry.getValue();
+                Variable sv = evalKarateExpression(exp);
+                if (sv.isNull() && !isWithinParentheses(exp)) { // by default empty / null will be stripped, force null like this: '(null)'
+                    toRemove.add(entry.getKey());
+                } else {
+                    if (sv.isString()) {
+                        entry.setValue(sv.getAsString());
+                    } else { // map, list etc
+                        entry.setValue(sv.getValue());
+                    }
+                }
+            }
+            for (String keyToRemove : toRemove) {
+                row.remove(keyToRemove);
+            }
+            result.add(row);
+        }
+        vars.put(name.trim(), new Variable(result));
     }
 
     public static StringUtils.Pair parseVariableAndPath(String text) {

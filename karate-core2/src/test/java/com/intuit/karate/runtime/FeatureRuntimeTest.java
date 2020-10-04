@@ -1,9 +1,6 @@
 package com.intuit.karate.runtime;
 
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.core.HtmlFeatureReport;
-import com.intuit.karate.core.HtmlSummaryReport;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,16 +13,20 @@ class FeatureRuntimeTest {
 
     static final Logger logger = LoggerFactory.getLogger(FeatureRuntimeTest.class);
 
-    @Test
-    void testSimple() {
-        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/runtime/simple.feature");
-        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature);
-        fr.run();
-        String reportDir = "target/temp";
-        HtmlSummaryReport summary = new HtmlSummaryReport();
-        HtmlFeatureReport.saveFeatureResult(reportDir, fr.result);
-        summary.addFeatureResult(fr.result);
-        summary.save(reportDir);
+    private static FeatureRuntime run(String name) {
+        return RuntimeUtils.runFeature("classpath:com/intuit/karate/runtime/" + name);
     }
+
+    @Test
+    void testPrint() {
+        FeatureRuntime fr = run("print.feature");
+        assertFalse(fr.result.isFailed());
+    }
+    
+    @Test
+    void testFail1() {
+        FeatureRuntime fr = run("fail1.feature");
+        assertTrue(fr.result.isFailed());
+    }    
 
 }

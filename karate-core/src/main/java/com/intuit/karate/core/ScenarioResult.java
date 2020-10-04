@@ -119,6 +119,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         return featureName + ":" + step.getLine() + " " + step.getText();
     }
 
+    // TODO remove this
     public void addError(String message, Throwable error) {
         Step step = new Step(scenario.getFeature(), scenario, -1);
         step.setLine(scenario.getLine());

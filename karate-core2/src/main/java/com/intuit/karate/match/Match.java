@@ -60,8 +60,8 @@ public class Match {
         });
     }
 
-    public static MatchValue that(Object object) {
-        return new MatchValue(object);
+    public static MatchValue that(Object o) {
+        return new MatchValue(MatchValue.parseIfJsonOrXml(o));
     }
 
     public static MatchResult execute(MatchType matchType, MatchValue actual, MatchValue expected) {
