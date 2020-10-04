@@ -29,12 +29,16 @@ import com.intuit.karate.http.HttpBody;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.http.MultiValuedMap;
+
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+
+import io.netty.handler.codec.http.HttpUtil;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
@@ -78,21 +82,17 @@ public class ApacheHttpUtils {
                 return null;
             }
         }
-        Map<String, String> map = HttpUtils.parseContentTypeParams(mediaType);
-        if (map != null) {
-            String cs = map.get(HttpUtils.CHARSET);
-            if (cs != null) {
-                charset = Charset.forName(cs);
-                map.remove(HttpUtils.CHARSET);
-            }
+       
+        // if charset is null that means mediaType does not contains any charset
+        Charset existingCharset = HttpUtil.getCharset(mediaType, null);
+        
+        // appending charset if not present
+        if(Objects.isNull(existingCharset)) {
+        	mediaType = new StringBuilder(mediaType).append("; ").append(HttpUtils.CHARSET)
+        			.append("=").append(charset.name()).toString();
         }
-        ContentType ct = ContentType.parse(mediaType).withCharset(charset);
-        if (map != null) {
-            for (Map.Entry<String, String> entry : map.entrySet()) {
-                ct = ct.withParameters(new BasicNameValuePair(entry.getKey(), entry.getValue()));
-            }
-        }
-        return ct;
+         
+        return ContentType.parse(mediaType);
     }
     
     public static HttpEntity getEntity(InputStream is, String mediaType, Charset charset) {
