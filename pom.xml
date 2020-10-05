@@ -40,8 +40,8 @@
         <junit.version>4.12</junit.version>
         <javafx.controls.version>13-ea+12</javafx.controls.version>
         <nexus.staging.plugin.version>1.6.7</nexus.staging.plugin.version>
-        <spring.version>4.3.8.RELEASE</spring.version>
-        <spring.boot.version>1.5.16.RELEASE</spring.boot.version>
+        <spring.version>5.2.9.RELEASE</spring.version>
+        <spring.boot.version>2.3.4.RELEASE</spring.boot.version>
         <jacoco.plugin.version>0.7.9</jacoco.plugin.version>        
         <cucumber.reporting.version>3.8.0</cucumber.reporting.version>
     </properties>

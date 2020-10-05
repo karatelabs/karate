@@ -61,7 +61,7 @@ public class BootJarLoadingTest {
         }
 
         ClassLoader createClassLoader() throws Exception {
-            return createClassLoader(getClassPathArchives());
+            return createClassLoader(getClassPathArchivesIterator());
         }
     }
 
