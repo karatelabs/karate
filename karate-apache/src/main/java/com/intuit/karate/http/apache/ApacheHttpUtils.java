@@ -29,12 +29,16 @@ import com.intuit.karate.http.HttpBody;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.http.MultiValuedMap;
+
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+
+import io.netty.handler.codec.http.HttpUtil;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
@@ -54,11 +58,11 @@ import org.apache.http.message.BasicNameValuePair;
  * @author pthomas3
  */
 public class ApacheHttpUtils {
-    
+
     private ApacheHttpUtils() {
         // only static methods
     }
-    
+
     public static HttpBody toBody(HttpEntity entity) {
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -66,43 +70,39 @@ public class ApacheHttpUtils {
             return HttpBody.bytes(baos.toByteArray(), entity.getContentType().getValue());
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }        
+        }
     }
-    
+
     // all this complexity is to be able to support "bad" values such as an empty string
     private static ContentType getContentType(String mediaType, Charset charset) {
         if (!HttpUtils.isPrintable(mediaType)) {
             try {
                 return ContentType.create(mediaType);
-            } catch (Exception e) {                
+            } catch (Exception e) {
                 return null;
             }
         }
-        Map<String, String> map = HttpUtils.parseContentTypeParams(mediaType);
-        if (map != null) {
-            String cs = map.get(HttpUtils.CHARSET);
-            if (cs != null) {
-                charset = Charset.forName(cs);
-                map.remove(HttpUtils.CHARSET);
+        // if charset is null that means mediaType does not contains any charset
+        Charset existingCharset = HttpUtil.getCharset(mediaType, null);
+        // appending charset if not present
+        if (Objects.isNull(existingCharset)) {
+            StringBuilder sb = new StringBuilder(mediaType).append("; ").append(HttpUtils.CHARSET);
+            if (charset != null) { // if user set configure charset = null (to omit that piece of the header)
+                sb.append("=").append(charset.name());
             }
+            mediaType = sb.toString();
         }
-        ContentType ct = ContentType.parse(mediaType).withCharset(charset);
-        if (map != null) {
-            for (Map.Entry<String, String> entry : map.entrySet()) {
-                ct = ct.withParameters(new BasicNameValuePair(entry.getKey(), entry.getValue()));
-            }
-        }
-        return ct;
+        return ContentType.parse(mediaType);
     }
-    
+
     public static HttpEntity getEntity(InputStream is, String mediaType, Charset charset) {
         try {
             return new InputStreamEntity(is, is.available(), getContentType(mediaType, charset));
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }         
-    }    
-    
+        }
+    }
+
     public static HttpEntity getEntity(String value, String mediaType, Charset charset) {
         try {
             ContentType ct = getContentType(mediaType, charset);
@@ -112,12 +112,12 @@ public class ApacheHttpUtils {
                 return entity;
             } else {
                 return new StringEntity(value, ct);
-            }            
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }         
+        }
     }
-    
+
     public static HttpEntity getEntity(MultiValuedMap fields, String mediaType, Charset charset) {
         List<NameValuePair> list = new ArrayList<>(fields.size());
         for (Map.Entry<String, List> entry : fields.entrySet()) {
@@ -143,7 +143,7 @@ public class ApacheHttpUtils {
             Charset cs = HttpUtils.parseContentTypeCharset(mediaType);
             if (cs == null) {
                 cs = charset;
-            }            
+            }
             String raw = URLEncodedUtils.format(list, cs);
             int pos = mediaType.indexOf(';');
             if (pos != -1) { // strip out charset param from content-type
@@ -174,13 +174,13 @@ public class ApacheHttpUtils {
                 if (item.getValue() == null || item.getValue().isNull()) {
                     continue;
                 }
-                String name = item.getName();                
+                String name = item.getName();
                 if (name == null) {
                     // will never happen because we divert this flow to the home-made multi-part builder above
                     // builder.addPart(bodyPart);
                 } else {
                     ScriptValue sv = item.getValue();
-                    String ct = item.getContentType();                    
+                    String ct = item.getContentType();
                     if (ct == null) {
                         ct = HttpUtils.getContentType(sv);
                     }
@@ -190,12 +190,12 @@ public class ApacheHttpUtils {
                         if (cs == null) {
                             cs = charset;
                         }
-                        contentType = contentType.withCharset(cs);                         
-                    }                   
+                        contentType = contentType.withCharset(cs);
+                    }
                     FormBodyPartBuilder formBuilder = FormBodyPartBuilder.create().setName(name);
                     ContentBody contentBody;
                     String filename = item.getFilename();
-                    if (filename != null) {                        
+                    if (filename != null) {
                         contentBody = new ByteArrayBody(sv.getAsByteArray(), contentType, filename);
                     } else if (sv.isStream()) {
                         contentBody = new InputStreamBody(sv.getAsStream(), contentType);
@@ -208,6 +208,6 @@ public class ApacheHttpUtils {
             }
             return builder.build();
         }
-    }    
-    
+    }
+
 }
