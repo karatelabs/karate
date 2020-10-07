@@ -33,7 +33,7 @@ import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.appium.AndroidDriver;
 import com.intuit.karate.driver.chrome.Chrome;
 import com.intuit.karate.driver.chrome.ChromeWebDriver;
-import com.intuit.karate.driver.microsoft.EdgeDevToolsDriver;
+import com.intuit.karate.driver.microsoft.EdgeChromium;
 import com.intuit.karate.driver.microsoft.IeWebDriver;
 import com.intuit.karate.driver.microsoft.MsWebDriver;
 import com.intuit.karate.driver.firefox.GeckoWebDriver;
@@ -300,7 +300,7 @@ public class DriverOptions {
                 case "chrome":
                     return Chrome.start(context, options, appender);
                 case "msedge":
-                    return EdgeDevToolsDriver.start(context, options, appender);
+                    return EdgeChromium.start(context, options, appender);
                 case "chromedriver":
                     return ChromeWebDriver.start(context, options, appender);
                 case "geckodriver":
