@@ -5,6 +5,7 @@ target/
 .settings
 .classpath
 .vscode
+.java-version
 *.iml
 build/
 bin/
