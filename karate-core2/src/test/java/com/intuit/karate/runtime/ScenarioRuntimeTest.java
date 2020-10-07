@@ -1,5 +1,6 @@
 package com.intuit.karate.runtime;
 
+import com.intuit.karate.match.Match;
 import static com.intuit.karate.runtime.RuntimeUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,15 @@ class ScenarioRuntimeTest {
                 "match a == 4"
         );
         assertTrue(sr.result.isFailed());
+    }
+    
+    @Test 
+    void testReadFunction() {
+        ScenarioRuntime sr = runScenario(
+                "def foo = karate.read('data.json')"
+        );        
+        Variable foo = sr.engine.vars.get("foo");
+        Match.that(foo.getValue()).isEqualTo("{ hello: 'world' }");
     }
 
 }

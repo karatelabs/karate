@@ -32,24 +32,33 @@ import com.intuit.karate.core.Feature;
 public class ScenarioCall {
 
     public static final ScenarioCall NONE = new ScenarioCall(null, null);
-
-    public final ScenarioRuntime parentRuntime;
-    public final Feature feature;
-    public final FeatureRuntime featureRuntime;
-    public final int callDepth;
     
-    private boolean callonce;
-    private Object arg;            
+    public final ScenarioRuntime parentRuntime;
+    public final int callDepth;
+    public final Feature feature;
 
-    public ScenarioCall(Feature feature, ScenarioRuntime parentRuntime) {
-        this.feature = feature;
+    private boolean callonce;
+    private Object arg;
+
+    public void setArg(Object arg) {
+        this.arg = arg;
+    }
+
+    public boolean isNone() {
+        return callDepth == 0;
+    }
+
+    public void setCallonce(boolean callonce) {
+        this.callonce = callonce;
+    }
+
+    public ScenarioCall(ScenarioRuntime parentRuntime, Feature feature) {
         this.parentRuntime = parentRuntime;
-        if (parentRuntime == null) {            
+        this.feature = feature;
+        if (parentRuntime == null) {
             callDepth = 0;
-            featureRuntime = null;
         } else {
             callDepth = parentRuntime.parentCall.callDepth + 1;
-            featureRuntime = new FeatureRuntime(parentRuntime.featureRuntime.suite, feature, this);
         }
     }
 

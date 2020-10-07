@@ -61,6 +61,9 @@ public class ScenarioRuntime implements Runnable {
     public final Logger logger = new Logger();
     public final ScenarioResult result;
     public final ScenarioEngine engine;
+    public final ScenarioBridge bridge;
+    public final ScenarioFileReader fileReader;
+    public final Function<String, Object> readFunction;
     public final Collection<ExecutionHook> executionHooks;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
@@ -80,7 +83,10 @@ public class ScenarioRuntime implements Runnable {
             result = new ScenarioResult(scenario, background.result.getStepResults());
         }
         engine = new ScenarioEngine(logger);
+        bridge = new ScenarioBridge(); // uses thread local to get "this"
         actions = new ScenarioActions(this);
+        fileReader = new ScenarioFileReader(this);
+        readFunction = s -> fileReader.readFile(s);
         // TODO appender for perf
         // TODO caller
         // TODO config
@@ -182,7 +188,8 @@ public class ScenarioRuntime implements Runnable {
         logger.setAppender(appender);
         LOCAL.set(this);
         engine.init();
-        engine.putHidden(VariableNames.KARATE, new ScenarioBridge());
+        engine.putHidden(VariableNames.KARATE, bridge);
+        engine.putHidden(VariableNames.READ, readFunction);
         if (scenario.isDynamic()) {
             steps = scenario.getBackgroundSteps();
         } else {
@@ -255,10 +262,6 @@ public class ScenarioRuntime implements Runnable {
 
     // engine ==================================================================
     //
-    public final Function<String, Object> read = s -> {
-        return null;
-    };    
-    
     public void call(boolean callonce, String line) {
 
     }

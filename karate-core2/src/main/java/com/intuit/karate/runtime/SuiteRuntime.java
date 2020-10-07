@@ -26,6 +26,7 @@ package com.intuit.karate.runtime;
 import com.intuit.karate.Results;
 import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.ExecutionHookFactory;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -35,6 +36,8 @@ import java.util.Collection;
  */
 public class SuiteRuntime {
     
+    public final File workingDir = new File("");
+    public final ClassLoader classLoader = ClassLoader.getSystemClassLoader();
     public final Results results = Results.startTimer(1);    
     public final Collection<ExecutionHook> executionHooks = new ArrayList();
     public final ExecutionHookFactory hookFactory = null;    

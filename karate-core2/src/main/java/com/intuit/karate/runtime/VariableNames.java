@@ -34,6 +34,7 @@ public class VariableNames {
     }
     
     public static final String KARATE = "karate";
+    public static final String READ = "read";
     
     public static final String RESPONSE = "response";
     public static final String RESPONSE_BYTES = "responseBytes";

@@ -25,23 +25,38 @@ package com.intuit.karate.runtime;
 
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
+import java.nio.file.Path;
 
 /**
  *
  * @author pthomas3
  */
 public class FeatureRuntime implements Runnable {
-
+    
     public final SuiteRuntime suite;
+    public final FeatureRuntime rootFeature;
     public final ScenarioCall parentCall;
     public final Feature feature;
     public final FeatureResult result;
     private final ScenarioGenerator scenarios;
+    
+    public Path getParentPath() {
+        return feature.getPath().getParent();
+    }
+    
+    public Path getRootParentPath() {
+        return rootFeature.getParentPath();
+    }
+    
+    public Path getPath() {
+        return feature.getPath();
+    }
 
     public FeatureRuntime(SuiteRuntime suite, Feature feature, ScenarioCall parentCall) {
         this.suite = suite;
         this.feature = feature;
         this.parentCall = parentCall;
+        this.rootFeature = parentCall.isNone() ? this : parentCall.parentRuntime.featureRuntime;
         result = new FeatureResult(suite.results, feature);
         scenarios = new ScenarioGenerator(this, feature.getSections().iterator());
     }

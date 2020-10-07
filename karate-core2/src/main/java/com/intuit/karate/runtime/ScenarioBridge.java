@@ -45,6 +45,10 @@ public class ScenarioBridge implements PerfContext {
         PerfEvent event = new PerfEvent(startTime, endTime, name, 200);
         runtime().capturePerfEvent(event);
     }
+    
+    public Object read(String name) {
+        return runtime().readFunction.apply(name);
+    }
 
     public void sayHello() {
         System.out.println("*** hello");
