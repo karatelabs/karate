@@ -38,9 +38,6 @@ import java.util.Map;
 
 /**
  *
- * chrome devtools protocol - the "preferred" driver:
- * https://chromedevtools.github.io/devtools-protocol/
- *
  * @author sixdouglas
  */
 public class EdgeChromium extends DevToolsDriver {
