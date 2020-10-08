@@ -231,7 +231,7 @@ public class FileUtilsTest {
         String relativePath = "classpath:demo/jar1/caller.feature";
         ClassLoader cl = getJarClassLoader();
         Path path = FileUtils.fromRelativeClassPath(relativePath, cl);
-        Resource resource = new Resource(path, relativePath, -1);
+        Resource resource = new Resource(path, relativePath, -1, cl);
         Feature feature = FeatureParser.parse(resource);
         try {
             Map<String, Object> map = Runner.runFeature(feature, null, true);

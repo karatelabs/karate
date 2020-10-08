@@ -23,39 +23,23 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.jayway.jsonpath.DocumentContext;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import org.slf4j.LoggerFactory;
+
+import java.io.*;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.nio.file.*;
+import java.util.*;
 import java.util.stream.Stream;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -187,17 +171,17 @@ public class FileUtils {
             return new Resource(context, path);
         } else if (isFilePath(path)) {
             String temp = removePrefix(path);
-            return new Resource(new File(temp), path);
+            return new Resource(new File(temp), path, context.classLoader);
         } else if (isThisPath(path)) {
             String temp = removePrefix(path);
             Path parentPath = context.featureContext.parentPath;
             Path childPath = parentPath.resolve(temp);
-            return new Resource(childPath);
+            return new Resource(childPath, context.classLoader);
         } else {
             try {
                 Path parentPath = context.rootFeatureContext.parentPath;
                 Path childPath = parentPath.resolve(path);
-                return new Resource(childPath);
+                return new Resource(childPath, context.classLoader);
             } catch (Exception e) {
                 LOGGER.error("feature relative path resolution failed: {}", e.getMessage());
                 throw e;
@@ -592,16 +576,16 @@ public class FileUtils {
         if (classpath) {
             searchPath = removePrefix(searchPath);
             for (URL url : getAllClassPathUrls(cl)) {
-                collectFeatureFiles(url, searchPath, files);
+                collectFeatureFiles(url, searchPath, files, cl);
             }
             return files;
         } else {
-            collectFeatureFiles(null, searchPath, files);
+            collectFeatureFiles(null, searchPath, files, cl);
             return files;
         }
     }
 
-    private static void collectFeatureFiles(URL url, String searchPath, List<Resource> files) {
+    private static void collectFeatureFiles(URL url, String searchPath, List<Resource> files, ClassLoader cl) {
         boolean classpath = url != null;
         int colonPos = searchPath.lastIndexOf(':');
         int line = -1;
@@ -654,7 +638,7 @@ public class FileUtils {
                 String relativePath = rootPath.relativize(path.toAbsolutePath()).toString();
                 relativePath = toStandardPath(relativePath).replaceAll("[.]+/", "");
                 String prefix = classpath ? CLASSPATH_COLON : "";
-                files.add(new Resource(path, prefix + relativePath, line));
+                files.add(new Resource(path, prefix + relativePath, line, cl));
             }
         }
     }
