@@ -291,19 +291,19 @@ public class MatchOperation {
                     if (validatorName.startsWith("regex")) {
                         String regex = validatorName.substring(5).trim();
                         RegexValidator validator = new RegexValidator(regex);
-                        ValidatorResult vr = validator.apply(actual);
-                        if (!vr.pass) {
-                            return fail(vr.message);
+                        MatchResult mr = validator.apply(actual);
+                        if (!mr.pass) {
+                            return fail(mr.message);
                         }
                     } else {
-                        Validator validator = Match.VALIDATORS.get(validatorName);
+                        Match.Validator validator = Match.VALIDATORS.get(validatorName);
                         if (validator != null) {
                             if (optional && actual.isNotPresent()) {
                                 // pass
                             } else {
-                                ValidatorResult vr = validator.apply(actual);
-                                if (!vr.pass) {
-                                    return fail(vr.message);
+                                MatchResult mr = validator.apply(actual);
+                                if (!mr.pass) {
+                                    return fail(mr.message);
                                 }
                             }
                         } else { // validator part was not used

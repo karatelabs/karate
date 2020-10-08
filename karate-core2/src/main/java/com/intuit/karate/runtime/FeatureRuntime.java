@@ -51,8 +51,16 @@ public class FeatureRuntime implements Runnable {
     public Path getPath() {
         return feature.getPath();
     }
+    
+    public FeatureRuntime(SuiteRuntime suite, Feature feature) {
+        this(suite, feature, ScenarioCall.NONE);
+    }
+    
+    public FeatureRuntime(ScenarioCall call) {
+        this(call.parentRuntime.featureRuntime.suite, call.feature, call.parentRuntime.parentCall);
+    }
 
-    public FeatureRuntime(SuiteRuntime suite, Feature feature, ScenarioCall parentCall) {
+    private FeatureRuntime(SuiteRuntime suite, Feature feature, ScenarioCall parentCall) {
         this.suite = suite;
         this.feature = feature;
         this.parentCall = parentCall;
@@ -60,12 +68,21 @@ public class FeatureRuntime implements Runnable {
         result = new FeatureResult(suite.results, feature);
         scenarios = new ScenarioGenerator(this, feature.getSections().iterator());
     }
+    
+    private ScenarioRuntime currentScenario;
+    
+    public Variable getResultVariable() {
+        if (currentScenario == null) {
+            return Variable.NULL;
+        }
+        return new Variable(currentScenario.engine.getAllVariablesAsMap());
+    }
 
     @Override
     public void run() {
         while (scenarios.hasNext()) {
-            ScenarioRuntime sr = scenarios.next();
-            sr.run();
+            currentScenario = scenarios.next();
+            currentScenario.run();
         }
     }
 

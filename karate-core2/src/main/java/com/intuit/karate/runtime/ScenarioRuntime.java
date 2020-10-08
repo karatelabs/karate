@@ -52,28 +52,36 @@ import java.util.function.Function;
  * @author pthomas3
  */
 public class ScenarioRuntime implements Runnable {
-
+    
+    public final Logger logger = new Logger();
+    
     public final FeatureRuntime featureRuntime;
     public final ScenarioRuntime background;
     public final ScenarioCall parentCall;
     public final Scenario scenario;
-    public final ScenarioActions actions;
-    public final Logger logger = new Logger();
+    public final ScenarioActions actions;    
     public final ScenarioResult result;
     public final ScenarioEngine engine;
     public final ScenarioBridge bridge;
     public final ScenarioFileReader fileReader;
     public final Function<String, Object> readFunction;
     public final Collection<ExecutionHook> executionHooks;
-
+    
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
         this(featureRuntime, scenario, null);
     }
-
+    
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario, ScenarioRuntime background) {
         executionHooks = featureRuntime.suite.resolveHooks();
         this.featureRuntime = featureRuntime;
         this.parentCall = featureRuntime.parentCall;
+        if (parentCall.isNone()) {
+            config = new Config();
+        } else if (parentCall.isGlobalScope()) {
+            config = parentCall.parentRuntime.config;
+        } else { // new, but clone and copy data
+            config = new Config(parentCall.parentRuntime.config); 
+        }
         this.scenario = scenario;
         if (background == null) {
             this.background = null;
@@ -88,23 +96,20 @@ public class ScenarioRuntime implements Runnable {
         fileReader = new ScenarioFileReader(this);
         readFunction = s -> fileReader.readFile(s);
         // TODO appender for perf
-        // TODO caller
-        // TODO config
-        config = new Config();
     }
-
+    
     public boolean isFailed() {
         return error != null || result.isFailed();
     }
-
+    
     public Step getCurrentStep() {
         return currentStep;
     }
-
+    
     public boolean isStopped() {
         return stopped;
     }
-
+    
     private List<Step> steps;
     private LogAppender appender;
     private StepResult lastStepResult;
@@ -113,7 +118,7 @@ public class ScenarioRuntime implements Runnable {
     private boolean stopped;
     private boolean aborted;
     private int stepIndex;
-
+    
     public void stepBack() {
         stopped = false;
         stepIndex -= 2;
@@ -121,7 +126,7 @@ public class ScenarioRuntime implements Runnable {
             stepIndex = 0;
         }
     }
-
+    
     public void stepReset() {
         stopped = false;
         stepIndex--;
@@ -129,15 +134,15 @@ public class ScenarioRuntime implements Runnable {
             stepIndex = 0;
         }
     }
-
+    
     public void stepProceed() {
         stopped = false;
     }
-
+    
     private int nextStepIndex() {
         return stepIndex++;
     }
-
+    
     private void logError(String message) {
         if (currentStep != null) {
             message = currentStep.getDebugInfo()
@@ -146,7 +151,7 @@ public class ScenarioRuntime implements Runnable {
         }
         logger.error("{}", message);
     }
-
+    
     @Override
     public void run() {
         try { // make sure we call afterRun() even on crashes
@@ -170,9 +175,9 @@ public class ScenarioRuntime implements Runnable {
             afterRun();
         }
     }
-
+    
     protected static final ThreadLocal<ScenarioRuntime> LOCAL = new ThreadLocal<ScenarioRuntime>();
-
+    
     private static final ThreadLocal<LogAppender> APPENDER = new ThreadLocal<LogAppender>() {
         @Override
         protected LogAppender initialValue() {
@@ -180,7 +185,7 @@ public class ScenarioRuntime implements Runnable {
             return new FileLogAppender(new File(fileName));
         }
     };
-
+    
     public void beforeRun() {
         if (appender == null) { // not perf, not debug
             appender = APPENDER.get();
@@ -232,13 +237,13 @@ public class ScenarioRuntime implements Runnable {
                 stopped = true;
                 error = stepResult.getError();
             }
-            LOCAL.set(this); // restore, since a call may have switched this
+            LOCAL.set(this); // restore, since a call may have switched this to a nested scenario
             StepResult sr = new StepResult(step, stepResult, null, null, null);
             // after step hooks           
             return sr;
         }
     }
-
+    
     public void afterRun() {
         try {
             result.setEndTime(System.currentTimeMillis() - featureRuntime.suite.results.getStartTime());
@@ -262,18 +267,21 @@ public class ScenarioRuntime implements Runnable {
 
     // engine ==================================================================
     //
-    public void call(boolean callonce, String line) {
-
+    public void call(boolean callOnce, String line) {
+        Variable v = engine.call(callOnce, line, true);
+        if (v.isMap()) {
+            engine.putAll(v.getValue());
+        }
     }
-
+    
     public void assign(AssignType assignType, String name, String exp) {
         engine.assign(assignType, name, exp, false);
     }
-
+    
     public void eval(String exp) {
         engine.eval(exp);
     }
-
+    
     public void match(MatchType matchType, String expression, String path, String expected) {
         MatchResult mr = engine.match(matchType, expression, path, expected);
         if (!mr.pass) {
@@ -281,31 +289,31 @@ public class ScenarioRuntime implements Runnable {
             throw new KarateException(mr.message);
         }
     }
-
+    
     public void set(String name, String path, String exp) {
         engine.set(name, path, exp);
     }
-
+    
     public void set(String name, String path, List<Map<String, String>> table) {
         engine.setViaTable(name, path, table);
     }
-
+    
     public void remove(String name, String path) {
         engine.remove(name, path);
     }
-
+    
     public void table(String name, List<Map<String, String>> table) {
         engine.table(name, table);
     }
-
+    
     public void replace(String name, String token, String value) {
         engine.replace(name, token, value);
     }
-
+    
     public void replace(String name, List<Map<String, String>> table) {
         engine.replaceTable(name, table);
     }
-
+    
     public void assertTrue(String expression) {
         if (!engine.assertTrue(expression)) {
             String message = "did not evaluate to 'true': " + expression;
@@ -313,7 +321,7 @@ public class ScenarioRuntime implements Runnable {
             throw new KarateException(message);
         }
     }
-
+    
     public void print(List<String> exps) {
         if (!config.isPrintEnabled()) {
             return;
@@ -324,7 +332,7 @@ public class ScenarioRuntime implements Runnable {
     // gatling =================================================================
     //   
     private PerfEvent prevPerfEvent;
-
+    
     public void logLastPerfEvent(String failureMessage) {
         if (prevPerfEvent != null && executionHooks != null) {
             if (failureMessage != null) {
@@ -335,7 +343,7 @@ public class ScenarioRuntime implements Runnable {
         }
         prevPerfEvent = null;
     }
-
+    
     public void capturePerfEvent(PerfEvent event) {
         logLastPerfEvent(null);
         prevPerfEvent = event;
@@ -346,15 +354,15 @@ public class ScenarioRuntime implements Runnable {
     private Config config;
     private ScenarioHttpClient http;
     private HttpRequest prevRequest;
-
+    
     public HttpRequest getPrevRequest() {
         return prevRequest;
     }
-
+    
     public Config getConfig() {
         return config;
     }
-
+    
     public void updateConfigCookies(Map<String, Cookie> cookies) {
         if (cookies == null) {
             return;
@@ -367,7 +375,7 @@ public class ScenarioRuntime implements Runnable {
             config.setCookies(new Variable(map));
         }
     }
-
+    
     public void configure(String key, String exp) {
         Variable v = new Variable(exp);
         key = StringUtils.trimToEmpty(key);
@@ -380,91 +388,91 @@ public class ScenarioRuntime implements Runnable {
             }
         }
     }
-
+    
     public void url(String exp) {
-
+        
     }
-
+    
     public void path(List<String> paths) {
-
+        
     }
-
+    
     public void param(String name, List<String> values) {
-
+        
     }
-
+    
     public void params(String expr) {
-
+        
     }
-
+    
     public void cookie(String name, String value) {
-
+        
     }
-
+    
     public void cookies(String expr) {
-
+        
     }
-
+    
     public void header(String name, List<String> values) {
-
+        
     }
-
+    
     public void headers(String expr) {
-
+        
     }
-
+    
     public void formField(String name, List<String> values) {
-
+        
     }
-
+    
     public void formFields(String expr) {
-
+        
     }
-
+    
     public void request(String body) {
-
+        
     }
-
+    
     public void method(String method) {
-
+        
     }
-
+    
     public void retry(String until) {
-
+        
     }
-
+    
     public void soapAction(String action) {
-
+        
     }
-
+    
     public void multipartField(String name, String value) {
-
+        
     }
-
+    
     public void multipartFields(String expr) {
-
+        
     }
-
+    
     public void multipartFile(String name, String value) {
-
+        
     }
-
+    
     public void multipartFiles(String expr) {
-
+        
     }
-
+    
     public void status(int status) {
-
+        
     }
 
     // ui driver / robot =======================================================
     //
     public void driver(String expression) {
-
+        
     }
-
+    
     public void robot(String expression) {
-
+        
     }
-
+    
 }

@@ -62,14 +62,8 @@ public class Variable {
 
     public final Type type;
     private final Object value;
-    private final String description;
 
-    public Variable(Object value) {
-        this(value, null);
-    }
-
-    public Variable(Object o, String description) {
-        this.description = description;
+    public Variable(Object o) {
         if (o instanceof JsValue) {
             JsValue jsValue = (JsValue) o;
             if (!jsValue.isFunction()) { // only in case of JS_FUNCTION keep the JsValue as-is
@@ -283,9 +277,6 @@ public class Variable {
         StringBuilder sb = new StringBuilder();
         sb.append("[type: ").append(type);
         sb.append(", value: ").append(value);
-        if (description != null) {
-            sb.append(", description: ").append(description);
-        }
         sb.append("]");
         return sb.toString();
     }

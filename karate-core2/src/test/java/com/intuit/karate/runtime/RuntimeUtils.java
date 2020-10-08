@@ -12,17 +12,21 @@ import java.nio.file.Paths;
  * @author pthomas3
  */
 public class RuntimeUtils {
-
-    public static ScenarioRuntime runScenario(String... lines) {
+    
+    public static Feature toFeature(String name, String ... lines) {
         StringBuilder sb = new StringBuilder();
         sb.append("Feature:\nScenario:\n");
         for (String line : lines) {
             sb.append("* ").append(line).append('\n');
         }
-        Path path = FileUtils.fromRelativeClassPath("classpath:com/intuit/karate/runtime/print.feature", ClassLoader.getSystemClassLoader());
+        Path path = FileUtils.fromRelativeClassPath("classpath:com/intuit/karate/runtime/"  + name, ClassLoader.getSystemClassLoader());
         Resource resource = Resource.of(path, sb.toString());
-        Feature feature = FeatureParser.parse(resource);
-        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature, ScenarioCall.NONE);
+        return FeatureParser.parse(resource);        
+    }
+
+    public static ScenarioRuntime runScenario(String... lines) {
+        Feature feature = toFeature("print.feature", lines);
+        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature);
         ScenarioGenerator sg = new ScenarioGenerator(fr, feature.getSections().iterator());
         sg.hasNext();
         ScenarioRuntime sr = sg.next();
@@ -32,7 +36,7 @@ public class RuntimeUtils {
 
     public static FeatureRuntime runFeature(String path) {
         Feature feature = FeatureParser.parse(path);
-        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature, ScenarioCall.NONE);
+        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature);
         fr.run();
         return fr;
     }

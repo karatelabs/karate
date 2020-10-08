@@ -15,29 +15,55 @@ class ScenarioRuntimeTest {
 
     static final Logger logger = LoggerFactory.getLogger(ScenarioRuntimeTest.class);
 
+    ScenarioRuntime sr;
+
+    Object get(String name) {
+        return sr.engine.vars.get(name).getValue();
+    }
+
+    ScenarioRuntime run(String... lines) {
+        sr = runScenario(lines);
+        return sr;
+    }
+
     @Test
     void testDefAndMatch() {
-        ScenarioRuntime sr = runScenario(
+        run(
                 "def a = 1 + 2",
                 "match a == 3"
         );
-        Variable a = sr.engine.eval("a");
-        assertEquals(3, a.<Number>getValue());
+        assertEquals(3, get("a"));
         assertFalse(sr.result.isFailed());
-        sr = runScenario(
+        run(
                 "def a = 1 + 2",
                 "match a == 4"
         );
         assertTrue(sr.result.isFailed());
     }
-    
-    @Test 
+
+    @Test
     void testReadFunction() {
-        ScenarioRuntime sr = runScenario(
+        run(
                 "def foo = karate.read('data.json')"
-        );        
-        Variable foo = sr.engine.vars.get("foo");
-        Match.that(foo.getValue()).isEqualTo("{ hello: 'world' }");
+        );
+        Match.that(get("foo")).isEqualTo("{ hello: 'world' }");
+    }
+
+    @Test
+    void testCallJsFunction() {
+        run(
+                "def fun = function(a){ return a + 1 }",
+                "def foo = call fun 2"
+        );
+        Match.that(get("foo")).isEqualTo(3);
+    }
+
+    @Test
+    void testCallKarateFeature() {
+        run(
+                "def res = call read('called1.feature')"                
+        );
+        Match.that(get("res")).isEqualTo("{ a: 1, foo: { hello: 'world' } }");
     }
 
 }

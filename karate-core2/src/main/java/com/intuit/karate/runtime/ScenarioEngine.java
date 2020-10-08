@@ -27,6 +27,7 @@ import com.intuit.karate.AssignType;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
+import com.intuit.karate.core.Feature;
 import com.intuit.karate.data.Json;
 import com.intuit.karate.data.JsonUtils;
 import com.intuit.karate.graal.JsEngine;
@@ -93,6 +94,16 @@ public class ScenarioEngine {
         } else {
             vars.put(key, new Variable(value));
         }
+    }
+
+    public void putAll(Map<String, Object> map) {
+        map.forEach((k, v) -> put(k, v));
+    }
+
+    public Map<String, Object> getAllVariablesAsMap() {
+        Map<String, Object> map = new HashMap(vars.size());
+        vars.forEach((k, v) -> map.put(k, v == null ? null : v.getValue()));
+        return map;
     }
 
     private static void validateVariableName(String name) {
@@ -382,7 +393,7 @@ public class ScenarioEngine {
         String replaced = replacePlaceholderText(text, token, value);
         vars.put(name, new Variable(replaced));
     }
-    
+
     private static final String TOKEN = "token";
 
     public void replaceTable(String text, List<Map<String, String>> list) {
@@ -407,8 +418,8 @@ public class ScenarioEngine {
                 replace(text, token, value);
             }
         }
- 
-    }    
+
+    }
 
     public void remove(String name, String path) {
         set(name, path, null, true, false);
@@ -756,12 +767,28 @@ public class ScenarioEngine {
         return new StringUtils.Pair(line.substring(0, pos), line.substring(pos));
     }
 
-    public static Variable call(Variable called, String argString, boolean reuseParentConfig) {
-        return null;
+    public Variable call(boolean callOnce, String exp, boolean reuseParentConfig) {
+        StringUtils.Pair pair = parseCallArgs(exp);
+        Variable called = evalKarateExpression(pair.left);
+        Variable arg = pair.right == null ? null : evalKarateExpression(pair.right);
+        switch (called.type) {
+            case JAVA_FUNCTION:
+            case JS_FUNCTION:
+                return arg == null ? called.invokeFunction() : called.invokeFunction(new Object[]{arg.getValue()});
+            case KARATE_FEATURE:
+                return callFeature(called.getValue(), arg, reuseParentConfig);
+            default:
+                throw new RuntimeException("not a callable feature or js function: " + called);
+        }
     }
 
-    private static Variable callWithCache(String callKey, Variable called, String arg, boolean reuseParentConfig) {
-        return null;
+    public Variable callFeature(Feature feature, Variable arg, boolean reuseParentConfig) {
+        ScenarioRuntime runtime = ScenarioRuntime.LOCAL.get();
+        ScenarioCall call = new ScenarioCall(runtime, feature);
+        call.setArg(arg);
+        FeatureRuntime fr = new FeatureRuntime(call);
+        fr.run();
+        return fr.getResultVariable();
     }
 
     public Variable evalJsonPath(Variable v, String path) {
@@ -840,13 +867,7 @@ public class ScenarioEngine {
             } else {
                 text = text.substring(5);
             }
-            StringUtils.Pair pair = parseCallArgs(text);
-            Variable called = evalKarateExpression(pair.left);
-            if (callOnce) {
-                return callWithCache(pair.left, called, pair.right, false);
-            } else {
-                return call(called, pair.right, false);
-            }
+            return call(callOnce, text, false);
         } else if (isDollarPrefixedJsonPath(text)) {
             return evalJsonPathOnVariableByName(VariableNames.RESPONSE, text);
         } else if (isGetSyntax(text) || isDollarPrefixed(text)) { // special case in form

@@ -47,35 +47,34 @@ public class ScenarioFileReader {
         this.runtime = runtime;
         classLoader = runtime.featureRuntime.suite.classLoader;
     }
-    
-    public Variable readFile(String text) {
+
+    public Object readFile(String text) {
         StringUtils.Pair pair = parsePathAndTags(text);
         text = pair.left;
         if (isJsonFile(text) || isXmlFile(text) || isJavaScriptFile(text)) {
             String contents = readFileAsString(text);
             contents = ScenarioEngine.fixJavaScriptFunction(contents);
             Variable temp = runtime.engine.evalKarateExpression(contents);
-            return new Variable(temp.getValue(), text);
+            return temp.getValue();
         } else if (isTextFile(text) || isGraphQlFile(text)) {
-            String contents = readFileAsString(text);
-            return new Variable(contents, text);
+            return readFileAsString(text);
         } else if (isFeatureFile(text)) {
             Resource fr = toResource(text);
             Feature feature = FeatureParser.parse(fr);
             feature.setCallTag(pair.right);
-            return new Variable(feature, text);
+            return feature;
         } else if (isCsvFile(text)) {
             String contents = readFileAsString(text);
-            return new Variable(JsonUtils.fromCsv(contents), text);
+            return JsonUtils.fromCsv(contents);
         } else if (isYamlFile(text)) {
             String contents = readFileAsString(text);
-            return new Variable(JsonUtils.fromYaml(contents), text);
+            return JsonUtils.fromYaml(contents);
         } else {
             InputStream is = readFileAsStream(text);
-            return new Variable(FileUtils.toBytes(is) , text); // TODO stream
+            return FileUtils.toBytes(is); // TODO stream
         }
-    }    
-    
+    }
+
     public String readFileAsString(String path) {
         return FileUtils.toString(readFileAsStream(path));
     }
@@ -92,7 +91,7 @@ public class ScenarioFileReader {
             }
             return inputStream;
         }
-    }    
+    }
 
     private static String removePrefix(String text) {
         if (text == null) {

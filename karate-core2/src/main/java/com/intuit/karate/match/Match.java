@@ -23,16 +23,21 @@
  */
 package com.intuit.karate.match;
 
-import static com.intuit.karate.match.ValidatorResult.*;
+import static com.intuit.karate.match.MatchResult.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 
 /**
  *
  * @author pthomas3
  */
 public class Match {
+
+    public interface Validator extends Function<MatchValue, MatchResult> {
+        //
+    }
 
     public static final Map<String, Validator> VALIDATORS = new HashMap(11);
 
@@ -68,9 +73,9 @@ public class Match {
         MatchOperation mo = new MatchOperation(matchType, actual, expected);
         mo.execute();
         if (mo.pass) {
-            return MatchResult.PASS;
+            return PASS;
         } else {
-            return MatchResult.fail(mo.getFailureReasons());
+            return fail(mo.getFailureReasons());
         }
     }
 

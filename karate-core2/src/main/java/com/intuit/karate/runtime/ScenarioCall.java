@@ -34,18 +34,35 @@ public class ScenarioCall {
     public static final ScenarioCall NONE = new ScenarioCall(null, null);
     
     public final ScenarioRuntime parentRuntime;
-    public final int callDepth;
+    public final int depth;
     public final Feature feature;
 
     private boolean callonce;
-    private Object arg;
+    private Variable arg;
+    private boolean globalScope;
 
-    public void setArg(Object arg) {
+    public void setGlobalScope(boolean globalScope) {
+        this.globalScope = globalScope;
+    }
+
+    public boolean isGlobalScope() {
+        return globalScope;
+    }        
+
+    public void setArg(Variable arg) {
         this.arg = arg;
     }
 
+    public Variable getArg() {
+        return arg;
+    }
+
+    public boolean isCallonce() {
+        return callonce;
+    }        
+
     public boolean isNone() {
-        return callDepth == 0;
+        return depth == 0;
     }
 
     public void setCallonce(boolean callonce) {
@@ -56,9 +73,9 @@ public class ScenarioCall {
         this.parentRuntime = parentRuntime;
         this.feature = feature;
         if (parentRuntime == null) {
-            callDepth = 0;
+            depth = 0;
         } else {
-            callDepth = parentRuntime.parentCall.callDepth + 1;
+            depth = parentRuntime.parentCall.depth + 1;
         }
     }
 
