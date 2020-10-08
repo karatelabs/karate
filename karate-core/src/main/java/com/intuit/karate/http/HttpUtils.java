@@ -227,7 +227,7 @@ public class HttpUtils {
 
     private static final AtomicInteger BOUNDARY_COUNTER = new AtomicInteger();
 
-    public static String generateMimeBoundaryMarker() {;
+    public static String generateMimeBoundaryMarker() {
         StringBuilder sb = new StringBuilder("boundary_");
         sb.append(BOUNDARY_COUNTER.incrementAndGet()).append('_');
         sb.append(System.currentTimeMillis());
