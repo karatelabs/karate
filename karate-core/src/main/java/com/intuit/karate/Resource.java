@@ -46,33 +46,22 @@ public class Resource {
     private final String relativePath;
     private final String packageQualifiedName;
 
-    public static final Resource EMPTY = new Resource(Paths.get(""), "", -1);
-
-    public static Resource of(Path path, String text) {
-        return new Resource(path, null, -1) {
-            final InputStream is = FileUtils.toInputStream(text);
-
-            @Override
-            public InputStream getStream() {
-                return is;
-            }
-        };
-    }
-
     public Resource(File file, String relativePath) {
-        this(file.toPath(), relativePath, -1);
+        this(null, file.toPath(), relativePath, -1);
     }
 
-    public Resource(Path path, String relativePath, int line) {
+    public Resource(ClassLoader cl, Path path, String relativePath, int line) {
         this.path = path;
         this.line = line;
         file = !path.toUri().getScheme().equals("jar");
         if (relativePath == null) {
-            this.relativePath = FileUtils.toRelativeClassPath(path, Thread.currentThread().getContextClassLoader());
-        } else {
-            this.relativePath = relativePath;
+            if (cl == null) {
+                cl = ClassLoader.getSystemClassLoader();
+            }
+            relativePath = FileUtils.toRelativeClassPath(path, cl);
         }
-        packageQualifiedName = FileUtils.toPackageQualifiedName(this.relativePath);
+        this.relativePath = relativePath;
+        packageQualifiedName = FileUtils.toPackageQualifiedName(relativePath);
     }
 
     public Resource(URL url) {
@@ -80,21 +69,15 @@ public class Resource {
     }
 
     public Resource(Path path) {
-        this(path, null, -1);
+        this(null, path, null, -1);
     }
 
     public Resource(ClassLoader cl, String relativePath) {
-        String strippedPath = FileUtils.removePrefix(relativePath);
-        URL url = cl.getResource(strippedPath);
-        if (url != null) {
-            this.path = FileUtils.urlToPath(url, strippedPath);
-        } else {
-            this.path = new File(strippedPath).toPath();
-        }
-        this.line = -1;
-        file = !path.toUri().getScheme().equals("jar");
-        this.relativePath = relativePath;
-        packageQualifiedName = FileUtils.toPackageQualifiedName(relativePath);
+        this(FileUtils.fromRelativeClassPath(relativePath, cl));
+    }
+
+    public Resource(String relativePath) {
+        this(ClassLoader.getSystemClassLoader(), relativePath);
     }
 
     public String getFileNameWithoutExtension() {
@@ -153,6 +136,11 @@ public class Resource {
     @Override
     public String toString() {
         return relativePath;
+    }
+
+    public static String relativePathToString(String relativePath) {
+        Resource resource = new Resource(relativePath);
+        return resource.getAsString();
     }
 
 }

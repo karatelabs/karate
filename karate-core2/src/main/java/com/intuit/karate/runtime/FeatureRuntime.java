@@ -40,6 +40,8 @@ public class FeatureRuntime implements Runnable {
     public final FeatureResult result;
     private final ScenarioGenerator scenarios;
     
+    private PerfRuntime perfRuntime;
+    
     public Path getParentPath() {
         return feature.getPath().getParent();
     }
@@ -51,13 +53,26 @@ public class FeatureRuntime implements Runnable {
     public Path getPath() {
         return feature.getPath();
     }
+
+    public void setPerfRuntime(PerfRuntime perfRuntime) {
+        this.perfRuntime = perfRuntime;
+    }
     
-    public FeatureRuntime(SuiteRuntime suite, Feature feature) {
+    public boolean isPerfMode() {
+        return perfRuntime != null;
+    }
+
+    public PerfRuntime getPerfRuntime() {
+        return perfRuntime;
+    }        
+    
+    public FeatureRuntime(SuiteRuntime suite, Feature feature, boolean karateConfigDisabled) {
         this(suite, feature, ScenarioCall.NONE);
+        parentCall.setKarateConfigDisabled(karateConfigDisabled);
     }
     
     public FeatureRuntime(ScenarioCall call) {
-        this(call.parentRuntime.featureRuntime.suite, call.feature, call.parentRuntime.parentCall);
+        this(call.parentRuntime.featureRuntime.suite, call.feature, call);
     }
 
     private FeatureRuntime(SuiteRuntime suite, Feature feature, ScenarioCall parentCall) {

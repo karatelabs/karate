@@ -3,6 +3,7 @@ package com.intuit.karate.core;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Resource;
 import java.io.InputStream;
+import java.nio.file.Paths;
 import java.util.List;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -16,22 +17,23 @@ import org.slf4j.LoggerFactory;
 public class FeatureEditTest {
 
     private static final Logger logger = LoggerFactory.getLogger(FeatureEditTest.class);
-    
+
+    public static final Resource EMPTY = new Resource(null, Paths.get(""), "", -1);
+
     private Feature parse(String name) {
         InputStream is = getClass().getResourceAsStream(name);
         String text = FileUtils.toString(is);
-        Resource resource = Resource.EMPTY;
-        return FeatureParser.parseText(new Feature(resource), text);
+        return FeatureParser.parseText(new Feature(EMPTY), text);
     }
-    
+
     private void printLines(List<String> lines) {
         int count = lines.size();
         for (int i = 0; i < count; i++) {
             String line = lines.get(i);
-            logger.trace("{}: {}", i + 1, line);   
+            logger.trace("{}: {}", i + 1, line);
         }
     }
-    
+
     @Test
     public void testScenario() {
         Feature feature = parse("scenario.feature");
@@ -41,18 +43,18 @@ public class FeatureEditTest {
         Background background = feature.getBackground();
         Step step = background.getSteps().get(0);
         assertEquals("def a = 1", step.getText());
-        
+
         Scenario scenario = feature.getSections().get(0).getScenario();
-        assertFalse(scenario.isOutline());    
+        assertFalse(scenario.isOutline());
         assertEquals(8, scenario.getLine()); // scenario on line 8
         List<Step> steps = scenario.getSteps();
         assertEquals(3, steps.size());
         step = steps.get(0);
-        assertEquals(9, step.getLine()); 
-        step = steps.get(1); 
-        assertEquals(11, step.getLine());      
+        assertEquals(9, step.getLine());
+        step = steps.get(1);
+        assertEquals(11, step.getLine());
     }
-    
+
     @Test
     public void testScenarioOutline() {
         Feature feature = parse("outline.feature");
@@ -63,8 +65,8 @@ public class FeatureEditTest {
         assertEquals(4, so.getScenarios().size());
         Scenario scenario = so.getScenarios().get(0);
         assertTrue(scenario.isOutline());
-    } 
-    
+    }
+
     @Test
     public void testInsert() {
         Feature feature = parse("scenario.feature");
@@ -73,12 +75,12 @@ public class FeatureEditTest {
         assertEquals(17, lines.size());
         assertEquals(1, feature.getSections().size());
     }
-    
+
     @Test
     public void testEdit() {
         Feature feature = parse("scenario.feature");
         Step step = feature.getSections().get(0).getScenario().getSteps().get(0);
-        int line = step.getLine();        
+        int line = step.getLine();
         feature = feature.replaceLines(line, line, "Then assert 2 == 2");
         assertEquals(1, feature.getSections().size());
     }
@@ -99,8 +101,8 @@ public class FeatureEditTest {
         assertEquals("Then assert 2 == 2", feature.getLines().get(10));
         assertEquals("Then match b == { foo: 'bar'}", feature.getLines().get(11));
         assertEquals(1, feature.getSections().size());
-    } 
-    
+    }
+
     @Test
     public void testMultiLineEditTable() {
         Feature feature = parse("table.feature");
@@ -115,13 +117,12 @@ public class FeatureEditTest {
         assertEquals(7, lines.size());
         assertEquals("Then assert 2 == 2", feature.getLines().get(3));
         assertEquals("* match cats == [{name: 'Bob', age: 2}, {name: 'Wild', age: 4}, {name: 'Nyan', age: 3}]", feature.getLines().get(5));
-    }    
-    
+    }
+
     @Test
     public void testIdentifyingStepWhichIsAnHttpCall() {
         String text = "Feature:\nScenario:\n*  method post";
-        Resource resource = Resource.EMPTY;
-        Feature feature = FeatureParser.parseText(new Feature(resource), text);
+        Feature feature = FeatureParser.parseText(new Feature(EMPTY), text);
         Step step = feature.getSections().get(0).getScenario().getSteps().get(0);
         logger.debug("step name: '{}'", step.getText());
         assertTrue(step.getText().startsWith("method"));

@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
  *
  * @author pthomas3
  */
-public class HttpRequestBuilder {
+public class ScenarioHttpBuilder {
 
     private String url;
     private List<String> paths;
@@ -52,8 +52,8 @@ public class HttpRequestBuilder {
     private String soapAction;
     private String retryUntil;
 
-    public HttpRequestBuilder copy() {
-        HttpRequestBuilder out = new HttpRequestBuilder();
+    public ScenarioHttpBuilder copy() {
+        ScenarioHttpBuilder out = new ScenarioHttpBuilder();
         out.url = url;
         if (paths != null) {
             out.paths = new ArrayList(paths);

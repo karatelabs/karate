@@ -59,14 +59,11 @@ import org.w3c.dom.NodeList;
 public class ScenarioEngine {
 
     private final Logger logger;
-    public final Map<String, Variable> vars = new HashMap();
+    public final Map<String, Variable> vars;
     private JsEngine JS;
 
-    public ScenarioEngine() {
-        this(new Logger());
-    }
-
-    public ScenarioEngine(Logger logger) {
+    public ScenarioEngine(Map<String, Variable> vars, Logger logger) {
+        this.vars = vars;
         this.logger = logger;
     }
 
@@ -97,7 +94,16 @@ public class ScenarioEngine {
     }
 
     public void putAll(Map<String, Object> map) {
+        if (map == null) {
+            return;
+        }
         map.forEach((k, v) -> put(k, v));
+    }
+
+    public Map<String, Variable> copyVariables(boolean deep) {
+        Map<String, Variable> map = new HashMap(vars.size());
+        vars.forEach((k, v) -> map.put(k, v == null ? Variable.NULL : v.copy(deep)));
+        return map;
     }
 
     public Map<String, Object> getAllVariablesAsMap() {
@@ -758,13 +764,13 @@ public class ScenarioEngine {
             if (pos == -1) {
                 throw new RuntimeException("failed to parse call arguments: " + line);
             }
-            return new StringUtils.Pair(line.substring(0, pos + 1), line.substring(pos + 1));
+            return new StringUtils.Pair(line.substring(0, pos + 1), StringUtils.trimToNull(line.substring(pos + 1)));
         }
         pos = line.indexOf(' ');
         if (pos == -1) {
             return new StringUtils.Pair(line, null);
         }
-        return new StringUtils.Pair(line.substring(0, pos), line.substring(pos));
+        return new StringUtils.Pair(line.substring(0, pos), StringUtils.trimToNull(line.substring(pos)));
     }
 
     public Variable call(boolean callOnce, String exp, boolean reuseParentConfig) {

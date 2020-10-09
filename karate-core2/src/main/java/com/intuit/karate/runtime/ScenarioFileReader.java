@@ -51,11 +51,15 @@ public class ScenarioFileReader {
     public Object readFile(String text) {
         StringUtils.Pair pair = parsePathAndTags(text);
         text = pair.left;
-        if (isJsonFile(text) || isXmlFile(text) || isJavaScriptFile(text)) {
+        if (isJsonFile(text) || isXmlFile(text)) {
+            String contents = readFileAsString(text);
+            Variable temp = runtime.engine.evalKarateExpression(contents);
+            return temp.getValue();
+        } else if (isJavaScriptFile(text)) {
             String contents = readFileAsString(text);
             contents = ScenarioEngine.fixJavaScriptFunction(contents);
             Variable temp = runtime.engine.evalKarateExpression(contents);
-            return temp.getValue();
+            return temp.getValue();            
         } else if (isTextFile(text) || isGraphQlFile(text)) {
             return readFileAsString(text);
         } else if (isFeatureFile(text)) {

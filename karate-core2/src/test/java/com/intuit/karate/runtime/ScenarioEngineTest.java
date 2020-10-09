@@ -7,6 +7,7 @@ import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchType;
 import com.intuit.karate.match.MatchValue;
+import java.util.HashMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -21,7 +22,7 @@ public class ScenarioEngineTest {
 
     static final Logger logger = LoggerFactory.getLogger(ScenarioEngineTest.class);
 
-    ScenarioEngine engine = new ScenarioEngine();
+    ScenarioEngine engine = new ScenarioEngine(new HashMap(), new com.intuit.karate.Logger());
 
     @BeforeEach
     void beforeEach() {

@@ -78,7 +78,7 @@ public class FileUtils {
     public static final String THIS_COLON = "this:";
     public static final String FILE_COLON = "file:";
     public static final String SRC_TEST_JAVA = "src/test/java";
-    public static final String SRC_TEST_RESOURCES = "src/test/resources";    
+    public static final String SRC_TEST_RESOURCES = "src/test/resources";
     private static final ClassLoader CLASS_LOADER = FileUtils.class.getClassLoader();
 
     private FileUtils() {
@@ -323,7 +323,7 @@ public class FileUtils {
             }
             // try with resources, so will be closed automatically
             try (FileOutputStream fos = new FileOutputStream(file)) {
-                fos.write(data);                
+                fos.write(data);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -452,12 +452,21 @@ public class FileUtils {
     }
 
     public static Path fromRelativeClassPath(String relativePath, ClassLoader cl) {
+        boolean isFile = isFilePath(relativePath);
         relativePath = removePrefix(relativePath);
-        URL url = cl.getResource(relativePath);
-        if (url == null) {
-            throw new RuntimeException("file does not exist: " + relativePath);
+        if (isFile) {
+            File file = new File(relativePath);
+            if (!file.exists()) {
+                throw new RuntimeException("file does not exist: " + relativePath);
+            }
+            return file.toPath();
+        } else { // classpath
+            URL url = cl.getResource(relativePath);
+            if (url == null) {
+                throw new RuntimeException("file does not exist: " + relativePath);
+            }
+            return urlToPath(url, relativePath);
         }
-        return urlToPath(url, relativePath);
     }
 
     public static Path fromRelativeClassPath(String relativePath, Path parentPath) {
@@ -488,7 +497,7 @@ public class FileUtils {
 
     public static List<Resource> scanForFeatureFiles(List<String> paths, Class clazz) {
         if (clazz == null) {
-            return scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
+            return scanForFeatureFiles(paths, ClassLoader.getSystemClassLoader());
         }
         // this resolves paths relative to the passed-in class
         List<Resource> list = new ArrayList();
@@ -658,11 +667,11 @@ public class FileUtils {
                 String relativePath = rootPath.relativize(path.toAbsolutePath()).toString();
                 relativePath = toStandardPath(relativePath).replaceAll("[.]+/", "");
                 String prefix = classpath ? CLASSPATH_COLON : "";
-                files.add(new Resource(path, prefix + relativePath, line));
+                files.add(new Resource(null, path, prefix + relativePath, line));
             }
         }
     }
-    
+
     // TODO use this <Set> based and tighter routine for feature files above
     private static void walkPath(Path root, Set<String> results, Predicate<Path> predicate) {
         Stream<Path> stream;
@@ -679,10 +688,10 @@ public class FileUtils {
         } catch (IOException e) { // NoSuchFileException  
             LOGGER.trace("unable to walk path: {} - {}", root, e.getMessage());
         }
-    }    
-    
+    }
+
     private static final Predicate<Path> IS_JS_FILE = p -> p != null && p.toString().endsWith(".js");
-    
+
     public static Set<String> jsFiles(File baseDir) {
         Set<String> results = new HashSet();
         walkPath(baseDir.toPath().toAbsolutePath(), results, IS_JS_FILE);
@@ -702,15 +711,15 @@ public class FileUtils {
             LOGGER.warn("unable to scan for js files at: {}", basePath);
         }
         return results;
-    }    
-    
+    }
+
     public static InputStream resourceAsStream(String resourcePath) {
         InputStream is = CLASS_LOADER.getResourceAsStream(resourcePath);
         if (is == null) {
             throw new RuntimeException("failed to read: " + resourcePath);
         }
         return is;
-    }    
+    }
 
     public static String getBuildDir() {
         String temp = System.getProperty("karate.output.dir");

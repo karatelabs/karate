@@ -24,6 +24,7 @@
 package com.intuit.karate.runtime;
 
 import com.intuit.karate.core.Feature;
+import java.util.Map;
 
 /**
  *
@@ -32,7 +33,7 @@ import com.intuit.karate.core.Feature;
 public class ScenarioCall {
 
     public static final ScenarioCall NONE = new ScenarioCall(null, null);
-    
+
     public final ScenarioRuntime parentRuntime;
     public final int depth;
     public final Feature feature;
@@ -40,6 +41,7 @@ public class ScenarioCall {
     private boolean callonce;
     private Variable arg;
     private boolean globalScope;
+    private boolean karateConfigDisabled;
 
     public void setGlobalScope(boolean globalScope) {
         this.globalScope = globalScope;
@@ -47,7 +49,7 @@ public class ScenarioCall {
 
     public boolean isGlobalScope() {
         return globalScope;
-    }        
+    }
 
     public void setArg(Variable arg) {
         this.arg = arg;
@@ -59,7 +61,7 @@ public class ScenarioCall {
 
     public boolean isCallonce() {
         return callonce;
-    }        
+    }
 
     public boolean isNone() {
         return depth == 0;
@@ -67,6 +69,14 @@ public class ScenarioCall {
 
     public void setCallonce(boolean callonce) {
         this.callonce = callonce;
+    }
+
+    public void setKarateConfigDisabled(boolean karateConfigDisabled) {
+        this.karateConfigDisabled = karateConfigDisabled;
+    }
+
+    public boolean isKarateConfigDisabled() {
+        return karateConfigDisabled;
     }
 
     public ScenarioCall(ScenarioRuntime parentRuntime, Feature feature) {
@@ -77,6 +87,20 @@ public class ScenarioCall {
         } else {
             depth = parentRuntime.parentCall.depth + 1;
         }
+    }
+
+    public static class Result {
+
+        public final Variable result;
+        public final Config config;
+        public final Map<String, Variable> vars;
+
+        public Result(Variable result, Config config, Map<String, Variable> vars) {
+            this.result = result;
+            this.config = config;
+            this.vars = vars;
+        }
+
     }
 
 }

@@ -106,9 +106,7 @@ public class JarLoadingTest {
         List<Callable<Boolean>> list = new ArrayList();
         for (int i = 0; i < 10; i++) {
             list.add(() -> {
-                Path path = FileUtils.fromRelativeClassPath(relativePath, cl);
-                logger.debug("path: {}", path);
-                Resource resource = new Resource(path, relativePath, -1);
+                Resource resource = new Resource(cl, relativePath);
                 Feature feature = FeatureParser.parse(resource);
                 Map<String, Object> map = Runner.runFeature(feature, null, true);
                 Boolean result = (Boolean) map.get("success");

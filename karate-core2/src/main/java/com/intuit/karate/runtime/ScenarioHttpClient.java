@@ -24,7 +24,6 @@
 package com.intuit.karate.runtime;
 
 import com.intuit.karate.XmlUtils;
-import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.http.Cookie;
@@ -54,7 +53,7 @@ public abstract class ScenarioHttpClient<T> {
 
     private static final String KARATE_HTTP_PROPERTIES = "karate-http.properties";
 
-    protected HttpRequestBuilder request;
+    protected ScenarioHttpBuilder request;
 
     protected ScenarioRuntime runtime() {
         return ScenarioRuntime.LOCAL.get();
@@ -111,7 +110,7 @@ public abstract class ScenarioHttpClient<T> {
         }
     }
 
-    private T buildRequestInternal(HttpRequestBuilder request) {
+    private T buildRequestInternal(ScenarioHttpBuilder request) {
         ScenarioRuntime runtime = runtime();
         String method = request.getMethod();
         if (method == null) {
@@ -154,6 +153,9 @@ public abstract class ScenarioHttpClient<T> {
         if (request.getHeaders() != null) {
             for (Map.Entry<String, List> entry : request.getHeaders().entrySet()) {
                 for (Object value : entry.getValue()) {
+                    if (entry.getValue() == null) { // TODO seems to happen for retry-until and __arg
+                        continue;
+                    }
                     buildHeader(entry.getKey(), value, false);
                 }
             }
@@ -211,14 +213,12 @@ public abstract class ScenarioHttpClient<T> {
         }
     }
 
-    public HttpResponse invoke(HttpRequestBuilder request) {
+    public HttpResponse invoke(ScenarioHttpBuilder request) {
         ScenarioRuntime runtime = runtime();
         T body = buildRequestInternal(request);
         String perfEventName = null; // acts as a flag to report perf if not null
-        if (runtime.executionHooks != null) {
-            for (ExecutionHook h : runtime.executionHooks) {
-                // perfEventName = h.getPerfEventName(request, context); // TODO
-            }
+        if (runtime.featureRuntime.isPerfMode()) {
+            perfEventName = runtime.featureRuntime.getPerfRuntime().getPerfEventName(request, runtime);
         }
         try {
             HttpResponse response = makeHttpRequest(body);

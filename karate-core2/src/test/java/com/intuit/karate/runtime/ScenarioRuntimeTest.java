@@ -1,6 +1,7 @@
 package com.intuit.karate.runtime;
 
 import com.intuit.karate.match.Match;
+import com.intuit.karate.match.MatchResult;
 import static com.intuit.karate.runtime.RuntimeUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,11 @@ class ScenarioRuntimeTest {
         return sr;
     }
 
+    private void matchVarEquals(String name, Object expected) {
+        MatchResult mr = Match.that(get(name)).isEqualTo(expected);
+        assertTrue(mr.pass, mr.message);
+    }
+
     @Test
     void testDefAndMatch() {
         run(
@@ -42,11 +48,28 @@ class ScenarioRuntimeTest {
     }
 
     @Test
+    void testConfig() {
+        System.setProperty("karate.env", "");
+        System.setProperty("karate.config.dir", "");
+        run("def foo = configSource");
+        matchVarEquals("foo", "normal");
+        System.setProperty("karate.config.dir", "src/test/java/com/intuit/karate/runtime");
+        run("def foo = configSource");
+        matchVarEquals("foo", "custom");
+        System.setProperty("karate.env", "dev");
+        run("def foo = configSource");
+        matchVarEquals("foo", "custom-env");
+        // reset for other tests    
+        System.setProperty("karate.env", "");
+        System.setProperty("karate.config.dir", "");
+    }
+
+    @Test
     void testReadFunction() {
         run(
                 "def foo = karate.read('data.json')"
         );
-        Match.that(get("foo")).isEqualTo("{ hello: 'world' }");
+        matchVarEquals("foo", "{ hello: 'world' }");
     }
 
     @Test
@@ -55,15 +78,16 @@ class ScenarioRuntimeTest {
                 "def fun = function(a){ return a + 1 }",
                 "def foo = call fun 2"
         );
-        Match.that(get("foo")).isEqualTo(3);
+        matchVarEquals("foo", 3);
     }
 
     @Test
     void testCallKarateFeature() {
         run(
-                "def res = call read('called1.feature')"                
+                "def b = 'bar'",
+                "def res = call read('called1.feature')"
         );
-        Match.that(get("res")).isEqualTo("{ a: 1, foo: { hello: 'world' } }");
+        matchVarEquals("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal' }");
     }
 
 }

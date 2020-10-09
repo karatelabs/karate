@@ -27,7 +27,7 @@ class MatchTest {
     String message;
 
     private void message(String expected) {
-        assertTrue(message != null && message.contains(expected));
+        assertTrue(message != null && message.contains(expected), message);
     }
 
     private void log() {
@@ -116,6 +116,7 @@ class MatchTest {
         match("[1, 2, 3]", NOT_CONTAINS, "[1, 2, 4]");
         match("[1, 2, 3]", CONTAINS_ANY, "[1, 2, 4]");
         match("[{ a: 1 }, { b: 2 }, { c: 3 }]", EQUALS, "[{ a: 1 }, { b: 2 }, { c: 3 }]");
+        match("[{ a: 1 }, { b: 2 }, { c: 3 }]", EQUALS, "[{ a: 1 }, { b: 2 }, { c: 4 }]", FAILS);
         match("[{ a: 1 }, { b: 2 }, { c: 3 }]", CONTAINS, "[{ a: 1 }, { b: 2 }, { c: 3 }]");
         match("[{ a: 1 }, { b: 2 }, { c: 3 }]", CONTAINS_ONLY, "[{ a: 1 }, { b: 2 }, { c: 3 }]");
         match("[{ a: 1 }, { b: 2 }, { c: 3 }]", CONTAINS, "[{ a: 1 }, { c: 3 }]");

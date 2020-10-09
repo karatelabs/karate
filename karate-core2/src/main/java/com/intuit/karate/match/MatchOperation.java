@@ -227,7 +227,7 @@ public class MatchOperation {
                 int closeBracketPos = macro.indexOf(']');
                 if (closeBracketPos != -1) { // array, match each
                     if (!actual.isList()) {
-                        return fail("actual is not a list or array");
+                        return fail("actual is not an array");
                     }
                     if (closeBracketPos > 1) {
                         String bracketContents = macro.substring(1, closeBracketPos);
@@ -244,7 +244,7 @@ public class MatchOperation {
                         }
                         JsValue jv = jsEngine.eval(sizeExpr);
                         if (!jv.isTrue()) {
-                            return fail("actual array / list size is " + listSize);
+                            return fail("actual array length is " + listSize);
                         }
                     }
                     if (macro.length() > closeBracketPos + 1) {
@@ -356,7 +356,7 @@ public class MatchOperation {
                 int actListCount = actList.size();
                 int expListCount = expList.size();
                 if (actListCount != expListCount) {
-                    return fail("actual size is not equal to expected size - " + actListCount + ":" + expListCount);
+                    return fail("actual array length is not equal to expected - " + actListCount + ":" + expListCount);
                 }
                 for (int i = 0; i < actListCount; i++) {
                     MatchValue actListValue = new MatchValue(actList.get(i));
@@ -364,7 +364,7 @@ public class MatchOperation {
                     MatchOperation mo = new MatchOperation(context.descend(i), MatchType.EQUALS, actListValue, expListValue);
                     mo.execute();
                     if (!mo.pass) {
-                        return fail("array / list match failed at index " + i);
+                        return fail("array match failed at index " + i);
                     }
                 }
                 return true;
@@ -466,10 +466,10 @@ public class MatchOperation {
                 int actListCount = actList.size();
                 int expListCount = expList.size();
                 if (expListCount > actListCount) {
-                    return fail("actual size is less than expected size - " + actListCount + ":" + expListCount);
+                    return fail("actual array length is less than expected - " + actListCount + ":" + expListCount);
                 }
                 if (type == MatchType.CONTAINS_ONLY && expListCount != actListCount) {
-                    return fail("actual size is not equal to expected size - " + actListCount + ":" + expListCount);
+                    return fail("actual array length is not equal to expected - " + actListCount + ":" + expListCount);
                 }
                 for (Object exp : expList) { // for each item in the expected list
                     boolean found = false;
@@ -494,11 +494,11 @@ public class MatchOperation {
                         }
                     }
                     if (!found && type != MatchType.CONTAINS_ANY) { // if we reached here, all items in the actual list were scanned
-                        return fail("actual list does not contain expected item - " + exp);
+                        return fail("actual array does not contain expected item - " + exp);
                     }
                 }
                 if (type == MatchType.CONTAINS_ANY) {
-                    return fail("actual list does not contain any expected item");
+                    return fail("actual array does not contain any of the expected items");
                 }
                 return true; // if we reached here, all items in the expected list were found
             case MAP:
@@ -521,7 +521,7 @@ public class MatchOperation {
             Number n = (Number) o;
             return BigDecimal.valueOf(n.doubleValue());
         } else {
-            throw new RuntimeException("expected number or big-decimal: " + o);
+            throw new RuntimeException("expected number instead of: " + o);
         }
     }
 
