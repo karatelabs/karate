@@ -80,7 +80,13 @@ public class ScriptBindings implements Bindings {
     public static final String SERVER_PORT = "serverPort";
 
     // all threads will share this ! thread isolation is via Bindings (this class)
-    private static final ScriptEngine NASHORN = new ScriptEngineManager(null).getEngineByName("nashorn");
+    private static ScriptEngine NASHORN = new ScriptEngineManager().getEngineByName("nashorn");
+
+    public static ScriptEngine initNashorn(ClassLoader classLoader) {
+        NASHORN = new ScriptEngineManager(classLoader).getEngineByName("nashorn");
+        return NASHORN;
+    }
+
 
     public final ScriptBridge bridge;
     private final ScriptValueMap vars;

@@ -102,14 +102,12 @@ public class FeatureExecutionUnit implements Runnable {
             @Override
             public Iterator<ScenarioResult> process(ScenarioExecutionUnit unit) {
                 if (isSelected(unit) && !unit.result.isFailed()) { // can happen for dynamic scenario outlines with a failed background !
-                    System.out.println("starting execution");
                     unit.run();
                     // we also hold a reference to the last scenario-context that executed
                     // for cases where the caller needs a result                
                     lastContextExecuted = unit.getContext();
                     return Collections.singletonList(unit.result).iterator();
                 } else {
-                    System.out.println("else execution");
                     return Collections.emptyIterator();
                 }
             }

@@ -192,8 +192,7 @@ public class ScenarioExecutionUnit implements Runnable {
     // extracted for debug
     public StepResult execute(Step step) {
         currentStep = step;
-        System.out.println("executing step " + step.getText());
-        actions.context.setExecutionUnit(this);// just for deriving call stack        
+        actions.context.setExecutionUnit(this);// just for deriving call stack
         if (hooks != null) {
             boolean shouldExecute = true;
             for (ExecutionHook hook : hooks) {
@@ -301,7 +300,6 @@ public class ScenarioExecutionUnit implements Runnable {
             }
             int count = steps.size();
             int index = 0;
-            System.out.println(count + " steps to execute");
             while ((index = nextStepIndex()) < count) {
                 Step step = steps.get(index);
                 lastStepResult = execute(step);
