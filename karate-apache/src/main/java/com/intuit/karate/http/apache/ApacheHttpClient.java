@@ -249,7 +249,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
                 case PATH:
                     cookie.setPath(entry.getValue());
                     break;
-                case EXPIRES:
+                case EXPIRES: // add expires field for cookie.
                     try {
                         cookie.setExpiryDate(Date.from(ZonedDateTime.parse(entry.getValue(), DTFMTR_RFC1123).toInstant()));
                     }

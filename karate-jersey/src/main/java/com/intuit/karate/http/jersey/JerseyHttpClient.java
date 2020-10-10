@@ -149,22 +149,7 @@ public class JerseyHttpClient extends HttpClient<Entity> {
 
     @Override
     public void buildCookie(com.intuit.karate.http.Cookie c) {
-//        Date expires = null;
-//
-//        for (Entry<String, String> entry : c.entrySet()) {
-//            if (EXPIRES.equals(entry.getKey())) {
-//                try {
-//                    expires = Date.from(ZonedDateTime.parse(entry.getValue(), DTFMTR_RFC1123).toInstant());
-//                } catch (DateTimeParseException ex) {
-//                    System.err.println("ex ->" + ex.getLocalizedMessage());
-//                }
-//            }
-//        }
-//        if ( null == expires || expires.after(new Date())) {
-//            System.out.println(" ----> " + c.toString() + " -- " + expires);
-//            Cookie cookie = new Cookie(c.getName(), c.getValue());
-//            builder.cookie(cookie);
-//        }
+        // only add the cookie from request, if it isnt already expired.
         if ( !c.isCookieExpired() )
         {
             Cookie cookie = new Cookie(c.getName(), c.getValue());
