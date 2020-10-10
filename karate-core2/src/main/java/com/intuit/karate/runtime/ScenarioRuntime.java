@@ -147,7 +147,7 @@ public class ScenarioRuntime implements Runnable {
         return stepIndex++;
     }
 
-    private void logError(String message) {
+    protected void logError(String message) {
         if (currentStep != null) {
             message = currentStep.getDebugInfo()
                     + "\n" + currentStep.toString()
@@ -197,18 +197,26 @@ public class ScenarioRuntime implements Runnable {
         logger.setAppender(appender);
         LOCAL.set(this);
         engine.init();
-        engine.putHidden(VariableNames.KARATE, bridge);
-        engine.putHidden(VariableNames.READ, readFunction);
+        engine.setHiddenVariable(VariableNames.KARATE, bridge);
+        engine.setHiddenVariable(VariableNames.READ, readFunction);
         if (scenario.isDynamic()) {
             steps = scenario.getBackgroundSteps();
         } else {
             steps = background == null ? scenario.getStepsIncludingBackground() : scenario.getSteps();
             if (scenario.isOutline()) { // init examples row magic variables
                 Map<String, Object> exampleData = scenario.getExampleData();
-                engine.put("__row", exampleData);
-                engine.put("__num", scenario.getExampleIndex());
-                // TODO breaking change configure outlineVariablesAuto
-                exampleData.forEach((k, v) -> engine.put(k, v));
+                exampleData.forEach((k, v) -> engine.setVariable(k, v));
+                engine.setVariable("__row", exampleData);
+                engine.setVariable("__num", scenario.getExampleIndex());
+                // TODO breaking change configure outlineVariablesAuto                
+            }
+            if (!parentCall.isNone()) {
+                Variable arg = parentCall.getArg();
+                engine.setVariable("__arg", arg);
+                engine.setVariable("__loop", parentCall.getLoopIndex());
+                if (arg != null && arg.isMap()) {
+                    engine.setVariables(arg.getValue());
+                }
             }
         }
         result.setThreadName(Thread.currentThread().getName());
@@ -225,7 +233,7 @@ public class ScenarioRuntime implements Runnable {
         if (js != null) {
             Variable fun = engine.evalKarateExpression(js);
             if (fun.isFunction()) {
-                engine.putAll(fun.evalAsMap());
+                engine.setVariables(fun.evalAsMap());
             } else {
                 logger.warn("config did not evaluate to js function: {}", js);
             }
@@ -291,7 +299,7 @@ public class ScenarioRuntime implements Runnable {
     public void call(boolean callOnce, String line) {
         Variable v = engine.call(callOnce, line, true);
         if (v.isMap()) {
-            engine.putAll(v.getValue());
+            engine.setVariables(v.getValue());
         }
     }
 

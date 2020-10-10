@@ -101,7 +101,7 @@ public class Variable {
     public <T> T getValue() {
         return (T) value;
     }
-    
+
     public boolean isBytes() {
         return type == Type.BYTES;
     }
@@ -157,7 +157,7 @@ public class Variable {
             return new Variable(result);
         }
     }
-    
+
     public Map<String, Object> evalAsMap() {
         if (isFunction()) {
             Variable v = invokeFunction();
@@ -165,7 +165,7 @@ public class Variable {
         } else {
             return isMap() ? getValue() : null;
         }
-    }    
+    }
 
     public Node getAsXml() {
         switch (type) {

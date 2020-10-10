@@ -87,7 +87,23 @@ class ScenarioRuntimeTest {
                 "def b = 'bar'",
                 "def res = call read('called1.feature')"
         );
-        matchVarEquals("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal' }");
+        matchVarEquals("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: null, __loop: -1 }");
+        run(
+                "def b = 'bar'",
+                "def res = call read('called1.feature') { foo: 'bar' }"
+        );  
+        matchVarEquals("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { foo: 'bar' }, __loop: -1 }");
+        run(
+                "def b = 'bar'",
+                "def res = call read('called1.feature') [{ foo: 'bar' }]"
+        );  
+        matchVarEquals("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { foo: 'bar' }, __loop: 0 }]"); 
+//        run(
+//                "def b = 'bar'",
+//                "def fun = function(i){ return { index: i } }",
+//                "def res = call read('called1.feature') fun"
+//        );  
+//        matchVarEquals("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { index: 0 }, __loop: 0 }]");         
     }
 
 }

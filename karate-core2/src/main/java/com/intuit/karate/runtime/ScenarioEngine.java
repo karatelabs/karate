@@ -30,6 +30,7 @@ import com.intuit.karate.XmlUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.data.Json;
 import com.intuit.karate.data.JsonUtils;
+import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
@@ -77,7 +78,7 @@ public class ScenarioEngine {
         return new Variable(JS.eval(exp));
     }
 
-    public void putHidden(String key, Object value) {
+    public void setHiddenVariable(String key, Object value) {
         if (value instanceof Variable) {
             JS.put(key, ((Variable) value).getValue());
         } else {
@@ -85,7 +86,7 @@ public class ScenarioEngine {
         }
     }
 
-    public void put(String key, Object value) {
+    public void setVariable(String key, Object value) {
         if (value instanceof Variable) {
             vars.put(key, (Variable) value);
         } else {
@@ -93,11 +94,11 @@ public class ScenarioEngine {
         }
     }
 
-    public void putAll(Map<String, Object> map) {
+    public void setVariables(Map<String, Object> map) {
         if (map == null) {
             return;
         }
-        map.forEach((k, v) -> put(k, v));
+        map.forEach((k, v) -> setVariable(k, v));
     }
 
     public Map<String, Variable> copyVariables(boolean deep) {
@@ -158,9 +159,9 @@ public class ScenarioEngine {
             }
         }
         if (assignType == AssignType.TEXT) {
-            put(name, exp);
+            setVariable(name, exp);
         } else {
-            put(name, evalAndCastTo(assignType, exp));
+            setVariable(name, evalAndCastTo(assignType, exp));
         }
     }
 
@@ -782,19 +783,70 @@ public class ScenarioEngine {
             case JS_FUNCTION:
                 return arg == null ? called.invokeFunction() : called.invokeFunction(new Object[]{arg.getValue()});
             case KARATE_FEATURE:
-                return callFeature(called.getValue(), arg, reuseParentConfig);
+                ScenarioRuntime runtime = ScenarioRuntime.LOCAL.get();
+                return callFeature(runtime, called.getValue(), arg, -1, reuseParentConfig);
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);
         }
     }
 
-    public Variable callFeature(Feature feature, Variable arg, boolean reuseParentConfig) {
-        ScenarioRuntime runtime = ScenarioRuntime.LOCAL.get();
-        ScenarioCall call = new ScenarioCall(runtime, feature);
-        call.setArg(arg);
-        FeatureRuntime fr = new FeatureRuntime(call);
-        fr.run();
-        return fr.getResultVariable();
+    public Variable callFeature(ScenarioRuntime runtime, Feature feature, Variable arg, int index, boolean reuseParentConfig) {
+        if (arg == null || arg.isMap()) {
+            ScenarioCall call = new ScenarioCall(runtime, feature);
+            call.setArg(arg);
+            call.setLoopIndex(index);
+            FeatureRuntime fr = new FeatureRuntime(call);
+            fr.run();
+            if (fr.result.isFailed()) {
+                KarateException ke = fr.result.getErrorsCombined();
+                if (index == -1) {
+                    runtime.logError(ke.getMessage());
+                }
+                throw ke;
+            } else {
+                return fr.getResultVariable();
+            }
+        } else if (arg.isList() || arg.isFunction()) {
+            List result = new ArrayList();
+            List<String> errors = new ArrayList();
+            int loopIndex = 0;
+            boolean isList = arg.isList();
+            Iterator iterator = isList ? arg.<List>getValue().iterator() : null;
+            while (true) {
+                Variable loopArg;
+                if (isList) {
+                    loopArg = iterator.hasNext() ? new Variable(iterator.next()) : Variable.NULL;
+                } else { // function
+                    loopArg = arg.invokeFunction(loopIndex);
+                }
+                if (!loopArg.isMap()) {
+                    if (!isList) {
+                        logger.info("feature call loop function ended at index {}, returned: {}", loopIndex, loopArg);
+                    }
+                    break;
+                }
+                try {
+                    Variable loopResult = callFeature(runtime, feature, loopArg, loopIndex, reuseParentConfig);
+                    result.add(loopResult.getValue());
+                } catch (Exception e) {
+                    String message = "feature call loop failed at index: " + loopIndex + ", " + e.getMessage();
+                    errors.add(message);
+                    runtime.logError(message);
+                    if (!isList) { // this is a generator function, abort infinite loop !
+                        break;
+                    }
+                }
+                loopIndex++;
+            }
+            if (errors.isEmpty()) {
+                return new Variable(result);
+            } else {
+                String errorMessage = StringUtils.join(errors, '\n');
+                throw new KarateException(errorMessage);
+            }
+        } else {
+            throw new RuntimeException("feature call argument is not a json object or array: " + arg);
+        }
     }
 
     public Variable evalJsonPath(Variable v, String path) {

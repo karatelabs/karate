@@ -42,6 +42,19 @@ public class ScenarioCall {
     private Variable arg;
     private boolean globalScope;
     private boolean karateConfigDisabled;
+    private int loopIndex = -1;
+
+    public boolean isNone() {
+        return depth == 0;
+    }
+
+    public int getLoopIndex() {
+        return loopIndex;
+    }
+
+    public void setLoopIndex(int loopIndex) {
+        this.loopIndex = loopIndex;
+    }
 
     public void setGlobalScope(boolean globalScope) {
         this.globalScope = globalScope;
@@ -61,10 +74,6 @@ public class ScenarioCall {
 
     public boolean isCallonce() {
         return callonce;
-    }
-
-    public boolean isNone() {
-        return depth == 0;
     }
 
     public void setCallonce(boolean callonce) {
