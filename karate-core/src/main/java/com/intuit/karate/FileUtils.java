@@ -198,6 +198,11 @@ public class FileUtils {
             return toResource(path, context).getStream();
         } catch (Exception e) {
             InputStream inputStream = context.getResourceAsStream(removePrefix(path));
+            if(inputStream == null) {
+                // attempt to get the file using the class classloader
+                // workaround for Spring Boot
+                inputStream = FileUtils.class.getClassLoader().getResourceAsStream(path);
+            }
             if (inputStream == null) {
                 String message = String.format("could not find or read file: %s", path);
                 context.logger.trace("{}", message);
