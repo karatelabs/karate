@@ -145,7 +145,7 @@ public class Variable {
     public boolean isFunction() {
         return type == Type.JS_FUNCTION || type == Type.JAVA_FUNCTION;
     }
-    
+
     public boolean isKarateFeature() {
         return type == Type.KARATE_FEATURE;
     }
@@ -237,6 +237,9 @@ public class Variable {
 
     public String getAsPrettyString() {
         switch (type) {
+            case LIST:
+            case MAP:
+                return JsonUtils.toJsonSafe(value, true);
             default:
                 return getAsString();
         }
@@ -253,15 +256,9 @@ public class Variable {
     public Variable copy(boolean deep) {
         switch (type) {
             case LIST:
+                return deep ? new Variable(JsonUtils.deepCopy(value)) : new Variable(new ArrayList((List) value));
             case MAP:
-                if (deep) {
-                    try {
-                        return new Variable(JsonUtils.fromJsonString(getAsString()));
-                    } catch (Throwable t) {
-                        logger.warn("json deep clone failed, will fall-back to shallow: {}", t.getMessage());
-                    }
-                }
-                return isMap() ? new Variable(new LinkedHashMap((Map) value)) : new Variable(new ArrayList((List) value));
+                return deep ? new Variable(JsonUtils.deepCopy(value)) : new Variable(new LinkedHashMap((Map) value));
             case XML:
                 return new Variable(XmlUtils.toXmlDoc(getAsString()));
             default:

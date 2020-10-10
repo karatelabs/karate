@@ -78,7 +78,7 @@ public class ScenarioEngine {
         switch (v.type) {
             case JS_FUNCTION:
                 JsValue jv = v.getValue();
-                // important to ensure that the function is attached to the current context
+                // important to ensure that the function is attached to the current graal context
                 // since it may have come from e.g. karate-config.js or a calling / parent feature
                 // this will update the wrapper variable if needed as a performance optimization
                 jv.switchContext(JS);

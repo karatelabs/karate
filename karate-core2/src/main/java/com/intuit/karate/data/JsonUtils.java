@@ -40,7 +40,11 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.IdentityHashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -173,6 +177,138 @@ public class JsonUtils {
             throw new RuntimeException(e);
         }
         return sw.toString();
+    }
+
+    public static Object deepCopy(Object o) {
+        // anti recursion / back-references
+        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
+        return recurseDeepCopy(o, seen);
+    }
+
+    private static Object recurseDeepCopy(Object o, Set<Object> seen) {
+        if (o instanceof List) {
+            List list = (List) o;
+            if (seen.add(o)) {
+                int count = list.size();
+                List listCopy = new ArrayList(count);
+                for (int i = 0; i < count; i++) {
+                    listCopy.add(recurseDeepCopy(list.get(i), seen));
+                }
+                return listCopy;
+            } else {
+                return o;
+            }
+        } else if (o instanceof Map) {
+            if (seen.add(o)) {
+                Map<String, Object> map = (Map<String, Object>) o;
+                Map<String, Object> mapCopy = new LinkedHashMap(map.size());
+                map.forEach((k, v) -> {
+                    mapCopy.put(k, recurseDeepCopy(v, seen));
+                });
+                return mapCopy;
+            } else {
+                return o;
+            }
+        } else {
+            return o;
+        }
+    }
+
+    public static String toJsonSafe(Object o, boolean pretty) {
+        StringBuilder sb = new StringBuilder();
+        // anti recursion / back-references
+        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
+        recurseJsonString(o, pretty, sb, 0, seen);
+        if (pretty) { 
+            sb.append('\n');
+        }
+        return sb.toString();
+    }
+
+    private static void pad(StringBuilder sb, int depth) {
+        for (int i = 0; i < depth; i++) {
+            sb.append(' ').append(' ');
+        }
+    }
+
+    private static void ref(StringBuilder sb, Object o) {
+        sb.append("\"#ref:").append(o.getClass().getName()).append('"');
+    }
+
+    public static String escapeValue(String raw) {
+        return JSONValue.escape(raw, JSONStyle.LT_COMPRESS);
+    }
+
+    private static void recurseJsonString(Object o, boolean pretty, StringBuilder sb, int depth, Set<Object> seen) {
+        if (o == null) {
+            sb.append("null");
+        } else if (o instanceof Map) {
+            if (seen.add(o)) {
+                sb.append('{');
+                if (pretty) {
+                    sb.append('\n');
+                }
+                Map<String, Object> map = (Map<String, Object>) o;
+                Iterator<Map.Entry<String, Object>> iterator = map.entrySet().iterator();
+                while (iterator.hasNext()) {
+                    Map.Entry<String, Object> entry = iterator.next();
+                    String key = entry.getKey();
+                    if (pretty) {
+                        pad(sb, depth + 1);
+                    }
+                    sb.append('"').append(escapeValue(key)).append('"').append(':');
+                    if (pretty) {
+                        sb.append(' ');
+                    }
+                    recurseJsonString(entry.getValue(), pretty, sb, depth + 1, seen);
+                    if (iterator.hasNext()) {
+                        sb.append(',');
+                    }
+                    if (pretty) {
+                        sb.append('\n');
+                    }
+                }
+                if (pretty) {
+                    pad(sb, depth);
+                }
+                sb.append('}');
+            } else {
+                ref(sb, o);
+            }
+        } else if (o instanceof List) {
+            List list = (List) o;
+            Iterator iterator = list.iterator();
+            if (seen.add(o)) {
+                sb.append('[');
+                if (pretty) {
+                    sb.append('\n');
+                }
+                while (iterator.hasNext()) {
+                    Object child = iterator.next();
+                    if (pretty) {
+                        pad(sb, depth + 1);
+                    }
+                    recurseJsonString(child, pretty, sb, depth + 1, seen);
+                    if (iterator.hasNext()) {
+                        sb.append(',');
+                    }
+                    if (pretty) {
+                        sb.append('\n');
+                    }
+                }
+                if (pretty) {
+                    pad(sb, depth);
+                }
+                sb.append(']');
+            } else {
+                ref(sb, o);
+            }
+        } else if (o instanceof String) {
+            String value = (String) o;
+            sb.append('"').append(escapeValue(value)).append('"');
+        } else {
+            sb.append(o);
+        }
     }
 
 }
