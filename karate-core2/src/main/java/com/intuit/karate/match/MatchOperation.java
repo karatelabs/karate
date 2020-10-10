@@ -53,23 +53,33 @@ public class MatchOperation {
 
     boolean pass = true;
     String failReason;
-
+    
     public MatchOperation(MatchType type, MatchValue actual, MatchValue expected) {
-        this(null, type, actual, expected);
+        this(JsEngine.global(), null, type, actual, expected);
+    }    
+
+    public MatchOperation(JsEngine js, MatchType type, MatchValue actual, MatchValue expected) {
+        this(js, null, type, actual, expected);
+    }
+    
+    private MatchOperation(MatchContext context, MatchType type, MatchValue actual, MatchValue expected) {
+        this(null, context, type, actual, expected);
     }
 
-    public MatchOperation(MatchContext context, MatchType type, MatchValue actual, MatchValue expected) {
+    private MatchOperation(JsEngine js, MatchContext context, MatchType type, MatchValue actual, MatchValue expected) {
         this.type = type;
         this.actual = actual;
         this.expected = expected;
         if (context == null) {
+            if (js == null) {
+                js = JsEngine.global();
+            }
             this.failures = new ArrayList();
             if (actual.isXml()) {
-                this.context = new MatchContext(this, true, 0, "/", "", -1);
+                this.context = new MatchContext(js, this, true, 0, "/", "", -1);
             } else {
-                this.context = new MatchContext(this, false, 0, "$", "", -1);
+                this.context = new MatchContext(js, this, false, 0, "$", "", -1);
             }
-
         } else {
             this.context = context;
             this.failures = context.root.failures;
@@ -149,10 +159,9 @@ public class MatchOperation {
                     List list = actual.getValue();
                     MatchType nestedMatchType = fromMatchEach();
                     int count = list.size();
-                    JsEngine jsEngine = JsEngine.global();
                     for (int i = 0; i < count; i++) {
                         Object o = list.get(i);
-                        jsEngine.put("_$", o);
+                        context.JS.put("_$", o);
                         MatchOperation mo = new MatchOperation(context.descend(i), nestedMatchType, new MatchValue(o), expected);
                         mo.execute();
                         if (!mo.pass) {
@@ -220,7 +229,7 @@ public class MatchOperation {
                 MatchType nestedType = macroToMatchType(false, macro);
                 int startPos = matchTypeToStartPos(nestedType);
                 macro = macro.substring(startPos);
-                JsValue jv = JsEngine.evalGlobal(macro);
+                JsValue jv = context.JS.eval(macro);
                 MatchOperation mo = new MatchOperation(context, nestedType, actual, new MatchValue(jv.getValue()));
                 return mo.execute();
             } else if (macro.startsWith("[")) {
@@ -233,16 +242,15 @@ public class MatchOperation {
                         String bracketContents = macro.substring(1, closeBracketPos);
                         List listAct = actual.getValue();
                         int listSize = listAct.size();
-                        JsEngine jsEngine = JsEngine.global();
-                        jsEngine.put("$", context.root.actual.getValue());
-                        jsEngine.put("_", listSize);
+                        context.JS.put("$", context.root.actual.getValue());
+                        context.JS.put("_", listSize);
                         String sizeExpr;
                         if (bracketContents.indexOf('_') != -1) { // #[_ < 5] 
                             sizeExpr = bracketContents;
                         } else { // #[5] | #[$.foo] 
                             sizeExpr = bracketContents + " == _";
                         }
-                        JsValue jv = jsEngine.eval(sizeExpr);
+                        JsValue jv = context.JS.eval(sizeExpr);
                         if (!jv.isTrue()) {
                             return fail("actual array length is " + listSize);
                         }
@@ -264,7 +272,7 @@ public class MatchOperation {
                                 MatchType nestedType = macroToMatchType(true, macro); // match each
                                 int startPos = matchTypeToStartPos(nestedType);
                                 macro = macro.substring(startPos);
-                                JsValue jv = JsEngine.evalGlobal(macro);
+                                JsValue jv = context.JS.eval(macro);
                                 MatchOperation mo = new MatchOperation(context, nestedType, actual, new MatchValue(jv.getValue()));
                                 return mo.execute();
                             }
@@ -313,10 +321,9 @@ public class MatchOperation {
                 }
                 macro = StringUtils.trimToNull(macro);
                 if (macro != null && questionPos != -1) {
-                    JsEngine jsEngine = JsEngine.global();
-                    jsEngine.put("$", context.root.actual.getValue());
-                    jsEngine.put("_", actual.getValue());
-                    JsValue jv = jsEngine.eval(macro);
+                    context.JS.put("$", context.root.actual.getValue());
+                    context.JS.put("_", actual.getValue());
+                    JsValue jv = context.JS.eval(macro);
                     if (!jv.isTrue()) {
                         return fail("evaluated to 'false'");
                     }
@@ -570,8 +577,9 @@ public class MatchOperation {
                 sb.append(prefix).append(mo.actual.getAsXmlString()).append('\n');
                 sb.append(prefix).append(mo.expected.getAsXmlString()).append('\n');
             } else {
+                MatchValue expected = mo.expected.getSortedLike(mo.actual);
                 sb.append(prefix).append(mo.actual.getWithinSingleQuotesIfString()).append('\n');
-                sb.append(prefix).append(mo.expected.getWithinSingleQuotesIfString()).append('\n');
+                sb.append(prefix).append(expected.getWithinSingleQuotesIfString()).append('\n');
             }
         }
         return sb.toString();

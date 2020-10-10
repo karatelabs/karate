@@ -391,6 +391,11 @@ public class ScenarioRuntime implements Runnable {
     public Config getConfig() {
         return config;
     }
+    
+    public void configure(Config config) {
+        this.config = config;
+        http = ScenarioHttpClient.construct(config);
+    }    
 
     public void updateConfigCookies(Map<String, Cookie> cookies) {
         if (cookies == null) {

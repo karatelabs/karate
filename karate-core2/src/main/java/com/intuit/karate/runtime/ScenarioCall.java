@@ -100,12 +100,12 @@ public class ScenarioCall {
 
     public static class Result {
 
-        public final Variable result;
+        public final Variable value;
         public final Config config;
         public final Map<String, Variable> vars;
 
-        public Result(Variable result, Config config, Map<String, Variable> vars) {
-            this.result = result;
+        public Result(Variable value, Config config, Map<String, Variable> vars) {
+            this.value = value;
             this.config = config;
             this.vars = vars;
         }

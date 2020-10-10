@@ -63,12 +63,7 @@ public class JsEngine {
         }
 
         Value eval(String exp) {
-            try {
-                return context.eval(JS, exp);
-            } catch (Exception e) {
-                logger.error("js eval failed: {} - {}", e, exp);
-                throw new RuntimeException(e);
-            }
+            return context.eval(JS, exp);
         }
 
     }
@@ -91,11 +86,14 @@ public class JsEngine {
 
     public static JsEngine local() {
         Engine engine = GLOBAL_JS_CONTEXT.get().context.getEngine();
-        JsEngine je = new JsEngine(new JsContext(engine));
-        Value bindings = global().bindings();
+        return new JsEngine(new JsContext(engine));
+    }
+
+    public static JsEngine localWithGlobalBindings() {
+        JsEngine je = local();
+        Value bindings = global().jc.bindings;
         for (String key : bindings.getMemberKeys()) {
-            Value v = bindings.getMember(key);
-            je.putValue(key, v);
+            je.putValue(key, bindings.getMember(key));
         }
         return je;
     }
@@ -112,6 +110,10 @@ public class JsEngine {
 
     private JsEngine(JsContext sc) {
         this.jc = sc;
+    }
+
+    public Context getGraalContext() {
+        return jc.context;
     }
 
     public Value bindings() {
@@ -141,7 +143,7 @@ public class JsEngine {
     public void putAll(Map<String, Object> map) {
         map.forEach((k, v) -> put(k, v));
     }
-    
+
     public boolean hasMember(String key) {
         return jc.bindings.hasMember(key);
     }
@@ -165,10 +167,10 @@ public class JsEngine {
 
     public void putValue(String key, Value v) {
         if (v.isHostObject()) {
-            bindings().putMember(key, v.asHostObject());
+            jc.bindings.putMember(key, v.asHostObject());
         } else if (v.canExecute()) {
             Value fun = evalForValue("(" + v.toString() + ")");
-            bindings().putMember(key, fun);
+            jc.bindings.putMember(key, fun);
         } else {
             put(key, JsValue.toJava(v));
         }

@@ -32,6 +32,7 @@ import com.intuit.karate.data.Json;
 import com.intuit.karate.data.JsonUtils;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchType;
@@ -68,19 +69,37 @@ public class ScenarioEngine {
         this.logger = logger;
     }
 
+    // not in constructor because it has to be on Runable.run() thread
     public void init() {
-        JsEngine.remove(); // reset JS engine for this thread
-        JS = JsEngine.global();
+        JS = JsEngine.local();
+    }
+
+    private void putJsBinding(String name, Variable v) {
+        switch (v.type) {
+            case JS_FUNCTION:
+                JsValue jv = v.getValue();
+                // important to ensure that the function is attached to the current context
+                // since it may have come from e.g. karate-config.js or a calling / parent feature
+                // this will update the wrapper variable if needed as a performance optimization
+                jv.switchContext(JS);
+                JS.put(name, jv);
+                break;
+            case XML:
+                JS.put(name, XmlUtils.toObject(v.getValue()));
+                break;
+            default:
+                JS.put(name, v.getValue());
+        }
     }
 
     public Variable eval(String exp) {
-        vars.forEach((k, v) -> JS.put(k, v.getValueForJsEngine()));
+        vars.forEach((k, v) -> putJsBinding(k, v));
         return new Variable(JS.eval(exp));
     }
 
     public void setHiddenVariable(String key, Object value) {
         if (value instanceof Variable) {
-            JS.put(key, ((Variable) value).getValue());
+            putJsBinding(key, (Variable) value);
         } else {
             JS.put(key, value);
         }
@@ -681,7 +700,7 @@ public class ScenarioEngine {
             }
         }
         MatchValue actualValue = new MatchValue(actual.getValue());
-        return Match.execute(matchType, actualValue, expectedValue);
+        return Match.execute(JS, matchType, actualValue, expectedValue);
     }
 
     private static final Pattern VAR_AND_PATH_PATTERN = Pattern.compile("\\w+");
@@ -774,19 +793,70 @@ public class ScenarioEngine {
         return new StringUtils.Pair(line.substring(0, pos), StringUtils.trimToNull(line.substring(pos)));
     }
 
-    public Variable call(boolean callOnce, String exp, boolean reuseParentConfig) {
-        StringUtils.Pair pair = parseCallArgs(exp);
-        Variable called = evalKarateExpression(pair.left);
-        Variable arg = pair.right == null ? null : evalKarateExpression(pair.right);
+    private Variable call(ScenarioRuntime runtime, Variable called, Variable arg, boolean reuseParentConfig) {
         switch (called.type) {
             case JAVA_FUNCTION:
             case JS_FUNCTION:
                 return arg == null ? called.invokeFunction() : called.invokeFunction(new Object[]{arg.getValue()});
             case KARATE_FEATURE:
-                ScenarioRuntime runtime = ScenarioRuntime.LOCAL.get();
                 return callFeature(runtime, called.getValue(), arg, -1, reuseParentConfig);
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);
+        }
+    }
+
+    public Variable call(boolean callOnce, String exp, boolean reuseParentConfig) {
+        StringUtils.Pair pair = parseCallArgs(exp);
+        Variable called = evalKarateExpression(pair.left);
+        Variable arg = pair.right == null ? null : evalKarateExpression(pair.right);
+        ScenarioRuntime runtime = ScenarioRuntime.LOCAL.get();
+        if (callOnce) {
+            return callOnce(runtime, exp, called, arg, reuseParentConfig);
+        } else {
+            return call(runtime, called, arg, reuseParentConfig);
+        }
+    }
+
+    private Variable result(ScenarioRuntime runtime, ScenarioCall.Result result, boolean reuseParentConfig) {
+        if (reuseParentConfig) { // if shared scope
+            runtime.configure(new Config(result.config)); // re-apply config from time of snapshot
+            if (result.vars != null) {
+                vars.clear();
+                vars.putAll(copyVariables(false)); // clone for safety 
+            }
+        }
+        return result.value.copy(false); // clone result for safety       
+    }
+
+    private Variable callOnce(ScenarioRuntime runtime, String cacheKey, Variable called, Variable arg, boolean reuseParentConfig) {
+        // IMPORTANT: the call result is always shallow-cloned before returning
+        // so that call result (especially if a java Map) is not mutated by other scenarios
+        final Map<String, ScenarioCall.Result> CACHE = runtime.featureRuntime.FEATURE_CACHE;
+        ScenarioCall.Result result = CACHE.get(cacheKey);
+        if (result != null) {
+            runtime.logger.trace("callonce cache hit for: {}", cacheKey);
+            return result(runtime, result, reuseParentConfig);
+        }
+        long startTime = System.currentTimeMillis();
+        runtime.logger.trace("callonce waiting for lock: {}", cacheKey);
+        synchronized (CACHE) {
+            result = CACHE.get(cacheKey); // retry
+            if (result != null) {
+                long endTime = System.currentTimeMillis() - startTime;
+                runtime.logger.warn("this thread waited {} milliseconds for callonce lock: {}", endTime, cacheKey);
+                return result(runtime, result, reuseParentConfig);
+            }
+            // this thread is the 'winner'
+            runtime.logger.info(">> lock acquired, begin callonce: {}", cacheKey);
+            Variable resultValue = call(runtime, called, arg, reuseParentConfig);
+            // we clone result (and config) here, to snapshot state at the point the callonce was invoked
+            // this prevents the state from being clobbered by the subsequent steps of this
+            // first scenario that is about to use the result
+            Map<String, Variable> clonedVars = called.isKarateFeature() && reuseParentConfig ? copyVariables(false) : null;
+            result = new ScenarioCall.Result(resultValue.copy(false), new Config(runtime.getConfig()), clonedVars);
+            CACHE.put(cacheKey, result);
+            runtime.logger.info("<< lock released, cached callonce: {}", cacheKey);
+            return resultValue; // another routine will apply globally if needed
         }
     }
 

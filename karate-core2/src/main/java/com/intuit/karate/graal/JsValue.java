@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 
 /**
@@ -45,7 +46,7 @@ public class JsValue {
         OTHER
     }
 
-    private final Value original;
+    private Value original;
     private final Object value;
     public final Type type;
 
@@ -109,8 +110,20 @@ public class JsValue {
         return (List) value;
     }
 
+    public void switchContext(JsEngine js) {
+        Context context = original.getContext();
+        if (context != null && !context.equals(js.getGraalContext())) {
+            String temp = "(" + original.toString() + ")";
+            original = js.evalForValue(temp);
+        }
+    }
+
     public Value getOriginal() {
         return original;
+    }
+
+    public void setOriginal(Value original) {
+        this.original = original;
     }
 
     public JsValue execute(Object... args) {
@@ -138,10 +151,6 @@ public class JsValue {
 
     public boolean isOther() {
         return type == Type.OTHER;
-    }
-
-    public String asString() {
-        return original.asString();
     }
 
     @Override

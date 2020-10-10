@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.match;
 
+import com.intuit.karate.graal.JsEngine;
 import static com.intuit.karate.match.MatchResult.*;
 import java.util.HashMap;
 import java.util.Map;
@@ -69,8 +70,8 @@ public class Match {
         return new MatchValue(MatchValue.parseIfJsonOrXml(o));
     }
 
-    public static MatchResult execute(MatchType matchType, MatchValue actual, MatchValue expected) {
-        MatchOperation mo = new MatchOperation(matchType, actual, expected);
+    public static MatchResult execute(JsEngine js, MatchType matchType, MatchValue actual, MatchValue expected) {
+        MatchOperation mo = new MatchOperation(js, matchType, actual, expected);
         mo.execute();
         if (mo.pass) {
             return PASS;

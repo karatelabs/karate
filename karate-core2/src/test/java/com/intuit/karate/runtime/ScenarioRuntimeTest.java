@@ -98,12 +98,22 @@ class ScenarioRuntimeTest {
                 "def res = call read('called1.feature') [{ foo: 'bar' }]"
         );  
         matchVarEquals("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { foo: 'bar' }, __loop: 0 }]"); 
-//        run(
-//                "def b = 'bar'",
-//                "def fun = function(i){ return { index: i } }",
-//                "def res = call read('called1.feature') fun"
-//        );  
-//        matchVarEquals("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { index: 0 }, __loop: 0 }]");         
+        run(
+                "def b = 'bar'",
+                "def fun = function(i){ if (i == 1) return null; return { index: i } }",
+                "def res = call read('called1.feature') fun"
+        );  
+        matchVarEquals("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { index: 0 }, __loop: 0, index: 0, fun: '#ignore' }]");         
+    }
+    
+    @Test
+    void testCallOnce() {
+        run(
+                "def uuid = function(){ return java.util.UUID.randomUUID() + '' }",
+                "def first = callonce uuid",
+                "def second = callonce uuid"                
+        );
+        matchVarEquals("first", get("second"));
     }
 
 }

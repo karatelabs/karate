@@ -25,6 +25,7 @@ package com.intuit.karate.data;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptValue;
+import com.intuit.karate.graal.JsValue;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.spi.json.JsonProvider;
@@ -35,6 +36,7 @@ import de.siegmar.fastcsv.reader.CsvContainer;
 import de.siegmar.fastcsv.reader.CsvReader;
 import de.siegmar.fastcsv.reader.CsvRow;
 import de.siegmar.fastcsv.writer.CsvWriter;
+import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -42,8 +44,11 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import net.minidev.json.JSONStyle;
 import net.minidev.json.JSONValue;
 import net.minidev.json.parser.JSONParser;
+import net.minidev.json.reader.JsonWriter;
+import net.minidev.json.reader.JsonWriterI;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
@@ -57,10 +62,19 @@ public class JsonUtils {
         // only static methods
     }
 
+    private static class JsValueWriter implements JsonWriterI<JsValue> {
+
+        @Override
+        public <E extends JsValue> void writeJSONString(E value, Appendable out, JSONStyle compression) throws IOException {
+            JsonWriter.toStringWriter.writeJSONString("\"#" + value.type + "\"", out, compression);
+        }
+
+    }
+
     static {
+        JSONValue.registerWriter(JsValue.class, new JsValueWriter());
         // ensure that even if jackson (databind?) is on the classpath, don't switch provider
         Configuration.setDefaults(new Configuration.Defaults() {
-
             private final JsonProvider jsonProvider = new JsonSmartJsonProvider();
             private final MappingProvider mappingProvider = new JsonSmartMappingProvider();
 

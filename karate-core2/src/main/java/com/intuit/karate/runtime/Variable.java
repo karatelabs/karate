@@ -34,6 +34,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
 
 /**
@@ -41,6 +43,8 @@ import org.w3c.dom.Node;
  * @author pthomas3
  */
 public class Variable {
+
+    private static final Logger logger = LoggerFactory.getLogger(Variable.class);
 
     public static enum Type {
         NULL,
@@ -141,6 +145,10 @@ public class Variable {
     public boolean isFunction() {
         return type == Type.JS_FUNCTION || type == Type.JAVA_FUNCTION;
     }
+    
+    public boolean isKarateFeature() {
+        return type == Type.KARATE_FEATURE;
+    }
 
     public boolean isTrue() {
         return type == Type.BOOLEAN && ((Boolean) value);
@@ -234,15 +242,6 @@ public class Variable {
         }
     }
 
-    public Object getValueForJsEngine() {
-        switch (type) {
-            case XML:
-                return XmlUtils.toObject(getValue());
-            default:
-                return value;
-        }
-    }
-
     public int getAsInt() {
         if (isNumber()) {
             return ((Number) value).intValue();
@@ -254,17 +253,15 @@ public class Variable {
     public Variable copy(boolean deep) {
         switch (type) {
             case LIST:
-                if (deep) {
-                    return new Variable(JsonUtils.fromJsonString(getAsString()));
-                } else {
-                    return new Variable(new ArrayList((List) value));
-                }
             case MAP:
                 if (deep) {
-                    return new Variable(JsonUtils.fromJsonString(getAsString()));
-                } else {
-                    return new Variable(new LinkedHashMap((Map) value));
+                    try {
+                        return new Variable(JsonUtils.fromJsonString(getAsString()));
+                    } catch (Throwable t) {
+                        logger.warn("json deep clone failed, will fall-back to shallow: {}", t.getMessage());
+                    }
                 }
+                return isMap() ? new Variable(new LinkedHashMap((Map) value)) : new Variable(new ArrayList((List) value));
             case XML:
                 return new Variable(XmlUtils.toXmlDoc(getAsString()));
             default:
