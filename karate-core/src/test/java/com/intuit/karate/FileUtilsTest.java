@@ -231,7 +231,7 @@ public class FileUtilsTest {
         String relativePath = "classpath:demo/jar1/caller.feature";
         ClassLoader cl = getJarClassLoader();
         Path path = FileUtils.fromRelativeClassPath(relativePath, cl);
-        Resource resource = new Resource(path, relativePath, -1);
+        Resource resource = new Resource(path, relativePath, -1, cl);
         Feature feature = FeatureParser.parse(resource);
         try {
             Map<String, Object> map = Runner.runFeature(feature, null, true);
@@ -248,7 +248,8 @@ public class FileUtilsTest {
             FeatureParser.parse(relativePath);
             fail("we should not have reached here");
         } catch (Exception e) {
-            assertEquals("file does not exist: /foo/bar/feeder.feature", e.getMessage());
+            assertEquals(e.getCause().getClass(), java.io.FileNotFoundException.class);
+            assertEquals("java.io.FileNotFoundException: \\foo\\bar\\feeder.feature (The system cannot find the path specified)", e.getMessage());
         }
     }
 
