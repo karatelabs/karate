@@ -77,13 +77,13 @@ public class ScenarioRuntime implements Runnable {
         this.parentCall = featureRuntime.parentCall;
         if (parentCall.isNone()) {
             config = new Config();
-            engine = new ScenarioEngine(new HashMap(), logger);
+            engine = new ScenarioEngine(this, new HashMap(), logger);
         } else if (parentCall.isGlobalScope()) {
             config = parentCall.parentRuntime.config;
-            engine = new ScenarioEngine(parentCall.parentRuntime.engine.vars, logger);
+            engine = new ScenarioEngine(this, parentCall.parentRuntime.engine.vars, logger);
         } else { // new, but clone and copy data
             config = new Config(parentCall.parentRuntime.config);
-            engine = new ScenarioEngine(parentCall.parentRuntime.engine.copyVariables(false), logger);
+            engine = new ScenarioEngine(this, parentCall.parentRuntime.engine.copyVariables(false), logger);
         }
         this.scenario = scenario;
         if (background == null) {
@@ -391,11 +391,11 @@ public class ScenarioRuntime implements Runnable {
     public Config getConfig() {
         return config;
     }
-    
+
     public void configure(Config config) {
         this.config = config;
         http = ScenarioHttpClient.construct(config);
-    }    
+    }
 
     public void updateConfigCookies(Map<String, Cookie> cookies) {
         if (cookies == null) {
@@ -411,7 +411,11 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public void configure(String key, String exp) {
-        Variable v = new Variable(exp);
+        Variable v = engine.evalKarateExpression(exp);
+        configure(key, v);
+    }
+
+    public void configure(String key, Variable v) {
         key = StringUtils.trimToEmpty(key);
         // if next line returns true, http-client needs re-building
         if (config.configure(key, v)) {

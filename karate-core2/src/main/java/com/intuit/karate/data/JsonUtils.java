@@ -127,7 +127,7 @@ public class JsonUtils {
         return toJson(o).getBytes(FileUtils.UTF8);
     }
 
-    public static Object fromJsonString(String json) {
+    public static Object fromJson(String json) {
         return JSONValue.parse(json);
     }
 
@@ -242,6 +242,34 @@ public class JsonUtils {
     private static void recurseJsonString(Object o, boolean pretty, StringBuilder sb, int depth, Set<Object> seen) {
         if (o == null) {
             sb.append("null");
+        } else if (o instanceof List) {
+            List list = (List) o;
+            Iterator iterator = list.iterator();
+            if (seen.add(o)) {
+                sb.append('[');
+                if (pretty) {
+                    sb.append('\n');
+                }
+                while (iterator.hasNext()) {
+                    Object child = iterator.next();
+                    if (pretty) {
+                        pad(sb, depth + 1);
+                    }
+                    recurseJsonString(child, pretty, sb, depth + 1, seen);
+                    if (iterator.hasNext()) {
+                        sb.append(',');
+                    }
+                    if (pretty) {
+                        sb.append('\n');
+                    }
+                }
+                if (pretty) {
+                    pad(sb, depth);
+                }
+                sb.append(']');
+            } else {
+                ref(sb, o);
+            }            
         } else if (o instanceof Map) {
             if (seen.add(o)) {
                 sb.append('{');
@@ -272,34 +300,6 @@ public class JsonUtils {
                     pad(sb, depth);
                 }
                 sb.append('}');
-            } else {
-                ref(sb, o);
-            }
-        } else if (o instanceof List) {
-            List list = (List) o;
-            Iterator iterator = list.iterator();
-            if (seen.add(o)) {
-                sb.append('[');
-                if (pretty) {
-                    sb.append('\n');
-                }
-                while (iterator.hasNext()) {
-                    Object child = iterator.next();
-                    if (pretty) {
-                        pad(sb, depth + 1);
-                    }
-                    recurseJsonString(child, pretty, sb, depth + 1, seen);
-                    if (iterator.hasNext()) {
-                        sb.append(',');
-                    }
-                    if (pretty) {
-                        sb.append('\n');
-                    }
-                }
-                if (pretty) {
-                    pad(sb, depth);
-                }
-                sb.append(']');
             } else {
                 ref(sb, o);
             }

@@ -175,6 +175,10 @@ public class Variable {
         }
     }
 
+    public String getAsPrettyXmlString() {
+        return XmlUtils.toString(getAsXml(), true);
+    }
+
     public Node getAsXml() {
         switch (type) {
             case XML:
@@ -192,15 +196,18 @@ public class Variable {
         }
     }
 
-    public Object getValueForJsonConversion() {
+    public Object getValueAndConvertIfXmlToMap() {
+        return isXml() ? XmlUtils.toObject(getValue()) : value;
+    }
+    
+    public Object getValueAndForceParsingAsJson() {
         switch (type) {
             case LIST:
             case MAP:
                 return value;
             case STRING:
             case BYTES:
-                String json = getAsString();
-                return JsonUtils.fromJsonString(json);
+                return JsonUtils.fromJson(getAsString());
             case XML:
                 return XmlUtils.toObject(getValue());
             case OTHER: // pojo
@@ -227,7 +234,12 @@ public class Variable {
                 return FileUtils.toString((byte[]) value);
             case LIST:
             case MAP:
+                try {
                 return JsonUtils.toJson(value);
+            } catch (Throwable t) {
+                logger.warn("conversion to json string failed, will attempt to use fall-back approach: {}", t.getMessage());
+                return JsonUtils.toJsonSafe(value, false);
+            }
             case XML:
                 return XmlUtils.toString(getValue());
             default:

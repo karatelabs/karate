@@ -201,7 +201,7 @@ public class JsValue {
     public static Object fromString(String raw) {
         char firstChar = raw.trim().charAt(0);
         if (firstChar == '{' || firstChar == '[') {
-            Object o = JsonUtils.fromJsonString(raw);
+            Object o = JsonUtils.fromJson(raw);
             return JsValue.fromJava(o);
         } else {
             return raw;

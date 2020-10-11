@@ -60,11 +60,13 @@ import org.w3c.dom.NodeList;
  */
 public class ScenarioEngine {
 
+    private final ScenarioRuntime runtime;
     private final Logger logger;
     public final Map<String, Variable> vars;
     private JsEngine JS;
 
-    public ScenarioEngine(Map<String, Variable> vars, Logger logger) {
+    public ScenarioEngine(ScenarioRuntime runtime, Map<String, Variable> vars, Logger logger) {
+        this.runtime = runtime;
         this.vars = vars;
         this.logger = logger;
     }
@@ -157,7 +159,7 @@ public class ScenarioEngine {
                 String xml = XmlUtils.toString(v.getAsXml());
                 return new Variable(xml);
             case JSON:
-                return new Variable(v.getValueForJsonConversion());
+                return new Variable(v.getValueAndForceParsingAsJson());
             case YAML:
                 return new Variable(JsonUtils.fromYaml(v.getAsString()));
             case CSV:
@@ -454,12 +456,19 @@ public class ScenarioEngine {
     public void set(String name, String path, String exp) {
         set(name, path, exp, false, false);
     }
+    
+    public void set(String name, String path, Variable value) {
+        set(name, path, false, value, false, false);
+    }
 
-    public void set(String name, String path, String exp, boolean delete, boolean viaTable) {
+    private void set(String name, String path, String exp, boolean delete, boolean viaTable) {
+        set(name, path, isWithinParentheses(exp), evalKarateExpression(exp), delete, viaTable);
+    }
+
+    private void set(String name, String path, boolean isWithinParentheses, Variable value, boolean delete, boolean viaTable) {
         name = StringUtils.trimToEmpty(name);
         path = StringUtils.trimToNull(path);
-        Variable value = evalKarateExpression(exp);
-        if (viaTable && value.isNull() && !isWithinParentheses(exp)) {
+        if (viaTable && value.isNull() && !isWithinParentheses) {
             // by default, skip any expression that evaluates to null unless the user expressed
             // intent to over-ride by enclosing the expression in parentheses
             return;
@@ -496,7 +505,7 @@ public class ScenarioEngine {
             if (delete) {
                 json.remove(path);
             } else {
-                json.set(path, value.getValue());
+                json.set(path, value.<Object>getValue());
             }
         } else if (isXmlPath(path)) {
             if (target == null || target.isNull()) {
@@ -550,7 +559,7 @@ public class ScenarioEngine {
                     continue; // skip
                     // default behavior is to skip nulls when the expression evaluates 
                     // this is driven by the routine in setValueByPath
-                    // and users can over-ride this by simple enclosing the expression in parentheses
+                    // and users can over-ride this by simply enclosing the expression in parentheses
                 }
                 String suffix;
                 try {
@@ -734,7 +743,7 @@ public class ScenarioEngine {
     }
 
     public static final boolean isWithinParentheses(String text) {
-        return text.startsWith("(") && text.endsWith(")");
+        return text != null && text.startsWith("(") && text.endsWith(")");
     }
 
     public static final boolean isCallSyntax(String text) {
@@ -793,13 +802,13 @@ public class ScenarioEngine {
         return new StringUtils.Pair(line.substring(0, pos), StringUtils.trimToNull(line.substring(pos)));
     }
 
-    private Variable call(ScenarioRuntime runtime, Variable called, Variable arg, boolean reuseParentConfig) {
+    public Variable call(Variable called, Variable arg, boolean reuseParentConfig) {
         switch (called.type) {
             case JAVA_FUNCTION:
             case JS_FUNCTION:
                 return arg == null ? called.invokeFunction() : called.invokeFunction(new Object[]{arg.getValue()});
             case KARATE_FEATURE:
-                return callFeature(runtime, called.getValue(), arg, -1, reuseParentConfig);
+                return callFeature(called.getValue(), arg, -1, reuseParentConfig);
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);
         }
@@ -809,15 +818,14 @@ public class ScenarioEngine {
         StringUtils.Pair pair = parseCallArgs(exp);
         Variable called = evalKarateExpression(pair.left);
         Variable arg = pair.right == null ? null : evalKarateExpression(pair.right);
-        ScenarioRuntime runtime = ScenarioRuntime.LOCAL.get();
         if (callOnce) {
-            return callOnce(runtime, exp, called, arg, reuseParentConfig);
+            return callOnce(exp, called, arg, reuseParentConfig);
         } else {
-            return call(runtime, called, arg, reuseParentConfig);
+            return call(called, arg, reuseParentConfig);
         }
     }
 
-    private Variable result(ScenarioRuntime runtime, ScenarioCall.Result result, boolean reuseParentConfig) {
+    private Variable result(ScenarioCall.Result result, boolean reuseParentConfig) {
         if (reuseParentConfig) { // if shared scope
             runtime.configure(new Config(result.config)); // re-apply config from time of snapshot
             if (result.vars != null) {
@@ -828,14 +836,14 @@ public class ScenarioEngine {
         return result.value.copy(false); // clone result for safety       
     }
 
-    private Variable callOnce(ScenarioRuntime runtime, String cacheKey, Variable called, Variable arg, boolean reuseParentConfig) {
+    private Variable callOnce(String cacheKey, Variable called, Variable arg, boolean reuseParentConfig) {
         // IMPORTANT: the call result is always shallow-cloned before returning
         // so that call result (especially if a java Map) is not mutated by other scenarios
         final Map<String, ScenarioCall.Result> CACHE = runtime.featureRuntime.FEATURE_CACHE;
         ScenarioCall.Result result = CACHE.get(cacheKey);
         if (result != null) {
             runtime.logger.trace("callonce cache hit for: {}", cacheKey);
-            return result(runtime, result, reuseParentConfig);
+            return result(result, reuseParentConfig);
         }
         long startTime = System.currentTimeMillis();
         runtime.logger.trace("callonce waiting for lock: {}", cacheKey);
@@ -844,11 +852,11 @@ public class ScenarioEngine {
             if (result != null) {
                 long endTime = System.currentTimeMillis() - startTime;
                 runtime.logger.warn("this thread waited {} milliseconds for callonce lock: {}", endTime, cacheKey);
-                return result(runtime, result, reuseParentConfig);
+                return result(result, reuseParentConfig);
             }
             // this thread is the 'winner'
             runtime.logger.info(">> lock acquired, begin callonce: {}", cacheKey);
-            Variable resultValue = call(runtime, called, arg, reuseParentConfig);
+            Variable resultValue = call(called, arg, reuseParentConfig);
             // we clone result (and config) here, to snapshot state at the point the callonce was invoked
             // this prevents the state from being clobbered by the subsequent steps of this
             // first scenario that is about to use the result
@@ -860,7 +868,7 @@ public class ScenarioEngine {
         }
     }
 
-    public Variable callFeature(ScenarioRuntime runtime, Feature feature, Variable arg, int index, boolean reuseParentConfig) {
+    public Variable callFeature(Feature feature, Variable arg, int index, boolean reuseParentConfig) {
         if (arg == null || arg.isMap()) {
             ScenarioCall call = new ScenarioCall(runtime, feature);
             call.setArg(arg);
@@ -896,7 +904,7 @@ public class ScenarioEngine {
                     break;
                 }
                 try {
-                    Variable loopResult = callFeature(runtime, feature, loopArg, loopIndex, reuseParentConfig);
+                    Variable loopResult = callFeature(feature, loopArg, loopIndex, reuseParentConfig);
                     result.add(loopResult.getValue());
                 } catch (Exception e) {
                     String message = "feature call loop failed at index: " + loopIndex + ", " + e.getMessage();
@@ -920,7 +928,7 @@ public class ScenarioEngine {
     }
 
     public Variable evalJsonPath(Variable v, String path) {
-        Json json = new Json(v.getValueForJsonConversion());
+        Json json = new Json(v.getValueAndForceParsingAsJson());
         try {
             return new Variable(json.get(path));
         } catch (PathNotFoundException e) {

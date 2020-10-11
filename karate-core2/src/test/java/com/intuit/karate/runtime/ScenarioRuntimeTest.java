@@ -67,9 +67,13 @@ class ScenarioRuntimeTest {
     @Test
     void testReadFunction() {
         run(
-                "def foo = karate.read('data.json')"
+                "def foo = read('data.json')",
+                "def bar = karate.readAsString('data.json')"
         );
         matchVarEquals("foo", "{ hello: 'world' }");
+        Variable bar = sr.engine.vars.get("bar");
+        Match.that(bar.getValue()).isString();
+        assertEquals(bar.getValue(), "{ \"hello\": \"world\" }\n");
     }
 
     @Test
@@ -91,29 +95,74 @@ class ScenarioRuntimeTest {
         run(
                 "def b = 'bar'",
                 "def res = call read('called1.feature') { foo: 'bar' }"
-        );  
+        );
         matchVarEquals("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { foo: 'bar' }, __loop: -1 }");
         run(
                 "def b = 'bar'",
                 "def res = call read('called1.feature') [{ foo: 'bar' }]"
-        );  
-        matchVarEquals("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { foo: 'bar' }, __loop: 0 }]"); 
+        );
+        matchVarEquals("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { foo: 'bar' }, __loop: 0 }]");
         run(
                 "def b = 'bar'",
                 "def fun = function(i){ if (i == 1) return null; return { index: i } }",
                 "def res = call read('called1.feature') fun"
-        );  
-        matchVarEquals("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { index: 0 }, __loop: 0, index: 0, fun: '#ignore' }]");         
+        );
+        matchVarEquals("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { index: 0 }, __loop: 0, index: 0, fun: '#ignore' }]");
     }
-    
+
     @Test
     void testCallOnce() {
         run(
                 "def uuid = function(){ return java.util.UUID.randomUUID() + '' }",
                 "def first = callonce uuid",
-                "def second = callonce uuid"                
+                "def second = callonce uuid"
         );
         matchVarEquals("first", get("second"));
+    }
+
+    @Test
+    void testToString() {
+        run(
+                "def foo = { hello: 'world' }",
+                "def fooStr = karate.toString(foo)",
+                "def fooPretty = karate.pretty(foo)",
+                "def fooXml = karate.prettyXml(foo)"
+        );
+        assertEquals(get("fooStr"), "{\"hello\":\"world\"}");
+        assertEquals(get("fooPretty"), "{\n  \"hello\": \"world\"\n}\n");
+        assertEquals(get("fooXml"), "<hello>world</hello>\n");
+    }
+
+    @Test
+    void testGetSetAndRemove() {
+        run(
+                "karate.set('foo', 1)",
+                "karate.set('bar', { hello: 'world' })",
+                "karate.set({ a: 2, b: 'hey' })",
+                "karate.setXml('fooXml', '<foo>bar</foo>')",
+                "copy baz = bar",
+                "karate.set('baz', '$.a', 1)",
+                "karate.remove('baz', '$.hello')",
+                "copy bax = fooXml",
+                "karate.setXml('bax', '/foo', '<a>1</a>')",
+                "def getFoo = karate.get('foo')",
+                "def getNull = karate.get('blah')",
+                "def getDefault = karate.get('blah', 'foo')",
+                "def getPath = karate.get('bar.hello')"
+        );
+        assertEquals(get("foo"), 1);
+        assertEquals(get("a"), 2);
+        assertEquals(get("b"), "hey");
+        matchVarEquals("bar", "{ hello: 'world' }");
+        Object fooXml = get("fooXml");
+        Match.that(fooXml).isXml();
+        Match.that(fooXml).isEqualTo("<foo>bar</foo>");
+        matchVarEquals("baz", "{ a: 1 }");
+        Match.that(get("bax")).isEqualTo("<foo><a>1</a></foo>");
+        assertEquals(get("getFoo"), 1);
+        assertEquals(get("getNull"), null);
+        assertEquals(get("getDefault"), "foo");
+        assertEquals(get("getPath"), "world");
     }
 
 }
