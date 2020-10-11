@@ -258,6 +258,12 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
                         System.err.println("ex ->" + ex.getLocalizedMessage());
                     }
                     break;
+                case MAX_AGE: // set max age
+                    int maxAge = Integer.parseInt(entry.getValue());
+                    if (maxAge >= 0) { // only for valid maxAge for cookie expiration.
+                        cookie.setExpiryDate(new Date(System.currentTimeMillis() + (maxAge * 1000)));
+                    }
+                    break;
             }
         }
         if (cookie.getDomain() == null) {
@@ -327,8 +333,19 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
             response.addCookie(cookie);
         }
         cookieStore.clear(); // we rely on the StepDefs for cookie 'persistence'
-        for (Header header : httpResponse.getAllHeaders()) {
-            response.addHeader(header.getName(), header.getValue());
+        for (Header header : httpResponse.getAllHeaders()) { // rely on setting cookies from set-cookie header, else these will be skipped.
+            if( header.getName().contains("Set-Cookie"))
+            {
+                List<HttpCookie> cookieMap = HttpCookie.parse(header.getValue());
+                cookieMap.forEach( ck -> {
+                    com.intuit.karate.http.Cookie cookie = new com.intuit.karate.http.Cookie(ck.getName(), ck.getValue());
+                    cookie.put(DOMAIN, ck.getDomain());
+                    cookie.put(PATH, ck.getPath());
+                    cookie.put(MAX_AGE, ck.getMaxAge() + "");
+                    response.addCookie(cookie);
+                });
+            }
+                response.addHeader(header.getName(), header.getValue());
         }
         return response;
     }

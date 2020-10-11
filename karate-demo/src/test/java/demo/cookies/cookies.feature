@@ -105,3 +105,21 @@ Scenario: non-expired cookie is in response
     When method get
     Then status 200
     And match response[0] contains { name: 'foo', value: 'bar', domain: '.abc.com' }
+
+@apache @mock-servlet-todo
+Scenario: manually expire cookie by setting max-age to 0.
+    Given path 'search', 'cookies'
+    And cookie foo = {value:'bar', max-age:'0', path:'/search'}
+    And param domain = '.abc.com'
+    When method get
+    Then status 200
+    And match response == []
+
+@apache @mock-servlet-todo
+Scenario: max-age is -1, cookie should persist.
+    Given path 'search', 'cookies'
+    And cookie foo = {value:'bar', max-age:'-1', path:'/search'}
+    And param domain = '.abc.com'
+    When method get
+    Then status 200
+    And match response[0] contains { name: 'foo', value: 'bar', domain: '.abc.com' }
