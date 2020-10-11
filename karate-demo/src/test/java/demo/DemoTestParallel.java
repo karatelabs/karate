@@ -32,7 +32,14 @@ public class DemoTestParallel {
         generateReport(results.getReportDir());
         assertTrue(results.getErrorMessages(), results.getFailCount() == 0);        
     }
-    
+
+    @Test
+    public void testParallelWithEnvProperty() {
+        Results results = Runner.path("classpath:demo").tags("~@ignore").env("demo").parallel(5);
+        generateReport(results.getReportDir());
+        assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
+    }
+
     public static void generateReport(String karateOutputPath) {        
         Collection<File> jsonFiles = FileUtils.listFiles(new File(karateOutputPath), new String[] {"json"}, true);
         List<String> jsonPaths = new ArrayList(jsonFiles.size());

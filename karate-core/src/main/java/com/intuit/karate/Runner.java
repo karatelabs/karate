@@ -77,13 +77,14 @@ public class Runner {
         Collection<ExecutionHook> hooks;
         ExecutionHookFactory hookFactory;
         JobConfig jobConfig;
+        String env;
 
         String tagSelector() {
             return Tags.fromKarateOptionsTags(tags);
         }
 
         List<Resource> resolveResources() {
-            RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(paths, tags, optionsClass);
+            RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(paths, tags, env, optionsClass);
             paths = options.features;
             tags = options.tags;
             if (scenarioName == null) { // this could have been set by cli (e.g. intellij) so preserve if needed
@@ -116,6 +117,12 @@ public class Runner {
 
         //======================================================================
         //
+
+        public Builder env(String env) {
+            this.env = env;
+            return this;
+        }
+
         public Builder path(String... paths) {
             this.paths.addAll(Arrays.asList(paths));
             return this;
@@ -200,6 +207,11 @@ public class Runner {
 
     }
 
+    public static Builder forClass(Class clazz) {
+        Builder builder = new Builder();
+        return builder.forClass(clazz);
+    }
+
     public static Builder path(String... paths) {
         Builder builder = new Builder();
         return builder.path(paths);
@@ -217,11 +229,18 @@ public class Runner {
     }
 
     public static Results parallel(Class<?> clazz, int threadCount, String reportDir) {
-        return new Builder().forClass(clazz).reportDir(reportDir).parallel(threadCount);
+        return parallel(clazz, threadCount, reportDir, null);
     }
 
+    public static Results parallel(Class<?> clazz, int threadCount, String reportDir, String env) {
+        return new Builder().forClass(clazz).reportDir(reportDir).env(env).parallel(threadCount);
+    }
     public static Results parallel(List<String> tags, List<String> paths, int threadCount, String reportDir) {
-        return parallel(tags, paths, null, null, threadCount, reportDir);
+        return parallel(tags, paths, null, null, threadCount, reportDir, null);
+    }
+
+    public static Results parallel(List<String> tags, List<String> paths, int threadCount, String reportDir, String env) {
+        return parallel(tags, paths, null, null, threadCount, reportDir, env);
     }
 
     public static Results parallel(int threadCount, String... tagsOrPaths) {
@@ -243,13 +262,14 @@ public class Runner {
     }
 
     public static Results parallel(List<String> tags, List<String> paths, String scenarioName,
-            List<ExecutionHook> hooks, int threadCount, String reportDir) {
+                                   List<ExecutionHook> hooks, int threadCount, String reportDir, String env) {
         Builder options = new Builder();
         options.tags = tags;
         options.paths = paths;
         options.scenarioName = scenarioName;
         options.hooks = hooks;
         options.reportDir = reportDir;
+        options.env = env;
         return options.parallel(threadCount);
     }
 
@@ -323,7 +343,7 @@ public class Runner {
                     Feature feature = FeatureParser.parse(resource);
                     feature.setCallName(options.scenarioName);
                     feature.setCallLine(resource.getLine());
-                    FeatureContext featureContext = new FeatureContext(null, feature, options.tagSelector());
+                    FeatureContext featureContext = new FeatureContext(options.env, feature, options.tagSelector());
                     CallContext callContext = CallContext.forAsync(feature, options.hooks, options.hookFactory, null, false);
                     ExecutionContext execContext = new ExecutionContext(results, results.getStartTime(), featureContext, callContext, reportDir,
                             r -> featureExecutor.submit(r), featureExecutor, classLoader);

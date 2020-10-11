@@ -56,6 +56,7 @@ public class Karate implements Iterable<DynamicNode> {
 
     private final List<String> tags = new ArrayList();
     private final List<String> paths = new ArrayList();
+    private String env;
     private Class clazz;
 
     private static final HtmlSummaryReport SUMMARY = new HtmlSummaryReport();
@@ -71,6 +72,11 @@ public class Karate implements Iterable<DynamicNode> {
         return this;
     }
 
+    public Karate env(String env) {
+        this.env = env;
+        return this;
+    }
+
     public Karate feature(String... paths) {
         this.paths.addAll(Arrays.asList(paths));
         return this;
@@ -83,7 +89,7 @@ public class Karate implements Iterable<DynamicNode> {
 
     @Override
     public Iterator<DynamicNode> iterator() {
-        RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(paths, tags, clazz);
+        RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(paths, tags, env, clazz);
         List<Resource> resources = FileUtils.scanForFeatureFiles(options.getFeatures(), clazz);
         List<Feature> features = new ArrayList(resources.size());
         for (Resource resource : resources) {

@@ -59,6 +59,7 @@ public class Karate extends ParentRunner<Feature> {
     private final List<Feature> children;
     private final Map<String, FeatureInfo> featureMap;
     private final String tagSelector;
+    private final String env;
     private final HtmlSummaryReport summary;
     private final String targetDir;
 
@@ -68,7 +69,7 @@ public class Karate extends ParentRunner<Feature> {
         if (!testMethods.isEmpty()) {
             logger.warn("WARNING: there are methods annotated with '@Test', they will NOT be run when using '@RunWith(Karate.class)'");
         }
-        RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(null, null, clazz);
+        RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(null, null, null, clazz);
         List<Resource> resources = FileUtils.scanForFeatureFiles(options.getFeatures(), clazz.getClassLoader());
         children = new ArrayList(resources.size());
         featureMap = new HashMap(resources.size());
@@ -79,6 +80,7 @@ public class Karate extends ParentRunner<Feature> {
             children.add(feature);
         }
         tagSelector = Tags.fromKarateOptionsTags(options.getTags());
+        env = options.getEnv();
         summary = new HtmlSummaryReport();
         targetDir = FileUtils.getBuildDir() + File.separator + "surefire-reports";
     }
@@ -120,7 +122,7 @@ public class Karate extends ParentRunner<Feature> {
         // for whatever reason the junit 4 lifecycle can call describeChild() multiple times
         FeatureInfo info = featureMap.get(relativePath);
         if (info == null) {
-            info = new FeatureInfo(feature, tagSelector);
+            info = new FeatureInfo(feature, tagSelector, env);
             featureMap.put(relativePath, info);
         }
         return info.description;

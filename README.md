@@ -933,6 +933,8 @@ public class CatsRunner {
 }
 ```
 
+For very specific scenarios you can override the environment using RunnerOptions for JUnit of even with the parallel Runner. Refer to the [karate demo](karate-demo) for an [example with JUnit RunnerOptions](karate-demo/src/test/java/demo/env/EnvDevEnvRunner.java) or an [example with the Builder of the Parallel Runner](karate-demo/src/test/java/demo/env/EnvParallelRunner.java).
+
 ## Environment Specific Config
 When your project gets complex, you can have separate `karate-config-<env>.js` files that will be processed for that specific value of [`karate.env`](#switching-the-environment). This is especially useful when you want to maintain passwords, secrets or even URL-s specific for your local dev environment. 
 

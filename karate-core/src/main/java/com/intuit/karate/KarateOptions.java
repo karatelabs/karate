@@ -39,5 +39,7 @@ public @interface KarateOptions {
     String[] features() default {};
 
     String[] tags() default {};
+
+    String env() default "";
     
 }

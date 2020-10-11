@@ -77,6 +77,10 @@ public class RunnerOptions {
     @Option(names = {"-", "--plugin"}, description = "plugin (not supported)")
     List<String> plugins;
 
+    public String getEnv() {
+        return env;
+    }
+
     public List<String> getTags() {
         return tags;
     }
@@ -138,7 +142,7 @@ public class RunnerOptions {
         return options;
     }
 
-    public static RunnerOptions fromAnnotationAndSystemProperties(List<String> features, List<String> tags, Class<?> clazz) {
+    public static RunnerOptions fromAnnotationAndSystemProperties(List<String> features, List<String> tags, String env, Class<?> clazz) {
         KarateOptions ko = clazz == null ? null : clazz.getAnnotation(KarateOptions.class);
         if (ko != null) {
             if (ko.tags().length > 0) {
@@ -146,6 +150,9 @@ public class RunnerOptions {
             }
             if (ko.features().length > 0) {
                 features = Arrays.asList(ko.features());
+            }
+            if(!"".equalsIgnoreCase(ko.env())) {
+                env = ko.env();
             }
         }
         if (clazz != null && (features == null || features.isEmpty())) {
@@ -159,6 +166,7 @@ public class RunnerOptions {
             options = new RunnerOptions();
             options.tags = tags;
             options.features = features;
+            options.env = env;
         } else {
             logger.info("found system property 'karate.options': {}", line);
             options = parseCommandLine(line);
@@ -167,6 +175,12 @@ public class RunnerOptions {
             }
             if (options.features == null) {
                 options.features = features;
+            }
+            if(env != null) {
+                // assume by default the parameter passed via environment variable
+                // if the env variable is passed in the execution of Karate via KarateOptions or KarateRunner
+                // use that to override the command line one
+                options.env = env;
             }
         }
         return options;
