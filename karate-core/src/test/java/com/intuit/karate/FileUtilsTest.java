@@ -249,7 +249,6 @@ public class FileUtilsTest {
             fail("we should not have reached here");
         } catch (Exception e) {
             assertEquals(e.getCause().getClass(), java.io.FileNotFoundException.class);
-            assertEquals("java.io.FileNotFoundException: \\foo\\bar\\feeder.feature (The system cannot find the path specified)", e.getMessage());
         }
     }
 
