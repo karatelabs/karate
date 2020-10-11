@@ -23,6 +23,8 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.core.ScenarioContext;
+
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -87,6 +89,10 @@ public class Resource {
 
     public Resource(Path path, ClassLoader cl) {
         this(path, null, -1, cl);
+    }
+
+    public Resource(ScenarioContext scenarioContext, String relativePath) {
+        this(scenarioContext.classLoader, relativePath);
     }
 
     public Resource(ClassLoader cl, String relativePath) {
