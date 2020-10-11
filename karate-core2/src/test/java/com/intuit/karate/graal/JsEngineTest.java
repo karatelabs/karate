@@ -37,12 +37,34 @@ class JsEngineTest {
     void testFunctionExecute() {
         JsValue v = je.eval("(function(){ return ['a', 'b', 'c'] })");
         assertTrue(v.isFunction());
-        JsValue res = v.execute();
+        JsValue res = v.invoke();
         assertTrue(res.isArray());
         String json = je.toJson(res);
         assertEquals("[\"a\",\"b\",\"c\"]", json);
         assertEquals("function(){ return ['a', 'b', 'c'] }", v.toString());
     }
+    
+    @Test
+    void testArrowFunctionZeroArg() {
+        JsValue v = je.eval("(() => ['a', 'b', 'c'])");
+        assertTrue(v.isFunction());
+        JsValue res = v.invoke();
+        assertTrue(res.isArray());
+        String json = je.toJson(res);
+        assertEquals("[\"a\",\"b\",\"c\"]", json);
+        assertEquals("() => ['a', 'b', 'c']", v.toString());
+    }  
+    
+    @Test
+    void testArrowFunctionSingleArg() {
+        JsValue v = je.eval("(x => [x, x])");
+        assertTrue(v.isFunction());
+        JsValue res = v.invoke(1);
+        assertTrue(res.isArray());
+        String json = je.toJson(res);
+        assertEquals("[1,1]", json);
+        assertEquals("x => [x, x]", v.toString());
+    }    
 
     @Test
     void testFunctionVariableExecute() {
@@ -121,5 +143,12 @@ class JsEngineTest {
         assertFalse(je.eval("1 == 2").isTrue());
         assertTrue(je.eval("1 == 1").isTrue());
     }
+    
+    @Test
+    void testStringInterpolation() {
+        je.put("name", "John");
+        JsValue temp = je.eval("`hello ${name}`");
+        assertEquals(temp.getValue(), "hello John");
+    }    
 
 }

@@ -199,7 +199,7 @@ public class ScenarioEngine {
     }
 
     private static boolean isEmbeddedExpression(String text) {
-        return (text.startsWith("#(") || text.startsWith("##(")) && text.endsWith(")");
+        return text != null && (text.startsWith("#(") || text.startsWith("##(")) && text.endsWith(")");
     }
 
     private static class EmbedAction {
@@ -456,7 +456,7 @@ public class ScenarioEngine {
     public void set(String name, String path, String exp) {
         set(name, path, exp, false, false);
     }
-    
+
     public void set(String name, String path, Variable value) {
         set(name, path, false, value, false, false);
     }
@@ -657,7 +657,7 @@ public class ScenarioEngine {
         return StringUtils.pair(name, path);
     }
 
-    public MatchResult match(MatchType matchType, String expression, String path, String expected) {
+    public MatchResult match(MatchType matchType, String expression, String path, String rhs) {
         String name = StringUtils.trimToEmpty(expression);
         if (isDollarPrefixedJsonPath(name) || isXmlPath(name)) { // 
             path = name;
@@ -673,7 +673,7 @@ public class ScenarioEngine {
             path = pair.right;
         }
         if ("header".equals(name)) { // convenience shortcut for asserting against response header
-            return match(matchType, VariableNames.RESPONSE_HEADERS, "$['" + path + "'][0]", expected);
+            return match(matchType, VariableNames.RESPONSE_HEADERS, "$['" + path + "'][0]", rhs);
         }
         Variable actual;
         // karate started out by "defaulting" to JsonPath on the LHS of a match so we have this kludge
@@ -697,8 +697,6 @@ public class ScenarioEngine {
             actual = evalKarateExpression(expression); // JS eval of entire LHS
             path = "$";
         }
-        Variable expectedVariable = evalKarateExpression(expected);
-        MatchValue expectedValue = new MatchValue(expectedVariable.getValue());
         if ("$".equals(path) || "/".equals(path)) {
             // we have eval-ed the entire LHS, so proceed to match RHS to "$"
         } else {
@@ -708,17 +706,25 @@ public class ScenarioEngine {
                 actual = evalXmlPath(actual, path);
             }
         }
-        MatchValue actualValue = new MatchValue(actual.getValue());
-        return Match.execute(JS, matchType, actualValue, expectedValue);
+        Variable expected = evalKarateExpression(rhs);
+        return match(matchType, actual.getValue(), expected.getValue());
+    }
+
+    public MatchResult match(MatchType matchType, Object actual, Object expected) {
+        return Match.execute(JS, matchType, new MatchValue(actual), new MatchValue(expected));
     }
 
     private static final Pattern VAR_AND_PATH_PATTERN = Pattern.compile("\\w+");
     private static final String VARIABLE_PATTERN_STRING = "[a-zA-Z][\\w]*";
     private static final Pattern VARIABLE_PATTERN = Pattern.compile(VARIABLE_PATTERN_STRING);
     private static final Pattern FUNCTION_PATTERN = Pattern.compile("^function[^(]*\\(");
+    private static final Pattern ARROW_FN1_PATTERN = Pattern.compile("^[\\w]+\\s*=>");
+    private static final Pattern ARROW_FN2_PATTERN = Pattern.compile("^\\([^)]*\\)\\s*=>");
 
     public static boolean isJavaScriptFunction(String text) {
-        return FUNCTION_PATTERN.matcher(text).find();
+        return FUNCTION_PATTERN.matcher(text).find()
+                || ARROW_FN1_PATTERN.matcher(text).find()
+                || ARROW_FN2_PATTERN.matcher(text).find();
     }
 
     public static String fixJavaScriptFunction(String text) {

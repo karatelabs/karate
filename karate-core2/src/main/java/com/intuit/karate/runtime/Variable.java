@@ -157,7 +157,7 @@ public class Variable {
     public Variable invokeFunction(Object... args) {
         if (type == Type.JS_FUNCTION) {
             JsValue jsValue = getValue();
-            JsValue result = jsValue.execute(args);
+            JsValue result = jsValue.invoke(args);
             return new Variable(result);
         } else {
             Function function = getValue();

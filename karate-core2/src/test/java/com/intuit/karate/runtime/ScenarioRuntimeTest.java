@@ -165,4 +165,71 @@ class ScenarioRuntimeTest {
         assertEquals(get("getPath"), "world");
     }
 
+    @Test
+    void testCollections() {
+        run(
+                "def foo = { a: 1, b: 2, c: 3 }",
+                "def fooSize = karate.sizeOf(foo)",
+                "def bar = [1, 2, 3]",
+                "def barSize = karate.sizeOf(bar)",
+                "def fooKeys = karate.keysOf(foo)",
+                "def fooVals = karate.valuesOf(foo)"
+        );
+        assertEquals(get("fooSize"), 3);
+        assertEquals(get("barSize"), 3);
+        matchVarEquals("fooKeys", "['a', 'b', 'c']");
+        matchVarEquals("fooVals", "[1, 2, 3]");
+    }
+
+    @Test
+    void testMatch() {
+        run(
+                "def foo = { a: 1 }",
+                "def mat1 = karate.match(foo, {a: 2})",
+                "def mat2 = karate.match('foo == { a: 1 }')"
+        );
+        matchVarEquals("mat1", "{ pass: false, message: '#notnull' }");
+        matchVarEquals("mat2", "{ pass: true, message: '#null' }");
+    }
+
+    @Test
+    void testForEach() {
+        run(
+                "def foo = { a: 1, b: 2, c: 3 }",
+                "def res1 = { value: '' }",
+                "def fun = function(k, v, i){ res1.value += k + v + i }",
+                "karate.forEach(foo, fun)",
+                "def foo = ['a', 'b', 'c']",
+                "def res2 = { value: '' }",
+                "def fun = function(v, i){ res2.value += v + i }",
+                "karate.forEach(foo, fun)"
+        );
+        matchVarEquals("res1", "{ value: 'a10b21c32' }");
+        matchVarEquals("res2", "{ value: 'a0b1c2' }");
+    }
+
+    @Test
+    void testMap() {
+        run(
+                "def foo = [{ a: 1 }, { a: 2 }, { a: 3 }]",
+                "def fun = function(x){ return x.a }",
+                "def res = karate.map(foo, fun)"
+        );
+        matchVarEquals("res", "[1, 2, 3]");
+        run(
+                "def foo = [{ a: 1 }, { a: 2 }, { a: 3 }]",
+                "def fun = x => x.a",
+                "def res = karate.map(foo, fun)"
+        );
+        matchVarEquals("res", "[1, 2, 3]");
+        run(
+                "def foo = [{ a: 1 }, { a: 2 }, { a: 3 }]",
+                "def fun = (x, i) => `${x.a}${i}`",
+                "def res1 = karate.map(foo, fun)",
+                "def res2 = foo.map(x => x.a)"
+        );
+        matchVarEquals("res1", "['10', '21', '32']");
+        matchVarEquals("res2", "[1, 2, 3]");
+    }
+
 }

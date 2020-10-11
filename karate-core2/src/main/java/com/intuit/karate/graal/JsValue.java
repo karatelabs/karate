@@ -126,7 +126,7 @@ public class JsValue {
         this.original = original;
     }
 
-    public JsValue execute(Object... args) {
+    public JsValue invoke(Object... args) {
         return new JsValue(original.execute(args));
     }
 

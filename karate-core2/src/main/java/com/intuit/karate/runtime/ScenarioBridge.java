@@ -28,8 +28,19 @@ import com.intuit.karate.PerfContext;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.data.JsonUtils;
+import com.intuit.karate.graal.JsList;
+import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.match.Match;
+import com.intuit.karate.match.MatchResult;
+import com.intuit.karate.match.MatchStep;
+import com.intuit.karate.match.MatchType;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import org.graalvm.polyglot.Value;
 
 /**
  *
@@ -115,7 +126,28 @@ public class ScenarioBridge implements PerfContext {
     public void configure(String key, Object o) {
         getRuntime().configure(key, new Variable(o));
     }
-    
+
+    public void forEach(Value o, Value f) {
+        if (!f.canExecute()) {
+            throw new RuntimeException("not a js function: " + f);
+        }
+        if (o.hasArrayElements()) {
+            long count = o.getArraySize();
+            for (int i = 0; i < count; i++) {
+                Value v = o.getArrayElement(i);
+                f.execute(v, i);
+            }
+        } else if (o.hasMembers()) { //map
+            int i = 0;
+            for (String k : o.getMemberKeys()) {
+                Value v = o.getMember(k);
+                f.execute(k, v, i++);
+            }
+        } else {
+            throw new RuntimeException("not an array or object: " + o);
+        }
+    }
+
     public Object get(String exp) {
         ScenarioRuntime runtime = getRuntime();
         Variable v;
@@ -130,12 +162,44 @@ public class ScenarioBridge implements PerfContext {
         } else {
             return null;
         }
-    }  
-    
+    }
+
     public Object get(String exp, Object defaultValue) {
         Object result = get(exp);
         return result == null ? defaultValue : result;
-    }    
+    }
+
+    public Object keysOf(Value o) {
+        return new JsList(o.getMemberKeys());
+    }
+
+    public Object map(Value o, Value f) {
+        if (!o.hasArrayElements()) {
+            return JsList.EMPTY;
+        }
+        if (!f.canExecute()) {
+            throw new RuntimeException("not a js function: " + f);
+        }
+        long count = o.getArraySize();
+        List list = new ArrayList();
+        for (int i = 0; i < count; i++) {
+            Value v = o.getArrayElement(i);
+            JsValue jv = new JsValue(f.execute(v, i));
+            list.add(jv.getValue());
+        }
+        return new JsList(list);
+    }
+
+    public Map<String, Object> match(Object actual, Object expected) {
+        MatchResult mr = getRuntime().engine.match(MatchType.EQUALS, actual, expected);
+        return mr.toMap();
+    }
+
+    public Map<String, Object> match(String exp) {
+        MatchStep ms = new MatchStep(exp);
+        MatchResult mr = getRuntime().engine.match(ms.type, ms.name, ms.path, ms.expected);
+        return mr.toMap();
+    }
 
     public String pretty(Object o) {
         Variable v = new Variable(o);
@@ -154,10 +218,20 @@ public class ScenarioBridge implements PerfContext {
     public String readAsString(String fileName) {
         return getRuntime().fileReader.readFileAsString(fileName);
     }
-    
+
     public void remove(String name, String path) {
         getRuntime().engine.remove(name, path);
-    }    
+    }
+
+    public Object sizeOf(Value v) {
+        if (v.hasArrayElements()) {
+            return v.getArraySize();
+        } else if (v.hasMembers()) {
+            return v.getMemberKeys().size();
+        } else {
+            return -1;
+        }
+    }
 
     // set multiple variables in one shot
     public void set(Map<String, Object> map) {
@@ -185,6 +259,21 @@ public class ScenarioBridge implements PerfContext {
     public String toString(Object o) {
         Variable v = new Variable(o);
         return v.getAsString();
+    }
+
+    public Object valuesOf(Value v) {
+        if (v.hasArrayElements()) {
+            return v;
+        } else if (v.hasMembers()) {
+            List list = new ArrayList();
+            for (String k : v.getMemberKeys()) {
+                JsValue jv = new JsValue(v.getMember(k));
+                list.add(jv.getValue());
+            }
+            return new JsList(list);
+        } else {
+            return null;
+        }
     }
 
 }
