@@ -23,38 +23,19 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.ExecutionHook;
-import com.intuit.karate.core.FeatureContext;
-import com.intuit.karate.core.Engine;
-import com.intuit.karate.core.ExecutionContext;
-import com.intuit.karate.core.ExecutionHookFactory;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureExecutionUnit;
-import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.HtmlFeatureReport;
-import com.intuit.karate.core.HtmlReport;
-import com.intuit.karate.core.HtmlSummaryReport;
-import com.intuit.karate.core.ParallelProcessor;
-import com.intuit.karate.core.Subscriber;
-import com.intuit.karate.core.Tags;
+import com.intuit.karate.core.*;
 import com.intuit.karate.job.JobConfig;
 import com.intuit.karate.job.JobServer;
 import com.intuit.karate.job.ScenarioJobServer;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -430,7 +411,7 @@ public class Runner {
     }
 
     public static Map<String, Object> runFeature(File file, Map<String, Object> vars, boolean evalKarateConfig) {
-        Feature feature = FeatureParser.parse(file);
+        Feature feature = FeatureParser.parse(file, Thread.currentThread().getContextClassLoader());
         return runFeature(feature, vars, evalKarateConfig);
     }
 

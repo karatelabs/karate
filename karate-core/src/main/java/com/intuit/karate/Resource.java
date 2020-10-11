@@ -23,7 +23,6 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.ScenarioContext;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -46,36 +45,53 @@ public class Resource {
     private final int line;
     private final String relativePath;
     private final String packageQualifiedName;
+    private ClassLoader classLoader;
 
-    public static final Resource EMPTY = new Resource(Paths.get(""), "", -1);
+    public static final Resource EMPTY = new Resource(Paths.get(""), "", -1, Thread.currentThread().getContextClassLoader());
 
-    public Resource(File file, String relativePath) {
-        this(file.toPath(), relativePath, -1);
+    public static Resource of(Path path, String text) {
+        return new Resource(path, null, -1, Thread.currentThread().getContextClassLoader()) {
+            final InputStream is = FileUtils.toInputStream(text);
+
+            @Override
+            public InputStream getStream() {
+                return is;
+            }
+        };
     }
 
-    public Resource(Path path, String relativePath, int line) {
+    public Resource(File file, String relativePath, ClassLoader cl) {
+        this(file.toPath(), relativePath, -1, cl);
+    }
+
+    public Resource(String relativePath) {
+        this(Thread.currentThread().getContextClassLoader(), relativePath);
+    }
+
+    public Resource(Path path, String relativePath, int line, ClassLoader cl) {
         this.path = path;
         this.line = line;
+        this.classLoader = cl;
         file = !path.toUri().getScheme().equals("jar");
         if (relativePath == null) {
-            this.relativePath = FileUtils.toRelativeClassPath(path, Thread.currentThread().getContextClassLoader());
+            this.relativePath = FileUtils.toRelativeClassPath(path, cl);
         } else {
             this.relativePath = relativePath;
         }
         packageQualifiedName = FileUtils.toPackageQualifiedName(this.relativePath);
     }
 
-    public Resource(URL url) {
-        this(FileUtils.urlToPath(url, null));
+    public Resource(URL url, ClassLoader cl) {
+        this(FileUtils.urlToPath(url, null), cl);
     }
 
-    public Resource(Path path) {
-        this(path, null, -1);
+    public Resource(Path path, ClassLoader cl) {
+        this(path, null, -1, cl);
     }
 
-    public Resource(ScenarioContext sc, String relativePath) {
+    public Resource(ClassLoader cl, String relativePath) {
         String strippedPath = FileUtils.removePrefix(relativePath);
-        URL url = sc.getResource(strippedPath);
+        URL url = cl.getResource(strippedPath);
         if (url != null) {
             this.path = FileUtils.urlToPath(url, strippedPath);
         } else {
@@ -125,7 +141,11 @@ public class Resource {
                     }
                     // since the nio newInputStream has concurrency problems :(
                     // plus a performance boost for karate-base.js if in JAR
-                    InputStream tempStream = Files.newInputStream(path);
+                    ClassLoader cl = this.classLoader != null ? this.classLoader : Resource.class.getClassLoader();
+                    InputStream tempStream = cl.getResourceAsStream(relativePath.replace(FileUtils.CLASSPATH_COLON, ""));//Files.newInputStream(path);
+                    if(tempStream == null) {
+                        tempStream = Files.newInputStream(path);
+                    }
                     bytes = FileUtils.toBytes(tempStream);
                     STREAM_CACHE.put(relativePath, bytes);
                     return new ByteArrayInputStream(bytes);

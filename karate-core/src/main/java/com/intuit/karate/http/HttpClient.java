@@ -279,6 +279,12 @@ public abstract class HttpClient<T> {
                 className = config.getClientClass();
             } else {
                 InputStream is = context.getResourceAsStream(KARATE_HTTP_PROPERTIES);
+                if(is == null) {
+                    // attempt to get the file using the class classloader
+                    // workaround for Spring Boot
+                    is = HttpClient.class.getClassLoader().getResourceAsStream(KARATE_HTTP_PROPERTIES);
+                }
+
                 if (is == null) {
                     String msg = KARATE_HTTP_PROPERTIES + " not found";
                     throw new RuntimeException(msg);
