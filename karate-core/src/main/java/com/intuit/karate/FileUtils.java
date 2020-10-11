@@ -23,23 +23,42 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.jayway.jsonpath.DocumentContext;
-import org.slf4j.LoggerFactory;
-
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
-import java.nio.file.*;
-import java.util.*;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -59,7 +78,8 @@ public class FileUtils {
     public static final String THIS_COLON = "this:";
     public static final String FILE_COLON = "file:";
     public static final String SRC_TEST_JAVA = "src/test/java";
-    public static final String SRC_TEST_RESOURCES = "src/test/resources";
+    public static final String SRC_TEST_RESOURCES = "src/test/resources";    
+    private static final ClassLoader CLASS_LOADER = FileUtils.class.getClassLoader();
 
     private FileUtils() {
         // only static methods
@@ -147,7 +167,7 @@ public class FileUtils {
         return pos == -1 ? text : text.substring(pos + 1);
     }
 
-    private static StringUtils.Pair parsePathAndTags(String text) {
+    public static StringUtils.Pair parsePathAndTags(String text) {
         int pos = text.indexOf('@');
         if (pos == -1) {
             text = StringUtils.trimToEmpty(text);
@@ -168,7 +188,7 @@ public class FileUtils {
 
     public static Resource toResource(String path, ScenarioContext context) {
         if (isClassPath(path)) {
-            return new Resource(context, path);
+            return new Resource(context.classLoader, path);
         } else if (isFilePath(path)) {
             String temp = removePrefix(path);
             return new Resource(new File(temp), path, context.classLoader);
@@ -647,6 +667,55 @@ public class FileUtils {
             }
         }
     }
+    
+    // TODO use this <Set> based and tighter routine for feature files above
+    private static void walkPath(Path root, Set<String> results, Predicate<Path> predicate) {
+        Stream<Path> stream;
+        try {
+            stream = Files.walk(root);
+            for (Iterator<Path> paths = stream.iterator(); paths.hasNext();) {
+                Path path = paths.next();
+                Path fileName = path.getFileName();
+                if (predicate.test(fileName)) {
+                    String relativePath = root.relativize(path.toAbsolutePath()).toString();
+                    results.add(relativePath);
+                }
+            }
+        } catch (IOException e) { // NoSuchFileException  
+            LOGGER.trace("unable to walk path: {} - {}", root, e.getMessage());
+        }
+    }    
+    
+    private static final Predicate<Path> IS_JS_FILE = p -> p != null && p.toString().endsWith(".js");
+    
+    public static Set<String> jsFiles(File baseDir) {
+        Set<String> results = new HashSet();
+        walkPath(baseDir.toPath().toAbsolutePath(), results, IS_JS_FILE);
+        return results;
+    }
+
+    public static Set<String> jsFiles(String basePath) {
+        Set<String> results = new HashSet();
+        try {
+            Enumeration<URL> urls = CLASS_LOADER.getResources(basePath);
+            while (urls.hasMoreElements()) {
+                URL url = urls.nextElement();
+                Path path = urlToPath(url, null);
+                walkPath(path, results, IS_JS_FILE);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("unable to scan for js files at: {}", basePath);
+        }
+        return results;
+    }    
+    
+    public static InputStream resourceAsStream(String resourcePath) {
+        InputStream is = CLASS_LOADER.getResourceAsStream(resourcePath);
+        if (is == null) {
+            throw new RuntimeException("failed to read: " + resourcePath);
+        }
+        return is;
+    }    
 
     public static String getBuildDir() {
         String temp = System.getProperty("karate.output.dir");

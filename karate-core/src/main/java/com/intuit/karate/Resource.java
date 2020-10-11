@@ -23,8 +23,6 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.ScenarioContext;
-
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -51,8 +49,23 @@ public class Resource {
 
     public static final Resource EMPTY = new Resource(Paths.get(""), "", -1, Thread.currentThread().getContextClassLoader());
 
+    public static Resource of(Path path, String text) {
+        return new Resource(path, null, -1, Thread.currentThread().getContextClassLoader()) {
+            final InputStream is = FileUtils.toInputStream(text);
+
+            @Override
+            public InputStream getStream() {
+                return is;
+            }
+        };
+    }
+
     public Resource(File file, String relativePath, ClassLoader cl) {
         this(file.toPath(), relativePath, -1, cl);
+    }
+
+    public Resource(String relativePath) {
+        this(Thread.currentThread().getContextClassLoader(), relativePath);
     }
 
     public Resource(Path path, String relativePath, int line, ClassLoader cl) {
@@ -76,10 +89,9 @@ public class Resource {
         this(path, null, -1, cl);
     }
 
-    public Resource(ScenarioContext sc, String relativePath) {
-        this.classLoader = sc.classLoader;
+    public Resource(ClassLoader cl, String relativePath) {
         String strippedPath = FileUtils.removePrefix(relativePath);
-        URL url = sc.getResource(strippedPath);
+        URL url = cl.getResource(strippedPath);
         if (url != null) {
             this.path = FileUtils.urlToPath(url, strippedPath);
         } else {
@@ -129,11 +141,11 @@ public class Resource {
                     }
                     // since the nio newInputStream has concurrency problems :(
                     // plus a performance boost for karate-base.js if in JAR
-                    InputStream tempStream = this.classLoader.getResourceAsStream(relativePath.replace(FileUtils.CLASSPATH_COLON, "")); ;//Files.newInputStream(path);
+                    ClassLoader cl = this.classLoader != null ? this.classLoader : Resource.class.getClassLoader();
+                    InputStream tempStream = cl.getResourceAsStream(relativePath.replace(FileUtils.CLASSPATH_COLON, ""));//Files.newInputStream(path);
                     if(tempStream == null) {
                         tempStream = Files.newInputStream(path);
                     }
-
                     bytes = FileUtils.toBytes(tempStream);
                     STREAM_CACHE.put(relativePath, bytes);
                     return new ByteArrayInputStream(bytes);

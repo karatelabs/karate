@@ -248,7 +248,8 @@ public class FileUtilsTest {
             FeatureParser.parse(relativePath);
             fail("we should not have reached here");
         } catch (Exception e) {
-            assertEquals("file does not exist: /foo/bar/feeder.feature", e.getMessage());
+            assertEquals(e.getCause().getClass(), java.io.FileNotFoundException.class);
+            assertEquals("java.io.FileNotFoundException: \\foo\\bar\\feeder.feature (The system cannot find the path specified)", e.getMessage());
         }
     }
 
