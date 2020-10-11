@@ -334,7 +334,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
         }
         cookieStore.clear(); // we rely on the StepDefs for cookie 'persistence'
         for (Header header : httpResponse.getAllHeaders()) { // rely on setting cookies from set-cookie header, else these will be skipped.
-            if( header.getName().contains("Set-Cookie"))
+            if( header.getName().equalsIgnoreCase("Set-Cookie"))
             {
                 List<HttpCookie> cookieMap = HttpCookie.parse(header.getValue());
                 cookieMap.forEach( ck -> {
@@ -345,7 +345,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
                     response.addCookie(cookie);
                 });
             }
-                response.addHeader(header.getName(), header.getValue());
+            response.addHeader(header.getName(), header.getValue());
         }
         return response;
     }
