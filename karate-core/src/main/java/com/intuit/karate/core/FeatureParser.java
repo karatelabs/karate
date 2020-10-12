@@ -106,22 +106,6 @@ public class FeatureParser extends KarateParserBaseListener {
         step.setDocString(temp.getDocString());
         step.setTable(temp.getTable());
     }
-/*
-
-    private static InputStream toStream(File file) {
-        try {
-            return new FileInputStream(file);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-    }
-*/
-
-/*
-    private FeatureParser(File file, String relativePath, ClassLoader cl) {
-        this(new Feature(new Resource(file, relativePath, cl)), toStream(file));
-    }
-*/
 
     private FeatureParser(Resource resource) {
         this(new Feature(resource), resource.getStream());
