@@ -31,6 +31,7 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.data.Json;
 import com.intuit.karate.data.JsonUtils;
 import com.intuit.karate.exception.KarateException;
+import com.intuit.karate.exception.KarateFailException;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.match.Match;
@@ -39,6 +40,7 @@ import com.intuit.karate.match.MatchType;
 import com.intuit.karate.match.MatchValue;
 import com.jayway.jsonpath.PathNotFoundException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -96,7 +98,33 @@ public class ScenarioEngine {
 
     public Variable eval(String exp) {
         vars.forEach((k, v) -> putJsBinding(k, v));
-        return new Variable(JS.eval(exp));
+        try {
+            return new Variable(JS.eval(exp));
+        } catch (Exception e) {
+            // do our best to make js error traces informative, because they seem to
+            // get swallowed by the java reflection based method invoke flow
+            if (runtime.jsEvalError == null) {
+                StackTraceElement[] stack = e.getStackTrace();
+                int linesToLog = Math.min(5, stack.length);
+                StringBuilder sb = new StringBuilder();
+                sb.append("js failed:\n>>>>\n");
+                List<String> lines = StringUtils.toStringLines(exp);
+                int index = 0;
+                for (String line : lines) {
+                    sb.append(String.format("%02d", ++index)).append(": ").append(line).append("\n");
+                }
+                sb.append("<<<<\n");
+                sb.append("error: " + e + "\n");
+                sb.append("cause: " + e.getCause() + "\n");
+                sb.append("extra: " + Arrays.asList(e.getSuppressed()) + "\n");
+                sb.append("stack: \n");
+                for (int i = 0; i < linesToLog; i++) {
+                    sb.append("  ").append(stack[i].toString()).append("\n");
+                }
+                runtime.jsEvalError = sb.toString();
+            }
+            throw e;
+        }
     }
 
     public void setHiddenVariable(String key, Object value) {
@@ -718,13 +746,9 @@ public class ScenarioEngine {
     private static final String VARIABLE_PATTERN_STRING = "[a-zA-Z][\\w]*";
     private static final Pattern VARIABLE_PATTERN = Pattern.compile(VARIABLE_PATTERN_STRING);
     private static final Pattern FUNCTION_PATTERN = Pattern.compile("^function[^(]*\\(");
-    private static final Pattern ARROW_FN1_PATTERN = Pattern.compile("^[\\w]+\\s*=>");
-    private static final Pattern ARROW_FN2_PATTERN = Pattern.compile("^\\([^)]*\\)\\s*=>");
 
     public static boolean isJavaScriptFunction(String text) {
-        return FUNCTION_PATTERN.matcher(text).find()
-                || ARROW_FN1_PATTERN.matcher(text).find()
-                || ARROW_FN2_PATTERN.matcher(text).find();
+        return FUNCTION_PATTERN.matcher(text).find();
     }
 
     public static String fixJavaScriptFunction(String text) {

@@ -239,11 +239,11 @@ class ScenarioRuntimeTest {
         );
         matchVarEquals("res", "[{ a: 1 }, { a: 2 }]");
     }
-    
+
     @Test
     void testFilterKeys() {
         run(
-                "def foo = { a: 1, b: 2, c: 3}",
+                "def foo = { a: 1, b: 2, c: 3 }",
                 "def res1 = karate.filterKeys(foo, 'a')",
                 "def res2 = karate.filterKeys(foo, 'a', 'c')",
                 "def res3 = karate.filterKeys(foo, ['b', 'c'])",
@@ -253,6 +253,42 @@ class ScenarioRuntimeTest {
         matchVarEquals("res2", "{ a: 1, c: 3 }");
         matchVarEquals("res3", "{ b: 2, c: 3 }");
         matchVarEquals("res4", "{ a: 1, c: 3 }");
-    }    
+    }
+
+    @Test
+    void testRepeat() {
+        run(
+                "def res1 = karate.repeat(3, i => i + 1 )",
+                "def res2 = karate.repeat(3, i => ({ a: 1 }))",
+                "def res3 = karate.repeat(3, i => ({ a: i + 1 }))"
+        );
+        matchVarEquals("res1", "[1, 2, 3]");
+        matchVarEquals("res2", "[{ a: 1 }, { a: 1 }, { a: 1 }]");
+        matchVarEquals("res3", "[{ a: 1 }, { a: 2 }, { a: 3 }]");
+    }
+
+    @Test
+    void testMapWithKey() {
+        run(
+                "def foo = [1, 2, 3]",
+                "def res = karate.mapWithKey(foo, 'val')"
+        );
+        matchVarEquals("res", "[{ val: 1 }, { val: 2 }, { val: 3 }]");
+    }
+
+    @Test
+    void testMergeAndAppend() {
+        run(
+                "def foo = { a: 1 }",
+                "def res1 = karate.merge(foo, { b: 2 })",
+                "def bar = [1, 2]",
+                "def res2 = karate.append(bar, [3, 4])",
+                "def res3 = [1, 2]",
+                "karate.appendTo('res3', [3, 4])"
+        );
+        matchVarEquals("res1", "{ a: 1, b: 2 }");
+        matchVarEquals("res2", "[1, 2, 3, 4]");
+        matchVarEquals("res3", "[1, 2, 3, 4]");
+    }
 
 }

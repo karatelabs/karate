@@ -101,11 +101,6 @@ public class ScenarioEngineTest {
                 + "}"));
         assertTrue(ScenarioEngine.isJavaScriptFunction("function fn(){ return { bar: 'baz' } }"));
         assertEquals("function(){}", ScenarioEngine.fixJavaScriptFunction("function fn(){}"));
-        assertTrue(ScenarioEngine.isJavaScriptFunction("x => x * x"));
-        assertTrue(ScenarioEngine.isJavaScriptFunction("_ => _ + 1"));
-        assertTrue(ScenarioEngine.isJavaScriptFunction("c=>c + ''"));
-        assertTrue(ScenarioEngine.isJavaScriptFunction("() => 'blah'"));
-        assertTrue(ScenarioEngine.isJavaScriptFunction("(a, b) => 'blah'"));
     }
 
     @Test

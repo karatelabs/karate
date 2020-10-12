@@ -119,6 +119,7 @@ public class ScenarioRuntime implements Runnable {
     private StepResult lastStepResult;
     private Step currentStep;
     private Throwable error;
+    protected String jsEvalError;
     private boolean stopped;
     private boolean aborted;
     private int stepIndex;
@@ -265,7 +266,11 @@ public class ScenarioRuntime implements Runnable {
             } else if (stepResult.isFailed()) {
                 stopped = true;
                 error = stepResult.getError();
-                logError(error.getMessage());
+                if (jsEvalError != null) {
+                    logError(jsEvalError);
+                } else {
+                    logError(error.getMessage());
+                }
             }
             LOCAL.set(this); // restore, since a call may have switched this to a nested scenario
             StepResult sr = new StepResult(step, stepResult, null, null, null);

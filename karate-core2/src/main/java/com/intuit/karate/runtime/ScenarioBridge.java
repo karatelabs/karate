@@ -30,19 +30,15 @@ import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.data.JsonUtils;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsMap;
-import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchStep;
 import com.intuit.karate.match.MatchType;
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import javax.swing.JList;
 import org.graalvm.polyglot.Value;
 
 /**
@@ -53,6 +49,51 @@ public class ScenarioBridge implements PerfContext {
 
     public ScenarioRuntime getRuntime() {
         return ScenarioRuntime.LOCAL.get();
+    }
+
+    private static void assertIfJsFunction(Value f) {
+        if (!f.canExecute()) {
+            throw new RuntimeException("not a js function: " + f);
+        }
+    }
+
+    public Object append(Value... vals) {
+        if (vals.length == 0) {
+            return null;
+        }
+        if (vals.length == 1) {
+            return vals[0];
+        }
+        List list = new ArrayList(vals[0].as(List.class));
+        for (int i = 1; i < vals.length; i++) {
+            Value v = vals[i];
+            if (v.hasArrayElements()) {
+                list.addAll(v.as(List.class));
+            } else {
+                list.add(v.as(Object.class));
+            }
+        }
+        return new JsList(list);
+    }
+
+    // TODO breaking appendTo(ref) will not work, use append()
+    public Object appendTo(String varName, Value... vals) {
+        ScenarioRuntime runtime = getRuntime();
+        Variable var = getRuntime().engine.vars.get(varName);
+        if (!var.isList()) {
+            return null;
+        }
+        List list = var.getValue();
+        for (Value v : vals) {
+            if (v.hasArrayElements()) {
+                list.addAll(v.as(List.class));
+            } else {
+                Object temp = v.as(Object.class);
+                list.add(temp);
+            }
+        }
+        runtime.engine.setVariable(varName, list);
+        return new JsList(list);
     }
 
     public Object callSingle(String fileName) {
@@ -134,9 +175,7 @@ public class ScenarioBridge implements PerfContext {
         if (!o.hasArrayElements()) {
             return JsList.EMPTY;
         }
-        if (!f.canExecute()) {
-            throw new RuntimeException("not a js function: " + f);
-        }
+        assertIfJsFunction(f);
         long count = o.getArraySize();
         List list = new ArrayList();
         for (int i = 0; i < count; i++) {
@@ -144,7 +183,7 @@ public class ScenarioBridge implements PerfContext {
             Value res = f.execute(v, i);
             // TODO breaking we used to support truthy values
             if (res.isBoolean() && res.asBoolean()) {
-                list.add(new JsValue(v).getValue());
+                list.add(v.as(Object.class));
             }
         }
         return new JsList(list);
@@ -178,16 +217,14 @@ public class ScenarioBridge implements PerfContext {
             if (key == null) {
                 continue;
             }
-            JsValue jv = new JsValue(o.getMember(key));
-            map.put(key, jv.getValue());
+            Value v = o.getMember(key);
+            map.put(key, v.as(Object.class));
         }
         return new JsMap(map);
     }
 
     public void forEach(Value o, Value f) {
-        if (!f.canExecute()) {
-            throw new RuntimeException("not a js function: " + f);
-        }
+        assertIfJsFunction(f);
         if (o.hasArrayElements()) {
             long count = o.getArraySize();
             for (int i = 0; i < count; i++) {
@@ -234,15 +271,28 @@ public class ScenarioBridge implements PerfContext {
         if (!o.hasArrayElements()) {
             return JsList.EMPTY;
         }
-        if (!f.canExecute()) {
-            throw new RuntimeException("not a js function: " + f);
-        }
+        assertIfJsFunction(f);
         long count = o.getArraySize();
         List list = new ArrayList();
         for (int i = 0; i < count; i++) {
             Value v = o.getArrayElement(i);
-            JsValue jv = new JsValue(f.execute(v, i));
-            list.add(jv.getValue());
+            Value res = f.execute(v, i);
+            list.add(res.as(Object.class));
+        }
+        return new JsList(list);
+    }
+
+    public Object mapWithKey(Value v, String key) {
+        if (!v.hasArrayElements()) {
+            return JsList.EMPTY;
+        }
+        long count = v.getArraySize();
+        List list = new ArrayList();
+        for (int i = 0; i < count; i++) {
+            Map map = new LinkedHashMap();
+            Value res = v.getArrayElement(i);
+            map.put(key, res.as(Object.class));
+            list.add(map);
         }
         return new JsList(list);
     }
@@ -256,6 +306,20 @@ public class ScenarioBridge implements PerfContext {
         MatchStep ms = new MatchStep(exp);
         MatchResult mr = getRuntime().engine.match(ms.type, ms.name, ms.path, ms.expected);
         return mr.toMap();
+    }
+
+    public Object merge(Value... vals) {
+        if (vals.length == 0) {
+            return null;
+        }
+        if (vals.length == 1) {
+            return vals[0];
+        }
+        Map map = new HashMap(vals[0].as(Map.class));
+        for (int i = 1; i < vals.length; i++) {
+            map.putAll(vals[i].as(Map.class));
+        }
+        return new JsMap(map);
     }
 
     public String pretty(Object o) {
@@ -278,6 +342,16 @@ public class ScenarioBridge implements PerfContext {
 
     public void remove(String name, String path) {
         getRuntime().engine.remove(name, path);
+    }
+
+    public Object repeat(int n, Value f) {
+        assertIfJsFunction(f);
+        List list = new ArrayList(n);
+        for (int i = 0; i < n; i++) {
+            Value v = f.execute(i);
+            list.add(v.as(Object.class));
+        }
+        return new JsList(list);
     }
 
     public Object sizeOf(Value v) {
@@ -324,8 +398,8 @@ public class ScenarioBridge implements PerfContext {
         } else if (v.hasMembers()) {
             List list = new ArrayList();
             for (String k : v.getMemberKeys()) {
-                JsValue jv = new JsValue(v.getMember(k));
-                list.add(jv.getValue());
+                Value res = v.getMember(k);
+                list.add(res.as(Object.class));
             }
             return new JsList(list);
         } else {

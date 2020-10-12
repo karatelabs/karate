@@ -1,5 +1,6 @@
 package com.intuit.karate.graal;
 
+import com.intuit.karate.match.Match;
 import com.intuit.karate.server.Request;
 import java.util.Collections;
 import java.util.HashMap;
@@ -46,18 +47,31 @@ class JsEngineTest {
     
     @Test
     void testArrowFunctionZeroArg() {
-        JsValue v = je.eval("(() => ['a', 'b', 'c'])");
+        JsValue v = je.eval("() => ['a', 'b', 'c']");
         assertTrue(v.isFunction());
         JsValue res = v.invoke();
         assertTrue(res.isArray());
         String json = je.toJson(res);
         assertEquals("[\"a\",\"b\",\"c\"]", json);
         assertEquals("() => ['a', 'b', 'c']", v.toString());
-    }  
+    } 
+    
+    @Test
+    void testArrowFunctionReturnsObject() {
+        Value v = je.evalForValue("() => { a: 1 }");
+        assertTrue(v.canExecute());
+        Value res = v.execute();
+        // curly braces are interpreted as code blocks :(
+        assertTrue(res.isNull());
+        v = je.evalForValue("() => ({ a: 1 })");
+        assertTrue(v.canExecute());
+        res = v.execute();
+        assertTrue(Match.that(res.as(Map.class)).isEqualTo("{ a: 1 }").pass);
+    }     
     
     @Test
     void testArrowFunctionSingleArg() {
-        JsValue v = je.eval("(x => [x, x])");
+        JsValue v = je.eval("x => [x, x]");
         assertTrue(v.isFunction());
         JsValue res = v.invoke(1);
         assertTrue(res.isArray());
