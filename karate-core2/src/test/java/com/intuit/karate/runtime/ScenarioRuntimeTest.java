@@ -218,8 +218,7 @@ class ScenarioRuntimeTest {
         matchVarEquals("res", "[1, 2, 3]");
         run(
                 "def foo = [{ a: 1 }, { a: 2 }, { a: 3 }]",
-                "def fun = x => x.a",
-                "def res = karate.map(foo, fun)"
+                "def res = karate.map(foo, x => x.a)"
         );
         matchVarEquals("res", "[1, 2, 3]");
         run(
@@ -231,5 +230,29 @@ class ScenarioRuntimeTest {
         matchVarEquals("res1", "['10', '21', '32']");
         matchVarEquals("res2", "[1, 2, 3]");
     }
+
+    @Test
+    void testFilter() {
+        run(
+                "def foo = [{ a: 0 }, { a: 1 }, { a: 2 }]",
+                "def res = karate.filter(foo, x => x.a > 0)"
+        );
+        matchVarEquals("res", "[{ a: 1 }, { a: 2 }]");
+    }
+    
+    @Test
+    void testFilterKeys() {
+        run(
+                "def foo = { a: 1, b: 2, c: 3}",
+                "def res1 = karate.filterKeys(foo, 'a')",
+                "def res2 = karate.filterKeys(foo, 'a', 'c')",
+                "def res3 = karate.filterKeys(foo, ['b', 'c'])",
+                "def res4 = karate.filterKeys(foo, { a: 2, c: 5})"
+        );
+        matchVarEquals("res1", "{ a: 1 }");
+        matchVarEquals("res2", "{ a: 1, c: 3 }");
+        matchVarEquals("res3", "{ b: 2, c: 3 }");
+        matchVarEquals("res4", "{ a: 1, c: 3 }");
+    }    
 
 }

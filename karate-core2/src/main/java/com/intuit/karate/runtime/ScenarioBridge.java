@@ -29,6 +29,7 @@ import com.intuit.karate.XmlUtils;
 import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.data.JsonUtils;
 import com.intuit.karate.graal.JsList;
+import com.intuit.karate.graal.JsMap;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
@@ -37,9 +38,11 @@ import com.intuit.karate.match.MatchType;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import javax.swing.JList;
 import org.graalvm.polyglot.Value;
 
 /**
@@ -127,6 +130,60 @@ public class ScenarioBridge implements PerfContext {
         getRuntime().configure(key, new Variable(o));
     }
 
+    public Object filter(Value o, Value f) {
+        if (!o.hasArrayElements()) {
+            return JsList.EMPTY;
+        }
+        if (!f.canExecute()) {
+            throw new RuntimeException("not a js function: " + f);
+        }
+        long count = o.getArraySize();
+        List list = new ArrayList();
+        for (int i = 0; i < count; i++) {
+            Value v = o.getArrayElement(i);
+            Value res = f.execute(v, i);
+            // TODO breaking we used to support truthy values
+            if (res.isBoolean() && res.asBoolean()) {
+                list.add(new JsValue(v).getValue());
+            }
+        }
+        return new JsList(list);
+    }
+
+    public Object filterKeys(Value o, Value... args) {
+        if (!o.hasMembers() || args.length == 0) {
+            return JsMap.EMPTY;
+        }
+        List<String> keys = new ArrayList();
+        if (args.length == 1) {
+            if (args[0].isString()) {
+                keys.add(args[0].asString());
+            } else if (args[0].hasArrayElements()) {
+                long count = args[0].getArraySize();
+                for (int i = 0; i < count; i++) {
+                    keys.add(args[0].getArrayElement(i).toString());
+                }
+            } else if (args[0].hasMembers()) {
+                for (String s : args[0].getMemberKeys()) {
+                    keys.add(s);
+                }
+            }
+        } else {
+            for (Value v : args) {
+                keys.add(v.toString());
+            }
+        }
+        Map map = new LinkedHashMap(keys.size());
+        for (String key : keys) {
+            if (key == null) {
+                continue;
+            }
+            JsValue jv = new JsValue(o.getMember(key));
+            map.put(key, jv.getValue());
+        }
+        return new JsMap(map);
+    }
+
     public void forEach(Value o, Value f) {
         if (!f.canExecute()) {
             throw new RuntimeException("not a js function: " + f);
@@ -135,13 +192,13 @@ public class ScenarioBridge implements PerfContext {
             long count = o.getArraySize();
             for (int i = 0; i < count; i++) {
                 Value v = o.getArrayElement(i);
-                f.execute(v, i);
+                f.executeVoid(v, i);
             }
         } else if (o.hasMembers()) { //map
             int i = 0;
             for (String k : o.getMemberKeys()) {
                 Value v = o.getMember(k);
-                f.execute(k, v, i++);
+                f.executeVoid(k, v, i++);
             }
         } else {
             throw new RuntimeException("not an array or object: " + o);
