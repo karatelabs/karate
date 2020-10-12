@@ -21,8 +21,9 @@ public class RuntimeUtils {
             sb.append("* ").append(line).append('\n');
         }
         InputStream is = FileUtils.toInputStream(sb.toString());
-        Path path = FileUtils.fromRelativeClassPath("classpath:com/intuit/karate/runtime/" + name, ClassLoader.getSystemClassLoader());
-        Resource resource = new Resource(path) {
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        Path path = FileUtils.fromRelativeClassPath("classpath:com/intuit/karate/runtime/" + name, cl);
+        Resource resource = new Resource(path, cl) {
             @Override
             public InputStream getStream() {
                 return is;

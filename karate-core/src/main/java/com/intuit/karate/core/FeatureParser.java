@@ -27,9 +27,13 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Resource;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.exception.KarateException;
+import org.antlr.v4.runtime.*;
+import org.antlr.v4.runtime.tree.ParseTreeWalker;
+import org.antlr.v4.runtime.tree.TerminalNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -38,16 +42,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.RuleContext;
-import org.antlr.v4.runtime.Token;
-import org.antlr.v4.runtime.tree.ParseTreeWalker;
-import org.antlr.v4.runtime.tree.TerminalNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -68,7 +62,11 @@ public class FeatureParser extends KarateParserBaseListener {
     }
 
     public static Feature parse(File file) {
-        return parse(new Resource(file.toPath()));
+        return parse(file, Thread.currentThread().getContextClassLoader());
+    }
+
+    public static Feature parse(File file, ClassLoader cl) {
+        return parse(new Resource(file.toPath(), cl));
     }
 
     public static Feature parse(Resource resource) {
@@ -107,18 +105,6 @@ public class FeatureParser extends KarateParserBaseListener {
         step.setText(temp.getText());
         step.setDocString(temp.getDocString());
         step.setTable(temp.getTable());
-    }
-
-    private static InputStream toStream(File file) {
-        try {
-            return new FileInputStream(file);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private FeatureParser(File file, String relativePath, ClassLoader cl) {
-        this(new Feature(new Resource(file, relativePath)), toStream(file));
     }
 
     private FeatureParser(Resource resource) {

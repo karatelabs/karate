@@ -122,17 +122,17 @@ public class ScenarioFileReader {
             return new Resource(classLoader, path);
         } else if (isFilePath(path)) {
             String temp = removePrefix(path);
-            return new Resource(new File(temp), path);
+            return new Resource(new File(temp), path, classLoader);
         } else if (isThisPath(path)) {
             String temp = removePrefix(path);
             Path parentPath = runtime.featureRuntime.getParentPath();
             Path childPath = parentPath.resolve(temp);
-            return new Resource(childPath);
+            return new Resource(childPath, classLoader);
         } else {
             try {
                 Path parentPath = runtime.featureRuntime.getRootParentPath();
                 Path childPath = parentPath.resolve(path);
-                return new Resource(childPath);
+                return new Resource(childPath, classLoader);
             } catch (Exception e) {
                 runtime.logger.error("feature relative path resolution failed: {}", e.getMessage());
                 throw e;

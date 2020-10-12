@@ -18,7 +18,7 @@ public class FeatureEditTest {
 
     private static final Logger logger = LoggerFactory.getLogger(FeatureEditTest.class);
 
-    public static final Resource EMPTY = new Resource(null, Paths.get(""), "", -1);
+    public static final Resource EMPTY = new Resource(Paths.get(""), "", -1, null);
 
     private Feature parse(String name) {
         InputStream is = getClass().getResourceAsStream(name);

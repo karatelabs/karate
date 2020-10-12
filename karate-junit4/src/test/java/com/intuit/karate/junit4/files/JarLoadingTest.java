@@ -76,19 +76,19 @@ public class JarLoadingTest {
         path = FileUtils.fromRelativeClassPath("classpath:demo/jar1", cl);
         assertEquals(path.toString(), "/demo/jar1");
     }
-    
+
     private static ClassLoader getJarClassLoader2() throws Exception {
         File jar = new File("../karate-core/src/test/resources/karate-test2.jar");
         assertTrue(jar.exists());
         return new URLClassLoader(new URL[]{jar.toURI().toURL()});
-    }    
-    
+    }
+
     private ScenarioContext getContext() throws Exception {
         Path featureDir = FileUtils.getPathContaining(getClass());
         FeatureContext featureContext = FeatureContext.forWorkingDir("dev", featureDir.toFile());
         CallContext callContext = new CallContext(null, true);
         return new ScenarioContext(featureContext, callContext, getJarClassLoader2(), null, null);
-    }    
+    }
 
     @Test
     public void testClassPathJarResource() throws Exception {
@@ -106,7 +106,9 @@ public class JarLoadingTest {
         List<Callable<Boolean>> list = new ArrayList();
         for (int i = 0; i < 10; i++) {
             list.add(() -> {
-                Resource resource = new Resource(cl, relativePath);
+                Path path = FileUtils.fromRelativeClassPath(relativePath, cl);
+                logger.debug("path: {}", path);
+                Resource resource = new Resource(path, relativePath, -1, cl);
                 Feature feature = FeatureParser.parse(resource);
                 Map<String, Object> map = Runner.runFeature(feature, null, true);
                 Boolean result = (Boolean) map.get("success");

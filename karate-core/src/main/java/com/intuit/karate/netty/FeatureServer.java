@@ -39,6 +39,8 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.InputStream;
@@ -48,9 +50,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @author pthomas3
@@ -183,7 +182,7 @@ public class FeatureServer {
         if (parent == null) { // when running via command line and same dir
             file = new File(file.getAbsolutePath());
         }
-        return FeatureParser.parse(file);
+        return FeatureParser.parse(file, Thread.currentThread().getContextClassLoader());
     }
 
     private FeatureServer(Feature[] features, int requestedPort, boolean ssl, Supplier<SslContext> contextSupplier, Map<String, Object> arg) {
