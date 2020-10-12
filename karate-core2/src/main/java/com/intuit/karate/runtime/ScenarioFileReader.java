@@ -119,7 +119,7 @@ public class ScenarioFileReader {
 
     private Resource toResource(String path) {
         if (isClassPath(path)) {
-            return new Resource(classLoader, path);
+            return new Resource(path, classLoader);
         } else if (isFilePath(path)) {
             String temp = removePrefix(path);
             return new Resource(new File(temp), path, classLoader);

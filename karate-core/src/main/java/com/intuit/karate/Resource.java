@@ -50,7 +50,7 @@ public class Resource {
     public static final Resource EMPTY = new Resource(Paths.get(""), "", -1, Thread.currentThread().getContextClassLoader());
 
     public static Resource of(Path path, String text) {
-        return new Resource(path, null, -1, Thread.currentThread().getContextClassLoader()) {
+        return new Resource(path, Thread.currentThread().getContextClassLoader()) {
             final InputStream is = FileUtils.toInputStream(text);
 
             @Override
@@ -65,7 +65,11 @@ public class Resource {
     }
 
     public Resource(String relativePath) {
-        this(Thread.currentThread().getContextClassLoader(), relativePath);
+        this(relativePath, Thread.currentThread().getContextClassLoader());
+    }
+
+    public Resource(String relativePath, ClassLoader cl) {
+        this(FileUtils.fromRelativeClassPath(relativePath, cl), relativePath, -1, cl);
     }
 
     public Resource(Path path, String relativePath, int line, ClassLoader cl) {
@@ -86,21 +90,7 @@ public class Resource {
     }
 
     public Resource(Path path, ClassLoader cl) {
-        this(path, null, -1, cl);
-    }
-
-    public Resource(ClassLoader cl, String relativePath) {
-        String strippedPath = FileUtils.removePrefix(relativePath);
-        URL url = cl.getResource(strippedPath);
-        if (url != null) {
-            this.path = FileUtils.urlToPath(url, strippedPath);
-        } else {
-            this.path = new File(strippedPath).toPath();
-        }
-        this.line = -1;
-        file = !path.toUri().getScheme().equals("jar");
-        this.relativePath = relativePath;
-        packageQualifiedName = FileUtils.toPackageQualifiedName(relativePath);
+        this(path, FileUtils.toRelativeClassPath(path, cl), -1, cl);
     }
 
     public String getFileNameWithoutExtension() {
@@ -142,8 +132,8 @@ public class Resource {
                     // since the nio newInputStream has concurrency problems :(
                     // plus a performance boost for karate-base.js if in JAR
                     ClassLoader cl = this.classLoader != null ? this.classLoader : Resource.class.getClassLoader();
-                    InputStream tempStream = cl.getResourceAsStream(relativePath.replace(FileUtils.CLASSPATH_COLON, ""));//Files.newInputStream(path);
-                    if(tempStream == null) {
+                    InputStream tempStream = cl.getResourceAsStream(relativePath.replace(FileUtils.CLASSPATH_COLON, ""));
+                    if (tempStream == null) {
                         tempStream = Files.newInputStream(path);
                     }
                     bytes = FileUtils.toBytes(tempStream);
