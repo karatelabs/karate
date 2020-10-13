@@ -130,6 +130,19 @@ public class JsonUtils {
     public static Object fromJson(String json) {
         return JSONValue.parse(json);
     }
+    
+    public static Object fromJson(String s, String className) {
+        try {
+            Class clazz = Class.forName(className);
+            return JSONValue.parse(s, clazz);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static <T> T fromJson(String s, Class<T> clazz) {
+        return (T) fromJson(s, clazz.getName());
+    }    
 
     public static Map<String, Object> fromYaml(String raw) {
         Yaml yaml = new Yaml(new SafeConstructor());

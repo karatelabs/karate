@@ -30,7 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.graalvm.polyglot.Context;
+import java.util.function.Function;
 import org.graalvm.polyglot.Value;
 
 /**
@@ -46,7 +46,7 @@ public class JsValue {
         OTHER
     }
 
-    private Value original;
+    private final Value original;
     private final Object value;
     public final Type type;
 
@@ -68,7 +68,7 @@ public class JsValue {
             value = v.asHostObject();
             type = Type.OTHER;
         } else if (v.canExecute()) {
-            value = v.as(Object.class);
+            value = v.as(Function.class);
             type = Type.FUNCTION;
         } else if (v.hasArrayElements()) {
             int size = (int) v.getArraySize();
@@ -98,10 +98,6 @@ public class JsValue {
         return value;
     }
 
-    public <T> T getOriginalAs(Class<T> clazz) {
-        return original.as(clazz);
-    }
-
     public Map<String, Object> getAsMap() {
         return (Map) value;
     }
@@ -110,20 +106,8 @@ public class JsValue {
         return (List) value;
     }
 
-    public void switchContext(JsEngine js) {
-        Context context = original.getContext();
-        if (context != null && !context.equals(js.getGraalContext())) {
-            String temp = "(" + original.toString() + ")";
-            original = js.evalForValue(temp);
-        }
-    }
-
     public Value getOriginal() {
         return original;
-    }
-
-    public void setOriginal(Value original) {
-        this.original = original;
     }
 
     public JsValue invoke(Object... args) {
@@ -159,10 +143,9 @@ public class JsValue {
     }
 
     public static Object fromJava(Object o) {
-        if (o instanceof JsValue) { // functions being passed around
-            o = ((JsValue) o).getOriginal();
-        }
-        if (o instanceof List) {
+        if (o instanceof Function) { // can be map also, so do this first
+            return o;
+        } else if (o instanceof List) {
             return new JsList((List) o);
         } else if (o instanceof Map) {
             return new JsMap((Map) o);

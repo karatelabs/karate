@@ -38,7 +38,7 @@ class MatchTest {
         MatchResult mr = Match.that(actual).is(mt, expected);
         message = mr.message;
         if (!fails) {
-            assertTrue(mr.pass);
+            assertTrue(mr.pass, mr.message);
         } else {
             assertFalse(mr.pass);
         }
@@ -225,6 +225,12 @@ class MatchTest {
         match("<root><a>1</a><b>2</b></root>", EQUALS, "<root><b>2</b><a>1</a></root>");
         match("<root><a>1</a><b>2</b></root>", CONTAINS, "<root><b>2</b><a>1</a></root>");
         match("<root><a>1</a><b>2</b></root>", CONTAINS, "<root><a>1</a><b>9</b></root>", FAILS);
+    }
+    
+    @Test
+    void testXmlSchema() {
+        match("<root></root>", EQUALS, "<root>#null</root>"); // TODO controversial
+        match("<root></root>", EQUALS, "<root>#present</root>");
     }
 
 }

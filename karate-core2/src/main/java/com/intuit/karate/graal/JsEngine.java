@@ -112,10 +112,6 @@ public class JsEngine {
         this.jc = sc;
     }
 
-    public Context getGraalContext() {
-        return jc.context;
-    }
-
     public Value bindings() {
         return jc.bindings;
     }
@@ -173,6 +169,17 @@ public class JsEngine {
             jc.bindings.putMember(key, fun);
         } else {
             put(key, JsValue.toJava(v));
+        }
+    }
+
+    public Value attachToContext(Object o) {
+        Value old = Value.asValue(o);
+        Context context = old.getContext();
+        if (context != null && !context.equals(jc.context)) {
+            String temp = "(" + old.toString() + ")";
+            return evalForValue(temp);
+        } else {
+            return old;
         }
     }
 

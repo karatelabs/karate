@@ -63,6 +63,21 @@ class ScenarioRuntimeTest {
         System.setProperty("karate.env", "");
         System.setProperty("karate.config.dir", "");
     }
+    
+    @Test
+    void testFunctionsFromGlobalConfig() {
+        System.setProperty("karate.config.dir", "src/test/java/com/intuit/karate/runtime");
+        run(
+                "def foo = utils.someText",
+                "def bar = utils.someFun()",
+                "def res = call read('called2.feature')"
+        );
+        matchVarEquals("foo", "hello world");
+        matchVarEquals("bar", "hello world");
+        Match.that(get("res")).contains("{ calledBar: 'hello world' }").isTrue();
+        System.setProperty("karate.env", "");
+        System.setProperty("karate.config.dir", "");        
+    }
 
     @Test
     void testReadFunction() {
@@ -289,6 +304,44 @@ class ScenarioRuntimeTest {
         matchVarEquals("res1", "{ a: 1, b: 2 }");
         matchVarEquals("res2", "[1, 2, 3, 4]");
         matchVarEquals("res3", "[1, 2, 3, 4]");
+    }
+    
+    @Test
+    void testJsonPath() {
+        run(
+                "def foo = { a: 1, b: { a: 2 } }",
+                "def res1 = karate.jsonPath(foo, '$..a')"
+        );       
+        matchVarEquals("res1", "[1, 2]");
+    }
+    
+    @Test
+    void testLowerCase() {
+        run(
+                "def foo = { HELLO: 'WORLD' }",
+                "def res1 = karate.lowerCase(foo)"
+        );       
+        matchVarEquals("res1", "{ hello: 'world' }");
+    }
+    
+    @Test
+    void testXmlPath() {
+        run(
+                "def foo = <bar><a><b>c</b></a></bar>",
+                "def res1 = karate.xmlPath(foo, '/bar/a')"
+        );       
+        matchVarEquals("res1", "<a><b>c</b></a>");
+    }    
+
+    @Test
+    void testToBean() {
+        run(
+                "def foo = { foo: 'hello', bar: 5 }",
+                "def res1 = karate.toBean(foo, 'com.intuit.karate.runtime.SimplePojo')"
+        );       
+        SimplePojo sp = (SimplePojo) get("res1");
+        assertEquals(sp.getFoo(), "hello");
+        assertEquals(sp.getBar(), 5);
     }
 
 }

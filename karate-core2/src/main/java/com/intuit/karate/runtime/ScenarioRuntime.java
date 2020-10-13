@@ -78,7 +78,7 @@ public class ScenarioRuntime implements Runnable {
         if (parentCall.isNone()) {
             config = new Config();
             engine = new ScenarioEngine(this, new HashMap(), logger);
-        } else if (parentCall.isGlobalScope()) {
+        } else if (parentCall.isSharedScope()) {
             config = parentCall.parentRuntime.config;
             engine = new ScenarioEngine(this, parentCall.parentRuntime.engine.vars, logger);
         } else { // new, but clone and copy data
@@ -518,5 +518,10 @@ public class ScenarioRuntime implements Runnable {
     public void robot(String expression) {
 
     }
+
+    @Override
+    public String toString() {
+        return scenario.toString();
+    }        
 
 }

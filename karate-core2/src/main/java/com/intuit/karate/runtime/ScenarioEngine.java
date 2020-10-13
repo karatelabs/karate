@@ -31,16 +31,13 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.data.Json;
 import com.intuit.karate.data.JsonUtils;
 import com.intuit.karate.exception.KarateException;
-import com.intuit.karate.exception.KarateFailException;
 import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchType;
 import com.intuit.karate.match.MatchValue;
 import com.jayway.jsonpath.PathNotFoundException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -48,8 +45,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.graalvm.polyglot.Value;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
@@ -73,21 +72,62 @@ public class ScenarioEngine {
         this.logger = logger;
     }
 
-    // not in constructor because it has to be on Runable.run() thread
+    // not in constructor because it has to be on Runnable.run() thread
     public void init() {
         JS = JsEngine.local();
+        attachJsValuesToContext();
+    }
+
+    private void attachJsValuesToContext() {
+        Map<String, Variable> updated = new HashMap();
+        vars.forEach((k, v) -> {
+            switch (v.type) {                
+                case FUNCTION: // variables are immutable, so replace
+                    Value fun = JS.attachToContext(v.getValue());
+                    updated.put(k, new Variable(fun));
+                    break;
+                case MAP:
+                case LIST:
+                    recurse(v.getValue());
+                    break;
+                default:
+                // do nothing
+            }
+        });
+        vars.putAll(updated);
+    }
+
+    private Object recurse(Object o) {
+        // do this check first as graal functions are maps as well
+        if (o instanceof Function) {
+            return JS.attachToContext(o);
+        } else if (o instanceof List) {
+            List list = (List) o;
+            int count = list.size();
+            for (int i = 0; i < count; i++) {
+                Object child = list.get(i);
+                Object result = recurse(child);
+                if (result != null) {
+                    list.set(i, result);
+                }
+            }
+            return null;
+        } else if (o instanceof Map) {
+            Map<String, Object> map = (Map) o;
+            map.forEach((k, v) -> {
+                Object result = recurse(v);
+                if (result != null) {
+                    map.put(k, result);
+                }
+            });
+            return null;
+        } else {
+            return null;
+        }
     }
 
     private void putJsBinding(String name, Variable v) {
         switch (v.type) {
-            case JS_FUNCTION:
-                JsValue jv = v.getValue();
-                // important to ensure that the function is attached to the current graal context
-                // since it may have come from e.g. karate-config.js or a calling / parent feature
-                // this will update the wrapper variable if needed as a performance optimization
-                jv.switchContext(JS);
-                JS.put(name, jv);
-                break;
             case XML:
                 JS.put(name, XmlUtils.toObject(v.getValue()));
                 break;
@@ -101,25 +141,25 @@ public class ScenarioEngine {
         try {
             return new Variable(JS.eval(exp));
         } catch (Exception e) {
-            // do our best to make js error traces informative, because they seem to
+            // do our best to make js error traces informative, else thrown exception seems to
             // get swallowed by the java reflection based method invoke flow
             if (runtime.jsEvalError == null) {
                 StackTraceElement[] stack = e.getStackTrace();
-                int linesToLog = Math.min(5, stack.length);
                 StringBuilder sb = new StringBuilder();
-                sb.append("js failed:\n>>>>\n");
+                sb.append(">>>> js failed:\n");
                 List<String> lines = StringUtils.toStringLines(exp);
                 int index = 0;
                 for (String line : lines) {
-                    sb.append(String.format("%02d", ++index)).append(": ").append(line).append("\n");
+                    sb.append(String.format("%02d", ++index)).append(": ").append(line).append('\n');
                 }
                 sb.append("<<<<\n");
-                sb.append("error: " + e + "\n");
-                sb.append("cause: " + e.getCause() + "\n");
-                sb.append("extra: " + Arrays.asList(e.getSuppressed()) + "\n");
-                sb.append("stack: \n");
-                for (int i = 0; i < linesToLog; i++) {
-                    sb.append("  ").append(stack[i].toString()).append("\n");
+                sb.append(e.toString()).append('\n');
+                for (int i = 0; i < stack.length; i++) {
+                    String line = stack[i].toString();
+                    if (line.startsWith("org.graalvm.polyglot.Context.eval")) {
+                        break;
+                    }
+                    sb.append("- ").append(line).append('\n');
                 }
                 runtime.jsEvalError = sb.toString();
             }
@@ -832,48 +872,48 @@ public class ScenarioEngine {
         return new StringUtils.Pair(line.substring(0, pos), StringUtils.trimToNull(line.substring(pos)));
     }
 
-    public Variable call(Variable called, Variable arg, boolean reuseParentConfig) {
+    public Variable call(Variable called, Variable arg, boolean sharedScope) {
         switch (called.type) {
-            case JAVA_FUNCTION:
-            case JS_FUNCTION:
+            case FUNCTION:
                 return arg == null ? called.invokeFunction() : called.invokeFunction(new Object[]{arg.getValue()});
-            case KARATE_FEATURE:
-                return callFeature(called.getValue(), arg, -1, reuseParentConfig);
+            case FEATURE:
+                return callFeature(called.getValue(), arg, -1, sharedScope);
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);
         }
     }
 
-    public Variable call(boolean callOnce, String exp, boolean reuseParentConfig) {
+    public Variable call(boolean callOnce, String exp, boolean sharedScope) {
         StringUtils.Pair pair = parseCallArgs(exp);
         Variable called = evalKarateExpression(pair.left);
         Variable arg = pair.right == null ? null : evalKarateExpression(pair.right);
         if (callOnce) {
-            return callOnce(exp, called, arg, reuseParentConfig);
+            return callOnce(exp, called, arg, sharedScope);
         } else {
-            return call(called, arg, reuseParentConfig);
+            return call(called, arg, sharedScope);
         }
     }
 
-    private Variable result(ScenarioCall.Result result, boolean reuseParentConfig) {
-        if (reuseParentConfig) { // if shared scope
+    private Variable result(ScenarioCall.Result result, boolean sharedScope) {
+        if (sharedScope) { // if shared scope
             runtime.configure(new Config(result.config)); // re-apply config from time of snapshot
             if (result.vars != null) {
-                vars.clear();
+                // don't clear vars because karate-config.js or background or scenario outline may have set some !
+                // vars.clear(); 
                 vars.putAll(copyVariables(false)); // clone for safety 
             }
         }
         return result.value.copy(false); // clone result for safety       
     }
 
-    private Variable callOnce(String cacheKey, Variable called, Variable arg, boolean reuseParentConfig) {
+    private Variable callOnce(String cacheKey, Variable called, Variable arg, boolean sharedScope) {
         // IMPORTANT: the call result is always shallow-cloned before returning
         // so that call result (especially if a java Map) is not mutated by other scenarios
         final Map<String, ScenarioCall.Result> CACHE = runtime.featureRuntime.FEATURE_CACHE;
         ScenarioCall.Result result = CACHE.get(cacheKey);
         if (result != null) {
             runtime.logger.trace("callonce cache hit for: {}", cacheKey);
-            return result(result, reuseParentConfig);
+            return result(result, sharedScope);
         }
         long startTime = System.currentTimeMillis();
         runtime.logger.trace("callonce waiting for lock: {}", cacheKey);
@@ -882,15 +922,15 @@ public class ScenarioEngine {
             if (result != null) {
                 long endTime = System.currentTimeMillis() - startTime;
                 runtime.logger.warn("this thread waited {} milliseconds for callonce lock: {}", endTime, cacheKey);
-                return result(result, reuseParentConfig);
+                return result(result, sharedScope);
             }
             // this thread is the 'winner'
             runtime.logger.info(">> lock acquired, begin callonce: {}", cacheKey);
-            Variable resultValue = call(called, arg, reuseParentConfig);
+            Variable resultValue = call(called, arg, sharedScope);
             // we clone result (and config) here, to snapshot state at the point the callonce was invoked
             // this prevents the state from being clobbered by the subsequent steps of this
             // first scenario that is about to use the result
-            Map<String, Variable> clonedVars = called.isKarateFeature() && reuseParentConfig ? copyVariables(false) : null;
+            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? copyVariables(false) : null;
             result = new ScenarioCall.Result(resultValue.copy(false), new Config(runtime.getConfig()), clonedVars);
             CACHE.put(cacheKey, result);
             runtime.logger.info("<< lock released, cached callonce: {}", cacheKey);
@@ -898,11 +938,12 @@ public class ScenarioEngine {
         }
     }
 
-    public Variable callFeature(Feature feature, Variable arg, int index, boolean reuseParentConfig) {
+    public Variable callFeature(Feature feature, Variable arg, int index, boolean sharedScope) {
         if (arg == null || arg.isMap()) {
             ScenarioCall call = new ScenarioCall(runtime, feature);
             call.setArg(arg);
             call.setLoopIndex(index);
+            call.setSharedScope(sharedScope);
             FeatureRuntime fr = new FeatureRuntime(call);
             fr.run();
             if (fr.result.isFailed()) {
@@ -934,7 +975,7 @@ public class ScenarioEngine {
                     break;
                 }
                 try {
-                    Variable loopResult = callFeature(feature, loopArg, loopIndex, reuseParentConfig);
+                    Variable loopResult = callFeature(feature, loopArg, loopIndex, sharedScope);
                     result.add(loopResult.getValue());
                 } catch (Exception e) {
                     String message = "feature call loop failed at index: " + loopIndex + ", " + e.getMessage();
@@ -966,7 +1007,7 @@ public class ScenarioEngine {
         }
     }
 
-    public Variable evalXmlPath(Variable xml, String path) {
+    public static Variable evalXmlPath(Variable xml, String path) {
         NodeList nodeList;
         Node doc = xml.getAsXml();
         try {
@@ -1087,11 +1128,12 @@ public class ScenarioEngine {
         } else if (isXmlPath(text)) {
             return evalXmlPathOnVariableByName(VariableNames.RESPONSE, text);
         } else {
+            // old school function declarations e.g. function() { } need wrapping in graal
             if (isJavaScriptFunction(text)) {
                 text = "(" + text + ")";
             }
             // js expressions e.g. foo, foo(bar), foo.bar, foo + bar, foo + '', 5, true
-            // including function declarations e.g. function() { }
+            // including arrow functions e.g. x => x + 1
             return eval(text);
         }
     }

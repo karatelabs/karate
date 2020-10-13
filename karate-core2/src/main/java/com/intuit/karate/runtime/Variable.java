@@ -34,6 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
@@ -55,9 +56,8 @@ public class Variable {
         LIST,
         MAP,
         XML,
-        JS_FUNCTION,
-        JAVA_FUNCTION,
-        KARATE_FEATURE,
+        FUNCTION,
+        FEATURE,
         OTHER
     }
 
@@ -68,17 +68,16 @@ public class Variable {
     private final Object value;
 
     public Variable(Object o) {
+        if (o instanceof Value) {
+            o = new JsValue((Value) o);
+        }
         if (o instanceof JsValue) {
-            JsValue jsValue = (JsValue) o;
-            if (!jsValue.isFunction()) { // only in case of JS_FUNCTION keep the JsValue as-is
-                o = jsValue.getValue();
-            }
+            JsValue jv = (JsValue) o;
+            o = jv.getValue();
         }
         value = o;
         if (o == null) {
             type = Type.NULL;
-        } else if (o instanceof JsValue) {
-            type = Type.JS_FUNCTION; // see logic above
         } else if (o instanceof Node) {
             type = Type.XML;
         } else if (o instanceof List) {
@@ -94,9 +93,9 @@ public class Variable {
         } else if (o instanceof byte[]) {
             type = Type.BYTES;
         } else if (o instanceof Feature) {
-            type = Type.KARATE_FEATURE;
+            type = Type.FEATURE;
         } else if (o instanceof Function) {
-            type = Type.JAVA_FUNCTION;
+            type = Type.FUNCTION;
         } else {
             type = Type.OTHER;
         }
@@ -143,11 +142,11 @@ public class Variable {
     }
 
     public boolean isFunction() {
-        return type == Type.JS_FUNCTION || type == Type.JAVA_FUNCTION;
+        return type == Type.FUNCTION;
     }
 
-    public boolean isKarateFeature() {
-        return type == Type.KARATE_FEATURE;
+    public boolean isFeature() {
+        return type == Type.FEATURE;
     }
 
     public boolean isTrue() {
@@ -155,15 +154,8 @@ public class Variable {
     }
 
     public Variable invokeFunction(Object... args) {
-        if (type == Type.JS_FUNCTION) {
-            JsValue jsValue = getValue();
-            JsValue result = jsValue.invoke(args);
-            return new Variable(result);
-        } else {
-            Function function = getValue();
-            Object result = function.apply(args);
-            return new Variable(result);
-        }
+        Function fun = getValue();
+        return new Variable(fun.apply(args));
     }
 
     public Map<String, Object> evalAsMap() {
@@ -199,7 +191,7 @@ public class Variable {
     public Object getValueAndConvertIfXmlToMap() {
         return isXml() ? XmlUtils.toObject(getValue()) : value;
     }
-    
+
     public Object getValueAndForceParsingAsJson() {
         switch (type) {
             case LIST:
@@ -273,6 +265,22 @@ public class Variable {
                 return deep ? new Variable(JsonUtils.deepCopy(value)) : new Variable(new LinkedHashMap((Map) value));
             case XML:
                 return new Variable(XmlUtils.toXmlDoc(getAsString()));
+            default:
+                return this;
+        }
+    }
+
+    public Variable toLowerCase() {
+        switch (type) {
+            case STRING:
+                return new Variable(getAsString().toLowerCase());
+            case LIST:
+            case MAP:
+                String json = getAsString().toLowerCase();
+                return new Variable(JsonUtils.fromJson(json));
+            case XML:
+                String xml = getAsString().toLowerCase();
+                return new Variable(XmlUtils.toXmlDoc(xml));
             default:
                 return this;
         }

@@ -27,9 +27,11 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.PerfContext;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.core.PerfEvent;
+import com.intuit.karate.data.Json;
 import com.intuit.karate.data.JsonUtils;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsMap;
+import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchStep;
 import com.intuit.karate.match.MatchType;
@@ -263,8 +265,18 @@ public class ScenarioBridge implements PerfContext {
         return result == null ? defaultValue : result;
     }
 
+    public Object jsonPath(Object o, String exp) {
+        Json json = new Json(o);
+        return JsValue.fromJava(json.get(exp));
+    }
+
     public Object keysOf(Value o) {
         return new JsList(o.getMemberKeys());
+    }
+
+    public Object lowerCase(Object o) {
+        Variable var = new Variable(o);
+        return JsValue.fromJava(var.toLowerCase().getValue());
     }
 
     public Object map(Value o, Value f) {
@@ -387,6 +399,22 @@ public class ScenarioBridge implements PerfContext {
         getRuntime().engine.set(name, path, new Variable(XmlUtils.toXmlDoc(xml)));
     }
 
+    public Object toBean(Object o, String className) {
+        Json json = new Json(o);
+        Object bean = JsonUtils.fromJson(json.toString(), className);
+        return JsValue.fromJava(bean);
+    }
+
+    // TODO deprecate
+    public Object toList(Object o) {
+        return o;
+    }
+
+    // TODO deprecate
+    public Object toMap(Object o) {
+        return o;
+    }
+
     public String toString(Object o) {
         Variable v = new Variable(o);
         return v.getAsString();
@@ -405,6 +433,12 @@ public class ScenarioBridge implements PerfContext {
         } else {
             return null;
         }
+    }
+
+    public Object xmlPath(Object o, String path) {
+        Variable var = new Variable(o);
+        Variable res = ScenarioEngine.evalXmlPath(var, path);
+        return JsValue.fromJava(res.getValue());
     }
 
 }

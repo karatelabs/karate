@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import org.graalvm.polyglot.Value;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -55,6 +56,20 @@ class JsEngineTest {
         assertEquals("[\"a\",\"b\",\"c\"]", json);
         assertEquals("() => ['a', 'b', 'c']", v.toString());
     } 
+    
+    @Test
+    void testJsFunctionToJavaFunction() {
+        Value v = je.evalForValue("() => 'hello'");
+        assertTrue(v.canExecute());
+        Function temp = (Function) v.as(Object.class);
+        String res = (String) temp.apply(null);       
+        assertEquals(res, "hello");
+        v = je.evalForValue("(a, b) => a + b");
+        assertTrue(v.canExecute());
+        temp = v.as(Function.class);
+        Number num = (Number) temp.apply(new Object[]{1, 2});       
+        assertEquals(num, 3);        
+    }
     
     @Test
     void testArrowFunctionReturnsObject() {

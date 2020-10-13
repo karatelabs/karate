@@ -40,7 +40,7 @@ public class ScenarioCall {
 
     private boolean callonce;
     private Variable arg;
-    private boolean globalScope;
+    private boolean sharedScope;
     private boolean karateConfigDisabled;
     private int loopIndex = -1;
 
@@ -56,12 +56,12 @@ public class ScenarioCall {
         this.loopIndex = loopIndex;
     }
 
-    public void setGlobalScope(boolean globalScope) {
-        this.globalScope = globalScope;
+    public void setSharedScope(boolean sharedScope) {
+        this.sharedScope = sharedScope;
     }
 
-    public boolean isGlobalScope() {
-        return globalScope;
+    public boolean isSharedScope() {
+        return sharedScope;
     }
 
     public void setArg(Variable arg) {

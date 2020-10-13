@@ -28,5 +28,11 @@ class FeatureRuntimeTest {
         FeatureRuntime fr = run("fail1.feature");
         assertTrue(fr.result.isFailed());
     }
+    
+    @Test
+    void testCallOnceBg() {
+        FeatureRuntime fr = run("callonce-bg.feature");
+        assertFalse(fr.result.isFailed());
+    }    
 
 }

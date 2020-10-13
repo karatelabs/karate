@@ -147,6 +147,10 @@ public class MatchValue {
         mo.execute();
         return mo.pass ? MatchResult.PASS : MatchResult.fail(mo.getFailureReasons());
     }
+    
+    public MatchResult contains(Object o) {
+        return is(MatchType.CONTAINS, o);
+    }
 
     public MatchResult isEqualTo(Object o) {
         return is(MatchType.EQUALS, o);

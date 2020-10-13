@@ -34,7 +34,6 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import org.w3c.dom.Node;
 
 /**
@@ -257,28 +256,9 @@ public abstract class ScenarioHttpClient<T> {
         if (config.getClientInstance() != null) {
             return config.getClientInstance();
         }
-        try {
-            String className;
-            if (config.getClientClass() != null) {
-                className = config.getClientClass();
-            } else {
-                ClassLoader classLoader = ScenarioHttpClient.class.getClassLoader();
-                InputStream is = classLoader.getResourceAsStream(KARATE_HTTP_PROPERTIES);
-                if (is == null) {
-                    String msg = KARATE_HTTP_PROPERTIES + " not found";
-                    throw new RuntimeException(msg);
-                }
-                Properties props = new Properties();
-                props.load(is);
-                className = props.getProperty("client.class");
-            }
-            ScenarioHttpClient client = construct(className);
-            client.configure(config);
-            return client;
-        } catch (Exception e) {
-            String msg = "failed to construct class by name: " + e.getMessage() + ", aborting";
-            throw new RuntimeException(msg);
-        }
+        ScenarioHttpClient client = new ArmeriaHttpClient();
+        client.configure(config);
+        return client;
     }
 
 }
