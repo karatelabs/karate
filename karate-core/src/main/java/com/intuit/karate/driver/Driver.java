@@ -27,6 +27,9 @@ import com.intuit.karate.Config;
 import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.http.Cookie;
+import net.minidev.json.JSONArray;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -106,6 +109,9 @@ public interface Driver extends Plugin {
 
     @AutoDef
     Map<String, Object> cookie(String name);
+
+    @AutoDef
+    void setCookies(Map<String, Cookie> cookie);
 
     @AutoDef
     void cookie(Map<String, Object> cookie);
