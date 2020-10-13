@@ -81,7 +81,7 @@ public class ScenarioEngine {
     private void attachJsValuesToContext() {
         Map<String, Variable> updated = new HashMap();
         vars.forEach((k, v) -> {
-            switch (v.type) {                
+            switch (v.type) {
                 case FUNCTION: // variables are immutable, so replace
                     Value fun = JS.attachToContext(v.getValue());
                     updated.put(k, new Variable(fun));
@@ -126,18 +126,8 @@ public class ScenarioEngine {
         }
     }
 
-    private void putJsBinding(String name, Variable v) {
-        switch (v.type) {
-            case XML:
-                JS.put(name, XmlUtils.toObject(v.getValue()));
-                break;
-            default:
-                JS.put(name, v.getValue());
-        }
-    }
-
     public Variable eval(String exp) {
-        vars.forEach((k, v) -> putJsBinding(k, v));
+        vars.forEach((k, v) -> JS.put(k, v.getValue()));
         try {
             return new Variable(JS.eval(exp));
         } catch (Exception e) {
@@ -169,10 +159,9 @@ public class ScenarioEngine {
 
     public void setHiddenVariable(String key, Object value) {
         if (value instanceof Variable) {
-            putJsBinding(key, (Variable) value);
-        } else {
-            JS.put(key, value);
+            value = ((Variable) value).getValue();
         }
+        JS.put(key, value);
     }
 
     public void setVariable(String key, Object value) {
@@ -654,31 +643,8 @@ public class ScenarioEngine {
         }
     }
 
-    public void print(List<String> exps) {
-        String prev = ""; // handle rogue commas embedded in string literals
-        StringBuilder sb = new StringBuilder();
-        sb.append("[print]");
-        for (String exp : exps) {
-            if (!prev.isEmpty()) {
-                exp = prev + StringUtils.trimToNull(exp);
-            }
-            if (exp == null) {
-                sb.append("null");
-            } else {
-                Variable v = getIfVariableReference(exp.trim()); // trim is important
-                if (v == null) {
-                    try {
-                        v = eval(exp);
-                        prev = ""; // eval success, reset rogue comma detector
-                    } catch (Exception e) {
-                        prev = exp + ", ";
-                        continue;
-                    }
-                }
-                sb.append(' ').append(v.getAsPrettyString());
-            }
-        }
-        logger.info("{}", sb);
+    public void print(String line) {
+        eval("karate.print(" + line + ")");
     }
 
     public void table(String name, List<Map<String, String>> rows) {

@@ -361,7 +361,7 @@ public class ScenarioRuntime implements Runnable {
         if (!config.isPrintEnabled()) {
             return;
         }
-        engine.print(exps);
+        engine.print(StringUtils.join(exps, ','));
     }
 
     // gatling =================================================================

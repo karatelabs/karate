@@ -244,6 +244,8 @@ public class Variable {
             case LIST:
             case MAP:
                 return JsonUtils.toJsonSafe(value, true);
+            case XML:
+                return XmlUtils.toString(getValue(), true);
             default:
                 return getAsString();
         }

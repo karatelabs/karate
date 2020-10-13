@@ -279,7 +279,7 @@ public class ScenarioActions implements Actions {
     @Override
     @When("^print (.+)")
     public void print(List<String> exps) {
-        runtime.print(exps);
+        runtime.print(exps); // TODO refactor this to single line
     }
 
     @Override

@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import org.graalvm.polyglot.Value;
+import org.w3c.dom.Node;
 
 /**
  *
@@ -54,7 +55,10 @@ public class JsValue {
         this.original = v;
         if (v.isProxyObject()) {
             Object o = v.asProxyObject();
-            if (o instanceof JsMap) {
+            if (o instanceof JsXml) {
+                value = ((JsXml) o).getNode();
+                type = Type.OBJECT;                
+            } else if (o instanceof JsMap) {
                 value = ((JsMap) o).getMap();
                 type = Type.OBJECT;
             } else if (o instanceof JsList) {
@@ -149,6 +153,8 @@ public class JsValue {
             return new JsList((List) o);
         } else if (o instanceof Map) {
             return new JsMap((Map) o);
+        } else if (o instanceof Node) {
+            return new JsXml((Node) o);
         } else {
             return o;
         }

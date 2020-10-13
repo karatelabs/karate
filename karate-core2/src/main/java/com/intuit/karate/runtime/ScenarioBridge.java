@@ -264,6 +264,34 @@ public class ScenarioBridge implements PerfContext {
         Object result = get(exp);
         return result == null ? defaultValue : result;
     }
+    
+    public void log(Value ... values) {
+        ScenarioRuntime runtime = getRuntime();
+        if (runtime.getConfig().isPrintEnabled()) {
+            runtime.logger.info("{}", new LogWrapper(values));
+        }
+    }    
+    
+    // make sure toString() is lazy
+    static class LogWrapper {
+
+        final Value[] values;
+
+        LogWrapper(Value... values) {
+            this.values = values;
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            for (Value v : values) {
+                Variable var = new Variable(v);
+                sb.append(var.getAsPrettyString()).append(' ');
+            }
+            return sb.toString();
+        }
+
+    }    
 
     public Object jsonPath(Object o, String exp) {
         Json json = new Json(o);
@@ -343,6 +371,13 @@ public class ScenarioBridge implements PerfContext {
         Variable v = new Variable(o);
         return v.getAsPrettyXmlString();
     }
+    
+    public void print(Value ... values) {
+        ScenarioRuntime runtime = getRuntime();
+        if (runtime.getConfig().isPrintEnabled()) {
+            runtime.logger.info("[print] {}", new LogWrapper(values));
+        }
+    }    
 
     public Object read(String name) {
         return getRuntime().fileReader.readFile(name);
