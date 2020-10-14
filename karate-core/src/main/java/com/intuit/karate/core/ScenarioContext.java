@@ -464,13 +464,6 @@ public class ScenarioContext {
     public void configure(String key, ScriptValue value) { // TODO use enum
         key = StringUtils.trimToEmpty(key);
 
-        if ( key.equalsIgnoreCase("cookiesx"))
-        {
-            key = "cookies";
-            Map cookieMap = value.getAsMap();
-            System.out.println("cookieMap");
-        }
-
         // if next line returns true, http-client needs re-building
         if (config.configure(key, value)) {
             if (key.startsWith("httpClient")) { // special case
