@@ -25,14 +25,30 @@ Scenario: try to login to github
   Then waitForUrl('https://github.com/intuit/karate')
 
 Scenario: pass cookie from API call to UI call
-    Given path 'search', 'cookies'
-    And cookie foo = {value:'bar', path:'/search'}
-    When method get
-    Then status 200
-    And match response == '#[1]'
-    And match response[0] contains { name: 'foo', value: 'bar' }
+  Given path 'search', 'cookies'
+  And cookie foo = {value:'bar', path:'/search'}
+  When method get
+  Then status 200
+  And match response == '#[1]'
+  And match response[0] contains { name: 'foo', value: 'bar' }
 
-    Given driver demoBaseUrl + '/search/cookies'
-    * print responseCookies
-    When setCookies(responseCookies)
-    Then match driver.cookies == '#[1]'
+  Given driver demoBaseUrl + '/search/cookies'
+  * print responseCookies
+  When setCookies(responseCookies)
+  Then match driver.cookies == '#[1]'
+
+Scenario: pass cookie from a UI call to a certain API call
+  Given driver demoBaseUrl + '/search/cookies'
+  Given def cookie2 = { name: 'hello', value: 'world' }
+  When cookie(cookie2)
+  Then match driver.cookies contains '#(^cookie2)'
+
+  Given path 'search', 'cookies'
+  * cookies driver.cookies
+  When method get
+  Then status 200
+  And match response == '#[1]'
+  And match response[0] contains { name: 'hello', value: 'world' }
+
+
+
