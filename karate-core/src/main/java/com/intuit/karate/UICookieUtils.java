@@ -5,8 +5,16 @@ import com.intuit.karate.http.Cookie;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Cookie Utility method for UI calls.
+ */
 public class UICookieUtils {
 
+    /**
+     * creates a map corresponding to cookie. This is used by appropriate drivers.
+     * @param karateCookie cookie
+     * @return Map
+     */
     public static Map<String,Object> convertCookieToActualMap(Cookie karateCookie)
     {
         Map<String,Object> cookieMap = new HashMap();

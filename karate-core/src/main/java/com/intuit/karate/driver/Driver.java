@@ -111,7 +111,7 @@ public interface Driver extends Plugin {
     Map<String, Object> cookie(String name);
 
     @AutoDef
-    void setCookies(Map<String, Cookie> cookie);
+    void setCookies(Map<String, Cookie> cookie); // method to allow cookies from feature file for UI tests.
 
     @AutoDef
     void cookie(Map<String, Object> cookie);
