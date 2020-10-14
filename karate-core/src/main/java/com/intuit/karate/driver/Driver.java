@@ -111,10 +111,15 @@ public interface Driver extends Plugin {
     Map<String, Object> cookie(String name);
 
     @AutoDef
-    default void setCookies(Map<String, Cookie> cookies){ // method to allow cookies from feature file for UI tests.
+    default void setCookies(Map<String, Cookie> cookies){ // method to allow set cookies from feature file for UI tests.
         System.out.println("got this cookie: " + cookies);
         cookies.forEach( (k,v) ->{
-            cookie(UICookieUtils.convertCookieToActualMap(v));
+            // either uncomment below to have correct cookie
+            //cookie(UICookieUtils.convertCookieToActualMap(v));
+            // if above line uncommented, comment below 2 lines.
+            v.remove(Cookie.SECURE);
+            v.remove(Cookie.PERSISTENT);
+            cookie((Map)v);
         });
     }
 
