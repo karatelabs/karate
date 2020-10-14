@@ -23,11 +23,15 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.*;
-import com.intuit.karate.http.Cookie;
+import com.intuit.karate.Http;
+import com.intuit.karate.Json;
+import com.intuit.karate.Logger;
+import com.intuit.karate.ScriptValue;
 import com.intuit.karate.shell.Command;
-
-import java.util.*;
+import java.util.Base64;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 /**
@@ -107,7 +111,7 @@ public abstract class WebDriver implements Driver {
         String before = options.getPreSubmitHash();
         if (before != null) {
             logger.trace("submit requested, will wait for page load after next action on : {}", locator);
-            options.setPreSubmitHash(null); // clear the submit flag            
+            options.setPreSubmitHash(null); // clear the submit flag
             T result = action.get();
             Integer retryInterval = options.getRetryInterval();
             options.setRetryInterval(500); // reduce retry interval for this special case
@@ -587,14 +591,6 @@ public abstract class WebDriver implements Driver {
     public byte[] pdf(Map<String, Object> printOptions){
         String temp = http.path("print").post(printOptions).jsonPath("$.value").asString();
         return Base64.getDecoder().decode(temp);
-    }
-
-    @Override
-    public void setCookies(Map<String, Cookie> cookie) {
-        System.out.println("got this cookie: " + cookie);
-        cookie.forEach( (k,v) ->{
-            cookie(UICookieUtils.convertCookieToActualMap(v));
-        });
     }
 
 }

@@ -24,11 +24,11 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.Config;
+import com.intuit.karate.UICookieUtils;
 import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.http.Cookie;
-import net.minidev.json.JSONArray;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -111,7 +111,12 @@ public interface Driver extends Plugin {
     Map<String, Object> cookie(String name);
 
     @AutoDef
-    void setCookies(Map<String, Cookie> cookie); // method to allow cookies from feature file for UI tests.
+    default void setCookies(Map<String, Cookie> cookies){ // method to allow cookies from feature file for UI tests.
+        System.out.println("got this cookie: " + cookies);
+        cookies.forEach( (k,v) ->{
+            cookie(UICookieUtils.convertCookieToActualMap(v));
+        });
+    }
 
     @AutoDef
     void cookie(Map<String, Object> cookie);

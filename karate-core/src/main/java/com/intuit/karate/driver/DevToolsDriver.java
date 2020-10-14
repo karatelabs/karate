@@ -23,12 +23,15 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.*;
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.JsonUtils;
+import com.intuit.karate.Logger;
+import com.intuit.karate.ScriptValue;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeaturesBackend;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScriptBridge;
-import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.MultiValuedMap;
@@ -963,14 +966,6 @@ public abstract class DevToolsDriver implements Driver {
         }
         Integer nodeId = elementId(locator);
         method("DOM.setFileInputFiles").param("files", files).param("nodeId", nodeId).send();
-    }
-
-    @Override
-    public void setCookies(Map<String, Cookie> cookie) {
-        System.out.println("got this cookie: " + cookie);
-        cookie.forEach( (k,v) ->{
-            cookie(UICookieUtils.convertCookieToActualMap(v));
-        });
     }
 
 }

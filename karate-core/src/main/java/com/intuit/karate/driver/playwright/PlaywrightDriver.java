@@ -23,7 +23,11 @@
  */
 package com.intuit.karate.driver.playwright;
 
-import com.intuit.karate.*;
+import com.intuit.karate.Json;
+import com.intuit.karate.JsonUtils;
+import com.intuit.karate.LogAppender;
+import com.intuit.karate.Logger;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverElement;
@@ -32,7 +36,6 @@ import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Element;
 import com.intuit.karate.driver.Input;
 import com.intuit.karate.driver.Keys;
-import com.intuit.karate.http.Cookie;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
 import com.intuit.karate.shell.Command;
@@ -596,7 +599,7 @@ public class PlaywrightDriver implements Driver {
         options.setRetryInterval(1000); // reduce retry interval for this special case
         options.retry(() -> evalFrame(currentFrame, "document.location.href"),
                 pwm -> !pwm.isError() && !pwm.getResultValue().equals(previousFrameUrl), "waiting for frame context", false);
-        options.setRetryInterval(retryInterval); // restore        
+        options.setRetryInterval(retryInterval); // restore
     }
 
     @Override
@@ -843,14 +846,6 @@ public class PlaywrightDriver implements Driver {
     @Override
     public boolean isTerminated() {
         return terminated;
-    }
-
-    @Override
-    public void setCookies(Map<String, Cookie> cookie) {
-        System.out.println("got this cookie: " + cookie);
-        cookie.forEach( (k,v) ->{
-            cookie(UICookieUtils.convertCookieToActualMap(v));
-        });
     }
 
 }
