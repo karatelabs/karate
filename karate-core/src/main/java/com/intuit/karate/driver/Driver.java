@@ -24,11 +24,11 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.Config;
-import com.intuit.karate.UICookieUtils;
 import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.http.Cookie;
+import com.intuit.karate.http.HttpUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -115,7 +115,7 @@ public interface Driver extends Plugin {
         System.out.println("got this cookie: " + cookies);
         cookies.forEach( (k,v) ->{
             // either uncomment below to have correct cookie
-            //cookie(UICookieUtils.convertCookieToActualMap(v));
+            // cookie(HttpUtils.convertCookieToActualMap(v));
             // if above line uncommented, comment below 2 lines.
             v.remove(Cookie.SECURE);
             v.remove(Cookie.PERSISTENT);
