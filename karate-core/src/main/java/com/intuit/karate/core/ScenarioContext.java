@@ -463,6 +463,7 @@ public class ScenarioContext {
 
     public void configure(String key, ScriptValue value) { // TODO use enum
         key = StringUtils.trimToEmpty(key);
+
         // if next line returns true, http-client needs re-building
         if (config.configure(key, value)) {
             if (key.startsWith("httpClient")) { // special case
@@ -641,15 +642,28 @@ public class ScenarioContext {
     }
 
     public void cookies(String expr) {
-        Map<String, Object> map = evalMapExpr(expr);
-        for (Map.Entry<String, Object> entry : map.entrySet()) {
-            String key = entry.getKey();
-            Object temp = entry.getValue();
-            if (temp == null) {
-                request.removeCookie(key);
-            } else {
-                request.setCookie(new Cookie(key, temp.toString()));
+        ScriptValue value = Script.evalKarateExpression(expr, this);
+        if (value.isListLike()) {
+            List<Map> mapList = value.getAsList();
+            mapList.forEach(currCookieSet ->
+                    {
+                        Cookie cookie = new Cookie(String.valueOf(currCookieSet.get("name")), String.valueOf(currCookieSet.get("value")));
+                        request.setCookie(cookie);
+                    }
+            );
+        } else if (value.isMapLike()) {
+            Map<String, Object> map = value.getAsMap();
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                String key = entry.getKey();
+                Object temp = entry.getValue();
+                if (temp == null) {
+                    request.removeCookie(key);
+                } else {
+                    request.setCookie(new Cookie(key, temp.toString()));
+                }
             }
+        } else {
+            throw new KarateException("cannot create cookie from this expression: " + expr + " of type: " + value.getType());
         }
     }
 

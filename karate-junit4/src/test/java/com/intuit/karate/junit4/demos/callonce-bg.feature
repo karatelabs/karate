@@ -13,3 +13,4 @@ Scenario Outline: outline <value>
   Examples:
     | value |
     | 1     |
+    | 2     |

@@ -3,4 +3,4 @@ Feature:
 
 Scenario:
   * print 'in called outline', value
-  * match value == '1'
+  * match value == __num + 1 + ''
