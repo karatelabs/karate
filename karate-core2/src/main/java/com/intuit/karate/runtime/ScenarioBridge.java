@@ -264,14 +264,14 @@ public class ScenarioBridge implements PerfContext {
         Object result = get(exp);
         return result == null ? defaultValue : result;
     }
-    
-    public void log(Value ... values) {
+
+    public void log(Value... values) {
         ScenarioRuntime runtime = getRuntime();
         if (runtime.getConfig().isPrintEnabled()) {
             runtime.logger.info("{}", new LogWrapper(values));
         }
-    }    
-    
+    }
+
     // make sure toString() is lazy
     static class LogWrapper {
 
@@ -291,7 +291,7 @@ public class ScenarioBridge implements PerfContext {
             return sb.toString();
         }
 
-    }    
+    }
 
     public Object jsonPath(Object o, String exp) {
         Json json = new Json(o);
@@ -371,13 +371,6 @@ public class ScenarioBridge implements PerfContext {
         Variable v = new Variable(o);
         return v.getAsPrettyXmlString();
     }
-    
-    public void print(Value ... values) {
-        ScenarioRuntime runtime = getRuntime();
-        if (runtime.getConfig().isPrintEnabled()) {
-            runtime.logger.info("[print] {}", new LogWrapper(values));
-        }
-    }    
 
     public Object read(String name) {
         return getRuntime().fileReader.readFile(name);
@@ -439,6 +432,27 @@ public class ScenarioBridge implements PerfContext {
         Object bean = JsonUtils.fromJson(json.toString(), className);
         return JsValue.fromJava(bean);
     }
+    
+    public String toCsv(Object o) {
+        Variable v = new Variable(o);
+        if (!v.isList()) {
+            throw new RuntimeException("not a json array: " + v);
+        }
+        List<Map<String, Object>> list = v.getValue();
+        return JsonUtils.toCsv(list);
+    }    
+    
+    public Object toJson(Object o) {
+        return toJson(o, false);
+    }
+
+    public Object toJson(Object o, boolean removeNulls) {
+        Object result = new Json(o).asMapOrList();
+        if (removeNulls) {
+            JsonUtils.removeKeysWithNullValues(result);
+        }
+        return result;
+    }    
 
     // TODO deprecate
     public Object toList(Object o) {

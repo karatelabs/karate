@@ -247,14 +247,6 @@ public class ScenarioEngine {
         return eval(expression).isTrue();
     }
 
-    public Variable getIfVariableReference(String name) {
-        // don't re-evaluate if this is clearly a direct reference to a variable
-        // this avoids un-necessary conversion of xml into a map in some cases
-        // e.g. 'Given request foo' - where foo is a ScriptValue of type XML
-        // also e.g. 'print foo'        
-        return vars.containsKey(name) ? vars.get(name) : null;
-    }
-
     private static boolean isEmbeddedExpression(String text) {
         return text != null && (text.startsWith("#(") || text.startsWith("##(")) && text.endsWith(")");
     }
@@ -644,7 +636,7 @@ public class ScenarioEngine {
     }
 
     public void print(String line) {
-        eval("karate.print(" + line + ")");
+        eval("karate.log('[print]'," + line + ")");
     }
 
     public void table(String name, List<Map<String, String>> rows) {
@@ -1029,9 +1021,11 @@ public class ScenarioEngine {
         if (text == null) {
             return Variable.NULL;
         }
-        Variable varValue = getIfVariableReference(text);
-        if (varValue != null) {
-            return varValue;
+        // don't re-evaluate if this is clearly a direct reference to a variable
+        // this avoids un-necessary conversion of xml into a map in some cases
+        // e.g. 'Given request foo' - where foo is a Variable of type XML      
+        if (vars.containsKey(text)) {
+            return vars.get(text);
         }
         boolean callOnce = isCallOnceSyntax(text);
         if (callOnce || isCallSyntax(text)) { // special case in form "callBegin foo arg"

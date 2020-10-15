@@ -130,7 +130,7 @@ public class JsonUtils {
     public static Object fromJson(String json) {
         return JSONValue.parse(json);
     }
-    
+
     public static Object fromJson(String s, String className) {
         try {
             Class clazz = Class.forName(className);
@@ -142,7 +142,7 @@ public class JsonUtils {
 
     public static <T> T fromJson(String s, Class<T> clazz) {
         return (T) fromJson(s, clazz.getName());
-    }    
+    }
 
     public static Map<String, Object> fromYaml(String raw) {
         Yaml yaml = new Yaml(new SafeConstructor());
@@ -232,7 +232,7 @@ public class JsonUtils {
         // anti recursion / back-references
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
         recurseJsonString(o, pretty, sb, 0, seen);
-        if (pretty) { 
+        if (pretty) {
             sb.append('\n');
         }
         return sb.toString();
@@ -282,7 +282,7 @@ public class JsonUtils {
                 sb.append(']');
             } else {
                 ref(sb, o);
-            }            
+            }
         } else if (o instanceof Map) {
             if (seen.add(o)) {
                 sb.append('{');
@@ -321,6 +321,27 @@ public class JsonUtils {
             sb.append('"').append(escapeValue(value)).append('"');
         } else {
             sb.append(o);
+        }
+    }
+
+    public static void removeKeysWithNullValues(Object o) {
+        if (o instanceof List) {
+            List list = (List) o;
+            for (Object v : list) {
+                removeKeysWithNullValues(v);
+            }
+        } else if (o instanceof Map) {
+            Map<String, Object> map = (Map) o;
+            List<String> toRemove = new ArrayList();
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                Object v = entry.getValue();
+                if (v == null) {
+                    toRemove.add(entry.getKey());
+                } else {
+                    removeKeysWithNullValues(v);
+                }
+            }
+            toRemove.forEach(key -> map.remove(key));
         }
     }
 

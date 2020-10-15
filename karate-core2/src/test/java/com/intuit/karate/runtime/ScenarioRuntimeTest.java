@@ -343,5 +343,26 @@ class ScenarioRuntimeTest {
         assertEquals(sp.getFoo(), "hello");
         assertEquals(sp.getBar(), 5);
     }
+    
+    @Test
+    void testToJson() {
+        run(
+                "def SP = Java.type('com.intuit.karate.runtime.SimplePojo')",
+                "def pojo = new SP()",
+                "def res1 = karate.toJson(pojo)",
+                "def res2 = karate.toJson(pojo, true)"
+        );
+        matchVarEquals("res1", "{ bar: 0, foo: null }");
+        matchVarEquals("res2", "{ bar: 0 }");
+    }
+    
+    @Test
+    void testToCsv() {
+        run(
+                "def foo = [{a: 1, b: 2}, { a: 3, b: 4 }]",
+                "def res = karate.toCsv(foo)"
+        );
+        matchVarEquals("res", "a,b\n1,2\n3,4\n");
+    }    
 
 }
