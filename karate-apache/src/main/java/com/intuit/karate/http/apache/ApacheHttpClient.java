@@ -323,8 +323,10 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
         response.setStatus(httpResponse.getStatusLine().getStatusCode());
         for (Cookie c : cookieStore.getCookies()) {
             com.intuit.karate.http.Cookie cookie = new com.intuit.karate.http.Cookie(c.getName(), c.getValue());
-            cookie.put(DOMAIN, c.getDomain());
-            cookie.put(PATH, c.getPath());
+            // while preparing the cookie in buildCookie method we used a BasicClientCookie. This conversion ensures we get path correctly.
+            BasicClientCookie cc = (BasicClientCookie) c;
+            cookie.put(DOMAIN, cc.getDomain());
+            cookie.put(PATH, cc.getPath());
             if (c.getExpiryDate() != null) {
                 cookie.put(EXPIRES, c.getExpiryDate().getTime() + "");
             }
@@ -340,9 +342,8 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
                 cookieMap.forEach( ck -> {
                     com.intuit.karate.http.Cookie cookie = new com.intuit.karate.http.Cookie(ck.getName(), ck.getValue());
                     cookie.put(DOMAIN, ck.getDomain());
-                    cookie.put(PATH, ck.getPath());
+                    cookie.put(PATH, null != ck.getPath() ? ck.getPath() : "/"); // lets make sure path is not null.
                     cookie.put(MAX_AGE, ck.getMaxAge() + "");
-                    response.addCookie(cookie);
                 });
             }
             response.addHeader(header.getName(), header.getValue());
