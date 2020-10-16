@@ -6,7 +6,6 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import java.io.InputStream;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 /**
  *
@@ -30,6 +29,14 @@ public class RuntimeUtils {
             }
         };
         return FeatureParser.parse(resource);
+    }
+
+    public static ScenarioRuntime runtime() {
+        Feature feature = toFeature("print.feature", "* print 'test'");
+        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature, false);
+        ScenarioGenerator sg = new ScenarioGenerator(fr, feature.getSections().iterator());
+        sg.hasNext();
+        return sg.next();
     }
 
     public static ScenarioRuntime runScenario(String... lines) {

@@ -265,6 +265,10 @@ public class ScenarioBridge implements PerfContext {
         return result == null ? defaultValue : result;
     }
 
+    public Object getInfo() {
+        return new JsMap(getRuntime().getScenarioInfo());
+    }
+
     public void log(Value... values) {
         ScenarioRuntime runtime = getRuntime();
         if (runtime.getConfig().isPrintEnabled()) {
@@ -373,11 +377,11 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object read(String name) {
-        return getRuntime().fileReader.readFile(name);
+        return getRuntime().engine.fileReader.readFile(name);
     }
 
     public String readAsString(String fileName) {
-        return getRuntime().fileReader.readFileAsString(fileName);
+        return getRuntime().engine.fileReader.readFileAsString(fileName);
     }
 
     public void remove(String name, String path) {
@@ -432,7 +436,7 @@ public class ScenarioBridge implements PerfContext {
         Object bean = JsonUtils.fromJson(json.toString(), className);
         return JsValue.fromJava(bean);
     }
-    
+
     public String toCsv(Object o) {
         Variable v = new Variable(o);
         if (!v.isList()) {
@@ -440,8 +444,8 @@ public class ScenarioBridge implements PerfContext {
         }
         List<Map<String, Object>> list = v.getValue();
         return JsonUtils.toCsv(list);
-    }    
-    
+    }
+
     public Object toJson(Object o) {
         return toJson(o, false);
     }
@@ -452,7 +456,7 @@ public class ScenarioBridge implements PerfContext {
             JsonUtils.removeKeysWithNullValues(result);
         }
         return result;
-    }    
+    }
 
     // TODO deprecate
     public Object toList(Object o) {

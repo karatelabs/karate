@@ -22,7 +22,7 @@ public class ScenarioEngineTest {
 
     static final Logger logger = LoggerFactory.getLogger(ScenarioEngineTest.class);
 
-    ScenarioEngine engine = new ScenarioEngine(null, new HashMap(), new com.intuit.karate.Logger());
+    ScenarioEngine engine = new ScenarioEngine(RuntimeUtils.runtime(), new HashMap(), new com.intuit.karate.Logger());
 
     @BeforeEach
     void beforeEach() {

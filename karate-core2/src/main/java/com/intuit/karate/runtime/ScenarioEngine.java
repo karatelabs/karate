@@ -62,12 +62,17 @@ import org.w3c.dom.NodeList;
 public class ScenarioEngine {
 
     private final ScenarioRuntime runtime;
+    private final Function<String, Object> readFunction;
     private final Logger logger;
+    public final ScenarioFileReader fileReader;
     public final Map<String, Variable> vars;
+
     private JsEngine JS;
 
     public ScenarioEngine(ScenarioRuntime runtime, Map<String, Variable> vars, Logger logger) {
         this.runtime = runtime;
+        fileReader = new ScenarioFileReader(runtime);
+        readFunction = s -> fileReader.readFile(s);
         this.vars = vars;
         this.logger = logger;
     }
@@ -75,6 +80,8 @@ public class ScenarioEngine {
     // not in constructor because it has to be on Runnable.run() thread
     public void init() {
         JS = JsEngine.local();
+        setHiddenVariable(VariableNames.KARATE, new ScenarioBridge());
+        setHiddenVariable(VariableNames.READ, readFunction);
         attachJsValuesToContext();
     }
 
@@ -179,10 +186,14 @@ public class ScenarioEngine {
         map.forEach((k, v) -> setVariable(k, v));
     }
 
-    public Map<String, Variable> copyVariables(boolean deep) {
-        Map<String, Variable> map = new HashMap(vars.size());
-        vars.forEach((k, v) -> map.put(k, v == null ? Variable.NULL : v.copy(deep)));
+    private static Map<String, Variable> copy(Map<String, Variable> source, boolean deep) {
+        Map<String, Variable> map = new HashMap(source.size());
+        source.forEach((k, v) -> map.put(k, v == null ? Variable.NULL : v.copy(deep)));
         return map;
+    }
+
+    public Map<String, Variable> copyVariables(boolean deep) {
+        return copy(vars, deep);
     }
 
     public Map<String, Object> getAllVariablesAsMap() {
@@ -845,23 +856,34 @@ public class ScenarioEngine {
         StringUtils.Pair pair = parseCallArgs(exp);
         Variable called = evalKarateExpression(pair.left);
         Variable arg = pair.right == null ? null : evalKarateExpression(pair.right);
+        Variable result;
         if (callOnce) {
-            return callOnce(exp, called, arg, sharedScope);
+            result = callOnce(exp, called, arg, sharedScope);
         } else {
-            return call(called, arg, sharedScope);
+            result = call(called, arg, sharedScope);
         }
+        if (sharedScope && result.isMap()) {
+            setVariables(result.getValue());
+        }
+        return result;
     }
 
     private Variable result(ScenarioCall.Result result, boolean sharedScope) {
         if (sharedScope) { // if shared scope
             runtime.configure(new Config(result.config)); // re-apply config from time of snapshot
             if (result.vars != null) {
-                // don't clear vars because karate-config.js or background or scenario outline may have set some !
-                // vars.clear(); 
-                vars.putAll(copyVariables(false)); // clone for safety 
+                // clean slate
+                vars.clear();
+                vars.putAll(copy(result.vars, false)); // clone for safety     
+                // update magic variables !
+                runtime.setMagicVariables(vars);
+                // since we already reset the vars above we return null
+                return Variable.NULL;
+                // else the call() routine would try to do it again
+                // note that shared scope means a return value is meaningless
             }
         }
-        return result.value.copy(false); // clone result for safety       
+        return result.value.copy(false); // clone result for safety 
     }
 
     private Variable callOnce(String cacheKey, Variable called, Variable arg, boolean sharedScope) {
