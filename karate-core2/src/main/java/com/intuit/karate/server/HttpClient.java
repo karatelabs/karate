@@ -82,8 +82,6 @@ public class HttpClient implements ProxyObject {
     private static final String OPTIONS = "options";
     private static final String TRACE = "trace";
 
-    private static final byte[] ZERO_BYTES = new byte[0];
-
     private static final String[] KEYS = new String[]{
         URL, METHOD, PATH, PARAM, PARAMS, HEADER, HEADERS, BODY, INVOKE, HEADER_FACTORY,
         GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE
@@ -224,8 +222,6 @@ public class HttpClient implements ProxyObject {
         return invoke();
     }
 
-    private static final String CONTENT_TYPE = "Content-Type";
-
     public Response invoke() {
         if (headerFactory != null) {
             if (headerFactory.isObject()) {
@@ -256,12 +252,12 @@ public class HttpClient implements ProxyObject {
         }
         final byte[] bytes;
         if (body == null) {
-            bytes = ZERO_BYTES;
+            bytes = HttpConstants.ZERO_BYTES;
         } else {
-            if (header(CONTENT_TYPE) == null) {
+            if (header(HttpConstants.HDR_CONTENT_TYPE) == null) {
                 ResourceType rt = ResourceType.fromObject(body);
                 if (rt != ResourceType.NONE) {
-                    rhb.add(CONTENT_TYPE, rt.contentType);
+                    rhb.add(HttpConstants.HDR_CONTENT_TYPE, rt.contentType);
                 }
             }
             bytes = JsValue.toBytes(body);
@@ -292,7 +288,7 @@ public class HttpClient implements ProxyObject {
         return response;
     }
 
-    private final VarArgFunction PATH_FUNCTION = args -> {
+    private final VarArgsFunction PATH_FUNCTION = args -> {
         if (args.length == 0) {
             return getPath();
         } else {
@@ -309,7 +305,7 @@ public class HttpClient implements ProxyObject {
         return o == null ? null : o.toString();
     }
 
-    private final VarArgFunction HEADER_FUNCTION = args -> {
+    private final VarArgsFunction HEADER_FUNCTION = args -> {
         if (args.length == 1) {
             List<String> list = header(toString(args[0]));
             if (list == null || list.isEmpty()) {
@@ -322,7 +318,7 @@ public class HttpClient implements ProxyObject {
         }
     };
 
-    private final VarArgFunction PARAM_FUNCTION = args -> {
+    private final VarArgsFunction PARAM_FUNCTION = args -> {
         if (args.length == 1) {
             List<String> list = param(toString(args[0]));
             if (list == null || list.isEmpty()) {
@@ -335,7 +331,7 @@ public class HttpClient implements ProxyObject {
         }
     };
 
-    private final VarArgFunction INVOKE_FUNCTION = args -> {
+    private final VarArgsFunction INVOKE_FUNCTION = args -> {
         switch (args.length) {
             case 0:
                 return invoke();
@@ -351,7 +347,6 @@ public class HttpClient implements ProxyObject {
     private final Function PUT_FUNCTION = o -> invoke(PUT, o);
     private final Function PATCH_FUNCTION = o -> invoke(PATCH, o);
     private final Supplier DELETE_FUNCTION = () -> invoke(DELETE);
-    private final Function<String, Object> URL_FUNCTION = s -> url(s);
 
     @Override
     public Object getMember(String key) {
@@ -383,7 +378,7 @@ public class HttpClient implements ProxyObject {
             case DELETE:
                 return DELETE_FUNCTION;
             case URL:
-                return URL_FUNCTION; // special case, support fluent api
+                return (Function<String, Object>) this::url;
             default:
                 logger.warn("no such property on http object: {}", key);
                 return null;

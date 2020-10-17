@@ -21,42 +21,34 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.server;
+package com.intuit.karate.runtime;
 
-import com.linecorp.armeria.server.Server;
-import com.linecorp.armeria.server.ServerBuilder;
-import java.util.concurrent.CompletableFuture;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.Scenario;
+import com.intuit.karate.server.Request;
+import com.intuit.karate.server.Response;
+import com.intuit.karate.server.ServerHandler;
 
 /**
  *
  * @author pthomas3
  */
-public class HttpServer {
-
-    private static final Logger logger = LoggerFactory.getLogger(HttpServer.class);
-
-    private final Server server;
-    private final CompletableFuture<Void> future;
-
-    public void waitSync() {
-        future.join();
-        try {
-            Thread.currentThread().join();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+public class MockServerHandler implements ServerHandler {
+    
+    private final Feature feature;
+    private final ScenarioRuntime runtime;
+    
+    public MockServerHandler(Feature feature) {
+        this.feature = feature;
+        Scenario dummy = new Scenario(feature, feature.getSection(0), -1);
+        SuiteRuntime suite = new SuiteRuntime();
+        FeatureRuntime featureRuntime = new FeatureRuntime(suite, feature, true);
+        runtime = new ScenarioRuntime(featureRuntime, dummy);
     }
-
-    public HttpServer(int port, ServerConfig config) {
-        ServerBuilder sb = Server.builder();
-        sb.http(port);
-        RequestHandler handler = new RequestHandler(config);
-        sb.service("prefix:/", new HttpServerHandler(handler));
-        server = sb.build();
-        future = server.start();
-        logger.debug("server started: {}:{}", server.defaultHostname(), port);
+    
+    @Override
+    public Response handle(Request req) {
+        return null;
     }
-
+    
 }

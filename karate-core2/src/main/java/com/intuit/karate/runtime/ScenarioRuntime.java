@@ -207,7 +207,7 @@ public class ScenarioRuntime implements Runnable {
             exampleData.forEach((k, v) -> vars.put(k, new Variable(v)));
             vars.put("__row", new Variable(exampleData));
             vars.put("__num", new Variable(scenario.getExampleIndex()));
-            // TODO breaking change configure outlineVariablesAuto                
+            // TODO breaking change configure outlineVariablesAuto deprecated          
         }
         if (!parentCall.isNone()) {
             Variable arg = parentCall.getArg();

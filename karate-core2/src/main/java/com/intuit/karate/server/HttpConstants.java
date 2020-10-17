@@ -23,40 +23,24 @@
  */
 package com.intuit.karate.server;
 
-import com.linecorp.armeria.server.Server;
-import com.linecorp.armeria.server.ServerBuilder;
-import java.util.concurrent.CompletableFuture;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  *
  * @author pthomas3
  */
-public class HttpServer {
+public class HttpConstants {
 
-    private static final Logger logger = LoggerFactory.getLogger(HttpServer.class);
-
-    private final Server server;
-    private final CompletableFuture<Void> future;
-
-    public void waitSync() {
-        future.join();
-        try {
-            Thread.currentThread().join();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    private HttpConstants() {
+        // only static methods
     }
 
-    public HttpServer(int port, ServerConfig config) {
-        ServerBuilder sb = Server.builder();
-        sb.http(port);
-        RequestHandler handler = new RequestHandler(config);
-        sb.service("prefix:/", new HttpServerHandler(handler));
-        server = sb.build();
-        future = server.start();
-        logger.debug("server started: {}:{}", server.defaultHostname(), port);
-    }
+    public static final byte[] ZERO_BYTES = new byte[0];
+
+    public static final String HDR_COOKIE = "Cookie";
+    public static final String HDR_SET_COOKIE = "Set-Cookie";
+    public static final String HDR_CONTENT_TYPE = "Content-Type";
+    public static final String HDR_LOCATION = "Location";
+    
+    public static final String HDR_HX_TRIGGER = "HX-Trigger";
+    public static final String HDR_HX_REQUEST = "HX-Request";
 
 }

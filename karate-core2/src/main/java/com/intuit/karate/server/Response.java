@@ -117,11 +117,11 @@ public class Response implements ProxyObject {
         this.resourceType = resourceType;
     }
 
-    public List<String> header(String name) { // TOTO optimize
+    public List<String> getHeader(String name) { // TOTO optimize
         return StringUtils.getIgnoreKeyCase(headers, name);
     }
 
-    public void header(String name, String... values) {
+    public void setHeader(String name, String... values) {
         if (headers == null) {
             headers = new HashMap();
         }
@@ -132,15 +132,15 @@ public class Response implements ProxyObject {
         return o == null ? null : o.toString();
     }
 
-    private final VarArgFunction HEADER_FUNCTION = args -> {
+    private final VarArgsFunction HEADER_FUNCTION = args -> {
         if (args.length == 1) {
-            List<String> list = header(toString(args[0]));
+            List<String> list = getHeader(toString(args[0]));
             if (list == null || list.isEmpty()) {
                 return null;
             }
             return list.get(0);
         } else {
-            header(toString(args[0]), toString(args[1]));
+            setHeader(toString(args[0]), toString(args[1]));
             return Response.this;
         }
     };

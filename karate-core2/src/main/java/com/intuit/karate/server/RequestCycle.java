@@ -63,7 +63,7 @@ public class RequestCycle {
     private TemplateEngineContext engineContext;
     private Session session;
     private Response response;
-    private Context context;
+    private ServerContext context;
     private String switchTemplate;
 
     private RequestCycle() {
@@ -120,7 +120,7 @@ public class RequestCycle {
         return response;
     }
 
-    public Context getContext() {
+    public ServerContext getContext() {
         return context;
     }
 
@@ -132,7 +132,7 @@ public class RequestCycle {
         return switchTemplate;
     }
 
-    public void init(Context context, Session session) {
+    public void init(ServerContext context, Session session) {
         this.context = context;
         if (session != null) {
             jsEngine.put(SESSION, session.getData());

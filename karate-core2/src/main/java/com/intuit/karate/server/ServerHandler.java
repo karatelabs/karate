@@ -23,40 +23,12 @@
  */
 package com.intuit.karate.server;
 
-import com.linecorp.armeria.server.Server;
-import com.linecorp.armeria.server.ServerBuilder;
-import java.util.concurrent.CompletableFuture;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  *
  * @author pthomas3
  */
-public class HttpServer {
-
-    private static final Logger logger = LoggerFactory.getLogger(HttpServer.class);
-
-    private final Server server;
-    private final CompletableFuture<Void> future;
-
-    public void waitSync() {
-        future.join();
-        try {
-            Thread.currentThread().join();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public HttpServer(int port, ServerConfig config) {
-        ServerBuilder sb = Server.builder();
-        sb.http(port);
-        RequestHandler handler = new RequestHandler(config);
-        sb.service("prefix:/", new HttpServerHandler(handler));
-        server = sb.build();
-        future = server.start();
-        logger.debug("server started: {}:{}", server.defaultHostname(), port);
-    }
-
+public interface ServerHandler {
+    
+    Response handle(Request request);
+    
 }

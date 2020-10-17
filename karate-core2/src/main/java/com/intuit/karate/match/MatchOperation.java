@@ -194,7 +194,8 @@ public class MatchOperation {
                 case CONTAINS_DEEP:
                     if (!expected.isList()) {
                         MatchOperation mo = new MatchOperation(context, type, actual, new MatchValue(Collections.singletonList(expected.getValue())));
-                        return mo.execute();
+                        mo.execute();
+                        return mo.pass ? pass() : fail(mo.failReason);
                     }
                     break;
                 default:

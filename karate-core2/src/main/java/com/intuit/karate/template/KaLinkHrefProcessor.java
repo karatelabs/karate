@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.server.Config;
+import com.intuit.karate.server.ServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.context.ITemplateContext;
@@ -41,10 +41,10 @@ public class KaLinkHrefProcessor extends AbstractAttributeTagProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(KaLinkHrefProcessor.class);
 
-    private final Config config;
+    private final ServerConfig config;
     private final String hostContextPath;
 
-    public KaLinkHrefProcessor(String dialectPrefix, Config config) {
+    public KaLinkHrefProcessor(String dialectPrefix, ServerConfig config) {
         super(TemplateMode.HTML, dialectPrefix, "link", false, "href", false, 1000, false);
         this.config = config;
         hostContextPath = config.getHostContextPath();

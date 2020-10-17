@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.server.Config;
+import com.intuit.karate.server.ServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.context.ITemplateContext;
@@ -44,7 +44,7 @@ public class KaHxPathAttrProcessor extends AbstractAttributeTagProcessor {
     private final String attributeName;
     private final String hostContextPath;
 
-    public KaHxPathAttrProcessor(String dialectPrefix, String attributeName, Config config) {
+    public KaHxPathAttrProcessor(String dialectPrefix, String attributeName, ServerConfig config) {
         super(TemplateMode.HTML, dialectPrefix, null, false, attributeName, true, 1000, true);
         this.attributeName = attributeName;
         hostContextPath = config.getHostContextPath();

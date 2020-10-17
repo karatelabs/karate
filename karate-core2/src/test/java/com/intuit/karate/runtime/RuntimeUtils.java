@@ -13,7 +13,7 @@ import java.nio.file.Path;
  */
 public class RuntimeUtils {
 
-    public static Feature toFeature(String name, String... lines) {
+    public static Feature toFeature(String... lines) {
         StringBuilder sb = new StringBuilder();
         sb.append("Feature:\nScenario:\n");
         for (String line : lines) {
@@ -21,7 +21,7 @@ public class RuntimeUtils {
         }
         InputStream is = FileUtils.toInputStream(sb.toString());
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
-        Path path = FileUtils.fromRelativeClassPath("classpath:com/intuit/karate/runtime/" + name, cl);
+        Path path = FileUtils.fromRelativeClassPath("classpath:com/intuit/karate/runtime/dummy.feature", cl);
         Resource resource = new Resource(path, cl) {
             @Override
             public InputStream getStream() {
@@ -32,7 +32,7 @@ public class RuntimeUtils {
     }
 
     public static ScenarioRuntime runtime() {
-        Feature feature = toFeature("print.feature", "* print 'test'");
+        Feature feature = toFeature("* print 'test'");
         FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature, false);
         ScenarioGenerator sg = new ScenarioGenerator(fr, feature.getSections().iterator());
         sg.hasNext();
@@ -40,7 +40,7 @@ public class RuntimeUtils {
     }
 
     public static ScenarioRuntime runScenario(String... lines) {
-        Feature feature = toFeature("print.feature", lines);
+        Feature feature = toFeature(lines);
         FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature, false);
         ScenarioGenerator sg = new ScenarioGenerator(fr, feature.getSections().iterator());
         sg.hasNext();

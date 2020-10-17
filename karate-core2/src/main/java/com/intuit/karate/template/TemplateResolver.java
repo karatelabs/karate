@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.server.Config;
+import com.intuit.karate.server.ServerConfig;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,9 +41,9 @@ public class TemplateResolver implements ITemplateResolver {
 
     private static final Logger logger = LoggerFactory.getLogger(TemplateResolver.class);
 
-    private final Config config;
+    private final ServerConfig config;
 
-    public TemplateResolver(Config config) {
+    public TemplateResolver(ServerConfig config) {
         this.config = config;
     }
 

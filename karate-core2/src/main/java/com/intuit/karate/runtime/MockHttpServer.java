@@ -21,15 +21,42 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.server;
+package com.intuit.karate.runtime;
+
+import com.intuit.karate.server.HttpServerHandler;
+import com.linecorp.armeria.server.Server;
+import com.linecorp.armeria.server.ServerBuilder;
+import java.util.concurrent.CompletableFuture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-@FunctionalInterface
-public interface VarArgFunction<T> {
+public class MockHttpServer {
+    
+    private static final Logger logger = LoggerFactory.getLogger(MockHttpServer.class);
 
-    Object call(T... args);
-
+    private final Server server;
+    private final CompletableFuture<Void> future;   
+    
+    public void waitSync() {
+        future.join();
+        try {
+            Thread.currentThread().join();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }    
+    
+    public MockHttpServer(int port, MockServerHandler handler) {
+        ServerBuilder sb = Server.builder();
+        sb.http(port);
+        sb.service("prefix:/", new HttpServerHandler(handler));
+        server = sb.build();
+        future = server.start();
+        logger.debug("server started: {}:{}", server.defaultHostname(), port);        
+    }
+    
 }

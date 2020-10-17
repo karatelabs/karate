@@ -50,9 +50,9 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class Context implements ProxyObject {
+public class ServerContext implements ProxyObject {
 
-    private static final Logger logger = LoggerFactory.getLogger(Context.class);
+    private static final Logger logger = LoggerFactory.getLogger(ServerContext.class);
 
     private static final String READ = "read";
     private static final String UUID = "uuid";
@@ -69,7 +69,7 @@ public class Context implements ProxyObject {
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
-    private final Config config;
+    private final ServerConfig config;
     private final Request request;
 
     private boolean stateless;
@@ -80,7 +80,7 @@ public class Context implements ProxyObject {
     private List<Map<String, Object>> responseTriggers;
     private List<String> afterSettleScripts;
 
-    public Context(Config config, Request request) {
+    public ServerContext(ServerConfig config, Request request) {
         this.config = config;
         this.request = request;
     }
@@ -127,10 +127,8 @@ public class Context implements ProxyObject {
         }
     }
 
-    private static final String COOKIE = "Cookie";
-
     public String getSessionCookieValue() {
-        List<String> rawValues = request.header(COOKIE);
+        List<String> rawValues = request.getHeader(HttpConstants.HDR_COOKIE);
         if (rawValues == null || rawValues.isEmpty()) {
             return null;
         }
@@ -162,7 +160,7 @@ public class Context implements ProxyObject {
         return RequestCycle.get().getLocalEngine().toJson(v);
     }
 
-    public Config getConfig() {
+    public ServerConfig getConfig() {
         return config;
     }
 
@@ -232,15 +230,11 @@ public class Context implements ProxyObject {
         return request == null ? null : request.getRequestContext();
     }
 
-    private final Consumer<Map<String, Object>> TRIGGER_FUNCTION = map -> trigger(map);
-    private final Consumer<String> AFTER_SETTLE_FUNCTION = s -> afterSettle(s);
-    private final Function<String, Object> READ_FUNCTION = s -> read(s);
     private final Consumer<String> SWITCH_FUNCTION = s -> RequestCycle.get().setSwitchTemplate(s);
     private static final Supplier<String> UUID_FUNCTION = () -> java.util.UUID.randomUUID().toString();
-    private final Function<Object, String> TO_JSON_FUNCTION = o -> toJson(o);
     private final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s);
 
-    private final VarArgFunction HTTP_FUNCTION = args -> {
+    private final VarArgsFunction HTTP_FUNCTION = args -> {
         if (args.length == 0) {
             return new HttpClient(getRequestContext(), null);
         } else {
@@ -269,11 +263,11 @@ public class Context implements ProxyObject {
     public Object getMember(String key) {
         switch (key) {
             case READ:
-                return READ_FUNCTION;
+                return (Function<String, Object>) this::read;
             case UUID:
                 return UUID_FUNCTION;
             case TO_JSON:
-                return TO_JSON_FUNCTION;
+                return (Function<Object, String>) this::toJson;
             case FROM_JSON:
                 return FROM_JSON_FUNCTION;
             case REMOVE:
@@ -285,9 +279,9 @@ public class Context implements ProxyObject {
             case HTTP:
                 return HTTP_FUNCTION;
             case TRIGGER:
-                return TRIGGER_FUNCTION;
+                return (Consumer<Map<String, Object>>) this::trigger;
             case AFTER_SETTLE:
-                return AFTER_SETTLE_FUNCTION;
+                return (Consumer<String>) this::afterSettle;
             default:
                 logger.warn("no such property on context object: {}", key);
                 return null;

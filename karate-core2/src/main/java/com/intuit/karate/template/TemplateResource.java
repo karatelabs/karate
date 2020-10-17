@@ -24,7 +24,7 @@
 package com.intuit.karate.template;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.server.Config;
+import com.intuit.karate.server.ServerConfig;
 import com.intuit.karate.server.ResourceResolver;
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,11 +38,11 @@ import org.thymeleaf.templateresource.ITemplateResource;
  */
 public class TemplateResource implements ITemplateResource {
 
-    private final Config config;
+    private final ServerConfig config;
     private final ResourceResolver resourceResolver;
     private final String name;
 
-    public TemplateResource(String name, Config config) {
+    public TemplateResource(String name, ServerConfig config) {
         this.name = name;
         this.config = config;
         resourceResolver = config.getResourceResolver();

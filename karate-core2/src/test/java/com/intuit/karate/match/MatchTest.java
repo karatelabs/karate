@@ -125,6 +125,14 @@ class MatchTest {
         match("[{ a: 1 }, { b: 2 }, { c: 3 }]", CONTAINS_DEEP, "[{ a: 1 }, { c: 3 }]");
         match("[{ a: 1 }, { b: [1, 2, 3] }]", CONTAINS_DEEP, "[{ b: [2] }]");
     }
+    
+    @Test
+    void testListContains() {
+        match("['foo', 'bar']", CONTAINS, "baz", FAILS);
+        message("actual array does not contain expected item - baz");
+        match("['foo', 'bar']", CONTAINS, "['baz']", FAILS);
+        message("actual array does not contain expected item - baz");
+    }
 
     @Test
     void testEach() {

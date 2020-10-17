@@ -32,7 +32,7 @@ import java.util.function.Function;
  *
  * @author pthomas3
  */
-public class Config {
+public class ServerConfig {
 
     private String hostContextPath = null;
     private String homePagePath = "index";
@@ -45,8 +45,8 @@ public class Config {
 
     private static final Session GLOBAL_SESSION = new Session("-1", new HashMap(), -1, -1, -1);
 
-    private Function<Request, Context> contextFactory = request -> {
-        Context context = new Context(this, request);
+    private Function<Request, ServerContext> contextFactory = request -> {
+        ServerContext context = new ServerContext(this, request);
         String path = request.getPath();
         if (path.startsWith("api/")) {
             context.setApi(true);
@@ -80,7 +80,7 @@ public class Config {
         return sessionExpirySeconds;
     }
 
-    public Config mount(String from, String to) {
+    public ServerConfig mount(String from, String to) {
         if (resourceMounts == null) {
             resourceMounts = new HashMap();
         }
@@ -95,12 +95,12 @@ public class Config {
         return resourceMounts.get(from);
     }
     
-    public Config classPathRoot(String value) {
+    public ServerConfig classPathRoot(String value) {
         resourceResolver = new ClassPathResourceResolver(value);
         return this;
     }
 
-    public Config fileSystemRoot(String value) {
+    public ServerConfig fileSystemRoot(String value) {
         resourceResolver = new FileSystemResourceResolver(value);
         return this;
     }
@@ -109,11 +109,11 @@ public class Config {
         return sessionStore;
     }
 
-    public Function<Request, Context> getContextFactory() {
+    public Function<Request, ServerContext> getContextFactory() {
         return contextFactory;
     }
 
-    public Config hostContextPath(String value) {
+    public ServerConfig hostContextPath(String value) {
         if (value.charAt(0) != '/') {
             value = "/" + value;
         }
@@ -124,32 +124,32 @@ public class Config {
         return this;
     }
 
-    public Config homePagePath(String value) {
+    public ServerConfig homePagePath(String value) {
         homePagePath = value;
         return this;
     }
 
-    public Config sessionCookieName(String value) {
+    public ServerConfig sessionCookieName(String value) {
         sessionCookieName = value;
         return this;
     }
 
-    public Config stripContextPathFromRequest(boolean value) {
+    public ServerConfig stripContextPathFromRequest(boolean value) {
         stripContextPathFromRequest = value;
         return this;
     }
 
-    public Config sessionStore(SessionStore value) {
+    public ServerConfig sessionStore(SessionStore value) {
         sessionStore = value;
         return this;
     }
 
-    public Config sessionExpirySeconds(int value) {
+    public ServerConfig sessionExpirySeconds(int value) {
         sessionExpirySeconds = value;
         return this;
     }
 
-    public Config contextFactory(Function<Request, Context> value) {
+    public ServerConfig contextFactory(Function<Request, ServerContext> value) {
         contextFactory = value;
         return this;
     }

@@ -85,7 +85,6 @@ public class Request implements ProxyObject {
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
-    private boolean pathEmpty;
     private String path;
     private String method;
     private Map<String, List<String>> params;
@@ -103,19 +102,17 @@ public class Request implements ProxyObject {
 
     public void setRequestContext(RequestContext requestContext) {
         this.requestContext = requestContext;
-    }        
-    
-    private static final String HX_REQUEST = "HX-Request";
-    
-    public boolean isAjax() {
-        return header(HX_REQUEST) != null;
     }
 
-    public List<String> header(String name) { // TODO optimize
+    public boolean isAjax() {
+        return getHeader(HttpConstants.HDR_HX_REQUEST) != null;
+    }
+
+    public List<String> getHeader(String name) { // TODO optimize
         return StringUtils.getIgnoreKeyCase(headers, name);
     }
 
-    public String param(String name) {
+    public String getParam(String name) {
         if (params == null) {
             return null;
         }
@@ -126,10 +123,6 @@ public class Request implements ProxyObject {
         return values.get(0);
     }
 
-    public boolean isPathEmpty() {
-        return pathEmpty;
-    }        
-
     public String getPath() {
         return path;
     }
@@ -139,7 +132,6 @@ public class Request implements ProxyObject {
             path = path.substring(1);
         }
         this.path = path;
-        pathEmpty = path.isEmpty();
     }
 
     public ResourceType getResourceType() {
@@ -213,9 +205,9 @@ public class Request implements ProxyObject {
     public Object getBodyAsJsValue() {
         return JsValue.fromBytes(body);
     }
-    
+
     public Object getParamAsJsValue(String name) {
-        String value = param(name);
+        String value = getParam(name);
         return value == null ? null : JsValue.fromString(value);
     }
 
@@ -240,18 +232,14 @@ public class Request implements ProxyObject {
             decoder.destroy();
         }
     }
-    
-    private final Function<String, String> PARAM_FUNCTION = name -> param(name);
 
     private final Function<String, String> HEADER_FUNCTION = name -> {
-        List<String> list = header(name);
+        List<String> list = getHeader(name);
         if (list == null || list.isEmpty()) {
             return null;
         }
         return list.get(0);
-    };    
-    
-    private final Function<String, Object> JSON_FUNCTION = name -> getParamAsJsValue(name);
+    };
 
     @Override
     public Object getMember(String key) {
@@ -261,9 +249,9 @@ public class Request implements ProxyObject {
             case BODY:
                 return getBodyAsJsValue();
             case PARAM:
-                return PARAM_FUNCTION;
+                return (Function<String, String>) this::getParam;
             case JSON:
-                return JSON_FUNCTION;
+                return (Function<String, Object>) this::getParamAsJsValue;
             case AJAX:
                 return isAjax();
             case PATH:
