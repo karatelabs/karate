@@ -72,7 +72,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     @Override
     public DynamicTest next() {
         ScenarioExecutionUnit unit = iterator.next();
-        return DynamicTest.dynamicTest(unit.scenario.getNameForReport(), getFeatureSrcURI(unit) ,() -> {
+        return DynamicTest.dynamicTest(unit.scenario.getNameForReport(), unit.scenario.getScenarioSrcUri() ,() -> {
             if (featureUnit.isSelected(unit)) {
                 unit.run();
             }
@@ -96,15 +96,4 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     public Iterator<DynamicTest> iterator() {
         return this;
     }
-
-    // fetch src uri to point to scenario in feature file.
-    public URI getFeatureSrcURI(ScenarioExecutionUnit sunit) {
-        // this could be made conditional based on config - if navigating to feature file needed, then use below else return null.
-        String workingDir = System.getProperty("user.dir");
-        // we can use getPath as well - though that will point to feature file from compiled location i.e. target
-        String featurePath = sunit.scenario.getFeature().getRelativePath().replace("classpath:", "");
-        return URI.create(new File(workingDir + "/src/test/java/" + featurePath).toURI().toString() + "?line="
-                + sunit.scenario.getLine());
-    }
-
 }

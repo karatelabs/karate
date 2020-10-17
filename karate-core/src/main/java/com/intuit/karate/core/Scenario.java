@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.core;
 
+import java.io.File;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -284,6 +286,16 @@ public class Scenario {
     @Override
     public String toString() {
         return feature.toString() + getDisplayMeta();
-    }        
+    }
+
+    // fetch src uri to point to scenario in feature file.
+    public URI getScenarioSrcUri() {
+        // this could be made conditional based on config - if navigating to feature file needed, then use below else return null.
+        String workingDir = System.getProperty("user.dir");
+        // we can use getPath as well - though that will point to feature file from compiled location i.e. target
+        String featurePath = this.feature.getRelativePath().replace("classpath:", "");
+        return URI.create(new File(workingDir + "/src/test/java/" + featurePath).toURI().toString() + "?line="
+                + this.line);
+    }
 
 }
