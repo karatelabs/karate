@@ -32,6 +32,9 @@ import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.HtmlFeatureReport;
 import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.ScenarioExecutionUnit;
+
+import java.io.File;
+import java.net.URI;
 import java.util.Iterator;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DynamicTest;
@@ -69,7 +72,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     @Override
     public DynamicTest next() {
         ScenarioExecutionUnit unit = iterator.next();
-        return DynamicTest.dynamicTest(unit.scenario.getNameForReport(), () -> {
+        return DynamicTest.dynamicTest(unit.scenario.getNameForReport(), getFeatureSrcURI(unit) ,() -> {
             if (featureUnit.isSelected(unit)) {
                 unit.run();
             }
@@ -92,6 +95,16 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     @Override
     public Iterator<DynamicTest> iterator() {
         return this;
+    }
+
+    // fetch src uri to point to scenario in feature file.
+    public URI getFeatureSrcURI(ScenarioExecutionUnit sunit) {
+        // this could be made conditional based on config - if navigating to feature file needed, then use below else return null.
+        String workingDir = System.getProperty("user.dir");
+        // we can use getPath as well - though that will point to feature file from compiled location i.e. target
+        String featurePath = sunit.scenario.getFeature().getRelativePath().replace("classpath:", "");
+        return URI.create(new File(workingDir + "/src/test/java/" + featurePath).toURI().toString() + "?line="
+                + sunit.scenario.getLine());
     }
 
 }
