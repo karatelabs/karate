@@ -48,17 +48,26 @@ class ScenarioRuntimeTest {
     }
 
     @Test
-    void testConfig() {
+    void testConfigAndEnv() {
         System.setProperty("karate.env", "");
         System.setProperty("karate.config.dir", "");
         run("def foo = configSource");
         matchVarEquals("foo", "normal");
+        
         System.setProperty("karate.config.dir", "src/test/java/com/intuit/karate/runtime");
-        run("def foo = configSource");
+        run(
+                "def foo = configSource", 
+                "def bar = karate.env"
+        );
         matchVarEquals("foo", "custom");
+        matchVarEquals("bar", null);
         System.setProperty("karate.env", "dev");
-        run("def foo = configSource");
+        run(
+                "def foo = configSource", 
+                "def bar = karate.env"
+        );
         matchVarEquals("foo", "custom-env");
+        matchVarEquals("bar", "dev");
         // reset for other tests    
         System.setProperty("karate.env", "");
         System.setProperty("karate.config.dir", "");
@@ -134,6 +143,23 @@ class ScenarioRuntimeTest {
         );
         matchVarEquals("first", get("second"));
     }
+    
+    @Test
+    void testCallSingle() {
+        run(
+                "def first = karate.callSingle('uuid.js')",
+                "def second = karate.callSingle('uuid.js')"
+        );
+        matchVarEquals("first", get("second"));
+    }    
+    
+    @Test
+    void testCallFromJs() {
+        run(
+                "def res = karate.call('called1.feature')"
+        );
+        matchVarEquals("res", "{ a: 1, foo: { hello: 'world' }, configSource: 'normal', __arg: null, __loop: -1 }");
+    }      
 
     @Test
     void testToString() {
@@ -364,6 +390,26 @@ class ScenarioRuntimeTest {
         );
         matchVarEquals("res", "a,b\n1,2\n3,4\n");
     }
+    
+    @Test
+    void testEval() {
+        run(
+                "def foo = karate.eval('() => 1 + 2')",
+                "def bar = foo()"
+        );
+        assertTrue(sr.engine.vars.get("foo").isFunction());
+        matchVarEquals("bar", 3);        
+    }
+    
+    @Test
+    void testFromString() {
+        run(
+                "def foo = karate.fromString('{ hello: \"world\" }')",
+                "def bar = karate.typeOf(foo)"
+        );
+        assertTrue(sr.engine.vars.get("foo").isMap());
+        matchVarEquals("bar", "map");        
+    }    
 
 
 }

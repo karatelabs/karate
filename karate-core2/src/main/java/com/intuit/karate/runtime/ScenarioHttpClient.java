@@ -50,11 +50,9 @@ public abstract class ScenarioHttpClient<T> {
     protected static final String MULTIPART_FORM_DATA = "multipart/form-data";
     protected static final String APPLICATION_FORM_URLENCODED = "application/x-www-form-urlencoded";
 
-    private static final String KARATE_HTTP_PROPERTIES = "karate-http.properties";
-
     protected ScenarioHttpBuilder request;
 
-    protected ScenarioRuntime runtime() {
+    protected ScenarioRuntime getRuntime() {
         return ScenarioRuntime.LOCAL.get();
     }
 
@@ -110,7 +108,7 @@ public abstract class ScenarioHttpClient<T> {
     }
 
     private T buildRequestInternal(ScenarioHttpBuilder request) {
-        ScenarioRuntime runtime = runtime();
+        ScenarioRuntime runtime = getRuntime();
         String method = request.getMethod();
         if (method == null) {
             String msg = "'method' is required to make an http call";
@@ -213,7 +211,7 @@ public abstract class ScenarioHttpClient<T> {
     }
 
     public HttpResponse invoke(ScenarioHttpBuilder request) {
-        ScenarioRuntime runtime = runtime();
+        ScenarioRuntime runtime = getRuntime();
         T body = buildRequestInternal(request);
         String perfEventName = null; // acts as a flag to report perf if not null
         if (runtime.featureRuntime.isPerfMode()) {
@@ -240,15 +238,6 @@ public abstract class ScenarioHttpClient<T> {
             }
             runtime.logger.error(e.getMessage() + ", " + message);
             throw new KarateException(message, e);
-        }
-    }
-
-    public static ScenarioHttpClient construct(String className) {
-        try {
-            Class clazz = Class.forName(className);
-            return (ScenarioHttpClient) clazz.newInstance();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
         }
     }
 

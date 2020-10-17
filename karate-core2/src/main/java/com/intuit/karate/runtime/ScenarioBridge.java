@@ -32,6 +32,7 @@ import com.intuit.karate.data.JsonUtils;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsMap;
 import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchStep;
 import com.intuit.karate.match.MatchType;
@@ -41,6 +42,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import org.graalvm.polyglot.Value;
 
 /**
@@ -48,16 +50,6 @@ import org.graalvm.polyglot.Value;
  * @author pthomas3
  */
 public class ScenarioBridge implements PerfContext {
-
-    public ScenarioRuntime getRuntime() {
-        return ScenarioRuntime.LOCAL.get();
-    }
-
-    private static void assertIfJsFunction(Value f) {
-        if (!f.canExecute()) {
-            throw new RuntimeException("not a js function: " + f);
-        }
-    }
 
     public Object append(Value... vals) {
         if (vals.length == 0) {
@@ -96,6 +88,25 @@ public class ScenarioBridge implements PerfContext {
         }
         runtime.engine.setVariable(varName, list);
         return new JsList(list);
+    }
+
+    public Object call(String fileName) {
+        return call(false, fileName, null);
+    }
+
+    public Object call(String fileName, Object arg) {
+        return call(false, fileName, arg);
+    }
+
+    public Object call(boolean sharedScope, String fileName) {
+        return call(sharedScope, fileName, null);
+    }
+
+    public Object call(boolean sharedScope, String fileName, Object arg) {
+        ScenarioRuntime runtime = getRuntime();
+        Variable called = new Variable(runtime.engine.fileReader.readFile(fileName));
+        Variable result = runtime.engine.call(called, arg == null ? null : new Variable(arg), sharedScope);
+        return JsValue.fromJava(result.getValue());
     }
 
     public Object callSingle(String fileName) {
@@ -173,6 +184,11 @@ public class ScenarioBridge implements PerfContext {
         getRuntime().configure(key, new Variable(o));
     }
 
+    public Object eval(String exp) {
+        Variable result = getRuntime().engine.eval(exp);
+        return JsValue.fromJava(result.getValue());
+    }
+
     public Object filter(Value o, Value f) {
         if (!o.hasArrayElements()) {
             return JsList.EMPTY;
@@ -244,6 +260,20 @@ public class ScenarioBridge implements PerfContext {
         }
     }
 
+    // TODO breaking returns actual object not wrapper
+    // and fromObject() has been removed
+    // use new typeOf() method to find type
+    public Object fromString(String exp) {
+        ScenarioRuntime runtime = getRuntime();
+        try {
+            Variable result = runtime.engine.evalKarateExpression(exp);
+            return JsValue.fromJava(result.getValue());
+        } catch (Exception e) {
+            runtime.logger.warn("auto evaluation failed: {}", e.getMessage());
+            return new Variable(exp);
+        }
+    }
+
     public Object get(String exp) {
         ScenarioRuntime runtime = getRuntime();
         Variable v;
@@ -265,36 +295,45 @@ public class ScenarioBridge implements PerfContext {
         return result == null ? defaultValue : result;
     }
 
+    // getters =================================================================
+    // TODO make these functions
+    //
+    public String getEnv() {
+        return getRuntime().featureRuntime.suite.env;
+    }
+
     public Object getInfo() {
         return new JsMap(getRuntime().getScenarioInfo());
     }
 
+    public Object getOs() {
+        String name = FileUtils.getOsName();
+        String type = FileUtils.getOsType(name).toString().toLowerCase();
+        Map<String, Object> map = new HashMap(2);
+        map.put("name", name);
+        map.put("type", type);
+        return new JsMap(map);
+    }
+
+    public HttpRequest getPrevRequest() {
+        return getRuntime().getPrevRequest();
+    }
+
+    public Object getProperties() {
+        return new JsMap(System.getProperties());
+    }
+
+    public ScenarioRuntime getRuntime() {
+        return ScenarioRuntime.LOCAL.get();
+    }
+
+    //==========================================================================
+    //
     public void log(Value... values) {
         ScenarioRuntime runtime = getRuntime();
         if (runtime.getConfig().isPrintEnabled()) {
             runtime.logger.info("{}", new LogWrapper(values));
         }
-    }
-
-    // make sure toString() is lazy
-    static class LogWrapper {
-
-        final Value[] values;
-
-        LogWrapper(Value... values) {
-            this.values = values;
-        }
-
-        @Override
-        public String toString() {
-            StringBuilder sb = new StringBuilder();
-            for (Value v : values) {
-                Variable var = new Variable(v);
-                sb.append(var.getAsPrettyString()).append(' ');
-            }
-            return sb.toString();
-        }
-
     }
 
     public Object jsonPath(Object o, String exp) {
@@ -473,6 +512,11 @@ public class ScenarioBridge implements PerfContext {
         return v.getAsString();
     }
 
+    public String typeOf(Object o) {
+        Variable v = new Variable(o);
+        return v.getTypeString();
+    }
+
     public Object valuesOf(Value v) {
         if (v.hasArrayElements()) {
             return v;
@@ -492,6 +536,35 @@ public class ScenarioBridge implements PerfContext {
         Variable var = new Variable(o);
         Variable res = ScenarioEngine.evalXmlPath(var, path);
         return JsValue.fromJava(res.getValue());
+    }
+
+    // helpers =================================================================
+    //
+    private static void assertIfJsFunction(Value f) {
+        if (!f.canExecute()) {
+            throw new RuntimeException("not a js function: " + f);
+        }
+    }
+
+    // make sure log() toString() is lazy
+    static class LogWrapper {
+
+        final Value[] values;
+
+        LogWrapper(Value... values) {
+            this.values = values;
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            for (Value v : values) {
+                Variable var = new Variable(v);
+                sb.append(var.getAsPrettyString()).append(' ');
+            }
+            return sb.toString();
+        }
+
     }
 
 }

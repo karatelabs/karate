@@ -153,6 +153,10 @@ public class Variable {
         return type == Type.BOOLEAN && ((Boolean) value);
     }
 
+    public String getTypeString() {
+        return type.name().toLowerCase();
+    }
+    
     public Variable invokeFunction(Object... args) {
         Function fun = getValue();
         return new Variable(fun.apply(args));
