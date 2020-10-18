@@ -24,6 +24,7 @@
 package com.intuit.karate.runtime;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Logger;
 import com.intuit.karate.Resource;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Feature;
@@ -40,12 +41,14 @@ import java.nio.file.Path;
  */
 public class ScenarioFileReader {
 
-    private final ScenarioRuntime runtime;
+    private final ScenarioEngine engine;
+    private final FeatureRuntime featureRuntime;
     private final ClassLoader classLoader;
 
-    public ScenarioFileReader(ScenarioRuntime runtime) {
-        this.runtime = runtime;
-        classLoader = runtime.featureRuntime.suite.classLoader;
+    public ScenarioFileReader(ScenarioEngine engine, FeatureRuntime featureRuntime) {
+        this.engine = engine;
+        this.featureRuntime = featureRuntime;
+        classLoader = featureRuntime.suite.classLoader;
     }
 
     public Object readFile(String text) {
@@ -53,13 +56,13 @@ public class ScenarioFileReader {
         text = pair.left;
         if (isJsonFile(text) || isXmlFile(text)) {
             String contents = readFileAsString(text);
-            Variable temp = runtime.engine.evalKarateExpression(contents);
+            Variable temp = engine.evalKarateExpression(contents);
             return temp.getValue();
         } else if (isJavaScriptFile(text)) {
             String contents = readFileAsString(text);
             contents = ScenarioEngine.fixJavaScriptFunction(contents);
-            Variable temp = runtime.engine.evalKarateExpression(contents);
-            return temp.getValue();            
+            Variable temp = engine.evalKarateExpression(contents);
+            return temp.getValue();
         } else if (isTextFile(text) || isGraphQlFile(text)) {
             return readFileAsString(text);
         } else if (isFeatureFile(text)) {
@@ -90,7 +93,7 @@ public class ScenarioFileReader {
             InputStream inputStream = classLoader.getResourceAsStream(removePrefix(path));
             if (inputStream == null) {
                 String message = String.format("could not find or read file: %s", path);
-                runtime.logger.trace("{}", message);
+                engine.logger.trace("{}", message);
                 throw new KarateFileNotFoundException(message);
             }
             return inputStream;
@@ -125,16 +128,16 @@ public class ScenarioFileReader {
             return new Resource(new File(temp), path, classLoader);
         } else if (isThisPath(path)) {
             String temp = removePrefix(path);
-            Path parentPath = runtime.featureRuntime.getParentPath();
+            Path parentPath = featureRuntime.getParentPath();
             Path childPath = parentPath.resolve(temp);
             return new Resource(childPath, classLoader);
         } else {
             try {
-                Path parentPath = runtime.featureRuntime.getRootParentPath();
+                Path parentPath = featureRuntime.getRootParentPath();
                 Path childPath = parentPath.resolve(path);
                 return new Resource(childPath, classLoader);
             } catch (Exception e) {
-                runtime.logger.error("feature relative path resolution failed: {}", e.getMessage());
+                engine.logger.error("feature relative path resolution failed: {}", e.getMessage());
                 throw e;
             }
         }

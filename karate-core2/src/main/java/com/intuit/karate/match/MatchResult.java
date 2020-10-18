@@ -50,7 +50,7 @@ public class MatchResult {
     
     public void isFalse() {
         if (pass) {
-            throw new RuntimeException("failed");
+            throw new RuntimeException("expected 'fail' but is 'pass'");
         }
     }    
 

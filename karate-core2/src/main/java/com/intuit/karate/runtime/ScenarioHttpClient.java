@@ -52,8 +52,8 @@ public abstract class ScenarioHttpClient<T> {
 
     protected ScenarioHttpBuilder request;
 
-    protected ScenarioRuntime getRuntime() {
-        return ScenarioRuntime.LOCAL.get();
+    protected ScenarioEngine getEngine() {
+        return ScenarioEngine.LOCAL.get();
     }
 
     public abstract void configure(Config config);
@@ -108,11 +108,11 @@ public abstract class ScenarioHttpClient<T> {
     }
 
     private T buildRequestInternal(ScenarioHttpBuilder request) {
-        ScenarioRuntime runtime = getRuntime();
+        ScenarioEngine engine = getEngine();
         String method = request.getMethod();
         if (method == null) {
             String msg = "'method' is required to make an http call";
-            runtime.logger.error(msg);
+            engine.logger.error(msg);
             throw new RuntimeException(msg);
         }
         method = method.toUpperCase();
@@ -126,7 +126,7 @@ public abstract class ScenarioHttpClient<T> {
         String url = request.getUrl();
         if (url == null) {
             String msg = "url not set, please refer to the keyword documentation for 'url'";
-            runtime.logger.error(msg);
+            engine.logger.error(msg);
             throw new RuntimeException(msg);
         }
         buildUrl(url);
@@ -157,8 +157,7 @@ public abstract class ScenarioHttpClient<T> {
                 }
             }
         }
-        Config config = runtime.getConfig();
-        Map<String, Object> configHeaders = config.getHeaders().evalAsMap();
+        Map<String, Object> configHeaders = engine.config.getHeaders().evalAsMap();
         if (configHeaders != null) {
             for (Map.Entry<String, Object> entry : configHeaders.entrySet()) {
                 request.setHeader(entry.getKey(), entry.getValue()); // update request for hooks, etc.
@@ -170,7 +169,7 @@ public abstract class ScenarioHttpClient<T> {
                 buildCookie(cookie);
             }
         }
-        Map<String, Object> configCookies = config.getCookies().evalAsMap();
+        Map<String, Object> configCookies = engine.config.getCookies().evalAsMap();
         for (Cookie cookie : Cookie.toCookies(configCookies)) {
             request.setCookie(cookie); // update request for hooks, etc.
             buildCookie(cookie);
@@ -211,32 +210,32 @@ public abstract class ScenarioHttpClient<T> {
     }
 
     public HttpResponse invoke(ScenarioHttpBuilder request) {
-        ScenarioRuntime runtime = getRuntime();
+        ScenarioEngine engine = getEngine();
         T body = buildRequestInternal(request);
         String perfEventName = null; // acts as a flag to report perf if not null
-        if (runtime.featureRuntime.isPerfMode()) {
-            perfEventName = runtime.featureRuntime.getPerfRuntime().getPerfEventName(request, runtime);
+        if (engine.runtime.featureRuntime.isPerfMode()) {
+            perfEventName = engine.runtime.featureRuntime.getPerfRuntime().getPerfEventName(request, engine);
         }
         try {
             HttpResponse response = makeHttpRequest(body);
-            runtime.updateConfigCookies(response.getCookies());
+            engine.updateConfigCookies(response.getCookies());
             if (perfEventName != null) {
                 PerfEvent pe = new PerfEvent(response.getStartTime(), response.getEndTime(), perfEventName, response.getStatus());
-                runtime.capturePerfEvent(pe);
+                engine.capturePerfEvent(pe);
             }
             return response;
         } catch (Exception e) {
             // edge case when request building failed maybe because of malformed url
-            long startTime = runtime.getPrevRequest() == null ? System.currentTimeMillis() : runtime.getPrevRequest().getStartTime();
+            long startTime = engine.getPrevRequest() == null ? System.currentTimeMillis() : engine.getPrevRequest().getStartTime();
             long endTime = System.currentTimeMillis();
             long responseTime = endTime - startTime;
             String message = "http call failed after " + responseTime + " milliseconds for URL: " + getRequestUri();
             if (perfEventName != null) {
                 PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, 0);
-                runtime.capturePerfEvent(pe);
+                engine.capturePerfEvent(pe);
                 // failure flag and message should be set by ScenarioContext.logLastPerfEvent()
             }
-            runtime.logger.error(e.getMessage() + ", " + message);
+            engine.logger.error(e.getMessage() + ", " + message);
             throw new KarateException(message, e);
         }
     }

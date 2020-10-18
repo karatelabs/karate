@@ -65,9 +65,8 @@ public class Response implements ProxyObject {
     private byte[] body;
     private ResourceType resourceType;
 
-    public Response() {
-        status = 200;
-        // zero arg constructor
+    public Response(int status) {
+        this.status = status;
     }
 
     public Response(int status, Map<String, List<String>> headers, byte[] body, ResourceType resourceType) {

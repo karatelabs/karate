@@ -142,7 +142,7 @@ public class RequestCycle {
         Request request = context.getRequest();
         request.processBody();
         jsEngine.put(REQUEST, request);
-        response = new Response();
+        response = new Response(200);
         jsEngine.put(RESPONSE, response);
         jsEngine.put(CONTEXT, context);
     }

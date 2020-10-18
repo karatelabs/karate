@@ -72,8 +72,8 @@ public class ScenarioBridge implements PerfContext {
 
     // TODO breaking appendTo(ref) will not work, use append()
     public Object appendTo(String varName, Value... vals) {
-        ScenarioRuntime runtime = getRuntime();
-        Variable var = getRuntime().engine.vars.get(varName);
+        ScenarioEngine engine = getEngine();
+        Variable var = engine.vars.get(varName);
         if (!var.isList()) {
             return null;
         }
@@ -86,7 +86,7 @@ public class ScenarioBridge implements PerfContext {
                 list.add(temp);
             }
         }
-        runtime.engine.setVariable(varName, list);
+        engine.setVariable(varName, list);
         return new JsList(list);
     }
 
@@ -103,9 +103,9 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object call(boolean sharedScope, String fileName, Object arg) {
-        ScenarioRuntime runtime = getRuntime();
-        Variable called = new Variable(runtime.engine.fileReader.readFile(fileName));
-        Variable result = runtime.engine.call(called, arg == null ? null : new Variable(arg), sharedScope);
+        ScenarioEngine engine = getEngine();
+        Variable called = new Variable(engine.fileReader.readFile(fileName));
+        Variable result = engine.call(called, arg == null ? null : new Variable(arg), sharedScope);
         return JsValue.fromJava(result.getValue());
     }
 
@@ -114,29 +114,28 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object callSingle(String fileName, Object arg) {
-        ScenarioRuntime runtime = getRuntime();
-        final Map<String, Object> CACHE = runtime.featureRuntime.suite.SUITE_CACHE;
+        ScenarioEngine engine = getEngine();
+        final Map<String, Object> CACHE = engine.runtime.featureRuntime.suite.SUITE_CACHE;
         if (CACHE.containsKey(fileName)) {
-            runtime.logger.trace("callSingle cache hit: {}", fileName);
+            engine.logger.trace("callSingle cache hit: {}", fileName);
             return CACHE.get(fileName);
         }
         long startTime = System.currentTimeMillis();
-        runtime.logger.trace("callSingle waiting for lock: {}", fileName);
+        engine.logger.trace("callSingle waiting for lock: {}", fileName);
         synchronized (CACHE) { // lock
             if (CACHE.containsKey(fileName)) { // retry
                 long endTime = System.currentTimeMillis() - startTime;
-                runtime.logger.warn("this thread waited {} milliseconds for callSingle lock: {}", endTime, fileName);
+                engine.logger.warn("this thread waited {} milliseconds for callSingle lock: {}", endTime, fileName);
                 return CACHE.get(fileName);
             }
             // this thread is the 'winner'
-            runtime.logger.info(">> lock acquired, begin callSingle: {}", fileName);
-            Config config = runtime.getConfig();
-            int minutes = config.getCallSingleCacheMinutes();
+            engine.logger.info(">> lock acquired, begin callSingle: {}", fileName);
+            int minutes = engine.config.getCallSingleCacheMinutes();
             Object result = null;
             File cacheFile = null;
             if (minutes > 0) {
                 String qualifiedFileName = FileUtils.toPackageQualifiedName(fileName);
-                String cacheFileName = config.getCallSingleCacheDir() + File.separator + qualifiedFileName + ".txt";
+                String cacheFileName = engine.config.getCallSingleCacheDir() + File.separator + qualifiedFileName + ".txt";
                 cacheFile = new File(cacheFileName);
                 long since = System.currentTimeMillis() - minutes * 60 * 1000;
                 if (cacheFile.exists()) {
@@ -144,32 +143,32 @@ public class ScenarioBridge implements PerfContext {
                     if (lastModified > since) {
                         String json = FileUtils.toString(cacheFile);
                         result = JsonUtils.fromJson(json);
-                        runtime.logger.info("callSingleCache hit: {}", cacheFile);
+                        engine.logger.info("callSingleCache hit: {}", cacheFile);
                     } else {
-                        runtime.logger.info("callSingleCache stale, last modified {} - is before {} (minutes: {})",
+                        engine.logger.info("callSingleCache stale, last modified {} - is before {} (minutes: {})",
                                 lastModified, since, minutes);
                     }
                 } else {
-                    runtime.logger.info("callSingleCache file does not exist, will create: {}", cacheFile);
+                    engine.logger.info("callSingleCache file does not exist, will create: {}", cacheFile);
                 }
             }
             if (result == null) {
                 Variable called = new Variable(read(fileName));
                 Variable argVar = arg == null ? null : new Variable(arg);
-                Variable resultVar = runtime.engine.call(called, argVar, false);
+                Variable resultVar = engine.call(called, argVar, false);
                 if (minutes > 0) { // cacheFile will be not null
                     if (resultVar.isMapOrList()) {
                         String json = resultVar.getAsString();
                         FileUtils.writeToFile(cacheFile, json);
-                        runtime.logger.info("callSingleCache write: {}", cacheFile);
+                        engine.logger.info("callSingleCache write: {}", cacheFile);
                     } else {
-                        runtime.logger.warn("callSingleCache write failed, not json-like: {}", resultVar);
+                        engine.logger.warn("callSingleCache write failed, not json-like: {}", resultVar);
                     }
                 }
                 result = resultVar.getValue();
             }
             CACHE.put(fileName, result);
-            runtime.logger.info("<< lock released, cached callSingle: {}", fileName);
+            engine.logger.info("<< lock released, cached callSingle: {}", fileName);
             return result;
         }
     }
@@ -177,15 +176,15 @@ public class ScenarioBridge implements PerfContext {
     @Override
     public void capturePerfEvent(String name, long startTime, long endTime) {
         PerfEvent event = new PerfEvent(startTime, endTime, name, 200);
-        getRuntime().capturePerfEvent(event);
+        getEngine().capturePerfEvent(event);
     }
 
     public void configure(String key, Object o) {
-        getRuntime().configure(key, new Variable(o));
+        getEngine().configure(key, new Variable(o));
     }
 
     public Object eval(String exp) {
-        Variable result = getRuntime().engine.eval(exp);
+        Variable result = getEngine().evalJs(exp);
         return JsValue.fromJava(result.getValue());
     }
 
@@ -264,23 +263,23 @@ public class ScenarioBridge implements PerfContext {
     // and fromObject() has been removed
     // use new typeOf() method to find type
     public Object fromString(String exp) {
-        ScenarioRuntime runtime = getRuntime();
+        ScenarioEngine engine = getEngine();
         try {
-            Variable result = runtime.engine.evalKarateExpression(exp);
+            Variable result = engine.evalKarateExpression(exp);
             return JsValue.fromJava(result.getValue());
         } catch (Exception e) {
-            runtime.logger.warn("auto evaluation failed: {}", e.getMessage());
+            engine.logger.warn("auto evaluation failed: {}", e.getMessage());
             return new Variable(exp);
         }
     }
 
     public Object get(String exp) {
-        ScenarioRuntime runtime = getRuntime();
+        ScenarioEngine engine = getEngine();
         Variable v;
         try {
-            v = runtime.engine.evalKarateExpression(exp); // even json path expressions will work
+            v = engine.evalKarateExpression(exp); // even json path expressions will work
         } catch (Exception e) {
-            runtime.logger.trace("karate.get failed for expression: '{}': {}", exp, e.getMessage());
+            engine.logger.trace("karate.get failed for expression: '{}': {}", exp, e.getMessage());
             return null;
         }
         if (v != null) {
@@ -299,11 +298,11 @@ public class ScenarioBridge implements PerfContext {
     // TODO make these functions
     //
     public String getEnv() {
-        return getRuntime().featureRuntime.suite.env;
+        return getEngine().runtime.featureRuntime.suite.env;
     }
 
     public Object getInfo() {
-        return new JsMap(getRuntime().getScenarioInfo());
+        return new JsMap(getEngine().runtime.getScenarioInfo());
     }
 
     public Object getOs() {
@@ -316,23 +315,23 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public HttpRequest getPrevRequest() {
-        return getRuntime().getPrevRequest();
+        return getEngine().getPrevRequest();
     }
 
     public Object getProperties() {
         return new JsMap(System.getProperties());
     }
 
-    public ScenarioRuntime getRuntime() {
-        return ScenarioRuntime.LOCAL.get();
+    public ScenarioEngine getEngine() {
+        return ScenarioEngine.LOCAL.get();
     }
 
     //==========================================================================
     //
     public void log(Value... values) {
-        ScenarioRuntime runtime = getRuntime();
-        if (runtime.getConfig().isPrintEnabled()) {
-            runtime.logger.info("{}", new LogWrapper(values));
+        ScenarioEngine engine = getEngine();
+        if (engine.config.isPrintEnabled()) {
+            engine.logger.info("{}", new LogWrapper(values));
         }
     }
 
@@ -381,13 +380,13 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Map<String, Object> match(Object actual, Object expected) {
-        MatchResult mr = getRuntime().engine.match(MatchType.EQUALS, actual, expected);
+        MatchResult mr = getEngine().match(MatchType.EQUALS, actual, expected);
         return mr.toMap();
     }
 
     public Map<String, Object> match(String exp) {
         MatchStep ms = new MatchStep(exp);
-        MatchResult mr = getRuntime().engine.match(ms.type, ms.name, ms.path, ms.expected);
+        MatchResult mr = getEngine().match(ms.type, ms.name, ms.path, ms.expected);
         return mr.toMap();
     }
 
@@ -416,15 +415,15 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object read(String name) {
-        return getRuntime().engine.fileReader.readFile(name);
+        return getEngine().fileReader.readFile(name);
     }
 
     public String readAsString(String fileName) {
-        return getRuntime().engine.fileReader.readFileAsString(fileName);
+        return getEngine().fileReader.readFileAsString(fileName);
     }
 
     public void remove(String name, String path) {
-        getRuntime().engine.remove(name, path);
+        getEngine().remove(name, path);
     }
 
     public Object repeat(int n, Value f) {
@@ -449,25 +448,25 @@ public class ScenarioBridge implements PerfContext {
 
     // set multiple variables in one shot
     public void set(Map<String, Object> map) {
-        getRuntime().engine.setVariables(map);
+        getEngine().setVariables(map);
     }
 
     public void set(String name, Object o) {
-        getRuntime().engine.setVariable(name, o);
+        getEngine().setVariable(name, o);
     }
 
     // this makes sense mainly for xpath manipulation from within js
     public void set(String name, String path, Object value) {
-        getRuntime().engine.set(name, path, new Variable(value));
+        getEngine().set(name, path, new Variable(value));
     }
 
     public void setXml(String name, String xml) {
-        getRuntime().engine.setVariable(name, XmlUtils.toXmlDoc(xml));
+        getEngine().setVariable(name, XmlUtils.toXmlDoc(xml));
     }
 
     // this makes sense mainly for xpath manipulation from within js
     public void setXml(String name, String path, String xml) {
-        getRuntime().engine.set(name, path, new Variable(XmlUtils.toXmlDoc(xml)));
+        getEngine().set(name, path, new Variable(XmlUtils.toXmlDoc(xml)));
     }
 
     public Object toBean(Object o, String className) {

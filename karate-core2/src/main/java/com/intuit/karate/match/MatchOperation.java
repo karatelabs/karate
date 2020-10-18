@@ -559,18 +559,23 @@ public class MatchOperation {
 
     private static String collectFailureReasons(MatchOperation root) {
         StringBuilder sb = new StringBuilder();
-        sb.append("match failed: ").append(root.type).append('\n');
-        int depth = 0;
+        sb.append("match failed: ").append(root.type).append('\n');        
         Collections.reverse(root.failures);
         Iterator<MatchOperation> iterator = root.failures.iterator();
         Set previousPaths = new HashSet();
+        int index = 0;
+        int prevDepth = -1;
         while (iterator.hasNext()) {
             MatchOperation mo = iterator.next();
             if (previousPaths.contains(mo.context.path) || mo.isXmlAttributeOrMap()) {
                 continue;
             }
             previousPaths.add(mo.context.path);
-            String prefix = StringUtils.repeat(' ', depth++ * 2);
+            if (mo.context.depth != prevDepth) {
+                prevDepth = mo.context.depth;
+                index++;
+            }
+            String prefix = StringUtils.repeat(' ', index * 2);
             sb.append(prefix).append(mo.context.path).append(" | ").append(mo.failReason);
             sb.append(" (").append(mo.actual.type).append(':').append(mo.expected.type).append(")");
             sb.append('\n');

@@ -22,10 +22,11 @@ public class ScenarioEngineTest {
 
     static final Logger logger = LoggerFactory.getLogger(ScenarioEngineTest.class);
 
-    ScenarioEngine engine = new ScenarioEngine(RuntimeUtils.runtime(), new HashMap(), new com.intuit.karate.Logger());
+    ScenarioEngine engine;
 
     @BeforeEach
     void beforeEach() {
+        engine = new ScenarioEngine(new Config(), RuntimeUtils.runtime(), new HashMap(), new com.intuit.karate.Logger());
         engine.init();
     }
 
@@ -111,30 +112,30 @@ public class ScenarioEngineTest {
         matchEval("#('foo')", "foo");
         matchEval("##('foo')", "foo");
         matchEval("##(null)", null);
-        engine.eval("var bar = null");
+        engine.evalJs("var bar = null");
         matchEval("##(bar)", null);
     }
 
     @Test
     void testEmbeddedList() {
-        engine.eval("var foo = 3");
+        engine.evalJs("var foo = 3");
         matchEval("[1, 2, '#(foo)']", "[1, 2, 3]");
-        engine.eval("var foo = [3, 4]");
+        engine.evalJs("var foo = [3, 4]");
         matchEval("[1, 2, '#(foo)']", "[1, 2, [3, 4]]");
-        engine.eval("var foo = null");
+        engine.evalJs("var foo = null");
         matchEval("[1, 2, '#(foo)']", "[1, 2, null]");
         matchEval("[1, 2, '##(foo)']", "[1, 2]");
         matchEval("[1, '##(foo)', 3]", "[1, 3]");
-        engine.eval("var bar = null");
+        engine.evalJs("var bar = null");
         matchEval("['##(foo)', 2, '##(bar)']", "[2]");
     }
 
     @Test
     void testEmbeddedMap() {
-        engine.eval("var foo = 2");
+        engine.evalJs("var foo = 2");
         matchEval("{ a: 1, b: '#(foo)', c: 3}", "{ a: 1, b: 2, c: 3}");
         matchEval("{ a: 1, b: '#(foo)', c: '#(foo)'}", "{ a: 1, b: 2, c: 2}");
-        engine.eval("var bar = null");
+        engine.evalJs("var bar = null");
         matchEval("{ a: 1, b: '#(bar)', c: '#(foo)'}", "{ a: 1, b: null, c: 2}");
         matchEval("{ a: 1, b: '##(bar)', c: '#(foo)'}", "{ a: 1, c: 2}");
         assign("a", "1");
@@ -178,7 +179,7 @@ public class ScenarioEngineTest {
         assign("myXml", "<root><foo>bar</foo><hello>world</hello></root>");
         Variable myXml = engine.vars.get("myXml");
         assertTrue(myXml.isXml());
-        Variable temp = engine.eval("myXml.root.foo");
+        Variable temp = engine.evalJs("myXml.root.foo");
         assertEquals("bar", temp.getValue());
         // xml with line breaks
         assign("foo", "<records>\n  <record>a</record>\n  <record>b</record>\n  <record>c</record>\n</records>");
@@ -187,7 +188,7 @@ public class ScenarioEngineTest {
         assertTrue(bar.isMap());
         // match xml using json-path
         matchEquals("bar.record", "['a', 'b', 'c']");
-        assertTrue(engine.assertTrue("foo.records.record.length == 3"));
+        engine.assertTrue("foo.records.record.length == 3");
         assign("myXml", "<cat><name>Billie</name><scores><score>2</score><score>5</score></scores></cat>");
         matchEquals("myXml/cat/scores/score[2]", "'5'");
         matchEquals("myXml.cat.scores.score[1]", "'5'");
@@ -213,7 +214,7 @@ public class ScenarioEngineTest {
         // xml and assign
         assign("myXml", "<root><foo>bar</foo></root>");
         assign("myStr", "$myXml/root/foo");
-        assertTrue(engine.assertTrue("myStr == 'bar'"));
+        engine.assertTrue("myStr == 'bar'");
         assign("myXml", "<root><foo><bar>baz</bar></foo></root>");
         assign("myNode", "$myXml/root/foo");
         assign("expected", "<foo><bar>baz</bar></foo>");
@@ -241,11 +242,11 @@ public class ScenarioEngineTest {
         assign("myJson", "{ foo: 'bar', baz: [1, 2], ban: { hello: 'world' } }");
         Variable myXml = engine.vars.get("myJson");
         assertTrue(myXml.isMap());
-        Variable value = engine.eval("myJson.foo");
+        Variable value = engine.evalJs("myJson.foo");
         assertEquals("bar", value.getValue());
-        value = engine.eval("myJson.baz[1]");
+        value = engine.evalJs("myJson.baz[1]");
         assertEquals(2, value.<Number>getValue());
-        value = engine.eval("myJson.ban.hello");
+        value = engine.evalJs("myJson.ban.hello");
         assertEquals("world", value.getValue());
         // json-path
         value = engine.evalJsonPathOnVariableByName("myJson", "$.baz[1]");

@@ -18,7 +18,7 @@ class RequestHandlerTest {
     static final Logger logger = LoggerFactory.getLogger(RequestHandlerTest.class);
 
     RequestHandler handler;
-    RequestBuilder builder;
+    RequestBuilder request;
     Response response;
     List<String> cookies;
     String body;
@@ -27,16 +27,16 @@ class RequestHandlerTest {
     void beforeEach() {
         ServerConfig config = new ServerConfig().classPathRoot("demo");
         handler = new RequestHandler(config);
-        builder = new RequestBuilder().method("GET");
+        request = new RequestBuilder().method("GET");
     }
 
     private Response handle() {
-        response = handler.handle(builder.build());
+        response = handler.handle(request.build());
         body = response.getBodyAsString();
         cookies = response.getHeader("Set-Cookie");
-        builder = new RequestBuilder().method("GET");
+        request = new RequestBuilder().method("GET");
         if (cookies != null) {
-            builder.header("Cookie", cookies);
+            request.header("Cookie", cookies);
         }
         return response;
     }
@@ -53,7 +53,7 @@ class RequestHandlerTest {
 
     @Test
     void testIndexAndAjaxPost() {
-        builder.path("/index");
+        request.path("/index");
         handle();
         matchHeaderContains("Set-Cookie", "karate.sid");
         matchHeaderEquals("Content-Type", "text/html");
@@ -62,7 +62,7 @@ class RequestHandlerTest {
         assertTrue(body.contains("<td>Apple</td>"));
         assertTrue(body.contains("<td>Orange</td>"));
         assertTrue(body.contains("<span>Billie</span>"));
-        builder.path("/person")
+        request.path("/person")
                 .contentType("application/x-www-form-urlencoded")
                 .header("HX-Request", "true")
                 .body("firstName=John&lastName=Smith&email=john%40smith.com")

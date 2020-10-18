@@ -32,7 +32,7 @@ import java.util.function.Consumer;
  */
 public interface PerfRuntime {
 
-    String getPerfEventName(ScenarioHttpBuilder http, ScenarioRuntime sr);
+    String getPerfEventName(ScenarioHttpBuilder http, ScenarioEngine se);
 
     void reportPerfEvent(PerfEvent event);
     

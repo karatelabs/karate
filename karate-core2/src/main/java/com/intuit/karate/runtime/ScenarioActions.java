@@ -38,100 +38,100 @@ import java.util.Map;
  */
 public class ScenarioActions implements Actions {
     
-    private final ScenarioRuntime runtime;
+    private final ScenarioEngine engine;
     
-    public ScenarioActions(ScenarioRuntime runtime) {
-        this.runtime = runtime;
+    public ScenarioActions(ScenarioEngine engine) {
+        this.engine = engine;
     }
 
     @Override
     @When("^configure ([^\\s]+) =$")
     public void configureDocstring(String key, String exp) {
-        runtime.configure(key, exp);
+        engine.configure(key, exp);
     }
 
     @Override
     @When("^configure ([^\\s]+) = (.+)")
     public void configure(String key, String exp) {
-        runtime.configure(key, exp);
+        engine.configure(key, exp);
     }
 
     @Override
     @When("^url (.+)")
     public void url(String exp) {
-        runtime.url(exp);
+        engine.url(exp);
     }
 
     @Override
     @When("^path (.+)")
     public void path(List<String> paths) {
-        runtime.path(paths);
+        engine.path(paths);
     }
 
     @Override
     @When("^param ([^\\s]+) = (.+)")
     public void param(String name, List<String> values) {
-        runtime.param(name, values);
+        engine.param(name, values);
     }
 
     @Override
     @When("^params (.+)")
     public void params(String expr) {
-        runtime.params(expr);
+        engine.params(expr);
     }
 
     @Override
     @When("^cookie ([^\\s]+) = (.+)")
     public void cookie(String name, String value) {
-        runtime.cookie(name, value);
+        engine.cookie(name, value);
     }
 
     @Override
     @When("^cookies (.+)")
     public void cookies(String expr) {
-        runtime.cookies(expr);
+        engine.cookies(expr);
     }
 
     @Override
     @When("^csv (.+) = (.+)")
     public void csv(String name, String expression) {
-        runtime.assign(AssignType.CSV, name, expression);
+        engine.assign(AssignType.CSV, name, expression);
     }
 
     @Override
     @When("^header ([^\\s]+) = (.+)")
     public void header(String name, List<String> values) {
-        runtime.header(name, values);
+        engine.header(name, values);
     }
 
     @Override
     @When("^headers (.+)")
     public void headers(String expr) {
-        runtime.headers(expr);
+        engine.headers(expr);
     }
 
     @Override
     @When("^form field ([^\\s]+) = (.+)")
     public void formField(String name, List<String> values) {
-        runtime.formField(name, values);
+        engine.formField(name, values);
     }
 
     @Override
     @When("^form fields (.+)")
     public void formFields(String expr) {
-        runtime.formFields(expr);
+        engine.formFields(expr);
     }
 
     @Override
     @When("^request$")
     public void requestDocstring(String body) {
-        runtime.request(body);
+        engine.request(body);
     }
 
     @Override
     @When("^request (.+)")
     public void request(String body) {
-        runtime.request(body);
+        engine.request(body);
     }
 
     @When("^table (.+)")
@@ -142,7 +142,7 @@ public class ScenarioActions implements Actions {
     @Override
     @Action("^table (.+)")
     public void table(String name, List<Map<String, String>> table) {
-        runtime.table(name, table);
+        engine.table(name, table);
     }
 
     @When("^replace (\\w+)$")
@@ -153,139 +153,139 @@ public class ScenarioActions implements Actions {
     @Override
     @Action("^replace (\\w+)$")
     public void replace(String name, List<Map<String, String>> table) {
-        runtime.replace(name, table);
+        engine.replace(name, table);
     }
 
     @Override
     @When("^replace (\\w+).([^\\s]+) = (.+)")
     public void replace(String name, String token, String value) {
-        runtime.replace(name, token, value);
+        engine.replace(name, token, value);
     }
 
     @Override
     @When("^def (.+) =$")
     public void defDocstring(String name, String expression) {
-        runtime.assign(AssignType.AUTO, name, expression);
+        engine.assign(AssignType.AUTO, name, expression);
     }
 
     @Override
     @When("^def (\\w+) = (.+)")
     public void def(String name, String expression) {
-        runtime.assign(AssignType.AUTO, name, expression);
+        engine.assign(AssignType.AUTO, name, expression);
     }
 
     @Override
     @When("^text (.+) =$")
     public void text(String name, String expression) {
-        runtime.assign(AssignType.TEXT, name, expression);
+        engine.assign(AssignType.TEXT, name, expression);
     }
 
     @Override
     @When("^yaml (.+) = (.+)")
     public void yaml(String name, String expression) {
-        runtime.assign(AssignType.YAML, name, expression);
+        engine.assign(AssignType.YAML, name, expression);
     }
 
     @Override
     @When("^copy (.+) = (.+)")
     public void copy(String name, String expression) {
-        runtime.assign(AssignType.COPY, name, expression);
+        engine.assign(AssignType.COPY, name, expression);
     }
 
     @Override
     @When("^json (.+) = (.+)")
     public void json(String name, String expression) {
-        runtime.assign(AssignType.JSON, name, expression);
+        engine.assign(AssignType.JSON, name, expression);
     }
 
     @Override
     @When("^string (.+) = (.+)")
     public void string(String name, String expression) {
-        runtime.assign(AssignType.STRING, name, expression);
+        engine.assign(AssignType.STRING, name, expression);
     }
 
     @Override
     @When("^xml (.+) = (.+)")
     public void xml(String name, String expression) {
-        runtime.assign(AssignType.XML, name, expression);
+        engine.assign(AssignType.XML, name, expression);
     }
 
     @Override
     @When("^xmlstring (.+) = (.+)")
     public void xmlstring(String name, String expression) {
-        runtime.assign(AssignType.XML_STRING, name, expression);
+        engine.assign(AssignType.XML_STRING, name, expression);
     }
 
     @Override
     @When("^bytes (.+) = (.+)")
     public void bytes(String name, String expression) {
-        runtime.assign(AssignType.BYTE_ARRAY, name, expression);
+        engine.assign(AssignType.BYTE_ARRAY, name, expression);
     }
 
     @Override
     @When("^assert (.+)")
     public void assertTrue(String expression) {
-        runtime.assertTrue(expression);
+        engine.assertTrue(expression);
     }
 
     @Override
     @When("^method (\\w+)")
     public void method(String method) {
-        runtime.method(method);
+        engine.method(method);
     }
 
     @Override
     @When("^retry until (.+)")
     public void retry(String until) {
-        runtime.retry(until);
+        engine.retry(until);
     }
 
     @Override
     @When("^soap action( .+)?")
     public void soapAction(String action) {
-        runtime.soapAction(action);
+        engine.soapAction(action);
     }
 
     @Override
     @When("^multipart entity (.+)")
     public void multipartEntity(String value) {
-        runtime.multipartField(null, value);
+        engine.multipartField(null, value);
     }
 
     @Override
     @When("^multipart field (.+) = (.+)")
     public void multipartField(String name, String value) {
-        runtime.multipartField(name, value);
+        engine.multipartField(name, value);
     }
 
     @Override
     @When("^multipart fields (.+)")
     public void multipartFields(String expr) {
-        runtime.multipartFields(expr);
+        engine.multipartFields(expr);
     }
 
     @Override
     @When("^multipart file (.+) = (.+)")
     public void multipartFile(String name, String value) {
-        runtime.multipartFile(name, value);
+        engine.multipartFile(name, value);
     }
 
     @Override
     @When("^multipart files (.+)")
     public void multipartFiles(String expr) {
-        runtime.multipartFiles(expr);
+        engine.multipartFiles(expr);
     }
 
     @Override
     @When("^print (.+)")
     public void print(List<String> exps) {
-        runtime.print(exps); // TODO refactor this to single line
+        engine.print(exps); // TODO refactor this to single line
     }
 
     @Override
     @When("^status (\\d+)")
     public void status(int status) {
-        runtime.status(status);
+        engine.status(status);
     }
 
     @Override
@@ -298,19 +298,19 @@ public class ScenarioActions implements Actions {
             rhs = "";
         }
         MatchStep m = new MatchStep(expression + op1 + op2 + rhs);
-        runtime.match(m.type, m.name, m.path, m.expected);
+        engine.matchResult(m.type, m.name, m.path, m.expected);
     }
 
     @Override
     @When("^set ([^\\s]+)( .+)? =$")
     public void setDocstring(String name, String path, String value) {
-        runtime.set(name, path, value);
+        engine.set(name, path, value);
     }
 
     @Override
     @When("^set ([^\\s]+)( .+)? = (.+)")
     public void set(String name, String path, String value) {
-        runtime.set(name, path, value);
+        engine.set(name, path, value);
     }
 
     @When("^set ([^\\s]+)( [^=]+)?$")
@@ -321,49 +321,49 @@ public class ScenarioActions implements Actions {
     @Override
     @Action("^set ([^\\s]+)( [^=]+)?$")
     public void set(String name, String path, List<Map<String, String>> table) {
-        runtime.set(name, path, table);
+        engine.set(name, path, table);
     }
 
     @Override
     @When("^remove ([^\\s]+)( .+)?")
     public void remove(String name, String path) {
-        runtime.remove(name, path);
+        engine.remove(name, path);
     }
 
     @Override
     @When("^call (.+)")
     public void call(String line) {
-        runtime.call(false, line);
+        engine.call(false, line);
     }
 
     @Override
     @When("^callonce (.+)")
     public void callonce(String line) {
-        runtime.call(true, line);
+        engine.call(true, line);
     }
 
     @Override
     @When("^eval (.+)")
     public void eval(String exp) {
-        runtime.eval(exp);
+        engine.evalJs(exp);
     }
 
     @Override
     @When("^eval$")
     public void evalDocstring(String exp) {
-        runtime.eval(exp);
+        engine.evalJs(exp);
     }
 
     @Override
     @When("^([\\w]+)([^\\s^\\w])(.+)")
     public void eval(String name, String dotOrParen, String expression) {
-        runtime.eval(name + dotOrParen + expression);
+        engine.evalJs(name + dotOrParen + expression);
     }
 
     @Override
     @When("^if (.+)")
     public void evalIf(String exp) {
-        runtime.eval("if " + exp);
+        engine.evalJs("if " + exp);
     }
 
     //==========================================================================
@@ -371,13 +371,13 @@ public class ScenarioActions implements Actions {
     @Override
     @When("^driver (.+)")
     public void driver(String expression) {
-        runtime.driver(expression);
+        engine.driver(expression);
     }
     
     @Override
     @When("^robot (.+)")
     public void robot(String expression) {
-        runtime.robot(expression);
+        engine.robot(expression);
     }
     
 }
