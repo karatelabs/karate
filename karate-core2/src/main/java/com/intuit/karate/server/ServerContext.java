@@ -235,11 +235,12 @@ public class ServerContext implements ProxyObject {
     private final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s);
 
     private final VarArgsFunction HTTP_FUNCTION = args -> {
-        if (args.length == 0) {
-            return new HttpClient(getRequestContext(), null);
-        } else {
-            return new HttpClient(getRequestContext(), args[0].toString());
+        ArmeriaHttpClient client = new ArmeriaHttpClient(getRequestContext());
+        HttpRequestBuilder http = new HttpRequestBuilder(client);
+        if (args.length > 0) {
+            http.url((String) args[0]);
         }
+        return http;
     };
 
     private static final BiFunction<Object, Object, Object> REMOVE_FUNCTION = (o, k) -> {

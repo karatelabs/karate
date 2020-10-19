@@ -40,11 +40,25 @@ public class HttpServer {
     private final ServerHandler handler;
     private final Server server;
     private final CompletableFuture<Void> future;
+    private final int port;
 
     public void waitSync() {
-        future.join();
         try {
             Thread.currentThread().join();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public int getPort() {
+        return port;
+    }
+
+    public void stop() {
+        try {
+            logger.debug("waiting for server to stop");
+            server.stop().get();
+            logger.debug("server stopped");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -57,7 +71,9 @@ public class HttpServer {
         sb.service("prefix:/", new HttpServerHandler(handler));
         server = sb.build();
         future = server.start();
-        logger.debug("server started: {}:{}", server.defaultHostname(), port);
+        future.join();
+        this.port = server.activePort().localAddress().getPort();
+        logger.debug("server started: {}:{}", server.defaultHostname(), this.port);
     }
 
 }

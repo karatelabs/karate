@@ -18,7 +18,7 @@ class RequestHandlerTest {
     static final Logger logger = LoggerFactory.getLogger(RequestHandlerTest.class);
 
     RequestHandler handler;
-    RequestBuilder request;
+    HttpRequestBuilder request;
     Response response;
     List<String> cookies;
     String body;
@@ -27,14 +27,14 @@ class RequestHandlerTest {
     void beforeEach() {
         ServerConfig config = new ServerConfig().classPathRoot("demo");
         handler = new RequestHandler(config);
-        request = new RequestBuilder().method("GET");
+        request = new HttpRequestBuilder(null).method("GET");
     }
 
     private Response handle() {
-        response = handler.handle(request.build());
+        response = handler.handle(request.build().toRequest());
         body = response.getBodyAsString();
         cookies = response.getHeader("Set-Cookie");
-        request = new RequestBuilder().method("GET");
+        request = new HttpRequestBuilder(null).method("GET");
         if (cookies != null) {
             request.header("Cookie", cookies);
         }

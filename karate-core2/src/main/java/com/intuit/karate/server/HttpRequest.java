@@ -23,12 +23,62 @@
  */
 package com.intuit.karate.server;
 
+import io.netty.handler.codec.http.QueryStringDecoder;
+import java.util.List;
+import java.util.Map;
+
 /**
  *
  * @author pthomas3
  */
-public interface HttpClient {
-    
-    Response invoke(HttpRequest request);
-    
+public class HttpRequest {
+
+    private String url;
+    private String method;
+    private Map<String, List<String>> headers;
+    private byte[] body;
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
+    public String getMethod() {
+        return method;
+    }
+
+    public void setMethod(String method) {
+        this.method = method;
+    }
+
+    public Map<String, List<String>> getHeaders() {
+        return headers;
+    }
+
+    public void setHeaders(Map<String, List<String>> headers) {
+        this.headers = headers;
+    }
+
+    public byte[] getBody() {
+        return body;
+    }
+
+    public void setBody(byte[] body) {
+        this.body = body;
+    }
+
+    public Request toRequest() {
+        Request request = new Request();
+        request.setMethod(method);
+        QueryStringDecoder qsd = new QueryStringDecoder(url); // TODO unify
+        request.setPath(qsd.path());
+        request.setParams(qsd.parameters());
+        request.setHeaders(headers);
+        request.setBody(body);
+        return request;
+    }
+
 }

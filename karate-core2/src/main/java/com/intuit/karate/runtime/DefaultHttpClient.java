@@ -34,7 +34,7 @@ import java.util.List;
  *
  * @author pthomas3
  */
-public class ArmeriaHttpClient extends ScenarioHttpClient<Object> {
+public class DefaultHttpClient extends ScenarioHttpClient<Object> {
 
     @Override
     public void configure(Config config) {

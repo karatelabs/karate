@@ -8,12 +8,13 @@
   </head>
   <body>
     <script ka:lang="js">
-      var url = 'https://httpbin.org/post';
-      var req = { hello: 'world' };
-      var res = context.http(url).post(req).body;
+      var url = 'https://jsonplaceholder.typicode.com/users';
+      var req = null;
+      var method = 'GET';
+      var res = context.http(url).method(method).body(req).invoke().body;
     </script>    
     <div>
-      <h2>POST <span th:text="url"></span></h2>
+      <h2><span th:text="method"></span> <span th:text="url"></span></h2>
       <p>Request</p>
       <code th:text="req"></code>
       <p>Response</p>

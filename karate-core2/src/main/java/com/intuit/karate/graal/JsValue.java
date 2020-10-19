@@ -57,7 +57,7 @@ public class JsValue {
             Object o = v.asProxyObject();
             if (o instanceof JsXml) {
                 value = ((JsXml) o).getNode();
-                type = Type.OBJECT;                
+                type = Type.OBJECT;
             } else if (o instanceof JsMap) {
                 value = ((JsMap) o).getMap();
                 type = Type.OBJECT;
@@ -174,6 +174,8 @@ public class JsValue {
         }
         if (o instanceof Map || o instanceof List) {
             return FileUtils.toBytes(JsonUtils.toJson(o));
+        } else if (o instanceof byte[]) {
+            return (byte[]) o;
         } else {
             return FileUtils.toBytes(o.toString());
         }

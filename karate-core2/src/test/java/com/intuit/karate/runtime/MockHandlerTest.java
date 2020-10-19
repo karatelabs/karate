@@ -19,12 +19,12 @@ class MockHandlerTest {
 
     MockHandler handler;
     FeatureBuilder feature;
-    RequestBuilder request;
+    HttpRequestBuilder request;
     Response response;
 
     @BeforeEach
     void beforeEach() {
-        request = new RequestBuilder().method("GET");
+        request = new HttpRequestBuilder(null).method("GET");
     }
 
     FeatureBuilder background(String... lines) {
@@ -34,10 +34,10 @@ class MockHandlerTest {
 
     private Response handle() {
         handler = new MockHandler(feature.build());
-        response = handler.handle(request.build());
-        request = new RequestBuilder().method("GET");
+        response = handler.handle(request.build().toRequest());
+        request = new HttpRequestBuilder(null).method("GET");
         return response;
-    }    
+    }
 
     private void match(Object actual, Object expected) {
         MatchResult mr = Match.that(actual).isEqualTo(expected);
@@ -51,13 +51,13 @@ class MockHandlerTest {
         handle();
         match(response.getBodyAsString(), "hello world");
     }
-    
+
     @Test
     void testPathParams() {
         background().scenario("pathMatches('/hello/{name}')", "def response = 'hello ' + pathParams.name");
         request.path("/hello/john");
         handle();
         match(response.getBodyAsString(), "hello john");
-    }    
+    }
 
 }

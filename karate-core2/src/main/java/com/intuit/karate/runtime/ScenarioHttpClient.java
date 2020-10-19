@@ -244,7 +244,7 @@ public abstract class ScenarioHttpClient<T> {
         if (config.getClientInstance() != null) {
             return config.getClientInstance();
         }
-        ScenarioHttpClient client = new ArmeriaHttpClient();
+        ScenarioHttpClient client = new DefaultHttpClient();
         client.configure(config);
         return client;
     }
