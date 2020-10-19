@@ -32,6 +32,9 @@ import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.HtmlFeatureReport;
 import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.ScenarioExecutionUnit;
+
+import java.io.File;
+import java.net.URI;
 import java.util.Iterator;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DynamicTest;
@@ -69,7 +72,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     @Override
     public DynamicTest next() {
         ScenarioExecutionUnit unit = iterator.next();
-        return DynamicTest.dynamicTest(unit.scenario.getNameForReport(), () -> {
+        return DynamicTest.dynamicTest(unit.scenario.getNameForReport(), unit.scenario.getScenarioSrcUri() ,() -> {
             if (featureUnit.isSelected(unit)) {
                 unit.run();
             }
@@ -93,5 +96,4 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     public Iterator<DynamicTest> iterator() {
         return this;
     }
-
 }

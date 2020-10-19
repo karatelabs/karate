@@ -111,7 +111,7 @@ public abstract class WebDriver implements Driver {
         String before = options.getPreSubmitHash();
         if (before != null) {
             logger.trace("submit requested, will wait for page load after next action on : {}", locator);
-            options.setPreSubmitHash(null); // clear the submit flag            
+            options.setPreSubmitHash(null); // clear the submit flag
             T result = action.get();
             Integer retryInterval = options.getRetryInterval();
             options.setRetryInterval(500); // reduce retry interval for this special case

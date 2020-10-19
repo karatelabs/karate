@@ -35,6 +35,6 @@ object KarateProtocol {
 }
 
 case class KarateComponents(val protocol: KarateProtocol, val system: ActorSystem) extends ProtocolComponents {
-  override def onStart: Session => Session = ProtocolComponents.NoopOnStart
+  override def onStart: Session => Session = Session.Identity
   override def onExit: Session => Unit = ProtocolComponents.NoopOnExit
 }

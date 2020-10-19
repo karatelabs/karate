@@ -569,7 +569,7 @@ Note that this is currently not supported for [JUnit 5](#junit-5)  `@Karate.Test
 
 ### Command Line - Gradle
 
-For Gradle you must extend the test task to allow the `karate.options` to be passed to the runtime (otherwise they get consumed by Gradle itself). To do that, add the following:
+For Gradle, you must extend the test task to allow the `karate.options` to be passed to the runtime (otherwise they get consumed by Gradle itself). To do that, add the following:
 
 ```yml
 test {
@@ -585,7 +585,11 @@ test {
 And then the above command in Gradle would look like:
 
 ```
-./gradlew test -Dtest=CatsRunner
+./gradlew test --tests *CatsRunner
+```
+or
+```
+./gradlew test -Dtest.single=CatsRunner
 ```
 
 ### Test Suites

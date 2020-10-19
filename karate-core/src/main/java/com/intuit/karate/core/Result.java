@@ -23,7 +23,9 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.exception.KarateException;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -93,7 +95,7 @@ public class Result {
 
     public static Result failed(long nanos, Throwable error, Step step) {
         String featureName = Engine.getFeatureName(step);
-        error = new KarateException(featureName + ":" + step.getLine() + " - " + error.getMessage());        
+        error = new KarateException(featureName + ":" + step.getLine() + " - " + (StringUtils.isBlank(error.getMessage()) ? error : error.getMessage()));          
         StackTraceElement[] newTrace = new StackTraceElement[]{
             new StackTraceElement("✽", step.getPrefix() + ' ' + step.getText() + ' ', featureName, step.getLine())
         };

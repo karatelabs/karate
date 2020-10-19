@@ -192,7 +192,7 @@ public class ScenarioExecutionUnit implements Runnable {
     // extracted for debug
     public StepResult execute(Step step) {
         currentStep = step;
-        actions.context.setExecutionUnit(this);// just for deriving call stack        
+        actions.context.setExecutionUnit(this);// just for deriving call stack
         if (hooks != null) {
             boolean shouldExecute = true;
             for (ExecutionHook hook : hooks) {
