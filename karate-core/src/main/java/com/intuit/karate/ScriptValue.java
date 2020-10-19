@@ -350,7 +350,7 @@ public class ScriptValue {
             case JSON:
             case MAP:
                 Map map = JsonUtils.removeCyclicReferences(getAsMap());
-                return JsonUtils.toJsonDoc(map).jsonString();
+                return JsonUtils.toPrettyJsonString(JsonPath.parse(map));
             default:
                 return getAsString();
         }
