@@ -40,7 +40,10 @@ public class RuntimeUtils {
     }
 
     public static ScenarioRuntime runScenario(String... lines) {
-        Feature feature = toFeature(lines);
+        return run(toFeature(lines));
+    }
+
+    public static ScenarioRuntime run(Feature feature) {
         FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature, false);
         ScenarioGenerator sg = new ScenarioGenerator(fr, feature.getSections().iterator());
         sg.hasNext();

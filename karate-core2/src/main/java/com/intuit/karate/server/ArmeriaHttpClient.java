@@ -25,6 +25,7 @@ package com.intuit.karate.server;
 
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.netty.NettyUtils;
+import com.intuit.karate.runtime.Config;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
 import com.linecorp.armeria.common.HttpMethod;
@@ -51,6 +52,11 @@ public class ArmeriaHttpClient implements HttpClient {
     public ArmeriaHttpClient(RequestContext requestContext) {
         this.requestContext = requestContext;
     }
+    
+    @Override
+    public void configure(Config config) {
+        // TODO
+    }    
 
     @Override
     public Response invoke(HttpRequest request) {

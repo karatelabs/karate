@@ -240,13 +240,4 @@ public abstract class ScenarioHttpClient<T> {
         }
     }
 
-    public static ScenarioHttpClient construct(Config config) {
-        if (config.getClientInstance() != null) {
-            return config.getClientInstance();
-        }
-        ScenarioHttpClient client = new DefaultHttpClient();
-        client.configure(config);
-        return client;
-    }
-
 }

@@ -24,6 +24,7 @@
 package com.intuit.karate.graal;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.XmlUtils;
 import com.intuit.karate.data.JsonUtils;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -174,6 +175,8 @@ public class JsValue {
         }
         if (o instanceof Map || o instanceof List) {
             return FileUtils.toBytes(JsonUtils.toJson(o));
+        } else if (o instanceof Node) {
+            return FileUtils.toBytes(XmlUtils.toString((Node) o));
         } else if (o instanceof byte[]) {
             return (byte[]) o;
         } else {
@@ -191,11 +194,15 @@ public class JsValue {
 
     public static Object fromString(String raw) {
         char firstChar = raw.trim().charAt(0);
-        if (firstChar == '{' || firstChar == '[') {
-            Object o = JsonUtils.fromJson(raw);
-            return JsValue.fromJava(o);
-        } else {
-            return raw;
+        switch (firstChar) {
+            case '{':
+            case '[':
+                Object o = JsonUtils.fromJson(raw);
+                return JsValue.fromJava(o);
+            case '<':
+                return XmlUtils.toXmlDoc(raw);
+            default:
+                return raw;
         }
     }
 

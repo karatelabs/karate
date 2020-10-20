@@ -32,17 +32,16 @@ import com.intuit.karate.data.JsonUtils;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsMap;
 import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchStep;
 import com.intuit.karate.match.MatchType;
+import com.intuit.karate.server.HttpRequest;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import org.graalvm.polyglot.Value;
 
 /**

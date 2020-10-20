@@ -26,6 +26,7 @@ package com.intuit.karate.server;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.runtime.Config;
 import com.linecorp.armeria.common.QueryParams;
 import com.linecorp.armeria.common.QueryParamsBuilder;
 import io.netty.handler.codec.http.cookie.Cookie;
@@ -85,6 +86,7 @@ public class HttpRequestBuilder implements ProxyObject {
     private String url;
     private JsValue headersFactory;
 
+    private Config config;
     private String method;
     private List<String> paths;
     private Map<String, List<String>> params;
@@ -106,6 +108,11 @@ public class HttpRequestBuilder implements ProxyObject {
         headers = null;
         body = null;
         cookies = null;
+        return this;
+    }
+
+    public HttpRequestBuilder configure(Config config) {
+        this.config = config;
         return this;
     }
 
@@ -148,9 +155,16 @@ public class HttpRequestBuilder implements ProxyObject {
             }
         }
         request.setHeaders(headers);
+        String mediaType = getHeader(HttpConstants.HDR_CONTENT_TYPE);
+        if (body != null && mediaType == null) {
+            mediaType = ResourceType.fromObject(body).contentType;
+        }
+        if (mediaType != null) {
+            header(HttpConstants.HDR_CONTENT_TYPE, mediaType);
+        }
         request.setBody(JsValue.toBytes(body));
         return request;
-    }
+    }   
 
     public Response invoke() {
         return client.invoke(build());
@@ -206,8 +220,17 @@ public class HttpRequestBuilder implements ProxyObject {
         return this;
     }
 
-    public List<String> getHeader(String name) { // TODO optimize
-        return StringUtils.getIgnoreKeyCase(headers, name);
+    public List<String> getHeaderValues(String name) {
+        return StringUtils.getIgnoreKeyCase(headers, name); // TODO optimize
+    }
+    
+    public String getHeader(String name) {        
+        List<String> list = getHeaderValues(name);
+        if (list == null || list.isEmpty()) {
+            return null;
+        } else {
+            return list.get(0);
+        }
     }
 
     public HttpRequestBuilder header(String name, String... values) {
@@ -314,11 +337,7 @@ public class HttpRequestBuilder implements ProxyObject {
 
     private final VarArgsFunction HEADER_FUNCTION = args -> {
         if (args.length == 1) {
-            List<String> list = getHeader(toString(args[0]));
-            if (list == null || list.isEmpty()) {
-                return null;
-            }
-            return list.get(0);
+            return getHeader(toString(args[0]));
         } else {
             header(toString(args[0]), toString(args[1]));
             return this;

@@ -23,12 +23,16 @@
  */
 package com.intuit.karate.server;
 
+import com.intuit.karate.runtime.Config;
+
 /**
  *
  * @author pthomas3
  */
 public interface HttpClient {
-    
+
+    void configure(Config config);
+
     Response invoke(HttpRequest request);
-    
+
 }

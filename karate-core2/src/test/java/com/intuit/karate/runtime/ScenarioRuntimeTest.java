@@ -27,8 +27,12 @@ class ScenarioRuntimeTest {
         return sr;
     }
 
-    private void matchVarEquals(String name, Object expected) {
-        MatchResult mr = Match.that(get(name)).isEqualTo(expected);
+    private void matchVar(String name, Object expected) {
+        match(get(name), expected);
+    }
+
+    private void match(Object actual, Object expected) {
+        MatchResult mr = Match.that(actual).isEqualTo(expected);
         assertTrue(mr.pass, mr.message);
     }
 
@@ -52,22 +56,21 @@ class ScenarioRuntimeTest {
         System.setProperty("karate.env", "");
         System.setProperty("karate.config.dir", "");
         run("def foo = configSource");
-        matchVarEquals("foo", "normal");
-        
+        matchVar("foo", "normal");
         System.setProperty("karate.config.dir", "src/test/java/com/intuit/karate/runtime");
         run(
-                "def foo = configSource", 
+                "def foo = configSource",
                 "def bar = karate.env"
         );
-        matchVarEquals("foo", "custom");
-        matchVarEquals("bar", null);
+        matchVar("foo", "custom");
+        matchVar("bar", null);
         System.setProperty("karate.env", "dev");
         run(
-                "def foo = configSource", 
+                "def foo = configSource",
                 "def bar = karate.env"
         );
-        matchVarEquals("foo", "custom-env");
-        matchVarEquals("bar", "dev");
+        matchVar("foo", "custom-env");
+        matchVar("bar", "dev");
         // reset for other tests    
         System.setProperty("karate.env", "");
         System.setProperty("karate.config.dir", "");
@@ -81,8 +84,8 @@ class ScenarioRuntimeTest {
                 "def bar = utils.someFun()",
                 "def res = call read('called2.feature')"
         );
-        matchVarEquals("foo", "hello world");
-        matchVarEquals("bar", "hello world");
+        matchVar("foo", "hello world");
+        matchVar("bar", "hello world");
         Match.that(get("res")).contains("{ calledBar: 'hello world' }").isTrue();
         System.setProperty("karate.env", "");
         System.setProperty("karate.config.dir", "");
@@ -94,7 +97,7 @@ class ScenarioRuntimeTest {
                 "def foo = read('data.json')",
                 "def bar = karate.readAsString('data.json')"
         );
-        matchVarEquals("foo", "{ hello: 'world' }");
+        matchVar("foo", "{ hello: 'world' }");
         Variable bar = sr.engine.vars.get("bar");
         Match.that(bar.getValue()).isString();
         assertEquals(bar.getValue(), "{ \"hello\": \"world\" }\n");
@@ -106,7 +109,7 @@ class ScenarioRuntimeTest {
                 "def fun = function(a){ return a + 1 }",
                 "def foo = call fun 2"
         );
-        matchVarEquals("foo", 3);
+        matchVar("foo", 3);
     }
 
     @Test
@@ -115,23 +118,23 @@ class ScenarioRuntimeTest {
                 "def b = 'bar'",
                 "def res = call read('called1.feature')"
         );
-        matchVarEquals("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: null, __loop: -1 }");
+        matchVar("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: null, __loop: -1 }");
         run(
                 "def b = 'bar'",
                 "def res = call read('called1.feature') { foo: 'bar' }"
         );
-        matchVarEquals("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { foo: 'bar' }, __loop: -1 }");
+        matchVar("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { foo: 'bar' }, __loop: -1 }");
         run(
                 "def b = 'bar'",
                 "def res = call read('called1.feature') [{ foo: 'bar' }]"
         );
-        matchVarEquals("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { foo: 'bar' }, __loop: 0 }]");
+        matchVar("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { foo: 'bar' }, __loop: 0 }]");
         run(
                 "def b = 'bar'",
                 "def fun = function(i){ if (i == 1) return null; return { index: i } }",
                 "def res = call read('called1.feature') fun"
         );
-        matchVarEquals("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { index: 0 }, __loop: 0, index: 0, fun: '#ignore' }]");
+        matchVar("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { index: 0 }, __loop: 0, index: 0, fun: '#ignore' }]");
     }
 
     @Test
@@ -141,25 +144,25 @@ class ScenarioRuntimeTest {
                 "def first = callonce uuid",
                 "def second = callonce uuid"
         );
-        matchVarEquals("first", get("second"));
+        matchVar("first", get("second"));
     }
-    
+
     @Test
     void testCallSingle() {
         run(
                 "def first = karate.callSingle('uuid.js')",
                 "def second = karate.callSingle('uuid.js')"
         );
-        matchVarEquals("first", get("second"));
-    }    
-    
+        matchVar("first", get("second"));
+    }
+
     @Test
     void testCallFromJs() {
         run(
                 "def res = karate.call('called1.feature')"
         );
-        matchVarEquals("res", "{ a: 1, foo: { hello: 'world' }, configSource: 'normal', __arg: null, __loop: -1 }");
-    }      
+        matchVar("res", "{ a: 1, foo: { hello: 'world' }, configSource: 'normal', __arg: null, __loop: -1 }");
+    }
 
     @Test
     void testToString() {
@@ -194,11 +197,11 @@ class ScenarioRuntimeTest {
         assertEquals(get("foo"), 1);
         assertEquals(get("a"), 2);
         assertEquals(get("b"), "hey");
-        matchVarEquals("bar", "{ hello: 'world' }");
+        matchVar("bar", "{ hello: 'world' }");
         Object fooXml = get("fooXml");
-        Match.that(fooXml).isXml();
-        Match.that(fooXml).isEqualTo("<foo>bar</foo>");
-        matchVarEquals("baz", "{ a: 1 }");
+        assertTrue(Match.that(fooXml).isXml());
+        matchVar("fooXml", "<foo>bar</foo>");
+        matchVar("baz", "{ a: 1 }");
         Match.that(get("bax")).isEqualTo("<foo><a>1</a></foo>");
         assertEquals(get("getFoo"), 1);
         assertEquals(get("getNull"), null);
@@ -218,8 +221,8 @@ class ScenarioRuntimeTest {
         );
         assertEquals(get("fooSize"), 3);
         assertEquals(get("barSize"), 3);
-        matchVarEquals("fooKeys", "['a', 'b', 'c']");
-        matchVarEquals("fooVals", "[1, 2, 3]");
+        matchVar("fooKeys", "['a', 'b', 'c']");
+        matchVar("fooVals", "[1, 2, 3]");
     }
 
     @Test
@@ -229,8 +232,8 @@ class ScenarioRuntimeTest {
                 "def mat1 = karate.match(foo, {a: 2})",
                 "def mat2 = karate.match('foo == { a: 1 }')"
         );
-        matchVarEquals("mat1", "{ pass: false, message: '#notnull' }");
-        matchVarEquals("mat2", "{ pass: true, message: '#null' }");
+        matchVar("mat1", "{ pass: false, message: '#notnull' }");
+        matchVar("mat2", "{ pass: true, message: '#null' }");
     }
 
     @Test
@@ -245,8 +248,8 @@ class ScenarioRuntimeTest {
                 "def fun = function(v, i){ res2.value += v + i }",
                 "karate.forEach(foo, fun)"
         );
-        matchVarEquals("res1", "{ value: 'a10b21c32' }");
-        matchVarEquals("res2", "{ value: 'a0b1c2' }");
+        matchVar("res1", "{ value: 'a10b21c32' }");
+        matchVar("res2", "{ value: 'a0b1c2' }");
     }
 
     @Test
@@ -256,20 +259,20 @@ class ScenarioRuntimeTest {
                 "def fun = function(x){ return x.a }",
                 "def res = karate.map(foo, fun)"
         );
-        matchVarEquals("res", "[1, 2, 3]");
+        matchVar("res", "[1, 2, 3]");
         run(
                 "def foo = [{ a: 1 }, { a: 2 }, { a: 3 }]",
                 "def res = karate.map(foo, x => x.a)"
         );
-        matchVarEquals("res", "[1, 2, 3]");
+        matchVar("res", "[1, 2, 3]");
         run(
                 "def foo = [{ a: 1 }, { a: 2 }, { a: 3 }]",
                 "def fun = (x, i) => `${x.a}${i}`",
                 "def res1 = karate.map(foo, fun)",
                 "def res2 = foo.map(x => x.a)"
         );
-        matchVarEquals("res1", "['10', '21', '32']");
-        matchVarEquals("res2", "[1, 2, 3]");
+        matchVar("res1", "['10', '21', '32']");
+        matchVar("res2", "[1, 2, 3]");
     }
 
     @Test
@@ -278,7 +281,7 @@ class ScenarioRuntimeTest {
                 "def foo = [{ a: 0 }, { a: 1 }, { a: 2 }]",
                 "def res = karate.filter(foo, x => x.a > 0)"
         );
-        matchVarEquals("res", "[{ a: 1 }, { a: 2 }]");
+        matchVar("res", "[{ a: 1 }, { a: 2 }]");
     }
 
     @Test
@@ -290,10 +293,10 @@ class ScenarioRuntimeTest {
                 "def res3 = karate.filterKeys(foo, ['b', 'c'])",
                 "def res4 = karate.filterKeys(foo, { a: 2, c: 5})"
         );
-        matchVarEquals("res1", "{ a: 1 }");
-        matchVarEquals("res2", "{ a: 1, c: 3 }");
-        matchVarEquals("res3", "{ b: 2, c: 3 }");
-        matchVarEquals("res4", "{ a: 1, c: 3 }");
+        matchVar("res1", "{ a: 1 }");
+        matchVar("res2", "{ a: 1, c: 3 }");
+        matchVar("res3", "{ b: 2, c: 3 }");
+        matchVar("res4", "{ a: 1, c: 3 }");
     }
 
     @Test
@@ -303,9 +306,9 @@ class ScenarioRuntimeTest {
                 "def res2 = karate.repeat(3, i => ({ a: 1 }))",
                 "def res3 = karate.repeat(3, i => ({ a: i + 1 }))"
         );
-        matchVarEquals("res1", "[1, 2, 3]");
-        matchVarEquals("res2", "[{ a: 1 }, { a: 1 }, { a: 1 }]");
-        matchVarEquals("res3", "[{ a: 1 }, { a: 2 }, { a: 3 }]");
+        matchVar("res1", "[1, 2, 3]");
+        matchVar("res2", "[{ a: 1 }, { a: 1 }, { a: 1 }]");
+        matchVar("res3", "[{ a: 1 }, { a: 2 }, { a: 3 }]");
     }
 
     @Test
@@ -314,7 +317,7 @@ class ScenarioRuntimeTest {
                 "def foo = [1, 2, 3]",
                 "def res = karate.mapWithKey(foo, 'val')"
         );
-        matchVarEquals("res", "[{ val: 1 }, { val: 2 }, { val: 3 }]");
+        matchVar("res", "[{ val: 1 }, { val: 2 }, { val: 3 }]");
     }
 
     @Test
@@ -327,9 +330,9 @@ class ScenarioRuntimeTest {
                 "def res3 = [1, 2]",
                 "karate.appendTo('res3', [3, 4])"
         );
-        matchVarEquals("res1", "{ a: 1, b: 2 }");
-        matchVarEquals("res2", "[1, 2, 3, 4]");
-        matchVarEquals("res3", "[1, 2, 3, 4]");
+        matchVar("res1", "{ a: 1, b: 2 }");
+        matchVar("res2", "[1, 2, 3, 4]");
+        matchVar("res3", "[1, 2, 3, 4]");
     }
 
     @Test
@@ -338,7 +341,7 @@ class ScenarioRuntimeTest {
                 "def foo = { a: 1, b: { a: 2 } }",
                 "def res1 = karate.jsonPath(foo, '$..a')"
         );
-        matchVarEquals("res1", "[1, 2]");
+        matchVar("res1", "[1, 2]");
     }
 
     @Test
@@ -347,7 +350,7 @@ class ScenarioRuntimeTest {
                 "def foo = { HELLO: 'WORLD' }",
                 "def res1 = karate.lowerCase(foo)"
         );
-        matchVarEquals("res1", "{ hello: 'world' }");
+        matchVar("res1", "{ hello: 'world' }");
     }
 
     @Test
@@ -356,7 +359,7 @@ class ScenarioRuntimeTest {
                 "def foo = <bar><a><b>c</b></a></bar>",
                 "def res1 = karate.xmlPath(foo, '/bar/a')"
         );
-        matchVarEquals("res1", "<a><b>c</b></a>");
+        matchVar("res1", "<a><b>c</b></a>");
     }
 
     @Test
@@ -378,8 +381,8 @@ class ScenarioRuntimeTest {
                 "def res1 = karate.toJson(pojo)",
                 "def res2 = karate.toJson(pojo, true)"
         );
-        matchVarEquals("res1", "{ bar: 0, foo: null }");
-        matchVarEquals("res2", "{ bar: 0 }");
+        matchVar("res1", "{ bar: 0, foo: null }");
+        matchVar("res2", "{ bar: 0 }");
     }
 
     @Test
@@ -388,9 +391,9 @@ class ScenarioRuntimeTest {
                 "def foo = [{a: 1, b: 2}, { a: 3, b: 4 }]",
                 "def res = karate.toCsv(foo)"
         );
-        matchVarEquals("res", "a,b\n1,2\n3,4\n");
+        matchVar("res", "a,b\n1,2\n3,4\n");
     }
-    
+
     @Test
     void testEval() {
         run(
@@ -398,9 +401,9 @@ class ScenarioRuntimeTest {
                 "def bar = foo()"
         );
         assertTrue(sr.engine.vars.get("foo").isFunction());
-        matchVarEquals("bar", 3);        
+        matchVar("bar", 3);
     }
-    
+
     @Test
     void testFromString() {
         run(
@@ -408,8 +411,7 @@ class ScenarioRuntimeTest {
                 "def bar = karate.typeOf(foo)"
         );
         assertTrue(sr.engine.vars.get("foo").isMap());
-        matchVarEquals("bar", "map");        
-    }    
-
+        matchVar("bar", "map");
+    }
 
 }

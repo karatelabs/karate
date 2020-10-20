@@ -45,12 +45,12 @@ class HttpMockHandlerTest {
 
     MockHandler handler;
     HttpServer server;
-    FeatureBuilder feature;
+    FeatureBuilder mock;
     HttpRequestBuilder http;
     Response response;
 
     HttpRequestBuilder handle() {
-        handler = new MockHandler(feature.build());
+        handler = new MockHandler(mock.build());
         server = new HttpServer(0, handler);
         ArmeriaHttpClient client = new ArmeriaHttpClient(null);
         http = new HttpRequestBuilder(client);
@@ -59,8 +59,8 @@ class HttpMockHandlerTest {
     }
 
     FeatureBuilder background(String... lines) {
-        feature = FeatureBuilder.background(lines);
-        return feature;
+        mock = FeatureBuilder.background(lines);
+        return mock;
     }
 
     private void match(Object actual, Object expected) {

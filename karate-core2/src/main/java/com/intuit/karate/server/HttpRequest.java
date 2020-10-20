@@ -33,10 +33,19 @@ import java.util.Map;
  */
 public class HttpRequest {
 
+    private long startTime;
     private String url;
     private String method;
     private Map<String, List<String>> headers;
     private byte[] body;
+
+    public long getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(long startTime) {
+        this.startTime = startTime;
+    }
 
     public String getUrl() {
         return url;

@@ -26,6 +26,7 @@ package com.intuit.karate.server;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.w3c.dom.Node;
 
 /**
  *
@@ -43,7 +44,7 @@ public enum ResourceType {
     HTML("text/html", vals("html"), vals("html", "htm")),
     XML("application/xml", vals("xml"), vals("xml")),
     TEXT("text/plain", vals("plain"), vals("txt")),
-    NONE(null, vals(), vals());
+    NONE("application/octet-stream", vals(), vals());
 
     private static String[] vals(String... values) {
         return values;
@@ -120,14 +121,14 @@ public enum ResourceType {
         }
         return NONE;
     }
-    
+
     public static ResourceType fromObject(Object o) {
-        if (o instanceof List) {
-            return JSON;
-        } else if (o instanceof Map) {
+        if (o instanceof List || o instanceof Map) {
             return JSON;
         } else if (o instanceof String) {
             return TEXT;
+        } else if (o instanceof Node) {
+            return XML;
         } else {
             return NONE;
         }

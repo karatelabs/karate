@@ -108,8 +108,17 @@ public class Request implements ProxyObject {
         return getHeader(HttpConstants.HDR_HX_REQUEST) != null;
     }
 
-    public List<String> getHeader(String name) { // TODO optimize
-        return StringUtils.getIgnoreKeyCase(headers, name);
+    public List<String> getHeaderValues(String name) {
+        return StringUtils.getIgnoreKeyCase(headers, name); // TODO optimize
+    }
+
+    public String getHeader(String name) {
+        List<String> list = getHeaderValues(name);
+        if (list == null || list.isEmpty()) {
+            return null;
+        } else {
+            return list.get(0);
+        }
     }
 
     public String getParam(String name) {
@@ -233,14 +242,6 @@ public class Request implements ProxyObject {
         }
     }
 
-    private final Function<String, String> HEADER_FUNCTION = name -> {
-        List<String> list = getHeader(name);
-        if (list == null || list.isEmpty()) {
-            return null;
-        }
-        return list.get(0);
-    };
-
     @Override
     public Object getMember(String key) {
         switch (key) {
@@ -263,7 +264,7 @@ public class Request implements ProxyObject {
             case PATH_PARAMS:
                 return JsValue.fromJava(pathParams);
             case HEADER:
-                return HEADER_FUNCTION;
+                return (Function<String, String>) this::getHeader;
             case HEADERS:
                 return JsValue.fromJava(headers);
             case GET:

@@ -54,14 +54,8 @@ public class HttpServer {
         return port;
     }
 
-    public void stop() {
-        try {
-            logger.debug("waiting for server to stop");
-            server.stop().get();
-            logger.debug("server stopped");
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    public CompletableFuture stop() {
+        return server.stop();
     }
 
     public HttpServer(int port, ServerHandler handler) {
