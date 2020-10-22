@@ -565,7 +565,6 @@ Multiple feature files (or paths) can be specified, de-limited by the space char
 ```
 mvn test "-Dkarate.options=PathToFeatureFiles/order.feature:12" -Dtest=DemoTestParallel
 ```
-Note that this is currently not supported for [JUnit 5](#junit-5)  `@Karate.Test` annotation.
 
 ### Command Line - Gradle
 
