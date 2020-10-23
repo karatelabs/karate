@@ -423,7 +423,7 @@ public class ScriptBridge implements PerfContext {
             }
         }
         ScriptValue sv = Script.evalXmlPathOnXmlNode((Node) o, path);
-        return null != sv ? sv.getValue() : "";
+        return sv == null ? null : sv.getValue();
     }
 
     public Object toBean(Object o, String className) {
