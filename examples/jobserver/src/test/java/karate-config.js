@@ -1,7 +1,8 @@
 function fn() {
     if (karate.env === 'docker') {
         var driverConfig = {
-            type: 'chrome',
+            //type: 'chrome',
+            type: 'geckodriver',
             showDriverLog: true,
             start: false,
             beforeStart: 'supervisorctl start ffmpeg',
