@@ -32,7 +32,6 @@ import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.common.ResponseHeadersBuilder;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.AsciiString;
 import java.util.HashMap;
 import java.util.List;
@@ -63,10 +62,8 @@ public class HttpServerHandler implements HttpService {
     private Request toRequest(ServiceRequestContext ctx, AggregatedHttpRequest req) {
         Request request = new Request();
         request.setRequestContext(ctx);
+        request.setUrl(req.path());
         request.setMethod(req.method().name());
-        QueryStringDecoder qsd = new QueryStringDecoder(req.path());
-        request.setPath(qsd.path());
-        request.setParams(qsd.parameters());
         RequestHeaders rh = req.headers();
         if (rh != null) {
             Set<AsciiString> names = rh.names();

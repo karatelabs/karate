@@ -97,6 +97,7 @@ public enum ResourceType {
 
     public boolean isBinary() {
         switch (this) {
+            case NONE:
             case ICO:
             case PNG:
             case GIF:

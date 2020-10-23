@@ -226,7 +226,7 @@ public abstract class ScenarioHttpClient<T> {
             return response;
         } catch (Exception e) {
             // edge case when request building failed maybe because of malformed url
-            long startTime = engine.getPrevRequest() == null ? System.currentTimeMillis() : engine.getPrevRequest().getStartTime();
+            long startTime = engine.getPrevRequest() == null ? System.currentTimeMillis() : engine.getPrevRequest().getStartTimeMillis();
             long endTime = System.currentTimeMillis();
             long responseTime = endTime - startTime;
             String message = "http call failed after " + responseTime + " milliseconds for URL: " + getRequestUri();

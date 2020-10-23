@@ -15,9 +15,9 @@ class HttpClientTester {
 
     @Test
     void testGet() {
-        ArmeriaHttpClient client = new ArmeriaHttpClient(null);
+        ArmeriaHttpClient client = new ArmeriaHttpClient(null, null);
         HttpRequestBuilder http = new HttpRequestBuilder(client);
-        Response response = http.url("https://jsonplaceholder.typicode.com/users").invoke();
+        Response response = http.url("https://jsonplaceholder.typicode.com/users/1").header("Accept", "application/json").invoke();
         String body = FileUtils.toString(response.getBody());
         logger.debug("response: {}", body);
     }

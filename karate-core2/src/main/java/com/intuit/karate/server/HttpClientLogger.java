@@ -28,9 +28,9 @@ import com.linecorp.armeria.client.DecoratingHttpClientFunction;
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
+import com.linecorp.armeria.common.RequestHeaders;
 import com.linecorp.armeria.common.logging.RequestLogProperty;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.AsciiString;
 
 /**
  *
@@ -38,12 +38,30 @@ import org.slf4j.LoggerFactory;
  */
 public class HttpClientLogger implements DecoratingHttpClientFunction {
 
-    private static final Logger logger = LoggerFactory.getLogger(HttpClientLogger.class);
+    private final ArmeriaHttpClient client;
+    private com.intuit.karate.server.HttpRequest request;
+
+    public HttpClientLogger(ArmeriaHttpClient client) {
+        this.client = client;
+    }
+
+    public void setRequest(com.intuit.karate.server.HttpRequest request) {
+        this.request = request;
+    }
 
     @Override
     public HttpResponse execute(HttpClient delegate, ClientRequestContext ctx, HttpRequest req) throws Exception {
-        ctx.log().whenAvailable(RequestLogProperty.REQUEST_START_TIME).thenAccept(log -> logger.debug(log.toStringRequestOnly()));
-        ctx.log().whenAvailable(RequestLogProperty.RESPONSE_END_TIME).thenAccept(log -> logger.debug(log.toStringResponseOnly()));
+        ctx.log().whenAvailable(RequestLogProperty.REQUEST_HEADERS).thenAccept(log -> {
+            request.setStartTimeMillis(log.requestStartTimeMillis());
+            RequestHeaders rh = log.requestHeaders();
+            for (AsciiString name : rh.names()) {
+                if (name.charAt(0) != ':') {
+                    request.putHeader(name.toString(), rh.getAll(name));
+                }
+            }
+            client.logRequest(request);
+        });
+        ctx.log().whenAvailable(RequestLogProperty.RESPONSE_START_TIME).thenAccept(log -> request.setEndTimeMillis(log.responseStartTimeMillis()));
         return delegate.execute(ctx, req);
     }
 

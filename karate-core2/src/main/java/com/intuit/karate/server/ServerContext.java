@@ -234,7 +234,7 @@ public class ServerContext implements ProxyObject {
     private final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s);
 
     private final VarArgsFunction HTTP_FUNCTION = args -> {
-        ArmeriaHttpClient client = new ArmeriaHttpClient(getRequestContext());
+        ArmeriaHttpClient client = new ArmeriaHttpClient(null, getRequestContext());
         HttpRequestBuilder http = new HttpRequestBuilder(client);
         if (args.length > 0) {
             http.url((String) args[0]);

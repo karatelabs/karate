@@ -23,11 +23,14 @@
  */
 package com.intuit.karate.server;
 
+import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.netty.NettyUtils;
 import com.intuit.karate.runtime.Config;
+import com.intuit.karate.runtime.ScenarioEngine;
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.common.AggregatedHttpResponse;
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpMethod;
 import com.linecorp.armeria.common.RequestContext;
 import com.linecorp.armeria.common.RequestHeaders;
@@ -47,22 +50,52 @@ import java.util.concurrent.Future;
  */
 public class ArmeriaHttpClient implements HttpClient {
 
+    private final Logger logger;
+    private final ScenarioEngine engine;
     private final RequestContext requestContext;
+    private final HttpClientLogger httpClientLogger = new HttpClientLogger(this);
 
-    public ArmeriaHttpClient(RequestContext requestContext) {
+    public ArmeriaHttpClient(ScenarioEngine engine, RequestContext requestContext) {
+        logger = engine == null ? new Logger(getClass()) : engine.logger;
+        this.engine = engine;
         this.requestContext = requestContext;
     }
-    
+
     @Override
     public void configure(Config config) {
         // TODO
-    }    
+    }
+
+    public void logRequest(HttpRequest request) {
+        logger.debug("> start time: {}", request.getStartTimeMillis());
+        Map<String, List<String>> headers = request.getHeaders();
+        if (headers != null) {
+            headers.forEach((k, v) -> {
+                logger.debug("> {}: {}", k, v);
+            });
+        }
+    }
+
+    public void logResponse(Response response) {
+        HttpRequest request = response.getHttpRequest();
+        long startTime = request.getStartTimeMillis();
+        long elapsedTime = request.getEndTimeMillis() - startTime;
+        logger.debug("< elapsed time: {}", elapsedTime);
+        logger.debug("< status: {}", response.getStatus());
+        Map<String, List<String>> headers = response.getHeaders();
+        if (headers != null) {
+            headers.forEach((k, v) -> {
+                logger.debug("< {}: {}", k, v);
+            });
+        }
+    }
 
     @Override
     public Response invoke(HttpRequest request) {
         HttpMethod httpMethod = HttpMethod.valueOf(request.getMethod());
         StringUtils.Pair urlAndPath = NettyUtils.parseUriIntoUrlBaseAndPath(request.getUrl());
-        WebClient webClient = WebClient.builder(urlAndPath.left).decorator(new HttpClientLogger()).build();
+        httpClientLogger.setRequest(request);
+        WebClient webClient = WebClient.builder(urlAndPath.left).decorator(httpClientLogger).build();
         RequestHeadersBuilder rhb = RequestHeaders.builder(httpMethod, urlAndPath.right);
         Map<String, List<String>> headers = request.getHeaders();
         if (headers != null) {
@@ -83,14 +116,17 @@ public class ArmeriaHttpClient implements HttpClient {
             throw new RuntimeException(e);
         }
         ResponseHeaders rh = ahr.headers();
-        Map<String, List<String>> responseHeaders = rh.isEmpty() ? null : new LinkedHashMap(rh.size());
+        Map<String, List<String>> responseHeaders = new LinkedHashMap(rh.size());
         for (AsciiString name : rh.names()) {
-            responseHeaders.put(name.toString(), rh.getAll(name));
+            if (!HttpHeaderNames.STATUS.equals(name)) {
+                responseHeaders.put(name.toString(), rh.getAll(name));
+            }
         }
-        String contentType = ahr.contentType() == null ? null : ahr.contentType().nameWithoutParameters();
-        ResourceType responseType = ResourceType.fromContentType(contentType);
         byte[] responseBody = ahr.content().isEmpty() ? null : ahr.content().array();
-        return new Response(ahr.status().code(), responseHeaders, responseBody, responseType);
+        Response response = new Response(ahr.status().code(), responseHeaders, responseBody);
+        response.setHttpRequest(request);
+        logResponse(response);
+        return response;
     }
 
 }

@@ -27,11 +27,13 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.netty.NettyUtils;
 import com.linecorp.armeria.common.RequestContext;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.handler.codec.http.multipart.Attribute;
 import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 import io.netty.handler.codec.http.multipart.HttpPostStandardRequestDecoder;
@@ -85,6 +87,7 @@ public class Request implements ProxyObject {
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
+    private String baseUrl;
     private String path;
     private String method;
     private Map<String, List<String>> params;
@@ -135,6 +138,22 @@ public class Request implements ProxyObject {
     public String getPath() {
         return path;
     }
+
+    public void setUrl(String url) {
+        StringUtils.Pair pair = NettyUtils.parseUriIntoUrlBaseAndPath(url);
+        baseUrl = pair.left;
+        QueryStringDecoder qsd = new QueryStringDecoder(pair.right);
+        setPath(qsd.path());
+        setParams(qsd.parameters());
+    }
+
+    public String getBaseUrl() {
+        return baseUrl;
+    }
+
+    public void setBaseUrl(String baseUrl) {
+        this.baseUrl = baseUrl;
+    }        
 
     public void setPath(String path) {
         if (path.charAt(0) == '/') {

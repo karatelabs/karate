@@ -76,7 +76,7 @@ public class ScenarioEngine {
     protected Map<String, Object> magicVariables;
     protected Config config;
     protected String evalJsError;
-    protected final Logger logger;
+    public final Logger logger;
 
     private final Function<String, Object> readFunction;
     private final ScenarioBridge bridge;
@@ -96,6 +96,9 @@ public class ScenarioEngine {
         bridge = new ScenarioBridge();
         this.vars = vars;
         this.logger = logger;
+        // has to be set after logger to re-use
+        httpClient = new ArmeriaHttpClient(this, null);
+        http = new HttpRequestBuilder(httpClient);
     }
 
     // engine ==================================================================
@@ -203,12 +206,12 @@ public class ScenarioEngine {
     // http ====================================================================
     //        
     //
-    private ArmeriaHttpClient httpClient = new ArmeriaHttpClient(null);
-    private HttpRequestBuilder http = new HttpRequestBuilder(httpClient);
-    private HttpRequest prevRequest;
+    private ArmeriaHttpClient httpClient; // has to be inited in constructor
+    private HttpRequestBuilder http; // has to be inited in constructor
+    private Response prevResponse;
 
     public HttpRequest getPrevRequest() {
-        return prevRequest;
+        return prevResponse == null ? null : prevResponse.getHttpRequest();
     }
 
     public void configure(Config config) {
@@ -295,12 +298,13 @@ public class ScenarioEngine {
     }
 
     public void request(String body) {
-
+        Variable v = evalKarateExpression(body);
+        http.body(v.getValue());
     }
 
     public void method(String method) {
-        Response response = http.invoke(method);
-        byte[] bytes = response.getBody();
+        prevResponse = http.invoke(method);
+        byte[] bytes = prevResponse.getBody();
         setVariable(VariableNames.RESPONSE_BYTES, bytes);
         Object body;
         String responseType;
@@ -347,7 +351,15 @@ public class ScenarioEngine {
     }
 
     public void status(int status) {
-
+        if (status != prevResponse.getStatus()) {
+            String rawResponse = vars.get(VariableNames.RESPONSE).getAsString();
+            String responseTime = vars.get(VariableNames.RESPONSE_TIME).getAsString();
+            String message = "status code was: " + prevResponse.getStatus() + ", expected: " + status
+                    + ", response time: " + responseTime + ", url: " + prevResponse.getHttpRequest().getUrl()
+                    + ", response: " + rawResponse;
+            runtime.logError(message);
+            throw new KarateException(message);
+        }
     }
 
     // ui driver / robot =======================================================

@@ -63,10 +63,16 @@ public class Response implements ProxyObject {
     private int status;
     private Map<String, List<String>> headers;
     private byte[] body;
+
     private ResourceType resourceType;
+    private HttpRequest httpRequest;
 
     public Response(int status) {
         this.status = status;
+    }
+
+    public Response(int status, Map<String, List<String>> headers, byte[] body) {
+        this(status, headers, body, null);
     }
 
     public Response(int status, Map<String, List<String>> headers, byte[] body, ResourceType resourceType) {
@@ -116,6 +122,14 @@ public class Response implements ProxyObject {
         this.resourceType = resourceType;
     }
 
+    public HttpRequest getHttpRequest() {
+        return httpRequest;
+    }
+
+    public void setHttpRequest(HttpRequest httpRequest) {
+        this.httpRequest = httpRequest;
+    }
+
     public List<String> getHeader(String name) { // TOTO optimize
         return StringUtils.getIgnoreKeyCase(headers, name);
     }
@@ -143,8 +157,7 @@ public class Response implements ProxyObject {
             return Response.this;
         }
     };
-    
-    private static final String COLON_STATUS = ":status";
+
     private static final String KEY = "key";
     private static final String VALUE = "value";
 
@@ -154,7 +167,7 @@ public class Response implements ProxyObject {
         }
         List list = new ArrayList(headers.size());
         headers.forEach((k, v) -> {
-            if (COLON_STATUS.equals(k) || v == null || v.isEmpty()) {
+            if (v == null || v.isEmpty()) {
                 // continue
             } else {
                 Map map = new HashMap(2);

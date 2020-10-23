@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.server;
 
-import io.netty.handler.codec.http.QueryStringDecoder;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -33,18 +33,40 @@ import java.util.Map;
  */
 public class HttpRequest {
 
-    private long startTime;
+    private long startTimeMillis;
+    private long endTimeMillis;
     private String url;
     private String method;
     private Map<String, List<String>> headers;
     private byte[] body;
 
-    public long getStartTime() {
-        return startTime;
+    public void putHeader(String name, List<String> values) {
+        if (headers == null) {
+            headers = new HashMap();
+        }
+        for (String key : headers.keySet()) {
+            if (key.equalsIgnoreCase(name)) {
+                name = key;
+                break;
+            }
+        }
+        headers.put(name, values);
     }
 
-    public void setStartTime(long startTime) {
-        this.startTime = startTime;
+    public long getStartTimeMillis() {
+        return startTimeMillis;
+    }
+
+    public void setStartTimeMillis(long startTimeMillis) {
+        this.startTimeMillis = startTimeMillis;
+    }
+
+    public long getEndTimeMillis() {
+        return endTimeMillis;
+    }
+
+    public void setEndTimeMillis(long endTimeMillis) {
+        this.endTimeMillis = endTimeMillis;
     }
 
     public String getUrl() {
@@ -82,9 +104,7 @@ public class HttpRequest {
     public Request toRequest() {
         Request request = new Request();
         request.setMethod(method);
-        QueryStringDecoder qsd = new QueryStringDecoder(url); // TODO unify
-        request.setPath(qsd.path());
-        request.setParams(qsd.parameters());
+        request.setUrl(url);
         request.setHeaders(headers);
         request.setBody(body);
         return request;
