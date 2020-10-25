@@ -26,7 +26,7 @@ public class ScenarioEngineTest {
 
     @BeforeEach
     void beforeEach() {
-        engine = new ScenarioEngine(new Config(), RuntimeUtils.runtime(), new HashMap(), new com.intuit.karate.Logger());
+        engine = RuntimeUtils.engine();
         engine.init();
     }
 

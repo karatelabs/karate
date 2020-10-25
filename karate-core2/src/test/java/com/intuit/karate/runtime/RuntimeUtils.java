@@ -1,17 +1,23 @@
 package com.intuit.karate.runtime;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Logger;
 import com.intuit.karate.Resource;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import java.io.InputStream;
 import java.nio.file.Path;
+import java.util.HashMap;
 
 /**
  *
  * @author pthomas3
  */
 public class RuntimeUtils {
+    
+    public static ScenarioEngine engine() {
+        return new ScenarioEngine(new Config(), runtime(), new HashMap(), new Logger());
+    }
 
     public static Feature toFeature(String... lines) {
         StringBuilder sb = new StringBuilder();

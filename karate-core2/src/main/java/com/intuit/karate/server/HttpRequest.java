@@ -23,9 +23,10 @@
  */
 package com.intuit.karate.server;
 
-import java.util.HashMap;
+import com.intuit.karate.StringUtils;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  *
@@ -42,7 +43,7 @@ public class HttpRequest {
 
     public void putHeader(String name, List<String> values) {
         if (headers == null) {
-            headers = new HashMap();
+            headers = new TreeMap();
         }
         for (String key : headers.keySet()) {
             if (key.equalsIgnoreCase(name)) {
@@ -99,6 +100,15 @@ public class HttpRequest {
 
     public void setBody(byte[] body) {
         this.body = body;
+    }
+
+    public List<String> getHeaderValues(String name) { // TOTO optimize
+        return StringUtils.getIgnoreKeyCase(headers, name);
+    }
+
+    public String getHeader(String name) {
+        List<String> values = getHeaderValues(name);
+        return values == null || values.isEmpty() ? null : values.get(0);
     }
 
     public Request toRequest() {

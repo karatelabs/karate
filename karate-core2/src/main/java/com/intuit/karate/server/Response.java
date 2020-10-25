@@ -66,6 +66,7 @@ public class Response implements ProxyObject {
 
     private ResourceType resourceType;
     private HttpRequest httpRequest;
+    private int delay;
 
     public Response(int status) {
         this.status = status;
@@ -90,6 +91,14 @@ public class Response implements ProxyObject {
         this.status = status;
     }
 
+    public int getDelay() {
+        return delay;
+    }
+
+    public void setDelay(int delay) {
+        this.delay = delay;
+    }
+
     public Map<String, List<String>> getHeaders() {
         return headers;
     }
@@ -110,11 +119,26 @@ public class Response implements ProxyObject {
         return body == null ? null : FileUtils.toString(body);
     }
 
-    public Object getBodyAsJsValue() {
-        return JsValue.fromBytes(body);
+    public Object getBodyConverted() {
+        ResourceType rt = getResourceType(); // derive if needed
+        if (rt != null && rt.isBinary()) {
+            return body;
+        }
+        try {
+            return JsValue.fromBytes(body);
+        } catch (Exception e) {
+            logger.trace("failed to auto-convert response: {}", e);
+            return getBodyAsString();
+        }
     }
 
     public ResourceType getResourceType() {
+        if (resourceType == null) {
+            String contentType = getContentType();
+            if (contentType != null) {
+                resourceType = ResourceType.fromContentType(contentType);
+            }
+        }
         return resourceType;
     }
 
@@ -130,15 +154,28 @@ public class Response implements ProxyObject {
         this.httpRequest = httpRequest;
     }
 
-    public List<String> getHeader(String name) { // TOTO optimize
+    public List<String> getHeaderValues(String name) { // TOTO optimize
         return StringUtils.getIgnoreKeyCase(headers, name);
     }
 
-    public void setHeader(String name, String... values) {
+    public String getHeader(String name) {
+        List<String> values = getHeaderValues(name);
+        return values == null || values.isEmpty() ? null : values.get(0);
+    }
+
+    public String getContentType() {
+        return getHeader(HttpConstants.HDR_CONTENT_TYPE);
+    }
+
+    public void setHeader(String name, List<String> values) {
         if (headers == null) {
             headers = new HashMap();
         }
-        headers.put(name, Arrays.asList(values));
+        headers.put(name, values);
+    }
+
+    public void setHeader(String name, String... values) {
+        setHeader(name, Arrays.asList(values));
     }
 
     private static String toString(Object o) {
@@ -147,11 +184,7 @@ public class Response implements ProxyObject {
 
     private final VarArgsFunction HEADER_FUNCTION = args -> {
         if (args.length == 1) {
-            List<String> list = getHeader(toString(args[0]));
-            if (list == null || list.isEmpty()) {
-                return null;
-            }
-            return list.get(0);
+            return getHeader(toString(args[0]));
         } else {
             setHeader(toString(args[0]), toString(args[1]));
             return Response.this;
@@ -189,12 +222,13 @@ public class Response implements ProxyObject {
             case HEADERS:
                 return JsValue.fromJava(headers);
             case BODY:
-                return getBodyAsJsValue();
+                return getBodyConverted();
             case DATA_TYPE:
-                if (resourceType == null || resourceType == ResourceType.NONE) {
+                ResourceType rt = getResourceType();
+                if (rt == null || rt == ResourceType.NONE) {
                     return null;
                 }
-                return resourceType.name().toLowerCase();
+                return rt.name().toLowerCase();
             case HEADER_ENTRIES:
                 return HEADER_ENTRIES_FUNCTION;
             default:

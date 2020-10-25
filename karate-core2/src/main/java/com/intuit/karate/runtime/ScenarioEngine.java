@@ -69,17 +69,31 @@ import org.w3c.dom.NodeList;
  */
 public class ScenarioEngine {
 
-    protected final ScenarioRuntime runtime;
+    private static final String KARATE = "karate";
+    private static final String READ = "read";
+
+    private static final String RESPONSE = "response";
+    private static final String RESPONSE_BYTES = "responseBytes";
+    private static final String RESPONSE_COOKIES = "responseCookies";
+    private static final String RESPONSE_HEADERS = "responseHeaders";
+    private static final String RESPONSE_STATUS = "responseStatus";
+    private static final String RESPONSE_TIME = "responseTime";
+    private static final String RESPONSE_TYPE = "responseType";
+
+    private static final String REQUEST = "request";
+    private static final String REQUEST_TIME_STAMP = "requestTimeStamp";
+
+    public final ScenarioRuntime runtime;
     protected final ScenarioFileReader fileReader;
     protected final Map<String, Variable> vars;
-
-    protected Map<String, Object> magicVariables;
-    protected Config config;
-    protected String evalJsError;
     public final Logger logger;
 
     private final Function<String, Object> readFunction;
     private final ScenarioBridge bridge;
+
+    private Config config;
+    protected Map<String, Object> magicVariables;
+    protected String evalJsError;
 
     private JsEngine JS;
 
@@ -204,11 +218,14 @@ public class ScenarioEngine {
     }
 
     // http ====================================================================
-    //        
     //
     private ArmeriaHttpClient httpClient; // has to be inited in constructor
     private HttpRequestBuilder http; // has to be inited in constructor
     private Response prevResponse;
+
+    public Config getConfig() {
+        return config;
+    }
 
     public HttpRequest getPrevRequest() {
         return prevResponse == null ? null : prevResponse.getHttpRequest();
@@ -305,7 +322,6 @@ public class ScenarioEngine {
     public void method(String method) {
         prevResponse = http.invoke(method);
         byte[] bytes = prevResponse.getBody();
-        setVariable(VariableNames.RESPONSE_BYTES, bytes);
         Object body;
         String responseType;
         try {
@@ -321,8 +337,20 @@ public class ScenarioEngine {
         } else {
             responseType = "string";
         }
-        setVariable(VariableNames.RESPONSE, body);
-        setVariable(VariableNames.RESPONSE_TYPE, responseType);
+        Map<String, List<String>> responseHeaders = prevResponse.getHeaders();
+        // TODO configure cookies
+        setVariable(RESPONSE_STATUS, prevResponse.getStatus());
+        setVariable(RESPONSE, body);
+        setVariable(RESPONSE_BYTES, bytes);
+        setVariable(RESPONSE_TYPE, responseType);
+        setVariable(RESPONSE_HEADERS, responseHeaders);
+        HttpRequest request = prevResponse.getHttpRequest();
+        if (request != null) {
+            long startTime = request.getStartTimeMillis();
+            long elapsedTime = request.getEndTimeMillis() - startTime;
+            setVariable(REQUEST_TIME_STAMP, startTime);
+            setVariable(RESPONSE_TIME, elapsedTime);
+        }
         http.reset();
     }
 
@@ -352,8 +380,8 @@ public class ScenarioEngine {
 
     public void status(int status) {
         if (status != prevResponse.getStatus()) {
-            String rawResponse = vars.get(VariableNames.RESPONSE).getAsString();
-            String responseTime = vars.get(VariableNames.RESPONSE_TIME).getAsString();
+            String rawResponse = vars.get(RESPONSE).getAsString();
+            String responseTime = vars.get(RESPONSE_TIME).getAsString();
             String message = "status code was: " + prevResponse.getStatus() + ", expected: " + status
                     + ", response time: " + responseTime + ", url: " + prevResponse.getHttpRequest().getUrl()
                     + ", response: " + rawResponse;
@@ -379,8 +407,8 @@ public class ScenarioEngine {
     // not in constructor because it has to be on Runnable.run() thread
     public void init() {
         JS = JsEngine.local();
-        setHiddenVariable(VariableNames.KARATE, bridge);
-        setHiddenVariable(VariableNames.READ, readFunction);
+        setHiddenVariable(KARATE, bridge);
+        setHiddenVariable(READ, readFunction);
         setVariables(magicVariables);
         attachJsValuesToContext();
     }
@@ -506,10 +534,10 @@ public class ScenarioEngine {
         if (!isValidVariableName(name)) {
             throw new RuntimeException("invalid variable name: " + name);
         }
-        if (VariableNames.KARATE.equals(name)) {
+        if (KARATE.equals(name)) {
             throw new RuntimeException("'karate' is a reserved name");
         }
-        if (VariableNames.REQUEST.equals(name) || "url".equals(name)) {
+        if (REQUEST.equals(name) || "url".equals(name)) {
             throw new RuntimeException("'" + name + "' is a reserved name, also use the form '* " + name + " <expression>' instead");
         }
     }
@@ -949,7 +977,7 @@ public class ScenarioEngine {
         String name = StringUtils.trimToEmpty(expression);
         if (isDollarPrefixedJsonPath(name) || isXmlPath(name)) { // 
             path = name;
-            name = VariableNames.RESPONSE;
+            name = RESPONSE;
         }
         if (name.startsWith("$")) { // in case someone used the dollar prefix by mistake on the LHS
             name = name.substring(1);
@@ -961,7 +989,7 @@ public class ScenarioEngine {
             path = pair.right;
         }
         if ("header".equals(name)) { // convenience shortcut for asserting against response header
-            return match(matchType, VariableNames.RESPONSE_HEADERS, "$['" + path + "'][0]", rhs);
+            return match(matchType, RESPONSE_HEADERS, "$['" + path + "'][0]", rhs);
         }
         Variable actual;
         // karate started out by "defaulting" to JsonPath on the LHS of a match so we have this kludge
@@ -1306,7 +1334,7 @@ public class ScenarioEngine {
             }
             return call(callOnce, text, false);
         } else if (isDollarPrefixedJsonPath(text)) {
-            return evalJsonPathOnVariableByName(VariableNames.RESPONSE, text);
+            return evalJsonPathOnVariableByName(RESPONSE, text);
         } else if (isGetSyntax(text) || isDollarPrefixed(text)) { // special case in form
             // get json[*].path
             // $json[*].path
@@ -1325,7 +1353,7 @@ public class ScenarioEngine {
             String left;
             String right;
             if (isDollarPrefixedJsonPath(text)) { // edge case get[0] $..foo
-                left = VariableNames.RESPONSE;
+                left = RESPONSE;
                 right = text;
             } else if (isVariableAndSpaceAndPath(text)) {
                 int pos = text.indexOf(' ');
@@ -1356,7 +1384,7 @@ public class ScenarioEngine {
             Document doc = XmlUtils.toXmlDoc(text);
             return evalEmbeddedExpressions(new Variable(doc));
         } else if (isXmlPath(text)) {
-            return evalXmlPathOnVariableByName(VariableNames.RESPONSE, text);
+            return evalXmlPathOnVariableByName(RESPONSE, text);
         } else {
             // old school function declarations e.g. function() { } need wrapping in graal
             if (isJavaScriptFunction(text)) {

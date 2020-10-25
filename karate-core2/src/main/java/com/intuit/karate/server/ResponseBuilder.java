@@ -81,7 +81,7 @@ public class ResponseBuilder {
 
     public ResponseBuilder contentTypeHtml() {
         resourceType = ResourceType.HTML;
-        header(HttpConstants.HDR_CONTENT_TYPE, resourceType.contentType);
+        contentType(resourceType.contentType);
         return this;
     }
 
@@ -173,7 +173,7 @@ public class ResponseBuilder {
         }
         if (rc.isApi()) {
             resourceType = ResourceType.JSON;
-            header(HttpConstants.HDR_CONTENT_TYPE, resourceType.contentType);
+            contentType(resourceType.contentType);
             body = response.getBody();
             Map<String, List<String>> apiHeaders = response.getHeaders();
             if (apiHeaders != null) {
@@ -192,7 +192,7 @@ public class ResponseBuilder {
 
     public Response buildStatic(Request request) {
         resourceType = request.getResourceType();
-        header(HttpConstants.HDR_CONTENT_TYPE, resourceType.contentType);
+        contentType(resourceType.contentType);
         try {
             InputStream is = resourceResolver.read(request.getResourcePath());
             body(is);

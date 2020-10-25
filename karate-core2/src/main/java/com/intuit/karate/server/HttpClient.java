@@ -31,7 +31,9 @@ import com.intuit.karate.runtime.Config;
  */
 public interface HttpClient {
 
-    void configure(Config config);
+    void setConfig(Config config);
+    
+    Config getConfig();
 
     Response invoke(HttpRequest request);
 

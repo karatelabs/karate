@@ -33,7 +33,7 @@ class RequestHandlerTest {
     private Response handle() {
         response = handler.handle(request.build().toRequest());
         body = response.getBodyAsString();
-        cookies = response.getHeader("Set-Cookie");
+        cookies = response.getHeaderValues("Set-Cookie");
         request = new HttpRequestBuilder(null).method("GET");
         if (cookies != null) {
             request.header("Cookie", cookies);
@@ -42,12 +42,12 @@ class RequestHandlerTest {
     }
 
     private void matchHeaderEquals(String name, String expected) {
-        MatchResult mr = Match.that(response.getHeader(name).get(0)).isEqualTo(expected);
+        MatchResult mr = Match.that(response.getHeader(name)).isEqualTo(expected);
         assertTrue(mr.pass, mr.message);
     }
 
     private void matchHeaderContains(String name, String expected) {
-        MatchResult mr = Match.that(response.getHeader(name).get(0)).contains(expected);
+        MatchResult mr = Match.that(response.getHeader(name)).contains(expected);
         assertTrue(mr.pass, mr.message);
     }
 

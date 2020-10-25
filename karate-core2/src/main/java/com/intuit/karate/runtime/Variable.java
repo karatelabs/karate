@@ -156,7 +156,7 @@ public class Variable {
     public String getTypeString() {
         return type.name().toLowerCase();
     }
-    
+
     public Variable invokeFunction(Object... args) {
         Function fun = getValue();
         return new Variable(fun.apply(args));
@@ -169,10 +169,6 @@ public class Variable {
         } else {
             return isMap() ? getValue() : null;
         }
-    }
-
-    public String getAsPrettyXmlString() {
-        return XmlUtils.toString(getAsXml(), true);
     }
 
     public Node getAsXml() {
@@ -249,11 +245,15 @@ public class Variable {
             case MAP:
                 return JsonUtils.toJsonSafe(value, true);
             case XML:
-                return XmlUtils.toString(getValue(), true);
+                return getAsPrettyXmlString();
             default:
                 return getAsString();
         }
     }
+    
+    public String getAsPrettyXmlString() {
+        return XmlUtils.toString(getAsXml(), true);
+    }    
 
     public int getAsInt() {
         if (isNumber()) {

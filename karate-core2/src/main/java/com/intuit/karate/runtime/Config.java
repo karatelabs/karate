@@ -28,6 +28,7 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.driver.DockerTarget;
 import com.intuit.karate.driver.Target;
 import com.intuit.karate.http.HttpLogModifier;
+import com.intuit.karate.server.HttpClient;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
@@ -73,7 +74,7 @@ public class Config {
     private boolean outlineVariablesAuto = true;
     private boolean abortedStepsShouldPass = false;
     private String clientClass;
-    private ScenarioHttpClient clientInstance;
+    private HttpClient clientInstance;
     private Map<String, Object> userDefined;
     private Target driverTarget;
     private Map<String, Object> driverOptions;
@@ -439,11 +440,11 @@ public class Config {
         return robotOptions;
     }        
 
-    public ScenarioHttpClient getClientInstance() {
+    public HttpClient getClientInstance() {
         return clientInstance;
     }
 
-    public void setClientInstance(ScenarioHttpClient clientInstance) {
+    public void setClientInstance(HttpClient clientInstance) {
         this.clientInstance = clientInstance;
     }
 

@@ -52,7 +52,7 @@ class HttpMockHandlerTest {
     HttpRequestBuilder handle() {
         handler = new MockHandler(mock.build());
         server = new HttpServer(0, handler);
-        ArmeriaHttpClient client = new ArmeriaHttpClient(null, null);
+        ArmeriaHttpClient client = new ArmeriaHttpClient(RuntimeUtils.engine(), null);
         http = new HttpRequestBuilder(client);
         http.url("http://localhost:" + server.getPort());
         return http;

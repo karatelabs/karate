@@ -87,7 +87,7 @@ public class Request implements ProxyObject {
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
-    private String baseUrl;
+    private String urlBase;
     private String path;
     private String method;
     private Map<String, List<String>> params;
@@ -123,6 +123,10 @@ public class Request implements ProxyObject {
             return list.get(0);
         }
     }
+    
+    public String getContentType() {
+        return getHeader(HttpConstants.HDR_CONTENT_TYPE);
+    }
 
     public String getParam(String name) {
         if (params == null) {
@@ -141,29 +145,25 @@ public class Request implements ProxyObject {
 
     public void setUrl(String url) {
         StringUtils.Pair pair = NettyUtils.parseUriIntoUrlBaseAndPath(url);
-        baseUrl = pair.left;
+        urlBase = pair.left;
         QueryStringDecoder qsd = new QueryStringDecoder(pair.right);
         setPath(qsd.path());
         setParams(qsd.parameters());
     }
 
-    public String getBaseUrl() {
-        return baseUrl;
+    public String getUrlBase() {
+        return urlBase;
     }
 
-    public void setBaseUrl(String baseUrl) {
-        this.baseUrl = baseUrl;
-    }        
+    public void setUrlBase(String urlBase) {
+        this.urlBase = urlBase;
+    }
 
     public void setPath(String path) {
         if (path.charAt(0) == '/') {
             path = path.substring(1);
         }
         this.path = path;
-    }
-
-    public ResourceType getResourceType() {
-        return resourceType;
     }
 
     public void setResourceType(ResourceType resourceType) {
@@ -230,13 +230,32 @@ public class Request implements ProxyObject {
         return body == null ? null : FileUtils.toString(body);
     }
 
-    public Object getBodyAsJsValue() {
-        return JsValue.fromBytes(body);
+    public Object getBodyConverted() {
+        ResourceType rt = getResourceType(); // derive if needed
+        if (rt != null && rt.isBinary()) {
+            return body;
+        }
+        try {
+            return JsValue.fromBytes(body);
+        } catch (Exception e) {
+            logger.trace("failed to auto-convert response: {}", e);
+            return getBodyAsString();
+        }
     }
+    
+    public ResourceType getResourceType() {
+        if (resourceType == null) {
+            String contentType = getContentType();
+            if (contentType != null) {
+                resourceType = ResourceType.fromContentType(contentType);
+            }
+        }
+        return resourceType;
+    }    
 
     public Object getParamAsJsValue(String name) {
         String value = getParam(name);
-        return value == null ? null : JsValue.fromString(value);
+        return value == null ? null : JsValue.fromStringSafe(value);
     }
 
     public void processBody() {
@@ -267,7 +286,7 @@ public class Request implements ProxyObject {
             case METHOD:
                 return method;
             case BODY:
-                return getBodyAsJsValue();
+                return getBodyConverted();
             case PARAM:
                 return (Function<String, String>) this::getParam;
             case JSON:

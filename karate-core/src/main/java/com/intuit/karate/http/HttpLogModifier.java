@@ -29,7 +29,7 @@ package com.intuit.karate.http;
  */
 public interface HttpLogModifier {
     
-    boolean enableForUri(String uri);
+    boolean enableForUri(String uri); // TODO rename url ?
     
     String uri(String uri);
     

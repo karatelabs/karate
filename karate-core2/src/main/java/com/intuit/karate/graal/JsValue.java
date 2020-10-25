@@ -33,6 +33,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import org.graalvm.polyglot.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
 
 /**
@@ -40,6 +42,8 @@ import org.w3c.dom.Node;
  * @author pthomas3
  */
 public class JsValue {
+
+    private static final Logger logger = LoggerFactory.getLogger(JsValue.class);
 
     public static enum Type {
         OBJECT,
@@ -169,6 +173,21 @@ public class JsValue {
         return toBytes(toJava(v));
     }
 
+    public static String toString(Object o) {
+        if (o == null) {
+            return null;
+        }
+        if (o instanceof Map || o instanceof List) {
+            return JsonUtils.toJson(o);
+        } else if (o instanceof Node) {
+            return XmlUtils.toString((Node) o);
+        } else if (o instanceof byte[]) {
+            return FileUtils.toString((byte[]) o);
+        } else {
+            return o.toString();
+        }
+    }
+
     public static byte[] toBytes(Object o) {
         if (o == null) {
             return null;
@@ -197,12 +216,20 @@ public class JsValue {
         switch (firstChar) {
             case '{':
             case '[':
-                Object o = JsonUtils.fromJson(raw);
-                return JsValue.fromJava(o);
+                return JsonUtils.fromJson(raw);
             case '<':
                 return XmlUtils.toXmlDoc(raw);
             default:
                 return raw;
+        }
+    }
+
+    public static Object fromStringSafe(String raw) {
+        try {
+            return fromString(raw);
+        } catch (Exception e) {
+            logger.trace("failed to auto convert: {}", e + "");
+            return raw;
         }
     }
 

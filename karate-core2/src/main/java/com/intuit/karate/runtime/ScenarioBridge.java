@@ -129,12 +129,12 @@ public class ScenarioBridge implements PerfContext {
             }
             // this thread is the 'winner'
             engine.logger.info(">> lock acquired, begin callSingle: {}", fileName);
-            int minutes = engine.config.getCallSingleCacheMinutes();
+            int minutes = engine.getConfig().getCallSingleCacheMinutes();
             Object result = null;
             File cacheFile = null;
             if (minutes > 0) {
                 String qualifiedFileName = FileUtils.toPackageQualifiedName(fileName);
-                String cacheFileName = engine.config.getCallSingleCacheDir() + File.separator + qualifiedFileName + ".txt";
+                String cacheFileName = engine.getConfig().getCallSingleCacheDir() + File.separator + qualifiedFileName + ".txt";
                 cacheFile = new File(cacheFileName);
                 long since = System.currentTimeMillis() - minutes * 60 * 1000;
                 if (cacheFile.exists()) {
@@ -294,7 +294,7 @@ public class ScenarioBridge implements PerfContext {
     }
 
     // getters =================================================================
-    // TODO make these functions
+    // TODO migrate these to functions not properties
     //
     public String getEnv() {
         return getEngine().runtime.featureRuntime.suite.env;
@@ -329,7 +329,7 @@ public class ScenarioBridge implements PerfContext {
     //
     public void log(Value... values) {
         ScenarioEngine engine = getEngine();
-        if (engine.config.isPrintEnabled()) {
+        if (engine.getConfig().isPrintEnabled()) {
             engine.logger.info("{}", new LogWrapper(values));
         }
     }

@@ -24,6 +24,7 @@
 package com.intuit.karate.runtime;
 
 import com.intuit.karate.core.PerfEvent;
+import com.intuit.karate.server.HttpRequest;
 import java.util.function.Consumer;
 
 /**
@@ -32,7 +33,7 @@ import java.util.function.Consumer;
  */
 public interface PerfRuntime {
 
-    String getPerfEventName(ScenarioHttpBuilder http, ScenarioEngine se);
+    String getPerfEventName(HttpRequest request, ScenarioEngine se);
 
     void reportPerfEvent(PerfEvent event);
     

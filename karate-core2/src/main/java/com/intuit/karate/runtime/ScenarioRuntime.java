@@ -68,10 +68,10 @@ public class ScenarioRuntime implements Runnable {
         if (parentCall.isNone()) {
             engine = new ScenarioEngine(new Config(), this, new HashMap(), logger);
         } else if (parentCall.isSharedScope()) {
-            Config config = parentCall.parentRuntime.engine.config;
+            Config config = parentCall.parentRuntime.engine.getConfig();
             engine = new ScenarioEngine(config, this, parentCall.parentRuntime.engine.vars, logger);
         } else { // new, but clone and copy data
-            Config config = new Config(parentCall.parentRuntime.engine.config);
+            Config config = new Config(parentCall.parentRuntime.engine.getConfig());
             engine = new ScenarioEngine(config, this, parentCall.parentRuntime.engine.copyVariables(false), logger);
         }
         actions = new ScenarioActions(engine);
@@ -248,7 +248,7 @@ public class ScenarioRuntime implements Runnable {
     public StepResult execute(Step step) {
         if (stopped) {
             Result stepResult;
-            if (aborted && engine.config.isAbortedStepsShouldPass()) {
+            if (aborted && engine.getConfig().isAbortedStepsShouldPass()) {
                 stepResult = Result.passed(0);
             } else {
                 stepResult = Result.skipped();

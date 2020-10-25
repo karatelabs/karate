@@ -86,18 +86,22 @@ public class HttpRequestBuilder implements ProxyObject {
     private String url;
     private JsValue headersFactory;
 
-    private Config config;
     private String method;
     private List<String> paths;
     private Map<String, List<String>> params;
     private Map<String, List<String>> headers;
+    private MultiPartBuilder multiPart;
     private Object body;
     private Set<Cookie> cookies;
 
+    private Config config;
     private final HttpClient client;
 
     public HttpRequestBuilder(HttpClient client) {
         this.client = client;
+        if (client != null) {
+            config = client.getConfig();
+        }
     }
 
     public HttpRequestBuilder reset() {
@@ -106,6 +110,7 @@ public class HttpRequestBuilder implements ProxyObject {
         paths = null;
         params = null;
         headers = null;
+        multiPart = null;
         body = null;
         cookies = null;
         return this;
@@ -113,6 +118,7 @@ public class HttpRequestBuilder implements ProxyObject {
 
     public HttpRequestBuilder configure(Config config) {
         this.config = config;
+        client.setConfig(config);
         return this;
     }
 
@@ -132,14 +138,35 @@ public class HttpRequestBuilder implements ProxyObject {
         if (method == null) {
             method = "GET";
         }
-        request.setMethod(method.toUpperCase());
+        method = method.toUpperCase();
+        request.setMethod(method);
+        if ("GET".equals(method) && multiPart != null) {
+            List<MultiPartBuilder.Part> parts = multiPart.getFormFields();
+            if (parts != null) {
+                parts.forEach(p -> param(p.getName(), (String) p.getValue()));
+            }
+            multiPart = null;
+        }
         String urlAndPath = getUrlAndPath();
         if (params != null) {
             QueryParamsBuilder qpb = QueryParams.builder();
             params.forEach((k, v) -> qpb.add(k, v));
-            urlAndPath = urlAndPath + "?" + qpb.toQueryString();
+            String append = urlAndPath.indexOf('?') == -1 ? "?" : "&";
+            urlAndPath = urlAndPath + append + qpb.toQueryString();
         }
         request.setUrl(urlAndPath);
+        if (multiPart != null) {
+            body = multiPart.build();
+            String userContentType = getHeader(HttpConstants.HDR_CONTENT_TYPE);
+            if (userContentType != null) {
+                String boundary = multiPart.getBoundary();
+                if (boundary != null) {
+                    contentType(userContentType + "; boundary=" + boundary);
+                }
+            } else {
+                contentType(multiPart.getContentTypeHeader());
+            }
+        }
         if (cookies != null) {
             cookies.forEach(c -> header(HttpConstants.HDR_COOKIE, ServerCookieEncoder.STRICT.encode(c)));
         }
@@ -160,11 +187,11 @@ public class HttpRequestBuilder implements ProxyObject {
             mediaType = ResourceType.fromObject(body).contentType;
         }
         if (mediaType != null) {
-            header(HttpConstants.HDR_CONTENT_TYPE, mediaType);
+            contentType(mediaType);
         }
         request.setBody(JsValue.toBytes(body));
         return request;
-    }   
+    }
 
     public Response invoke() {
         return client.invoke(build());
@@ -223,8 +250,8 @@ public class HttpRequestBuilder implements ProxyObject {
     public List<String> getHeaderValues(String name) {
         return StringUtils.getIgnoreKeyCase(headers, name); // TODO optimize
     }
-    
-    public String getHeader(String name) {        
+
+    public String getHeader(String name) {
         List<String> list = getHeaderValues(name);
         if (list == null || list.isEmpty()) {
             return null;
@@ -232,6 +259,10 @@ public class HttpRequestBuilder implements ProxyObject {
             return list.get(0);
         }
     }
+    
+    public String getContentType() {
+        return getHeader(HttpConstants.HDR_CONTENT_TYPE);
+    }    
 
     public HttpRequestBuilder header(String name, String... values) {
         return header(name, Arrays.asList(values));
@@ -240,6 +271,12 @@ public class HttpRequestBuilder implements ProxyObject {
     public HttpRequestBuilder header(String name, List<String> values) {
         if (headers == null) {
             headers = new LinkedHashMap();
+        }
+        for (String key : headers.keySet()) {
+            if (key.equalsIgnoreCase(name)) {
+                name = key;
+                break;
+            }
         }
         headers.put(name, values);
         return this;
@@ -305,6 +342,24 @@ public class HttpRequestBuilder implements ProxyObject {
         return this;
     }
 
+    public HttpRequestBuilder formField(String name, Object value) {
+        if (multiPart == null) {
+            multiPart = new MultiPartBuilder(false, config == null ? null : config.getCharset());
+        }
+        multiPart.part(name).value(value).add();
+        return this;
+    }
+
+    public HttpRequestBuilder multiPart(Map<String, Object> map) {
+        if (multiPart == null) {
+            multiPart = new MultiPartBuilder(true, config == null ? null : config.getCharset());
+        }
+        multiPart.part(map);
+        return this;
+    }
+
+    //==========================================================================
+    //
     private final VarArgsFunction PATH_FUNCTION = args -> {
         if (args.length == 0) {
             return getPath();
