@@ -26,7 +26,6 @@ package com.intuit.karate.server;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsValue;
-import com.linecorp.armeria.common.RequestContext;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import java.io.InputStream;
@@ -83,6 +82,14 @@ public class ServerContext implements ProxyObject {
     public ServerContext(ServerConfig config, Request request) {
         this.config = config;
         this.request = request;
+        HTTP_FUNCTION = args -> {
+            HttpClient client = config.getHttpClientFactory().apply(request);
+            HttpRequestBuilder http = new HttpRequestBuilder(client);
+            if (args.length > 0) {
+                http.url((String) args[0]);
+            }
+            return http;
+        };
     }
 
     private static final String DOT_JS = ".js";
@@ -225,22 +232,10 @@ public class ServerContext implements ProxyObject {
         afterSettleScripts.add(js);
     }
 
-    private RequestContext getRequestContext() {
-        return request == null ? null : request.getRequestContext();
-    }
-
     private final Consumer<String> SWITCH_FUNCTION = s -> RequestCycle.get().setSwitchTemplate(s);
     private static final Supplier<String> UUID_FUNCTION = () -> java.util.UUID.randomUUID().toString();
     private final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s);
-
-    private final VarArgsFunction HTTP_FUNCTION = args -> {
-        ArmeriaHttpClient client = new ArmeriaHttpClient(null, getRequestContext());
-        HttpRequestBuilder http = new HttpRequestBuilder(client);
-        if (args.length > 0) {
-            http.url((String) args[0]);
-        }
-        return http;
-    };
+    private final VarArgsFunction HTTP_FUNCTION; // set in constructor
 
     private static final BiFunction<Object, Object, Object> REMOVE_FUNCTION = (o, k) -> {
         if (o instanceof Map && k != null) {

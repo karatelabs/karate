@@ -36,7 +36,6 @@ import io.netty.handler.codec.http.multipart.HttpPostRequestEncoder;
 import io.netty.handler.codec.http.multipart.MemoryFileUpload;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -54,7 +53,7 @@ public class MultiPartBuilder {
     private final boolean multipart;
     private final HttpPostRequestEncoder encoder;
     private List<Part> formFields; // only for the edge case of GET
-    
+
     private String contentTypeHeader;
 
     public String getBoundary() {
@@ -63,14 +62,18 @@ public class MultiPartBuilder {
         }
         int pos = contentTypeHeader.lastIndexOf('=');
         return pos == -1 ? null : contentTypeHeader.substring(pos + 1);
-    }        
+    }
 
     public List<Part> getFormFields() {
         return formFields;
-    }        
+    }
 
     public String getContentTypeHeader() {
         return contentTypeHeader;
+    }
+
+    public boolean isMultipart() {
+        return multipart;
     }
 
     public MultiPartBuilder(boolean multipart, Charset defaultCharset) {
@@ -111,7 +114,7 @@ public class MultiPartBuilder {
 
         public Object getValue() {
             return value;
-        }                
+        }
 
         Part(String name) {
             this.name = name;

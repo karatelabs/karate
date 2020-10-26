@@ -5,16 +5,18 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.Resource;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
+import com.intuit.karate.server.HttpClient;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.function.Function;
 
 /**
  *
  * @author pthomas3
  */
 public class RuntimeUtils {
-    
+
     public static ScenarioEngine engine() {
         return new ScenarioEngine(new Config(), runtime(), new HashMap(), new Logger());
     }
@@ -45,15 +47,18 @@ public class RuntimeUtils {
         return sg.next();
     }
 
-    public static ScenarioRuntime runScenario(String... lines) {
-        return run(toFeature(lines));
+    public static ScenarioRuntime runScenario(Function<ScenarioEngine, HttpClient> clientFactory, String... lines) {
+        return run(clientFactory, toFeature(lines));
     }
 
-    public static ScenarioRuntime run(Feature feature) {
+    public static ScenarioRuntime run(Function<ScenarioEngine, HttpClient> clientFactory, Feature feature) {
         FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature, false);
         ScenarioGenerator sg = new ScenarioGenerator(fr, feature.getSections().iterator());
         sg.hasNext();
         ScenarioRuntime sr = sg.next();
+        if (clientFactory != null) {
+            sr.engine.configure("clientFactory", new Variable(clientFactory));
+        }
         sr.run();
         return sr;
     }

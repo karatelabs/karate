@@ -23,7 +23,7 @@ class ScenarioRuntimeTest {
     }
 
     ScenarioRuntime run(String... lines) {
-        sr = runScenario(lines);
+        sr = runScenario(null, lines);
         return sr;
     }
 

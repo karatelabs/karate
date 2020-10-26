@@ -31,10 +31,12 @@ import com.intuit.karate.runtime.Config;
  */
 public interface HttpClient {
 
+    void configChanged(String name);
+
     void setConfig(Config config);
-    
+
     Config getConfig();
 
-    Response invoke(HttpRequest request);
+    Response invoke(HttpRequest request) throws Exception;
 
 }

@@ -36,11 +36,12 @@ import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.Cookie;
+import com.intuit.karate.http.HttpLogModifier;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchType;
 import com.intuit.karate.match.MatchValue;
-import com.intuit.karate.server.ArmeriaHttpClient;
+import com.intuit.karate.server.HttpClient;
 import com.intuit.karate.server.HttpRequest;
 import com.intuit.karate.server.HttpRequestBuilder;
 import com.intuit.karate.server.Response;
@@ -91,7 +92,6 @@ public class ScenarioEngine {
     private final Function<String, Object> readFunction;
     private final ScenarioBridge bridge;
 
-    private Config config;
     protected Map<String, Object> magicVariables;
     protected String evalJsError;
 
@@ -110,9 +110,6 @@ public class ScenarioEngine {
         bridge = new ScenarioBridge();
         this.vars = vars;
         this.logger = logger;
-        // has to be set after logger to re-use
-        httpClient = new ArmeriaHttpClient(this, null);
-        http = new HttpRequestBuilder(httpClient);
     }
 
     // engine ==================================================================
@@ -219,21 +216,13 @@ public class ScenarioEngine {
 
     // http ====================================================================
     //
-    private ArmeriaHttpClient httpClient; // has to be inited in constructor
-    private HttpRequestBuilder http; // has to be inited in constructor
-    private Response prevResponse;
-
-    public Config getConfig() {
-        return config;
-    }
+    private HttpRequestBuilder http; // see init() method
+    private HttpRequest request;
+    private Response response;
+    private Config config;
 
     public HttpRequest getPrevRequest() {
-        return prevResponse == null ? null : prevResponse.getHttpRequest();
-    }
-
-    public void configure(Config config) {
-        this.config = config;
-
+        return request == null ? null : request;
     }
 
     public void updateConfigCookies(Map<String, Cookie> cookies) {
@@ -256,13 +245,26 @@ public class ScenarioEngine {
 
     public void configure(String key, Variable v) {
         key = StringUtils.trimToEmpty(key);
-        // if next line returns true, http-client needs re-building
+        // if next line returns true, http-client (may) need re-building
         if (config.configure(key, v)) {
-            if (key.startsWith("httpClient")) { // special case
-                // TODO construct
-            } else {
-                http.configure(config);
+            if (http != null) {
+                http.client.setConfig(config);
+                http.client.configChanged(key);
             }
+        }
+    }
+
+    public Config getConfig() {
+        return config;
+    }
+
+    // important: use this to trigger client re-config
+    // callonce routine is one example
+    public void setConfig(Config config) {
+        this.config = config;
+        if (http != null) {
+            http.client.setConfig(config);
+            http.client.configChanged(null);
         }
     }
 
@@ -280,13 +282,42 @@ public class ScenarioEngine {
         }
     }
 
-    public void param(String name, List<String> values) {
-        for (String param : values) {
-            http.param(name, evalAsString(param));
+    public void param(String name, List<String> exps) {
+        List<String> values = new ArrayList(exps.size());
+        for (String exp : exps) {
+            values.add(evalAsString(exp));
         }
+        http.param(name, values);
     }
 
     public void params(String expr) {
+        Variable var = evalKarateExpression(expr);
+        if (!var.isMap()) {
+            logger.warn("did not evaluate to map {}: {}", expr, var);
+            return;
+        }
+        Map<String, Object> map = var.getValue();
+        map.forEach((k, v) -> {
+            if (v instanceof List) {
+                List list = (List) v;
+                List<String> values = new ArrayList(list.size());
+                for (Object o : list) { // support non-string values, e.g. numbers
+                    if (o != null) {
+                        values.add(o.toString());
+                    }
+                }
+                http.param(k, values);
+            } else if (v != null) {
+                http.param(k, v.toString());
+            }
+        });
+    }
+
+    public void header(String name, List<String> values) {
+
+    }
+
+    public void headers(String expr) {
 
     }
 
@@ -298,67 +329,11 @@ public class ScenarioEngine {
 
     }
 
-    public void header(String name, List<String> values) {
-
-    }
-
-    public void headers(String expr) {
-
-    }
-
     public void formField(String name, List<String> values) {
 
     }
 
     public void formFields(String expr) {
-
-    }
-
-    public void request(String body) {
-        Variable v = evalKarateExpression(body);
-        http.body(v.getValue());
-    }
-
-    public void method(String method) {
-        prevResponse = http.invoke(method);
-        byte[] bytes = prevResponse.getBody();
-        Object body;
-        String responseType;
-        try {
-            body = JsValue.fromBytes(bytes);
-        } catch (Exception e) {
-            body = FileUtils.toString(bytes);
-            logger.warn("auto-conversion of response failed: {}", e.getMessage());
-        }
-        if (body instanceof Map || body instanceof List) {
-            responseType = "json";
-        } else if (body instanceof Node) {
-            responseType = "xml";
-        } else {
-            responseType = "string";
-        }
-        Map<String, List<String>> responseHeaders = prevResponse.getHeaders();
-        // TODO configure cookies
-        setVariable(RESPONSE_STATUS, prevResponse.getStatus());
-        setVariable(RESPONSE, body);
-        setVariable(RESPONSE_BYTES, bytes);
-        setVariable(RESPONSE_TYPE, responseType);
-        setVariable(RESPONSE_HEADERS, responseHeaders);
-        HttpRequest request = prevResponse.getHttpRequest();
-        if (request != null) {
-            long startTime = request.getStartTimeMillis();
-            long elapsedTime = request.getEndTimeMillis() - startTime;
-            setVariable(REQUEST_TIME_STAMP, startTime);
-            setVariable(RESPONSE_TIME, elapsedTime);
-        }
-        http.reset();
-    }
-
-    public void retry(String until) {
-
-    }
-
-    public void soapAction(String action) {
 
     }
 
@@ -378,16 +353,84 @@ public class ScenarioEngine {
 
     }
 
+    public void request(String body) {
+        Variable v = evalKarateExpression(body);
+        http.body(v.getValue());
+    }
+
+    public void soapAction(String action) {
+
+    }
+
+    public void method(String method) {
+        request = http.build();
+        String perfEventName = null; // acts as a flag to report perf if not null
+        if (runtime.featureRuntime.isPerfMode()) {
+            perfEventName = runtime.featureRuntime.getPerfRuntime().getPerfEventName(request, this);
+        }
+        long startTime = System.currentTimeMillis();
+        request.setStartTimeMillis(startTime);
+        try {
+            response = http.client.invoke(request);
+        } catch (Exception e) {
+            long endTime = System.currentTimeMillis();
+            long responseTime = endTime - startTime;
+            String message = "http call failed after " + responseTime + " milliseconds for URL: " + request.getUrl();
+            logger.error(e.getMessage() + ", " + message);
+            if (perfEventName != null) {
+                PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, 0);
+                capturePerfEvent(pe); // failure flag and message should be set by logLastPerfEvent()
+            }
+            throw new KarateException(message, e);
+        }
+        byte[] bytes = response.getBody();
+        Object body;
+        String responseType;
+        try {
+            body = JsValue.fromBytes(bytes);
+        } catch (Exception e) {
+            body = FileUtils.toString(bytes);
+            logger.warn("auto-conversion of response failed: {}", e.getMessage());
+        }
+        if (body instanceof Map || body instanceof List) {
+            responseType = "json";
+        } else if (body instanceof Node) {
+            responseType = "xml";
+        } else {
+            responseType = "string";
+        }
+        Map<String, List<String>> responseHeaders = response.getHeaders();
+        // TODO configure cookies
+        setVariable(RESPONSE_STATUS, response.getStatus());
+        setVariable(RESPONSE, body);
+        setVariable(RESPONSE_BYTES, bytes);
+        setVariable(RESPONSE_TYPE, responseType);
+        setVariable(RESPONSE_HEADERS, responseHeaders);
+        startTime = request.getStartTimeMillis(); // in case it was re-adjusted by http client
+        long endTime = request.getEndTimeMillis();
+        setVariable(REQUEST_TIME_STAMP, startTime);
+        setVariable(RESPONSE_TIME, endTime - startTime);
+        if (perfEventName != null) {
+            PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, response.getStatus());
+            capturePerfEvent(pe);
+        }
+        http.reset();
+    }
+
     public void status(int status) {
-        if (status != prevResponse.getStatus()) {
+        if (status != response.getStatus()) {
             String rawResponse = vars.get(RESPONSE).getAsString();
             String responseTime = vars.get(RESPONSE_TIME).getAsString();
-            String message = "status code was: " + prevResponse.getStatus() + ", expected: " + status
-                    + ", response time: " + responseTime + ", url: " + prevResponse.getHttpRequest().getUrl()
+            String message = "status code was: " + response.getStatus() + ", expected: " + status
+                    + ", response time: " + responseTime + ", url: " + request.getUrl()
                     + ", response: " + rawResponse;
             runtime.logError(message);
             throw new KarateException(message);
         }
+    }
+
+    public void retry(String until) {
+
     }
 
     // ui driver / robot =======================================================
@@ -411,6 +454,8 @@ public class ScenarioEngine {
         setHiddenVariable(READ, readFunction);
         setVariables(magicVariables);
         attachJsValuesToContext();
+        HttpClient client = config.getClientFactory().apply(this);
+        http = new HttpRequestBuilder(client);
     }
 
     private void attachJsValuesToContext() {
@@ -1149,7 +1194,7 @@ public class ScenarioEngine {
 
     private Variable result(ScenarioCall.Result result, boolean sharedScope) {
         if (sharedScope) { // if shared scope
-            configure(new Config(result.config)); // re-apply config from time of snapshot
+            setConfig(new Config(result.config)); // re-apply config from time of snapshot
             if (result.vars != null) {
                 vars.clear(); // clean slate
                 vars.putAll(copy(result.vars, false)); // clone for safety     

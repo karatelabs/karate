@@ -26,7 +26,6 @@ package com.intuit.karate.server;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.runtime.Config;
 import com.linecorp.armeria.common.QueryParams;
 import com.linecorp.armeria.common.QueryParamsBuilder;
 import io.netty.handler.codec.http.cookie.Cookie;
@@ -94,14 +93,10 @@ public class HttpRequestBuilder implements ProxyObject {
     private Object body;
     private Set<Cookie> cookies;
 
-    private Config config;
-    private final HttpClient client;
+    public final HttpClient client;
 
     public HttpRequestBuilder(HttpClient client) {
         this.client = client;
-        if (client != null) {
-            config = client.getConfig();
-        }
     }
 
     public HttpRequestBuilder reset() {
@@ -113,12 +108,6 @@ public class HttpRequestBuilder implements ProxyObject {
         multiPart = null;
         body = null;
         cookies = null;
-        return this;
-    }
-
-    public HttpRequestBuilder configure(Config config) {
-        this.config = config;
-        client.setConfig(config);
         return this;
     }
 
@@ -136,7 +125,11 @@ public class HttpRequestBuilder implements ProxyObject {
     public HttpRequest build() {
         HttpRequest request = new HttpRequest();
         if (method == null) {
-            method = "GET";
+            if (multiPart != null && multiPart.isMultipart()) {
+                method = "POST";
+            } else {
+                method = "GET";
+            }
         }
         method = method.toUpperCase();
         request.setMethod(method);
@@ -194,7 +187,11 @@ public class HttpRequestBuilder implements ProxyObject {
     }
 
     public Response invoke() {
-        return client.invoke(build());
+        try {
+            return client.invoke(build());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public HttpRequestBuilder url(String value) {
@@ -259,10 +256,10 @@ public class HttpRequestBuilder implements ProxyObject {
             return list.get(0);
         }
     }
-    
+
     public String getContentType() {
         return getHeader(HttpConstants.HDR_CONTENT_TYPE);
-    }    
+    }
 
     public HttpRequestBuilder header(String name, String... values) {
         return header(name, Arrays.asList(values));
@@ -344,7 +341,7 @@ public class HttpRequestBuilder implements ProxyObject {
 
     public HttpRequestBuilder formField(String name, Object value) {
         if (multiPart == null) {
-            multiPart = new MultiPartBuilder(false, config == null ? null : config.getCharset());
+            multiPart = new MultiPartBuilder(false, client.getConfig().getCharset());
         }
         multiPart.part(name).value(value).add();
         return this;
@@ -352,7 +349,7 @@ public class HttpRequestBuilder implements ProxyObject {
 
     public HttpRequestBuilder multiPart(Map<String, Object> map) {
         if (multiPart == null) {
-            multiPart = new MultiPartBuilder(true, config == null ? null : config.getCharset());
+            multiPart = new MultiPartBuilder(true, client.getConfig().getCharset());
         }
         multiPart.part(map);
         return this;

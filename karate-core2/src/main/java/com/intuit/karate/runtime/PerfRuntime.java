@@ -25,7 +25,6 @@ package com.intuit.karate.runtime;
 
 import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.server.HttpRequest;
-import java.util.function.Consumer;
 
 /**
  *

@@ -65,7 +65,6 @@ public class Response implements ProxyObject {
     private byte[] body;
 
     private ResourceType resourceType;
-    private HttpRequest httpRequest;
     private int delay;
 
     public Response(int status) {
@@ -144,14 +143,6 @@ public class Response implements ProxyObject {
 
     public void setResourceType(ResourceType resourceType) {
         this.resourceType = resourceType;
-    }
-
-    public HttpRequest getHttpRequest() {
-        return httpRequest;
-    }
-
-    public void setHttpRequest(HttpRequest httpRequest) {
-        this.httpRequest = httpRequest;
     }
 
     public List<String> getHeaderValues(String name) { // TOTO optimize

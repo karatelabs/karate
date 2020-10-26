@@ -4,6 +4,7 @@ import com.intuit.karate.data.Json;
 import com.intuit.karate.server.*;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
+import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,7 +18,8 @@ import org.slf4j.LoggerFactory;
 class MockHandlerTest {
 
     static final Logger logger = LoggerFactory.getLogger(MockHandlerTest.class);
-
+       
+    HttpClient client = new DummyClient();
     MockHandler handler;
     FeatureBuilder feature;
     HttpRequestBuilder request;
@@ -25,7 +27,7 @@ class MockHandlerTest {
 
     @BeforeEach
     void beforeEach() {
-        request = new HttpRequestBuilder(null).method("GET");
+        request = new HttpRequestBuilder(client).method("GET");
     }
 
     FeatureBuilder background(String... lines) {
@@ -36,7 +38,7 @@ class MockHandlerTest {
     private Response handle() {
         handler = new MockHandler(feature.build());
         response = handler.handle(request.build().toRequest());
-        request = new HttpRequestBuilder(null).method("GET");
+        request = new HttpRequestBuilder(client).method("GET");
         return response;
     }
 
@@ -45,8 +47,8 @@ class MockHandlerTest {
         assertTrue(mr.pass, mr.message);
     }
 
-    private Object json(String raw) {
-        return new Json(raw).asMapOrList();
+    private Map<String, Object> json(String raw) {
+        return new Json(raw).asMap();
     }
 
     @Test
@@ -198,6 +200,22 @@ class MockHandlerTest {
         handle();
         match(response.getBodyConverted(), "{ success: false }");
         match(response.getHeader("foo"), "bar");
+    }
+
+    @Test
+    void testMultiPart() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def foo = paramValue('foo')",
+                "string bar = requestFiles.bar[0].value",
+                "def response = { foo: '#(foo)', bar: '#(bar)' }"
+        );
+        request.path("/hello")
+                .multiPart(json("{ name: 'foo', value: 'hello world' }"))
+                .multiPart(json("{ name: 'bar', value: 'some bytes', filename: 'bar.txt' }"))
+                .method("POST");
+        handle();
+        match(response.getBodyConverted(), "{ foo: 'hello world', bar: 'some bytes' }");
     }
 
 }

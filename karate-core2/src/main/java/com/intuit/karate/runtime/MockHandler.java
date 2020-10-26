@@ -58,6 +58,7 @@ public class MockHandler implements ServerHandler {
     private static final String REQUEST_METHOD = "requestMethod";
     private static final String REQUEST_HEADERS = "requestHeaders";
     private static final String REQUEST_PARAMS = "requestParams";
+    private static final String REQUEST_FILES = "requestFiles";
     
     private static final String RESPONSE = "response";
     private static final String RESPONSE_STATUS = "responseStatus";
@@ -113,6 +114,7 @@ public class MockHandler implements ServerHandler {
     @Override
     public Response handle(Request req) {
         LOCAL_REQUEST.set(req);
+        req.processBody();
         ScenarioEngine engine = new ScenarioEngine(runtime);
         engine.setVariable(REQUEST_URL_BASE, req.getUrlBase());
         engine.setVariable(REQUEST_URI, req.getPath());
@@ -121,6 +123,10 @@ public class MockHandler implements ServerHandler {
         engine.setVariable(REQUEST_HEADERS, req.getHeaders());
         engine.setVariable(REQUEST, req.getBodyConverted());
         engine.setVariable(REQUEST_BYTES, req.getBody());
+        Map<String, List<Map<String, Object>>> files = req.getMultiPartFiles();
+        if (files != null) {
+            engine.setVariable(REQUEST_FILES, files); // TODO add to docs
+        }
         ScenarioEngine.LOCAL.set(engine);
         engine.init();
         for (FeatureSection fs : feature.getSections()) {

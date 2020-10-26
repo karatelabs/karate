@@ -23,7 +23,10 @@
  */
 package com.intuit.karate.server;
 
+import com.intuit.karate.Logger;
+import com.intuit.karate.runtime.Config;
 import com.intuit.karate.server.ResourceResolver.*;
+import com.linecorp.armeria.common.RequestContext;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -54,6 +57,16 @@ public class ServerConfig {
             context.setSession(GLOBAL_SESSION);
         }
         return context;
+    };
+
+    private Config httpClientConfig = new Config(); // TODO decouple http config
+    private Logger logger = new Logger();
+
+    private Function<Request, HttpClient> httpClientFactory = request -> {
+        RequestContext context = request == null ? null : request.getRequestContext();
+        ArmeriaHttpClient client = new ArmeriaHttpClient(httpClientConfig, logger);
+        client.setRequestContext(context);
+        return client;
     };
 
     public ResourceResolver getResourceResolver() {
@@ -87,14 +100,14 @@ public class ServerConfig {
         resourceMounts.put(from, to);
         return this;
     }
-    
+
     public String getMountPath(String from) {
         if (resourceMounts == null) {
             return null;
         }
         return resourceMounts.get(from);
     }
-    
+
     public ServerConfig classPathRoot(String value) {
         resourceResolver = new ClassPathResourceResolver(value);
         return this;
@@ -111,6 +124,10 @@ public class ServerConfig {
 
     public Function<Request, ServerContext> getContextFactory() {
         return contextFactory;
+    }
+
+    public Function<Request, HttpClient> getHttpClientFactory() {
+        return httpClientFactory;
     }
 
     public ServerConfig hostContextPath(String value) {
@@ -151,6 +168,11 @@ public class ServerConfig {
 
     public ServerConfig contextFactory(Function<Request, ServerContext> value) {
         contextFactory = value;
+        return this;
+    }
+
+    public ServerConfig httpClientFactory(Function<Request, HttpClient> value) {
+        httpClientFactory = value;
         return this;
     }
 
