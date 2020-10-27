@@ -162,7 +162,7 @@ public class Variable {
         return new Variable(fun.apply(args));
     }
 
-    public Map<String, Object> evalAsMap() {
+    public <T> Map<String, T> evalAsMap() {
         if (isFunction()) {
             Variable v = invokeFunction();
             return v.isMap() ? v.getValue() : null;

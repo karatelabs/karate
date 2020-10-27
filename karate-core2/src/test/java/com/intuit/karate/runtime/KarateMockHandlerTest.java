@@ -3,8 +3,6 @@ package com.intuit.karate.runtime;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import static com.intuit.karate.runtime.RuntimeUtils.runScenario;
-import com.intuit.karate.server.HttpServer;
-import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -60,7 +58,7 @@ class KarateMockHandlerTest {
         );
         matchVar("response", "hello world");
     }
-    
+
     @Test
     void testParam() {
         background().scenario(
@@ -87,6 +85,20 @@ class KarateMockHandlerTest {
                 "method get"
         );
         matchVar("response", "{ foo: ['bar'] }");
-    }     
+    }
+
+    @Test
+    void testCookie() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestHeaders");
+        run(
+                URL_STEP,
+                "cookie foo = 'bar'",
+                "path '/hello'",
+                "method get"
+        );
+        matchVar("response", "{ Cookie: ['foo=bar'] }");
+    }
 
 }

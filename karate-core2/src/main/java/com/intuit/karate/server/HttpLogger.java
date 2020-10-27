@@ -27,8 +27,6 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.http.HttpLogModifier;
 import com.intuit.karate.runtime.Config;
 import com.intuit.karate.runtime.Variable;
-import com.intuit.karate.server.HttpRequest;
-import com.intuit.karate.server.Response;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;

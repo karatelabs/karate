@@ -135,14 +135,16 @@ public class ServerContext implements ProxyObject {
     }
 
     public String getSessionCookieValue() {
-        String raw = request.getHeader(HttpConstants.HDR_COOKIE);
-        if (raw == null) {
+        List<String> values = request.getHeaderValues(HttpConstants.HDR_COOKIE);
+        if (values == null) {
             return null;
         }
-        Set<Cookie> cookies = ServerCookieDecoder.STRICT.decode(raw);
-        for (Cookie c : cookies) {
-            if (config.getSessionCookieName().equals(c.name())) {
-                return c.value();
+        for (String value : values) {
+            Set<Cookie> cookies = ServerCookieDecoder.STRICT.decode(value);
+            for (Cookie c : cookies) {
+                if (config.getSessionCookieName().equals(c.name())) {
+                    return c.value();
+                }
             }
         }
         return null;

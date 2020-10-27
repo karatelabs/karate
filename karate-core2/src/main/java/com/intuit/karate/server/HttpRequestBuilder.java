@@ -33,6 +33,7 @@ import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -62,7 +63,6 @@ public class HttpRequestBuilder implements ProxyObject {
     private static final String PARAMS = "params";
     private static final String HEADER = "header";
     private static final String HEADERS = "headers";
-    private static final String HEADERS_FACTORY = "headersFactory";
     private static final String BODY = "body";
     private static final String INVOKE = "invoke";
     private static final String GET = "get";
@@ -76,15 +76,13 @@ public class HttpRequestBuilder implements ProxyObject {
     private static final String TRACE = "trace";
 
     private static final String[] KEYS = new String[]{
-        URL, METHOD, PATH, PARAM, PARAMS, HEADER, HEADERS, BODY, INVOKE, HEADERS_FACTORY,
+        URL, METHOD, PATH, PARAM, PARAMS, HEADER, HEADERS, BODY, INVOKE,
         GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE
     };
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
     private String url;
-    private JsValue headersFactory;
-
     private String method;
     private List<String> paths;
     private Map<String, List<String>> params;
@@ -161,18 +159,9 @@ public class HttpRequestBuilder implements ProxyObject {
             }
         }
         if (cookies != null) {
-            cookies.forEach(c -> header(HttpConstants.HDR_COOKIE, ServerCookieEncoder.STRICT.encode(c)));
-        }
-        if (headersFactory != null) {
-            if (headersFactory.isObject()) {
-                headers(headersFactory.getAsMap());
-            } else if (headersFactory.isFunction()) {
-                Value value = headersFactory.getOriginal();
-                Value result = value.execute();
-                headers(result);
-            } else {
-                logger.warn("bad headerFactory: {}", headersFactory);
-            }
+            List<String> cookieValues = new ArrayList(cookies.size());
+            cookies.forEach(c -> cookieValues.add(ServerCookieEncoder.STRICT.encode(c)));
+            header(HttpConstants.HDR_COOKIE, cookieValues);
         }
         request.setHeaders(headers);
         String mediaType = getHeader(HttpConstants.HDR_CONTENT_TYPE);
@@ -329,14 +318,28 @@ public class HttpRequestBuilder implements ProxyObject {
         params.put(name, values);
         return this;
     }
+    
+    public HttpRequestBuilder cookies(Collection<Map> cookies) {
+        for (Map<String, Object> map : cookies) {
+            cookie(map);
+        }
+        return this;
+    }
 
-    public HttpRequestBuilder cookie(String name, String value) {
-        DefaultCookie cookie = new DefaultCookie(name, value);
+    public HttpRequestBuilder cookie(Map<String, Object> map) {
+        return cookie(Cookies.fromMap(map));
+    }
+
+    public HttpRequestBuilder cookie(Cookie cookie) {
         if (cookies == null) {
             cookies = new HashSet();
         }
         cookies.add(cookie);
         return this;
+    }
+
+    public HttpRequestBuilder cookie(String name, String value) {
+        return cookie(new DefaultCookie(name, value));
     }
 
     public HttpRequestBuilder formField(String name, Object value) {
@@ -483,9 +486,6 @@ public class HttpRequestBuilder implements ProxyObject {
                 break;
             case PARAMS:
                 params = (Map) JsValue.toJava(value);
-                break;
-            case HEADERS_FACTORY:
-                headersFactory = new JsValue(value);
                 break;
             case URL:
                 url = value.asString();
