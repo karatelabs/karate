@@ -155,6 +155,7 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     public void receive(DevToolsMessage dtm) {
+        System.out.println("$$$$$ -> " + dtm.toString());
         if (dtm.methodIs("Page.domContentEventFired")) {
             domContentEventFired = true;
             logger.trace("** set dom ready flag to true");
@@ -967,5 +968,30 @@ public abstract class DevToolsDriver implements Driver {
         Integer nodeId = elementId(locator);
         method("DOM.setFileInputFiles").param("files", files).param("nodeId", nodeId).send();
     }
+
+    public void enableAccessibility()
+    {
+        method("Accessibility.enable").send();
+    }
+
+    public void fetchAccessibilityTree()
+    {
+        method("Accessibility.getFullAXTree").send();
+    }
+
+     public void enableAudits()
+     {
+         method("Audits.enable").send();
+     }
+
+     public void enablePerformance()
+     {
+         method("Performance.enable").send();
+     }
+
+     public void getPerfMetrics()
+     {
+         method("Performance.getMetrics").send();
+     }
 
 }
