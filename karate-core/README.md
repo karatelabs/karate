@@ -257,6 +257,7 @@ key | description
 `type` | see [driver types](#driver-types)
 `executable` | if present, Karate will attempt to invoke this, if not in the system [`PATH`](https://www.java.com/en/download/help/path.xml), you can use a full-path instead of just the name of the executable. batch files should also work
 `start` | default `true`, Karate will attempt to start the `executable` - and if the `executable` is not defined, Karate will even try to assume the default for the OS in use
+`stop` | optional, defaults to `true` *very* rarely needed, only in cases where you want the browser to remain open after your tests have completed, typically when you write a custom [`Target`](#custom-target)
 `port` | optional, and Karate would choose the "traditional" port for the given `type`
 `host` | optional, will default to `localhost` and you normally never need to change this
 `pollAttempts` | optional, will default to `20`, you normally never need to change this (and changing `pollInterval` is preferred), and this is the number of attempts Karate will make to wait for the `port` to be ready and accepting connections before proceeding
