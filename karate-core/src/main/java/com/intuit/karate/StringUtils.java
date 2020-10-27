@@ -24,12 +24,16 @@
 package com.intuit.karate;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -221,5 +225,25 @@ public class StringUtils {
             return text;
         }
     }
+
+    public static class KStreamGobbler implements Runnable {
+        private InputStream inputStream;
+        public StringBuffer str = new StringBuffer();
+
+        public KStreamGobbler(InputStream inputStream) {
+            this.inputStream = inputStream;
+        }
+
+        @Override
+        public void run() {
+            new BufferedReader(new InputStreamReader(inputStream)).lines()
+                    .forEach(currLine -> str.append(currLine));
+        }
+    }
+
+
+
+
+
 
 }

@@ -58,6 +58,7 @@ import com.intuit.karate.shell.Command;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Path;
@@ -67,6 +68,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
 import java.util.function.Function;
 
 /**
@@ -1147,6 +1149,30 @@ public class ScenarioContext {
                 robot.afterScenario();
             }
         }
+    }
+
+    public void lightHouseWrapperAction(String URL, List<String> options) throws IOException, InterruptedException {
+        boolean isWindows = System.getProperty("os.name")
+                .toLowerCase().startsWith("windows");
+
+        String lightHouseCmd = "lighthouse " + URL + " --only-categories=" + String.join(",", options).trim() + " --output=json --emulated-form-factor=none --throttling-method=provided";
+        ProcessBuilder builder = new ProcessBuilder();
+        if (isWindows) {
+            builder.command("cmd.exe", "/c", lightHouseCmd);
+        } else {
+            builder.command("sh", "-c", lightHouseCmd);
+        }
+        builder.directory(new File(System.getProperty("user.home")));
+        Process process = builder.start();
+        StringUtils.KStreamGobbler streamGobbler =
+                new StringUtils.KStreamGobbler(process.getInputStream());
+        Executors.newSingleThreadExecutor().submit(streamGobbler);
+        int exitCode = process.waitFor();
+        //assert exitCode == 0;
+        //System.out.println( " --> " + streamGobbler.str.toString() );
+        if ( exitCode ==0 )
+            this.assign(AssignType.JSON, "LHR", streamGobbler.str.toString());
+        //return "I AM RESP FRM LH";
     }
 
 }

@@ -31,8 +31,11 @@ import com.intuit.karate.core.ScenarioContext;
 import cucumber.api.DataTable;
 import cucumber.api.java.en.When;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
 
 /**
  * the main purpose of this file is to keep ide-support happy (intellij /
@@ -395,6 +398,12 @@ public class StepActions implements Actions {
     @When("^robot (.+)")
     public void robot(String expression) {
         context.robot(expression);
-    }     
+    }
+
+    @Override
+    @When("^lightHouseWrapper (.+)( .+)")
+    public void lightHouseWrapper(String URL, List<String> options) throws IOException, InterruptedException {
+        context.lightHouseWrapperAction(URL, options);
+    }
 
 }

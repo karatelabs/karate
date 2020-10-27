@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -137,5 +138,7 @@ public interface Actions {
     void driver(String expression);
     
     void robot(String expression);
+
+    void lightHouseWrapper(String URL, List<String> options) throws IOException, InterruptedException;
 
 }
