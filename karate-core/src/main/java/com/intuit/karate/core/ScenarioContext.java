@@ -645,11 +645,11 @@ public class ScenarioContext {
         ScriptValue value = Script.evalKarateExpression(expr, this);
         if (value.isListLike()) {
             List<Map> mapList = value.getAsList();
-            mapList.forEach(currCookieSet ->
-                    {
-                        Cookie cookie = new Cookie(String.valueOf(currCookieSet.get("name")), String.valueOf(currCookieSet.get("value")));
-                        request.setCookie(cookie);
-                    }
+            mapList.forEach(currCookieSet
+                    -> {
+                Cookie cookie = new Cookie(String.valueOf(currCookieSet.get("name")), String.valueOf(currCookieSet.get("value")));
+                request.setCookie(cookie);
+            }
             );
         } else if (value.isMapLike()) {
             Map<String, Object> map = value.getAsMap();
@@ -1116,8 +1116,10 @@ public class ScenarioContext {
                 webSocketClients.forEach(WebSocketClient::close);
             }
             if (driver != null) {
-                driver.quit();
                 DriverOptions options = driver.getOptions();
+                if (options.stop) {
+                    driver.quit();
+                }
                 if (options.target != null) {
                     logger.debug("custom target configured, attempting stop()");
                     Map<String, Object> map = options.target.stop(logger);

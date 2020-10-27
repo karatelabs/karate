@@ -68,6 +68,7 @@ public class DriverOptions {
     public final Map<String, Object> options;
     public final int timeout;
     public final boolean start;
+    public final boolean stop;
     public final String executable;
     public final String type;
     public final int port;
@@ -158,6 +159,7 @@ public class DriverOptions {
         timeout = get("timeout", Config.DEFAULT_TIMEOUT);
         type = get("type", null);
         start = get("start", true);
+        stop = get("stop", true);
         executable = get("executable", defaultExecutable);
         headless = get("headless", false);
         showProcessLog = get("showProcessLog", false);
