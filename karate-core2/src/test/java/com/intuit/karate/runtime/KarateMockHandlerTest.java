@@ -61,7 +61,7 @@ class KarateMockHandlerTest {
                 "method get"
         );
         matchVar("response", "hello world");
-    }
+    }    
 
     @Test
     void testParam() {
@@ -90,6 +90,20 @@ class KarateMockHandlerTest {
         );
         matchVar("response", "{ foo: ['bar'] }");
     }
+    
+    @Test
+    void testHeaders() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestHeaders");
+        run(
+                URL_STEP,
+                "path '/hello'",
+                "header foo = 'bar'",
+                "method get"
+        );
+        matchVar("response", "{ foo: ['bar'] }");
+    }    
 
     @Test
     void testCookie() {
@@ -152,5 +166,61 @@ class KarateMockHandlerTest {
         );
         matchVar("response", "{}");
     }
+    
+    @Test
+    void testFormFieldGet() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestParams");
+        run(
+                URL_STEP,
+                "form field foo = 'bar'",
+                "path '/hello'",
+                "method get"
+        );
+        matchVar("response", "{ foo: ['bar'] }");        
+    }
+    
+    @Test
+    void testFormFieldPost() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = request");
+        run(
+                URL_STEP,
+                "form field foo = 'bar'",
+                "path '/hello'",
+                "method post"
+        );
+        matchVar("response", "foo=bar");        
+    }
+
+    @Test
+    void testMultiPartSimple() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestParams");
+        run(
+                URL_STEP,
+                "multipart field foo = 'bar'",
+                "path '/hello'",
+                "method post"
+        );
+        matchVar("response", "{ foo: ['bar'] }");         
+    }
+    
+    @Test
+    void testMultiPartRepeated() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestFiles");
+        run(
+                URL_STEP,
+                "multipart file foo = { filename: 'foo.txt', value: 'hello' }",
+                "path '/hello'",
+                "method post"
+        );
+        matchVar("response", "{ foo: [{ name: 'foo', value: 'hello', contentType: 'text/plain', charset: 'UTF-8', filename: 'foo.txt', transferEncoding: '7bit' }] }");         
+    }    
 
 }

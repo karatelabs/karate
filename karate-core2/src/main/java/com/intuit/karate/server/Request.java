@@ -322,15 +322,23 @@ public class Request implements ProxyObject {
                     FileUpload fup = (FileUpload) part;
                     map.put("name", name);
                     map.put("filename", fup.getFilename());
-                    map.put("contentType", fup.getContentType());
-                    map.put("value", fup.get());
-                    String transferEncoding = fup.getContentTransferEncoding();
-                    if (transferEncoding != null) {
-                        map.put("transferEncoding", transferEncoding);
-                    }
                     Charset charset = fup.getCharset();
                     if (charset != null) {
                         map.put("charset", charset.name());
+                    }
+                    String ct = fup.getContentType();
+                    map.put("contentType", ct);
+                    ResourceType rt = ResourceType.fromContentType(ct);
+                    Object value;
+                    if (rt.isBinary()) {
+                        value = fup.get();
+                    } else {
+                        value = charset == null ? fup.getString() : fup.getString(charset);
+                    }
+                    map.put("value", value);
+                    String transferEncoding = fup.getContentTransferEncoding();
+                    if (transferEncoding != null) {
+                        map.put("transferEncoding", transferEncoding);
                     }
                 } else { // url-encoded form-field or simple multi-part value
                     Attribute attribute = (Attribute) part;

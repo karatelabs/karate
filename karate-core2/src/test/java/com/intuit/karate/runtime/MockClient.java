@@ -12,7 +12,7 @@ import com.intuit.karate.server.ServerHandler;
 public class MockClient implements HttpClient {
 
     private final ServerHandler handler;
-    private Config config;
+    private Config config = new Config();
 
     public MockClient(ServerHandler handler) {
         this.handler = handler;

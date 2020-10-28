@@ -23,6 +23,10 @@
  */
 package com.intuit.karate.server;
 
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 /**
  *
  * @author pthomas3
@@ -33,13 +37,17 @@ public class HttpConstants {
         // only static methods
     }
 
+    public static final Set<String> HTTP_METHODS
+            = Stream.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD", "CONNECT", "TRACE")
+                    .collect(Collectors.toSet());
+
     public static final byte[] ZERO_BYTES = new byte[0];
 
     public static final String HDR_COOKIE = "Cookie";
     public static final String HDR_SET_COOKIE = "Set-Cookie";
     public static final String HDR_CONTENT_TYPE = "Content-Type";
     public static final String HDR_LOCATION = "Location";
-    
+
     public static final String HDR_HX_TRIGGER = "HX-Trigger";
     public static final String HDR_HX_REQUEST = "HX-Request";
 

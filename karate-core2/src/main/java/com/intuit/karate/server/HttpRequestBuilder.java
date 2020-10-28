@@ -89,7 +89,8 @@ public class HttpRequestBuilder implements ProxyObject {
     private Map<String, List<String>> headers;
     private MultiPartBuilder multiPart;
     private Object body;
-    private Set<Cookie> cookies;
+    private Set<Cookie> cookies;    
+    private String retryUntil;    
 
     public final HttpClient client;
 
@@ -106,6 +107,7 @@ public class HttpRequestBuilder implements ProxyObject {
         multiPart = null;
         body = null;
         cookies = null;
+        retryUntil = null;
         return this;
     }
 
@@ -182,6 +184,18 @@ public class HttpRequestBuilder implements ProxyObject {
             throw new RuntimeException(e);
         }
     }
+
+    public boolean isRetry() {
+        return retryUntil != null;
+    }
+
+    public String getRetryUntil() {
+        return retryUntil;
+    }
+
+    public void setRetryUntil(String retryUntil) {
+        this.retryUntil = retryUntil;
+    }    
 
     public HttpRequestBuilder url(String value) {
         url = value;
