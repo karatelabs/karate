@@ -158,7 +158,7 @@ public class HttpRequestBuilder implements ProxyObject {
                 contentType(multiPart.getContentTypeHeader());
             }
         }
-        if (cookies != null) {
+        if (cookies != null && !cookies.isEmpty()) {
             List<String> cookieValues = new ArrayList(cookies.size());
             cookies.forEach(c -> cookieValues.add(ServerCookieEncoder.STRICT.encode(c)));
             header(HttpConstants.HDR_COOKIE, cookieValues);
@@ -318,7 +318,7 @@ public class HttpRequestBuilder implements ProxyObject {
         params.put(name, values);
         return this;
     }
-    
+
     public HttpRequestBuilder cookies(Collection<Map> cookies) {
         for (Map<String, Object> map : cookies) {
             cookie(map);
@@ -334,7 +334,7 @@ public class HttpRequestBuilder implements ProxyObject {
         if (cookies == null) {
             cookies = new HashSet();
         }
-        if ( cookie.maxAge() != 0 ){ // only add cookie to request if its not already expired.
+        if (cookie.maxAge() != 0) { // only add cookie to request if its not already expired.
             cookies.add(cookie);
         }
         return this;

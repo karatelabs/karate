@@ -34,12 +34,16 @@ import java.time.format.DateTimeParseException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class Cookies {
+
+    private static final Logger logger = LoggerFactory.getLogger(Cookies.class);
 
     private Cookies() {
         // only static methods               
@@ -55,6 +59,7 @@ public class Cookies {
     private static final String HTTP_ONLY = "httponly";
     private static final String SAME_SITE = "samesite";
     private static final String EXPIRES = "expires";
+
     public static final DateTimeFormatter DT_FMT_V1 = DateTimeFormatter.ofPattern("EEE, dd-MMM-yy HH:mm:ss z");
     public static final DateTimeFormatter DT_FMT_V2 = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss z");
     public static final DateTimeFormatter DTFMTR_RFC1123 = new DateTimeFormatterBuilder().appendOptional(DT_FMT_V1).appendOptional(DT_FMT_V2).toFormatter();
@@ -111,8 +116,7 @@ public class Cookies {
             cookie.setSameSite(CookieHeaderNames.SameSite.valueOf(sameSite));
         }
         String expirationDate = (String) map.get(EXPIRES);
-        if (isCookieExpired(expirationDate))
-        {
+        if (isCookieExpired(expirationDate)) {
             // force cookie to expire.
             cookie.setMaxAge(0);
             cookie.setValue("");
@@ -126,7 +130,7 @@ public class Cookies {
             try {
                 expiresDate = Date.from(ZonedDateTime.parse(expirationDate, DTFMTR_RFC1123).toInstant());
             } catch (DateTimeParseException e) {
-                System.out.println("cookie expires date parsing failed: {}" + e.getMessage());
+                logger.warn("cookie 'expires' date parsing failed: {}", e.getMessage());
             }
         }
         return expiresDate != null && !expiresDate.after(new Date());

@@ -23,7 +23,7 @@ class KarateMockHandlerTest {
     MockHandler handler;
     FeatureBuilder mock;
     ScenarioRuntime runtime;
-    SimpleDateFormat sdf= new SimpleDateFormat("EEE, dd-MMM-yy HH:mm:ss z");
+    SimpleDateFormat sdf = new SimpleDateFormat("EEE, dd-MMM-yy HH:mm:ss z");
 
     FeatureBuilder background(String... lines) {
         mock = FeatureBuilder.background(lines);
@@ -106,11 +106,10 @@ class KarateMockHandlerTest {
     }
 
     @Test
-    void testExpiredCookieRemoves(){
-        Calendar currCalIns = Calendar.getInstance();
-        currCalIns.add(java.util.Calendar.DATE, -1);
-        String pastDate = sdf.format(currCalIns.getTime());
-
+    void testCookieIsRemovedIfExpired() {
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(java.util.Calendar.DATE, -1);
+        String pastDate = sdf.format(calendar.getTime());
         background().scenario(
                 "pathMatches('/hello')",
                 "def response = requestHeaders");
@@ -120,15 +119,14 @@ class KarateMockHandlerTest {
                 "path '/hello'",
                 "method get"
         );
-        matchVar("response", "{ Cookie: [] }");
+        matchVar("response", "{}");
     }
 
     @Test
-    void testNonExpiredCookieRetains(){
-        Calendar currCalIns = Calendar.getInstance();
-        currCalIns.add(java.util.Calendar.DATE, +1);
-        String futureDate = sdf.format(currCalIns.getTime());
-
+    void testCookieIsRetainedIfNotExpired() {
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(java.util.Calendar.DATE, +1);
+        String futureDate = sdf.format(calendar.getTime());
         background().scenario(
                 "pathMatches('/hello')",
                 "def response = requestHeaders");
@@ -142,7 +140,7 @@ class KarateMockHandlerTest {
     }
 
     @Test
-    void manuallyExpireCookieAndItShouldNotRetain(){
+    void testCookieisRemovedIfManuallyExpired() {
         background().scenario(
                 "pathMatches('/hello')",
                 "def response = requestHeaders");
@@ -152,7 +150,7 @@ class KarateMockHandlerTest {
                 "path '/hello'",
                 "method get"
         );
-        matchVar("response", "{ Cookie: [] }");
+        matchVar("response", "{}");
     }
 
 }
