@@ -30,6 +30,7 @@ package com.intuit.karate.match;
 public enum MatchType {
     
     EQUALS,
+    EQUALS_SCHEMA,
     NOT_EQUALS,
     CONTAINS,    
     NOT_CONTAINS,

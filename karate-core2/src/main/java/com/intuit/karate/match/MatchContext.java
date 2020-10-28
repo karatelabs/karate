@@ -38,8 +38,9 @@ public class MatchContext {
     public final String path;
     public final String name;
     public final int index;
+    public final boolean schema;
 
-    protected MatchContext(JsEngine js, MatchOperation root, boolean xml, int depth, String path, String name, int index) {
+    protected MatchContext(JsEngine js, MatchOperation root, boolean xml, int depth, String path, String name, int index, boolean schema) {
         this.JS = js;
         this.root = root;
         this.xml = xml;
@@ -47,24 +48,25 @@ public class MatchContext {
         this.path = path;
         this.name = name;
         this.index = index;
+        this.schema = schema;
     }
 
     public MatchContext descend(String name) {
         if (xml) {
             String childPath = path.endsWith("/@") ? path + name : (depth == 0 ? "" : path) + "/" + name;
-            return new MatchContext(JS, root, xml, depth + 1, childPath, name, -1);
+            return new MatchContext(JS, root, xml, depth + 1, childPath, name, -1, schema);
         } else {
             boolean needsQuotes = name.indexOf('-') != -1 || name.indexOf(' ') != -1 || name.indexOf('.') != -1;
             String childPath = needsQuotes ? path + "['" + name + "']" : path + '.' + name;
-            return new MatchContext(JS, root, xml, depth + 1, childPath, name, -1);
+            return new MatchContext(JS, root, xml, depth + 1, childPath, name, -1, schema);
         }
     }
 
     public MatchContext descend(int index) {
         if (xml) {
-            return new MatchContext(JS, root, xml, depth + 1, path + "[" + (index + 1) + "]", name, index);
+            return new MatchContext(JS, root, xml, depth + 1, path + "[" + (index + 1) + "]", name, index, schema);
         } else {
-            return new MatchContext(JS, root, xml, depth + 1, path + "[" + index + "]", name, index);
+            return new MatchContext(JS, root, xml, depth + 1, path + "[" + index + "]", name, index, schema);
         }
     }
 

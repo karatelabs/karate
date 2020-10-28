@@ -67,18 +67,20 @@ public class MatchOperation {
     }
 
     private MatchOperation(JsEngine js, MatchContext context, MatchType type, MatchValue actual, MatchValue expected) {
-        this.type = type;
+        this.type = type == MatchType.EQUALS_SCHEMA ? MatchType.EQUALS : type;
         this.actual = actual;
         this.expected = expected;
+
+        boolean schema = type == MatchType.EQUALS_SCHEMA;
         if (context == null) {
             if (js == null) {
                 js = JsEngine.global();
             }
             this.failures = new ArrayList();
             if (actual.isXml()) {
-                this.context = new MatchContext(js, this, true, 0, "/", "", -1);
+                this.context = new MatchContext(js, this, true, 0, "/", "", -1, schema);
             } else {
-                this.context = new MatchContext(js, this, false, 0, "$", "", -1);
+                this.context = new MatchContext(js, this, false, 0, "$", "", -1, schema);
             }
         } else {
             this.context = context;
@@ -179,7 +181,7 @@ public class MatchOperation {
         if (expected.isString()) {
             String expStr = expected.getValue();
             if (expStr.startsWith("#")) {
-                if (type == MatchType.EQUALS) {
+                if (type == MatchType.EQUALS || type == MatchType.EQUALS_SCHEMA) {
                     return macroEqualsExpected(expStr) ? pass() : fail(null);
                 } else {
                     return macroEqualsExpected(expStr) ? fail("is equal") : pass();
@@ -420,6 +422,10 @@ public class MatchOperation {
                         }
                         continue;
                     }
+                }
+                if(context.schema){
+                    unMatchedKeysExp.remove(key);
+                    continue;
                 }
                 if (type != MatchType.CONTAINS_ANY) {
                     return fail("actual does not contain key - '" + key + "'");

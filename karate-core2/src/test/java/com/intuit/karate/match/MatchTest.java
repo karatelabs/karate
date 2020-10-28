@@ -239,6 +239,23 @@ class MatchTest {
     void testXmlSchema() {
         match("<root></root>", EQUALS, "<root>#null</root>"); // TODO controversial
         match("<root></root>", EQUALS, "<root>#present</root>");
+        match("<root><a>x</a><b><c>y</c></b></root>", EQUALS, "<root><a>#string</a><b><c>#string</c></b></root>");
     }
+
+    @Test
+    void testXmlEqualsSchema(){
+        match("<root><a>x</a></root>", EQUALS_SCHEMA, "<root><a>#string</a><b><c>#string</c></b></root>");
+        match("<root><a>x</a><b></b></root>", EQUALS_SCHEMA, "<root><a>#string</a><b><c>#string</c></b></root>", FAILS);
+        match("<root><a>x</a><b><c></c></b></root>", EQUALS_SCHEMA, "<root><a>#string</a><b><c>#string</c></b></root>", FAILS);
+        match("<root><a>x</a><b><c>y</c></b></root>", EQUALS_SCHEMA, "<root><a>#string</a><b><c>#string</c></b></root>");
+    }
+
+    @Test
+    void testJsonEqualsSchema(){
+        match("{ a: 'x' }", EQUALS_SCHEMA, "{ a: '#string', b: { c: '#string' }}");
+        match("{ a: 'x', b:{} }", EQUALS_SCHEMA, "{ a: '#string', b: { c: '#string' }}");
+        match("{ a: 'x', b:{ c: 'y' } }", EQUALS_SCHEMA, "{ a: '#string', b: { c: '#string' }}");
+    }
+
 
 }
