@@ -43,7 +43,7 @@ class MatchTest {
             assertFalse(mr.pass);
         }
     }
-    
+
     @Test
     void testApi() {
         assertTrue(Match.that(null).isEqualTo(null).pass);
@@ -125,7 +125,7 @@ class MatchTest {
         match("[{ a: 1 }, { b: 2 }, { c: 3 }]", CONTAINS_DEEP, "[{ a: 1 }, { c: 3 }]");
         match("[{ a: 1 }, { b: [1, 2, 3] }]", CONTAINS_DEEP, "[{ b: [2] }]");
     }
-    
+
     @Test
     void testListContains() {
         match("['foo', 'bar']", CONTAINS, "baz", FAILS);
@@ -145,13 +145,13 @@ class MatchTest {
         match("[{ a: 1 }, { a: 2 }]", EACH_EQUALS, "#object");
         match("[{ a: 1 }, { a: 2 }]", EACH_EQUALS, "{ a: '#number' }");
     }
-    
+
     @Test
     void testArray() {
-        match("[{ a: 1 }, { a: 2 }]", EQUALS, "#[2]");        
+        match("[{ a: 1 }, { a: 2 }]", EQUALS, "#[2]");
         match("[{ a: 1 }, { a: 2 }]", EQUALS, "#[] #object");
     }
-    
+
     @Test
     void testSchema() {
         Json json = new Json("{ a: '#number' }");
@@ -159,8 +159,9 @@ class MatchTest {
         match("[{ a: 1 }, { a: 2 }]", EACH_EQUALS, map);
         JsEngine.global().put("schema", map);
         match("[{ a: 1 }, { a: 2 }]", EQUALS, "#[] schema");
-    }    
-    
+        match("{ a: 'x', b: { c: 'y' } }", EQUALS, "{ a: '#string', b: { c: '#string' } }");
+    }
+
     @Test
     void testMap() {
         match("{ a: 1, b: 2, c: 3 }", EQUALS, "{ b: 2, c: 3, a: 1 }");
@@ -185,7 +186,7 @@ class MatchTest {
         match("{ a: { b: { c: 1 } } }", EQUALS, "{ a: { b: { c: 2 } } }", FAILS);
         message("$.a.b.c | not equal");
     }
-    
+
     @Test
     void testXmlFailureMessages() {
         match("<a><b><c>1</c></b></a>", EQUALS, "<a><b><c>2</c></b></a>", FAILS);
@@ -196,7 +197,7 @@ class MatchTest {
         match("<hello foo=\"bar\">world</hello>", EQUALS, "<hello foo=\"baz\">world</hello>", FAILS);
         message("/ | not equal | match failed for name: 'hello'");
         message("/hello/@foo | not equal");
-    }    
+    }
 
     @Test
     void testMapFuzzyIgnores() {
@@ -204,7 +205,7 @@ class MatchTest {
         match("{ a: 1, b: 2, c: 3 }", EQUALS, "{ b: 2, c: 3, z: '#notpresent', a: 1 }");
         match("{ a: 1, b: 2, c: 3 }", EQUALS, "{ b: 2, c: 3, z: '##anything', a: 1 }"); // not really correct, TODO !        
     }
-    
+
     @Test
     void testMapFuzzy() {
         match("{ a: 1, b: 2, c: 3 }", EQUALS, "{ b: 2, c: '#number', a: 1 }");
@@ -221,7 +222,7 @@ class MatchTest {
         match("{ a: 1, b: 'foo', c: 2 }", EQUALS, "{ b: '#regex .{3}', c: 2, a: 1 }");
         match("{ a: 1, b: 'foo', c: 2 }", EQUALS, "{ b: '#regex .{2}', c: 2, a: 1 }", FAILS);
         message("$.b | regex match failed");
-    }    
+    }
 
     @Test
     void testXml() {
@@ -234,11 +235,15 @@ class MatchTest {
         match("<root><a>1</a><b>2</b></root>", CONTAINS, "<root><b>2</b><a>1</a></root>");
         match("<root><a>1</a><b>2</b></root>", CONTAINS, "<root><a>1</a><b>9</b></root>", FAILS);
     }
-    
+
     @Test
     void testXmlSchema() {
         match("<root></root>", EQUALS, "<root>#null</root>"); // TODO controversial
         match("<root></root>", EQUALS, "<root>#present</root>");
+        match("<root><a>x</a><b><c>y</c></b></root>", EQUALS, "<root><a>#string</a><b><c>#string</c></b></root>");
+        match("<root><a>x</a><b></b></root>", EQUALS, "<root><a>#string</a><b><c>#string</c></b></root>", FAILS);
+        match("<root><a>x</a><b><c></c></b></root>", EQUALS, "<root><a>#string</a><b><c>#string</c></b></root>", FAILS);
+        match("<root><a>x</a><b><c>y</c></b></root>", EQUALS, "<root><a>#string</a><b><c>#string</c></b></root>");
     }
 
 }
