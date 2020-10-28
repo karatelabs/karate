@@ -72,6 +72,7 @@ public class MatchOperation {
         this.expected = expected;
 
         boolean schema = type == MatchType.EQUALS_SCHEMA;
+
         if (context == null) {
             if (js == null) {
                 js = JsEngine.global();
@@ -181,7 +182,7 @@ public class MatchOperation {
         if (expected.isString()) {
             String expStr = expected.getValue();
             if (expStr.startsWith("#")) {
-                if (type == MatchType.EQUALS || type == MatchType.EQUALS_SCHEMA) {
+                if (type == MatchType.EQUALS) {
                     return macroEqualsExpected(expStr) ? pass() : fail(null);
                 } else {
                     return macroEqualsExpected(expStr) ? fail("is equal") : pass();

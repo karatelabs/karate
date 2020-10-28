@@ -239,7 +239,6 @@ class MatchTest {
     void testXmlSchema() {
         match("<root></root>", EQUALS, "<root>#null</root>"); // TODO controversial
         match("<root></root>", EQUALS, "<root>#present</root>");
-        match("<root><a>x</a><b><c>y</c></b></root>", EQUALS, "<root><a>#string</a><b><c>#string</c></b></root>");
     }
 
     @Test
