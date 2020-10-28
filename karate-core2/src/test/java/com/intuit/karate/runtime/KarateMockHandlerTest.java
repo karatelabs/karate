@@ -8,6 +8,9 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+
 /**
  *
  * @author pthomas3
@@ -20,6 +23,7 @@ class KarateMockHandlerTest {
     MockHandler handler;
     FeatureBuilder mock;
     ScenarioRuntime runtime;
+    SimpleDateFormat sdf= new SimpleDateFormat("EEE, dd-MMM-yy HH:mm:ss z");
 
     FeatureBuilder background(String... lines) {
         mock = FeatureBuilder.background(lines);
@@ -99,6 +103,56 @@ class KarateMockHandlerTest {
                 "method get"
         );
         matchVar("response", "{ Cookie: ['foo=bar'] }");
+    }
+
+    @Test
+    void testExpiredCookieRemoves(){
+        Calendar currCalIns = Calendar.getInstance();
+        currCalIns.add(java.util.Calendar.DATE, -1);
+        String pastDate = sdf.format(currCalIns.getTime());
+
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestHeaders");
+        run(
+                URL_STEP,
+                "cookie foo = {value:'bar', expires: '" + pastDate + "'}",
+                "path '/hello'",
+                "method get"
+        );
+        matchVar("response", "{ Cookie: [] }");
+    }
+
+    @Test
+    void testNonExpiredCookieRetains(){
+        Calendar currCalIns = Calendar.getInstance();
+        currCalIns.add(java.util.Calendar.DATE, +1);
+        String futureDate = sdf.format(currCalIns.getTime());
+
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestHeaders");
+        run(
+                URL_STEP,
+                "cookie foo = {value:'bar', expires: '" + futureDate + "'}",
+                "path '/hello'",
+                "method get"
+        );
+        matchVar("response", "{ Cookie: ['foo=bar'] }");
+    }
+
+    @Test
+    void manuallyExpireCookieAndItShouldNotRetain(){
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestHeaders");
+        run(
+                URL_STEP,
+                "cookie foo = {value:'bar', max-age:'0'}",
+                "path '/hello'",
+                "method get"
+        );
+        matchVar("response", "{ Cookie: [] }");
     }
 
 }

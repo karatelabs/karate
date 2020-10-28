@@ -334,7 +334,9 @@ public class HttpRequestBuilder implements ProxyObject {
         if (cookies == null) {
             cookies = new HashSet();
         }
-        cookies.add(cookie);
+        if ( cookie.maxAge() != 0 ){ // only add cookie to request if its not already expired.
+            cookies.add(cookie);
+        }
         return this;
     }
 
