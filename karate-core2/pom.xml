@@ -41,7 +41,7 @@
             <groupId>com.linecorp.armeria</groupId>
             <artifactId>armeria</artifactId>
             <version>1.1.0</version>
-        </dependency>               
+        </dependency>                          
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>

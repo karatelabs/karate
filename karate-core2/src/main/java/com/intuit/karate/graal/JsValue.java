@@ -24,19 +24,26 @@
 package com.intuit.karate.graal;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.XmlUtils;
 import com.intuit.karate.data.JsonUtils;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import org.graalvm.polyglot.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.w3c.dom.Node;
 
 /**
  *
  * @author pthomas3
  */
 public class JsValue {
+
+    private static final Logger logger = LoggerFactory.getLogger(JsValue.class);
 
     public static enum Type {
         OBJECT,
@@ -53,7 +60,10 @@ public class JsValue {
         this.original = v;
         if (v.isProxyObject()) {
             Object o = v.asProxyObject();
-            if (o instanceof JsMap) {
+            if (o instanceof JsXml) {
+                value = ((JsXml) o).getNode();
+                type = Type.OBJECT;
+            } else if (o instanceof JsMap) {
                 value = ((JsMap) o).getMap();
                 type = Type.OBJECT;
             } else if (o instanceof JsList) {
@@ -67,7 +77,7 @@ public class JsValue {
             value = v.asHostObject();
             type = Type.OTHER;
         } else if (v.canExecute()) {
-            value = v.as(Object.class);
+            value = v.as(Function.class);
             type = Type.FUNCTION;
         } else if (v.hasArrayElements()) {
             int size = (int) v.getArraySize();
@@ -97,10 +107,6 @@ public class JsValue {
         return value;
     }
 
-    public <T> T getOriginalAs(Class<T> clazz) {
-        return original.as(clazz);
-    }
-
     public Map<String, Object> getAsMap() {
         return (Map) value;
     }
@@ -113,7 +119,7 @@ public class JsValue {
         return original;
     }
 
-    public JsValue execute(Object... args) {
+    public JsValue invoke(Object... args) {
         return new JsValue(original.execute(args));
     }
 
@@ -140,23 +146,20 @@ public class JsValue {
         return type == Type.OTHER;
     }
 
-    public String asString() {
-        return original.asString();
-    }
-
     @Override
     public String toString() {
         return original.toString();
     }
 
     public static Object fromJava(Object o) {
-        if (o instanceof JsValue) { // functions being passed around
-            o = ((JsValue) o).getOriginal();
-        }
-        if (o instanceof List) {
+        if (o instanceof Function) { // can be map also, so do this first
+            return o;
+        } else if (o instanceof List) {
             return new JsList((List) o);
         } else if (o instanceof Map) {
             return new JsMap((Map) o);
+        } else if (o instanceof Node) {
+            return new JsXml((Node) o);
         } else {
             return o;
         }
@@ -170,12 +173,31 @@ public class JsValue {
         return toBytes(toJava(v));
     }
 
+    public static String toString(Object o) {
+        if (o == null) {
+            return null;
+        }
+        if (o instanceof Map || o instanceof List) {
+            return JsonUtils.toJson(o);
+        } else if (o instanceof Node) {
+            return XmlUtils.toString((Node) o);
+        } else if (o instanceof byte[]) {
+            return FileUtils.toString((byte[]) o);
+        } else {
+            return o.toString();
+        }
+    }
+
     public static byte[] toBytes(Object o) {
         if (o == null) {
             return null;
         }
         if (o instanceof Map || o instanceof List) {
             return FileUtils.toBytes(JsonUtils.toJson(o));
+        } else if (o instanceof Node) {
+            return FileUtils.toBytes(XmlUtils.toString((Node) o));
+        } else if (o instanceof byte[]) {
+            return (byte[]) o;
         } else {
             return FileUtils.toBytes(o.toString());
         }
@@ -191,10 +213,22 @@ public class JsValue {
 
     public static Object fromString(String raw) {
         char firstChar = raw.trim().charAt(0);
-        if (firstChar == '{' || firstChar == '[') {
-            Object o = JsonUtils.fromJsonString(raw);
-            return JsValue.fromJava(o);
-        } else {
+        switch (firstChar) {
+            case '{':
+            case '[':
+                return JsonUtils.fromJson(raw);
+            case '<':
+                return XmlUtils.toXmlDoc(raw);
+            default:
+                return raw;
+        }
+    }
+
+    public static Object fromStringSafe(String raw) {
+        try {
+            return fromString(raw);
+        } catch (Exception e) {
+            logger.trace("failed to auto convert: {}", e + "");
             return raw;
         }
     }

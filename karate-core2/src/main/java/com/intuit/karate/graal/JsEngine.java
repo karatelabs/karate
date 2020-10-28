@@ -44,6 +44,7 @@ public class JsEngine {
     private static final String JS = "js";
     private static final String JSON_STRINGIFY = "JSON.stringify";
     private static final String JS_EXPERIMENTAL_FOP = "js.experimental-foreign-object-prototype";
+    private static final String JS_NASHORN_COMPAT = "js.nashorn-compat";
     private static final String TRUE = "true";
 
     private static class JsContext {
@@ -58,17 +59,14 @@ public class JsEngine {
             context = Context.newBuilder(JS)
                     .allowExperimentalOptions(true)
                     .allowAllAccess(true)
-                    .option(JS_EXPERIMENTAL_FOP, TRUE).engine(engine).build();
+                    .option(JS_NASHORN_COMPAT, TRUE)
+                    .option(JS_EXPERIMENTAL_FOP, TRUE)
+                    .engine(engine).build();
             bindings = context.getBindings(JS);
         }
 
         Value eval(String exp) {
-            try {
-                return context.eval(JS, exp);
-            } catch (Exception e) {
-                logger.error("js eval failed: {} - {}", e, exp);
-                throw new RuntimeException(e);
-            }
+            return context.eval(JS, exp);
         }
 
     }
@@ -91,11 +89,14 @@ public class JsEngine {
 
     public static JsEngine local() {
         Engine engine = GLOBAL_JS_CONTEXT.get().context.getEngine();
-        JsEngine je = new JsEngine(new JsContext(engine));
-        Value bindings = global().bindings();
+        return new JsEngine(new JsContext(engine));
+    }
+
+    public static JsEngine localWithGlobalBindings() {
+        JsEngine je = local();
+        Value bindings = global().jc.bindings;
         for (String key : bindings.getMemberKeys()) {
-            Value v = bindings.getMember(key);
-            je.putValue(key, v);
+            je.putValue(key, bindings.getMember(key));
         }
         return je;
     }
@@ -141,7 +142,7 @@ public class JsEngine {
     public void putAll(Map<String, Object> map) {
         map.forEach((k, v) -> put(k, v));
     }
-    
+
     public boolean hasMember(String key) {
         return jc.bindings.hasMember(key);
     }
@@ -165,12 +166,23 @@ public class JsEngine {
 
     public void putValue(String key, Value v) {
         if (v.isHostObject()) {
-            bindings().putMember(key, v.asHostObject());
+            jc.bindings.putMember(key, v.asHostObject());
         } else if (v.canExecute()) {
             Value fun = evalForValue("(" + v.toString() + ")");
-            bindings().putMember(key, fun);
+            jc.bindings.putMember(key, fun);
         } else {
             put(key, JsValue.toJava(v));
+        }
+    }
+
+    public Value attachToContext(Object o) {
+        Value old = Value.asValue(o);
+        Context context = old.getContext();
+        if (context != null && !context.equals(jc.context)) {
+            String temp = "(" + old.toString() + ")";
+            return evalForValue(temp);
+        } else {
+            return old;
         }
     }
 

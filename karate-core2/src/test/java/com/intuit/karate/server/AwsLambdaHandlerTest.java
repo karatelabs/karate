@@ -26,8 +26,8 @@ class AwsLambdaHandlerTest {
 
     @BeforeEach
     void beforeEach() {
-        Config config = new Config().classPathRoot("demo");
-        handler = new AwsLambdaHandler(config);
+        ServerConfig config = new ServerConfig().classPathRoot("demo");
+        handler = new AwsLambdaHandler(new RequestHandler(config));
     }
 
     String handle(String file) {

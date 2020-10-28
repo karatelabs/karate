@@ -21,26 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.match;
+package com.intuit.karate.server;
 
 /**
  *
  * @author pthomas3
  */
-public class ValidatorResult {
-
-    public final boolean pass;
-    public final String message;
-
-    public static final ValidatorResult PASS = new ValidatorResult(true, null);
-
-    private ValidatorResult(boolean pass, String message) {
-        this.pass = pass;
-        this.message = message;
-    }
-
-    public static ValidatorResult fail(String message) {
-        return new ValidatorResult(false, message);
-    }
-
+public interface ServerHandler {
+    
+    Response handle(Request request);
+    
 }

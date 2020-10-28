@@ -37,11 +37,12 @@ public class HttpServer {
 
     private static final Logger logger = LoggerFactory.getLogger(HttpServer.class);
 
+    private final ServerHandler handler;
     private final Server server;
     private final CompletableFuture<Void> future;
+    private final int port;
 
     public void waitSync() {
-        future.join();
         try {
             Thread.currentThread().join();
         } catch (Exception e) {
@@ -49,13 +50,24 @@ public class HttpServer {
         }
     }
 
-    public HttpServer(int port, Config config) {
+    public int getPort() {
+        return port;
+    }
+
+    public CompletableFuture stop() {
+        return server.stop();
+    }
+
+    public HttpServer(int port, ServerHandler handler) {
+        this.handler = handler;
         ServerBuilder sb = Server.builder();
         sb.http(port);
-        sb.service("prefix:/", new HttpHandler(config));
+        sb.service("prefix:/", new HttpServerHandler(handler));
         server = sb.build();
         future = server.start();
-        logger.debug("server started: {}:{}", server.defaultHostname(), port);
+        future.join();
+        this.port = server.activePort().localAddress().getPort();
+        logger.debug("server started: {}:{}", server.defaultHostname(), this.port);
     }
 
 }

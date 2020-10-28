@@ -23,30 +23,79 @@
  */
 package com.intuit.karate.runtime;
 
+import com.intuit.karate.Logger;
+import com.intuit.karate.Resource;
 import com.intuit.karate.Results;
-import com.intuit.karate.core.ExecutionHook;
-import com.intuit.karate.core.ExecutionHookFactory;
+import com.intuit.karate.StringUtils;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  *
  * @author pthomas3
  */
 public class SuiteRuntime {
-    
-    public final Results results = Results.startTimer(1);    
-    public final Collection<ExecutionHook> executionHooks = new ArrayList();
-    public final ExecutionHookFactory hookFactory = null;    
-    private boolean hooksResolved;
-    
-    public Collection<ExecutionHook> resolveHooks() {
-        if (hookFactory == null || hooksResolved) {
-            return executionHooks;
+
+    public final String env;
+    public final Logger logger = new Logger();
+    public final File workingDir = new File("");
+    public final ClassLoader classLoader = ClassLoader.getSystemClassLoader();
+    public final Results results = Results.startTimer(1);
+    public final Collection<RuntimeHook> runtimeHooks = new ArrayList();
+
+    public final Map<String, Object> SUITE_CACHE = new HashMap();
+
+    public final String karateBase;
+    public final String karateConfig;
+    public final String karateConfigEnv;
+
+    private String read(String name) {
+        try {
+            return Resource.relativePathToString(name);
+        } catch (Exception e) {
+            logger.trace("file not found: {} - {}", name, e.getMessage());
+            return null;
         }
-        hooksResolved = true;
-        executionHooks.add(hookFactory.create());
-        return executionHooks;
-    }    
-    
+    }
+
+    public SuiteRuntime() {
+        karateBase = read("classpath:karate-base.js");
+        if (karateBase != null) {
+            logger.info("karate-base.js found on classpath");
+        }
+        String configPrefix = StringUtils.trimToNull(System.getProperty("karate.config.dir"));
+        if (configPrefix == null) {
+            configPrefix = "classpath:";
+        } else {
+            if (configPrefix.startsWith("file:") || configPrefix.startsWith("classpath:")) {
+                // all good
+            } else {
+                configPrefix = "file:" + configPrefix;
+            }
+            if (configPrefix.endsWith("/") || configPrefix.endsWith("\\")) {
+                // all good
+            } else {
+                configPrefix = configPrefix + File.separator;
+            }
+        }
+        karateConfig = read(configPrefix + "karate-config.js");
+        if (karateConfig != null) {
+            logger.info("karate-config.js found in {}", configPrefix);
+        } else {
+            logger.warn("karate-config.js not found in {}", configPrefix);
+        }
+        env = StringUtils.trimToNull(System.getProperty("karate.env"));
+        if (env != null) {
+            karateConfigEnv = read(configPrefix + "karate-config-" + env + ".js");
+            if (karateConfigEnv != null) {
+                logger.info("karate-config-" + env + ".js found in {}", configPrefix);
+            }
+        } else {
+            karateConfigEnv = null;
+        }
+    }
+
 }

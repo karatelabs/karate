@@ -599,7 +599,7 @@ public class PlaywrightDriver implements Driver {
         options.setRetryInterval(1000); // reduce retry interval for this special case
         options.retry(() -> evalFrame(currentFrame, "document.location.href"),
                 pwm -> !pwm.isError() && !pwm.getResultValue().equals(previousFrameUrl), "waiting for frame context", false);
-        options.setRetryInterval(retryInterval); // restore        
+        options.setRetryInterval(retryInterval); // restore
     }
 
     @Override

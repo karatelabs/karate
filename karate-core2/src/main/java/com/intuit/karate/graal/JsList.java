@@ -23,8 +23,10 @@
  */
 package com.intuit.karate.graal;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyArray;
 
@@ -37,6 +39,10 @@ public class JsList implements ProxyArray {
     public static final JsList EMPTY = new JsList(Collections.EMPTY_LIST);
 
     private final List list;
+
+    public JsList(Set set) {
+        this(new ArrayList(set));
+    }
 
     public JsList(List list) {
         this.list = list;

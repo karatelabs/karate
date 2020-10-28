@@ -23,28 +23,24 @@
  */
 package com.intuit.karate.server;
 
-import com.linecorp.armeria.client.ClientRequestContext;
-import com.linecorp.armeria.client.DecoratingHttpClientFunction;
-import com.linecorp.armeria.client.HttpClient;
-import com.linecorp.armeria.common.HttpRequest;
-import com.linecorp.armeria.common.HttpResponse;
-import com.linecorp.armeria.common.logging.RequestLogProperty;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  *
  * @author pthomas3
  */
-public class HttpClientLogger implements DecoratingHttpClientFunction {
+public class HttpConstants {
 
-    private static final Logger logger = LoggerFactory.getLogger(HttpClientLogger.class);
-
-    @Override
-    public HttpResponse execute(HttpClient delegate, ClientRequestContext ctx, HttpRequest req) throws Exception {
-        ctx.log().whenAvailable(RequestLogProperty.REQUEST_START_TIME).thenAccept(log -> logger.debug(log.toStringRequestOnly()));
-        ctx.log().whenAvailable(RequestLogProperty.RESPONSE_END_TIME).thenAccept(log -> logger.debug(log.toStringResponseOnly()));
-        return delegate.execute(ctx, req);
+    private HttpConstants() {
+        // only static methods
     }
+
+    public static final byte[] ZERO_BYTES = new byte[0];
+
+    public static final String HDR_COOKIE = "Cookie";
+    public static final String HDR_SET_COOKIE = "Set-Cookie";
+    public static final String HDR_CONTENT_TYPE = "Content-Type";
+    public static final String HDR_LOCATION = "Location";
+    
+    public static final String HDR_HX_TRIGGER = "HX-Trigger";
+    public static final String HDR_HX_REQUEST = "HX-Request";
 
 }

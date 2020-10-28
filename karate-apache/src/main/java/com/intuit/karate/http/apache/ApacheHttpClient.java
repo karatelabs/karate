@@ -26,37 +26,11 @@ package com.intuit.karate.http.apache;
 import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.ScenarioContext;
-import org.apache.http.conn.ssl.LenientSslConnectionSocketFactory;
-
-import static com.intuit.karate.http.Cookie.*;
-
-import com.intuit.karate.http.HttpClient;
-import com.intuit.karate.http.HttpRequest;
-import com.intuit.karate.http.HttpResponse;
-import com.intuit.karate.http.HttpUtils;
-import com.intuit.karate.http.MultiPartItem;
-import com.intuit.karate.http.MultiValuedMap;
-import java.io.IOException;
-
-import java.io.InputStream;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Proxy;
-import java.net.ProxySelector;
-import java.net.SocketAddress;
-import java.net.URI;
-import java.nio.charset.Charset;
-import java.security.KeyStore;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.Objects;
-import javax.net.ssl.SSLContext;
-
+import com.intuit.karate.http.*;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
+import org.apache.http.ParseException;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CookieStore;
@@ -67,21 +41,27 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.config.SocketConfig;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.conn.ssl.TrustAllStrategy;
-import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
+import org.apache.http.conn.ssl.*;
 import org.apache.http.cookie.Cookie;
-import org.apache.http.impl.client.BasicCookieStore;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.LaxRedirectStrategy;
+import org.apache.http.impl.client.*;
 import org.apache.http.impl.conn.SystemDefaultRoutePlanner;
 import org.apache.http.impl.cookie.BasicClientCookie;
 import org.apache.http.protocol.BasicHttpContext;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
+
+import javax.net.ssl.SSLContext;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.*;
+import java.nio.charset.Charset;
+import java.security.KeyStore;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.*;
+import java.util.Map.Entry;
+
+import static com.intuit.karate.http.Cookie.*;
 
 /**
  * @author pthomas3
@@ -269,6 +249,21 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
                 case PATH:
                     cookie.setPath(entry.getValue());
                     break;
+                case EXPIRES: // add expires field for cookie.
+                    try {
+                        cookie.setExpiryDate(Date.from(ZonedDateTime.parse(entry.getValue(), DTFMTR_RFC1123).toInstant()));
+                    }
+                    catch ( DateTimeParseException ex)
+                    {
+                        System.err.println("ex ->" + ex.getLocalizedMessage());
+                    }
+                    break;
+                case MAX_AGE: // set max age
+                    int maxAge = Integer.parseInt(entry.getValue());
+                    if (maxAge >= 0) { // only for valid maxAge for cookie expiration.
+                        cookie.setExpiryDate(new Date(System.currentTimeMillis() + (maxAge * 1000)));
+                    }
+                    break;
             }
         }
         if (cookie.getDomain() == null) {
@@ -328,8 +323,10 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
         response.setStatus(httpResponse.getStatusLine().getStatusCode());
         for (Cookie c : cookieStore.getCookies()) {
             com.intuit.karate.http.Cookie cookie = new com.intuit.karate.http.Cookie(c.getName(), c.getValue());
-            cookie.put(DOMAIN, c.getDomain());
-            cookie.put(PATH, c.getPath());
+            // while preparing the cookie in buildCookie method we used a BasicClientCookie. This conversion ensures we get path correctly.
+            BasicClientCookie cc = (BasicClientCookie) c;
+            cookie.put(DOMAIN, cc.getDomain());
+            cookie.put(PATH, cc.getPath());
             if (c.getExpiryDate() != null) {
                 cookie.put(EXPIRES, c.getExpiryDate().getTime() + "");
             }
@@ -338,7 +335,17 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
             response.addCookie(cookie);
         }
         cookieStore.clear(); // we rely on the StepDefs for cookie 'persistence'
-        for (Header header : httpResponse.getAllHeaders()) {
+        for (Header header : httpResponse.getAllHeaders()) { // rely on setting cookies from set-cookie header, else these will be skipped.
+            if( header.getName().equalsIgnoreCase("Set-Cookie"))
+            {
+                List<HttpCookie> cookieMap = HttpCookie.parse(header.getValue());
+                cookieMap.forEach( ck -> {
+                    com.intuit.karate.http.Cookie cookie = new com.intuit.karate.http.Cookie(ck.getName(), ck.getValue());
+                    cookie.put(DOMAIN, ck.getDomain());
+                    cookie.put(PATH, null != ck.getPath() ? ck.getPath() : "/"); // lets make sure path is not null.
+                    cookie.put(MAX_AGE, ck.getMaxAge() + "");
+                });
+            }
             response.addHeader(header.getName(), header.getValue());
         }
         return response;

@@ -24,7 +24,7 @@
 package com.intuit.karate.template;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.server.Config;
+import com.intuit.karate.server.ServerConfig;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.server.RequestCycle;
 import com.intuit.karate.server.ResourceResolver;
@@ -47,7 +47,7 @@ public class KaScriptAttrProcessor extends AbstractAttributeTagProcessor {
     private static final Logger logger = LoggerFactory.getLogger(KaScriptAttrProcessor.class);
     private final ResourceResolver resourceResolver;
 
-    public KaScriptAttrProcessor(String dialectPrefix, Config config) {
+    public KaScriptAttrProcessor(String dialectPrefix, ServerConfig config) {
         super(TemplateMode.HTML, dialectPrefix, null, false, "src", true, 1000, true);
         resourceResolver = config.getResourceResolver();
     }

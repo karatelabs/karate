@@ -53,23 +53,33 @@ public class MatchOperation {
 
     boolean pass = true;
     String failReason;
-
+    
     public MatchOperation(MatchType type, MatchValue actual, MatchValue expected) {
-        this(null, type, actual, expected);
+        this(JsEngine.global(), null, type, actual, expected);
+    }    
+
+    public MatchOperation(JsEngine js, MatchType type, MatchValue actual, MatchValue expected) {
+        this(js, null, type, actual, expected);
+    }
+    
+    private MatchOperation(MatchContext context, MatchType type, MatchValue actual, MatchValue expected) {
+        this(null, context, type, actual, expected);
     }
 
-    public MatchOperation(MatchContext context, MatchType type, MatchValue actual, MatchValue expected) {
+    private MatchOperation(JsEngine js, MatchContext context, MatchType type, MatchValue actual, MatchValue expected) {
         this.type = type;
         this.actual = actual;
         this.expected = expected;
         if (context == null) {
+            if (js == null) {
+                js = JsEngine.global();
+            }
             this.failures = new ArrayList();
             if (actual.isXml()) {
-                this.context = new MatchContext(this, true, 0, "/", "", -1);
+                this.context = new MatchContext(js, this, true, 0, "/", "", -1);
             } else {
-                this.context = new MatchContext(this, false, 0, "$", "", -1);
+                this.context = new MatchContext(js, this, false, 0, "$", "", -1);
             }
-
         } else {
             this.context = context;
             this.failures = context.root.failures;
@@ -149,10 +159,9 @@ public class MatchOperation {
                     List list = actual.getValue();
                     MatchType nestedMatchType = fromMatchEach();
                     int count = list.size();
-                    JsEngine jsEngine = JsEngine.global();
                     for (int i = 0; i < count; i++) {
                         Object o = list.get(i);
-                        jsEngine.put("_$", o);
+                        context.JS.put("_$", o);
                         MatchOperation mo = new MatchOperation(context.descend(i), nestedMatchType, new MatchValue(o), expected);
                         mo.execute();
                         if (!mo.pass) {
@@ -185,7 +194,8 @@ public class MatchOperation {
                 case CONTAINS_DEEP:
                     if (!expected.isList()) {
                         MatchOperation mo = new MatchOperation(context, type, actual, new MatchValue(Collections.singletonList(expected.getValue())));
-                        return mo.execute();
+                        mo.execute();
+                        return mo.pass ? pass() : fail(mo.failReason);
                     }
                     break;
                 default:
@@ -220,31 +230,30 @@ public class MatchOperation {
                 MatchType nestedType = macroToMatchType(false, macro);
                 int startPos = matchTypeToStartPos(nestedType);
                 macro = macro.substring(startPos);
-                JsValue jv = JsEngine.evalGlobal(macro);
+                JsValue jv = context.JS.eval(macro);
                 MatchOperation mo = new MatchOperation(context, nestedType, actual, new MatchValue(jv.getValue()));
                 return mo.execute();
             } else if (macro.startsWith("[")) {
                 int closeBracketPos = macro.indexOf(']');
                 if (closeBracketPos != -1) { // array, match each
                     if (!actual.isList()) {
-                        return fail("actual is not a list or array");
+                        return fail("actual is not an array");
                     }
                     if (closeBracketPos > 1) {
                         String bracketContents = macro.substring(1, closeBracketPos);
                         List listAct = actual.getValue();
                         int listSize = listAct.size();
-                        JsEngine jsEngine = JsEngine.global();
-                        jsEngine.put("$", context.root.actual.getValue());
-                        jsEngine.put("_", listSize);
+                        context.JS.put("$", context.root.actual.getValue());
+                        context.JS.put("_", listSize);
                         String sizeExpr;
                         if (bracketContents.indexOf('_') != -1) { // #[_ < 5] 
                             sizeExpr = bracketContents;
                         } else { // #[5] | #[$.foo] 
                             sizeExpr = bracketContents + " == _";
                         }
-                        JsValue jv = jsEngine.eval(sizeExpr);
+                        JsValue jv = context.JS.eval(sizeExpr);
                         if (!jv.isTrue()) {
-                            return fail("actual array / list size is " + listSize);
+                            return fail("actual array length is " + listSize);
                         }
                     }
                     if (macro.length() > closeBracketPos + 1) {
@@ -264,7 +273,7 @@ public class MatchOperation {
                                 MatchType nestedType = macroToMatchType(true, macro); // match each
                                 int startPos = matchTypeToStartPos(nestedType);
                                 macro = macro.substring(startPos);
-                                JsValue jv = JsEngine.evalGlobal(macro);
+                                JsValue jv = context.JS.eval(macro);
                                 MatchOperation mo = new MatchOperation(context, nestedType, actual, new MatchValue(jv.getValue()));
                                 return mo.execute();
                             }
@@ -291,19 +300,19 @@ public class MatchOperation {
                     if (validatorName.startsWith("regex")) {
                         String regex = validatorName.substring(5).trim();
                         RegexValidator validator = new RegexValidator(regex);
-                        ValidatorResult vr = validator.apply(actual);
-                        if (!vr.pass) {
-                            return fail(vr.message);
+                        MatchResult mr = validator.apply(actual);
+                        if (!mr.pass) {
+                            return fail(mr.message);
                         }
                     } else {
-                        Validator validator = Match.VALIDATORS.get(validatorName);
+                        Match.Validator validator = Match.VALIDATORS.get(validatorName);
                         if (validator != null) {
                             if (optional && actual.isNotPresent()) {
                                 // pass
                             } else {
-                                ValidatorResult vr = validator.apply(actual);
-                                if (!vr.pass) {
-                                    return fail(vr.message);
+                                MatchResult mr = validator.apply(actual);
+                                if (!mr.pass) {
+                                    return fail(mr.message);
                                 }
                             }
                         } else { // validator part was not used
@@ -313,10 +322,9 @@ public class MatchOperation {
                 }
                 macro = StringUtils.trimToNull(macro);
                 if (macro != null && questionPos != -1) {
-                    JsEngine jsEngine = JsEngine.global();
-                    jsEngine.put("$", context.root.actual.getValue());
-                    jsEngine.put("_", actual.getValue());
-                    JsValue jv = jsEngine.eval(macro);
+                    context.JS.put("$", context.root.actual.getValue());
+                    context.JS.put("_", actual.getValue());
+                    JsValue jv = context.JS.eval(macro);
                     if (!jv.isTrue()) {
                         return fail("evaluated to 'false'");
                     }
@@ -356,7 +364,7 @@ public class MatchOperation {
                 int actListCount = actList.size();
                 int expListCount = expList.size();
                 if (actListCount != expListCount) {
-                    return fail("actual size is not equal to expected size - " + actListCount + ":" + expListCount);
+                    return fail("actual array length is not equal to expected - " + actListCount + ":" + expListCount);
                 }
                 for (int i = 0; i < actListCount; i++) {
                     MatchValue actListValue = new MatchValue(actList.get(i));
@@ -364,7 +372,7 @@ public class MatchOperation {
                     MatchOperation mo = new MatchOperation(context.descend(i), MatchType.EQUALS, actListValue, expListValue);
                     mo.execute();
                     if (!mo.pass) {
-                        return fail("array / list match failed at index " + i);
+                        return fail("array match failed at index " + i);
                     }
                 }
                 return true;
@@ -466,10 +474,10 @@ public class MatchOperation {
                 int actListCount = actList.size();
                 int expListCount = expList.size();
                 if (expListCount > actListCount) {
-                    return fail("actual size is less than expected size - " + actListCount + ":" + expListCount);
+                    return fail("actual array length is less than expected - " + actListCount + ":" + expListCount);
                 }
                 if (type == MatchType.CONTAINS_ONLY && expListCount != actListCount) {
-                    return fail("actual size is not equal to expected size - " + actListCount + ":" + expListCount);
+                    return fail("actual array length is not equal to expected - " + actListCount + ":" + expListCount);
                 }
                 for (Object exp : expList) { // for each item in the expected list
                     boolean found = false;
@@ -494,11 +502,11 @@ public class MatchOperation {
                         }
                     }
                     if (!found && type != MatchType.CONTAINS_ANY) { // if we reached here, all items in the actual list were scanned
-                        return fail("actual list does not contain expected item - " + exp);
+                        return fail("actual array does not contain expected item - " + exp);
                     }
                 }
                 if (type == MatchType.CONTAINS_ANY) {
-                    return fail("actual list does not contain any expected item");
+                    return fail("actual array does not contain any of the expected items");
                 }
                 return true; // if we reached here, all items in the expected list were found
             case MAP:
@@ -521,7 +529,7 @@ public class MatchOperation {
             Number n = (Number) o;
             return BigDecimal.valueOf(n.doubleValue());
         } else {
-            throw new RuntimeException("expected number or big-decimal: " + o);
+            throw new RuntimeException("expected number instead of: " + o);
         }
     }
 
@@ -551,18 +559,23 @@ public class MatchOperation {
 
     private static String collectFailureReasons(MatchOperation root) {
         StringBuilder sb = new StringBuilder();
-        sb.append("match failed: ").append(root.type).append('\n');
-        int depth = 0;
+        sb.append("match failed: ").append(root.type).append('\n');        
         Collections.reverse(root.failures);
         Iterator<MatchOperation> iterator = root.failures.iterator();
         Set previousPaths = new HashSet();
+        int index = 0;
+        int prevDepth = -1;
         while (iterator.hasNext()) {
             MatchOperation mo = iterator.next();
             if (previousPaths.contains(mo.context.path) || mo.isXmlAttributeOrMap()) {
                 continue;
             }
             previousPaths.add(mo.context.path);
-            String prefix = StringUtils.repeat(' ', depth++ * 2);
+            if (mo.context.depth != prevDepth) {
+                prevDepth = mo.context.depth;
+                index++;
+            }
+            String prefix = StringUtils.repeat(' ', index * 2);
             sb.append(prefix).append(mo.context.path).append(" | ").append(mo.failReason);
             sb.append(" (").append(mo.actual.type).append(':').append(mo.expected.type).append(")");
             sb.append('\n');
@@ -570,8 +583,9 @@ public class MatchOperation {
                 sb.append(prefix).append(mo.actual.getAsXmlString()).append('\n');
                 sb.append(prefix).append(mo.expected.getAsXmlString()).append('\n');
             } else {
+                MatchValue expected = mo.expected.getSortedLike(mo.actual);
                 sb.append(prefix).append(mo.actual.getWithinSingleQuotesIfString()).append('\n');
-                sb.append(prefix).append(mo.expected.getWithinSingleQuotesIfString()).append('\n');
+                sb.append(prefix).append(expected.getWithinSingleQuotesIfString()).append('\n');
             }
         }
         return sb.toString();

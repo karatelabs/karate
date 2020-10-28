@@ -32,7 +32,6 @@ import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.common.ResponseHeadersBuilder;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.AsciiString;
 import java.util.HashMap;
 import java.util.List;
@@ -43,16 +42,12 @@ import java.util.Set;
  *
  * @author pthomas3
  */
-public class HttpHandler implements HttpService {
+public class HttpServerHandler implements HttpService {
 
-    private static final byte[] ZERO_BYTES = new byte[0];
+    private final ServerHandler handler;
 
-    private final RequestHandler handler;
-    private final Config config;
-
-    public HttpHandler(Config config) {
-        this.config = config;
-        handler = new RequestHandler(config);
+    public HttpServerHandler(ServerHandler handler) {
+        this.handler = handler;
     }
 
     @Override
@@ -65,18 +60,10 @@ public class HttpHandler implements HttpService {
     }
 
     private Request toRequest(ServiceRequestContext ctx, AggregatedHttpRequest req) {
-        String uri = req.path();
-        if (config.isStripContextPathFromRequest() && config.getHostContextPath() != null) {
-            if (uri.startsWith(config.getHostContextPath())) {
-                uri = uri.substring(config.getHostContextPath().length());
-            }
-        }
         Request request = new Request();
         request.setRequestContext(ctx);
+        request.setUrl(req.path());
         request.setMethod(req.method().name());
-        QueryStringDecoder qsd = new QueryStringDecoder(uri);
-        request.setPath(qsd.path());
-        request.setParams(qsd.parameters());
         RequestHeaders rh = req.headers();
         if (rh != null) {
             Set<AsciiString> names = rh.names();
@@ -96,7 +83,7 @@ public class HttpHandler implements HttpService {
     private HttpResponse toResponse(Response response) {
         byte[] body = response.getBody();
         if (body == null) {
-            body = ZERO_BYTES;
+            body = HttpConstants.ZERO_BYTES;
         }
         ResponseHeadersBuilder rhb = ResponseHeaders.builder(response.getStatus());
         Map<String, List<String>> headers = response.getHeaders();

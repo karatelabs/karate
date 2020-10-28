@@ -23,18 +23,22 @@
  */
 package com.intuit.karate.http;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.DateTimeParseException;
+import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class Cookie extends LinkedHashMap<String, String> {
-    
+
+    private static final Logger logger = LoggerFactory.getLogger(Cookie.class);
+
     public static final String NAME = "name";
     public static final String VALUE = "value";
     public static final String DOMAIN = "domain";
@@ -44,8 +48,12 @@ public class Cookie extends LinkedHashMap<String, String> {
     public static final String MAX_AGE = "max-age";
     public static final String SECURE = "secure";
     public static final String PERSISTENT = "persistent";
-    public static final String HTTP_ONLY = "http-only";    
-    
+    public static final String HTTP_ONLY = "http-only";
+
+    public static final DateTimeFormatter DT_FMT_V1 = DateTimeFormatter.ofPattern("EEE, dd-MMM-yy HH:mm:ss z");
+    public static final DateTimeFormatter DT_FMT_V2 = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss z");
+    public static final DateTimeFormatter DTFMTR_RFC1123 = new DateTimeFormatterBuilder().appendOptional(DT_FMT_V1).appendOptional(DT_FMT_V2).toFormatter();
+
     // cookies can be a map of maps, so some extra processing
     public static List<Cookie> toCookies(Map<String, Object> map) {
         if (map == null) {
@@ -62,16 +70,16 @@ public class Cookie extends LinkedHashMap<String, String> {
         }
         return cookies;
     }
-    
+
     public Cookie(Map<String, String> map) {
         super(map);
     }
-    
+
     public Cookie(String name, String value) {
         put(NAME, name);
         put(VALUE, value);
     }
-    
+
     public String putIfValueNotNull(String key, String value) {
         return value == null ? null : put(key, value);
     }
@@ -82,6 +90,19 @@ public class Cookie extends LinkedHashMap<String, String> {
 
     public String getValue() {
         return get(VALUE);
-    }        
-    
+    }
+
+    public boolean isCookieExpired() {
+        String expires = get(EXPIRES);
+        Date expiresDate = null;
+        if (expires != null) {
+            try {
+                expiresDate = Date.from(ZonedDateTime.parse(expires, DTFMTR_RFC1123).toInstant());
+            } catch (DateTimeParseException e) {
+                logger.warn("cookie expires date parsing failed: {}", e.getMessage());
+            }
+        }
+        return expiresDate != null && !expiresDate.after(new Date());
+    }
+
 }

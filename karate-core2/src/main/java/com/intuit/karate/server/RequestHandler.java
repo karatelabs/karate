@@ -38,35 +38,44 @@ import org.thymeleaf.ITemplateEngine;
  *
  * @author pthomas3
  */
-public class RequestHandler {
+public class RequestHandler implements ServerHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(RequestHandler.class);
 
     private final SessionStore sessionStore;
     private final ITemplateEngine engine;
     private final String homePagePath;
-    private final Config config;
-    private final Function<Request, Context> contextFactory;
+    private final ServerConfig config;
+    private final Function<Request, ServerContext> contextFactory;
     private final ResourceResolver resourceResolver;
+    private final String stripHostContextPath;
 
-    public RequestHandler(Config config) {
+    public RequestHandler(ServerConfig config) {
         this.config = config;
         contextFactory = config.getContextFactory();
         resourceResolver = config.getResourceResolver();
         engine = TemplateUtils.createEngine(config);
         homePagePath = config.getHomePagePath();
         sessionStore = config.getSessionStore();
+        stripHostContextPath = config.isStripContextPathFromRequest() ? config.getHostContextPath() : null;
     }
 
+    @Override
     public Response handle(Request request) {
-        if (request.isPathEmpty()) {
+        long startTime = System.currentTimeMillis();
+        if (stripHostContextPath != null) {
+            String path = request.getPath();
+            if (path.startsWith(stripHostContextPath)) {
+                request.setPath(path.substring(stripHostContextPath.length()));
+            }
+        }
+        if (request.getPath().isEmpty()) {
             if (logger.isDebugEnabled()) {
                 logger.debug("redirecting to home page: {}", request);
             }
             return response().locationHeader(redirectPath()).status(302);
         }
-        long startTime = System.currentTimeMillis();
-        Context context = contextFactory.apply(request);
+        ServerContext context = contextFactory.apply(request);
         context.prepare();
         if (request.getResourceType().isStatic()) {
             if (logger.isDebugEnabled()) {

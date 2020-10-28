@@ -130,7 +130,7 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
         for (Object o : values) {
             list.add(o == null ? null : o.toString());
         }
-        requestBuilder.param(name, list.toArray(new String[]{}));
+        requestBuilder.queryParam(name, list.toArray(new String[]{}));
     }
 
     @Override

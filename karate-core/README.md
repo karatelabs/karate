@@ -257,6 +257,7 @@ key | description
 `type` | see [driver types](#driver-types)
 `executable` | if present, Karate will attempt to invoke this, if not in the system [`PATH`](https://www.java.com/en/download/help/path.xml), you can use a full-path instead of just the name of the executable. batch files should also work
 `start` | default `true`, Karate will attempt to start the `executable` - and if the `executable` is not defined, Karate will even try to assume the default for the OS in use
+`stop` | optional, defaults to `true` *very* rarely needed, only in cases where you want the browser to remain open after your tests have completed, typically when you write a custom [`Target`](#custom-target)
 `port` | optional, and Karate would choose the "traditional" port for the given `type`
 `host` | optional, will default to `localhost` and you normally never need to change this
 `pollAttempts` | optional, will default to `20`, you normally never need to change this (and changing `pollInterval` is preferred), and this is the number of attempts Karate will make to wait for the `port` to be ready and accepting connections before proceeding
@@ -491,15 +492,15 @@ The recommendation is that you prefer `chrome` for development, and once you hav
 
 type | default port | default executable | description
 ---- | ------------ | ------------------ | -----------
-[`chrome`](https://chromedevtools.github.io/devtools-protocol/) | 9222 | mac: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`<br/>win: `C:/Program Files (x86)/Google/Chrome/Application/chrome.exe` | "native" Chrome automation via the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/)
+[`chrome`](https://chromedevtools.github.io/devtools-protocol/) | 9222 | mac: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` <br/>win: `C:/Program Files (x86)/Google/Chrome/Application/chrome.exe` | "native" Chrome automation via the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/)
 [`playwright`](https://playwright.dev) | 4444 | `playwright` | see [`playwrightOptions`](#playwrightoptions) and [Playwright](#playwright)
+[`msedge`](https://docs.microsoft.com/en-us/microsoft-edge/) | 9222 | mac: `/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge` <br/>win: `C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe` | the new Chromium based Microsoft Edge, using the [DevTools protocol](https://docs.microsoft.com/en-us/microsoft-edge/devtools-protocol-chromium)
 [`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) | 9515 | `chromedriver` | W3C Chrome Driver
 [`geckodriver`](https://github.com/mozilla/geckodriver) | 4444 | `geckodriver` | W3C Gecko Driver (Firefox)
 [`safaridriver`](https://webkit.org/blog/6900/webdriver-support-in-safari-10/) | 5555 | `safaridriver` | W3C Safari Driver
 [`msedgedriver`](https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/) | 9515 | `msedgedriver` | W3C Microsoft Edge WebDriver (the new one based on Chromium), also see [`webDriverSession`](#webdriversession)
 [`mswebdriver`](https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/) | 17556 | `MicrosoftWebDriver` | Microsoft Edge "Legacy" WebDriver
 [`iedriver`](https://github.com/SeleniumHQ/selenium/wiki/InternetExplorerDriver) | 5555 | `IEDriverServer` | IE (11 only) Driver
-[`msedge`](https://docs.microsoft.com/en-us/microsoft-edge/devtools-protocol/) | 9222 | `MicrosoftEdge` | *very* experimental - using the DevTools protocol
 [`winappdriver`](https://github.com/Microsoft/WinAppDriver) | 4727 | `C:/Program Files (x86)/Windows Application Driver/WinAppDriver` | Windows Desktop automation, similar to Appium
 [`android`](https://github.com/appium/appium/) | 4723 | `appium` | android automation via [Appium](https://github.com/appium/appium/)
 [`ios`](https://github.com/appium/appium/) | 4723 |`appium` | iOS automation via [Appium](https://github.com/appium/appium/)

@@ -210,7 +210,8 @@ public class Script {
         if (reuseParentConfig) { // if shared scope
             context.configure(new Config(result.config)); // re-apply config from time of snapshot
             if (result.vars != null) {
-                context.vars.clear();
+                // don't clear vars because karate-config.js or background or scenario outline may have set some !
+                // context.vars.clear();
                 context.vars.putAll(result.vars.copy(false)); // clone for safety 
             }
         }

@@ -116,4 +116,11 @@ public class FeatureResultTest {
         assertTrue( ((Map) dataArr.get(0)).get("javaSum") instanceof IntBinaryOperator);
         System.out.println();
     }
+    
+    @Test
+    public void testStackOverFlowError() {
+        FeatureResult result = result("stackoverflow-error.feature");
+        assertTrue(result.isFailed());
+        assertTrue(result.getScenarioResults().get(0).getError().getMessage().contains("StackOverflowError"));
+    } 
 }

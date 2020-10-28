@@ -25,6 +25,9 @@ package com.intuit.karate.runtime;
 
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  *
@@ -33,24 +36,72 @@ import com.intuit.karate.core.FeatureResult;
 public class FeatureRuntime implements Runnable {
 
     public final SuiteRuntime suite;
+    public final FeatureRuntime rootFeature;
     public final ScenarioCall parentCall;
     public final Feature feature;
     public final FeatureResult result;
     private final ScenarioGenerator scenarios;
 
-    public FeatureRuntime(SuiteRuntime suite, Feature feature, ScenarioCall parentCall) {
+    public final Map<String, ScenarioCall.Result> FEATURE_CACHE = new HashMap();
+
+    private PerfRuntime perfRuntime;
+
+    public Path getParentPath() {
+        return feature.getPath().getParent();
+    }
+
+    public Path getRootParentPath() {
+        return rootFeature.getParentPath();
+    }
+
+    public Path getPath() {
+        return feature.getPath();
+    }
+
+    public void setPerfRuntime(PerfRuntime perfRuntime) {
+        this.perfRuntime = perfRuntime;
+    }
+
+    public boolean isPerfMode() {
+        return perfRuntime != null;
+    }
+
+    public PerfRuntime getPerfRuntime() {
+        return perfRuntime;
+    }
+
+    public FeatureRuntime(SuiteRuntime suite, Feature feature, boolean karateConfigDisabled) {
+        this(suite, feature, ScenarioCall.NONE);
+        parentCall.setKarateConfigDisabled(karateConfigDisabled);
+    }
+
+    public FeatureRuntime(ScenarioCall call) {
+        this(call.parentRuntime.featureRuntime.suite, call.feature, call);
+    }
+
+    private FeatureRuntime(SuiteRuntime suite, Feature feature, ScenarioCall parentCall) {
         this.suite = suite;
         this.feature = feature;
         this.parentCall = parentCall;
+        this.rootFeature = parentCall.isNone() ? this : parentCall.parentRuntime.featureRuntime;
         result = new FeatureResult(suite.results, feature);
         scenarios = new ScenarioGenerator(this, feature.getSections().iterator());
+    }
+
+    private ScenarioRuntime currentScenario;
+
+    public Variable getResultVariable() {
+        if (currentScenario == null) {
+            return Variable.NULL;
+        }
+        return new Variable(currentScenario.engine.getAllVariablesAsMap());
     }
 
     @Override
     public void run() {
         while (scenarios.hasNext()) {
-            ScenarioRuntime sr = scenarios.next();
-            sr.run();
+            currentScenario = scenarios.next();
+            currentScenario.run();
         }
     }
 

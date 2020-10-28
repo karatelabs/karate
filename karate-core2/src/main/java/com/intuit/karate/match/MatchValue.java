@@ -26,8 +26,11 @@ package com.intuit.karate.match;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.data.Json;
 import com.intuit.karate.data.JsonUtils;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.w3c.dom.Node;
 
 /**
@@ -144,6 +147,10 @@ public class MatchValue {
         mo.execute();
         return mo.pass ? MatchResult.PASS : MatchResult.fail(mo.getFailureReasons());
     }
+    
+    public MatchResult contains(Object o) {
+        return is(MatchType.CONTAINS, o);
+    }
 
     public MatchResult isEqualTo(Object o) {
         return is(MatchType.EQUALS, o);
@@ -177,6 +184,27 @@ public class MatchValue {
             return getAsString();
         }
     }
+    
+    public MatchValue getSortedLike(MatchValue other) {
+        if (isMap() && other.isMap()) {
+            Map<String, Object> reference = other.getValue();
+            Map<String, Object> source = getValue();
+            Set<String> remainder = new LinkedHashSet(source.keySet());
+            Map<String, Object> result = new LinkedHashMap(source.size());
+            reference.keySet().forEach(key -> {
+                if (source.containsKey(key)) {
+                    result.put(key, source.get(key));
+                    remainder.remove(key);
+                }
+            });
+            for (String key : remainder) {
+                result.put(key, source.get(key));
+            }
+            return new MatchValue(result);
+        } else {
+            return this;
+        }
+    } 
 
     @Override
     public String toString() {

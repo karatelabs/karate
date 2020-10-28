@@ -36,6 +36,10 @@ import com.intuit.karate.http.MultiValuedMap;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.security.KeyStore;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.Date;
 import java.util.List;
 import java.util.Map.Entry;
 import javax.net.ssl.HttpsURLConnection;
@@ -59,6 +63,7 @@ import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.MultiPart;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.glassfish.jersey.media.multipart.file.StreamDataBodyPart;
+import org.glassfish.jersey.message.internal.StringBuilderUtils;
 
 /**
  *
@@ -144,8 +149,12 @@ public class JerseyHttpClient extends HttpClient<Entity> {
 
     @Override
     public void buildCookie(com.intuit.karate.http.Cookie c) {
-        Cookie cookie = new Cookie(c.getName(), c.getValue());
-        builder.cookie(cookie);
+        // only add the cookie from request, if it isnt already expired.
+        if ( !c.isCookieExpired() )
+        {
+            Cookie cookie = new Cookie(c.getName(), c.getValue());
+            builder.cookie(cookie);
+        }
     }
 
     private MediaType getMediaType(String mediaType) {

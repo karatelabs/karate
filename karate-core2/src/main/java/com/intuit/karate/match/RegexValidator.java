@@ -31,26 +31,23 @@ import java.util.regex.Pattern;
  *
  * @author pthomas3
  */
-public class RegexValidator implements Validator {
-    
+public class RegexValidator implements Match.Validator {
+
     private final Pattern pattern;
-    
+
     public RegexValidator(String regex) {
         regex = StringUtils.trimToEmpty(regex);
         pattern = Pattern.compile(regex);
-    }    
+    }
 
     @Override
-    public ValidatorResult apply(MatchValue v) {
+    public MatchResult apply(MatchValue v) {
         if (!v.isString()) {
-            return ValidatorResult.fail("not a string");
+            return MatchResult.fail("not a string");
         }
         String strValue = v.getValue();
-        Matcher matcher = pattern.matcher(strValue);  
-        if (matcher.matches()) {
-            return ValidatorResult.PASS;
-        }
-        return ValidatorResult.fail("regex match failed");
+        Matcher matcher = pattern.matcher(strValue);
+        return matcher.matches() ? MatchResult.PASS : MatchResult.fail("regex match failed");
     }
-    
+
 }

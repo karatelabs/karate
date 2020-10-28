@@ -47,19 +47,14 @@ public class ResponseBuilder {
 
     private static final Logger logger = LoggerFactory.getLogger(ResponseBuilder.class);
 
-    public static final String SET_COOKIE = "Set-Cookie";
-    private static final String CONTENT_TYPE = "Content-Type";
-    private static final String LOCATION = "Location";
-    private static final String HX_TRIGGER = "HX-Trigger";
-
     private byte[] body;
     private Set<Cookie> cookies;
     private Map<String, List<String>> headers;
     private ResourceType resourceType = ResourceType.NONE;
-    private final Config config;
+    private final ServerConfig config;
     private final ResourceResolver resourceResolver;
 
-    public ResponseBuilder(Config config) {
+    public ResponseBuilder(ServerConfig config) {
         this.config = config;
         resourceResolver = config.getResourceResolver();
     }
@@ -81,18 +76,18 @@ public class ResponseBuilder {
     }
 
     public ResponseBuilder locationHeader(String url) {
-        return header(LOCATION, url);
+        return header(HttpConstants.HDR_LOCATION, url);
     }
 
     public ResponseBuilder contentTypeHtml() {
         resourceType = ResourceType.HTML;
-        header(CONTENT_TYPE, resourceType.contentType);
+        contentType(resourceType.contentType);
         return this;
     }
 
     public ResponseBuilder contentType(String contentType) {
         if (contentType != null) {
-            header(CONTENT_TYPE, contentType);
+            header(HttpConstants.HDR_CONTENT_TYPE, contentType);
         }
         return this;
     }
@@ -130,7 +125,7 @@ public class ResponseBuilder {
     }
 
     public ResponseBuilder trigger(String json) {
-        header(HX_TRIGGER, JsonUtils.toStrictJson(json));
+        header(HttpConstants.HDR_HX_TRIGGER, JsonUtils.toStrictJson(json));
         return this;
     }
 
@@ -143,7 +138,7 @@ public class ResponseBuilder {
 
     public Response build(RequestCycle rc) {
         Response response = rc.getResponse();
-        Context context = rc.getContext();
+        ServerContext context = rc.getContext();
         List<Map<String, Object>> triggers = context.getResponseTriggers();
         if (triggers != null) {
             Map<String, Object> merged;
@@ -156,7 +151,7 @@ public class ResponseBuilder {
                 }
             }
             String json = JsonUtils.toJson(merged);
-            header(HX_TRIGGER, json);
+            header(HttpConstants.HDR_HX_TRIGGER, json);
         }
         if (resourceType.isHtml() && context.isAjax() && context.getAfterSettleScripts() != null) {
             StringBuilder sb = new StringBuilder();
@@ -178,7 +173,7 @@ public class ResponseBuilder {
         }
         if (rc.isApi()) {
             resourceType = ResourceType.JSON;
-            header(CONTENT_TYPE, resourceType.contentType);
+            contentType(resourceType.contentType);
             body = response.getBody();
             Map<String, List<String>> apiHeaders = response.getHeaders();
             if (apiHeaders != null) {
@@ -190,14 +185,14 @@ public class ResponseBuilder {
             }
         }
         if (cookies != null) {
-            cookies.forEach(c -> header(SET_COOKIE, ServerCookieEncoder.STRICT.encode(c)));
+            cookies.forEach(c -> header(HttpConstants.HDR_SET_COOKIE, ServerCookieEncoder.STRICT.encode(c)));
         }
         return status(response.getStatus());
     }
 
     public Response buildStatic(Request request) {
         resourceType = request.getResourceType();
-        header(CONTENT_TYPE, resourceType.contentType);
+        contentType(resourceType.contentType);
         try {
             InputStream is = resourceResolver.read(request.getResourcePath());
             body(is);

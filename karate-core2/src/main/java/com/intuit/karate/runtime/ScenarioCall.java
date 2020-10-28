@@ -24,6 +24,7 @@
 package com.intuit.karate.runtime;
 
 import com.intuit.karate.core.Feature;
+import java.util.Map;
 
 /**
  *
@@ -34,23 +35,81 @@ public class ScenarioCall {
     public static final ScenarioCall NONE = new ScenarioCall(null, null);
 
     public final ScenarioRuntime parentRuntime;
+    public final int depth;
     public final Feature feature;
-    public final FeatureRuntime featureRuntime;
-    public final int callDepth;
-    
-    private boolean callonce;
-    private Object arg;            
 
-    public ScenarioCall(Feature feature, ScenarioRuntime parentRuntime) {
-        this.feature = feature;
+    private boolean callonce;
+    private Variable arg;
+    private boolean sharedScope;
+    private boolean karateConfigDisabled;
+    private int loopIndex = -1;
+
+    public boolean isNone() {
+        return depth == 0;
+    }
+
+    public int getLoopIndex() {
+        return loopIndex;
+    }
+
+    public void setLoopIndex(int loopIndex) {
+        this.loopIndex = loopIndex;
+    }
+
+    public void setSharedScope(boolean sharedScope) {
+        this.sharedScope = sharedScope;
+    }
+
+    public boolean isSharedScope() {
+        return sharedScope;
+    }
+
+    public void setArg(Variable arg) {
+        this.arg = arg;
+    }
+
+    public Variable getArg() {
+        return arg;
+    }
+
+    public boolean isCallonce() {
+        return callonce;
+    }
+
+    public void setCallonce(boolean callonce) {
+        this.callonce = callonce;
+    }
+
+    public void setKarateConfigDisabled(boolean karateConfigDisabled) {
+        this.karateConfigDisabled = karateConfigDisabled;
+    }
+
+    public boolean isKarateConfigDisabled() {
+        return karateConfigDisabled;
+    }
+
+    public ScenarioCall(ScenarioRuntime parentRuntime, Feature feature) {
         this.parentRuntime = parentRuntime;
-        if (parentRuntime == null) {            
-            callDepth = 0;
-            featureRuntime = null;
+        this.feature = feature;
+        if (parentRuntime == null) {
+            depth = 0;
         } else {
-            callDepth = parentRuntime.parentCall.callDepth + 1;
-            featureRuntime = new FeatureRuntime(parentRuntime.featureRuntime.suite, feature, this);
+            depth = parentRuntime.parentCall.depth + 1;
         }
+    }
+
+    public static class Result {
+
+        public final Variable value;
+        public final Config config;
+        public final Map<String, Variable> vars;
+
+        public Result(Variable value, Config config, Map<String, Variable> vars) {
+            this.value = value;
+            this.config = config;
+            this.vars = vars;
+        }
+
     }
 
 }

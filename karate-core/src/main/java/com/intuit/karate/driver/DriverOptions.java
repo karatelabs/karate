@@ -33,7 +33,7 @@ import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.appium.AndroidDriver;
 import com.intuit.karate.driver.chrome.Chrome;
 import com.intuit.karate.driver.chrome.ChromeWebDriver;
-import com.intuit.karate.driver.microsoft.EdgeDevToolsDriver;
+import com.intuit.karate.driver.microsoft.EdgeChromium;
 import com.intuit.karate.driver.microsoft.IeWebDriver;
 import com.intuit.karate.driver.microsoft.MsWebDriver;
 import com.intuit.karate.driver.firefox.GeckoWebDriver;
@@ -68,6 +68,7 @@ public class DriverOptions {
     public final Map<String, Object> options;
     public final int timeout;
     public final boolean start;
+    public final boolean stop;
     public final String executable;
     public final String type;
     public final int port;
@@ -158,6 +159,7 @@ public class DriverOptions {
         timeout = get("timeout", Config.DEFAULT_TIMEOUT);
         type = get("type", null);
         start = get("start", true);
+        stop = get("stop", true);
         executable = get("executable", defaultExecutable);
         headless = get("headless", false);
         showProcessLog = get("showProcessLog", false);
@@ -300,7 +302,7 @@ public class DriverOptions {
                 case "chrome":
                     return Chrome.start(context, options, appender);
                 case "msedge":
-                    return EdgeDevToolsDriver.start(context, options, appender);
+                    return EdgeChromium.start(context, options, appender);
                 case "chromedriver":
                     return ChromeWebDriver.start(context, options, appender);
                 case "geckodriver":

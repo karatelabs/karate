@@ -23,16 +23,22 @@
  */
 package com.intuit.karate.match;
 
-import static com.intuit.karate.match.ValidatorResult.*;
+import com.intuit.karate.graal.JsEngine;
+import static com.intuit.karate.match.MatchResult.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 
 /**
  *
  * @author pthomas3
  */
 public class Match {
+
+    public interface Validator extends Function<MatchValue, MatchResult> {
+        //
+    }
 
     public static final Map<String, Validator> VALIDATORS = new HashMap(11);
 
@@ -64,13 +70,13 @@ public class Match {
         return new MatchValue(MatchValue.parseIfJsonOrXml(o));
     }
 
-    public static MatchResult execute(MatchType matchType, MatchValue actual, MatchValue expected) {
-        MatchOperation mo = new MatchOperation(matchType, actual, expected);
+    public static MatchResult execute(JsEngine js, MatchType matchType, MatchValue actual, MatchValue expected) {
+        MatchOperation mo = new MatchOperation(js, matchType, actual, expected);
         mo.execute();
         if (mo.pass) {
-            return MatchResult.PASS;
+            return PASS;
         } else {
-            return MatchResult.fail(mo.getFailureReasons());
+            return fail(mo.getFailureReasons());
         }
     }
 

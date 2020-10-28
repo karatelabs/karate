@@ -1,10 +1,12 @@
 package com.intuit.karate.graal;
 
+import com.intuit.karate.match.Match;
 import com.intuit.karate.server.Request;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import org.graalvm.polyglot.Value;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -37,12 +39,61 @@ class JsEngineTest {
     void testFunctionExecute() {
         JsValue v = je.eval("(function(){ return ['a', 'b', 'c'] })");
         assertTrue(v.isFunction());
-        JsValue res = v.execute();
+        JsValue res = v.invoke();
         assertTrue(res.isArray());
         String json = je.toJson(res);
         assertEquals("[\"a\",\"b\",\"c\"]", json);
         assertEquals("function(){ return ['a', 'b', 'c'] }", v.toString());
     }
+    
+    @Test
+    void testArrowFunctionZeroArg() {
+        JsValue v = je.eval("() => ['a', 'b', 'c']");
+        assertTrue(v.isFunction());
+        JsValue res = v.invoke();
+        assertTrue(res.isArray());
+        String json = je.toJson(res);
+        assertEquals("[\"a\",\"b\",\"c\"]", json);
+        assertEquals("() => ['a', 'b', 'c']", v.toString());
+    } 
+    
+    @Test
+    void testJsFunctionToJavaFunction() {
+        Value v = je.evalForValue("() => 'hello'");
+        assertTrue(v.canExecute());
+        Function temp = (Function) v.as(Object.class);
+        String res = (String) temp.apply(null);       
+        assertEquals(res, "hello");
+        v = je.evalForValue("(a, b) => a + b");
+        assertTrue(v.canExecute());
+        temp = v.as(Function.class);
+        Number num = (Number) temp.apply(new Object[]{1, 2});       
+        assertEquals(num, 3);        
+    }
+    
+    @Test
+    void testArrowFunctionReturnsObject() {
+        Value v = je.evalForValue("() => { a: 1 }");
+        assertTrue(v.canExecute());
+        Value res = v.execute();
+        // curly braces are interpreted as code blocks :(
+        assertTrue(res.isNull());
+        v = je.evalForValue("() => ({ a: 1 })");
+        assertTrue(v.canExecute());
+        res = v.execute();
+        assertTrue(Match.that(res.as(Map.class)).isEqualTo("{ a: 1 }").pass);
+    }     
+    
+    @Test
+    void testArrowFunctionSingleArg() {
+        JsValue v = je.eval("x => [x, x]");
+        assertTrue(v.isFunction());
+        JsValue res = v.invoke(1);
+        assertTrue(res.isArray());
+        String json = je.toJson(res);
+        assertEquals("[1,1]", json);
+        assertEquals("x => [x, x]", v.toString());
+    }    
 
     @Test
     void testFunctionVariableExecute() {
@@ -121,5 +172,12 @@ class JsEngineTest {
         assertFalse(je.eval("1 == 2").isTrue());
         assertTrue(je.eval("1 == 1").isTrue());
     }
+    
+    @Test
+    void testStringInterpolation() {
+        je.put("name", "John");
+        JsValue temp = je.eval("`hello ${name}`");
+        assertEquals(temp.getValue(), "hello John");
+    }    
 
 }

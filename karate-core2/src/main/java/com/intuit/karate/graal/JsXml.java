@@ -21,14 +21,27 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.match;
+package com.intuit.karate.graal;
 
-import java.util.function.Function;
+import com.intuit.karate.XmlUtils;
+import java.util.Map;
+import org.w3c.dom.Node;
 
 /**
- *
+ * used to detect xml within the js bridge / log-pretty routine
  * @author pthomas3
  */
-public interface Validator extends Function<MatchValue, ValidatorResult> {
+public class JsXml extends JsMap { 
+    
+    private final Node node;
+    
+    public JsXml(Node node) {
+        super((Map) XmlUtils.toObject(node));
+        this.node = node;
+    }
 
+    public Node getNode() {
+        return node;
+    }        
+    
 }

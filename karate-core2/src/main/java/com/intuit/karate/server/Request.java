@@ -27,15 +27,21 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.netty.NettyUtils;
 import com.linecorp.armeria.common.RequestContext;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.handler.codec.http.multipart.Attribute;
-import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
+import io.netty.handler.codec.http.multipart.FileUpload;
+import io.netty.handler.codec.http.multipart.HttpPostMultipartRequestDecoder;
 import io.netty.handler.codec.http.multipart.HttpPostStandardRequestDecoder;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData;
+import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -59,13 +65,15 @@ public class Request implements ProxyObject {
 
     private static final String PATH = "path";
     private static final String METHOD = "method";
+    private static final String PARAM = "param";
     private static final String PARAMS = "params";
     private static final String HEADER = "header";
     private static final String HEADERS = "headers";
-    private static final String PARAM = "param";
-    private static final String BODY = "body";
     private static final String PATH_PARAM = "pathParam";
     private static final String PATH_PARAMS = "pathParams";
+    private static final String BODY = "body";
+    private static final String MULTI_PART = "multiPart";
+    private static final String MULTI_PARTS = "multiParts";
     private static final String JSON = "json";
     private static final String AJAX = "ajax";
     private static final String GET = "get";
@@ -79,18 +87,19 @@ public class Request implements ProxyObject {
     private static final String TRACE = "trace";
 
     private static final String[] KEYS = new String[]{
-        PATH, METHOD, PARAMS, HEADER, HEADERS, PARAM, BODY, PATH_PARAM, PATH_PARAMS, JSON, AJAX,
+        PATH, METHOD, PARAM, PARAMS, HEADER, HEADERS, PATH_PARAM, PATH_PARAMS, BODY, MULTI_PART, MULTI_PARTS, JSON, AJAX,
         GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE
     };
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
-    private boolean pathEmpty;
+    private String urlBase;
     private String path;
     private String method;
     private Map<String, List<String>> params;
     private Map<String, List<String>> headers;
     private byte[] body;
+    private Map<String, List<Map<String, Object>>> multiPartFiles;
     private ResourceType resourceType;
     private String resourcePath;
     private String pathParam;
@@ -103,19 +112,34 @@ public class Request implements ProxyObject {
 
     public void setRequestContext(RequestContext requestContext) {
         this.requestContext = requestContext;
-    }        
-    
-    private static final String HX_REQUEST = "HX-Request";
-    
+    }
+
     public boolean isAjax() {
-        return header(HX_REQUEST) != null;
+        return getHeader(HttpConstants.HDR_HX_REQUEST) != null;
     }
 
-    public List<String> header(String name) { // TODO optimize
-        return StringUtils.getIgnoreKeyCase(headers, name);
+    public Map<String, List<Map<String, Object>>> getMultiPartFiles() {
+        return multiPartFiles;
     }
 
-    public String param(String name) {
+    public List<String> getHeaderValues(String name) {
+        return StringUtils.getIgnoreKeyCase(headers, name); // TODO optimize
+    }
+
+    public String getHeader(String name) {
+        List<String> list = getHeaderValues(name);
+        if (list == null || list.isEmpty()) {
+            return null;
+        } else {
+            return list.get(0);
+        }
+    }
+
+    public String getContentType() {
+        return getHeader(HttpConstants.HDR_CONTENT_TYPE);
+    }
+
+    public String getParam(String name) {
         if (params == null) {
             return null;
         }
@@ -126,12 +150,24 @@ public class Request implements ProxyObject {
         return values.get(0);
     }
 
-    public boolean isPathEmpty() {
-        return pathEmpty;
-    }        
-
     public String getPath() {
         return path;
+    }
+
+    public void setUrl(String url) {
+        StringUtils.Pair pair = NettyUtils.parseUriIntoUrlBaseAndPath(url);
+        urlBase = pair.left;
+        QueryStringDecoder qsd = new QueryStringDecoder(pair.right);
+        setPath(qsd.path());
+        setParams(qsd.parameters());
+    }
+
+    public String getUrlBase() {
+        return urlBase;
+    }
+
+    public void setUrlBase(String urlBase) {
+        this.urlBase = urlBase;
     }
 
     public void setPath(String path) {
@@ -139,11 +175,6 @@ public class Request implements ProxyObject {
             path = path.substring(1);
         }
         this.path = path;
-        pathEmpty = path.isEmpty();
-    }
-
-    public ResourceType getResourceType() {
-        return resourceType;
     }
 
     public void setResourceType(ResourceType resourceType) {
@@ -210,48 +241,113 @@ public class Request implements ProxyObject {
         return body == null ? null : FileUtils.toString(body);
     }
 
-    public Object getBodyAsJsValue() {
-        return JsValue.fromBytes(body);
+    public Object getBodyConverted() {
+        ResourceType rt = getResourceType(); // derive if needed
+        if (rt != null && rt.isBinary()) {
+            return body;
+        }
+        try {
+            return JsValue.fromBytes(body);
+        } catch (Exception e) {
+            logger.trace("failed to auto-convert response: {}", e);
+            return getBodyAsString();
+        }
     }
-    
+
+    public ResourceType getResourceType() {
+        if (resourceType == null) {
+            String contentType = getContentType();
+            if (contentType != null) {
+                resourceType = ResourceType.fromContentType(contentType);
+            }
+        }
+        return resourceType;
+    }
+
     public Object getParamAsJsValue(String name) {
-        String value = param(name);
-        return value == null ? null : JsValue.fromString(value);
+        String value = getParam(name);
+        return value == null ? null : JsValue.fromStringSafe(value);
+    }
+
+    public Map<String, Object> getMultiPart(String name) {
+        if (multiPartFiles == null) {
+            return null;
+        }
+        List<Map<String, Object>> parts = multiPartFiles.get(name);
+        if (parts == null || parts.isEmpty()) {
+            return null;
+        }
+        return parts.get(0);
+    }
+
+    public Object getMultiPartAsJsValue(String name) {
+        return JsValue.fromJava(getMultiPart(name));
     }
 
     public void processBody() {
         if (body == null) {
             return;
         }
+        String contentType = getContentType();
+        if (contentType == null) {
+            return;
+        }
+        boolean multipart;
+        if (contentType.startsWith("multipart")) {
+            multipart = true;
+        } else if (contentType.contains("form-urlencoded")) {
+            multipart = false;
+        } else {
+            return;
+        }
+        logger.debug("decoding content-type: {}", contentType);
         params = (params == null || params.isEmpty()) ? new HashMap() : new HashMap(params); // since it may be immutable
         DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.valueOf(method), path, Unpooled.wrappedBuffer(body));
-        HttpPostStandardRequestDecoder decoder = new HttpPostStandardRequestDecoder(request);
+        request.headers().add(HttpConstants.HDR_CONTENT_TYPE, contentType);
+        InterfaceHttpPostRequestDecoder decoder = multipart ? new HttpPostMultipartRequestDecoder(request) : new HttpPostStandardRequestDecoder(request);
         try {
-            while (decoder.hasNext()) {
-                InterfaceHttpData data = decoder.next(); // TODO multipart
-                Attribute attribute = (Attribute) data;
-                params.put(attribute.getName(), Collections.singletonList(attribute.getValue()));
+            for (InterfaceHttpData part : decoder.getBodyHttpDatas()) {
+                String name = part.getName();
+                if (part instanceof FileUpload) {
+                    if (multiPartFiles == null) {
+                        multiPartFiles = new HashMap();
+                    }
+                    List<Map<String, Object>> list = multiPartFiles.get(name);
+                    if (list == null) {
+                        list = new ArrayList();
+                        multiPartFiles.put(name, list);
+                    }
+                    Map<String, Object> map = new HashMap();
+                    list.add(map);
+                    FileUpload fup = (FileUpload) part;
+                    map.put("name", name);
+                    map.put("filename", fup.getFilename());
+                    map.put("contentType", fup.getContentType());
+                    map.put("value", fup.get());
+                    String transferEncoding = fup.getContentTransferEncoding();
+                    if (transferEncoding != null) {
+                        map.put("transferEncoding", transferEncoding);
+                    }
+                    Charset charset = fup.getCharset();
+                    if (charset != null) {
+                        map.put("charset", charset.name());
+                    }
+                } else { // url-encoded form-field or simple multi-part value
+                    Attribute attribute = (Attribute) part;
+                    List<String> list = params.get(name);
+                    if (list == null) {
+                        list = new ArrayList();
+                        params.put(name, list);
+                    }
+                    list.add(attribute.getValue());
+                }
             }
-        } catch (HttpPostRequestDecoder.EndOfDataDecoderException eod) {
-            // logger.debug("end of post decode");
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {
             decoder.destroy();
         }
     }
-    
-    private final Function<String, String> PARAM_FUNCTION = name -> param(name);
-
-    private final Function<String, String> HEADER_FUNCTION = name -> {
-        List<String> list = header(name);
-        if (list == null || list.isEmpty()) {
-            return null;
-        }
-        return list.get(0);
-    };    
-    
-    private final Function<String, Object> JSON_FUNCTION = name -> getParamAsJsValue(name);
 
     @Override
     public Object getMember(String key) {
@@ -259,11 +355,11 @@ public class Request implements ProxyObject {
             case METHOD:
                 return method;
             case BODY:
-                return getBodyAsJsValue();
+                return getBodyConverted();
             case PARAM:
-                return PARAM_FUNCTION;
+                return (Function<String, String>) this::getParam;
             case JSON:
-                return JSON_FUNCTION;
+                return (Function<String, Object>) this::getParamAsJsValue;
             case AJAX:
                 return isAjax();
             case PATH:
@@ -275,9 +371,13 @@ public class Request implements ProxyObject {
             case PATH_PARAMS:
                 return JsValue.fromJava(pathParams);
             case HEADER:
-                return HEADER_FUNCTION;
+                return (Function<String, String>) this::getHeader;
             case HEADERS:
                 return JsValue.fromJava(headers);
+            case MULTI_PART:
+                return (Function<String, Object>) this::getMultiPartAsJsValue;
+            case MULTI_PARTS:
+                return JsValue.fromJava(multiPartFiles);
             case GET:
             case POST:
             case PUT:

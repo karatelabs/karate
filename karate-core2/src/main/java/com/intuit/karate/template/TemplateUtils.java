@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.server.Config;
+import com.intuit.karate.server.ServerConfig;
 import com.intuit.karate.server.RequestCycle;
 import java.util.Map;
 import org.thymeleaf.IEngineConfiguration;
@@ -80,7 +80,7 @@ public class TemplateUtils {
         return false;
     }
     
-    public static ITemplateEngine createEngine(Config config) {
+    public static ITemplateEngine createEngine(ServerConfig config) {
         TemplateEngine engine = new TemplateEngine();
         StandardEngineContextFactory standardFactory = new StandardEngineContextFactory();
         engine.setEngineContextFactory((IEngineConfiguration ec, TemplateData data, Map<String, Object> attrs, IContext context) -> {

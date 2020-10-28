@@ -52,10 +52,10 @@ public class AwsLambdaHandler {
     private static final String IS_BASE64_ENCODED = "isBase64Encoded";
     private static final String STATUS_CODE = "statusCode";
 
-    private final RequestHandler handler;
+    private final ServerHandler handler;
 
-    public AwsLambdaHandler(Config config) {
-        handler = new RequestHandler(config);
+    public AwsLambdaHandler(ServerHandler handler) {
+        this.handler = handler;
     }
 
     public void handle(InputStream in, OutputStream out) throws IOException {

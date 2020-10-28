@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.server.Config;
+import com.intuit.karate.server.ServerConfig;
 import java.util.HashSet;
 import java.util.Set;
 import org.thymeleaf.dialect.AbstractProcessorDialect;
@@ -35,9 +35,9 @@ import org.thymeleaf.processor.IProcessor;
  */
 public class KarateDialect extends AbstractProcessorDialect {
 
-    private final Config config;
+    private final ServerConfig config;
     
-    public KarateDialect(Config config) {
+    public KarateDialect(ServerConfig config) {
         super("karate", "ka", 2000); // has to be processed after standard (default) dialect which is 1000
         this.config = config;
     }

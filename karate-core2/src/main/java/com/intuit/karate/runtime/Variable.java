@@ -34,6 +34,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.graalvm.polyglot.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
 
 /**
@@ -41,6 +44,8 @@ import org.w3c.dom.Node;
  * @author pthomas3
  */
 public class Variable {
+
+    private static final Logger logger = LoggerFactory.getLogger(Variable.class);
 
     public static enum Type {
         NULL,
@@ -51,9 +56,8 @@ public class Variable {
         LIST,
         MAP,
         XML,
-        JS_FUNCTION,
-        JAVA_FUNCTION,
-        KARATE_FEATURE,
+        FUNCTION,
+        FEATURE,
         OTHER
     }
 
@@ -62,25 +66,18 @@ public class Variable {
 
     public final Type type;
     private final Object value;
-    private final String description;
 
-    public Variable(Object value) {
-        this(value, null);
-    }
-
-    public Variable(Object o, String description) {
-        this.description = description;
+    public Variable(Object o) {
+        if (o instanceof Value) {
+            o = new JsValue((Value) o);
+        }
         if (o instanceof JsValue) {
-            JsValue jsValue = (JsValue) o;
-            if (!jsValue.isFunction()) { // only in case of JS_FUNCTION keep the JsValue as-is
-                o = jsValue.getValue();
-            }
+            JsValue jv = (JsValue) o;
+            o = jv.getValue();
         }
         value = o;
         if (o == null) {
             type = Type.NULL;
-        } else if (o instanceof JsValue) {
-            type = Type.JS_FUNCTION; // see logic above
         } else if (o instanceof Node) {
             type = Type.XML;
         } else if (o instanceof List) {
@@ -96,9 +93,9 @@ public class Variable {
         } else if (o instanceof byte[]) {
             type = Type.BYTES;
         } else if (o instanceof Feature) {
-            type = Type.KARATE_FEATURE;
+            type = Type.FEATURE;
         } else if (o instanceof Function) {
-            type = Type.JAVA_FUNCTION;
+            type = Type.FUNCTION;
         } else {
             type = Type.OTHER;
         }
@@ -107,7 +104,7 @@ public class Variable {
     public <T> T getValue() {
         return (T) value;
     }
-    
+
     public boolean isBytes() {
         return type == Type.BYTES;
     }
@@ -145,33 +142,34 @@ public class Variable {
     }
 
     public boolean isFunction() {
-        return type == Type.JS_FUNCTION || type == Type.JAVA_FUNCTION;
+        return type == Type.FUNCTION;
+    }
+
+    public boolean isFeature() {
+        return type == Type.FEATURE;
     }
 
     public boolean isTrue() {
         return type == Type.BOOLEAN && ((Boolean) value);
     }
 
-    public Variable invokeFunction(Object... args) {
-        if (type == Type.JS_FUNCTION) {
-            JsValue jsValue = getValue();
-            JsValue result = jsValue.execute(args);
-            return new Variable(result);
-        } else {
-            Function function = getValue();
-            Object result = function.apply(args);
-            return new Variable(result);
-        }
+    public String getTypeString() {
+        return type.name().toLowerCase();
     }
-    
-    public Map<String, Object> evalAsMap() {
+
+    public Variable invokeFunction(Object... args) {
+        Function fun = getValue();
+        return new Variable(fun.apply(args));
+    }
+
+    public <T> Map<String, T> evalAsMap() {
         if (isFunction()) {
             Variable v = invokeFunction();
             return v.isMap() ? v.getValue() : null;
         } else {
             return isMap() ? getValue() : null;
         }
-    }    
+    }
 
     public Node getAsXml() {
         switch (type) {
@@ -190,15 +188,18 @@ public class Variable {
         }
     }
 
-    public Object getValueForJsonConversion() {
+    public Object getValueAndConvertIfXmlToMap() {
+        return isXml() ? XmlUtils.toObject(getValue()) : value;
+    }
+
+    public Object getValueAndForceParsingAsJson() {
         switch (type) {
             case LIST:
             case MAP:
                 return value;
             case STRING:
             case BYTES:
-                String json = getAsString();
-                return JsonUtils.fromJsonString(json);
+                return JsonUtils.fromJson(getAsString());
             case XML:
                 return XmlUtils.toObject(getValue());
             case OTHER: // pojo
@@ -225,7 +226,12 @@ public class Variable {
                 return FileUtils.toString((byte[]) value);
             case LIST:
             case MAP:
+                try {
                 return JsonUtils.toJson(value);
+            } catch (Throwable t) {
+                logger.warn("conversion to json string failed, will attempt to use fall-back approach: {}", t.getMessage());
+                return JsonUtils.toJsonSafe(value, false);
+            }
             case XML:
                 return XmlUtils.toString(getValue());
             default:
@@ -235,19 +241,19 @@ public class Variable {
 
     public String getAsPrettyString() {
         switch (type) {
+            case LIST:
+            case MAP:
+                return JsonUtils.toJsonSafe(value, true);
+            case XML:
+                return getAsPrettyXmlString();
             default:
                 return getAsString();
         }
     }
-
-    public Object getValueForJsEngine() {
-        switch (type) {
-            case XML:
-                return XmlUtils.toObject(getValue());
-            default:
-                return value;
-        }
-    }
+    
+    public String getAsPrettyXmlString() {
+        return XmlUtils.toString(getAsXml(), true);
+    }    
 
     public int getAsInt() {
         if (isNumber()) {
@@ -260,19 +266,27 @@ public class Variable {
     public Variable copy(boolean deep) {
         switch (type) {
             case LIST:
-                if (deep) {
-                    return new Variable(JsonUtils.fromJsonString(getAsString()));
-                } else {
-                    return new Variable(new ArrayList((List) value));
-                }
+                return deep ? new Variable(JsonUtils.deepCopy(value)) : new Variable(new ArrayList((List) value));
             case MAP:
-                if (deep) {
-                    return new Variable(JsonUtils.fromJsonString(getAsString()));
-                } else {
-                    return new Variable(new LinkedHashMap((Map) value));
-                }
+                return deep ? new Variable(JsonUtils.deepCopy(value)) : new Variable(new LinkedHashMap((Map) value));
             case XML:
                 return new Variable(XmlUtils.toXmlDoc(getAsString()));
+            default:
+                return this;
+        }
+    }
+
+    public Variable toLowerCase() {
+        switch (type) {
+            case STRING:
+                return new Variable(getAsString().toLowerCase());
+            case LIST:
+            case MAP:
+                String json = getAsString().toLowerCase();
+                return new Variable(JsonUtils.fromJson(json));
+            case XML:
+                String xml = getAsString().toLowerCase();
+                return new Variable(XmlUtils.toXmlDoc(xml));
             default:
                 return this;
         }
@@ -283,9 +297,6 @@ public class Variable {
         StringBuilder sb = new StringBuilder();
         sb.append("[type: ").append(type);
         sb.append(", value: ").append(value);
-        if (description != null) {
-            sb.append(", description: ").append(description);
-        }
         sb.append("]");
         return sb.toString();
     }

@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.graal;
 
+import java.util.Collections;
 import java.util.Map;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
@@ -32,6 +33,8 @@ import org.graalvm.polyglot.proxy.ProxyObject;
  * @author pthomas3
  */
 public class JsMap implements ProxyObject {
+
+    public static final JsMap EMPTY = new JsMap(Collections.EMPTY_MAP);
 
     private final Map map;
 
@@ -66,7 +69,7 @@ public class JsMap implements ProxyObject {
     @Override
     public boolean removeMember(String key) { // not supported by graal
         return map.remove(key) != null;
-    }        
+    }
 
     @Override
     public String toString() {

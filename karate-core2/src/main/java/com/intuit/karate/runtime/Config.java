@@ -28,9 +28,12 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.driver.DockerTarget;
 import com.intuit.karate.driver.Target;
 import com.intuit.karate.http.HttpLogModifier;
+import com.intuit.karate.server.ArmeriaHttpClient;
+import com.intuit.karate.server.HttpClient;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  *
@@ -64,7 +67,7 @@ public class Config {
     private Variable headers = Variable.NULL;
     private Variable cookies = Variable.NULL;
     private Variable responseHeaders = Variable.NULL;
-    private long responseDelay = 0L;
+    private int responseDelay;
     private boolean lowerCaseResponseHeaders = false;
     private boolean corsEnabled = false;
     private boolean logPrettyRequest;
@@ -72,9 +75,7 @@ public class Config {
     private boolean printEnabled = true;
     private boolean outlineVariablesAuto = true;
     private boolean abortedStepsShouldPass = false;
-    private String clientClass;
-    private ScenarioHttpClient clientInstance;
-    private Map<String, Object> userDefined;
+    private Function<ScenarioEngine, HttpClient> clientFactory;
     private Target driverTarget;
     private Map<String, Object> driverOptions;
     private Map<String, Object> robotOptions; // TODO make generic plugin model
@@ -89,13 +90,13 @@ public class Config {
     // report config
     private boolean showLog = true;
     private boolean showAllSteps = true;
-    
+
     // call single cache config
     private int callSingleCacheMinutes = 0;
     private String callSingleCacheDir = FileUtils.getBuildDir();
 
     public Config() {
-        // zero arg constructor
+        clientFactory = engine -> new ArmeriaHttpClient(engine.getConfig(), engine.logger);
     }
 
     private static <T> T get(Map<String, Object> map, String key, T defaultValue) {
@@ -116,7 +117,7 @@ public class Config {
                 responseHeaders = value;
                 return false;
             case "responseDelay":
-                responseDelay = value.isNull() ? 0L : Double.valueOf(value.getAsString()).longValue();
+                responseDelay = value.isNull() ? 0 : value.getAsInt();
                 return false;
             case "lowerCaseResponseHeaders":
                 lowerCaseResponseHeaders = value.isTrue();
@@ -157,7 +158,7 @@ public class Config {
                 return false;
             case "robot":
                 robotOptions = value.getValue();
-                return false;                
+                return false;
             case "driverTarget":
                 if (value.isMap()) {
                     Map<String, Object> map = value.getValue();
@@ -190,18 +191,15 @@ public class Config {
                     callSingleCacheDir = get(map, "dir", callSingleCacheDir);
                 }
                 return false;
+            case "charset":
+                charset = value.isNull() ? null : Charset.forName(value.getAsString());
+                return false;
             // here on the http client has to be re-constructed ================
-            case "httpClientClass":
-                clientClass = value.getAsString();
+            case "clientFactory":
+                clientFactory = value.getValue();
                 return true;
             case "logModifier":
                 logModifier = value.getValue();
-                return true;
-            case "httpClientInstance":
-                clientInstance = value.getValue();
-                return true;
-            case "charset":
-                charset = value.isNull() ? null : Charset.forName(value.getAsString());
                 return true;
             case "ssl":
                 if (value.isString()) {
@@ -250,9 +248,6 @@ public class Config {
             case "localAddress":
                 localAddress = value.getAsString();
                 return true;
-            case "userDefined":
-                userDefined = value.getValue();
-                return true;
             default:
                 throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
         }
@@ -286,9 +281,7 @@ public class Config {
         logPrettyRequest = parent.logPrettyRequest;
         logPrettyResponse = parent.logPrettyResponse;
         printEnabled = parent.printEnabled;
-        clientClass = parent.clientClass;
-        clientInstance = parent.clientInstance;
-        userDefined = parent.userDefined;
+        clientFactory = parent.clientFactory;
         driverOptions = parent.driverOptions;
         robotOptions = parent.robotOptions;
         driverTarget = parent.driverTarget;
@@ -309,12 +302,14 @@ public class Config {
         this.cookies = cookies;
     }
 
-    public void setClientClass(String clientClass) {
-        this.clientClass = clientClass;
+    public void setClientFactory(Function<ScenarioEngine, HttpClient> clientFactory) {
+        this.clientFactory = clientFactory;
     }
 
-    //==========================================================================
-    //
+    public Function<ScenarioEngine, HttpClient> getClientFactory() {
+        return clientFactory;
+    }
+
     public boolean isSslEnabled() {
         return sslEnabled;
     }
@@ -399,7 +394,7 @@ public class Config {
         return responseHeaders;
     }
 
-    public long getResponseDelay() {
+    public int getResponseDelay() {
         return responseDelay;
     }
 
@@ -423,28 +418,12 @@ public class Config {
         return printEnabled;
     }
 
-    public String getClientClass() {
-        return clientClass;
-    }
-
-    public Map<String, Object> getUserDefined() {
-        return userDefined;
-    }
-
     public Map<String, Object> getDriverOptions() {
         return driverOptions;
     }
 
     public Map<String, Object> getRobotOptions() {
         return robotOptions;
-    }        
-
-    public ScenarioHttpClient getClientInstance() {
-        return clientInstance;
-    }
-
-    public void setClientInstance(ScenarioHttpClient clientInstance) {
-        this.clientInstance = clientInstance;
     }
 
     public Variable getAfterScenario() {
@@ -521,6 +500,6 @@ public class Config {
 
     public int getCallSingleCacheMinutes() {
         return callSingleCacheMinutes;
-    }        
+    }
 
 }

@@ -41,6 +41,18 @@ public class MatchResult {
         this.pass = pass;
         this.message = message;
     }
+    
+    public void isTrue() {
+        if (!pass) {
+            throw new RuntimeException(message);
+        }
+    }
+    
+    public void isFalse() {
+        if (pass) {
+            throw new RuntimeException("expected 'fail' but is 'pass'");
+        }
+    }    
 
     @Override
     public String toString() {

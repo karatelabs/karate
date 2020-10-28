@@ -78,7 +78,7 @@ public class FileUtils {
     public static final String THIS_COLON = "this:";
     public static final String FILE_COLON = "file:";
     public static final String SRC_TEST_JAVA = "src/test/java";
-    public static final String SRC_TEST_RESOURCES = "src/test/resources";    
+    public static final String SRC_TEST_RESOURCES = "src/test/resources";
     private static final ClassLoader CLASS_LOADER = FileUtils.class.getClassLoader();
 
     private FileUtils() {
@@ -188,20 +188,20 @@ public class FileUtils {
 
     public static Resource toResource(String path, ScenarioContext context) {
         if (isClassPath(path)) {
-            return new Resource(context.classLoader, path);
+            return new Resource(path, context.classLoader);
         } else if (isFilePath(path)) {
             String temp = removePrefix(path);
-            return new Resource(new File(temp), path);
+            return new Resource(new File(temp), path, context.classLoader);
         } else if (isThisPath(path)) {
             String temp = removePrefix(path);
             Path parentPath = context.featureContext.parentPath;
             Path childPath = parentPath.resolve(temp);
-            return new Resource(childPath);
+            return new Resource(childPath, context.classLoader);
         } else {
             try {
                 Path parentPath = context.rootFeatureContext.parentPath;
                 Path childPath = parentPath.resolve(path);
-                return new Resource(childPath);
+                return new Resource(childPath, context.classLoader);
             } catch (Exception e) {
                 LOGGER.error("feature relative path resolution failed: {}", e.getMessage());
                 throw e;
@@ -218,6 +218,11 @@ public class FileUtils {
             return toResource(path, context).getStream();
         } catch (Exception e) {
             InputStream inputStream = context.getResourceAsStream(removePrefix(path));
+            if (inputStream == null) {
+                // attempt to get the file using the class classloader
+                // workaround for spring boot
+                inputStream = FileUtils.class.getClassLoader().getResourceAsStream(path);
+            }
             if (inputStream == null) {
                 String message = String.format("could not find or read file: %s", path);
                 context.logger.trace("{}", message);
@@ -323,7 +328,7 @@ public class FileUtils {
             }
             // try with resources, so will be closed automatically
             try (FileOutputStream fos = new FileOutputStream(file)) {
-                fos.write(data);                
+                fos.write(data);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -454,8 +459,8 @@ public class FileUtils {
     public static Path fromRelativeClassPath(String relativePath, ClassLoader cl) {
         relativePath = removePrefix(relativePath);
         URL url = cl.getResource(relativePath);
-        if (url == null) {
-            throw new RuntimeException("file does not exist: " + relativePath);
+        if (url == null) { // assume this is a "real" path to a file
+            return new File(relativePath).toPath();
         }
         return urlToPath(url, relativePath);
     }
@@ -488,7 +493,7 @@ public class FileUtils {
 
     public static List<Resource> scanForFeatureFiles(List<String> paths, Class clazz) {
         if (clazz == null) {
-            return scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
+            return scanForFeatureFiles(paths, ClassLoader.getSystemClassLoader());
         }
         // this resolves paths relative to the passed-in class
         List<Resource> list = new ArrayList();
@@ -596,16 +601,16 @@ public class FileUtils {
         if (classpath) {
             searchPath = removePrefix(searchPath);
             for (URL url : getAllClassPathUrls(cl)) {
-                collectFeatureFiles(url, searchPath, files);
+                collectFeatureFiles(url, searchPath, files, cl);
             }
             return files;
         } else {
-            collectFeatureFiles(null, searchPath, files);
+            collectFeatureFiles(null, searchPath, files, cl);
             return files;
         }
     }
 
-    private static void collectFeatureFiles(URL url, String searchPath, List<Resource> files) {
+    private static void collectFeatureFiles(URL url, String searchPath, List<Resource> files, ClassLoader cl) {
         boolean classpath = url != null;
         int colonPos = searchPath.lastIndexOf(':');
         int line = -1;
@@ -658,11 +663,11 @@ public class FileUtils {
                 String relativePath = rootPath.relativize(path.toAbsolutePath()).toString();
                 relativePath = toStandardPath(relativePath).replaceAll("[.]+/", "");
                 String prefix = classpath ? CLASSPATH_COLON : "";
-                files.add(new Resource(path, prefix + relativePath, line));
+                files.add(new Resource(path, prefix + relativePath, line, cl));
             }
         }
     }
-    
+
     // TODO use this <Set> based and tighter routine for feature files above
     private static void walkPath(Path root, Set<String> results, Predicate<Path> predicate) {
         Stream<Path> stream;
@@ -679,10 +684,10 @@ public class FileUtils {
         } catch (IOException e) { // NoSuchFileException  
             LOGGER.trace("unable to walk path: {} - {}", root, e.getMessage());
         }
-    }    
-    
+    }
+
     private static final Predicate<Path> IS_JS_FILE = p -> p != null && p.toString().endsWith(".js");
-    
+
     public static Set<String> jsFiles(File baseDir) {
         Set<String> results = new HashSet();
         walkPath(baseDir.toPath().toAbsolutePath(), results, IS_JS_FILE);
@@ -702,15 +707,15 @@ public class FileUtils {
             LOGGER.warn("unable to scan for js files at: {}", basePath);
         }
         return results;
-    }    
-    
+    }
+
     public static InputStream resourceAsStream(String resourcePath) {
         InputStream is = CLASS_LOADER.getResourceAsStream(resourcePath);
         if (is == null) {
             throw new RuntimeException("failed to read: " + resourcePath);
         }
         return is;
-    }    
+    }
 
     public static String getBuildDir() {
         String temp = System.getProperty("karate.output.dir");

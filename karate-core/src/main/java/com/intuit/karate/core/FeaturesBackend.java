@@ -108,6 +108,10 @@ public class FeaturesBackend {
                     }
                 }
                 match.def(ScriptValueMap.VAR_REQUEST, requestBody);
+            } else {
+                // fix for # 1331. If the incoming request body is empty, previous request body was getting used. This will force reset.
+                // or we should remove this from ScriptValueMap?
+                match.def(ScriptValueMap.VAR_REQUEST, null);
             }
 
             FeatureBackend.FeatureScenarioMatch matchingInfo = getMatchingScenario(match.vars());

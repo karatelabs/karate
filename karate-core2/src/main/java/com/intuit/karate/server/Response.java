@@ -28,6 +28,9 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsValue;
+import io.netty.handler.codec.http.cookie.Cookie;
+import io.netty.handler.codec.http.cookie.DefaultCookie;
+import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -63,11 +66,16 @@ public class Response implements ProxyObject {
     private int status;
     private Map<String, List<String>> headers;
     private byte[] body;
-    private ResourceType resourceType;
 
-    public Response() {
-        status = 200;
-        // zero arg constructor
+    private ResourceType resourceType;
+    private int delay;
+
+    public Response(int status) {
+        this.status = status;
+    }
+
+    public Response(int status, Map<String, List<String>> headers, byte[] body) {
+        this(status, headers, body, null);
     }
 
     public Response(int status, Map<String, List<String>> headers, byte[] body, ResourceType resourceType) {
@@ -85,8 +93,31 @@ public class Response implements ProxyObject {
         this.status = status;
     }
 
+    public int getDelay() {
+        return delay;
+    }
+
+    public void setDelay(int delay) {
+        this.delay = delay;
+    }
+
     public Map<String, List<String>> getHeaders() {
         return headers;
+    }
+
+    public Map<String, Map> getCookies() {
+        List<String> values = getHeaderValues(HttpConstants.HDR_SET_COOKIE);
+        if (values == null) {
+            return null;
+        }
+        Map<String, Map> map = new HashMap();
+        for (String value : values) {
+            Set<Cookie> cookies = ServerCookieDecoder.STRICT.decode(value);
+            for (Cookie cookie : cookies) {
+                map.put(cookie.name(), Cookies.toMap(cookie));
+            }
+        }
+        return map;
     }
 
     public void setHeaders(Map<String, List<String>> headers) {
@@ -105,11 +136,26 @@ public class Response implements ProxyObject {
         return body == null ? null : FileUtils.toString(body);
     }
 
-    public Object getBodyAsJsValue() {
-        return JsValue.fromBytes(body);
+    public Object getBodyConverted() {
+        ResourceType rt = getResourceType(); // derive if needed
+        if (rt != null && rt.isBinary()) {
+            return body;
+        }
+        try {
+            return JsValue.fromBytes(body);
+        } catch (Exception e) {
+            logger.trace("failed to auto-convert response: {}", e);
+            return getBodyAsString();
+        }
     }
 
     public ResourceType getResourceType() {
+        if (resourceType == null) {
+            String contentType = getContentType();
+            if (contentType != null) {
+                resourceType = ResourceType.fromContentType(contentType);
+            }
+        }
         return resourceType;
     }
 
@@ -117,35 +163,43 @@ public class Response implements ProxyObject {
         this.resourceType = resourceType;
     }
 
-    public List<String> header(String name) { // TOTO optimize
+    public List<String> getHeaderValues(String name) { // TOTO optimize
         return StringUtils.getIgnoreKeyCase(headers, name);
     }
 
-    public void header(String name, String... values) {
+    public String getHeader(String name) {
+        List<String> values = getHeaderValues(name);
+        return values == null || values.isEmpty() ? null : values.get(0);
+    }
+
+    public String getContentType() {
+        return getHeader(HttpConstants.HDR_CONTENT_TYPE);
+    }
+
+    public void setHeader(String name, List<String> values) {
         if (headers == null) {
             headers = new HashMap();
         }
-        headers.put(name, Arrays.asList(values));
+        headers.put(name, values);
+    }
+
+    public void setHeader(String name, String... values) {
+        setHeader(name, Arrays.asList(values));
     }
 
     private static String toString(Object o) {
         return o == null ? null : o.toString();
     }
 
-    private final VarArgFunction HEADER_FUNCTION = args -> {
+    private final VarArgsFunction HEADER_FUNCTION = args -> {
         if (args.length == 1) {
-            List<String> list = header(toString(args[0]));
-            if (list == null || list.isEmpty()) {
-                return null;
-            }
-            return list.get(0);
+            return getHeader(toString(args[0]));
         } else {
-            header(toString(args[0]), toString(args[1]));
+            setHeader(toString(args[0]), toString(args[1]));
             return Response.this;
         }
     };
-    
-    private static final String COLON_STATUS = ":status";
+
     private static final String KEY = "key";
     private static final String VALUE = "value";
 
@@ -155,7 +209,7 @@ public class Response implements ProxyObject {
         }
         List list = new ArrayList(headers.size());
         headers.forEach((k, v) -> {
-            if (COLON_STATUS.equals(k) || v == null || v.isEmpty()) {
+            if (v == null || v.isEmpty()) {
                 // continue
             } else {
                 Map map = new HashMap(2);
@@ -177,12 +231,13 @@ public class Response implements ProxyObject {
             case HEADERS:
                 return JsValue.fromJava(headers);
             case BODY:
-                return getBodyAsJsValue();
+                return getBodyConverted();
             case DATA_TYPE:
-                if (resourceType == null || resourceType == ResourceType.NONE) {
+                ResourceType rt = getResourceType();
+                if (rt == null || rt == ResourceType.NONE) {
                     return null;
                 }
-                return resourceType.name().toLowerCase();
+                return rt.name().toLowerCase();
             case HEADER_ENTRIES:
                 return HEADER_ENTRIES_FUNCTION;
             default:

@@ -23,29 +23,22 @@
  */
 package com.intuit.karate.runtime;
 
-import com.intuit.karate.AssignType;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.ExecutionHook;
-import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.core.Result;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
-import com.intuit.karate.exception.KarateException;
-import com.intuit.karate.http.Cookie;
-import com.intuit.karate.http.HttpRequest;
-import com.intuit.karate.match.MatchResult;
-import com.intuit.karate.match.MatchType;
 import com.intuit.karate.shell.FileLogAppender;
 import java.io.File;
+import java.nio.file.Path;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 
 /**
  *
@@ -53,24 +46,35 @@ import java.util.function.Function;
  */
 public class ScenarioRuntime implements Runnable {
 
+    public final Logger logger = new Logger();
+
     public final FeatureRuntime featureRuntime;
     public final ScenarioRuntime background;
     public final ScenarioCall parentCall;
     public final Scenario scenario;
     public final ScenarioActions actions;
-    public final Logger logger = new Logger();
     public final ScenarioResult result;
     public final ScenarioEngine engine;
-    public final Collection<ExecutionHook> executionHooks;
+    public final Collection<RuntimeHook> runtimeHooks;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
         this(featureRuntime, scenario, null);
     }
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario, ScenarioRuntime background) {
-        executionHooks = featureRuntime.suite.resolveHooks();
+        runtimeHooks = featureRuntime.suite.runtimeHooks;
         this.featureRuntime = featureRuntime;
         this.parentCall = featureRuntime.parentCall;
+        if (parentCall.isNone()) {
+            engine = new ScenarioEngine(new Config(), this, new HashMap(), logger);
+        } else if (parentCall.isSharedScope()) {
+            Config config = parentCall.parentRuntime.engine.getConfig();
+            engine = new ScenarioEngine(config, this, parentCall.parentRuntime.engine.vars, logger);
+        } else { // new, but clone and copy data
+            Config config = new Config(parentCall.parentRuntime.engine.getConfig());
+            engine = new ScenarioEngine(config, this, parentCall.parentRuntime.engine.copyVariables(false), logger);
+        }
+        actions = new ScenarioActions(engine);
         this.scenario = scenario;
         if (background == null) {
             this.background = null;
@@ -79,12 +83,9 @@ public class ScenarioRuntime implements Runnable {
             this.background = background;
             result = new ScenarioResult(scenario, background.result.getStepResults());
         }
-        engine = new ScenarioEngine(logger);
-        actions = new ScenarioActions(this);
-        // TODO appender for perf
-        // TODO caller
-        // TODO config
-        config = new Config();
+        if (featureRuntime.isPerfMode()) {
+            appender = LogAppender.NO_OP;
+        }
     }
 
     public boolean isFailed() {
@@ -104,6 +105,7 @@ public class ScenarioRuntime implements Runnable {
     private StepResult lastStepResult;
     private Step currentStep;
     private Throwable error;
+    protected String evalJsError;
     private boolean stopped;
     private boolean aborted;
     private int stepIndex;
@@ -132,7 +134,22 @@ public class ScenarioRuntime implements Runnable {
         return stepIndex++;
     }
 
-    private void logError(String message) {
+    public Map<String, Object> getScenarioInfo() {
+        Map<String, Object> info = new HashMap(6);
+        Path featurePath = featureRuntime.feature.getPath();
+        if (featurePath != null) {
+            info.put("featureDir", featurePath.getParent().toString());
+            info.put("featureFileName", featurePath.getFileName().toString());
+        }
+        info.put("scenarioName", scenario.getName());
+        info.put("scenarioDescription", scenario.getDescription());
+        info.put("scenarioType", scenario.getKeyword());
+        String errorMessage = error == null ? null : error.getMessage();
+        info.put("errorMessage", errorMessage);
+        return info;
+    }
+
+    protected void logError(String message) {
         if (currentStep != null) {
             message = currentStep.getDebugInfo()
                     + "\n" + currentStep.toString()
@@ -165,8 +182,6 @@ public class ScenarioRuntime implements Runnable {
         }
     }
 
-    protected static final ThreadLocal<ScenarioRuntime> LOCAL = new ThreadLocal<ScenarioRuntime>();
-
     private static final ThreadLocal<LogAppender> APPENDER = new ThreadLocal<LogAppender>() {
         @Override
         protected LogAppender initialValue() {
@@ -175,35 +190,65 @@ public class ScenarioRuntime implements Runnable {
         }
     };
 
+    protected Map<String, Object> getMagicVariables() {
+        Map<String, Object> map = new HashMap();
+        if (scenario.isOutline()) { // init examples row magic variables
+            Map<String, Object> exampleData = scenario.getExampleData();
+            exampleData.forEach((k, v) -> map.put(k, v));
+            map.put("__row", exampleData);
+            map.put("__num", scenario.getExampleIndex());
+            // TODO breaking change configure outlineVariablesAuto deprecated          
+        }
+        if (!parentCall.isNone()) {
+            Variable arg = parentCall.getArg();
+            map.put("__arg", arg);
+            map.put("__loop", parentCall.getLoopIndex());
+            if (arg != null && arg.isMap()) {
+                map.putAll(arg.getValue());
+            }
+        }
+        return map;
+    }
+
     public void beforeRun() {
         if (appender == null) { // not perf, not debug
             appender = APPENDER.get();
         }
         logger.setAppender(appender);
-        LOCAL.set(this);
-        engine.init();
-        engine.putHidden(VariableNames.KARATE, new ScenarioBridge());
         if (scenario.isDynamic()) {
             steps = scenario.getBackgroundSteps();
         } else {
             steps = background == null ? scenario.getStepsIncludingBackground() : scenario.getSteps();
-            if (scenario.isOutline()) { // init examples row magic variables
-                Map<String, Object> exampleData = scenario.getExampleData();
-                engine.put("__row", exampleData);
-                engine.put("__num", scenario.getExampleIndex());
-                // TODO breaking change configure outlineVariablesAuto
-                exampleData.forEach((k, v) -> engine.put(k, v));
-            }
+            engine.magicVariables = getMagicVariables();
         }
+        ScenarioEngine.LOCAL.set(engine);
+        engine.init();
         result.setThreadName(Thread.currentThread().getName());
         result.setStartTime(System.currentTimeMillis() - featureRuntime.suite.results.getStartTime());
+        if (parentCall.isNone() && !parentCall.isKarateConfigDisabled()) {
+            // evaluate config js, variables above will apply !
+            evalConfigJs(featureRuntime.suite.karateBase);
+            evalConfigJs(featureRuntime.suite.karateConfig);
+            evalConfigJs(featureRuntime.suite.karateConfigEnv);
+        }
+    }
+
+    private void evalConfigJs(String js) {
+        if (js != null) {
+            Variable fun = engine.evalKarateExpression(js);
+            if (fun.isFunction()) {
+                engine.setVariables(fun.evalAsMap());
+            } else {
+                logger.warn("config did not evaluate to js function: {}", js);
+            }
+        }
     }
 
     // extracted for debug
     public StepResult execute(Step step) {
         if (stopped) {
             Result stepResult;
-            if (aborted && config.isAbortedStepsShouldPass()) {
+            if (aborted && engine.getConfig().isAbortedStepsShouldPass()) {
                 stepResult = Result.passed(0);
             } else {
                 stepResult = Result.skipped();
@@ -224,8 +269,13 @@ public class ScenarioRuntime implements Runnable {
             } else if (stepResult.isFailed()) {
                 stopped = true;
                 error = stepResult.getError();
+                if (evalJsError != null) {
+                    logError(evalJsError);
+                } else {
+                    logError(error.getMessage());
+                }
             }
-            LOCAL.set(this); // restore, since a call may have switched this
+            ScenarioEngine.LOCAL.set(engine); // restore, since a call may have switched this to a nested scenario
             StepResult sr = new StepResult(step, stepResult, null, null, null);
             // after step hooks           
             return sr;
@@ -248,220 +298,14 @@ public class ScenarioRuntime implements Runnable {
         } catch (Exception e) {
             logError(e.getMessage());
         } finally {
-            LOCAL.remove();
+            ScenarioEngine.LOCAL.remove();
             // next
         }
     }
 
-    // engine ==================================================================
-    //
-    public final Function<String, Object> read = s -> {
-        return null;
-    };    
-    
-    public void call(boolean callonce, String line) {
-
-    }
-
-    public void assign(AssignType assignType, String name, String exp) {
-        engine.assign(assignType, name, exp, false);
-    }
-
-    public void eval(String exp) {
-        engine.eval(exp);
-    }
-
-    public void match(MatchType matchType, String expression, String path, String expected) {
-        MatchResult mr = engine.match(matchType, expression, path, expected);
-        if (!mr.pass) {
-            logError(mr.message);
-            throw new KarateException(mr.message);
-        }
-    }
-
-    public void set(String name, String path, String exp) {
-        engine.set(name, path, exp);
-    }
-
-    public void set(String name, String path, List<Map<String, String>> table) {
-        engine.setViaTable(name, path, table);
-    }
-
-    public void remove(String name, String path) {
-        engine.remove(name, path);
-    }
-
-    public void table(String name, List<Map<String, String>> table) {
-        engine.table(name, table);
-    }
-
-    public void replace(String name, String token, String value) {
-        engine.replace(name, token, value);
-    }
-
-    public void replace(String name, List<Map<String, String>> table) {
-        engine.replaceTable(name, table);
-    }
-
-    public void assertTrue(String expression) {
-        if (!engine.assertTrue(expression)) {
-            String message = "did not evaluate to 'true': " + expression;
-            logError(message);
-            throw new KarateException(message);
-        }
-    }
-
-    public void print(List<String> exps) {
-        if (!config.isPrintEnabled()) {
-            return;
-        }
-        engine.print(exps);
-    }
-
-    // gatling =================================================================
-    //   
-    private PerfEvent prevPerfEvent;
-
-    public void logLastPerfEvent(String failureMessage) {
-        if (prevPerfEvent != null && executionHooks != null) {
-            if (failureMessage != null) {
-                prevPerfEvent.setFailed(true);
-                prevPerfEvent.setMessage(failureMessage);
-            }
-            executionHooks.forEach(h -> h.reportPerfEvent(prevPerfEvent));
-        }
-        prevPerfEvent = null;
-    }
-
-    public void capturePerfEvent(PerfEvent event) {
-        logLastPerfEvent(null);
-        prevPerfEvent = event;
-    }
-
-    // http ====================================================================
-    //        
-    private Config config;
-    private ScenarioHttpClient http;
-    private HttpRequest prevRequest;
-
-    public HttpRequest getPrevRequest() {
-        return prevRequest;
-    }
-
-    public Config getConfig() {
-        return config;
-    }
-
-    public void updateConfigCookies(Map<String, Cookie> cookies) {
-        if (cookies == null) {
-            return;
-        }
-        if (config.getCookies().isNull()) {
-            config.setCookies(new Variable(cookies));
-        } else {
-            Map<String, Object> map = config.getCookies().evalAsMap();
-            map.putAll(cookies);
-            config.setCookies(new Variable(map));
-        }
-    }
-
-    public void configure(String key, String exp) {
-        Variable v = new Variable(exp);
-        key = StringUtils.trimToEmpty(key);
-        // if next line returns true, http-client needs re-building
-        if (config.configure(key, v)) {
-            if (key.startsWith("httpClient")) { // special case
-                http = ScenarioHttpClient.construct(config);
-            } else {
-                http.configure(config);
-            }
-        }
-    }
-
-    public void url(String exp) {
-
-    }
-
-    public void path(List<String> paths) {
-
-    }
-
-    public void param(String name, List<String> values) {
-
-    }
-
-    public void params(String expr) {
-
-    }
-
-    public void cookie(String name, String value) {
-
-    }
-
-    public void cookies(String expr) {
-
-    }
-
-    public void header(String name, List<String> values) {
-
-    }
-
-    public void headers(String expr) {
-
-    }
-
-    public void formField(String name, List<String> values) {
-
-    }
-
-    public void formFields(String expr) {
-
-    }
-
-    public void request(String body) {
-
-    }
-
-    public void method(String method) {
-
-    }
-
-    public void retry(String until) {
-
-    }
-
-    public void soapAction(String action) {
-
-    }
-
-    public void multipartField(String name, String value) {
-
-    }
-
-    public void multipartFields(String expr) {
-
-    }
-
-    public void multipartFile(String name, String value) {
-
-    }
-
-    public void multipartFiles(String expr) {
-
-    }
-
-    public void status(int status) {
-
-    }
-
-    // ui driver / robot =======================================================
-    //
-    public void driver(String expression) {
-
-    }
-
-    public void robot(String expression) {
-
+    @Override
+    public String toString() {
+        return scenario.toString();
     }
 
 }
