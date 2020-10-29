@@ -21,15 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.server;
+package com.intuit.karate.graal;
 
 /**
  *
  * @author pthomas3
  */
 @FunctionalInterface
-public interface VarArgsFunction<T> {
+public interface VarArgsFunction<T, U> {
 
-    Object call(T... args);
+    U call(T... args);
 
 }

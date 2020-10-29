@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.server;
 
+import com.intuit.karate.graal.VarArgsFunction;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsValue;

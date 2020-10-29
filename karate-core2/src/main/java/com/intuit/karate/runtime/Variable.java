@@ -69,13 +69,10 @@ public class Variable {
 
     public Variable(Object o) {
         if (o instanceof Value) {
-            o = new JsValue((Value) o);
+            o = new JsValue((Value) o).getValue();
+        } else if (o instanceof JsValue) {
+            o = ((JsValue) o).getValue();
         }
-        if (o instanceof JsValue) {
-            JsValue jv = (JsValue) o;
-            o = jv.getValue();
-        }
-        value = o;
         if (o == null) {
             type = Type.NULL;
         } else if (o instanceof Node) {
@@ -99,6 +96,7 @@ public class Variable {
         } else {
             type = Type.OTHER;
         }
+        value = o;
     }
 
     public <T> T getValue() {
@@ -250,10 +248,10 @@ public class Variable {
                 return getAsString();
         }
     }
-    
+
     public String getAsPrettyXmlString() {
         return XmlUtils.toString(getAsXml(), true);
-    }    
+    }
 
     public int getAsInt() {
         if (isNumber()) {

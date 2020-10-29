@@ -196,7 +196,7 @@ class KarateMockHandlerTest {
     }
 
     @Test
-    void testMultiPartSimple() {
+    void testMultiPartField() {
         background().scenario(
                 "pathMatches('/hello')",
                 "def response = requestParams");
@@ -210,7 +210,7 @@ class KarateMockHandlerTest {
     }
     
     @Test
-    void testMultiPartRepeated() {
+    void testMultiPartFile() {
         background().scenario(
                 "pathMatches('/hello')",
                 "def response = requestFiles");
