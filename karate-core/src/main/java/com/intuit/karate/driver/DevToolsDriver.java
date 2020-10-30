@@ -26,6 +26,7 @@ package com.intuit.karate.driver;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Logger;
+import com.intuit.karate.Script;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Feature;
@@ -39,14 +40,26 @@ import com.intuit.karate.netty.NettyUtils;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
 import com.intuit.karate.shell.Command;
+import com.jayway.jsonpath.DocumentContext;
+
 import org.slf4j.MDC;
 
+import net.minidev.json.JSONArray;
+import net.minidev.json.JSONObject;
+
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -966,6 +979,45 @@ public abstract class DevToolsDriver implements Driver {
         }
         Integer nodeId = elementId(locator);
         method("DOM.setFileInputFiles").param("files", files).param("nodeId", nodeId).send();
+    }
+
+    // mvp functionality.
+    public void injectAndRunAxe(int threshold) throws IOException, URISyntaxException, InterruptedException {
+        // load axe lib - should be on the classpath with this name, else we make configurable via param.
+        Path path = Paths.get(getClass().getClassLoader().getResource("axe-core.min.js").toURI());
+        List<String> list = Files.readAllLines(path, StandardCharsets.UTF_8);
+        String axeLib = String.join("\n", list);
+        axeLib = axeLib.replaceAll("\"", "\\\"");
+
+        // inject axe into the page
+        ScriptValue injectAxeLib = method("Runtime.evaluate")
+                .param("expression", axeLib)
+                .param("returnByValue", true)
+                .send().getResult();
+
+        logger.info("axe successfully injected: {}", injectAxeLib.getAsString());
+
+        // continuous execution doesn't work, this is a hack.
+        Thread.sleep(1);
+
+        // run axe api
+        if (injectAxeLib.getValue(Boolean.class)) {
+            String axeResponse = (String) method("Runtime.evaluate")
+                    // stringifying json response returns just fine else its undefined.
+                    .param("expression", "axe.run().then(results => JSON.stringify(results))")
+                    .param("awaitPromise", true) // awaiting promise.
+                    .send().getResult().getValue();
+            logger.debug("axeResponse detailed: {}", axeResponse);
+
+            DocumentContext axeResponseJson = JsonUtils.toJsonDoc(axeResponse);
+            Map responseMap = axeResponseJson.json();
+            JSONArray axeVioArr = (JSONArray) responseMap.get("violations");
+            int identifiedViol = axeVioArr.size();
+            // possibly best to throw this to generic report / test results flow. this is just a mvp.
+            // we can further customize this to include what level of violations allowed [ med / high etc].
+            assert identifiedViol <= threshold : "Accessibility Violations found: " + axeVioArr.size() + ". Details: " + axeVioArr.toString();
+            logger.error("violation-> {},  threshold-> {}", identifiedViol, threshold);
+        }
     }
 
 }
