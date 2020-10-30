@@ -22,10 +22,16 @@ public class Demo07JavaRunner {
     private static final Logger logger = LoggerFactory.getLogger(Demo07JavaRunner.class);
     
     @Test
-    public void testDevtoolAccessibility() throws Exception {
+    public void testDevtoolsAccessibilityAndPerformance() throws Exception {
         
-        Chrome driver = Chrome.start();        
+        Chrome driver = Chrome.start();
+        driver.enablePerformanceMetrics();
         driver.setUrl("https://github.com/login");
+        driver.input("#login_field", "dummy");
+        driver.input("#password", "world");
+        driver.submit().click("input[name=commit]");
+        driver.getPerformanceMetrics();
+        driver.disablePerformanceMetrics();
         driver.injectAndRunAxe(3);
         driver.quit();
     }

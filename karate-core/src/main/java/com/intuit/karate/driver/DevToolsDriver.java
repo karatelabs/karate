@@ -47,12 +47,15 @@ import org.slf4j.MDC;
 import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -63,6 +66,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
 /**
@@ -1015,9 +1019,26 @@ public abstract class DevToolsDriver implements Driver {
             int identifiedViol = axeVioArr.size();
             // possibly best to throw this to generic report / test results flow. this is just a mvp.
             // we can further customize this to include what level of violations allowed [ med / high etc].
+            FileUtils.writeToFile(new File("target/axe.log"), responseMap.toString());
             assert identifiedViol <= threshold : "Accessibility Violations found: " + axeVioArr.size() + ". Details: " + axeVioArr.toString();
             logger.error("violation-> {},  threshold-> {}", identifiedViol, threshold);
         }
     }
+
+    public void enablePerformanceMetrics()
+    {
+        method("Performance.enable").send();
+    }
+
+    public void disablePerformanceMetrics()
+    {
+        method("Performance.disable").send();
+    }
+    public void getPerformanceMetrics()
+    {
+        Map perfMtrx = method("Performance.getMetrics").send().getResult().getAsMap();
+        FileUtils.writeToFile(new File("target/metrics.log"), perfMtrx.toString());
+    }
+
 
 }
