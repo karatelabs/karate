@@ -40,6 +40,7 @@ import java.util.Map;
 public class SuiteRuntime {
 
     public final String env;
+    public final String tagSelector = ""; // TODO
     public final Logger logger = new Logger();
     public final File workingDir = new File("");
     public final ClassLoader classLoader = ClassLoader.getSystemClassLoader();

@@ -27,6 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.Result;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
@@ -52,6 +53,7 @@ public class ScenarioRuntime implements Runnable {
     public final ScenarioRuntime background;
     public final ScenarioCall parentCall;
     public final Scenario scenario;
+    public final Tags tags;
     public final ScenarioActions actions;
     public final ScenarioResult result;
     public final ScenarioEngine engine;
@@ -86,6 +88,7 @@ public class ScenarioRuntime implements Runnable {
         if (featureRuntime.isPerfMode()) {
             appender = LogAppender.NO_OP;
         }
+        tags = Tags.merge(featureRuntime.feature.getTags(), scenario.getTags());
     }
 
     public boolean isFailed() {
@@ -105,7 +108,6 @@ public class ScenarioRuntime implements Runnable {
     private StepResult lastStepResult;
     private Step currentStep;
     private Throwable error;
-    protected String evalJsError;
     private boolean stopped;
     private boolean aborted;
     private int stepIndex;
@@ -269,11 +271,7 @@ public class ScenarioRuntime implements Runnable {
             } else if (stepResult.isFailed()) {
                 stopped = true;
                 error = stepResult.getError();
-                if (evalJsError != null) {
-                    logError(evalJsError);
-                } else {
-                    logError(error.getMessage());
-                }
+                logError(error.getMessage());
             }
             ScenarioEngine.LOCAL.set(engine); // restore, since a call may have switched this to a nested scenario
             StepResult sr = new StepResult(step, stepResult, null, null, null);
@@ -296,11 +294,50 @@ public class ScenarioRuntime implements Runnable {
                 lastStepResult.appendToStepLog(stepLog);
             }
         } catch (Exception e) {
-            logError(e.getMessage());
+            logError("(afterScenario) " + e.getMessage());
         } finally {
             ScenarioEngine.LOCAL.remove();
             // next
         }
+    }
+
+    public boolean isSelectedForExecution() {
+        Feature feature = featureRuntime.feature;
+        int callLine = feature.getCallLine();
+        if (callLine != -1) {
+            int sectionLine = scenario.getSection().getLine();
+            int scenarioLine = scenario.getLine();
+            if (callLine == sectionLine || callLine == scenarioLine) {
+                logger.info("found scenario at line: {}", callLine);
+                return true;
+            }
+            logger.trace("skipping scenario at line: {}, needed: {}", scenario.getLine(), callLine);
+            return false;
+        }
+        String callName = feature.getCallName();
+        if (callName != null) {
+            if (scenario.getName().matches(callName)) {
+                logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
+                return true;
+            }
+            logger.trace("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
+            return false;
+        }
+        String callTag = scenario.getFeature().getCallTag();
+        if (callTag != null) {
+            if (tags.contains(callTag)) {
+                logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
+                return true;
+            }
+            logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
+            return false;
+        }
+        if (tags.evaluate(featureRuntime.suite.tagSelector)) {
+            logger.trace("matched scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
+            return true;
+        }
+        logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
+        return false;
     }
 
     @Override

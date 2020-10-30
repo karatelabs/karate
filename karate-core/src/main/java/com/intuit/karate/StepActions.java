@@ -390,11 +390,26 @@ public class StepActions implements Actions {
     public void driver(String expression) {
         context.driver(expression);
     }
-    
+
     @Override
     @When("^robot (.+)")
     public void robot(String expression) {
         context.robot(expression);
-    }     
+    }
+
+    @Override
+    public boolean isFailed() {
+        return false;
+    }
+
+    @Override
+    public Throwable getFailedReason() {
+        return null;
+    }
+
+    @Override
+    public boolean isAborted() {
+        return false;
+    }
 
 }

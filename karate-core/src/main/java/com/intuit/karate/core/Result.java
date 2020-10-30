@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.exception.KarateException;
 
 import java.util.HashMap;
@@ -44,7 +43,7 @@ public class Result {
     private final boolean aborted;
     private final Throwable error;
     private final boolean skipped;
-    
+
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap(error == null ? 2 : 3);
         map.put("status", status);
@@ -54,7 +53,7 @@ public class Result {
         }
         return map;
     }
-    
+
     public Result(Map<String, Object> map) {
         status = (String) map.get("status");
         Number num = (Number) map.get("duration");
@@ -71,8 +70,8 @@ public class Result {
         this.error = error;
         this.aborted = aborted;
         skipped = SKIPPED.equals(status);
-    }    
-    
+    }
+
     public boolean isSkipped() {
         return skipped;
     }
@@ -95,11 +94,15 @@ public class Result {
 
     public static Result failed(long nanos, Throwable error, Step step) {
         String featureName = Engine.getFeatureName(step);
-        error = new KarateException(featureName + ":" + step.getLine() + " - " + (StringUtils.isBlank(error.getMessage()) ? error : error.getMessage()));          
+        if (error instanceof KarateException) {
+            // use as is
+        } else {
+            error = new KarateException(featureName + ":" + step.getLine() + " - " + error);
+        }
         StackTraceElement[] newTrace = new StackTraceElement[]{
             new StackTraceElement("✽", step.getPrefix() + ' ' + step.getText() + ' ', featureName, step.getLine())
         };
-        error.setStackTrace(newTrace);        
+        error.setStackTrace(newTrace);
         return new Result(FAILED, nanos, error, false);
     }
 
@@ -118,10 +121,10 @@ public class Result {
     public long getDurationNanos() {
         return durationNanos;
     }
-    
+
     public double getDurationMillis() {
         return Engine.nanosToMillis(durationNanos);
-    }    
+    }
 
     @Override
     public String toString() {

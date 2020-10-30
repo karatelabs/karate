@@ -28,7 +28,6 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Action;
 import com.intuit.karate.core.Result;
 import com.intuit.karate.core.Step;
-import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.exception.KarateException;
 import cucumber.api.java.en.When;
 import java.lang.reflect.InvocationTargetException;
@@ -194,13 +193,15 @@ public class StepRuntime {
         long startTime = System.nanoTime();
         try {
             match.method.invoke(actions, args);
-            return Result.passed(getElapsedTimeNanos(startTime));
-        } catch (InvocationTargetException e) { // target will be KarateException
-            if (e.getTargetException() instanceof KarateAbortException) {
+            if (actions.isAborted()) {
                 return Result.aborted(getElapsedTimeNanos(startTime));
+            } else if (actions.isFailed()) {
+                return Result.failed(getElapsedTimeNanos(startTime), actions.getFailedReason(), step);
             } else {
-                return Result.failed(getElapsedTimeNanos(startTime), e.getTargetException(), step);
+                return Result.passed(getElapsedTimeNanos(startTime));
             }
+        } catch (InvocationTargetException e) {
+            return Result.failed(getElapsedTimeNanos(startTime), e.getTargetException(), step);
         } catch (Exception e) {
             return Result.failed(getElapsedTimeNanos(startTime), e, step);
         }

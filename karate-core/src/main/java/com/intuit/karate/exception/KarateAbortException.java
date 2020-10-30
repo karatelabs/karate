@@ -29,7 +29,7 @@ package com.intuit.karate.exception;
  */
 public class KarateAbortException extends KarateException {
     
-    public KarateAbortException(String message) {
+    public KarateAbortException(String message) { // TODO remove
         super(message);
     }   
     

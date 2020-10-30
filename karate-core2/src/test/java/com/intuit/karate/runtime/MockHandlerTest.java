@@ -217,5 +217,18 @@ class MockHandlerTest {
         handle();
         match(response.getBodyConverted(), "{ foo: 'hello world', bar: 'some bytes' }");
     }
+    
+    @Test
+    void testAbort() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = 'before'",
+                "karate.abort()",
+                "def response = 'after'"
+        );
+        request.path("/hello");
+        handle();
+        match(response.getBodyAsString(), "before");
+    }    
 
 }

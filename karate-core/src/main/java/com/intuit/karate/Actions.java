@@ -31,6 +31,12 @@ import java.util.Map;
  * @author pthomas3
  */
 public interface Actions {
+    
+    boolean isFailed();
+    
+    Throwable getFailedReason();
+    
+    boolean isAborted();
 
     void assertTrue(String expression);
 

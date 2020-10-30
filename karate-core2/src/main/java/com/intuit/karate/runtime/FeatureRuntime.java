@@ -97,6 +97,11 @@ public class FeatureRuntime implements Runnable {
         return new Variable(currentScenario.engine.getAllVariablesAsMap());
     }
 
+    public Map<String, Object> getResult() {
+        Variable var = getResultVariable();
+        return var.isMap() ? var.getValue() : null;
+    }
+
     @Override
     public void run() {
         while (scenarios.hasNext()) {

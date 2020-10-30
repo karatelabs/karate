@@ -87,7 +87,7 @@ public class ScenarioGenerator implements Iterator<ScenarioRuntime> {
             if (background == null) {
                 background = new ScenarioRuntime(featureRuntime, currentScenario);
                 background.run();
-                if (background.isFailed()) { // karate-config.js || background failed
+                if (background.result.isFailed()) { // karate-config.js || background failed
                     currentScenario = null;
                     next = background;
                     return true; // exit early
