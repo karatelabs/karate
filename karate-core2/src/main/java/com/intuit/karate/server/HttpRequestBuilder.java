@@ -90,8 +90,8 @@ public class HttpRequestBuilder implements ProxyObject {
     private Map<String, List<String>> headers;
     private MultiPartBuilder multiPart;
     private Object body;
-    private Set<Cookie> cookies;    
-    private String retryUntil;    
+    private Set<Cookie> cookies;
+    private String retryUntil;
 
     public final HttpClient client;
 
@@ -196,7 +196,7 @@ public class HttpRequestBuilder implements ProxyObject {
 
     public void setRetryUntil(String retryUntil) {
         this.retryUntil = retryUntil;
-    }    
+    }
 
     public HttpRequestBuilder url(String value) {
         url = value;
@@ -265,6 +265,13 @@ public class HttpRequestBuilder implements ProxyObject {
         return getHeader(HttpConstants.HDR_CONTENT_TYPE);
     }
 
+    public HttpRequestBuilder removeHeader(String name) {
+        if (headers != null) {
+            StringUtils.removeIgnoreKeyCase(headers, name);
+        }
+        return this;
+    }
+
     public HttpRequestBuilder header(String name, String... values) {
         return header(name, Arrays.asList(values));
     }
@@ -289,10 +296,12 @@ public class HttpRequestBuilder implements ProxyObject {
 
     public HttpRequestBuilder headers(Map<String, Object> map) {
         map.forEach((k, v) -> {
-            if (v instanceof List) {
-                header(k, (List) v);
-            } else if (v != null) {
-                header(k, v.toString());
+            if (!k.startsWith(":")) { // strip (armeria) special headers
+                if (v instanceof List) {
+                    header(k, (List) v);
+                } else if (v != null) {
+                    header(k, v.toString());
+                }
             }
         });
         return this;

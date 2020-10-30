@@ -111,6 +111,8 @@ public class MockHandler implements ServerHandler {
         runtime.logger.info("mock server initialized: {}", featureName);
     }
 
+    private static final Result PASSED = Result.passed(0);
+
     @Override
     public Response handle(Request req) {
         LOCAL_REQUEST.set(req);
@@ -127,6 +129,8 @@ public class MockHandler implements ServerHandler {
         if (files != null) {
             engine.setVariable(REQUEST_FILES, files); // TODO add to docs
         }
+        // highly unlikely but support mocks calling other mocks in the same jvm
+        ScenarioEngine prevEngine = ScenarioEngine.LOCAL.get();
         ScenarioEngine.LOCAL.set(engine);
         engine.init();
         for (FeatureSection fs : feature.getSections()) {
@@ -139,17 +143,19 @@ public class MockHandler implements ServerHandler {
                 Response res = new Response(200);
                 Variable response, responseStatus, responseHeaders, responseDelay;
                 ScenarioActions actions = new ScenarioActions(engine);
+                Result result = PASSED;
                 synchronized (runtime) { // BEGIN TRANSACTION ==================
                     for (Step step : scenario.getSteps()) {
-                        Result result = StepRuntime.execute(step, actions);
+                        result = StepRuntime.execute(step, actions);
                         if (result.isAborted()) {
                             runtime.logger.debug("abort at {}:{}", featureName, step.getLine());
                             break;
                         }
                         if (result.isFailed()) {
-                            String message = "server-side scenario failed - " + featureName + ":" + step.getLine();
+                            String message = "server-side scenario failed, " + featureName + ":" + step.getLine()
+                                    + "\n" + result.getError().getMessage();
                             runtime.logger.error(message);
-                            throw new KarateException(message, result.getError());
+                            break;
                         }
                     }
                     Map<String, Variable> vars = runtime.engine.vars;
@@ -158,28 +164,35 @@ public class MockHandler implements ServerHandler {
                     responseHeaders = vars.remove(RESPONSE_HEADERS);
                     responseDelay = vars.remove(RESPONSE_DELAY);
                 } // END TRANSACTION ===========================================
+                ScenarioEngine.LOCAL.set(prevEngine);
+                if (result.isFailed()) {
+                    response = new Variable(result.getError().getMessage());
+                    responseStatus = new Variable(500);
+                } else {
+                    if (responseHeaders != null && responseHeaders.isMap()) {
+                        Map<String, Object> map = responseHeaders.getValue();
+                        map.forEach((k, v) -> {
+                            if (v instanceof List) {
+                                res.setHeader(k, (List) v);
+                            } else if (v != null) {
+                                res.setHeader(k, v.toString());
+                            }
+                        });
+                    }
+                    if (responseDelay != null) {
+                        res.setDelay(responseDelay.getAsInt());
+                    }
+                }
                 if (response != null) {
                     res.setBody(response.getAsByteArray());
                 }
                 if (responseStatus != null) {
                     res.setStatus(responseStatus.getAsInt());
                 }
-                if (responseHeaders != null && responseHeaders.isMap()) {
-                    Map<String, Object> map = responseHeaders.getValue();
-                    map.forEach((k, v) -> {
-                        if (v instanceof List) {
-                            res.setHeader(k, (List) v);
-                        } else if (v != null) {
-                            res.setHeader(k, v.toString());
-                        }
-                    });
-                }
-                if (responseDelay != null) {
-                    res.setDelay(responseDelay.getAsInt());
-                }
                 return res;
             }
         }
+        ScenarioEngine.LOCAL.set(prevEngine);
         runtime.logger.warn("no scenarios matched, returning 404: {}", req);
         return new Response(404);
     }

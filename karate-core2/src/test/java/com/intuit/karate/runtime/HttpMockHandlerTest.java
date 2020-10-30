@@ -82,4 +82,20 @@ class HttpMockHandlerTest {
         match(response.getBodyAsString(), "hello world");
     }
 
+    @Test
+    void testProceed() {
+        FeatureBuilder fb = FeatureBuilder.background().scenario(
+                "pathMatches('/hello')",
+                "def response = 'world'");
+        HttpServer downStream = new HttpServer(0, new MockHandler(fb.build()));
+        String downStreamUrl = "http://localhost:" + downStream.getPort();
+        background().scenario(
+                "pathMatches('/hello')",
+                "karate.proceed('" + downStreamUrl + "')",
+                "def response = 'hello ' + response");
+        response = handle().path("/hello").invoke("get");
+        match(response.getBodyAsString(), "hello world");
+        downStream.stop();
+    }
+
 }

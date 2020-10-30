@@ -77,8 +77,8 @@ public class StringUtils {
             return addDots ? s.substring(0, length) + " ..." : s.substring(0, length);
         }
         return s;
-    }    
-    
+    }
+
     public static String trimToEmpty(String s) {
         if (s == null) {
             return EMPTY;
@@ -223,7 +223,7 @@ public class StringUtils {
             return text;
         }
     }
-    
+
     public static <T> T getIgnoreKeyCase(Map<String, T> map, String name) {
         if (map == null || name == null) {
             return null;
@@ -234,6 +234,18 @@ public class StringUtils {
             }
         }
         return null;
-    }    
+    }
+
+    public static void removeIgnoreKeyCase(Map<String, ?> map, String name) {
+        if (map == null || name == null) {
+            return;
+        }
+        for (String key : map.keySet()) {
+            if (name.equalsIgnoreCase(key)) {
+                map.remove(key);
+                return;
+            }
+        }
+    }
 
 }
