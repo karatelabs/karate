@@ -43,6 +43,7 @@
         <spring.version>5.2.9.RELEASE</spring.version>
         <spring.boot.version>2.3.4.RELEASE</spring.boot.version>
         <jacoco.plugin.version>0.7.9</jacoco.plugin.version>
+        <assertj.version>3.16.1</assertj.version>
     </properties>
 
     <modules>
@@ -52,9 +53,10 @@
         <module>karate-demo</module>
         <module>karate-gatling</module>
         <module>karate-mock-servlet</module>
-        <module>karate-robot</module>        
+        <module>karate-robot</module>
         <module>karate-e2e-tests</module>
         <module>karate-archetype</module>
+        <module>karate-json-faker</module>
     </modules>
 
     <build>       

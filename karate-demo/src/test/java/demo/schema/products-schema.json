@@ -47,7 +47,12 @@
       },
       "warehouseLocation": {
         "description": "Coordinates of the warehouse with the product",
-        "$ref": "http://json-schema.org/geo"
+        "type": "object",
+        "properties": {
+          "latitude":  { "type": "number", "minimum": -90,  "maximum": 90 },
+          "longitude": { "type": "number", "minimum": -180, "maximum": 180 }
+        },
+        "required": ["latitude", "longitude"]
       }
     },
     "required": [

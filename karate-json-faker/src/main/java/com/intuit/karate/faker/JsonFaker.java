@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2019 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,34 +21,36 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.demo.config;
+package com.intuit.karate.faker;
 
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.intuit.karate.faker.json.AbstractJsonObject;
+import com.intuit.karate.faker.json.JsonObject;
+import com.intuit.karate.faker.json.JsonObjectsFactory;
 
 /**
  *
- * @author pthomas3
+ * @author sixdouglas
  */
-@Configuration
-public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+public class JsonFaker {
+    private final ObjectMapper mapper = new ObjectMapper();
 
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        http.csrf().ignoringAntMatchers(
-                "/cats/**",
-                "/dogs/**",
-                "/products/**",
-                "/files/**",
-                "/search/**",
-                "/redirect/**",
-                "/graphql/**",
-                "/soap/**",
-                "/echo/**",
-                "/websocket/**",
-                "/websocket-controller/**"
-        );
+    public String generate(String schemaString) throws JsonProcessingException {
+        if (schemaString == null) {
+            return null;
+        }
+
+        JsonNode jsonSchema = getJsonFromString(schemaString);
+        AbstractJsonObject mainObject = JsonObjectsFactory.getInstance().build(null, jsonSchema, jsonSchema);
+        if (mainObject instanceof JsonObject) {
+            mainObject.setMainObject(true);
+        }
+        return mainObject.generateValue();
     }
 
+    private JsonNode getJsonFromString(String schemaContent) throws JsonProcessingException {
+        return mapper.readTree(schemaContent);
+    }
 }

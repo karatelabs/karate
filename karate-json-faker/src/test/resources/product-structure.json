@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "JSON schema for product structure",
+  "definitions": {
+    "dimension": {
+      "type": "object",
+      "properties": {
+        "length": { "type": "number", "minimum": 0, "maximum": 1000 },
+        "width":  { "type": "number", "minimum": 0, "maximum": 1000 },
+        "height": { "type": "number", "minimum": 0, "maximum": 1000 }
+      },
+      "required": ["length", "width"]
+    },
+    "location": {
+      "type": "object",
+      "properties": {
+        "latitude":  { "type": "number", "minimum": -90,  "maximum": 90 },
+        "longitude": { "type": "number", "minimum": -180, "maximum": 180 }
+      },
+      "required": ["latitude", "longitude"]
+    }
+  },
+  "type": "object",
+
+  "properties": {
+    "name": { "type": "string", "maxLength": 50 },
+    "price": { "type": "number", "minimum": 0, "maximum": 1000 },
+    "tags": { "type": "array", "items": { "type": "string", "maxLength": 50 }, "maxItems" : 20 },
+    "dimensions": { "$ref": "#/definitions/dimension" },
+    "warehouseLocation": { "$ref": "#/definitions/location" }
+  },
+  "required": ["name", "price", "dimensions"]
+}

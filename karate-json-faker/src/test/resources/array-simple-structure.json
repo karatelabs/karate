@@ -1,0 +1,1 @@
+{ "type": "array", "items": { "type": "string", "maxLength": 50 }, "maxItems" : 20, "minItems" : 5, "uniqueItems" : true }

@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2019 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,34 +21,31 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.demo.config;
+package com.intuit.karate.faker.json;
 
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.junit.jupiter.api.Test;
+
+import static com.intuit.karate.faker.json.JsonObject.JSON_MAIN_OBJECT_PATTERN;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  *
- * @author pthomas3
+ * @author sixdouglas
  */
-@Configuration
-public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+class JsonBooleanTest {
 
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        http.csrf().ignoringAntMatchers(
-                "/cats/**",
-                "/dogs/**",
-                "/products/**",
-                "/files/**",
-                "/search/**",
-                "/redirect/**",
-                "/graphql/**",
-                "/soap/**",
-                "/echo/**",
-                "/websocket/**",
-                "/websocket-controller/**"
-        );
+    @Test
+    void generateValue() {
+        JsonBoolean jsonBoolean = new JsonBoolean();
+        String value = jsonBoolean.generateValue();
+        assertThat(value).isNotBlank();
     }
 
+    @Test
+    void generateBooleanValue() {
+        JsonBoolean jsonBoolean = new JsonBoolean();
+        jsonBoolean.setName("myBool");
+        String value = String.format(JSON_MAIN_OBJECT_PATTERN, jsonBoolean.generateValue());
+        assertThat(value).matches("^\\{ \"myBool\" : (true|false) \\}$");
+    }
 }

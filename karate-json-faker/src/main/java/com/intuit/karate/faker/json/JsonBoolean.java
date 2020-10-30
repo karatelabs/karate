@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2019 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,34 +21,29 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.demo.config;
+package com.intuit.karate.faker.json;
 
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  *
- * @author pthomas3
+ * @author sixdouglas
  */
-@Configuration
-public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+public class JsonBoolean extends AbstractJsonObject {
 
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        http.csrf().ignoringAntMatchers(
-                "/cats/**",
-                "/dogs/**",
-                "/products/**",
-                "/files/**",
-                "/search/**",
-                "/redirect/**",
-                "/graphql/**",
-                "/soap/**",
-                "/echo/**",
-                "/websocket/**",
-                "/websocket-controller/**"
-        );
+    public JsonBoolean() {
     }
 
+    public JsonBoolean(String name) {
+        super(name);
+    }
+
+    @Override
+    public String generateValue() {
+        if (this.isMainObject()) {
+            return String.format(JSON_MAIN_PATTERN, ThreadLocalRandom.current().nextBoolean());
+        } else {
+            return String.format(JSON_PROPERTY_PATTERN, getName(), ThreadLocalRandom.current().nextBoolean());
+        }
+    }
 }

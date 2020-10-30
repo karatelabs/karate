@@ -5,6 +5,6 @@ Background:
 * url demoBaseUrl
 
 Scenario:
-Given path 'cats', id
+Given path 'cats'
 When method get
 Then status 200

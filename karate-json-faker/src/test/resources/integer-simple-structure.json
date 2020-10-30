@@ -1,0 +1,1 @@
+{ "type": "integer", "maximum": 50, "minimum": 5, "maxExclu": true, "minExclu": false, "multipleOf": 20 }
