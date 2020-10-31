@@ -59,7 +59,7 @@ public class ScenarioRuntime implements Runnable {
     public final ScenarioActions actions;
     public final ScenarioResult result;
     public final ScenarioEngine engine;
-    public final Collection<RuntimeHook> runtimeHooks;
+    public final Collection<RuntimeHook> hooks;
     public final boolean reportDisabled;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
@@ -67,9 +67,9 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario, ScenarioRuntime background) {
-        runtimeHooks = featureRuntime.suite.runtimeHooks;
+        hooks = featureRuntime.suite.hooks;
         this.featureRuntime = featureRuntime;
-        this.parentCall = featureRuntime.parentCall;
+        this.parentCall = featureRuntime.caller;
         if (parentCall.isNone()) {
             engine = new ScenarioEngine(new Config(), this, new HashMap(), logger);
         } else if (parentCall.isSharedScope()) {
@@ -215,20 +215,24 @@ public class ScenarioRuntime implements Runnable {
 
     protected Map<String, Object> getMagicVariables() {
         Map<String, Object> map = new HashMap();
+        Variable arg = parentCall.getArg();
+        if (parentCall.isNone()) { // if feature called via java api
+            if (arg != null && arg.isMap()) {
+                map.putAll(arg.getValue());
+            }
+        } else {
+            map.put("__arg", arg);
+            map.put("__loop", parentCall.getLoopIndex());
+            if (arg != null && arg.isMap()) {
+                map.putAll(arg.getValue());
+            }
+        }
         if (scenario.isOutline()) { // init examples row magic variables
             Map<String, Object> exampleData = scenario.getExampleData();
             exampleData.forEach((k, v) -> map.put(k, v));
             map.put("__row", exampleData);
             map.put("__num", scenario.getExampleIndex());
             // TODO breaking change configure outlineVariablesAuto deprecated          
-        }
-        if (!parentCall.isNone()) {
-            Variable arg = parentCall.getArg();
-            map.put("__arg", arg);
-            map.put("__loop", parentCall.getLoopIndex());
-            if (arg != null && arg.isMap()) {
-                map.putAll(arg.getValue());
-            }
         }
         return map;
     }
@@ -254,8 +258,8 @@ public class ScenarioRuntime implements Runnable {
             evalConfigJs(featureRuntime.suite.karateConfig);
             evalConfigJs(featureRuntime.suite.karateConfigEnv);
         }
-        if (runtimeHooks != null) {
-            runtimeHooks.forEach(h -> h.beforeScenario(this));
+        if (hooks != null) {
+            hooks.forEach(h -> h.beforeScenario(this));
         }
     }
 
@@ -272,9 +276,9 @@ public class ScenarioRuntime implements Runnable {
 
     // extracted for debug
     public StepResult execute(Step step) {
-        if (runtimeHooks != null) {
+        if (hooks != null) {
             boolean shouldExecute = true;
-            for (RuntimeHook hook : runtimeHooks) {
+            for (RuntimeHook hook : hooks) {
                 if (!hook.beforeStep(step, this)) {
                     shouldExecute = false;
                 }
@@ -293,8 +297,8 @@ public class ScenarioRuntime implements Runnable {
             }
             currentStepResult = new StepResult(step, stepResult, null, null, null);
             currentStepResult.setHidden(hidden);
-            if (runtimeHooks != null) {
-                runtimeHooks.forEach(h -> h.afterStep(currentStepResult, this));
+            if (hooks != null) {
+                hooks.forEach(h -> h.afterStep(currentStepResult, this));
             }
             return currentStepResult;
         } else {
@@ -315,8 +319,8 @@ public class ScenarioRuntime implements Runnable {
             embeds = null;
             currentStepResult.setHidden(hidden);
             currentStepResult.setShowLog(showLog);
-            if (runtimeHooks != null) {
-                runtimeHooks.forEach(h -> h.afterStep(currentStepResult, this));
+            if (hooks != null) {
+                hooks.forEach(h -> h.afterStep(currentStepResult, this));
             }
             return currentStepResult;
         }
@@ -328,8 +332,8 @@ public class ScenarioRuntime implements Runnable {
             featureRuntime.result.addResult(result);
             engine.logLastPerfEvent(result.getFailureMessageForDisplay());
             engine.invokeAfterHookIfConfigured(false);
-            if (runtimeHooks != null) {
-                runtimeHooks.forEach(h -> h.afterScenario(this));
+            if (hooks != null) {
+                hooks.forEach(h -> h.afterScenario(this));
             }
             if (currentStepResult == null) {
                 Step step = new Step(scenario.getFeature(), scenario, -1);

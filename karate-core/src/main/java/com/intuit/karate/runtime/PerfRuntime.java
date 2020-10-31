@@ -39,5 +39,7 @@ public interface PerfRuntime {
     void submit(Runnable runnable);
     
     void afterFeature();
+    
+    void next();
 
 }

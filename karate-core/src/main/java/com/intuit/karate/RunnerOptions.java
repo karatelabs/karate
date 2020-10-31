@@ -104,6 +104,10 @@ public class RunnerOptions {
         return debugPort;
     }
 
+    public String getEnv() {
+        return env;
+    }        
+
     public static RunnerOptions parseStringArgs(String[] args) {
         RunnerOptions options = CommandLine.populateCommand(new RunnerOptions(), args);
         List<String> featuresTemp = new ArrayList();
@@ -131,10 +135,6 @@ public class RunnerOptions {
         String[] args = line.split("\\s+");
         RunnerOptions options = parseStringArgs(args);
         options.name = nameTemp;
-        // a little easier for things like the vs code ide to say "-e smoke" etc
-        if (options.env != null) { 
-            System.setProperty("karate.env", options.env);
-        }
         return options;
     }
 

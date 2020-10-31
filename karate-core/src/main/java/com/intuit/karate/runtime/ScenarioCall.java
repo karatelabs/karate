@@ -32,8 +32,6 @@ import java.util.Map;
  */
 public class ScenarioCall {
 
-    public static final ScenarioCall NONE = new ScenarioCall(null, null);
-
     public final ScenarioRuntime parentRuntime;
     public final int depth;
     public final Feature feature;
@@ -86,6 +84,10 @@ public class ScenarioCall {
 
     public boolean isKarateConfigDisabled() {
         return karateConfigDisabled;
+    }
+    
+    public static ScenarioCall none() {
+        return new ScenarioCall(null, null);
     }
 
     public ScenarioCall(ScenarioRuntime parentRuntime, Feature feature) {

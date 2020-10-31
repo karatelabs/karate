@@ -23,13 +23,11 @@
  */
 package com.intuit.karate.runtime;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.Resource;
 import com.intuit.karate.Results;
 import com.intuit.karate.StringUtils;
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,13 +39,15 @@ import java.util.Map;
 public class SuiteRuntime {
 
     public final String env;
-    public final String tagSelector = ""; // TODO
-    public final Logger logger = new Logger();
-    public final File workingDir = new File("");
-    public final String buildDir = FileUtils.getBuildDir();
-    public final ClassLoader classLoader = ClassLoader.getSystemClassLoader();
-    public final Results results = Results.startTimer(1);
-    public final Collection<RuntimeHook> runtimeHooks = new ArrayList();
+    public final String tagSelector;
+    public final Logger logger;
+    public final File workingDir;
+    public final String buildDir;
+    public final String reportDir;
+    public final ClassLoader classLoader;
+    public final int threadCount;
+    public final Results results;
+    public final Collection<RuntimeHook> hooks;
 
     public final Map<String, Object> SUITE_CACHE = new HashMap();
 
@@ -65,6 +65,21 @@ public class SuiteRuntime {
     }
 
     public SuiteRuntime() {
+        this(new Runner.Builder());
+    }
+
+    public SuiteRuntime(Runner.Builder rb) {
+        env = rb.env;
+        tagSelector = Tags.fromKarateOptionsTags(rb.tags);
+        logger = rb.logger;
+        workingDir = rb.workingDir;
+        buildDir = rb.buildDir;
+        reportDir = rb.reportDir;
+        classLoader = rb.classLoader;
+        threadCount = rb.threadCount;
+        hooks = rb.hooks;
+        results = Results.startTimer(threadCount);
+        //======================================================================
         karateBase = read("classpath:karate-base.js");
         if (karateBase != null) {
             logger.info("karate-base.js found on classpath");
@@ -90,7 +105,6 @@ public class SuiteRuntime {
         } else {
             logger.warn("karate-config.js not found in {}", configPrefix);
         }
-        env = StringUtils.trimToNull(System.getProperty("karate.env"));
         if (env != null) {
             karateConfigEnv = read(configPrefix + "karate-config-" + env + ".js");
             if (karateConfigEnv != null) {
