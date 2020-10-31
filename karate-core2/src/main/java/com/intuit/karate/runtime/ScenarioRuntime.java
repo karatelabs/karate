@@ -27,6 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.Result;
 import com.intuit.karate.core.Scenario;
@@ -36,6 +37,7 @@ import com.intuit.karate.core.StepResult;
 import com.intuit.karate.shell.FileLogAppender;
 import java.io.File;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -58,6 +60,7 @@ public class ScenarioRuntime implements Runnable {
     public final ScenarioResult result;
     public final ScenarioEngine engine;
     public final Collection<RuntimeHook> runtimeHooks;
+    public final boolean reportDisabled;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
         this(featureRuntime, scenario, null);
@@ -71,10 +74,12 @@ public class ScenarioRuntime implements Runnable {
             engine = new ScenarioEngine(new Config(), this, new HashMap(), logger);
         } else if (parentCall.isSharedScope()) {
             Config config = parentCall.parentRuntime.engine.getConfig();
-            engine = new ScenarioEngine(config, this, parentCall.parentRuntime.engine.vars, logger);
+            Map<String, Variable> vars = parentCall.parentRuntime.engine.vars;
+            engine = new ScenarioEngine(config, this, vars, logger);
         } else { // new, but clone and copy data
             Config config = new Config(parentCall.parentRuntime.engine.getConfig());
-            engine = new ScenarioEngine(config, this, parentCall.parentRuntime.engine.copyVariables(false), logger);
+            Map<String, Variable> vars = parentCall.parentRuntime.engine.copyVariables(false);
+            engine = new ScenarioEngine(config, this, vars, logger);
         }
         actions = new ScenarioActions(engine);
         this.scenario = scenario;
@@ -89,6 +94,7 @@ public class ScenarioRuntime implements Runnable {
             appender = LogAppender.NO_OP;
         }
         tags = Tags.merge(featureRuntime.feature.getTags(), scenario.getTags());
+        reportDisabled = tags.valuesFor("report").isAnyOf("false");
     }
 
     public boolean isFailed() {
@@ -103,9 +109,24 @@ public class ScenarioRuntime implements Runnable {
         return stopped;
     }
 
+    public void embed(byte[] bytes, String contentType) {
+        Embed embed = new Embed();
+        embed.setBytes(bytes);
+        embed.setMimeType(contentType);
+        embed(embed);
+    }
+
+    public void embed(Embed embed) {
+        if (embeds == null) {
+            embeds = new ArrayList();
+        }
+        embeds.add(embed);
+    }
+
     private List<Step> steps;
     private LogAppender appender;
-    private StepResult lastStepResult;
+    private List<Embed> embeds;
+    private StepResult currentStepResult;
     private Step currentStep;
     private Throwable error;
     private boolean stopped;
@@ -171,14 +192,14 @@ public class ScenarioRuntime implements Runnable {
             int index = 0;
             while ((index = nextStepIndex()) < count) {
                 currentStep = steps.get(index);
-                lastStepResult = execute(currentStep);
-                if (lastStepResult == null) { // debug step-back !
-                    continue;
+                execute(currentStep);
+                if (currentStepResult != null) { // can be null if debug step-back or hook skip
+                    result.addStepResult(currentStepResult);
                 }
-                result.addStepResult(lastStepResult);
             }
         } catch (Exception e) {
             logError(e.getMessage());
+            result.addError("run() failed", e);
         } finally {
             afterRun();
         }
@@ -233,6 +254,9 @@ public class ScenarioRuntime implements Runnable {
             evalConfigJs(featureRuntime.suite.karateConfig);
             evalConfigJs(featureRuntime.suite.karateConfigEnv);
         }
+        if (runtimeHooks != null) {
+            runtimeHooks.forEach(h -> h.beforeScenario(this));
+        }
     }
 
     private void evalConfigJs(String js) {
@@ -248,6 +272,18 @@ public class ScenarioRuntime implements Runnable {
 
     // extracted for debug
     public StepResult execute(Step step) {
+        if (runtimeHooks != null) {
+            boolean shouldExecute = true;
+            for (RuntimeHook hook : runtimeHooks) {
+                if (!hook.beforeStep(step, this)) {
+                    shouldExecute = false;
+                }
+            }
+            if (!shouldExecute) {
+                return null;
+            }
+        }
+        boolean hidden = reportDisabled || (step.isPrefixStar() && !step.isPrint() && !engine.getConfig().isShowAllSteps());
         if (stopped) {
             Result stepResult;
             if (aborted && engine.getConfig().isAbortedStepsShouldPass()) {
@@ -255,15 +291,16 @@ public class ScenarioRuntime implements Runnable {
             } else {
                 stepResult = Result.skipped();
             }
-            StepResult sr = new StepResult(step, stepResult, null, null, null);
-            // log / step visibility
-            // after step hooks
-            return sr;
+            currentStepResult = new StepResult(step, stepResult, null, null, null);
+            currentStepResult.setHidden(hidden);
+            if (runtimeHooks != null) {
+                runtimeHooks.forEach(h -> h.afterStep(currentStepResult, this));
+            }
+            return currentStepResult;
         } else {
             Result stepResult = StepRuntime.execute(step, actions);
-            // collect embeds
-            // log / step visibility
-            // collect log
+            String stepLog = StringUtils.trimToNull(appender.collect());
+            boolean showLog = !reportDisabled && engine.getConfig().isShowLog();
             if (stepResult.isAborted()) { // we log only aborts for visibility
                 aborted = true;
                 stopped = true;
@@ -274,9 +311,14 @@ public class ScenarioRuntime implements Runnable {
                 logError(error.getMessage());
             }
             ScenarioEngine.LOCAL.set(engine); // restore, since a call may have switched this to a nested scenario
-            StepResult sr = new StepResult(step, stepResult, null, null, null);
-            // after step hooks           
-            return sr;
+            currentStepResult = new StepResult(step, stepResult, stepLog, embeds, null);
+            embeds = null;
+            currentStepResult.setHidden(hidden);
+            currentStepResult.setShowLog(showLog);
+            if (runtimeHooks != null) {
+                runtimeHooks.forEach(h -> h.afterStep(currentStepResult, this));
+            }
+            return currentStepResult;
         }
     }
 
@@ -284,17 +326,27 @@ public class ScenarioRuntime implements Runnable {
         try {
             result.setEndTime(System.currentTimeMillis() - featureRuntime.suite.results.getStartTime());
             featureRuntime.result.addResult(result);
-            // check if context is not-null
-            // gatling clean up
-            // after-scenario hook
-            // embed collection for afterScenario
-            // stop browser automation if running
-            if (lastStepResult != null) {
-                String stepLog = StringUtils.trimToNull(appender.collect());
-                lastStepResult.appendToStepLog(stepLog);
+            engine.logLastPerfEvent(result.getFailureMessageForDisplay());
+            engine.invokeAfterHookIfConfigured(false);
+            if (runtimeHooks != null) {
+                runtimeHooks.forEach(h -> h.afterScenario(this));
             }
+            if (currentStepResult == null) {
+                Step step = new Step(scenario.getFeature(), scenario, -1);
+                step.setPrefix("*");
+                step.setText("(empty step)");
+                currentStepResult = new StepResult(step, Result.skipped(), null, null, null);
+            }
+            engine.stop(currentStepResult);
+            if (embeds != null) {
+                embeds.forEach(embed -> currentStepResult.addEmbed(embed));
+                embeds = null;
+            }
+            String stepLog = StringUtils.trimToNull(appender.collect());
+            currentStepResult.appendToStepLog(stepLog);
         } catch (Exception e) {
-            logError("(afterScenario) " + e.getMessage());
+            logError(e.getMessage());
+            result.addError("afterRun() failed", e);
         } finally {
             ScenarioEngine.LOCAL.remove();
             // next

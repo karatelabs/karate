@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.runtime;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.Resource;
 import com.intuit.karate.Results;
@@ -43,6 +44,7 @@ public class SuiteRuntime {
     public final String tagSelector = ""; // TODO
     public final Logger logger = new Logger();
     public final File workingDir = new File("");
+    public final String buildDir = FileUtils.getBuildDir();
     public final ClassLoader classLoader = ClassLoader.getSystemClassLoader();
     public final Results results = Results.startTimer(1);
     public final Collection<RuntimeHook> runtimeHooks = new ArrayList();

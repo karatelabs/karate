@@ -28,10 +28,15 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
+import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.PerfEvent;
+import com.intuit.karate.core.Plugin;
+import com.intuit.karate.core.StepResult;
 import com.intuit.karate.data.Json;
 import com.intuit.karate.data.JsonUtils;
+import com.intuit.karate.driver.Driver;
+import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
@@ -39,6 +44,8 @@ import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchType;
 import com.intuit.karate.match.MatchValue;
+import com.intuit.karate.netty.WebSocketClient;
+import com.intuit.karate.netty.WebSocketOptions;
 import com.intuit.karate.server.ArmeriaHttpClient;
 import com.intuit.karate.server.HttpClient;
 import com.intuit.karate.server.HttpConstants;
@@ -46,7 +53,9 @@ import com.intuit.karate.server.HttpRequest;
 import com.intuit.karate.server.HttpRequestBuilder;
 import com.intuit.karate.server.Request;
 import com.intuit.karate.server.Response;
+import com.intuit.karate.shell.Command;
 import com.jayway.jsonpath.PathNotFoundException;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -76,19 +85,19 @@ public class ScenarioEngine {
     private static final String KARATE = "karate";
     private static final String READ = "read";
 
-    private static final String RESPONSE = "response";
+    public static final String RESPONSE = "response";
+    public static final String RESPONSE_HEADERS = "responseHeaders";
+    public static final String RESPONSE_STATUS = "responseStatus";
     private static final String RESPONSE_BYTES = "responseBytes";
     private static final String RESPONSE_COOKIES = "responseCookies";
-    private static final String RESPONSE_HEADERS = "responseHeaders";
-    private static final String RESPONSE_STATUS = "responseStatus";
     private static final String RESPONSE_TIME = "responseTime";
     private static final String RESPONSE_TYPE = "responseType";
 
-    private static final String REQUEST = "request";
-    private static final String REQUEST_URL_BASE = "requestUrlBase";
-    private static final String REQUEST_URI = "requestUri";
-    private static final String REQUEST_METHOD = "requestMethod";
-    private static final String REQUEST_HEADERS = "requestHeaders";
+    public static final String REQUEST = "request";
+    public static final String REQUEST_URL_BASE = "requestUrlBase";
+    public static final String REQUEST_URI = "requestUri";
+    public static final String REQUEST_METHOD = "requestMethod";
+    public static final String REQUEST_HEADERS = "requestHeaders";
     private static final String REQUEST_TIME_STAMP = "requestTimeStamp";
 
     public final ScenarioRuntime runtime;
@@ -220,6 +229,72 @@ public class ScenarioEngine {
             return;
         }
         evalJs("karate.log('[print]'," + StringUtils.join(exps, ',') + ")");
+    }
+
+    public void invokeAfterHookIfConfigured(boolean afterFeature) {
+        if (runtime.parentCall.depth > 0) {
+            return;
+        }
+        Variable v = afterFeature ? config.getAfterFeature() : config.getAfterScenario();
+        if (v.isFunction()) {
+            try {
+                v.invokeFunction();
+            } catch (Exception e) {
+                String prefix = afterFeature ? "afterFeature" : "afterScenario";
+                logger.warn("{} hook failed: {}", prefix, e.getMessage());
+            }
+        }
+    }
+
+    public void stop(StepResult lastStepResult) {
+        if (runtime.parentCall.isSharedScope()) {
+            ScenarioEngine parent = runtime.parentCall.parentRuntime.engine;
+            if (driver != null) { // a called feature inited the driver
+                parent.setDriver(driver);
+            }
+            if (robot != null) {
+                parent.setRobot(robot);
+            }
+            parent.webSocketClients = webSocketClients;
+            // return, don't kill driver just yet
+        } else if (runtime.parentCall.depth == 0) { // end of top-level scenario (no caller)
+            if (webSocketClients != null) {
+                webSocketClients.forEach(WebSocketClient::close);
+            }
+            if (driver != null) { // TODO move this to Plugin.afterScenario()
+                DriverOptions options = driver.getOptions();
+                if (options.stop) {
+                    driver.quit();
+                }
+                if (options.target != null) {
+                    logger.debug("custom target configured, attempting stop()");
+                    Map<String, Object> map = options.target.stop(logger);
+                    String video = (String) map.get("video");
+                    if (video != null && lastStepResult != null) {
+                        Embed embed = Embed.forVideoFile(video);
+                        lastStepResult.addEmbed(embed);
+                    }
+                } else {
+                    if (options.afterStop != null) {
+                        Command.execLine(null, options.afterStop);
+                    }
+                    if (options.videoFile != null) {
+                        File src = new File(options.videoFile);
+                        if (src.exists()) {
+                            String path = FileUtils.getBuildDir() + File.separator + System.currentTimeMillis() + ".mp4";
+                            File dest = new File(path);
+                            FileUtils.copy(src, dest);
+                            Embed embed = Embed.forVideoFile("../" + dest.getName());
+                            lastStepResult.addEmbed(embed);
+                            logger.debug("appended video to report: {}", dest.getPath());
+                        }
+                    }
+                }
+            }
+            if (robot != null) {
+                robot.afterScenario();
+            }
+        }
     }
 
     // gatling =================================================================
@@ -619,7 +694,7 @@ public class ScenarioEngine {
         http.headers(vars.get(REQUEST_HEADERS).<Map>getValue());
         http.removeHeader(HttpConstants.HDR_CONTENT_LENGTH);
         http.body(vars.get(REQUEST).getValue());
-        if (http.client instanceof ArmeriaHttpClient) {            
+        if (http.client instanceof ArmeriaHttpClient) {
             Request mockRequest = MockHandler.LOCAL_REQUEST.get();
             if (mockRequest != null) {
                 ArmeriaHttpClient client = (ArmeriaHttpClient) http.client;
@@ -629,14 +704,73 @@ public class ScenarioEngine {
         httpInvoke();
     }
 
+    // websocket / async =======================================================
+    //   
+    private List<WebSocketClient> webSocketClients;
+    private Object signalResult;
+    private final Object LOCK = new Object();
+
+    public WebSocketClient webSocket(WebSocketOptions options) {
+        WebSocketClient webSocketClient = new WebSocketClient(options, logger);
+        if (webSocketClients == null) {
+            webSocketClients = new ArrayList();
+        }
+        webSocketClients.add(webSocketClient);
+        return webSocketClient;
+    }
+
+    public void signal(Object result) {
+        logger.trace("signal called: {}", result);
+        synchronized (LOCK) {
+            signalResult = result;
+            LOCK.notify();
+        }
+    }
+
+    public Object listen(long timeout, Runnable runnable) {
+        if (runnable != null) {
+            logger.trace("submitting listen function");
+            new Thread(runnable).start();
+        }
+        synchronized (LOCK) {
+            if (signalResult != null) {
+                logger.debug("signal arrived early ! result: {}", signalResult);
+                Object temp = signalResult;
+                signalResult = null;
+                return temp;
+            }
+            try {
+                logger.trace("entered listen wait state");
+                LOCK.wait(timeout);
+                logger.trace("exit listen wait state, result: {}", signalResult);
+            } catch (InterruptedException e) {
+                logger.error("listen timed out: {}", e.getMessage());
+            }
+            Object temp = signalResult;
+            signalResult = null;
+            return temp;
+        }
+    }
+
     // ui driver / robot =======================================================
     //
+    private Driver driver;
+    private Plugin robot;
+
     public void driver(String expression) {
 
     }
 
     public void robot(String expression) {
 
+    }
+
+    public void setDriver(Driver driver) {
+        this.driver = driver;
+    }
+
+    public void setRobot(Plugin robot) {
+        this.robot = robot;
     }
 
     //==========================================================================

@@ -51,18 +51,10 @@ public class MockHandler implements ServerHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(MockHandler.class);
 
-    private static final String REQUEST = "request";
     private static final String REQUEST_BYTES = "requestBytes";
-    private static final String REQUEST_URL_BASE = "requestUrlBase";
-    private static final String REQUEST_URI = "requestUri";
-    private static final String REQUEST_METHOD = "requestMethod";
-    private static final String REQUEST_HEADERS = "requestHeaders";
     private static final String REQUEST_PARAMS = "requestParams";
     private static final String REQUEST_FILES = "requestFiles";
 
-    private static final String RESPONSE = "response";
-    private static final String RESPONSE_STATUS = "responseStatus";
-    private static final String RESPONSE_HEADERS = "responseHeaders";
     private static final String RESPONSE_DELAY = "responseDelay";
 
     private static final String PATH_MATCHES = "pathMatches";
@@ -118,12 +110,12 @@ public class MockHandler implements ServerHandler {
         LOCAL_REQUEST.set(req);
         req.processBody();
         ScenarioEngine engine = new ScenarioEngine(runtime);
-        engine.setVariable(REQUEST_URL_BASE, req.getUrlBase());
-        engine.setVariable(REQUEST_URI, req.getPath());
-        engine.setVariable(REQUEST_METHOD, req.getMethod());
+        engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
+        engine.setVariable(ScenarioEngine.REQUEST_URI, req.getPath());
+        engine.setVariable(ScenarioEngine.REQUEST_METHOD, req.getMethod());
         engine.setVariable(REQUEST_PARAMS, req.getParams());
-        engine.setVariable(REQUEST_HEADERS, req.getHeaders());
-        engine.setVariable(REQUEST, req.getBodyConverted());
+        engine.setVariable(ScenarioEngine.REQUEST_HEADERS, req.getHeaders());
+        engine.setVariable(ScenarioEngine.REQUEST, req.getBodyConverted());
         engine.setVariable(REQUEST_BYTES, req.getBody());
         Map<String, List<Map<String, Object>>> files = req.getMultiPartFiles();
         if (files != null) {
@@ -159,9 +151,9 @@ public class MockHandler implements ServerHandler {
                         }
                     }
                     Map<String, Variable> vars = runtime.engine.vars;
-                    response = vars.remove(RESPONSE);
-                    responseStatus = vars.remove(RESPONSE_STATUS);
-                    responseHeaders = vars.remove(RESPONSE_HEADERS);
+                    response = vars.remove(ScenarioEngine.RESPONSE);
+                    responseStatus = vars.remove(ScenarioEngine.RESPONSE_STATUS);
+                    responseHeaders = vars.remove(ScenarioEngine.RESPONSE_HEADERS);
                     responseDelay = vars.remove(RESPONSE_DELAY);
                 } // END TRANSACTION ===========================================
                 ScenarioEngine.LOCAL.set(prevEngine);

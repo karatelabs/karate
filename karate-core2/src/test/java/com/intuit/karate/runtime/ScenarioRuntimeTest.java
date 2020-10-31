@@ -1,8 +1,13 @@
 package com.intuit.karate.runtime;
 
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.core.Embed;
+import com.intuit.karate.core.StepResult;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import static com.intuit.karate.runtime.RuntimeUtils.*;
+import java.io.File;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -412,6 +417,41 @@ class ScenarioRuntimeTest {
         );
         assertTrue(sr.engine.vars.get("foo").isMap());
         matchVar("bar", "map");
+    }
+
+    @Test
+    void testEmbed() {
+        run(
+                "karate.embed('<h1>hello world</h1>', 'text/html')"
+        );
+        List<StepResult> results = sr.result.getStepResults();
+        assertEquals(1, results.size());
+        List<Embed> embeds = results.get(0).getEmbeds();
+        assertEquals(1, embeds.size());
+        assertEquals(embeds.get(0).getAsString(), "<h1>hello world</h1>");
+        assertEquals(embeds.get(0).getMimeType(), "text/html");
+    }
+
+    @Test
+    void testStepLog() {
+        run(
+                "print 'hello world'"
+        );
+        List<StepResult> results = sr.result.getStepResults();
+        assertEquals(1, results.size());
+        String log = results.get(0).getStepLog();
+        assertTrue(log.contains("[print] hello world"));
+    }
+
+    @Test
+    void testWrite() {
+        run(
+                "def file = karate.write('hello world', 'runtime-test.txt')"
+        );
+        File file = (File) get("file");
+        assertEquals(file.getParentFile().getName(), "target");
+        assertEquals(file.getName(), "runtime-test.txt");
+        assertEquals(FileUtils.toString(file), "hello world");
     }
 
 }

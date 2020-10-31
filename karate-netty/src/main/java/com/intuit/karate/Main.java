@@ -147,7 +147,7 @@ public class Main implements Callable<Void> {
             }
         }
         logger = LoggerFactory.getLogger(Main.class);
-        logger.info("Karate version: {}", FileUtils.getKarateVersion());
+        logger.info("Karate version: {}", FileUtils.KARATE_VERSION);
         CommandLine cmd = new CommandLine(new Main());
         int returnCode = cmd.execute(args);
         System.exit(returnCode);

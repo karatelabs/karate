@@ -50,7 +50,7 @@ public class Results {
     private final List<ScenarioResult> scenarioResults = new ArrayList();
 
     public void printStats(int threadCount) {
-        System.out.println("Karate version: " + FileUtils.getKarateVersion());
+        System.out.println("Karate version: " + FileUtils.KARATE_VERSION);
         System.out.println("======================================================");
         System.out.println(String.format("elapsed: %6.2f | threads: %4d | thread time: %.2f ",
                 getElapsedTime() / 1000, threadCount, timeTakenMillis / 1000));
@@ -70,7 +70,7 @@ public class Results {
 
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap();
-        map.put("version", FileUtils.getKarateVersion());
+        map.put("version", FileUtils.KARATE_VERSION);
         map.put("threads", threadCount);
         map.put("features", featureCount);
         map.put("ignored", skipCount);

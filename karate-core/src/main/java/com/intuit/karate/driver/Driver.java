@@ -28,7 +28,6 @@ import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.http.Cookie;
-import com.intuit.karate.http.HttpUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;

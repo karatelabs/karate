@@ -23,86 +23,19 @@
  */
 package com.intuit.karate.netty;
 
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.codec.http.HttpObjectAggregator;
-import io.netty.handler.codec.http.HttpServerCodec;
-import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolConfig;
-import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
-import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketServerCompressionHandler;
-import java.net.InetSocketAddress;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  *
  * @author pthomas3
  */
-public class WebSocketProxyServer {
+public class WebSocketProxyServer extends WebSocketServerBase {
 
-    private static final Logger logger = LoggerFactory.getLogger(WebSocketProxyServer.class);
-
-    private final Channel channel;
-    private final int port;
-    private final EventLoopGroup bossGroup;
-    private final EventLoopGroup workerGroup;
-
-    public int getPort() {
-        return port;
+    public WebSocketProxyServer(int port, String url) {
+        super(port, handler(url));
     }
 
-    public void waitSync() {
-        try {
-            channel.closeFuture().sync();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public void stop() {
-        logger.info("stop: shutting down");
-        bossGroup.shutdownGracefully();
-        workerGroup.shutdownGracefully();
-        logger.info("stop: shutdown complete");
-    }
-
-    public WebSocketProxyServer(int port, String path, String url) {
-        this.port = port;
-        bossGroup = new NioEventLoopGroup(1);
-        workerGroup = new NioEventLoopGroup(8);
+    private static WebSocketProxyHandler handler(String url) {
         WebSocketOptions options = new WebSocketOptions(url, null);
-        WebSocketServerProtocolConfig config = WebSocketServerProtocolConfig.newBuilder()
-                .websocketPath("/")
-                .allowExtensions(true)
-                .checkStartsWith(true).build();
-        try {
-            ServerBootstrap b = new ServerBootstrap();
-            b.group(bossGroup, workerGroup)
-                    .channel(NioServerSocketChannel.class)
-                    .childHandler(new ChannelInitializer() {
-                        @Override
-                        protected void initChannel(Channel c) {
-                            ChannelPipeline p = c.pipeline();
-                            p.addLast(new HttpServerCodec());
-                            p.addLast(new HttpObjectAggregator(65536));
-                            p.addLast(new WebSocketServerCompressionHandler());
-                            p.addLast(new WebSocketServerProtocolHandler(config));
-                            p.addLast(new WebSocketProxyHandler(options));
-                        }
-                    });
-            channel = b.bind(port).sync().channel();
-            InetSocketAddress isa = (InetSocketAddress) channel.localAddress();
-            String host = "127.0.0.1"; //isa.getHostString();
-            port = isa.getPort();
-            logger.info("proxy server started - ws://{}:{}/{}", host, port, path);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        return new WebSocketProxyHandler(options);
     }
 
 }

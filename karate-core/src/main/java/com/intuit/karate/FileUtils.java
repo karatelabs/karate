@@ -361,21 +361,20 @@ public class FileUtils {
         }
     }
 
-    private static final String UNKNOWN = "(unknown)";
+    public static final String KARATE_VERSION;
 
-    public static String getKarateVersion() {
-        InputStream stream = FileUtils.class.getResourceAsStream("/karate-meta.properties");
-        if (stream == null) {
-            return UNKNOWN;
-        }
+    static {
         Properties props = new Properties();
+        InputStream stream = FileUtils.class.getResourceAsStream("/karate-meta.properties");
+        String value;
         try {
             props.load(stream);
             stream.close();
-            return (String) props.get("karate.version");
+            value = (String) props.get("karate.version");
         } catch (IOException e) {
-            return UNKNOWN;
+            value = "(unknown)";
         }
+        KARATE_VERSION = value;
     }
 
     public static void renameFileIfZeroBytes(String fileName) {

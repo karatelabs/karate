@@ -98,7 +98,7 @@ public class HtmlSummaryReport extends HtmlReport {
         setById("nav-fail", failCount + "");
         File file = saveHtmlToFile(targetDir, "karate-summary.html");
         System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
-                + FileUtils.getKarateVersion() + "\n"
+                + FileUtils.KARATE_VERSION + "\n"
                 + file.toPath().toUri()
                 + "\n===================================================================\n");
         return file;

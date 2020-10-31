@@ -38,13 +38,17 @@ import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchStep;
 import com.intuit.karate.match.MatchType;
+import com.intuit.karate.netty.WebSocketClient;
+import com.intuit.karate.netty.WebSocketOptions;
 import com.intuit.karate.server.HttpRequest;
+import com.intuit.karate.server.ResourceType;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import org.graalvm.polyglot.Value;
 
 /**
@@ -187,6 +191,13 @@ public class ScenarioBridge implements PerfContext {
 
     public void configure(String key, Object o) {
         getEngine().configure(key, new Variable(o));
+    }
+
+    public void embed(Object o, String contentType) {
+        if (contentType == null) {
+            contentType = ResourceType.fromObject(o).contentType;
+        }
+        getEngine().runtime.embed(JsValue.toBytes(o), contentType);
     }
 
     public Object eval(String exp) {
@@ -351,6 +362,16 @@ public class ScenarioBridge implements PerfContext {
 
     //==========================================================================
     //
+    public Object listen(long timeout, Value f) {
+        assertIfJsFunction(f);
+        Object result = getEngine().listen(timeout, () -> f.execute());
+        return JsValue.fromJava(result);
+    }
+
+    public Object listen(long timeout) {
+        return JsValue.fromJava(getEngine().listen(timeout, null));
+    }
+
     public void log(Value... values) {
         ScenarioEngine engine = getEngine();
         if (engine.getConfig().isPrintEnabled()) {
@@ -500,6 +521,10 @@ public class ScenarioBridge implements PerfContext {
         getEngine().set(name, path, new Variable(XmlUtils.toXmlDoc(xml)));
     }
 
+    public void signal(Object result) {
+        getEngine().signal(result);
+    }    
+
     public Object toBean(Object o, String className) {
         Json json = new Json(o);
         Object bean = JsonUtils.fromJson(json.toString(), className);
@@ -560,6 +585,47 @@ public class ScenarioBridge implements PerfContext {
         } else {
             return null;
         }
+    }
+
+    public WebSocketClient webSocket(String url) {
+        return webSocket(url, null, null);
+    }
+
+    public WebSocketClient webSocket(String url, Function<String, Boolean> handler) {
+        return webSocket(url, handler, null);
+    }
+
+    public WebSocketClient webSocket(String url, Function<String, Boolean> handler, Map<String, Object> map) {
+        if (handler == null) {
+            handler = t -> true; // auto signal for websocket tests
+        }
+        WebSocketOptions options = new WebSocketOptions(url, map);
+        options.setTextHandler(handler);
+        return getEngine().webSocket(options);
+    }
+
+    public WebSocketClient webSocketBinary(String url) {
+        return webSocketBinary(url, null, null);
+    }
+
+    public WebSocketClient webSocketBinary(String url, Function<byte[], Boolean> handler) {
+        return webSocketBinary(url, handler, null);
+    }
+
+    public WebSocketClient webSocketBinary(String url, Function<byte[], Boolean> handler, Map<String, Object> map) {
+        if (handler == null) {
+            handler = t -> true; // auto signal for websocket tests
+        }
+        WebSocketOptions options = new WebSocketOptions(url, map);
+        options.setBinaryHandler(handler);
+        return getEngine().webSocket(options);
+    }
+
+    public File write(Object o, String path) {
+        path = getEngine().runtime.featureRuntime.suite.buildDir + File.separator + path;
+        File file = new File(path);
+        FileUtils.writeToFile(file, JsValue.toBytes(o));
+        return file;
     }
 
     public Object xmlPath(Object o, String path) {
