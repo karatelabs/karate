@@ -1,60 +1,34 @@
-/*
- * The MIT License
- *
- * Copyright 2017 Intuit Inc.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
-import net.minidev.json.JSONArray;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.util.Map;
 import java.util.function.IntBinaryOperator;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import net.minidev.json.JSONArray;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author vmchukky
  */
 public class FeatureResultTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(FeatureResultTest.class);
-    
-    private static FeatureResult result(String name) {
+    static final Logger logger = LoggerFactory.getLogger(FeatureResultTest.class);
+
+    static FeatureResult result(String name) {
         Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/" + name);
-        return Engine.executeFeatureSync(null, feature, null, null);     
-    }     
-    
-    private static String xml(FeatureResult result) {
+        return Engine.executeFeatureSync(null, feature, null, null);
+    }
+
+    static String xml(FeatureResult result) {
         File file = Engine.saveResultXml("target", result, null);
-        return FileUtils.toString(file);           
+        return FileUtils.toString(file);
     }
 
     @Test
-    public void testFailureMultiScenarioFeature() throws Exception {
+    void testFailureMultiScenarioFeature() throws Exception {
         FeatureResult result = result("failed.feature");
         assertEquals(2, result.getFailedCount());
         assertEquals(3, result.getScenarioCount());
@@ -78,7 +52,7 @@ public class FeatureResultTest {
     }
 
     @Test
-    public void testAbortMultiScenarioFeature() throws Exception {        
+    void testAbortMultiScenarioFeature() throws Exception {
         FeatureResult result = result("aborted.feature");
         assertEquals(0, result.getFailedCount());
         assertEquals(4, result.getScenarioCount());
@@ -97,30 +71,25 @@ public class FeatureResultTest {
         assertTrue(contents.contains("And assert a != 4 ......................................................... passed"));
     }
 
-    /**
-     * Function used on testLambdaFunctionsInScenarioFeature() unit test to demonstrate the inclusion
-     * of a functional interface via the Java interloop called from the .feature file
-     * @param map
-     */
+    // has to be public, used by the feature
     public static void addLambdaFunctionToMap(Map<String, Object> map) {
         IntBinaryOperator plusOperation = (a, b) -> a + b;
         map.put("javaSum", plusOperation);
     }
 
     @Test
-    public void testLambdaFunctionsInScenarioFeature() throws Exception {
+    void testLambdaFunctionsInScenarioFeature() throws Exception {
         FeatureResult result = result("caller-with-lambda-arg.feature");
         assertEquals(0, result.getFailedCount());
-
         JSONArray dataArr = (JSONArray) result.getResultAsPrimitiveMap().get("data");
-        assertTrue( ((Map) dataArr.get(0)).get("javaSum") instanceof IntBinaryOperator);
-        System.out.println();
+        assertTrue(((Map) dataArr.get(0)).get("javaSum") instanceof IntBinaryOperator);
     }
-    
+
     @Test
-    public void testStackOverFlowError() {
+    void testStackOverFlowError() {
         FeatureResult result = result("stackoverflow-error.feature");
         assertTrue(result.isFailed());
         assertTrue(result.getScenarioResults().get(0).getError().getMessage().contains("StackOverflowError"));
-    } 
+    }
+
 }

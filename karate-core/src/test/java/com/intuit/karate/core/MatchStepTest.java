@@ -1,16 +1,16 @@
 package com.intuit.karate.core;
 
-import org.junit.Test;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 import static com.intuit.karate.core.MatchType.*;
 
 /**
  *
  * @author pthomas3
  */
-public class MatchStepTest {
+class MatchStepTest {
 
-    private void test(String raw, MatchType type, String name, String path, String expected) {
+    void test(String raw, MatchType type, String name, String path, String expected) {
         MatchStep step = new MatchStep(raw);
         assertEquals(type, step.type);
         assertEquals(name, step.name);
@@ -19,7 +19,7 @@ public class MatchStepTest {
     }
 
     @Test
-    public void testMatchStep() {
+    void testMatchStep() {
         test("aXml //active == '#regex (false|true)'", EQUALS, "aXml", "//active", "'#regex (false|true)'");
         test("hello ==", EQUALS, "hello", null, null);
         test("hello world == foo", EQUALS, "hello", "world", "foo");

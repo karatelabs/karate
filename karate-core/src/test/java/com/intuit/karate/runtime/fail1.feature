@@ -1,3 +1,4 @@
+@ignore
 Feature: fail 1
 
 Scenario:

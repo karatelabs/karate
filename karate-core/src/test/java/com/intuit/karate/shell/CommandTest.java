@@ -1,8 +1,8 @@
 package com.intuit.karate.shell;
 
 import java.io.File;
-import static org.junit.Assert.*;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 import com.intuit.karate.FileUtils;
 import org.slf4j.Logger;
@@ -12,12 +12,12 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class CommandTest {
+class CommandTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(CommandTest.class);
+    static final Logger logger = LoggerFactory.getLogger(CommandTest.class);
 
     @Test
-    public void testCommand() {
+    void testCommand() {
         String cmd = FileUtils.isOsWindows() ? "print \"hello\"" : "ls";
         Command command = new Command(false, null, null, "target/command.log", new File("src"), cmd, "-al");
         command.start();
@@ -26,7 +26,7 @@ public class CommandTest {
     }
 
     @Test
-    public void testCommandReturn() {
+    void testCommandReturn() {
         String cmd = FileUtils.isOsWindows() ? "cmd /c dir" : "ls";
         String result = Command.execLine(new File("target"), cmd);
         assertTrue(result.contains("karate"));

@@ -30,23 +30,23 @@ import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.FeatureContext;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 /**
  *
  * @author pthomas3
  */
-public class HttpClientTest {
-    
-    private ScenarioContext getContext() {
+class HttpClientTest {
+
+    ScenarioContext getContext() {
         FeatureContext featureContext = FeatureContext.forEnv();
         CallContext callContext = new CallContext(null, true);
         return new ScenarioContext(featureContext, callContext, null, null);
-    }    
-    
+    }
+
     @Test
-    public void testSwappingHttpClient() {
+    void testSwappingHttpClient() {
         Config config = new Config();
         Map<String, Object> map = new HashMap<>();
         map.put("name", "John");
@@ -54,7 +54,7 @@ public class HttpClientTest {
         config.setClientClass("com.intuit.karate.http.CustomDummyHttpClient");
         HttpClient client = HttpClient.construct(config, getContext());
         HttpResponse response = client.makeHttpRequest(null, null);
-        assertArrayEquals(response.getBody(), "hello John".getBytes());        
+        assertArrayEquals(response.getBody(), "hello John".getBytes());
     }
-    
+
 }

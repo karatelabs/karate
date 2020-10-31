@@ -113,9 +113,9 @@ public class MockHandler implements ServerHandler {
         engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
         engine.setVariable(ScenarioEngine.REQUEST_URI, req.getPath());
         engine.setVariable(ScenarioEngine.REQUEST_METHOD, req.getMethod());
-        engine.setVariable(REQUEST_PARAMS, req.getParams());
         engine.setVariable(ScenarioEngine.REQUEST_HEADERS, req.getHeaders());
-        engine.setVariable(ScenarioEngine.REQUEST, req.getBodyConverted());
+        engine.setVariable(ScenarioEngine.REQUEST, req.getBodyConverted());        
+        engine.setVariable(REQUEST_PARAMS, req.getParams());
         engine.setVariable(REQUEST_BYTES, req.getBody());
         Map<String, List<Map<String, Object>>> files = req.getMultiPartFiles();
         if (files != null) {

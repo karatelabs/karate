@@ -13,33 +13,33 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import static org.junit.Assert.*;
 import org.w3c.dom.Document;
 
 /**
  *
  * @author pthomas3
  */
-public class ScriptTest {
+class ScriptTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(ScriptTest.class);
+    static final Logger logger = LoggerFactory.getLogger(ScriptTest.class);
 
-    private ScenarioContext getContext() {
+    ScenarioContext getContext() {
         Path featureDir = FileUtils.getPathContaining(getClass());
         FeatureContext featureContext = FeatureContext.forWorkingDir("dev", featureDir.toFile());
         CallContext callContext = new CallContext(null, true);
         return new ScenarioContext(featureContext, callContext, null, null);
     }
 
-    private AssertionResult matchJsonObject(Object act, Object exp, ScenarioContext context) {
+    AssertionResult matchJsonObject(Object act, Object exp, ScenarioContext context) {
         return Script.matchNestedObject('.', "$", MatchType.EQUALS, null, null, act, exp, context);
     }
 
     @Test
-    public void testParsingTextType() {
+    void testParsingTextType() {
         assertTrue(Script.isVariable("foo"));
         assertTrue(Script.isXmlPath("/foo"));
         assertTrue(Script.isXmlPath("//foo"));
@@ -50,7 +50,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalPrimitives() {
+    void testEvalPrimitives() {
         ScenarioContext ctx = getContext();
         ctx.vars.put("foo", "bar");
         ctx.vars.put("a", 1);
@@ -65,7 +65,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchPrimitiveStrings() {
+    void testMatchPrimitiveStrings() {
         ScenarioContext ctx = getContext();
         ctx.vars.put("a", "3");
         ctx.vars.put("b", 3);
@@ -73,7 +73,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalMapsAndLists() {
+    void testEvalMapsAndLists() {
         ScenarioContext ctx = getContext();
         Map<String, Object> testMap = new HashMap<>();
         testMap.put("foo", "bar");
@@ -93,7 +93,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalJsonDocuments() {
+    void testEvalJsonDocuments() {
         ScenarioContext ctx = getContext();
         DocumentContext doc = JsonUtils.toJsonDoc("{ foo: 'bar', baz: [1, 2], ban: { hello: 'world' } }");
         ctx.vars.put("myJson", doc);
@@ -106,7 +106,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalXmlDocuments() {
+    void testEvalXmlDocuments() {
         ScenarioContext ctx = getContext();
         Document doc = XmlUtils.toXmlDoc("<root><foo>bar</foo><hello>world</hello></root>");
         ctx.vars.put("myXml", doc);
@@ -115,7 +115,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testAssignXmlWithLineBreaksAndMatchJson() {
+    void testAssignXmlWithLineBreaksAndMatchJson() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "<records>\n  <record>a</record>\n  <record>b</record>\n  <record>c</record>\n</records>", ctx);
         Script.assign("bar", "foo.records", ctx);
@@ -126,7 +126,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testAssignXmlWithLineBreaksAndNullElements() {
+    void testAssignXmlWithLineBreaksAndNullElements() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "<records>\n  <record>a</record>\n  <record/>\n</records>", ctx);
         Script.assign("bar", "foo.records", ctx);
@@ -136,7 +136,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testJsonPathOnVarsByName() {
+    void testJsonPathOnVarsByName() {
         ScenarioContext ctx = getContext();
         DocumentContext doc = JsonUtils.toJsonDoc("{ foo: 'bar', baz: [1, 2], ban: { hello: 'world' } }");
         ctx.vars.put("myJson", doc);
@@ -155,7 +155,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testXmlPathOnVarsByName() {
+    void testXmlPathOnVarsByName() {
         ScenarioContext ctx = getContext();
         Document doc = XmlUtils.toXmlDoc("<root><foo>bar</foo></root>");
         ctx.vars.put("myXml", doc);
@@ -167,7 +167,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalXmlEmbeddedExpressions() {
+    void testEvalXmlEmbeddedExpressions() {
         ScenarioContext ctx = getContext();
         ctx.vars.put("a", 1);
         ctx.vars.put("b", 2);
@@ -180,7 +180,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalXmlEmbeddedExpressionsThatReturnChunks() {
+    void testEvalXmlEmbeddedExpressionsThatReturnChunks() {
         ScenarioContext ctx = getContext();
         Script.assign("hello", "<hello>world</hello>", ctx);
         Script.assign("xml", "<foo><bar>#(hello)</bar></foo>", ctx);
@@ -188,7 +188,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalXmlEmbeddedExpressionsThatReturnNull() {
+    void testEvalXmlEmbeddedExpressionsThatReturnNull() {
         ScenarioContext ctx = getContext();
         Script.assign("hello", "null", ctx);
         Script.assign("xml", "<foo><bar>#(hello)</bar></foo>", ctx);
@@ -197,7 +197,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalXmlEmbeddedExpressionsInAttributes() {
+    void testEvalXmlEmbeddedExpressionsInAttributes() {
         ScenarioContext ctx = getContext();
         ctx.vars.put("a", 5);
         String xml = "<foo bar=\"#(a)\">#(a)</foo>";
@@ -209,7 +209,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalXmlEmbeddedOptionalExpressionsInAttributes() {
+    void testEvalXmlEmbeddedOptionalExpressionsInAttributes() {
         ScenarioContext ctx = getContext();
         Script.assign("a", "null", ctx);
         Script.assign("xml", "<foo bar=\"##(a)\">baz</foo>", ctx);
@@ -217,7 +217,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalXmlEmbeddedOptionalExpressions() {
+    void testEvalXmlEmbeddedOptionalExpressions() {
         ScenarioContext ctx = getContext();
         Script.assign("a", "null", ctx);
         Script.assign("xml", "<foo><a>hello</a><b>##(a)</b></foo>", ctx);
@@ -225,7 +225,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalJsonEmbeddedExpressions() {
+    void testEvalJsonEmbeddedExpressions() {
         ScenarioContext ctx = getContext();
         ctx.vars.put("a", 1);
         ctx.vars.put("b", 2);
@@ -238,7 +238,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalEmbeddedExpressionsWithJsonPath() {
+    void testEvalEmbeddedExpressionsWithJsonPath() {
         ScenarioContext ctx = getContext();
         String ticket = "{ ticket: 'my-ticket', userId: '12345' }";
         ctx.vars.put("ticket", JsonUtils.toJsonDoc(ticket));
@@ -251,7 +251,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalEmbeddedExpressionsWithJsonPathsWhichAreTricky() {
+    void testEvalEmbeddedExpressionsWithJsonPathsWhichAreTricky() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "{ a: 1, b: 2, c: 3 }", ctx);
         Script.assign("bar", "{ 'sp ace': '#(foo.a)', 'hy-phen': '#(foo.b)', 'full.stop': '#(foo.c)' }", ctx);
@@ -259,7 +259,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalEmbeddedOptionalExpressions() {
+    void testEvalEmbeddedOptionalExpressions() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "{ a: null, b: null }", ctx);
         Script.assign("bar", "{ hello: '#(foo.a)', world: '##(foo.b)'  }", ctx);
@@ -267,7 +267,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalEmbeddedExpressionStream() {
+    void testEvalEmbeddedExpressionStream() {
         ScenarioContext ctx = getContext();
         ctx.vars.put("inputStream", new ScriptValue(new ByteArrayInputStream("hello world".getBytes())));
         Script.assign("doc", "{ foo: '#(inputStream)' }", ctx);
@@ -275,7 +275,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testVariableNameValidation() {
+    void testVariableNameValidation() {
         assertTrue(Script.isValidVariableName("foo"));
         assertTrue(Script.isValidVariableName("foo_bar"));
         assertTrue(Script.isValidVariableName("foo_"));
@@ -294,7 +294,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchMapObjects() {
+    void testMatchMapObjects() {
         ScenarioContext ctx = getContext();
         Map<String, Object> left = new HashMap<>();
         left.put("foo", "bar");
@@ -331,7 +331,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchListObjects() {
+    void testMatchListObjects() {
         List left = new ArrayList();
         List right = new ArrayList();
         Map<String, Object> leftChild = new HashMap<>();
@@ -344,7 +344,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchJsonPath() {
+    void testMatchJsonPath() {
         DocumentContext doc = JsonPath.parse("{ foo: 'bar', baz: { ban: [1, 2, 3]} }");
         ScenarioContext ctx = getContext();
         ctx.vars.put("myJson", doc);
@@ -356,7 +356,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchJsonPathThatReturnsList() {
+    void testMatchJsonPathThatReturnsList() {
         DocumentContext doc = JsonPath.parse("{ foo: [{ bar: 1}, {bar: 2}, {bar: 3}]}");
         ScenarioContext ctx = getContext();
         ctx.vars.put("json", doc);
@@ -367,7 +367,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchJsonPathOnLeftHandSide() {
+    void testMatchJsonPathOnLeftHandSide() {
         ScenarioContext ctx = getContext();
         String json = "[\n"
                 + "    {\n"
@@ -386,7 +386,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchAllJsonPath() {
+    void testMatchAllJsonPath() {
         DocumentContext doc = JsonPath.parse("{ foo: [{bar: 1, baz: 'a'}, {bar: 2, baz: 'b'}, {bar:3, baz: 'c'}]}");
         ScenarioContext ctx = getContext();
         ctx.vars.put("myJson", doc);
@@ -414,7 +414,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchContainsDeep() {
+    void testMatchContainsDeep() {
 
         DocumentContext doc = JsonPath.parse("{ foo: [{bar: 1, baz: 'a'}, {bar: 2, baz: 'b'}, {bar:3, baz: 'c'}], eoo: { doo: { car: 1, caz: 'a'} } }");
         ScenarioContext ctx = getContext();
@@ -434,7 +434,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchNotEquals() {
+    void testMatchNotEquals() {
         ScenarioContext ctx = getContext();
         Script.assign("temp", "[1, 2]", ctx);
         assertTrue(Script.matchNamed(MatchType.NOT_EQUALS, "temp", null, "'#[1]'", ctx).pass);
@@ -476,7 +476,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchJsonObjectReturnedFromJs() {
+    void testMatchJsonObjectReturnedFromJs() {
         ScenarioContext ctx = getContext();
         Script.assign("fun", "function(){ return { foo: 'bar' } }", ctx);
         Script.assign("json", "{ foo: 'bar' }", ctx);
@@ -486,7 +486,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchJsonArrayReturnedFromJs() {
+    void testMatchJsonArrayReturnedFromJs() {
         ScenarioContext ctx = getContext();
         Script.assign("fun", "function(){ return [ 'foo', 'bar', 'baz' ] }", ctx);
         Script.assign("json", "[ 'foo', 'bar', 'baz' ]", ctx);
@@ -496,7 +496,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchJsonPathOnResponse() {
+    void testMatchJsonPathOnResponse() {
         DocumentContext doc = JsonPath.parse("{ foo: 'bar' }");
         ScenarioContext ctx = getContext();
         ctx.vars.put("response", doc);
@@ -504,11 +504,11 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "$.foo", null, "'bar'", ctx).pass);
     }
 
-    private final String ACTUAL = "{\"id\":{\"domain\":\"ACS\",\"type\":\"entityId\",\"value\":\"bef90f66-bb57-4fea-83aa-a0acc42b0426\"},\"primaryId\":\"bef90f66-bb57-4fea-83aa-a0acc42b0426\",\"created\":{\"on\":\"2016-02-28T05:56:48.485+0000\"},\"lastUpdated\":{\"on\":\"2016-02-28T05:56:49.038+0000\"},\"organization\":{\"id\":{\"domain\":\"ACS\",\"type\":\"entityId\",\"value\":\"631fafe9-8822-4c82-b4a4-8735b202c16c\"},\"created\":{\"on\":\"2016-02-28T05:56:48.486+0000\"},\"lastUpdated\":{\"on\":\"2016-02-28T05:56:49.038+0000\"}},\"clientState\":\"ACTIVE\"}";
-    private final String EXPECTED = "{\"id\":{\"domain\":\"ACS\",\"type\":\"entityId\",\"value\":\"#ignore\"},\"primaryId\":\"#ignore\",\"created\":{\"on\":\"#ignore\"},\"lastUpdated\":{\"on\":\"#ignore\"},\"organization\":{\"id\":{\"domain\":\"ACS\",\"type\":\"entityId\",\"value\":\"#ignore\"},\"created\":{\"on\":\"#ignore\"},\"lastUpdated\":{\"on\":\"#ignore\"}},\"clientState\":\"ACTIVE\"}";
+    final String ACTUAL = "{\"id\":{\"domain\":\"ACS\",\"type\":\"entityId\",\"value\":\"bef90f66-bb57-4fea-83aa-a0acc42b0426\"},\"primaryId\":\"bef90f66-bb57-4fea-83aa-a0acc42b0426\",\"created\":{\"on\":\"2016-02-28T05:56:48.485+0000\"},\"lastUpdated\":{\"on\":\"2016-02-28T05:56:49.038+0000\"},\"organization\":{\"id\":{\"domain\":\"ACS\",\"type\":\"entityId\",\"value\":\"631fafe9-8822-4c82-b4a4-8735b202c16c\"},\"created\":{\"on\":\"2016-02-28T05:56:48.486+0000\"},\"lastUpdated\":{\"on\":\"2016-02-28T05:56:49.038+0000\"}},\"clientState\":\"ACTIVE\"}";
+    final String EXPECTED = "{\"id\":{\"domain\":\"ACS\",\"type\":\"entityId\",\"value\":\"#ignore\"},\"primaryId\":\"#ignore\",\"created\":{\"on\":\"#ignore\"},\"lastUpdated\":{\"on\":\"#ignore\"},\"organization\":{\"id\":{\"domain\":\"ACS\",\"type\":\"entityId\",\"value\":\"#ignore\"},\"created\":{\"on\":\"#ignore\"},\"lastUpdated\":{\"on\":\"#ignore\"}},\"clientState\":\"ACTIVE\"}";
 
     @Test
-    public void testMatchTwoJsonDocsWithIgnores() {
+    void testMatchTwoJsonDocsWithIgnores() {
         DocumentContext actual = JsonPath.parse(ACTUAL);
         DocumentContext expected = JsonPath.parse(EXPECTED);
         ScenarioContext ctx = getContext();
@@ -519,7 +519,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchXmlPathThatReturnsTextNode() {
+    void testMatchXmlPathThatReturnsTextNode() {
         ScenarioContext ctx = getContext();
         Document doc = XmlUtils.toXmlDoc("<root><foo>bar</foo><hello>world</hello></root>");
         ctx.vars.put("myXml", doc);
@@ -529,7 +529,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchXmlPathThatReturnsXmlChunk() {
+    void testMatchXmlPathThatReturnsXmlChunk() {
         ScenarioContext ctx = getContext();
         Document doc = XmlUtils.toXmlDoc("<root><foo><bar>baz</bar></foo></root>");
         ctx.vars.put("myXml", doc);
@@ -538,14 +538,14 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchXmlPathThatReturnsNull() {
+    void testMatchXmlPathThatReturnsNull() {
         ScenarioContext ctx = getContext();
         Script.assign("myXml", "<root><foo>bar</foo></root>", ctx);
         assertFalse(Script.matchNamed(MatchType.EQUALS, "myXml//baz", null, "<baz>1</baz>", ctx).pass);
     }
 
     @Test
-    public void testMatchXmlEmptyAndNotPresent() {
+    void testMatchXmlEmptyAndNotPresent() {
         ScenarioContext ctx = getContext();
         Script.assign("xml", "<root><foo>bar</foo><baz/><ban></ban></root>", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "xml/root/foo", null, "'bar'", ctx).pass);
@@ -558,7 +558,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testJsonEmptyAndNotPresent() {
+    void testJsonEmptyAndNotPresent() {
         ScenarioContext ctx = getContext();
         Script.assign("json", "{ foo: 'bar' }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json.foo", null, "'bar'", ctx).pass);
@@ -574,7 +574,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testAssignAndMatchXmlText() {
+    void testAssignAndMatchXmlText() {
         ScenarioContext ctx = getContext();
         Script.assign("myXml", "<root><foo>bar</foo></root>", ctx);
         Script.assign("myStr", "$myXml/root/foo", ctx);
@@ -582,7 +582,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testAssignAndMatchXmlChunk() {
+    void testAssignAndMatchXmlChunk() {
         ScenarioContext ctx = getContext();
         Script.assign("myXml", "<root><foo><bar>baz</bar></foo></root>", ctx);
         Script.assign("myChunk", "$myXml/root/foo", ctx);
@@ -590,7 +590,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testAssignAndMatchXmlChunkByVariableReference() {
+    void testAssignAndMatchXmlChunkByVariableReference() {
         ScenarioContext ctx = getContext();
         Script.assign("myXml", "<root><foo><bar>baz</bar></foo></root>", ctx);
         Script.assign("myChunk", "$myXml/root/foo", ctx);
@@ -599,21 +599,21 @@ public class ScriptTest {
     }
 
     @Test
-    public void testAssignAndMatchXmlPathChunk() {
+    void testAssignAndMatchXmlPathChunk() {
         ScenarioContext ctx = getContext();
         Script.assign("myXml", "<root><foo><bar>baz</bar></foo></root>", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "myXml/root/foo", null, "<foo><bar>baz</bar></foo>", ctx).pass);
     }
 
     @Test
-    public void testAssignAndMatchXmlPathThatReturnsNodeListAgainstJsonArray() {
+    void testAssignAndMatchXmlPathThatReturnsNodeListAgainstJsonArray() {
         ScenarioContext ctx = getContext();
         Script.assign("myXml", "<root><foo><bar>one</bar><bar>two</bar></foo></root>", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "myXml/root/foo/bar", null, "['one', 'two']", ctx).pass);
     }
 
     @Test
-    public void testAssignAndMatchXmlPathThatReturnsNodeListAgainstList() {
+    void testAssignAndMatchXmlPathThatReturnsNodeListAgainstList() {
         ScenarioContext ctx = getContext();
         Script.assign("myJson", "[{ val: 'one' }, { val: 'two' }]", ctx);
         Script.assign("myList", "get myJson $[*].val", ctx);
@@ -622,7 +622,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchXmlPathAutoConvertingFromMap() {
+    void testMatchXmlPathAutoConvertingFromMap() {
         ScenarioContext ctx = getContext();
         Script.assign("myXml", "<root><foo><bar>baz</bar></foo></root>", ctx);
         Script.assign("myMap", "myXml", ctx);
@@ -630,7 +630,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalXmlPathAutoConvertingFromMap() {
+    void testEvalXmlPathAutoConvertingFromMap() {
         ScenarioContext ctx = getContext();
         Script.assign("myXml", "<root><foo><bar>baz</bar></foo></root>", ctx);
         Script.assign("myMap", "myXml", ctx);
@@ -641,7 +641,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testAssignXmlPathThatReturnsListThenMatch() {
+    void testAssignXmlPathThatReturnsListThenMatch() {
         ScenarioContext ctx = getContext();
         Script.assign("response", XmlUtilsTest.TEACHERS_XML, ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "//teacher[@department='science']/subject", null, "['math', 'physics']", ctx).pass);
@@ -653,7 +653,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testRunningJsonPathOnStringAutoConvertsStringToJson() {
+    void testRunningJsonPathOnStringAutoConvertsStringToJson() {
         ScenarioContext ctx = getContext();
         Script.assign(AssignType.STRING, "response", "{ foo: { hello: 'world' } }", ctx, true);
         Script.assign("foo", "$response.foo", ctx);
@@ -663,7 +663,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCastJsonToString() {
+    void testCastJsonToString() {
         ScenarioContext ctx = getContext();
         Script.assign("myJson", "{ root: { foo: 'bar' } }", ctx);
         Script.assign(AssignType.STRING, "myString", "myJson", ctx, true);
@@ -673,7 +673,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCastStringToJson() {
+    void testCastStringToJson() {
         ScenarioContext ctx = getContext();
         Script.assign("myString", "{\"root\":{\"foo\":\"bar\"}}", ctx);
         Script.assign(AssignType.JSON, "myJson", "myString", ctx, true);
@@ -683,7 +683,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCastJsonToXml() {
+    void testCastJsonToXml() {
         ScenarioContext ctx = getContext();
         Script.assign("myJson", "{ root: { foo: 'bar' } }", ctx);
         Script.assign(AssignType.XML, "myXml", "myJson", ctx, true);
@@ -693,7 +693,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCastStringToXml() {
+    void testCastStringToXml() {
         ScenarioContext ctx = getContext();
         Script.assign(AssignType.STRING, "myString", "<root><foo>bar</foo></root>", ctx, true);
         Script.assign(AssignType.XML, "myXml", "myString", ctx, true);
@@ -703,7 +703,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCastXmlToString() {
+    void testCastXmlToString() {
         ScenarioContext ctx = getContext();
         Script.assign("myXml", "<root><foo>bar</foo></root>", ctx);
         Script.assign(AssignType.XML_STRING, "myString", "myXml", ctx, true);
@@ -713,7 +713,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCastPojoToJson() {
+    void testCastPojoToJson() {
         ScenarioContext ctx = getContext();
         Script.assign("pojo", "new com.intuit.karate.SimplePojo()", ctx);
         Script.assign(AssignType.JSON, "json", "pojo", ctx, true);
@@ -721,7 +721,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCastPojoToXml() {
+    void testCastPojoToXml() {
         ScenarioContext ctx = getContext();
         Script.assign("pojo", "new com.intuit.karate.SimplePojo()", ctx);
         Script.assign(AssignType.XML, "xml", "pojo", ctx, true);
@@ -729,7 +729,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testXmlShortCutsForResponse() {
+    void testXmlShortCutsForResponse() {
         ScenarioContext ctx = getContext();
         Script.assign("response", "<root><foo>bar</foo></root>", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "response", "/", "<root><foo>bar</foo></root>", ctx).pass);
@@ -739,7 +739,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchXmlButUsingJsonPath() {
+    void testMatchXmlButUsingJsonPath() {
         ScenarioContext ctx = getContext();
         Document doc = XmlUtils.toXmlDoc("<cat><name>Billie</name><scores><score>2</score><score>5</score></scores></cat>");
         ctx.vars.put("myXml", doc);
@@ -749,7 +749,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testXmlStringConversion() {
+    void testXmlStringConversion() {
         ScenarioContext ctx = getContext();
         Script.assign("response", "<foo><bar bbb=\"2\" aaa=\"1\"/></foo>", ctx);
         Script.assign(AssignType.XML_STRING, "temp", "response", ctx, false);
@@ -759,7 +759,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testXmlStringConversionInJs() {
+    void testXmlStringConversionInJs() {
         ScenarioContext ctx = getContext();
         Script.assign(AssignType.AUTO, "response", "<foo><bar bbb=\"2\" aaa=\"1\"/></foo>", ctx, false);
         Script.assign(AssignType.XML, "xml", "karate.prettyXml(response)", ctx, false);
@@ -769,7 +769,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchXmlRepeatedElements() {
+    void testMatchXmlRepeatedElements() {
         ScenarioContext ctx = getContext();
         String xml = "<foo><bar>baz1</bar><bar>baz2</bar></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
@@ -781,7 +781,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchXmlAttributeErrorReporting() {
+    void testMatchXmlAttributeErrorReporting() {
         ScenarioContext ctx = getContext();
         Script.assign("xml", "<hello foo=\"bar\">world</hello>", ctx);
         ScriptValue xml = ctx.vars.get("xml");
@@ -792,7 +792,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testAssigningAndCallingFunctionThatUpdatesVars() {
+    void testAssigningAndCallingFunctionThatUpdatesVars() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "function(){ return { bar: 'baz' } }", ctx);
         ScriptValue testFoo = ctx.vars.get("foo");
@@ -803,7 +803,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testAssigningAndCallingFunctionThatCanBeUsedToAssignVariable() {
+    void testAssigningAndCallingFunctionThatCanBeUsedToAssignVariable() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "function(){ return 'world' }", ctx);
         Script.assign("hello", "call foo", ctx);
@@ -812,7 +812,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testAssigningAndCallingFunctionWithArgumentsThatCanBeUsedToAssignVariable() {
+    void testAssigningAndCallingFunctionWithArgumentsThatCanBeUsedToAssignVariable() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "function(pre){ return pre + ' world' }", ctx);
         Script.assign("hello", "call foo 'hello'", ctx);
@@ -821,7 +821,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCallingFunctionThatTakesPrimitiveArgument() {
+    void testCallingFunctionThatTakesPrimitiveArgument() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "function(a){ return { bar: a } }", ctx);
         ScriptValue testFoo = ctx.vars.get("foo");
@@ -832,7 +832,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCallingFunctionThatTakesJsonArgument() {
+    void testCallingFunctionThatTakesJsonArgument() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "function(a){ return { bar: a.hello } }", ctx);
         ScriptValue testFoo = ctx.vars.get("foo");
@@ -843,7 +843,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCallingFunctionWithJsonArray() {
+    void testCallingFunctionWithJsonArray() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "function(a){ return a[0] }", ctx);
         Script.assign("bar", "call foo ['hello']", ctx);
@@ -852,7 +852,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCallingFunctionWithJavaList() {
+    void testCallingFunctionWithJavaList() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "function(a){ return a[0] }", ctx);
         Script.assign("bar", "['hello']", ctx);
@@ -862,7 +862,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCallingFunctionThatUsesJsonPath() {
+    void testCallingFunctionThatUsesJsonPath() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "{ bar: [{baz: 1}, {baz: 2}, {baz: 3}]}", ctx);
         Script.assign("fun", "function(){ return karate.get('$foo.bar[*].baz') }", ctx);
@@ -875,7 +875,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCallingFunctionWithJsonArrayReturnedFromAnotherFunction() {
+    void testCallingFunctionWithJsonArrayReturnedFromAnotherFunction() {
         ScenarioContext ctx = getContext();
         Script.assign("fun1", "function(){ return [1, 2, 3] }", ctx);
         Script.assign("res1", "call fun1", ctx);
@@ -886,7 +886,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCallingFunctionWithJsonReturnedFromAnotherFunction() {
+    void testCallingFunctionWithJsonReturnedFromAnotherFunction() {
         ScenarioContext ctx = getContext();
         Script.assign("fun1", "function(){ return { foo: 'bar' } }", ctx);
         Script.assign("res1", "call fun1", ctx);
@@ -897,7 +897,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCallingFunctionWithStringReturnedFromAnotherFunction() {
+    void testCallingFunctionWithStringReturnedFromAnotherFunction() {
         ScenarioContext ctx = getContext();
         Script.assign("fun1", "function(){ return 'foo' }", ctx);
         Script.assign("res1", "call fun1", ctx);
@@ -908,7 +908,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testJsonReturnedFromJsRead() {
+    void testJsonReturnedFromJsRead() {
         ScenarioContext ctx = getContext();
         Script.assign("fun", "function(){ return read('classpath:test.json') }", ctx);
         Script.assign("val", "call fun", ctx);
@@ -916,7 +916,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testJsonFromJsRead() {
+    void testJsonFromJsRead() {
         ScenarioContext ctx = getContext();
         Script.assign("fun", "function(){ var temp = read('classpath:test.json'); return temp.foo == 'bar'; }", ctx);
         Script.assign("val", "call fun", ctx);
@@ -924,7 +924,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testParsingVariableAndJsonPath() {
+    void testParsingVariableAndJsonPath() {
         assertEquals(StringUtils.pair("foo", "$"), Script.parseVariableAndPath("foo"));
         assertEquals(StringUtils.pair("foo", "$.bar"), Script.parseVariableAndPath("foo.bar"));
         assertEquals(StringUtils.pair("foo", "$['bar']"), Script.parseVariableAndPath("foo['bar']"));
@@ -937,7 +937,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testSetValueOnVariableByPath() {
+    void testSetValueOnVariableByPath() {
         ScenarioContext ctx = getContext();
         // json
         Script.assign("json", "{ foo: 'bar' }", ctx);
@@ -997,7 +997,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testSetXmlChunkAutoConversion() {
+    void testSetXmlChunkAutoConversion() {
         ScenarioContext ctx = getContext();
         Script.assign("xml", "<foo><bar></bar></foo>", ctx);
         Script.assign("chunk", "<hello>world</hello>", ctx);
@@ -1006,7 +1006,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testDeleteValueOnVariableByPath() {
+    void testDeleteValueOnVariableByPath() {
         ScenarioContext ctx = getContext();
         // json
         Script.assign("json", "{ foo: 'bar', baz: 'ban' }", ctx);
@@ -1027,7 +1027,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCallJsFunctionWithMap() {
+    void testCallJsFunctionWithMap() {
         ScenarioContext ctx = getContext();
         Script.assign("json", "{ foo: 'bar', hello: 'world' }", ctx);
         Script.assign("fun", "function(o){ return o }", ctx);
@@ -1036,7 +1036,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testDefaultValidators() {
+    void testDefaultValidators() {
         ScenarioContext ctx = getContext();
         DocumentContext doc = JsonUtils.toJsonDoc("{ foo: 'bar' }");
         ctx.vars.put("json", doc);
@@ -1075,14 +1075,14 @@ public class ScriptTest {
     }
 
     @Test
-    public void testStringThatStartsWithHashSymbol() {
+    void testStringThatStartsWithHashSymbol() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "{ bar: '#####' }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ bar: '#####' }", ctx).pass);
     }
 
     @Test
-    public void testSimpleJsonMatch() {
+    void testSimpleJsonMatch() {
         ScenarioContext ctx = getContext();
         DocumentContext doc = JsonUtils.toJsonDoc("{ foo: 'bar' }");
         ctx.vars.put("json", doc);
@@ -1090,7 +1090,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testAssignJsonChunkObjectAndUse() {
+    void testAssignJsonChunkObjectAndUse() {
         ScenarioContext ctx = getContext();
         //===
         Script.assign("parent", "{ foo: 'bar', 'ban': { a: 1 } }", ctx);
@@ -1103,7 +1103,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testAssignJsonChunkListAndUse() {
+    void testAssignJsonChunkListAndUse() {
         ScenarioContext ctx = getContext();
         //===
         Script.assign("parent", "{ foo: { bar: [{ baz: 1}, {baz: 2}, {baz: 3}] }}", ctx);
@@ -1114,28 +1114,28 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalUrl() {
+    void testEvalUrl() {
         ScenarioContext ctx = getContext();
         String url = "'http://localhost:8089/v1/cats'";
         assertEquals("http://localhost:8089/v1/cats", Script.evalKarateExpression(url, ctx).getAsString());
     }
 
     @Test
-    public void testEvalParamWithDot() {
+    void testEvalParamWithDot() {
         ScenarioContext ctx = getContext();
         String param = "'ACS.Itself'";
         assertEquals("ACS.Itself", Script.evalKarateExpression(param, ctx).getAsString());
     }
 
     @Test
-    public void testMatchHandlesNonStringNullsGracefully() {
+    void testMatchHandlesNonStringNullsGracefully() {
         ScenarioContext ctx = getContext();
         Script.assign("json", "{ foo: null }", ctx);
         assertFalse(Script.matchNamed(MatchType.EQUALS, "json.foo", null, "[]", ctx).pass);
     }
 
     @Test
-    public void testMatchJsonObjectContains() {
+    void testMatchJsonObjectContains() {
         ScenarioContext ctx = getContext();
         Script.assign("json", "{ foo: 'bar', baz: [1, 2, 3] }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ baz: [1, 2, 3], foo: 'bar' }", ctx).pass);
@@ -1144,7 +1144,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchJsonObjectPartialNotContains() {
+    void testMatchJsonObjectPartialNotContains() {
         ScenarioContext ctx = getContext();
         Script.assign("json", "{ a: 1, b: 2}", ctx);
         assertTrue(Script.matchNamed(MatchType.NOT_CONTAINS, "json", null, "{ a: 1, b: 3 }", ctx).pass);
@@ -1152,7 +1152,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchJsonArrayContains() {
+    void testMatchJsonArrayContains() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "{ bar: [1, 2, 3] }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.bar", null, "[1 ,2, 3]", ctx).pass);
@@ -1160,7 +1160,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchContainsForSingleElements() {
+    void testMatchContainsForSingleElements() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "{ bar: [1, 2, 3] }", ctx);
         assertTrue(Script.matchNamed(MatchType.CONTAINS, "foo.bar", null, "1", ctx).pass);
@@ -1171,7 +1171,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchJsonObjectErrorReporting() {
+    void testMatchJsonObjectErrorReporting() {
         ScenarioContext ctx = getContext();
         Script.assign("json", "{ a: 1, b: 2, c: 3}", ctx);
         AssertionResult ar = Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: 1, c: 3 }", ctx);
@@ -1180,7 +1180,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchJsonArrayErrorReporting() {
+    void testMatchJsonArrayErrorReporting() {
         ScenarioContext ctx = getContext();
         Script.assign("json", "[{ foo: 1 }, { foo: 2 }, { foo: 3 }]", ctx);
         AssertionResult ar = Script.matchNamed(MatchType.EQUALS, "json", null, "[{ foo: 1 }, { foo: 2 }, { foo: 4 }]", ctx);
@@ -1200,7 +1200,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchStringEqualsAndContains() {
+    void testMatchStringEqualsAndContains() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "'hello world'", ctx);
         // assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'hello world'", ctx).pass);
@@ -1214,7 +1214,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testKarateEnvAccessFromScript() {
+    void testKarateEnvAccessFromScript() {
         FeatureContext featureContext = FeatureContext.forEnv("baz");
         CallContext callContext = new CallContext(null, true);
         ScenarioContext ctx = new ScenarioContext(featureContext, callContext, null, null);
@@ -1232,7 +1232,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCallingFeatureWithNoArgument() {
+    void testCallingFeatureWithNoArgument() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "call read('test-called.feature')", ctx);
         ScriptValue a = Script.evalJsonPathOnVarByName("foo", "$.a", ctx);
@@ -1242,7 +1242,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCallingFeatureWithVarOverrides() {
+    void testCallingFeatureWithVarOverrides() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "call read('test-called.feature') { c: 3 }", ctx);
         ScriptValue a = Script.evalJsonPathOnVarByName("foo", "$.a", ctx);
@@ -1254,7 +1254,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCallingFeatureWithVarOverrideFromVariable() {
+    void testCallingFeatureWithVarOverrideFromVariable() {
         ScenarioContext ctx = getContext();
         Script.assign("bar", "{ c: 3 }", ctx);
         Script.assign("foo", "call read('test-called.feature') bar", ctx);
@@ -1267,7 +1267,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCallingFeatureWithList() {
+    void testCallingFeatureWithList() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "call read('test-called.feature') [{c: 100}, {c: 200}, {c: 300}]", ctx);
         ScriptValue c0 = Script.evalJsonPathOnVarByName("foo", "$[0].c", ctx);
@@ -1279,7 +1279,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCallingFeatureThatEvaluatesEmbeddedExpressions() {
+    void testCallingFeatureThatEvaluatesEmbeddedExpressions() {
         ScenarioContext ctx = getContext();
         Script.assign("result", "call read('test-called-embedded.feature') { foo: 'world' }", ctx);
         ScriptValue sv1 = Script.evalJsonPathOnVarByName("result", "$.json.hello", ctx);
@@ -1289,7 +1289,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCallingFeatureThatEvaluatesEmbeddedExpressionsFromFileRead() {
+    void testCallingFeatureThatEvaluatesEmbeddedExpressionsFromFileRead() {
         ScenarioContext ctx = getContext();
         Script.assign("result", "call read('test-called-embedded-file.feature') { foo: 'world' }", ctx);
         ScriptValue sv1 = Script.evalJsonPathOnVarByName("result", "$.json.hello", ctx);
@@ -1299,7 +1299,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCallingFeatureWithJsonCreatedByJavaScript() {
+    void testCallingFeatureWithJsonCreatedByJavaScript() {
         ScenarioContext ctx = getContext();
         Script.assign("fun", "function(){ return { c: 100} }", ctx);
         Script.assign("res", "call fun", ctx);
@@ -1309,7 +1309,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testCallingFeatureWithJsonArrayCreatedByJavaScript() {
+    void testCallingFeatureWithJsonArrayCreatedByJavaScript() {
         ScenarioContext ctx = getContext();
         Script.assign("fun", "function(){ return [{ c: 100}] }", ctx);
         Script.assign("res", "call fun", ctx);
@@ -1319,7 +1319,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testSetOnJsonArrayCreatedByJavaScript() {
+    void testSetOnJsonArrayCreatedByJavaScript() {
         ScenarioContext ctx = getContext();
         Script.assign("fun", "function(){ return [{a: 1}, {a: 2}, {b: 3}] }", ctx);
         Script.assign("json", "call fun", ctx);
@@ -1328,7 +1328,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testGetSyntaxForJson() {
+    void testGetSyntaxForJson() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "[{baz: 1}, {baz: 2}, {baz: 3}]", ctx);
         Script.assign("nums", "get foo[*].baz", ctx);
@@ -1354,7 +1354,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testGetSyntaxForXml() {
+    void testGetSyntaxForXml() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "<records>\n  <record>a</record>\n  <record>b</record>\n  <record>c</record>\n</records>", ctx);
         Script.assign("count", "get foo count(//record)", ctx);
@@ -1362,7 +1362,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testFromJsKarateCallFeatureWithNoArg() {
+    void testFromJsKarateCallFeatureWithNoArg() {
         ScenarioContext ctx = getContext();
         Script.assign("fun", "function(){ return karate.call('test-called.feature') }", ctx);
         Script.assign("res", "fun()", ctx);
@@ -1371,7 +1371,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testFromJsKarateCallFeatureWithJsonArg() {
+    void testFromJsKarateCallFeatureWithJsonArg() {
         ScenarioContext ctx = getContext();
         Script.assign("fun", "function(){ return karate.call('test-called.feature', {c: 3}) }", ctx);
         Script.assign("res", "fun()", ctx);
@@ -1381,7 +1381,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testFromJsKarateGetForNonExistentVariable() {
+    void testFromJsKarateGetForNonExistentVariable() {
         ScenarioContext ctx = getContext();
         Script.assign("fun", "function(){ var foo = karate.get('foo'); return foo ? true : false }", ctx);
         Script.assign("res", "fun()", ctx);
@@ -1389,7 +1389,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testFromJsKarateGetForJsonArrayVariable() {
+    void testFromJsKarateGetForJsonArrayVariable() {
         ScenarioContext ctx = getContext();
         Script.assign("fun", "function(){ return [1, 2, 3] }", ctx);
         Script.assign("res", "call fun", ctx);
@@ -1397,20 +1397,20 @@ public class ScriptTest {
     }
 
     @Test
-    public void testFromJsKarateGetForJsonObjectVariableAndCallFeatureAndJs() {
+    void testFromJsKarateGetForJsonObjectVariableAndCallFeatureAndJs() {
         ScenarioContext ctx = getContext();
         Script.assign("fun", "read('headers.js')", ctx);
         Script.assign("res", "call fun", ctx);
-        assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "{ foo: 'bar_someValue' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "{ foo: 'bar_normal' }", ctx).pass);
         Script.assign("signin", "call read('signin.feature')", ctx);
         Script.assign("ticket", "signin.ticket", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "ticket", null, "{ foo: 'bar' }", ctx).pass);
         Script.assign("res", "call fun", ctx);
-        assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "{ foo: 'bar_someValue', baz: 'ban' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "{ foo: 'bar_normal', baz: 'ban' }", ctx).pass);
     }
 
     @Test
-    public void testFromJsKarateJsonPath() {
+    void testFromJsKarateJsonPath() {
         ScenarioContext ctx = getContext();
         Script.assign("fun", "function(){ var foo = [{v:1},{v:2}]; return karate.jsonPath(foo, '$[*].v') }", ctx);
         Script.assign("res", "call fun", ctx);
@@ -1421,7 +1421,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testAssigningRawTextWhichOtherwiseConfusesKarate() {
+    void testAssigningRawTextWhichOtherwiseConfusesKarate() {
         ScenarioContext ctx = getContext();
         try {
             Script.assign("foo", "{ not json }", ctx);
@@ -1434,7 +1434,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testBigDecimalsInJson() {
+    void testBigDecimalsInJson() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "{ val: -1002.2000000000002 }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ val: -1002.2000000000002 }", ctx).pass);
@@ -1457,7 +1457,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testDollarInEmbeddedExpressions() {
+    void testDollarInEmbeddedExpressions() {
         ScenarioContext ctx = getContext();
         Script.assign("temperature", "{ celsius: 100, fahrenheit: 212 }", ctx);
         assertTrue(Script.matchNamed(MatchType.CONTAINS, "temperature", null, "{ fahrenheit: 212 }", ctx).pass);
@@ -1465,14 +1465,14 @@ public class ScriptTest {
     }
 
     @Test
-    public void testOptionalAndUnMatchedActualKeys() {
+    void testOptionalAndUnMatchedActualKeys() {
         ScenarioContext ctx = getContext();
         Script.assign("expected", "{ a: 1, b: 2, c: '##null' }", ctx);
         assertFalse(Script.matchNamed(MatchType.EQUALS, "expected", null, "{ a: 1, b: 2, d: 3}", ctx).pass);
     }
 
     @Test
-    public void testValidationStringInsteadOfNumberInPredicate() {
+    void testValidationStringInsteadOfNumberInPredicate() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "{ bar: 5 }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ bar: '#number' }", ctx).pass);
@@ -1488,7 +1488,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchMacroArray() {
+    void testMatchMacroArray() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "['bar', 'baz']", ctx);
         Script.assign("arr", "'#string'", ctx);
@@ -1522,7 +1522,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchMacroArrayComplex() {
+    void testMatchMacroArrayComplex() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "[{ a: 1, b: 2 }, { a: 3, b: 4 }]", ctx);
         Script.assign("bar", "{ a: '#number', b: '#number' }", ctx);
@@ -1561,7 +1561,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchMacroArrayComplexContains() {
+    void testMatchMacroArrayComplexContains() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "[{ a: 1, b: 2 }, { a: 3, b: 4 }]", ctx);
         Script.assign("rev", "[{ a: 3, b: 4 }, { a: 1, b: 2 }]", ctx);
@@ -1609,7 +1609,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testSchemaLikeAndOptionalKeys() {
+    void testSchemaLikeAndOptionalKeys() {
         ScenarioContext ctx = getContext();
         Script.assign("child", "{ hello: '#string' }", ctx);
         Script.assign("json", "{ foo: 'bar', baz: [1, 2, 3]}", ctx);
@@ -1629,7 +1629,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testPresentNotPresentAndOptionalNulls() {
+    void testPresentNotPresentAndOptionalNulls() {
         ScenarioContext ctx = getContext();
         Script.assign("json", "{ }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: '#notpresent' }", ctx).pass);
@@ -1661,14 +1661,14 @@ public class ScriptTest {
     }
 
     @Test
-    public void testJsonPathWhenActualIsEmptyString() {
+    void testJsonPathWhenActualIsEmptyString() {
         ScenarioContext ctx = getContext();
         Script.assign("response", "''", ctx);
         assertFalse(Script.matchNamed(MatchType.EQUALS, "$.foo", null, "'#notnull'", ctx).pass);
     }
 
     @Test
-    public void testReplace() {
+    void testReplace() {
         ScenarioContext ctx = getContext();
         assertEquals("foo", Script.replacePlaceholderText("foo", "foo", "'bar'", ctx));
         assertEquals("bar", Script.replacePlaceholderText("<foo>", "foo", "'bar'", ctx));
@@ -1678,7 +1678,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testEvalFromJs() {
+    void testEvalFromJs() {
         ScenarioContext ctx = getContext();
         Script.assign("temperature", "{ celsius: 100, fahrenheit: 212 }", ctx);
         Script.assign("res", "karate.eval('temperature.celsius')", ctx);
@@ -1689,14 +1689,14 @@ public class ScriptTest {
     }
 
     @Test
-    public void testRemoveIfNullMultiple() {
+    void testRemoveIfNullMultiple() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "{ first: 'bar', second: '##(null)', third: '##(null)' }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ first: 'bar' }", ctx).pass);
     }
 
     @Test
-    public void testMatchingIsStrictForDataTypes() {
+    void testMatchingIsStrictForDataTypes() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "{ a: '5', b: 5, c: true, d: 'true' }", ctx);
         assertFalse(Script.matchNamed(MatchType.CONTAINS, "foo", null, "{ a: 5 }", ctx).pass);
@@ -1706,7 +1706,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testTypeConversion() {
+    void testTypeConversion() {
         ScenarioContext ctx = getContext();
         Script.assign(AssignType.JSON, "foo", "[]", ctx, true);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "[]", ctx).pass);
@@ -1715,14 +1715,14 @@ public class ScriptTest {
     }
 
     @Test
-    public void testBinaryMatching() {
+    void testBinaryMatching() {
         ScenarioContext ctx = getContext();
         Script.assign(AssignType.BYTE_ARRAY, "data", "read('file:src/main/resources/res/karate-logo.png')", ctx, true);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "data", null, "read('file:src/main/resources/res/karate-logo.png')", ctx).pass);
     }
 
     @Test
-    public void testJsonCyclicReferences() {
+    void testJsonCyclicReferences() {
         ScenarioContext ctx = getContext();
         Script.assign("fun", "function(){ var env = 'dev'; var config = { env: env }; return config }", ctx);
         Script.assign("json", "fun()", ctx);
@@ -1735,7 +1735,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchFunctionOnLhs() {
+    void testMatchFunctionOnLhs() {
         ScenarioContext ctx = getContext();
         Script.assign("fun", "function(){ return true }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "fun()", null, "true", ctx).pass);
@@ -1746,7 +1746,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testKarateToJson() {
+    void testKarateToJson() {
         ScenarioContext ctx = getContext();
         Script.assign("SP", "Java.type('com.intuit.karate.SimplePojo')", ctx);
         Script.assign("sp", "new SP()", ctx);
@@ -1758,7 +1758,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchJavaBeanPropertyOhLhs() {
+    void testMatchJavaBeanPropertyOhLhs() {
         ScenarioContext ctx = getContext();
         Script.assign("SP", "Java.type('com.intuit.karate.SimplePojo')", ctx);
         Script.assign("sp", "new SP()", ctx);
@@ -1770,7 +1770,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void notEqualMatchTest() {
+    void notEqualMatchTest() {
         Map<String, Object> result = Runner.runFeature(getClass(), "core/notEqualMatch.feature", null, true);
         assertNotEquals(result.get("a"), result.get("b"));
     }

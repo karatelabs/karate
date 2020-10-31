@@ -1,19 +1,19 @@
 package com.intuit.karate;
 
-import org.junit.Test;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 /**
  *
  * @author pthomas3
  */
-public class JsonTest {
-    
+class JsonTest {
+
     @Test
-    public void testJson() {
+    void testJson() {
         new Json("{ hello: 'world' }").equals("{ hello: 'world' }");
         new Json("{ hello: 'world' }").equals("{ hello: '#string' }");
-        assertEquals("world", new Json("{ hello: 'world' }").get("hello"));
+        assertEquals("world", new Json("{ hello: 'world' }").get("hello").toString());
         new Json("{ hello: 'world' }").getMatcher("hello").equalsText("world");
         new Json("{ a: { b: 2 } }").getJson("a").equals("{ b: 2 }");
         new Json("{ a: [1, 2] }").getJson("a").equals("[1, 2]");
@@ -22,5 +22,5 @@ public class JsonTest {
         new Json().set("foo.bar", "[]").equals("{ foo: { bar: [] }}");
         new Json().set("foo.bar", "{ ban: 'baz' }").equals("{ foo: { bar: { ban: 'baz' } }}");
     }
-    
+
 }

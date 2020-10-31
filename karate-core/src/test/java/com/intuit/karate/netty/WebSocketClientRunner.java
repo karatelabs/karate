@@ -1,20 +1,20 @@
 package com.intuit.karate.netty;
 
 import com.intuit.karate.Logger;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 /**
  *
  * @author pthomas3
  */
-public class WebSocketClientRunner {
+class WebSocketClientRunner {
 
-    private static final Logger logger = new Logger();
-    private String result;
+    static final Logger logger = new Logger();
+    String result;
 
     @Test
-    public void testWebSockets() throws Exception {
+    void testWebSockets() throws Exception {
         String url = "ws://echo.websocket.org";
         WebSocketOptions options = new WebSocketOptions(url);
         options.setTextConsumer(text -> {

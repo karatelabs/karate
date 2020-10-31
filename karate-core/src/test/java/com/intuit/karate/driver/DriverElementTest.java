@@ -4,16 +4,16 @@ import com.intuit.karate.JsonUtils;
 import com.intuit.karate.ScriptValue;
 import java.util.Collections;
 import java.util.List;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  *
  * @author pthomas3
  */
-public class DriverElementTest {
+class DriverElementTest {
 
     @Test
-    public void testToJson() {
+    void testToJson() {
         JsonUtils.toJsonDoc("{}");
         Element de = DriverElement.locatorExists(null, "foo");
         List list = Collections.singletonList(de);

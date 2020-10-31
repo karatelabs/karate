@@ -1,25 +1,23 @@
 package com.intuit.karate.formats.postman;
 
 import com.intuit.karate.FileUtils;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 /**
  * @author pthomas3
  */
-public class ConvertUtilsTest {
+class ConvertUtilsTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(ConvertUtilsTest.class);
+    static final Logger logger = LoggerFactory.getLogger(ConvertUtilsTest.class);
 
     @Test
-    public void testReadingSinglePostmanItemWithOneRequest() {
+    void testReadingSinglePostmanItemWithOneRequest() {
         InputStream is = getClass().getResourceAsStream("postman-echo-single.postman_collection");
         String json = FileUtils.toString(is);
         List<PostmanItem> items = PostmanUtils.readPostmanJson(json);
@@ -36,7 +34,7 @@ public class ConvertUtilsTest {
     }
 
     @Test
-    public void testReadingItemListWithSubItems() {
+    void testReadingItemListWithSubItems() {
         String collectionFileName = "postman-multiple-items-and-sub-items.postman_collection";
         InputStream is = getClass().getResourceAsStream(collectionFileName);
         String json = FileUtils.toString(is);

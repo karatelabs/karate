@@ -1,23 +1,22 @@
 package com.intuit.karate.netty;
 
-
-import org.junit.Test;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 /**
  *
  * @author pthomas3
  */
-public class ProxyContextTest {
-    
-    private static void test(String uri, boolean ssl, String host, int port) {
+class ProxyContextTest {
+
+    static void test(String uri, boolean ssl, String host, int port) {
         ProxyContext hp = new ProxyContext(uri, ssl);
         assertEquals(host, hp.host);
         assertEquals(port, hp.port);
     }
-    
+
     @Test
-    public void testProxyContext() {
+    void testProxyContext() {
         test("http://localhost:8080", false, "localhost", 8080);
         test("http://localhost:8080/foo", false, "localhost", 8080);
         test("localhost:8080", false, "localhost", 8080);
@@ -32,5 +31,5 @@ public class ProxyContextTest {
         test("httpbin.org", true, "httpbin.org", 443);
         test("httpbin.org/foo", true, "httpbin.org", 443);
     }
-    
+
 }

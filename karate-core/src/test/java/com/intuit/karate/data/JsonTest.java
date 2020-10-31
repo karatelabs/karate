@@ -3,8 +3,8 @@ package com.intuit.karate.data;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
-import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -1,8 +1,8 @@
 package com.intuit.karate.formats.postman;
 
 import com.intuit.karate.FileUtils;
-import org.junit.Assert;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -14,10 +14,10 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
-public class PostmanConverterTest {
+class PostmanConverterTest {
 
     @Test
-    public void testSuccess() throws IOException {
+    void testSuccess() throws IOException {
         if (FileUtils.isOsWindows()) { // TODO
             return;
         }
@@ -34,7 +34,7 @@ public class PostmanConverterTest {
 
         // perform the conversion
         boolean successful = new PostmanConverter().convert(tempSource.toString(), tempOutput.toString());
-        Assert.assertTrue(successful);
+        assertTrue(successful);
 
         // load the expected output from the resources
         is = getClass().getResourceAsStream("expected-converted.txt");
@@ -42,25 +42,25 @@ public class PostmanConverterTest {
 
         // load the actual output form the disk
         Path actualOutputPath = Paths.get(tempOutput.toString(),
-            tempSource.getName().replace(".postman_collection.json", "") + ".feature");
+                tempSource.getName().replace(".postman_collection.json", "") + ".feature");
         String converted = new String(Files.readAllBytes(actualOutputPath), StandardCharsets.UTF_8);
 
         // the first line is dynamic, as it contains the temp dir characters
-        Assert.assertTrue(converted.startsWith("Feature: karate-postman-input"));
+        assertTrue(converted.startsWith("Feature: karate-postman-input"));
 
         // trim the file so it doesn't contain the line starting with 'Feature':
         String convertedTrimmed = Arrays.stream(converted.split(System.lineSeparator()))
-            .filter(line -> !line.startsWith("Feature:"))
-            .collect(Collectors.joining(System.lineSeparator()));
+                .filter(line -> !line.startsWith("Feature:"))
+                .collect(Collectors.joining(System.lineSeparator()));
 
         // assert that the trimmed actual output equals the trimmed expected output
-        Assert.assertEquals(convertedTrimmed.trim(), expectedConverted.trim());
+        assertEquals(convertedTrimmed.trim(), expectedConverted.trim());
     }
 
     @Test
-    public void testInvalidSourcePath() {
+    void testInvalidSourcePath() {
         boolean successful = new PostmanConverter().convert("does-not-exist_1234567890", "./");
-        Assert.assertFalse(successful);
+        assertFalse(successful);
     }
 
 }

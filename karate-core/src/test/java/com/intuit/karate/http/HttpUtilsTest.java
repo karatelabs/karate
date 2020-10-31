@@ -2,21 +2,20 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Match;
-import com.intuit.karate.StringUtils;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 /**
  *
  * @author pthomas3
  */
-public class HttpUtilsTest {
+class HttpUtilsTest {
 
     @Test
-    public void testParseContentTypeCharset() {
+    void testParseContentTypeCharset() {
         assertEquals(FileUtils.UTF8, HttpUtils.parseContentTypeCharset("application/json; charset=UTF-8"));
         assertEquals(FileUtils.UTF8, HttpUtils.parseContentTypeCharset("application/json; charset = UTF-8 "));
         assertEquals(FileUtils.UTF8, HttpUtils.parseContentTypeCharset("application/json; charset=UTF-8; version=1.2.3"));
@@ -24,7 +23,7 @@ public class HttpUtilsTest {
     }
 
     @Test
-    public void testParseContentTypeParams() {
+    void testParseContentTypeParams() {
         Map<String, String> map = HttpUtils.parseContentTypeParams("application/json");
         assertNull(map);
         map = HttpUtils.parseContentTypeParams("application/json; charset=UTF-8");
@@ -40,7 +39,7 @@ public class HttpUtilsTest {
     }
 
     @Test
-    public void testParseUriPathPatterns() {
+    void testParseUriPathPatterns() {
         Map<String, String> map = HttpUtils.parseUriPattern("/cats/{id}", "/cats/1");
         Match.equals(map, "{ id: '1' }");
         map = HttpUtils.parseUriPattern("/cats/{id}/", "/cats/1"); // trailing slash
@@ -68,7 +67,7 @@ public class HttpUtilsTest {
     }
 
     @Test
-    public void testCalculatePathMatchScore() {
+    void testCalculatePathMatchScore() {
         List<Integer> score = HttpUtils.calculatePathMatchScore("/cats/{id}");
         Match.equals(score, "[6,1,0]");
         score = HttpUtils.calculatePathMatchScore("/cats/1");
@@ -80,7 +79,7 @@ public class HttpUtilsTest {
     }
 
     @Test
-    public void testParseCookieString() {
+    void testParseCookieString() {
         String header = "Set-Cookie: foo=\"bar\";Version=1";
         Map<String, Cookie> map = HttpUtils.parseCookieHeaderString(header);
         Match.equals(map, "{ foo: '#object' }"); // only one entry
@@ -88,7 +87,7 @@ public class HttpUtilsTest {
     }
 
     @Test
-    public void testCreateCookieString() {
+    void testCreateCookieString() {
         Cookie c1 = new Cookie("foo", "bar");
         Cookie c2 = new Cookie("hello", "world");
         String header = HttpUtils.createCookieHeaderValue(Arrays.asList(c1, c2));

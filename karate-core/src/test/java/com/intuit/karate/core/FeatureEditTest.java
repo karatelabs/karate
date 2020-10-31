@@ -5,8 +5,8 @@ import com.intuit.karate.Resource;
 import java.io.InputStream;
 import java.nio.file.Paths;
 import java.util.List;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,19 +14,19 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class FeatureEditTest {
+class FeatureEditTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(FeatureEditTest.class);
+    static final Logger logger = LoggerFactory.getLogger(FeatureEditTest.class);
 
-    public static final Resource EMPTY = new Resource(Paths.get(""), "", -1, null);
+    static final Resource EMPTY = new Resource(Paths.get(""), "", -1, null);
 
-    private Feature parse(String name) {
+    Feature parse(String name) {
         InputStream is = getClass().getResourceAsStream(name);
         String text = FileUtils.toString(is);
         return FeatureParser.parseText(new Feature(EMPTY), text);
     }
 
-    private void printLines(List<String> lines) {
+    void printLines(List<String> lines) {
         int count = lines.size();
         for (int i = 0; i < count; i++) {
             String line = lines.get(i);
@@ -35,7 +35,7 @@ public class FeatureEditTest {
     }
 
     @Test
-    public void testScenario() {
+    void testScenario() {
         Feature feature = parse("scenario.feature");
         List<String> lines = feature.getLines();
         assertEquals(16, lines.size());
@@ -56,7 +56,7 @@ public class FeatureEditTest {
     }
 
     @Test
-    public void testScenarioOutline() {
+    void testScenarioOutline() {
         Feature feature = parse("outline.feature");
         List<String> lines = feature.getLines();
         assertEquals(13, lines.size());
@@ -68,7 +68,7 @@ public class FeatureEditTest {
     }
 
     @Test
-    public void testInsert() {
+    void testInsert() {
         Feature feature = parse("scenario.feature");
         feature = feature.addLine(9, "Then assert 2 == 2");
         List<String> lines = feature.getLines();
@@ -77,7 +77,7 @@ public class FeatureEditTest {
     }
 
     @Test
-    public void testEdit() {
+    void testEdit() {
         Feature feature = parse("scenario.feature");
         Step step = feature.getSections().get(0).getScenario().getSteps().get(0);
         int line = step.getLine();
@@ -86,7 +86,7 @@ public class FeatureEditTest {
     }
 
     @Test
-    public void testMultiLineEditDocString() {
+    void testMultiLineEditDocString() {
         Feature feature = parse("scenario.feature");
         printLines(feature.getLines());
         Step step = feature.getSections().get(0).getScenario().getSteps().get(1);
@@ -104,7 +104,7 @@ public class FeatureEditTest {
     }
 
     @Test
-    public void testMultiLineEditTable() {
+    void testMultiLineEditTable() {
         Feature feature = parse("table.feature");
         printLines(feature.getLines());
         Step step = feature.getSections().get(0).getScenario().getSteps().get(0);
@@ -120,7 +120,7 @@ public class FeatureEditTest {
     }
 
     @Test
-    public void testIdentifyingStepWhichIsAnHttpCall() {
+    void testIdentifyingStepWhichIsAnHttpCall() {
         String text = "Feature:\nScenario:\n*  method post";
         Feature feature = FeatureParser.parseText(new Feature(EMPTY), text);
         Step step = feature.getSections().get(0).getScenario().getSteps().get(0);

@@ -1,26 +1,26 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.Match;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 /**
  *
  * @author pthomas3
  */
-public class HttpRequestBuilderTest {
-    
+class HttpRequestBuilderTest {
+
     @Test
-    public void testRemoveHeaderIgnoreCase() {
+    void testRemoveHeaderIgnoreCase() {
         HttpRequestBuilder request = new HttpRequestBuilder();
         request.setHeader("Content-Length", "100");
         Match.equals(request.getHeaders(), "{ 'Content-Length': ['100'] }");
         request.removeHeaderIgnoreCase("content-length");
         Match.equals(request.getHeaders(), "{}");
     }
-    
+
     @Test
-    public void testGetUrlAndPath() {
+    void testGetUrlAndPath() {
         HttpRequestBuilder request = new HttpRequestBuilder();
         request.setUrl("http://foo");
         assertEquals("http://foo/", request.getUrlAndPath());
@@ -28,7 +28,7 @@ public class HttpRequestBuilderTest {
         request.setUrl("http://foo");
         request.addPath("bar");
         request.addPath("baz");
-        assertEquals("http://foo/bar/baz", request.getUrlAndPath());      
+        assertEquals("http://foo/bar/baz", request.getUrlAndPath());
     }
-    
+
 }

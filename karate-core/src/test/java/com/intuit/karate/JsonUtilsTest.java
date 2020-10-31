@@ -7,8 +7,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import net.minidev.json.parser.ParseException;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,12 +16,12 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class JsonUtilsTest {
+class JsonUtilsTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(JsonUtilsTest.class);
+    static final Logger logger = LoggerFactory.getLogger(JsonUtilsTest.class);
 
     @Test
-    public void testNonStrictJsonParsing() {
+     void testNonStrictJsonParsing() {
         String raw = "{ foo: 'bar' }";
         DocumentContext dc = JsonUtils.toJsonDoc(raw);
         logger.debug("parsed json: {}", dc.jsonString());
@@ -30,7 +30,7 @@ public class JsonUtilsTest {
     }
 
     @Test
-    public void testJsonArrayAsRoot() {
+      void testJsonArrayAsRoot() {
         String raw = "[1, 2, 3]";
         DocumentContext doc = JsonUtils.toJsonDoc(raw);
         Object sec = doc.read("$[1]");
@@ -38,7 +38,7 @@ public class JsonUtilsTest {
     }
 
     @Test
-    public void testJsonChunkByPath() {
+      void testJsonChunkByPath() {
         String raw = "[{ foo: 'bar' }]";
         DocumentContext doc = JsonUtils.toJsonDoc(raw);
         Map map = doc.read("$[0]");
@@ -47,7 +47,7 @@ public class JsonUtilsTest {
     }
 
     @Test
-    public void testMapToJson() {
+      void testMapToJson() {
         Map<String, Object> map = new HashMap<>();
         map.put("foo", "bar");
         Map<String, Object> child = new HashMap<>();
@@ -59,7 +59,7 @@ public class JsonUtilsTest {
     }
 
     @Test
-    public void testSetByPath() {
+      void testSetByPath() {
         String raw = "{ foo: 'bar' }";
         DocumentContext doc = JsonUtils.toJsonDoc(raw);
         JsonUtils.setValueByPath(doc, "$.foo", "baz");
@@ -92,7 +92,7 @@ public class JsonUtilsTest {
     }
 
     @Test
-    public void testParsingParentAndLeafName() {
+      void testParsingParentAndLeafName() {
         assertEquals(StringUtils.pair("", "$"), JsonUtils.getParentAndLeafPath("$"));
         assertEquals(StringUtils.pair("$", "foo"), JsonUtils.getParentAndLeafPath("$.foo"));
         assertEquals(StringUtils.pair("$", "['foo']"), JsonUtils.getParentAndLeafPath("$['foo']"));
@@ -107,14 +107,14 @@ public class JsonUtilsTest {
     }
 
     @Test
-    public void testParsingYaml() {
+      void testParsingYaml() {
         String yaml = "hello: 25";
         DocumentContext doc = JsonUtils.fromYaml(yaml);
         assertEquals("{\"hello\":25}", doc.jsonString());
     }
 
     @Test
-    public void testYamlToMutation() throws Exception {
+      void testYamlToMutation() throws Exception {
         InputStream is = getClass().getResourceAsStream("mutation.yaml");
         String yaml = FileUtils.toString(is);
         DocumentContext doc = JsonUtils.fromYaml(yaml);
@@ -122,7 +122,7 @@ public class JsonUtilsTest {
     }
 
     @Test
-    public void testPrettyPrint() {
+      void testPrettyPrint() {
         String raw = "{ foo: 'bar', baz: null, 'spa cey': [1, 2, 3], bool: true, nest: { a: 'b', 'hy-phen': 'blah' } }";
         DocumentContext doc = JsonUtils.toJsonDoc(raw);
         String temp = JsonUtils.toPrettyJsonString(doc);
@@ -145,7 +145,7 @@ public class JsonUtilsTest {
     }
 
     @Test
-    public void testPojoConversion() {
+      void testPojoConversion() {
         ComplexPojo pojo = new ComplexPojo();
         pojo.setFoo("testFoo");
         pojo.setBar(1);
@@ -168,14 +168,14 @@ public class JsonUtilsTest {
     }
 
     @Test
-    public void testEmptyJsonObject() {
+      void testEmptyJsonObject() {
         DocumentContext doc = JsonUtils.emptyJsonObject();
         String json = doc.jsonString();
         assertEquals("{}", json);
     }
 
     @Test
-    public void testEmptyJsonArray() {
+    void testEmptyJsonArray() {
         DocumentContext doc = JsonUtils.emptyJsonArray(0);
         String json = doc.jsonString();
         assertEquals("[]", json);
@@ -188,7 +188,7 @@ public class JsonUtilsTest {
     }
 
     @Test
-    public void testWriteJsonWithByteArrayValueWillFail() {
+    void testWriteJsonWithByteArrayValueWillFail() {
         Map<String, Object> map = new HashMap();
         byte[] bytes = "hello".getBytes();
         map.put("foo", bytes);
@@ -201,14 +201,14 @@ public class JsonUtilsTest {
     }
 
     @Test
-    public void testCsv() {
+    void testCsv() {
         String raw = FileUtils.toString(getClass().getResourceAsStream("test.csv"));
         DocumentContext doc = JsonUtils.fromCsv(raw);
         Match.equals(doc, "[{ foo: 'goodbye', bar: '10', baz: 'true' }, { foo: 'cruel', bar: '20', baz: 'false' }, { foo: 'world', bar: '30', baz: 'true' }]");
     }
 
     @Test
-    public void testMalformed() {
+    void testMalformed() {
         String text = FileUtils.toString(getClass().getResourceAsStream("malformed.txt"));
         try {
             Object o = JsonUtils.toJsonDocStrict(text);
