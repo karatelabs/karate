@@ -158,8 +158,17 @@ public class Request implements ProxyObject {
         StringUtils.Pair pair = NettyUtils.parseUriIntoUrlBaseAndPath(url);
         urlBase = pair.left;
         QueryStringDecoder qsd = new QueryStringDecoder(pair.right);
-        setPath(qsd.path());
-        setParams(qsd.parameters());
+        String path = qsd.path();
+        Map<String, List<String>> queryParams = qsd.parameters();
+        if (queryParams.size() == 1) {
+            List<String> list = queryParams.values().iterator().next();
+            if (!list.isEmpty() && "".equals(list.get(0))) {
+                // annoying edge case where url had encoded characters
+                path = pair.right.replace('?', '�');
+            }
+        }
+        setPath(path);
+        setParams(queryParams);
     }
 
     public String getUrlBase() {
@@ -283,7 +292,7 @@ public class Request implements ProxyObject {
     public Object getMultiPartAsJsValue(String name) {
         return JsValue.fromJava(getMultiPart(name));
     }
-    
+
     public void processBody() {
         if (body == null) {
             return;

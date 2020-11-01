@@ -230,5 +230,16 @@ class MockHandlerTest {
         handle();
         match(response.getBodyAsString(), "before");
     }    
+    
+    @Test
+    void testUrlWithSpecialCharacters() {
+        background().scenario(
+                "pathMatches('/hello/{raw}')",
+                "def response = pathParams.raw"
+        );
+        request.path("/hello/�Ill~Formed@RequiredString!");
+        handle();
+        match(response.getBodyAsString(), "�Ill~Formed@RequiredString!");        
+    }
 
 }

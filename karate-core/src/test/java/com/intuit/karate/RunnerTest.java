@@ -4,6 +4,7 @@ import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
+import com.intuit.karate.exception.KarateException;
 import java.io.File;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
@@ -46,7 +47,13 @@ class RunnerTest {
 
     @Test
     void testParallel() {
-        Results results = Runner.parallel(getClass(), 1);
+        Results results = Runner.path(
+                "classpath:com/intuit/karate/multi-scenario-fail.feature",
+                "classpath:com/intuit/karate/no-scenario-name.feature",
+                "classpath:com/intuit/karate/core/scenario.feature",
+                "classpath:com/intuit/karate/core/outline.feature",
+                "classpath:com/intuit/karate/core/stackoverflow-error.feature"
+        ).parallel(1);
         assertEquals(3, results.getFailCount());
         String pathBase = "target/surefire-reports/com.intuit.karate.";
         assertTrue(contains(pathBase + "core.scenario.xml", "Then match b == { foo: 'bar'}"));
@@ -67,6 +74,22 @@ class RunnerTest {
         Map<String, Object> temp = (Map) result.get("b");
         assertEquals("bar", temp.get("foo"));
         assertEquals("normal", result.get("configSource"));
+    }
+
+    @Test
+    void testRunningFeatureFailureFromJavaApi() {
+        try {
+            Runner.runFeature(getClass(), "multi-scenario-fail.feature", null, true);
+            fail("expected exception to be thrown");
+        } catch (Exception e) {
+            assertTrue(e instanceof KarateException);
+        }
+    }
+
+    @Test
+    void testRunningFeatureFailureFromRunner() {
+        Results results = Runner.path("classpath:com/intuit/karate/multi-scenario-fail.feature").parallel(1);
+        assertEquals(1, results.getFailCount());
     }
 
     @Test

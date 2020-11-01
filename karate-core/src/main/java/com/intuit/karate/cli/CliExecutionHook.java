@@ -23,22 +23,18 @@
  */
 package com.intuit.karate.cli;
 
-import com.intuit.karate.Results;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Engine;
-import com.intuit.karate.core.ExecutionContext;
-import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.HtmlFeatureReport;
 import com.intuit.karate.core.HtmlSummaryReport;
-import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.core.Scenario;
-import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
-import com.intuit.karate.http.HttpRequestBuilder;
+import com.intuit.karate.runtime.FeatureRuntime;
+import com.intuit.karate.runtime.RuntimeHook;
+import com.intuit.karate.runtime.ScenarioRuntime;
+import com.intuit.karate.SuiteRuntime;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -48,7 +44,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * @author pthomas3
  */
-public class CliExecutionHook implements ExecutionHook {
+public class CliExecutionHook implements RuntimeHook {
     
     private final boolean htmlReport;
     private final String targetDir;
@@ -67,30 +63,31 @@ public class CliExecutionHook implements ExecutionHook {
     }
     
     @Override
-    public void beforeAll(Results results) {
+    public void beforeSuite(SuiteRuntime suite) {
         
     }    
     
     @Override
-    public void afterAll(Results results) {
+    public void afterSuite(SuiteRuntime suite) {
         if (htmlReport) {
             summary.save(targetDir);
         }
     }    
     
     @Override
-    public boolean beforeStep(Step step, ScenarioContext context) {
+    public boolean beforeStep(Step step, ScenarioRuntime sr) {
         return true;
     }
     
     @Override
-    public void afterStep(StepResult result, ScenarioContext context) {
+    public void afterStep(StepResult result, ScenarioRuntime sr) {
         
     }    
     
     @Override
-    public boolean beforeScenario(Scenario scenario, ScenarioContext context) {
-        if (intellij && context.callDepth == 0) {
+    public boolean beforeScenario(ScenarioRuntime sr) {
+        if (intellij && sr.caller.depth == 0) {
+            Scenario scenario = sr.scenario;
             Path absolutePath = scenario.getFeature().getResource().getPath().toAbsolutePath();
             log(String.format(TEMPLATE_TEST_STARTED, getCurrentTime(), absolutePath + ":" + scenario.getLine(), escape(scenario.getNameForReport())));
             // log(String.format(TEMPLATE_SCENARIO_STARTED, getCurrentTime()));
@@ -99,20 +96,21 @@ public class CliExecutionHook implements ExecutionHook {
     }
     
     @Override
-    public void afterScenario(ScenarioResult result, ScenarioContext context) {
-        if (intellij && context.callDepth == 0) {
-            Scenario scenario = result.getScenario();
-            if (result.isFailed()) {
-                StringUtils.Pair error = details(result.getError());
+    public void afterScenario(ScenarioRuntime sr) {
+        if (intellij && sr.caller.depth == 0) {
+            Scenario scenario = sr.scenario;
+            if (sr.result.isFailed()) {
+                StringUtils.Pair error = details(sr.result.getError());
                 log(String.format(TEMPLATE_TEST_FAILED, getCurrentTime(), escape(error.right), escape(error.left), escape(scenario.getNameForReport()), ""));
             }
-            log(String.format(TEMPLATE_TEST_FINISHED, getCurrentTime(), result.getDurationNanos() / 1000000, escape(scenario.getNameForReport())));
+            log(String.format(TEMPLATE_TEST_FINISHED, getCurrentTime(), sr.result.getDurationNanos() / 1000000, escape(scenario.getNameForReport())));
         }
     }
     
     @Override
-    public boolean beforeFeature(Feature feature, ExecutionContext context) {
-        if (intellij && context.callContext.callDepth == 0) {
+    public boolean beforeFeature(FeatureRuntime fr) {
+        if (intellij && fr.caller.depth == 0) {
+            Feature feature = fr.feature;
             Path absolutePath = feature.getResource().getPath().toAbsolutePath();
             log(String.format(TEMPLATE_TEST_SUITE_STARTED, getCurrentTime(), absolutePath + ":" + feature.getLine(), escape(feature.getNameForReport())));
         }
@@ -120,34 +118,24 @@ public class CliExecutionHook implements ExecutionHook {
     }
     
     @Override
-    public void afterFeature(FeatureResult result, ExecutionContext context) {
-        if (context.callContext.callDepth > 0) {
+    public void afterFeature(FeatureRuntime fr) {
+        if (fr.caller.depth > 0) {
             return;
         }
         if (intellij) {
-            log(String.format(TEMPLATE_TEST_SUITE_FINISHED, getCurrentTime(), escape(result.getFeature().getNameForReport())));
+            log(String.format(TEMPLATE_TEST_SUITE_FINISHED, getCurrentTime(), escape(fr.feature.getNameForReport())));
         }
-        if (result.getScenarioCount() == 0) {
+        if (fr.result.getScenarioCount() == 0) {
             return;
         }
-        if (htmlReport && !result.isEmpty()) {
-            HtmlFeatureReport.saveFeatureResult(targetDir, result);
-            summary.addFeatureResult(result);
+        if (htmlReport && !fr.result.isEmpty()) {
+            HtmlFeatureReport.saveFeatureResult(targetDir, fr.result);
+            summary.addFeatureResult(fr.result);
         }
         if (LOCK.tryLock()) {
-            Engine.saveStatsJson(targetDir, context.results);
+            Engine.saveStatsJson(targetDir, fr.suite.results);
             LOCK.unlock();
         }
-    }
-    
-    @Override
-    public String getPerfEventName(HttpRequestBuilder req, ScenarioContext context) {
-        return null;
-    }
-    
-    @Override
-    public void reportPerfEvent(PerfEvent event) {
-        
     }
     
     private static void log(String s) {

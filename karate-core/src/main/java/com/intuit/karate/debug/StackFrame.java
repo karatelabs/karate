@@ -24,8 +24,8 @@
 package com.intuit.karate.debug;
 
 import com.intuit.karate.core.Scenario;
-import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.Step;
+import com.intuit.karate.runtime.ScenarioRuntime;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
@@ -42,11 +42,11 @@ public class StackFrame {
     private final String name;
     private final Map<String, Object> source = new HashMap();
 
-    public StackFrame(long frameId, ScenarioContext context) {
+    public StackFrame(long frameId, ScenarioRuntime context) {
         this.id = frameId;
-        Step step = context.getExecutionUnit().getCurrentStep();
+        Step step = context.getCurrentStep();
         line = step.getLine();
-        Scenario scenario = context.getExecutionUnit().scenario;
+        Scenario scenario = context.scenario;
         name = scenario.getDisplayMeta();
         Path path = step.getFeature().getPath();
         source.put("name", path.getFileName().toString());

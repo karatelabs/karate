@@ -53,7 +53,8 @@ public class FeatureResult {
     private List<Throwable> errors;
     private double durationMillis;
 
-    private ScriptValueMap resultVars;
+    private Map<String, Object> resultVariables;
+    private ScriptValueMap resultVars; // TODO remove
     private Map<String, Object> callArg;
     private int loopIndex;
 
@@ -258,12 +259,20 @@ public class FeatureResult {
             }
         }
     }
-    
+
+    public void setResultVariables(Map<String, Object> resultVariables) {
+        this.resultVariables = resultVariables;
+    }
+
+    public Map<String, Object> getResultVariables() {
+        return resultVariables;
+    }
+
     public void sortScenarioResults() {
         Collections.sort(scenarioResults);
     }
 
-    public List<ScenarioResult> getScenarioResults() {        
+    public List<ScenarioResult> getScenarioResults() {
         return scenarioResults;
     }
 

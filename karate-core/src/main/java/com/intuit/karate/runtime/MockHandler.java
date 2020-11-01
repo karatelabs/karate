@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.runtime;
 
+import com.intuit.karate.SuiteRuntime;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureSection;
@@ -92,6 +93,7 @@ public class MockHandler implements ServerHandler {
         runtime.engine.setVariable(HEADER_CONTAINS, (BiFunction<String, String, Boolean>) this::headerContains);
         runtime.engine.setVariable(BODY_PATH, (Function<String, Object>) this::bodyPath);
         if (feature.isBackgroundPresent()) {
+            runtime.engine.init();
             for (Step step : feature.getBackground().getSteps()) {
                 Result result = StepRuntime.execute(step, runtime.actions);
                 if (result.isFailed()) {

@@ -96,7 +96,7 @@ public class ScenarioCall {
         if (parentRuntime == null) {
             depth = 0;
         } else {
-            depth = parentRuntime.parentCall.depth + 1;
+            depth = parentRuntime.caller.depth + 1;
         }
     }
 

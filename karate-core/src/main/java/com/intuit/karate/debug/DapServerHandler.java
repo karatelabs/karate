@@ -25,13 +25,13 @@ package com.intuit.karate.debug;
 
 import com.intuit.karate.Runner;
 import com.intuit.karate.RunnerOptions;
-import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.ExecutionHook;
-import com.intuit.karate.core.ExecutionHookFactory;
 import com.intuit.karate.core.Result;
-import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.Step;
+import com.intuit.karate.runtime.RuntimeHook;
+import com.intuit.karate.runtime.RuntimeHookFactory;
+import com.intuit.karate.runtime.ScenarioRuntime;
+import com.intuit.karate.runtime.Variable;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> implements ExecutionHookFactory {
+public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> implements RuntimeHookFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(DapServerHandler.class);
 
@@ -63,7 +63,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
 
     private final Map<String, SourceBreakpoints> BREAKPOINTS = new ConcurrentHashMap();
     protected final Map<Long, DebugThread> THREADS = new ConcurrentHashMap();
-    protected final Map<Long, ScenarioContext> FRAMES = new ConcurrentHashMap();
+    protected final Map<Long, ScenarioRuntime> FRAMES = new ConcurrentHashMap();
 
     private boolean singleFeature;
     private String launchCommand;
@@ -132,7 +132,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         Collections.reverse(frameIds);
         List<Map<String, Object>> list = new ArrayList(frameIds.size());
         for (Long frameId : frameIds) {
-            ScenarioContext context = FRAMES.get(frameId);
+            ScenarioRuntime context = FRAMES.get(frameId);
             list.add(new StackFrame(frameId, context).toMap());
         }
         return list;
@@ -143,22 +143,22 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             return Collections.EMPTY_LIST;
         }
         focusedFrameId = frameId.longValue();
-        ScenarioContext context = FRAMES.get(frameId.longValue());
+        ScenarioRuntime context = FRAMES.get(frameId.longValue());
         if (context == null) {
             return Collections.EMPTY_LIST;
         }
         List<Map<String, Object>> list = new ArrayList();
-        context.vars.forEach((k, v) -> {
+        context.engine.vars.forEach((k, v) -> {
             if (v != null) {
                 Map<String, Object> map = new HashMap();
                 map.put("name", k);
                 try {
-                    map.put("value", v.getAsStringRemovingCyclicReferences());
+                    map.put("value", v.getAsString());
                 } catch (Exception e) {
                     logger.warn("unable to convert to string: {} - {}", k, v);
                     map.put("value", "(unknown)");
                 }
-                map.put("type", v.getTypeAsShortString());
+                map.put("type", v.type.name());
                 map.put("evaluateName", k);
                 // if > 0 , this can be used  by client to request more info
                 map.put("variablesReference", 0);
@@ -278,12 +278,12 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 String expression = req.getArgument("expression", String.class);
                 Number evalFrameId = req.getArgument("frameId", Number.class);
                 String reqContext = req.getArgument("context", String.class);
-                ScenarioContext evalContext = FRAMES.get(evalFrameId.longValue());
+                ScenarioRuntime evalContext = FRAMES.get(evalFrameId.longValue());
                 String result;
                 if ("clipboard".equals(reqContext)) {
                     try {
-                        ScriptValue sv = evalContext.vars.get(expression);
-                        result = sv.getAsPrettyString();
+                        Variable v = evalContext.engine.vars.get(expression);
+                        result = v.getAsPrettyString();
                     } catch (Exception e) {
                         result = "[error] " + e.getMessage();
                     }
@@ -301,7 +301,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                         .body("variablesReference", 0)); // non-zero means can be requested by client                 
                 break;
             case "restart":
-                ScenarioContext context = FRAMES.get(focusedFrameId);
+                ScenarioRuntime context = FRAMES.get(focusedFrameId);
                 if (context != null && context.hotReload()) {
                     output("[debug] hot reload successful");
                 } else {
@@ -325,7 +325,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         ctx.writeAndFlush(Unpooled.EMPTY_BUFFER);
     }
 
-    protected void evaluatePreStep(ScenarioContext context) {
+    protected void evaluatePreStep(ScenarioRuntime context) {
         if (preStep == null) {
             return;
         }
@@ -338,7 +338,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     }
 
     @Override
-    public ExecutionHook create() {
+    public RuntimeHook create() {
         return new DebugThread(Thread.currentThread(), this);
     }
 

@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.runtime;
 
+import com.intuit.karate.SuiteRuntime;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import java.nio.file.Path;
@@ -115,9 +116,21 @@ public class FeatureRuntime implements Runnable {
     @Override
     public void run() {
         try {
+            for (RuntimeHook hook : suite.hooks) {
+                hook.beforeFeature(this);
+            }
             while (scenarios.hasNext()) {
                 currentScenario = scenarios.next();
                 currentScenario.run();
+                result.addResult(currentScenario.result);
+            }
+            result.sortScenarioResults();
+            if (currentScenario != null) {
+                currentScenario.engine.invokeAfterHookIfConfigured(true);
+                result.setResultVariables(currentScenario.engine.getAllVariablesAsMap());
+            }
+            for (RuntimeHook hook : suite.hooks) {
+                hook.afterFeature(this);
             }
         } catch (Exception e) {
             suite.logger.error("feature runtime failed: {}", e.getMessage());

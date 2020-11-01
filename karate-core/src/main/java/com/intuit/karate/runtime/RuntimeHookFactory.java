@@ -23,32 +23,12 @@
  */
 package com.intuit.karate.runtime;
 
-import com.intuit.karate.SuiteRuntime;
-import com.intuit.karate.core.Step;
-import com.intuit.karate.core.StepResult;
-
 /**
  *
  * @author pthomas3
  */
-public interface RuntimeHook {
-
-    // return false if the scenario / item should be excluded from the test-run
-    // throws RuntimeException (any) to abort    
-    boolean beforeScenario(ScenarioRuntime sr);
-
-    void afterScenario(ScenarioRuntime sr);
-
-    boolean beforeFeature(FeatureRuntime fr);
-
-    void afterFeature(FeatureRuntime fr);
-
-    void beforeSuite(SuiteRuntime suite);
-
-    void afterSuite(SuiteRuntime suite);
-
-    boolean beforeStep(Step step, ScenarioRuntime sr);
-
-    void afterStep(StepResult result, ScenarioRuntime sr);
-
+public interface RuntimeHookFactory {
+    
+    RuntimeHook create();
+    
 }

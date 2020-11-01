@@ -74,15 +74,6 @@ class HttpMockHandlerRunner { // TODO investigate intermittent CI failure
     }
 
     @Test
-    void testSimpleGet() {
-        background().scenario(
-                "pathMatches('/hello')",
-                "def response = 'hello world'");
-        response = handle().path("/hello").invoke("get");
-        match(response.getBodyAsString(), "hello world");
-    }
-
-    @Test
     void testProceed() {
         FeatureBuilder fb = FeatureBuilder.background().scenario(
                 "pathMatches('/hello')",

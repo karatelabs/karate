@@ -1,5 +1,6 @@
 package com.intuit.karate.runtime;
 
+import com.intuit.karate.SuiteRuntime;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.Resource;
@@ -43,7 +44,6 @@ public class RuntimeUtils {
         Feature feature = toFeature("* print 'test'");
         FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature);
         ScenarioGenerator sg = new ScenarioGenerator(fr, feature.getSections().iterator());
-        sg.hasNext();
         return sg.next();
     }
 
@@ -54,7 +54,6 @@ public class RuntimeUtils {
     public static ScenarioRuntime run(Function<ScenarioEngine, HttpClient> clientFactory, Feature feature) {
         FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature);
         ScenarioGenerator sg = new ScenarioGenerator(fr, feature.getSections().iterator());
-        sg.hasNext();
         ScenarioRuntime sr = sg.next();
         if (clientFactory != null) {
             sr.engine.configure("clientFactory", new Variable(clientFactory));

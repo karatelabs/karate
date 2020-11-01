@@ -102,7 +102,7 @@ public class ScenarioEngine {
 
     public final ScenarioRuntime runtime;
     protected final ScenarioFileReader fileReader;
-    protected final Map<String, Variable> vars;
+    public final Map<String, Variable> vars;
     public final Logger logger;
 
     private final Function<String, Object> readFunction;
@@ -162,8 +162,7 @@ public class ScenarioEngine {
     public void matchResult(MatchType matchType, String expression, String path, String expected) {
         MatchResult mr = match(matchType, expression, path, expected);
         if (!mr.pass) {
-            runtime.logError(mr.message);
-            throw new KarateException(mr.message);
+            setFailedReason(new KarateException(mr.message));
         }
     }
 
@@ -219,8 +218,7 @@ public class ScenarioEngine {
     public void assertTrue(String expression) {
         if (!evalJs(expression).isTrue()) {
             String message = "did not evaluate to 'true': " + expression;
-            runtime.logError(message);
-            throw new KarateException(message);
+            setFailedReason(new KarateException(message));
         }
     }
 
@@ -232,7 +230,7 @@ public class ScenarioEngine {
     }
 
     public void invokeAfterHookIfConfigured(boolean afterFeature) {
-        if (runtime.parentCall.depth > 0) {
+        if (runtime.caller.depth > 0) {
             return;
         }
         Variable v = afterFeature ? config.getAfterFeature() : config.getAfterScenario();
@@ -247,8 +245,8 @@ public class ScenarioEngine {
     }
 
     public void stop(StepResult lastStepResult) {
-        if (runtime.parentCall.isSharedScope()) {
-            ScenarioEngine parent = runtime.parentCall.parentRuntime.engine;
+        if (runtime.caller.isSharedScope()) {
+            ScenarioEngine parent = runtime.caller.parentRuntime.engine;
             if (driver != null) { // a called feature inited the driver
                 parent.setDriver(driver);
             }
@@ -257,7 +255,7 @@ public class ScenarioEngine {
             }
             parent.webSocketClients = webSocketClients;
             // return, don't kill driver just yet
-        } else if (runtime.parentCall.depth == 0) { // end of top-level scenario (no caller)
+        } else if (runtime.caller.depth == 0) { // end of top-level scenario (no caller)
             if (webSocketClients != null) {
                 webSocketClients.forEach(WebSocketClient::close);
             }
@@ -665,8 +663,7 @@ public class ScenarioEngine {
             String message = "status code was: " + response.getStatus() + ", expected: " + status
                     + ", response time: " + responseTime + ", url: " + request.getUrl()
                     + ", response: " + rawResponse;
-            runtime.logError(message);
-            throw new KarateException(message);
+            setFailedReason(new KarateException(message));
         }
     }
 

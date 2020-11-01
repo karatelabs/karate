@@ -53,6 +53,7 @@ public class ScenarioGenerator implements Iterator<ScenarioRuntime> {
     public ScenarioGenerator(FeatureRuntime featureRuntime, Iterator<FeatureSection> sections) {
         this.featureRuntime = featureRuntime;
         this.sections = sections;
+        hasNext(); // important, this has to be called to init
     }
 
     @Override

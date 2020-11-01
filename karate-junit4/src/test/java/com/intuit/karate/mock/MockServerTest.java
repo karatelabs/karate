@@ -1,10 +1,12 @@
 package com.intuit.karate.mock;
 
-import com.intuit.karate.netty.*;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Runner;
 import com.intuit.karate.Results;
 import com.intuit.karate.KarateOptions;
+import com.intuit.karate.core.FeatureParser;
+import com.intuit.karate.runtime.MockHandler;
+import com.intuit.karate.server.HttpServer;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -22,16 +24,16 @@ import org.junit.Test;
 @KarateOptions(tags = "~@ignore")
 public class MockServerTest {
 
-    private static FeatureServer server;
+    private static HttpServer server;
     
     public static final byte[] testBytes = new byte[]{15, 98, -45, 0, 0, 7, -124, 75, 12, 26, 0, 9};
 
     @BeforeClass
     public static void beforeClass() {
-        File file = FileUtils.getFileRelativeTo(MockServerTest.class, "_mock.feature");
-        server = FeatureServer.start(file, 0, false, null);
-        int port = server.getPort();
-        System.setProperty("karate.server.port", port + "");
+        File file = FileUtils.getFileRelativeTo(MockServerTest.class, "_mock.feature");        
+        MockHandler mock = new MockHandler(FeatureParser.parse(file));
+        server = new HttpServer(0, mock);
+        System.setProperty("karate.server.port", server.getPort() + "");
     }
 
     @Test

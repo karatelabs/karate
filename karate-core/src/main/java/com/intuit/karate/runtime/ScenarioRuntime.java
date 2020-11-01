@@ -29,6 +29,7 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.Result;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
@@ -53,13 +54,12 @@ public class ScenarioRuntime implements Runnable {
 
     public final FeatureRuntime featureRuntime;
     public final ScenarioRuntime background;
-    public final ScenarioCall parentCall;
+    public final ScenarioCall caller;
     public final Scenario scenario;
     public final Tags tags;
     public final ScenarioActions actions;
     public final ScenarioResult result;
     public final ScenarioEngine engine;
-    public final Collection<RuntimeHook> hooks;
     public final boolean reportDisabled;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
@@ -67,18 +67,17 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario, ScenarioRuntime background) {
-        hooks = featureRuntime.suite.hooks;
         this.featureRuntime = featureRuntime;
-        this.parentCall = featureRuntime.caller;
-        if (parentCall.isNone()) {
+        this.caller = featureRuntime.caller;
+        if (caller.isNone()) {
             engine = new ScenarioEngine(new Config(), this, new HashMap(), logger);
-        } else if (parentCall.isSharedScope()) {
-            Config config = parentCall.parentRuntime.engine.getConfig();
-            Map<String, Variable> vars = parentCall.parentRuntime.engine.vars;
+        } else if (caller.isSharedScope()) {
+            Config config = caller.parentRuntime.engine.getConfig();
+            Map<String, Variable> vars = caller.parentRuntime.engine.vars;
             engine = new ScenarioEngine(config, this, vars, logger);
         } else { // new, but clone and copy data
-            Config config = new Config(parentCall.parentRuntime.engine.getConfig());
-            Map<String, Variable> vars = parentCall.parentRuntime.engine.copyVariables(false);
+            Config config = new Config(caller.parentRuntime.engine.getConfig());
+            Map<String, Variable> vars = caller.parentRuntime.engine.copyVariables(false);
             engine = new ScenarioEngine(config, this, vars, logger);
         }
         actions = new ScenarioActions(engine);
@@ -107,6 +106,10 @@ public class ScenarioRuntime implements Runnable {
 
     public boolean isStopped() {
         return stopped;
+    }
+
+    public LogAppender getAppender() {
+        return appender;
     }
 
     public void embed(byte[] bytes, String contentType) {
@@ -155,6 +158,40 @@ public class ScenarioRuntime implements Runnable {
 
     private int nextStepIndex() {
         return stepIndex++;
+    }
+
+    public Result evalAsStep(String expression) {
+        Step evalStep = new Step(scenario.getFeature(), scenario, scenario.getIndex() + 1);
+        try {
+            FeatureParser.updateStepFromText(evalStep, expression);
+        } catch (Exception e) {
+            return Result.failed(0, e, evalStep);
+        }
+        return StepRuntime.execute(evalStep, actions);
+    }
+
+    public boolean hotReload() {
+        boolean success = false;
+        Feature feature = scenario.getFeature();
+        feature = FeatureParser.parse(feature.getResource());
+        for (Step oldStep : steps) {
+            Step newStep = feature.findStepByLine(oldStep.getLine());
+            if (newStep == null) {
+                continue;
+            }
+            String oldText = oldStep.getText();
+            String newText = newStep.getText();
+            if (!oldText.equals(newText)) {
+                try {
+                    FeatureParser.updateStepFromText(oldStep, newStep.getText());
+                    logger.info("hot reloaded line: {} - {}", newStep.getLine(), newStep.getText());
+                    success = true;
+                } catch (Exception e) {
+                    logger.warn("failed to hot reload step: {}", e.getMessage());
+                }
+            }
+        }
+        return success;
     }
 
     public Map<String, Object> getScenarioInfo() {
@@ -215,14 +252,14 @@ public class ScenarioRuntime implements Runnable {
 
     protected Map<String, Object> getMagicVariables() {
         Map<String, Object> map = new HashMap();
-        Variable arg = parentCall.getArg();
-        if (parentCall.isNone()) { // if feature called via java api
+        Variable arg = caller.getArg();
+        if (caller.isNone()) { // if feature called via java api
             if (arg != null && arg.isMap()) {
                 map.putAll(arg.getValue());
             }
         } else {
             map.put("__arg", arg);
-            map.put("__loop", parentCall.getLoopIndex());
+            map.put("__loop", caller.getLoopIndex());
             if (arg != null && arg.isMap()) {
                 map.putAll(arg.getValue());
             }
@@ -252,15 +289,13 @@ public class ScenarioRuntime implements Runnable {
         engine.init();
         result.setThreadName(Thread.currentThread().getName());
         result.setStartTime(System.currentTimeMillis() - featureRuntime.suite.results.getStartTime());
-        if (parentCall.isNone() && !parentCall.isKarateConfigDisabled()) {
+        if (caller.isNone() && !caller.isKarateConfigDisabled()) {
             // evaluate config js, variables above will apply !
             evalConfigJs(featureRuntime.suite.karateBase);
             evalConfigJs(featureRuntime.suite.karateConfig);
             evalConfigJs(featureRuntime.suite.karateConfigEnv);
         }
-        if (hooks != null) {
-            hooks.forEach(h -> h.beforeScenario(this));
-        }
+        featureRuntime.suite.resolveHooks().forEach(h -> h.beforeScenario(this));
     }
 
     private void evalConfigJs(String js) {
@@ -276,16 +311,14 @@ public class ScenarioRuntime implements Runnable {
 
     // extracted for debug
     public StepResult execute(Step step) {
-        if (hooks != null) {
-            boolean shouldExecute = true;
-            for (RuntimeHook hook : hooks) {
-                if (!hook.beforeStep(step, this)) {
-                    shouldExecute = false;
-                }
+        boolean shouldExecute = true;
+        for (RuntimeHook hook : featureRuntime.suite.hooks) {
+            if (!hook.beforeStep(step, this)) {
+                shouldExecute = false;
             }
-            if (!shouldExecute) {
-                return null;
-            }
+        }
+        if (!shouldExecute) {
+            return null;
         }
         boolean hidden = reportDisabled || (step.isPrefixStar() && !step.isPrint() && !engine.getConfig().isShowAllSteps());
         if (stopped) {
@@ -297,14 +330,11 @@ public class ScenarioRuntime implements Runnable {
             }
             currentStepResult = new StepResult(step, stepResult, null, null, null);
             currentStepResult.setHidden(hidden);
-            if (hooks != null) {
-                hooks.forEach(h -> h.afterStep(currentStepResult, this));
-            }
+            featureRuntime.suite.hooks.forEach(h -> h.afterStep(currentStepResult, this));
             return currentStepResult;
         } else {
-            Result stepResult = StepRuntime.execute(step, actions);
-            String stepLog = StringUtils.trimToNull(appender.collect());
             boolean showLog = !reportDisabled && engine.getConfig().isShowLog();
+            Result stepResult = StepRuntime.execute(step, actions);
             if (stepResult.isAborted()) { // we log only aborts for visibility
                 aborted = true;
                 stopped = true;
@@ -315,13 +345,12 @@ public class ScenarioRuntime implements Runnable {
                 logError(error.getMessage());
             }
             ScenarioEngine.LOCAL.set(engine); // restore, since a call may have switched this to a nested scenario
+            String stepLog = StringUtils.trimToNull(appender.collect()); // make sure we collect after error logging
             currentStepResult = new StepResult(step, stepResult, stepLog, embeds, null);
             embeds = null;
             currentStepResult.setHidden(hidden);
             currentStepResult.setShowLog(showLog);
-            if (hooks != null) {
-                hooks.forEach(h -> h.afterStep(currentStepResult, this));
-            }
+            featureRuntime.suite.hooks.forEach(h -> h.afterStep(currentStepResult, this));
             return currentStepResult;
         }
     }
@@ -329,17 +358,15 @@ public class ScenarioRuntime implements Runnable {
     public void afterRun() {
         try {
             result.setEndTime(System.currentTimeMillis() - featureRuntime.suite.results.getStartTime());
-            featureRuntime.result.addResult(result);
             engine.logLastPerfEvent(result.getFailureMessageForDisplay());
             engine.invokeAfterHookIfConfigured(false);
-            if (hooks != null) {
-                hooks.forEach(h -> h.afterScenario(this));
-            }
+            featureRuntime.suite.hooks.forEach(h -> h.afterScenario(this));
             if (currentStepResult == null) {
                 Step step = new Step(scenario.getFeature(), scenario, -1);
                 step.setPrefix("*");
                 step.setText("(empty step)");
                 currentStepResult = new StepResult(step, Result.skipped(), null, null, null);
+                result.addStepResult(currentStepResult);
             }
             engine.stop(currentStepResult);
             if (embeds != null) {

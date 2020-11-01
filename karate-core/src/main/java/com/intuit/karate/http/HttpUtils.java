@@ -275,10 +275,11 @@ public class HttpUtils {
     }
 
     /**
-     * creates a map corresponding to cookie. This is used by appropriate drivers.
-     * Karate Cookie Map is of type <String, String> vs the internal framework expects appropriate types -
-     * for ex boolean for secure and persistent keys.
-     * Solution is to use this utility method or remove those keys from Karate Cookie Map.
+     * creates a map corresponding to cookie. This is used by appropriate
+     * drivers. Karate Cookie Map is of type <String, String> vs the internal
+     * framework expects appropriate types - for ex boolean for secure and
+     * persistent keys. Solution is to use this utility method or remove those
+     * keys from Karate Cookie Map.
      *
      * @param karateCookie cookie
      * @return Map

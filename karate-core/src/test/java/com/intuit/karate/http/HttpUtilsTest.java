@@ -64,6 +64,8 @@ class HttpUtilsTest {
         Match.equals(map, "{ duplicate: 'v1', 'duplicate@2': '1043' }");
         map = HttpUtils.parseUriPattern("/cats/{}/{}", "/cats/v1/1043");
         Match.equals(map, "{ ignored: 'v1', 'ignored@2': '1043' }");
+        map = HttpUtils.parseUriPattern("/hello/{raw}", "/hello/�Ill~Formed@RequiredString!");
+        Match.equals(map, "{ raw: '�Ill~Formed@RequiredString!' }");
     }
 
     @Test
