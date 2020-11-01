@@ -49,15 +49,15 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class MockHandler implements ServerHandler {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(MockHandler.class);
-    
+
     private static final String REQUEST_BYTES = "requestBytes";
     private static final String REQUEST_PARAMS = "requestParams";
     private static final String REQUEST_FILES = "requestFiles";
-    
+
     private static final String RESPONSE_DELAY = "responseDelay";
-    
+
     private static final String PATH_MATCHES = "pathMatches";
     private static final String METHOD_IS = "methodIs";
     private static final String TYPE_CONTAINS = "typeContains";
@@ -67,18 +67,17 @@ public class MockHandler implements ServerHandler {
     private static final String PARAM_EXISTS = "paramExists";
     private static final String PATH_PARAMS = "pathParams";
     private static final String BODY_PATH = "bodyPath";
-    
+
     private final Feature feature;
     private final String featureName;
     private final ScenarioRuntime runtime; // holds global config and vars
 
     protected static final ThreadLocal<Request> LOCAL_REQUEST = new ThreadLocal<Request>();
-    
+
     public MockHandler(Feature feature) {
         this.feature = feature;
         featureName = feature.getPath().toFile().getName();
-        FeatureRuntime featureRuntime = new FeatureRuntime(new SuiteRuntime(), feature);
-        featureRuntime.caller.setKarateConfigDisabled(true);
+        FeatureRuntime featureRuntime = new FeatureRuntime(SuiteRuntime.forMock(), feature);
         FeatureSection section = new FeatureSection();
         section.setIndex(-1); // TODO util for creating dummy scenario
         Scenario dummy = new Scenario(feature, section, -1);
@@ -105,11 +104,12 @@ public class MockHandler implements ServerHandler {
         }
         runtime.logger.info("mock server initialized: {}", featureName);
     }
-    
+
     private static final Result PASSED = Result.passed(0);
-    
+
     @Override
     public Response handle(Request req) {
+        Thread.currentThread().setContextClassLoader(runtime.featureRuntime.suite.classLoader);
         LOCAL_REQUEST.set(req);
         req.processBody();
         ScenarioEngine engine = new ScenarioEngine(runtime);
@@ -117,7 +117,7 @@ public class MockHandler implements ServerHandler {
         engine.setVariable(ScenarioEngine.REQUEST_URI, req.getPath());
         engine.setVariable(ScenarioEngine.REQUEST_METHOD, req.getMethod());
         engine.setVariable(ScenarioEngine.REQUEST_HEADERS, req.getHeaders());
-        engine.setVariable(ScenarioEngine.REQUEST, req.getBodyConverted());        
+        engine.setVariable(ScenarioEngine.REQUEST, req.getBodyConverted());
         engine.setVariable(REQUEST_PARAMS, req.getParams());
         engine.setVariable(REQUEST_BYTES, req.getBody());
         Map<String, List<Map<String, Object>>> files = req.getMultiPartFiles();
@@ -148,7 +148,7 @@ public class MockHandler implements ServerHandler {
                         }
                         if (result.isFailed()) {
                             String message = "server-side scenario failed, " + featureName + ":" + step.getLine()
-                                    + "\n" + result.getError().getMessage();
+                                    + "\n" + step.toString() + "\n" + result.getError().getMessage();
                             runtime.logger.error(message);
                             break;
                         }
@@ -191,7 +191,7 @@ public class MockHandler implements ServerHandler {
         runtime.logger.warn("no scenarios matched, returning 404: {}", req);
         return new Response(404);
     }
-    
+
     private boolean isMatchingScenario(Scenario scenario, ScenarioEngine engine) {
         String expression = StringUtils.trimToNull(scenario.getName() + scenario.getDescription());
         if (expression == null) {
@@ -203,7 +203,7 @@ public class MockHandler implements ServerHandler {
                 engine.logger.debug("scenario matched at line {}: {}", scenario.getLine(), expression);
                 return true;
             } else {
-                engine.logger.debug("scenario skipped at line {}: {}", scenario.getLine(), expression);
+                engine.logger.trace("scenario skipped at line {}: {}", scenario.getLine(), expression);
                 return false;
             }
         } catch (Exception e) {
@@ -211,7 +211,7 @@ public class MockHandler implements ServerHandler {
             return false;
         }
     }
-    
+
     public boolean pathMatches(String pattern) {
         String uri = LOCAL_REQUEST.get().getPath();
         Map<String, String> pathParams = HttpUtils.parseUriPattern(pattern, uri);
@@ -222,30 +222,30 @@ public class MockHandler implements ServerHandler {
             return true;
         }
     }
-    
+
     public boolean paramExists(String name) {
         Map<String, List<String>> params = LOCAL_REQUEST.get().getParams();
         return params == null ? false : params.containsKey(name);
     }
-    
+
     public String paramValue(String name) {
         return LOCAL_REQUEST.get().getParam(name);
     }
-    
+
     public boolean methodIs(String name) { // TODO no more supporting array arg
         return LOCAL_REQUEST.get().getMethod().equalsIgnoreCase(name);
     }
-    
+
     public boolean typeContains(String text) {
         String contentType = LOCAL_REQUEST.get().getContentType();
         return contentType == null ? false : contentType.contains(text);
     }
-    
+
     public boolean acceptContains(String text) {
         String acceptHeader = LOCAL_REQUEST.get().getHeader("Accept");
         return acceptHeader == null ? false : acceptHeader.contains(text);
     }
-    
+
     public boolean headerContains(String name, String value) {
         List<String> values = LOCAL_REQUEST.get().getHeaderValues(name);
         if (values != null) {
@@ -257,7 +257,7 @@ public class MockHandler implements ServerHandler {
         }
         return false;
     }
-    
+
     public Object bodyPath(String path) {
         Object body = LOCAL_REQUEST.get().getBodyConverted();
         if (body == null) {
@@ -271,5 +271,5 @@ public class MockHandler implements ServerHandler {
             return JsValue.fromJava(json.get(path));
         }
     }
-    
+
 }

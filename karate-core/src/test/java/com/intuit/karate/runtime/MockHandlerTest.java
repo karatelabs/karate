@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
 class MockHandlerTest {
 
     static final Logger logger = LoggerFactory.getLogger(MockHandlerTest.class);
-       
+
     HttpClient client = new DummyClient();
     MockHandler handler;
     FeatureBuilder feature;
@@ -95,7 +95,7 @@ class MockHandlerTest {
         request.path("/hello").param("foo", "world");
         handle();
         match(response.getBodyAsString(), "hello world");
-    }
+    }   
 
     @Test
     void testFormFieldsRequestPost() {
@@ -217,7 +217,7 @@ class MockHandlerTest {
         handle();
         match(response.getBodyConverted(), "{ foo: 'hello world', bar: 'some bytes' }");
     }
-    
+
     @Test
     void testAbort() {
         background().scenario(
@@ -229,8 +229,8 @@ class MockHandlerTest {
         request.path("/hello");
         handle();
         match(response.getBodyAsString(), "before");
-    }    
-    
+    }
+
     @Test
     void testUrlWithSpecialCharacters() {
         background().scenario(
@@ -239,7 +239,19 @@ class MockHandlerTest {
         );
         request.path("/hello/�Ill~Formed@RequiredString!");
         handle();
-        match(response.getBodyAsString(), "�Ill~Formed@RequiredString!");        
+        match(response.getBodyAsString(), "�Ill~Formed@RequiredString!");
+    }
+
+    @Test
+    void testGraalJavaClassLoading() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def Utils = Java.type('com.intuit.karate.runtime.MockUtils')",
+                "def response = Utils.testBytes"
+        );
+        request.path("/hello");
+        handle();
+        match(response.getBody(), MockUtils.testBytes);
     }
 
 }

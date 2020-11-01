@@ -73,8 +73,12 @@ public class JsValue {
                 value = v.as(Object.class);
                 type = Type.OTHER;
             }
-        } else if (v.isHostObject()) { // pojo
-            value = v.asHostObject();
+        } else if (v.isHostObject()) { // java object
+            if (v.isMetaObject()) { // java class
+                value = v; // special case, keep around as Graal Value
+            } else {
+                value = v.asHostObject();
+            }
             type = Type.OTHER;
         } else if (v.canExecute()) {
             value = v.as(Function.class);

@@ -63,6 +63,11 @@ public class StringUtils {
             return left.equals(o.left) && right.equals(o.right);
         }
 
+        @Override
+        public String toString() {
+            return left + ":" + right;
+        }                
+
     }
 
     public static Pair pair(String left, String right) {

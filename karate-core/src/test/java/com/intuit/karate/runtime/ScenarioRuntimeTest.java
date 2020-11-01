@@ -454,4 +454,31 @@ class ScenarioRuntimeTest {
         assertEquals(FileUtils.toString(file), "hello world");
     }
 
+    @Test
+    void testJavaClassAsVariable() {
+        run(
+                "def Utils = Java.type('com.intuit.karate.runtime.MockUtils')",
+                "def res = Utils.testBytes"
+        );
+        assertEquals(get("res"), MockUtils.testBytes);
+    }
+
+    @Test
+    void testCallJsFunctionShared() {
+        run(
+                "def myFn = function(x){ return { myVar: x } }",
+                "call myFn 'foo'"
+        );
+        assertEquals(get("myVar"), "foo");
+    }
+    
+    @Test
+    void testCallJsFunctionSharedJson() {
+        run(
+                "def myFn = function(x){ return { myVar: x.foo } }",
+                "call myFn { foo: 'bar' }"
+        );
+        assertEquals(get("myVar"), "bar");
+    }    
+
 }

@@ -1,4 +1,4 @@
-function fn() {   
+function fn() {
   var env = karate.env; // get system property 'karate.env'
   if (!env) {
     env = 'dev';
@@ -17,8 +17,5 @@ function fn() {
   config.myFunction = read('classpath:test.js');
   config.myUtils = karate.call('classpath:utils.feature');
   config.myCommon = read('classpath:common.feature')
-  var port = karate.properties['karate.server.port'];
-  port = port || '8080';
-  config.mockServerUrl = 'http://localhost:' + port + '/v1/';
   return config;
 }

@@ -5,4 +5,4 @@ Scenario: test when mock does not match any "route"
     And path 'nomatch'
     When method get
     Then status 404
-    And match response == 'no matching scenarios in backend feature files'
+    And match response == ''

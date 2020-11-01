@@ -106,7 +106,7 @@ public class RunnerOptions {
 
     public String getEnv() {
         return env;
-    }        
+    }
 
     public static RunnerOptions parseStringArgs(String[] args) {
         RunnerOptions options = CommandLine.populateCommand(new RunnerOptions(), args);
@@ -152,8 +152,7 @@ public class RunnerOptions {
             String relative = FileUtils.toRelativeClassPath(clazz);
             features = Collections.singletonList(relative);
         }
-        String line = System.getProperty("karate.options");
-        line = StringUtils.trimToNull(line);
+        String line = StringUtils.trimToNull(System.getProperty("karate.options"));
         RunnerOptions options;
         if (line == null) {
             options = new RunnerOptions();

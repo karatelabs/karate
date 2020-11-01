@@ -395,6 +395,14 @@ public class ScenarioEngine {
 
     public void param(String name, List<String> exps) {
         List<String> values = new ArrayList(exps.size());
+        if (exps.size() > 1) {
+            String first = exps.get(0);
+            if (first.startsWith("'") || first.startsWith("\"")) {
+                // special case, commas within string
+                String temp = StringUtils.join(exps, ',');
+                exps = Collections.singletonList(temp);
+            }
+        }
         for (String exp : exps) {
             values.add(evalAsString(exp));
         }
@@ -662,7 +670,7 @@ public class ScenarioEngine {
             String responseTime = vars.get(RESPONSE_TIME).getAsString();
             String message = "status code was: " + response.getStatus() + ", expected: " + status
                     + ", response time: " + responseTime + ", url: " + request.getUrl()
-                    + ", response: " + rawResponse;
+                    + ", response: \n" + rawResponse;
             setFailedReason(new KarateException(message));
         }
     }

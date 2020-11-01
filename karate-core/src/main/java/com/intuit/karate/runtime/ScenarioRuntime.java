@@ -49,9 +49,9 @@ import java.util.Map;
  * @author pthomas3
  */
 public class ScenarioRuntime implements Runnable {
-
+    
     public final Logger logger = new Logger();
-
+    
     public final FeatureRuntime featureRuntime;
     public final ScenarioRuntime background;
     public final ScenarioCall caller;
@@ -61,11 +61,11 @@ public class ScenarioRuntime implements Runnable {
     public final ScenarioResult result;
     public final ScenarioEngine engine;
     public final boolean reportDisabled;
-
+    
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
         this(featureRuntime, scenario, null);
     }
-
+    
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario, ScenarioRuntime background) {
         this.featureRuntime = featureRuntime;
         this.caller = featureRuntime.caller;
@@ -95,37 +95,37 @@ public class ScenarioRuntime implements Runnable {
         tags = Tags.merge(featureRuntime.feature.getTags(), scenario.getTags());
         reportDisabled = tags.valuesFor("report").isAnyOf("false");
     }
-
+    
     public boolean isFailed() {
         return error != null || result.isFailed();
     }
-
+    
     public Step getCurrentStep() {
         return currentStep;
     }
-
+    
     public boolean isStopped() {
         return stopped;
     }
-
+    
     public LogAppender getAppender() {
         return appender;
     }
-
+    
     public void embed(byte[] bytes, String contentType) {
         Embed embed = new Embed();
         embed.setBytes(bytes);
         embed.setMimeType(contentType);
         embed(embed);
     }
-
+    
     public void embed(Embed embed) {
         if (embeds == null) {
             embeds = new ArrayList();
         }
         embeds.add(embed);
     }
-
+    
     private List<Step> steps;
     private LogAppender appender;
     private List<Embed> embeds;
@@ -135,7 +135,7 @@ public class ScenarioRuntime implements Runnable {
     private boolean stopped;
     private boolean aborted;
     private int stepIndex;
-
+    
     public void stepBack() {
         stopped = false;
         stepIndex -= 2;
@@ -143,7 +143,7 @@ public class ScenarioRuntime implements Runnable {
             stepIndex = 0;
         }
     }
-
+    
     public void stepReset() {
         stopped = false;
         stepIndex--;
@@ -151,15 +151,15 @@ public class ScenarioRuntime implements Runnable {
             stepIndex = 0;
         }
     }
-
+    
     public void stepProceed() {
         stopped = false;
     }
-
+    
     private int nextStepIndex() {
         return stepIndex++;
     }
-
+    
     public Result evalAsStep(String expression) {
         Step evalStep = new Step(scenario.getFeature(), scenario, scenario.getIndex() + 1);
         try {
@@ -169,7 +169,7 @@ public class ScenarioRuntime implements Runnable {
         }
         return StepRuntime.execute(evalStep, actions);
     }
-
+    
     public boolean hotReload() {
         boolean success = false;
         Feature feature = scenario.getFeature();
@@ -193,7 +193,7 @@ public class ScenarioRuntime implements Runnable {
         }
         return success;
     }
-
+    
     public Map<String, Object> getScenarioInfo() {
         Map<String, Object> info = new HashMap(6);
         Path featurePath = featureRuntime.feature.getPath();
@@ -208,7 +208,7 @@ public class ScenarioRuntime implements Runnable {
         info.put("errorMessage", errorMessage);
         return info;
     }
-
+    
     protected void logError(String message) {
         if (currentStep != null) {
             message = currentStep.getDebugInfo()
@@ -216,8 +216,8 @@ public class ScenarioRuntime implements Runnable {
                     + "\n" + message;
         }
         logger.error("{}", message);
-    }
-
+    }   
+    
     @Override
     public void run() {
         try { // make sure we call afterRun() even on crashes
@@ -241,7 +241,7 @@ public class ScenarioRuntime implements Runnable {
             afterRun();
         }
     }
-
+    
     private static final ThreadLocal<LogAppender> APPENDER = new ThreadLocal<LogAppender>() {
         @Override
         protected LogAppender initialValue() {
@@ -249,7 +249,7 @@ public class ScenarioRuntime implements Runnable {
             return new FileLogAppender(new File(fileName));
         }
     };
-
+    
     protected Map<String, Object> getMagicVariables() {
         Map<String, Object> map = new HashMap();
         Variable arg = caller.getArg();
@@ -273,7 +273,7 @@ public class ScenarioRuntime implements Runnable {
         }
         return map;
     }
-
+    
     public void beforeRun() {
         if (appender == null) { // not perf, not debug
             appender = APPENDER.get();
@@ -297,7 +297,7 @@ public class ScenarioRuntime implements Runnable {
         }
         featureRuntime.suite.resolveHooks().forEach(h -> h.beforeScenario(this));
     }
-
+    
     private void evalConfigJs(String js) {
         if (js != null) {
             Variable fun = engine.evalKarateExpression(js);
@@ -354,7 +354,7 @@ public class ScenarioRuntime implements Runnable {
             return currentStepResult;
         }
     }
-
+    
     public void afterRun() {
         try {
             result.setEndTime(System.currentTimeMillis() - featureRuntime.suite.results.getStartTime());
@@ -383,7 +383,7 @@ public class ScenarioRuntime implements Runnable {
             // next
         }
     }
-
+    
     public boolean isSelectedForExecution() {
         Feature feature = featureRuntime.feature;
         int callLine = feature.getCallLine();
@@ -422,10 +422,10 @@ public class ScenarioRuntime implements Runnable {
         logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
         return false;
     }
-
+    
     @Override
     public String toString() {
         return scenario.toString();
     }
-
+    
 }

@@ -157,6 +157,10 @@ public class Variable {
 
     public Variable invokeFunction(Object... args) {
         Function fun = getValue();
+        // we have to convert any arguments that may have originated from js
+        for (int i = 0; i < args.length; i++) {
+            args[i] = JsValue.fromJava(args[i]);
+        }
         return new Variable(fun.apply(args));
     }
 

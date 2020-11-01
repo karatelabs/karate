@@ -92,6 +92,20 @@ class KarateMockHandlerTest {
     }
     
     @Test
+    void testParamWithCommas() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestParams");
+        run(
+                URL_STEP,
+                "param foo = 'bar,baz'",
+                "path '/hello'",
+                "method get"
+        );
+        matchVar("response", "{ foo: ['bar,baz'] }");
+    }    
+    
+    @Test
     void testHeaders() {
         background().scenario(
                 "pathMatches('/hello')",

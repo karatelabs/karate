@@ -324,7 +324,7 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public String getEnv() {
-        return getEngine().runtime.featureRuntime.suite.env;
+        return getEngine().runtime.featureRuntime.suite.getEnv();
     }
 
     public Object getInfo() {
@@ -523,7 +523,7 @@ public class ScenarioBridge implements PerfContext {
 
     public void signal(Object result) {
         getEngine().signal(result);
-    }    
+    }
 
     public Object toBean(Object o, String className) {
         Json json = new Json(o);

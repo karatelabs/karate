@@ -39,7 +39,8 @@ import java.util.Map;
  */
 public class SuiteRuntime {
 
-    public final String env;
+    private String env; // lazy inited
+
     public final String tagSelector;
     public final Logger logger;
     public final File workingDir;
@@ -67,6 +68,12 @@ public class SuiteRuntime {
         }
     }
 
+    public static SuiteRuntime forMock() {
+        Runner.Builder builder = new Runner.Builder();
+        builder.forMock = true;
+        return new SuiteRuntime(builder);
+    }
+
     public SuiteRuntime() {
         this(new Runner.Builder());
     }
@@ -85,38 +92,47 @@ public class SuiteRuntime {
         features = rb.resolveFeatures();
         results = Results.startTimer(threadCount);
         //======================================================================
-        karateBase = read("classpath:karate-base.js");
-        if (karateBase != null) {
-            logger.info("karate-base.js found on classpath");
-        }
-        String configPrefix = StringUtils.trimToNull(System.getProperty("karate.config.dir"));
-        if (configPrefix == null) {
-            configPrefix = "classpath:";
-        } else {
-            if (configPrefix.startsWith("file:") || configPrefix.startsWith("classpath:")) {
-                // all good
-            } else {
-                configPrefix = "file:" + configPrefix;
-            }
-            if (configPrefix.endsWith("/") || configPrefix.endsWith("\\")) {
-                // all good
-            } else {
-                configPrefix = configPrefix + File.separator;
-            }
-        }
-        karateConfig = read(configPrefix + "karate-config.js");
-        if (karateConfig != null) {
-            logger.info("karate-config.js found in {}", configPrefix);
-        } else {
-            logger.warn("karate-config.js not found in {}", configPrefix);
-        }
-        if (env != null) {
-            karateConfigEnv = read(configPrefix + "karate-config-" + env + ".js");
-            if (karateConfigEnv != null) {
-                logger.info("karate-config-" + env + ".js found in {}", configPrefix);
-            }
-        } else {
+        if (rb.forMock) { // don't show logs and confuse people
+            karateBase = null;
+            karateConfig = null;
             karateConfigEnv = null;
+        } else {
+            karateBase = read("classpath:karate-base.js");
+            if (karateBase != null) {
+                logger.info("karate-base.js found on classpath");
+            }
+            String configPrefix = rb.configDir;
+            if (configPrefix == null) {
+                configPrefix = StringUtils.trimToNull(System.getProperty("karate.config.dir"));
+            }
+            if (configPrefix == null) {
+                configPrefix = "classpath:";
+            } else {
+                if (configPrefix.startsWith("file:") || configPrefix.startsWith("classpath:")) {
+                    // all good
+                } else {
+                    configPrefix = "file:" + configPrefix;
+                }
+                if (configPrefix.endsWith("/") || configPrefix.endsWith("\\")) {
+                    // all good
+                } else {
+                    configPrefix = configPrefix + File.separator;
+                }
+            }
+            karateConfig = read(configPrefix + "karate-config.js");
+            if (karateConfig != null) {
+                logger.info("karate-config.js found in {}", configPrefix);
+            } else {
+                logger.warn("karate-config.js not found in {}", configPrefix);
+            }
+            if (env != null) {
+                karateConfigEnv = read(configPrefix + "karate-config-" + env + ".js");
+                if (karateConfigEnv != null) {
+                    logger.info("karate-config-" + env + ".js found in {}", configPrefix);
+                }
+            } else {
+                karateConfigEnv = null;
+            }
         }
     }
 
@@ -129,6 +145,13 @@ public class SuiteRuntime {
         resolved = true;
         hooks.add(hookFactory.create());
         return hooks;
+    }
+
+    public String getEnv() {
+        if (env == null) {
+            env = StringUtils.trimToNull(System.getProperty("karate.env"));
+        }
+        return env;
     }
 
 }

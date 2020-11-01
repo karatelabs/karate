@@ -166,7 +166,7 @@ public class JsEngine {
 
     public void putValue(String key, Value v) {
         if (v.isHostObject()) {
-            jc.bindings.putMember(key, v.asHostObject());
+            jc.bindings.putMember(key, v);
         } else if (v.canExecute()) {
             Value fun = evalForValue("(" + v.toString() + ")");
             jc.bindings.putMember(key, fun);

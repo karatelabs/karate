@@ -3,6 +3,7 @@ package com.intuit.karate.runtime;
 import com.intuit.karate.server.ArmeriaHttpClient;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
+import com.intuit.karate.server.HttpConstants;
 import com.intuit.karate.server.HttpRequestBuilder;
 import com.intuit.karate.server.HttpServer;
 import com.intuit.karate.server.Response;
@@ -58,7 +59,7 @@ class HttpMockHandlerTest {
         response = handle().path("/hello").invoke("get");
         match(response.getBodyAsString(), "hello world");
     }
-    
+
     @Test
     void testUrlWithSpecialCharacters() {
         background().scenario(
@@ -66,7 +67,28 @@ class HttpMockHandlerTest {
                 "def response = { success: true }"
         );
         response = handle().path("/hello/�Ill~Formed@RequiredString!").invoke("get");
-        match(response.getBodyConverted(), "{ success: true }");        
+        match(response.getBodyConverted(), "{ success: true }");
+    }
+
+    @Test
+    void testGraalJavaClassLoading() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def Utils = Java.type('com.intuit.karate.runtime.MockUtils')",
+                "def response = Utils.testBytes"
+        );
+        response = handle().path("/hello").invoke("get");
+        match(response.getBody(), MockUtils.testBytes);
+    }
+    
+    @Test
+    void testEmptyResponse() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = null"
+        );
+        response = handle().path("/hello").invoke("get");
+        match(response.getBody(), HttpConstants.ZERO_BYTES);
     }    
 
 }

@@ -271,6 +271,7 @@ public class Runner {
         String env;
         File workingDir;
         String buildDir;
+        String configDir;
         int threadCount;
         int timeoutMinutes;
         String reportDir;
@@ -281,6 +282,7 @@ public class Runner {
         List<Feature> features;
         Collection<RuntimeHook> hooks;
         RuntimeHookFactory hookFactory;
+        boolean forMock;
 
         public List<Feature> resolveFeatures() {
             if (features == null) {
@@ -326,9 +328,14 @@ public class Runner {
         }
 
         //======================================================================
-        //
+        //        
         public Builder classLoader(ClassLoader cl) {
             this.classLoader = cl;
+            return this;
+        }
+        
+        public Builder configDir(String dir) {
+            this.configDir = dir;
             return this;
         }
 
