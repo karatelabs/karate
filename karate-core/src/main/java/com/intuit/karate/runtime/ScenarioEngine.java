@@ -785,7 +785,7 @@ public class ScenarioEngine {
     // not in constructor because it has to be on Runnable.run() thread
     public void init() {
         JS = JsEngine.local();
-        logger.debug("js context: {}", JS);
+        logger.trace("js context: {}", JS);
         attachVariablesToJsContext();
         setHiddenVariable(KARATE, bridge);
         setHiddenVariable(READ, readFunction);
@@ -798,7 +798,7 @@ public class ScenarioEngine {
         vars.forEach((k, v) -> {
             switch (v.type) {
                 case FUNCTION:
-                    v = new Variable(JS.attachToContext(v.getValue()));
+                    v = new Variable(JS.attachFunction(v.getValue()));
                     vars.put(k, v);
                     break;
                 case MAP:
@@ -808,13 +808,14 @@ public class ScenarioEngine {
                 default:
                 // do nothing
             }
+            JS.put(k, v.getValue());
         });
     }
 
     protected Object attachToJsContext(Object o) {
         // do this check first as graal functions are maps as well
         if (o instanceof Function) {
-            return JS.attachToContext(o);
+            return JS.attachFunction((Function) o);
         } else if (o instanceof List) {
             List list = (List) o;
             int count = list.size();
@@ -841,7 +842,6 @@ public class ScenarioEngine {
     }
 
     public Variable evalJs(String js) {
-        vars.forEach((k, v) -> JS.put(k, v.getValue()));
         try {
             return new Variable(JS.eval(js));
         } catch (Exception e) {
@@ -1544,7 +1544,7 @@ public class ScenarioEngine {
             if (result.vars != null) {
                 vars.clear(); // clean slate
                 vars.putAll(copy(result.vars, false)); // clone for safety     
-                setVariables(magicVariables); // re-apply magic variables !
+                init(); // this will also insert magic variables
                 return Variable.NULL; // since we already reset the vars above we return null
                 // else the call() routine would try to do it again
                 // note that shared scope means a return value is meaningless

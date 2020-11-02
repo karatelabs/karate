@@ -27,6 +27,7 @@ import com.intuit.karate.FileUtils;
 import java.io.File;
 import java.io.InputStream;
 import java.util.Map;
+import java.util.function.Function;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Engine;
 import org.graalvm.polyglot.Value;
@@ -38,20 +39,20 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class JsEngine {
-
+    
     private static final Logger logger = LoggerFactory.getLogger(JsEngine.class);
-
+    
     private static final String JS = "js";
     private static final String JSON_STRINGIFY = "JSON.stringify";
     private static final String JS_EXPERIMENTAL_FOP = "js.experimental-foreign-object-prototype";
     private static final String JS_NASHORN_COMPAT = "js.nashorn-compat";
     private static final String TRUE = "true";
-
+    
     private static class JsContext {
-
+        
         final Context context;
         final Value bindings;
-
+        
         JsContext(Engine engine) {
             if (engine == null) {
                 engine = Engine.newBuilder().build();
@@ -64,34 +65,34 @@ public class JsEngine {
                     .engine(engine).build();
             bindings = context.getBindings(JS);
         }
-
+        
         Value eval(String exp) {
             return context.eval(JS, exp);
         }
-
+        
     }
-
+    
     public static JsValue evalGlobal(String src) {
         return global().eval(src);
     }
-
+    
     public static JsValue evalGlobal(InputStream is) {
         return global().eval(is);
     }
-
+    
     public static JsEngine global() {
         return new JsEngine(GLOBAL_JS_CONTEXT.get());
     }
-
+    
     public static void remove() {
         GLOBAL_JS_CONTEXT.remove();
     }
-
+    
     public static JsEngine local() {
         Engine engine = GLOBAL_JS_CONTEXT.get().context.getEngine();
         return new JsEngine(new JsContext(engine));
     }
-
+    
     public static JsEngine localWithGlobalBindings() {
         JsEngine je = local();
         Value bindings = global().jc.bindings;
@@ -100,58 +101,58 @@ public class JsEngine {
         }
         return je;
     }
-
+    
     private static final ThreadLocal<JsContext> GLOBAL_JS_CONTEXT = new ThreadLocal<JsContext>() {
         @Override
         protected JsContext initialValue() {
             return new JsContext(null);
         }
     };
-
+    
     private final JsContext jc;
     private Value stringify;
-
+    
     private JsEngine(JsContext sc) {
         this.jc = sc;
     }
-
+    
     public Value bindings() {
         return jc.bindings;
     }
-
+    
     public JsValue eval(InputStream is) {
         return eval(FileUtils.toString(is));
     }
-
+    
     public JsValue eval(File file) {
         return eval(FileUtils.toString(file));
     }
-
+    
     public JsValue eval(String exp) {
         return new JsValue(jc.eval(exp));
     }
-
+    
     public Value evalForValue(String exp) {
         return jc.eval(exp);
     }
-
+    
     public void put(String key, Object value) {
         jc.bindings.putMember(key, JsValue.fromJava(value));
     }
-
+    
     public void putAll(Map<String, Object> map) {
         map.forEach((k, v) -> put(k, v));
     }
-
+    
     public boolean hasMember(String key) {
         return jc.bindings.hasMember(key);
     }
-
+    
     public JsValue get(String key) {
         Value value = jc.bindings.getMember(key);
         return new JsValue(value);
     }
-
+    
     public String toJson(Value v) {
         if (stringify == null) {
             stringify = evalForValue(JSON_STRINGIFY);
@@ -159,11 +160,11 @@ public class JsEngine {
         Value json = stringify.execute(v);
         return json.asString();
     }
-
+    
     public String toJson(JsValue jv) {
         return toJson(jv.getOriginal());
     }
-
+    
     public void putValue(String key, Value v) {
         if (v.isHostObject()) {
             jc.bindings.putMember(key, v);
@@ -174,26 +175,19 @@ public class JsEngine {
             put(key, JsValue.toJava(v));
         }
     }
-
-    public Value attachToContext(Object o) {
+    
+    public Value attachFunction(Function fun) {
         try {
-            Value old = Value.asValue(o);
-            Context context = old.getContext();
-            if (context != null && !context.equals(jc.context)) {
-                String temp = "(" + old.toString() + ")";
-                return evalForValue(temp);
-            } else {
-                return old;
-            }
+            return jc.context.asValue(fun);
         } catch (Exception e) {
-            logger.warn("*** js attach failed: {}", e.getMessage());
-            String temp = "(" + o.toString() + ")";
+            logger.trace("js context swap: {}", e.getMessage());
+            String temp = "(" + fun.toString() + ")";
             return evalForValue(temp);
         }
     }
-
+    
     public String toString() {
         return jc.context.toString();
     }
-
+    
 }
