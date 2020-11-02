@@ -85,8 +85,8 @@ class ScenarioRuntimeTest {
     void testFunctionsFromGlobalConfig() {
         System.setProperty("karate.config.dir", "src/test/java/com/intuit/karate/runtime");
         run(
-                "def foo = utils.someText",
-                "def bar = utils.someFun()",
+                "def foo = configUtilsJs.someText",
+                "def bar = configUtilsJs.someFun()",
                 "def res = call read('called2.feature')"
         );
         matchVar("foo", "hello world");
@@ -471,7 +471,7 @@ class ScenarioRuntimeTest {
         );
         assertEquals(get("myVar"), "foo");
     }
-    
+
     @Test
     void testCallJsFunctionSharedJson() {
         run(
@@ -479,6 +479,26 @@ class ScenarioRuntimeTest {
                 "call myFn { foo: 'bar' }"
         );
         assertEquals(get("myVar"), "bar");
-    }    
+    }
+    
+    @Test
+    void testSelfValidationWithVariables() {
+        run(
+                "def date = { month: 3 }",
+                "def min = 1",
+                "def max = 12",
+                "match date == { month: '#? _ >= min && _ <= max' }"
+        );    
+        assertFalse(sr.isFailed());
+    }
+    
+    @Test
+    void testReadAndMatchBytes() {
+        run(
+                "bytes data = read('karate-logo.png')",
+                "match data == read('karate-logo.png')"
+        );    
+        assertFalse(sr.isFailed());        
+    }
 
 }

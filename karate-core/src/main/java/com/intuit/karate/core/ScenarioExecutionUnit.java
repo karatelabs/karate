@@ -127,7 +127,7 @@ public class ScenarioExecutionUnit implements Runnable {
                 actions = new StepActions(exec.featureContext, exec.callContext, exec.classLoader, scenario, appender);
             } catch (Exception e) {
                 initFailed = true;
-                result.addError("scenario init failed", e);
+                result.addFakeStepResult("scenario init failed", e);
             }
         } else { // dynamic scenario outline, hack to swap logger for current thread
             Logger logger = new Logger();
@@ -145,7 +145,7 @@ public class ScenarioExecutionUnit implements Runnable {
                     hooks.forEach(h -> h.beforeScenario(scenario, actions.context));
                 } catch (Exception e) {
                     initFailed = true;
-                    result.addError("beforeScenario hook failed", e);
+                    result.addFakeStepResult("beforeScenario hook failed", e);
                 }
             }
         }
@@ -305,7 +305,7 @@ public class ScenarioExecutionUnit implements Runnable {
             }
             stop();
         } catch (Exception e) {            
-            result.addError("scenario execution failed", e);
+            result.addFakeStepResult("scenario execution failed", e);
             LOGGER.error("scenario execution failed: {}", e.getMessage());
         }
     }

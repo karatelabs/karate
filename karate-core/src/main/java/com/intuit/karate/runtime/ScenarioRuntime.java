@@ -30,16 +30,17 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
+import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.Result;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
+import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.shell.FileLogAppender;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,9 +50,9 @@ import java.util.Map;
  * @author pthomas3
  */
 public class ScenarioRuntime implements Runnable {
-    
+
     public final Logger logger = new Logger();
-    
+
     public final FeatureRuntime featureRuntime;
     public final ScenarioRuntime background;
     public final ScenarioCall caller;
@@ -61,11 +62,11 @@ public class ScenarioRuntime implements Runnable {
     public final ScenarioResult result;
     public final ScenarioEngine engine;
     public final boolean reportDisabled;
-    
+
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
         this(featureRuntime, scenario, null);
     }
-    
+
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario, ScenarioRuntime background) {
         this.featureRuntime = featureRuntime;
         this.caller = featureRuntime.caller;
@@ -95,47 +96,55 @@ public class ScenarioRuntime implements Runnable {
         tags = Tags.merge(featureRuntime.feature.getTags(), scenario.getTags());
         reportDisabled = tags.valuesFor("report").isAnyOf("false");
     }
-    
+
     public boolean isFailed() {
         return error != null || result.isFailed();
     }
-    
+
     public Step getCurrentStep() {
         return currentStep;
     }
-    
+
     public boolean isStopped() {
         return stopped;
     }
-    
+
     public LogAppender getAppender() {
         return appender;
     }
-    
+
     public void embed(byte[] bytes, String contentType) {
         Embed embed = new Embed();
         embed.setBytes(bytes);
         embed.setMimeType(contentType);
         embed(embed);
     }
-    
+
     public void embed(Embed embed) {
         if (embeds == null) {
             embeds = new ArrayList();
         }
         embeds.add(embed);
     }
-    
+
+    public void addCallResult(FeatureResult fr) {
+        if (callResults == null) {
+            callResults = new ArrayList();
+        }
+        callResults.add(fr);
+    }
+
     private List<Step> steps;
     private LogAppender appender;
     private List<Embed> embeds;
+    private List<FeatureResult> callResults;
     private StepResult currentStepResult;
     private Step currentStep;
     private Throwable error;
     private boolean stopped;
     private boolean aborted;
     private int stepIndex;
-    
+
     public void stepBack() {
         stopped = false;
         stepIndex -= 2;
@@ -143,7 +152,7 @@ public class ScenarioRuntime implements Runnable {
             stepIndex = 0;
         }
     }
-    
+
     public void stepReset() {
         stopped = false;
         stepIndex--;
@@ -151,15 +160,15 @@ public class ScenarioRuntime implements Runnable {
             stepIndex = 0;
         }
     }
-    
+
     public void stepProceed() {
         stopped = false;
     }
-    
+
     private int nextStepIndex() {
         return stepIndex++;
     }
-    
+
     public Result evalAsStep(String expression) {
         Step evalStep = new Step(scenario.getFeature(), scenario, scenario.getIndex() + 1);
         try {
@@ -169,7 +178,7 @@ public class ScenarioRuntime implements Runnable {
         }
         return StepRuntime.execute(evalStep, actions);
     }
-    
+
     public boolean hotReload() {
         boolean success = false;
         Feature feature = scenario.getFeature();
@@ -193,7 +202,7 @@ public class ScenarioRuntime implements Runnable {
         }
         return success;
     }
-    
+
     public Map<String, Object> getScenarioInfo() {
         Map<String, Object> info = new HashMap(6);
         Path featurePath = featureRuntime.feature.getPath();
@@ -208,7 +217,7 @@ public class ScenarioRuntime implements Runnable {
         info.put("errorMessage", errorMessage);
         return info;
     }
-    
+
     protected void logError(String message) {
         if (currentStep != null) {
             message = currentStep.getDebugInfo()
@@ -216,8 +225,8 @@ public class ScenarioRuntime implements Runnable {
                     + "\n" + message;
         }
         logger.error("{}", message);
-    }   
-    
+    }
+
     @Override
     public void run() {
         try { // make sure we call afterRun() even on crashes
@@ -235,13 +244,13 @@ public class ScenarioRuntime implements Runnable {
                 }
             }
         } catch (Exception e) {
-            logError(e.getMessage());
-            result.addError("run() failed", e);
+            logError("scenario [run] failed\n" + e.getMessage());
+            currentStepResult = result.addFakeStepResult("scenario [run] failed", e);
         } finally {
             afterRun();
         }
     }
-    
+
     private static final ThreadLocal<LogAppender> APPENDER = new ThreadLocal<LogAppender>() {
         @Override
         protected LogAppender initialValue() {
@@ -249,7 +258,7 @@ public class ScenarioRuntime implements Runnable {
             return new FileLogAppender(new File(fileName));
         }
     };
-    
+
     protected Map<String, Object> getMagicVariables() {
         Map<String, Object> map = new HashMap();
         Variable arg = caller.getArg();
@@ -273,8 +282,9 @@ public class ScenarioRuntime implements Runnable {
         }
         return map;
     }
-    
+
     public void beforeRun() {
+        String env = featureRuntime.suite.getEnv(); // this lazy-inits (one time) the suite env
         if (appender == null) { // not perf, not debug
             appender = APPENDER.get();
         }
@@ -291,21 +301,29 @@ public class ScenarioRuntime implements Runnable {
         result.setStartTime(System.currentTimeMillis() - featureRuntime.suite.results.getStartTime());
         if (caller.isNone() && !caller.isKarateConfigDisabled()) {
             // evaluate config js, variables above will apply !
-            evalConfigJs(featureRuntime.suite.karateBase);
-            evalConfigJs(featureRuntime.suite.karateConfig);
-            evalConfigJs(featureRuntime.suite.karateConfigEnv);
+            evalConfigJs(featureRuntime.suite.karateBase, "karate-base.js");
+            evalConfigJs(featureRuntime.suite.karateConfig, "karate-config.js");
+            evalConfigJs(featureRuntime.suite.karateConfigEnv, "karate-config-" + env + ".js");
         }
         featureRuntime.suite.resolveHooks().forEach(h -> h.beforeScenario(this));
     }
-    
-    private void evalConfigJs(String js) {
-        if (js != null) {
-            Variable fun = engine.evalKarateExpression(js);
-            if (fun.isFunction()) {
-                engine.setVariables(fun.evalAsMap());
-            } else {
-                logger.warn("config did not evaluate to js function: {}", js);
-            }
+
+    private void evalConfigJs(String js, String name) {
+        if (js == null) {
+            return;
+        }
+        Variable fun = engine.evalKarateExpression(js);
+        if (!fun.isFunction()) {
+            logger.warn("not a valid js function: {}", name);
+            return;
+        }
+        try {
+            Map<String, Object> map = fun.evalAsMap();
+            engine.setVariables(map);
+        } catch (Exception e) {
+            logger.error("{} failed: {}", name, e.getMessage());
+            KarateException ke = ScenarioEngine.fromJsEvalException(js, e);
+            throw ke;
         }
     }
 
@@ -344,9 +362,9 @@ public class ScenarioRuntime implements Runnable {
                 error = stepResult.getError();
                 logError(error.getMessage());
             }
-            ScenarioEngine.LOCAL.set(engine); // restore, since a call may have switched this to a nested scenario
             String stepLog = StringUtils.trimToNull(appender.collect()); // make sure we collect after error logging
-            currentStepResult = new StepResult(step, stepResult, stepLog, embeds, null);
+            currentStepResult = new StepResult(step, stepResult, stepLog, embeds, callResults);
+            callResults = null;
             embeds = null;
             currentStepResult.setHidden(hidden);
             currentStepResult.setShowLog(showLog);
@@ -354,7 +372,7 @@ public class ScenarioRuntime implements Runnable {
             return currentStepResult;
         }
     }
-    
+
     public void afterRun() {
         try {
             result.setEndTime(System.currentTimeMillis() - featureRuntime.suite.results.getStartTime());
@@ -362,11 +380,7 @@ public class ScenarioRuntime implements Runnable {
             engine.invokeAfterHookIfConfigured(false);
             featureRuntime.suite.hooks.forEach(h -> h.afterScenario(this));
             if (currentStepResult == null) {
-                Step step = new Step(scenario.getFeature(), scenario, -1);
-                step.setPrefix("*");
-                step.setText("(empty step)");
-                currentStepResult = new StepResult(step, Result.skipped(), null, null, null);
-                result.addStepResult(currentStepResult);
+                currentStepResult = result.addFakeStepResult("no steps executed", null);
             }
             engine.stop(currentStepResult);
             if (embeds != null) {
@@ -376,14 +390,14 @@ public class ScenarioRuntime implements Runnable {
             String stepLog = StringUtils.trimToNull(appender.collect());
             currentStepResult.appendToStepLog(stepLog);
         } catch (Exception e) {
-            logError(e.getMessage());
-            result.addError("afterRun() failed", e);
+            logError("scenario [cleanup] failed\n" + e.getMessage());
+            currentStepResult = result.addFakeStepResult("scenario [cleanup] failed", e);
         } finally {
             ScenarioEngine.LOCAL.remove();
             // next
         }
     }
-    
+
     public boolean isSelectedForExecution() {
         Feature feature = featureRuntime.feature;
         int callLine = feature.getCallLine();
@@ -422,10 +436,10 @@ public class ScenarioRuntime implements Runnable {
         logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
         return false;
     }
-    
+
     @Override
     public String toString() {
         return scenario.toString();
     }
-    
+
 }

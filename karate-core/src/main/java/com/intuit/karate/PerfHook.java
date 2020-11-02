@@ -21,25 +21,24 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.runtime;
+package com.intuit.karate;
 
 import com.intuit.karate.core.PerfEvent;
+import com.intuit.karate.runtime.ScenarioRuntime;
 import com.intuit.karate.server.HttpRequest;
 
 /**
  *
  * @author pthomas3
  */
-public interface PerfRuntime {
+public interface PerfHook {
 
-    String getPerfEventName(HttpRequest request, ScenarioEngine se);
+    String getPerfEventName(HttpRequest request, ScenarioRuntime sr);
 
     void reportPerfEvent(PerfEvent event);
     
     void submit(Runnable runnable);
     
     void afterFeature();
-    
-    void next();
 
 }

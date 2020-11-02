@@ -2,4 +2,4 @@
 Feature:
 
 Scenario:
-* def calledBar = utils.someFun()
+* def calledBar = configUtilsJs.someFun()

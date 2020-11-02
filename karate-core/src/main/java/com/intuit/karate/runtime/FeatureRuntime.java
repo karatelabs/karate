@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.runtime;
 
+import com.intuit.karate.PerfHook;
 import com.intuit.karate.SuiteRuntime;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
@@ -35,61 +36,66 @@ import java.util.Map;
  * @author pthomas3
  */
 public class FeatureRuntime implements Runnable {
-
+    
     public final SuiteRuntime suite;
     public final FeatureRuntime rootFeature;
     public final ScenarioCall caller;
     public final Feature feature;
     public final FeatureResult result;
     private final ScenarioGenerator scenarios;
-
+    
     public final Map<String, ScenarioCall.Result> FEATURE_CACHE = new HashMap();
-
-    private PerfRuntime perfRuntime;
+    
+    private PerfHook perfRuntime;
     private Runnable next;
-
+    
     public Path getParentPath() {
         return feature.getPath().getParent();
     }
-
+    
     public Path getRootParentPath() {
         return rootFeature.getParentPath();
     }
-
+    
     public Path getPath() {
         return feature.getPath();
     }
-
-    public void setPerfRuntime(PerfRuntime perfRuntime) {
+    
+    public void setPerfRuntime(PerfHook perfRuntime) {
         this.perfRuntime = perfRuntime;
     }
-
+    
     public boolean isPerfMode() {
         return perfRuntime != null;
     }
-
-    public PerfRuntime getPerfRuntime() {
+    
+    public PerfHook getPerfRuntime() {
         return perfRuntime;
     }
-
-    public void setCallArg(Map<String, Object> arg) {
+    
+    public void setCallArg(Map<String, Object> arg) {        
         if (arg != null) {
             caller.setArg(new Variable(arg));
         }
     }
-
+    
     public void setNext(Runnable next) {
         this.next = next;
     }
-
+    
     public FeatureRuntime(SuiteRuntime suite, Feature feature) {
         this(suite, feature, ScenarioCall.none());
     }
-
+    
     public FeatureRuntime(ScenarioCall call) {
         this(call.parentRuntime.featureRuntime.suite, call.feature, call);
+        Variable arg = call.getArg();
+        result.setLoopIndex(call.getLoopIndex());
+        if (arg != null) {
+            result.setCallArg(arg.getValue());
+        }
     }
-
+    
     private FeatureRuntime(SuiteRuntime suite, Feature feature, ScenarioCall parentCall) {
         this.suite = suite;
         this.feature = feature;
@@ -98,23 +104,23 @@ public class FeatureRuntime implements Runnable {
         result = new FeatureResult(suite.results, feature);
         scenarios = new ScenarioGenerator(this, feature.getSections().iterator());
     }
-
+    
     private ScenarioRuntime currentScenario;
-
+    
     public Variable getResultVariable() {
         if (currentScenario == null) {
             return Variable.NULL;
         }
         return new Variable(currentScenario.engine.getAllVariablesAsMap());
     }
-
+    
     public Map<String, Object> getResult() {
         Variable var = getResultVariable();
         return var.isMap() ? var.getValue() : null;
     }
-
+    
     private boolean beforeHookDone;
-
+    
     private void beforeHook() {
         if (beforeHookDone) {
             return;
@@ -124,7 +130,7 @@ public class FeatureRuntime implements Runnable {
             hook.beforeFeature(this);
         }
     }
-
+    
     @Override
     public void run() {
         try {
@@ -156,5 +162,5 @@ public class FeatureRuntime implements Runnable {
             }
         }
     }
-
+    
 }

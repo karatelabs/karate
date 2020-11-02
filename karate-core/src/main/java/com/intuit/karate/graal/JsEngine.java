@@ -176,14 +176,24 @@ public class JsEngine {
     }
 
     public Value attachToContext(Object o) {
-        Value old = Value.asValue(o);
-        Context context = old.getContext();
-        if (context != null && !context.equals(jc.context)) {
-            String temp = "(" + old.toString() + ")";
+        try {
+            Value old = Value.asValue(o);
+            Context context = old.getContext();
+            if (context != null && !context.equals(jc.context)) {
+                String temp = "(" + old.toString() + ")";
+                return evalForValue(temp);
+            } else {
+                return old;
+            }
+        } catch (Exception e) {
+            logger.warn("*** js attach failed: {}", e.getMessage());
+            String temp = "(" + o.toString() + ")";
             return evalForValue(temp);
-        } else {
-            return old;
         }
+    }
+
+    public String toString() {
+        return jc.context.toString();
     }
 
 }

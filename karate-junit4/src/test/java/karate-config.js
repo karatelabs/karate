@@ -16,6 +16,6 @@ function fn() {
   config.myObject = read('classpath:test.json');
   config.myFunction = read('classpath:test.js');
   config.myUtils = karate.call('classpath:utils.feature');
-  config.myCommon = read('classpath:common.feature')
+  config.myCommon = read('classpath:common.feature');
   return config;
 }

@@ -105,7 +105,7 @@ public class ScenarioGenerator implements Iterator<ScenarioRuntime> {
                     }
                 } catch (Exception e) {
                     String message = "dynamic expression evaluation failed: " + expression;
-                    background.result.addError(message, e);
+                    background.result.addFakeStepResult(message, e);
                     currentScenario = null;
                     next = background;
                     return true; // exit early
@@ -118,7 +118,7 @@ public class ScenarioGenerator implements Iterator<ScenarioRuntime> {
                     rowValue = expressionValue.invokeFunction(rowIndex);
                 } catch (Exception e) {
                     String message = "dynamic function expression evaluation failed at index " + rowIndex + ": " + e.getMessage();
-                    background.result.addError(message, e);
+                    background.result.addFakeStepResult(message, e);
                     currentScenario = null;
                     next = background;
                     return true; // exit early                    

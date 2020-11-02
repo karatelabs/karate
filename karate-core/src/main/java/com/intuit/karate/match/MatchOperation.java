@@ -189,6 +189,7 @@ public class MatchOperation {
         if (actual.type != expected.type) {
             switch (type) {
                 case CONTAINS:
+                case NOT_CONTAINS:
                 case CONTAINS_ANY:
                 case CONTAINS_ONLY:
                 case CONTAINS_DEEP:

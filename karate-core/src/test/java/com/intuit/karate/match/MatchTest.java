@@ -133,6 +133,13 @@ class MatchTest {
         match("['foo', 'bar']", CONTAINS, "['baz']", FAILS);
         message("actual array does not contain expected item - baz");
     }
+    
+    @Test
+    void testListNotContains() {
+        match("['foo', 'bar']", NOT_CONTAINS, "baz");
+        match("['foo', 'bar']", NOT_CONTAINS, "bar", FAILS);
+        message("actual contains expected");
+    }    
 
     @Test
     void testEach() {

@@ -7,7 +7,7 @@ Scenario:
 * print 'before call'
 * fun()
 * print 'after call'
-* print 'before js common'
-* call myCommon
-* print 'after js common'
+#* print 'before js common'
+#* call myCommon
+#* print 'after js common'
 

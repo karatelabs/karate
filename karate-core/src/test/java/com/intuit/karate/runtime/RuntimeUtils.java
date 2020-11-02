@@ -4,6 +4,7 @@ import com.intuit.karate.SuiteRuntime;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.Resource;
+import com.intuit.karate.Runner;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.server.HttpClient;
@@ -63,8 +64,14 @@ public class RuntimeUtils {
     }
 
     public static FeatureRuntime runFeature(String path) {
+        return runFeature(path, null);
+    }
+    
+    public static FeatureRuntime runFeature(String path, String configDir) {
         Feature feature = FeatureParser.parse(path);
-        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature);
+        Runner.Builder rb = new Runner.Builder();
+        rb.configDir(configDir);
+        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(rb), feature);
         fr.run();
         return fr;
     }

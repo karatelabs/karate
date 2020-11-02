@@ -577,7 +577,7 @@ public class ScenarioEngine {
         request = http.build();
         String perfEventName = null; // acts as a flag to report perf if not null
         if (runtime.featureRuntime.isPerfMode()) {
-            perfEventName = runtime.featureRuntime.getPerfRuntime().getPerfEventName(request, this);
+            perfEventName = runtime.featureRuntime.getPerfRuntime().getPerfEventName(request, runtime);
         }
         long startTime = System.currentTimeMillis();
         request.setStartTimeMillis(startTime);
@@ -785,34 +785,33 @@ public class ScenarioEngine {
     // not in constructor because it has to be on Runnable.run() thread
     public void init() {
         JS = JsEngine.local();
+        logger.debug("js context: {}", JS);
+        attachVariablesToJsContext();
         setHiddenVariable(KARATE, bridge);
         setHiddenVariable(READ, readFunction);
         setVariables(magicVariables);
-        attachJsValuesToContext();
         HttpClient client = config.getClientFactory().apply(this);
         http = new HttpRequestBuilder(client);
     }
 
-    private void attachJsValuesToContext() {
-        Map<String, Variable> updated = new HashMap();
+    protected void attachVariablesToJsContext() {
         vars.forEach((k, v) -> {
             switch (v.type) {
-                case FUNCTION: // variables are immutable, so replace
-                    Value fun = JS.attachToContext(v.getValue());
-                    updated.put(k, new Variable(fun));
+                case FUNCTION:
+                    v = new Variable(JS.attachToContext(v.getValue()));
+                    vars.put(k, v);
                     break;
                 case MAP:
                 case LIST:
-                    recurse(v.getValue());
+                    attachToJsContext(v.getValue());
                     break;
                 default:
                 // do nothing
             }
         });
-        vars.putAll(updated);
     }
 
-    private Object recurse(Object o) {
+    protected Object attachToJsContext(Object o) {
         // do this check first as graal functions are maps as well
         if (o instanceof Function) {
             return JS.attachToContext(o);
@@ -821,7 +820,7 @@ public class ScenarioEngine {
             int count = list.size();
             for (int i = 0; i < count; i++) {
                 Object child = list.get(i);
-                Object result = recurse(child);
+                Object result = attachToJsContext(child);
                 if (result != null) {
                     list.set(i, result);
                 }
@@ -830,7 +829,7 @@ public class ScenarioEngine {
         } else if (o instanceof Map) {
             Map<String, Object> map = (Map) o;
             map.forEach((k, v) -> {
-                Object result = recurse(v);
+                Object result = attachToJsContext(v);
                 if (result != null) {
                     map.put(k, result);
                 }
@@ -841,34 +840,38 @@ public class ScenarioEngine {
         }
     }
 
-    public Variable evalJs(String exp) {
+    public Variable evalJs(String js) {
         vars.forEach((k, v) -> JS.put(k, v.getValue()));
         try {
-            return new Variable(JS.eval(exp));
+            return new Variable(JS.eval(js));
         } catch (Exception e) {
-            // do our best to make js error traces informative, else thrown exception seems to
-            // get swallowed by the java reflection based method invoke flow
-            StackTraceElement[] stack = e.getStackTrace();
-            StringBuilder sb = new StringBuilder();
-            sb.append(">>>> js failed:\n");
-            List<String> lines = StringUtils.toStringLines(exp);
-            int index = 0;
-            for (String line : lines) {
-                sb.append(String.format("%02d", ++index)).append(": ").append(line).append('\n');
-            }
-            sb.append("<<<<\n");
-            sb.append(e.toString()).append('\n');
-            for (int i = 0; i < stack.length; i++) {
-                String line = stack[i].toString();
-                if (line.startsWith("org.graalvm.polyglot.Context.eval")) {
-                    break;
-                }
-                sb.append("- ").append(line).append('\n');
-            }
-            KarateException ke = new KarateException(sb.toString());
+            KarateException ke = fromJsEvalException(js, e);
             setFailedReason(ke);
             throw ke;
         }
+    }
+
+    protected static KarateException fromJsEvalException(String js, Exception e) {
+        // do our best to make js error traces informative, else thrown exception seems to
+        // get swallowed by the java reflection based method invoke flow
+        StackTraceElement[] stack = e.getStackTrace();
+        StringBuilder sb = new StringBuilder();
+        sb.append(">>>> js failed:\n");
+        List<String> lines = StringUtils.toStringLines(js);
+        int index = 0;
+        for (String line : lines) {
+            sb.append(String.format("%02d", ++index)).append(": ").append(line).append('\n');
+        }
+        sb.append("<<<<\n");
+        sb.append(e.toString()).append('\n');
+        for (int i = 0; i < stack.length; i++) {
+            String line = stack[i].toString();
+            sb.append("- ").append(line).append('\n');
+            if (line.startsWith("<js>")) {
+                break;
+            }
+        }
+        return new KarateException(sb.toString());
     }
 
     public void setHiddenVariable(String key, Object value) {
@@ -879,10 +882,16 @@ public class ScenarioEngine {
     }
 
     public void setVariable(String key, Object value) {
+        Variable v;
         if (value instanceof Variable) {
-            vars.put(key, (Variable) value);
+            v = (Variable) value;
+            value = v.getValue();
         } else {
-            vars.put(key, new Variable(value));
+            v = new Variable(value);
+        }
+        vars.put(key, v);
+        if (JS != null) {
+            JS.put(key, v.getValue());
         }
     }
 
@@ -895,7 +904,7 @@ public class ScenarioEngine {
 
     private static Map<String, Variable> copy(Map<String, Variable> source, boolean deep) {
         Map<String, Variable> map = new HashMap(source.size());
-        source.forEach((k, v) -> map.put(k, v == null ? Variable.NULL : v.copy(deep)));
+        source.forEach((k, v) -> map.put(k, v.copy(deep)));
         return map;
     }
 
@@ -951,7 +960,7 @@ public class ScenarioEngine {
         if (validateName) {
             validateVariableName(name);
             if (vars.containsKey(name)) {
-                logger.warn("over-writing existing variable {} with new value: {}", name, exp);
+                logger.warn("over-writing existing variable '{}' with new value: {}", name, exp);
             }
         }
         if (assignType == AssignType.TEXT) {
@@ -1504,7 +1513,10 @@ public class ScenarioEngine {
             case FUNCTION:
                 return arg == null ? called.invokeFunction() : called.invokeFunction(new Object[]{arg.getValue()});
             case FEATURE:
-                return callFeature(called.getValue(), arg, -1, sharedScope);
+                Variable res = callFeature(called.getValue(), arg, -1, sharedScope);
+                Object val = res.getValue(); // will always be a map
+                attachToJsContext(val);
+                return new Variable(val);
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);
         }
@@ -1581,11 +1593,11 @@ public class ScenarioEngine {
             call.setSharedScope(sharedScope);
             FeatureRuntime fr = new FeatureRuntime(call);
             fr.run();
+            // VERY IMPORTANT ! switch back from called feature js context
+            ScenarioEngine.LOCAL.set(this);
+            runtime.addCallResult(fr.result);
             if (fr.result.isFailed()) {
                 KarateException ke = fr.result.getErrorsCombined();
-                if (index == -1) {
-                    runtime.logError(ke.getMessage());
-                }
                 throw ke;
             } else {
                 return fr.getResultVariable();

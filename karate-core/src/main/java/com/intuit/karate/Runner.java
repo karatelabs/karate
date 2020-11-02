@@ -33,7 +33,6 @@ import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.ParallelProcessor;
 import com.intuit.karate.core.Subscriber;
 import com.intuit.karate.runtime.FeatureRuntime;
-import com.intuit.karate.runtime.PerfRuntime;
 import com.intuit.karate.runtime.RuntimeHook;
 import com.intuit.karate.runtime.RuntimeHookFactory;
 import java.io.File;
@@ -199,14 +198,14 @@ public class Runner {
     }
 
     // this is called by karate-gatling !
-    public static void callAsync(String path, List<String> tags, Map<String, Object> arg, PerfRuntime perf) {
+    public static void callAsync(String path, List<String> tags, Map<String, Object> arg, PerfHook perf) {
         Builder builder = new Builder();
         builder.tags = tags;
         SuiteRuntime suite = new SuiteRuntime(builder); // sets tag selector
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureRuntime featureRuntime = new FeatureRuntime(suite, feature);
         featureRuntime.setPerfRuntime(perf);
-        featureRuntime.setNext(() -> perf.next());
+        featureRuntime.setNext(() -> perf.afterFeature());
         featureRuntime.setCallArg(arg);
         perf.submit(featureRuntime);
     }

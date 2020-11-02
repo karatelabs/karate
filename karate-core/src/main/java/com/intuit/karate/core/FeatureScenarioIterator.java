@@ -103,7 +103,7 @@ public class FeatureScenarioIterator implements Iterator<ScenarioExecutionUnit> 
                     }
                 } catch (Exception e) {
                     String message = "dynamic expression evaluation failed: " + expression;
-                    bgUnit.result.addError(message, e);
+                    bgUnit.result.addFakeStepResult(message, e);
                     currentScenario = null;
                     next = bgUnit;
                     return true; // exit early
@@ -116,7 +116,7 @@ public class FeatureScenarioIterator implements Iterator<ScenarioExecutionUnit> 
                     rowValue = expressionValue.invokeFunction(bgUnit.getContext(), rowIndex);
                 } catch (Exception e) {
                     String message = "dynamic function expression evaluation failed at index " + rowIndex + ": " + e.getMessage();
-                    bgUnit.result.addError(message, e);
+                    bgUnit.result.addFakeStepResult(message, e);
                     currentScenario = null;
                     next = bgUnit;
                     return true; // exit early                    

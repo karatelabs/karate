@@ -55,9 +55,10 @@ public class SuiteRuntime {
 
     public final Map<String, Object> SUITE_CACHE = new HashMap();
 
+    public final String karateConfigDir;
     public final String karateBase;
     public final String karateConfig;
-    public final String karateConfigEnv;
+    public String karateConfigEnv;
 
     private String read(String name) {
         try {
@@ -95,63 +96,64 @@ public class SuiteRuntime {
         if (rb.forMock) { // don't show logs and confuse people
             karateBase = null;
             karateConfig = null;
-            karateConfigEnv = null;
+            karateConfigDir = null;
         } else {
             karateBase = read("classpath:karate-base.js");
             if (karateBase != null) {
                 logger.info("karate-base.js found on classpath");
             }
-            String configPrefix = rb.configDir;
-            if (configPrefix == null) {
-                configPrefix = StringUtils.trimToNull(System.getProperty("karate.config.dir"));
+            String temp = rb.configDir;
+            if (temp == null) {
+                temp = StringUtils.trimToNull(System.getProperty("karate.config.dir"));
+                if (temp == null) {
+                    temp = "classpath:";
+                }
             }
-            if (configPrefix == null) {
-                configPrefix = "classpath:";
+            if (temp.startsWith("file:") || temp.startsWith("classpath:")) {
+                // all good
             } else {
-                if (configPrefix.startsWith("file:") || configPrefix.startsWith("classpath:")) {
-                    // all good
-                } else {
-                    configPrefix = "file:" + configPrefix;
-                }
-                if (configPrefix.endsWith("/") || configPrefix.endsWith("\\")) {
-                    // all good
-                } else {
-                    configPrefix = configPrefix + File.separator;
-                }
+                temp = "file:" + temp;
             }
-            karateConfig = read(configPrefix + "karate-config.js");
+            if (temp.endsWith(":") || temp.endsWith("/") || temp.endsWith("\\")) {
+                // all good
+            } else {
+                temp = temp + File.separator;
+            }
+            karateConfigDir = temp;
+            karateConfig = read(karateConfigDir + "karate-config.js");
             if (karateConfig != null) {
-                logger.info("karate-config.js found in {}", configPrefix);
+                logger.info("karate-config.js found in {}", karateConfigDir);
             } else {
-                logger.warn("karate-config.js not found in {}", configPrefix);
-            }
-            if (env != null) {
-                karateConfigEnv = read(configPrefix + "karate-config-" + env + ".js");
-                if (karateConfigEnv != null) {
-                    logger.info("karate-config-" + env + ".js found in {}", configPrefix);
-                }
-            } else {
-                karateConfigEnv = null;
+                logger.warn("karate-config.js not found in {}", karateConfigDir);
             }
         }
     }
 
-    private boolean resolved;
-
-    public Collection<RuntimeHook> resolveHooks() {
-        if (hookFactory == null || resolved) {
-            return hooks;
-        }
-        resolved = true;
-        hooks.add(hookFactory.create());
-        return hooks;
-    }
+    private boolean envResolved;
 
     public String getEnv() {
-        if (env == null) {
+        if (!envResolved) {
             env = StringUtils.trimToNull(System.getProperty("karate.env"));
+            if (env != null) {
+                logger.info("karate.env is: {}", env);
+                karateConfigEnv = read(karateConfigDir + "karate-config-" + env + ".js");
+                if (karateConfigEnv != null) {
+                    logger.info("karate-config-" + env + ".js found in {}", karateConfigDir);
+                }
+            }
         }
         return env;
+    }
+
+    private boolean hooksResolved;
+
+    public Collection<RuntimeHook> resolveHooks() {
+        if (hookFactory == null || hooksResolved) {
+            return hooks;
+        }
+        hooksResolved = true;
+        hooks.add(hookFactory.create());
+        return hooks;
     }
 
 }

@@ -119,14 +119,15 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         return featureName + ":" + step.getLine() + " " + step.getText();
     }
 
-    // TODO remove this
-    public void addError(String message, Throwable error) {
+    public StepResult addFakeStepResult(String message, Throwable error) {
         Step step = new Step(scenario.getFeature(), scenario, -1);
         step.setLine(scenario.getLine());
         step.setPrefix("*");
         step.setText(message);
-        StepResult sr = new StepResult(step, Result.failed(0, error, step), null, null, null);
+        Result result = error == null ? Result.passed(0) : Result.failed(0, error, step);
+        StepResult sr = new StepResult(step, result, null, null, null);
         addStepResult(sr);
+        return sr;
     }
 
     public void addStepResult(StepResult stepResult) {
@@ -225,7 +226,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             return;
         }
         for (Map<String, Object> stepMap : list) {
-            addStepResult(new StepResult(stepMap));
+            ScenarioResult.this.addStepResult(new StepResult(stepMap));
         }
     }
 
