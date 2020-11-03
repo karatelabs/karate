@@ -81,5 +81,19 @@ class JsonTest {
         json.set("$.foo[]", "a");
         match(json, "{ foo: ['a'] }");
     }
+    
+    @Test
+    void testSetNestedObject() {
+        Json json = new Json("{ name: 'Wild', kitten: null }");
+        json.set("$.kitten.name", "Bob");
+        match(json, "{ name: 'Wild', kitten: { name: 'Bob' } }");
+    }
+    
+    @Test
+    void testSetNestedArray() {
+        Json json = new Json("[]");
+        json.set("$[0].name.first", "Bob");
+        match(json, "[{ name: { first: 'Bob' } }]");
+    }    
 
 }

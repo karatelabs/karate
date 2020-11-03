@@ -133,9 +133,10 @@ public class SuiteRuntime {
 
     public String getEnv() {
         if (!envResolved) {
+            envResolved = true;
             env = StringUtils.trimToNull(System.getProperty("karate.env"));
             if (env != null) {
-                logger.info("karate.env is: {}", env);
+                logger.info("karate.env is: '{}'", env);
                 karateConfigEnv = read(karateConfigDir + "karate-config-" + env + ".js");
                 if (karateConfigEnv != null) {
                     logger.info("karate-config-" + env + ".js found in {}", karateConfigDir);

@@ -505,11 +505,22 @@ class ScenarioRuntimeTest {
     }
 
     @Test
-    void testEmbeddedExpressionFailuresAreNotBlockers() {
+    void testJsonEmbeddedExpressionFailuresAreNotBlockers() {
         run(
                 "def expected = { a: '#number', b: '#(_$.a * 2)' }",
                 "def actual = [{a: 1, b: 2}, {a: 2, b: 4}]",
                 "match each actual == expected"
+        );
+        assertFalse(sr.isFailed());
+    }
+
+    @Test
+    void testXmlEmbeddedExpressionFailuresAreNotBlockers() {
+        run(
+                "def expected = <foo att='#(bar)'>#(bar)</foo>",
+                "def actual = <foo att=\"test\">test</foo>",
+                "def bar = 'test'",
+                "match actual == expected"
         );
         assertFalse(sr.isFailed());
     }

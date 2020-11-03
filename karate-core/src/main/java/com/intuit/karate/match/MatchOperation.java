@@ -208,7 +208,14 @@ public class MatchOperation {
                 default:
                 // do nothing
             }
-            return type == MatchType.NOT_EQUALS ? pass() : fail("data types don't match");
+            if (expected.isXml() && actual.isMap()) {
+                // special case, auto-convert rhs                
+                MatchOperation mo = new MatchOperation(context, type, actual, new MatchValue(XmlUtils.toObject(expected.getValue(), true)));
+                mo.execute();
+                return mo.pass ? pass() : fail(mo.failReason);
+            } else {
+                return type == MatchType.NOT_EQUALS ? pass() : fail("data types don't match");
+            }
         }
         switch (type) {
             case EQUALS:
@@ -396,8 +403,8 @@ public class MatchOperation {
                 Map<String, Object> expMap = expected.getValue();
                 return matchMapValues(actMap, expMap);
             case XML:
-                Map<String, Object> actXml = (Map) XmlUtils.toObject(actual.getValue());
-                Map<String, Object> expXml = (Map) XmlUtils.toObject(expected.getValue());
+                Map<String, Object> actXml = (Map) XmlUtils.toObject(actual.getValue(), true);
+                Map<String, Object> expXml = (Map) XmlUtils.toObject(expected.getValue(), true);
                 return matchMapValues(actXml, expXml);
             case OTHER:
                 return actual.getValue().equals(expected.getValue());

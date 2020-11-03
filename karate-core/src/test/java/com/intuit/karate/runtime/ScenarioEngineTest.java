@@ -41,7 +41,8 @@ public class ScenarioEngineTest {
     }
 
     private void matchEquals(String lhs, String rhs) {
-        assertTrue(engine.match(MatchType.EQUALS, lhs, null, rhs).pass);
+        MatchResult mr = engine.match(MatchType.EQUALS, lhs, null, rhs);
+        assertTrue(mr.pass, mr.message);
     }
 
     private void matchNotEquals(String lhs, String rhs) {

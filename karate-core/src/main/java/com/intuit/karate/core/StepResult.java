@@ -38,12 +38,12 @@ public class StepResult {
     private static final Map<String, Object> DUMMY_MATCH;
 
     private final Step step;
-    private final Result result;
-    private final List<FeatureResult> callResults;
+    private final Result result;    
 
     private boolean hidden;
     private boolean showLog = true;
     private List<Embed> embeds;
+    private List<FeatureResult> callResults;
     private String stepLog;
 
     // short cut to re-use when converting from json
@@ -190,6 +190,13 @@ public class StepResult {
             embeds = new ArrayList();
         }
         embeds.add(embed);
+    }
+    
+    public void addCallResults(List<FeatureResult> values) {
+        if (callResults == null) {
+            callResults = new ArrayList();
+        }
+        callResults.addAll(values);
     }
 
     public List<FeatureResult> getCallResults() {

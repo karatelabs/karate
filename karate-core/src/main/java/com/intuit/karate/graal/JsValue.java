@@ -49,6 +49,8 @@ public class JsValue {
         OBJECT,
         ARRAY,
         FUNCTION,
+        XML,
+        NULL,
         OTHER
     }
 
@@ -58,11 +60,14 @@ public class JsValue {
 
     public JsValue(Value v) {
         this.original = v;
-        if (v.isProxyObject()) {
+        if (v.isNull()) { // apparently this can be a "host object" as well !
+            value = null;
+            type = Type.NULL;
+        } else if (v.isProxyObject()) {
             Object o = v.asProxyObject();
             if (o instanceof JsXml) {
                 value = ((JsXml) o).getNode();
-                type = Type.OBJECT;
+                type = Type.XML;
             } else if (o instanceof JsMap) {
                 value = ((JsMap) o).getMap();
                 type = Type.OBJECT;
@@ -74,8 +79,8 @@ public class JsValue {
                 type = Type.OTHER;
             }
         } else if (v.isHostObject()) { // java object
-            if (v.isMetaObject()) { // java class
-                value = v; // special case, keep around as Graal Value
+            if (v.isMetaObject()) { // java.lang.Class !
+                value = v; // special case, keep around as graal value, TODO wrap ?
             } else {
                 value = v.asHostObject();
             }
@@ -107,8 +112,8 @@ public class JsValue {
         }
     }
 
-    public Object getValue() {
-        return value;
+    public <T> T getValue() {
+        return (T) value;
     }
 
     public Map<String, Object> getAsMap() {
@@ -126,9 +131,13 @@ public class JsValue {
     public JsValue invoke(Object... args) {
         return new JsValue(original.execute(args));
     }
-    
+
+    public boolean isXml() {
+        return type == Type.XML;
+    }
+
     public boolean isNull() {
-        return value == null;
+        return type == Type.NULL;
     }
 
     public boolean isObject() {
@@ -157,6 +166,10 @@ public class JsValue {
     @Override
     public String toString() {
         return original.toString();
+    }
+
+    public String getAsString() {
+        return JsValue.toString(value);
     }
 
     public static Object fromJava(Object o) {

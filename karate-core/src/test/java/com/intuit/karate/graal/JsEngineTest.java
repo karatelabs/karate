@@ -100,7 +100,7 @@ class JsEngineTest {
     void testFunctionVariableExecute() {
         je.eval("var add = function(a, b){ return a + b }");
         JsValue jv = je.eval("add(1, 2)");
-        assertEquals(jv.getValue(), 3);
+        assertEquals(jv.<Integer>getValue(), 3);
     }
 
     @Test
@@ -132,7 +132,7 @@ class JsEngineTest {
         JsValue v1 = je.eval("map.foo");
         assertEquals(v1.getValue(), "bar");
         JsValue v2 = je.eval("map.a");
-        assertEquals(v2.getValue(), 1);
+        assertEquals(v2.<Integer>getValue(), 1);
         JsValue v3 = je.eval("map.child");
         assertEquals(v3.getValue(), Collections.singletonMap("baz", "ban"));
         JsValue v4 = je.eval("map.child.baz");

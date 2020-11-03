@@ -123,7 +123,7 @@ public class ScenarioEngine {
         this.config = config;
         this.runtime = runtime;
         fileReader = new ScenarioFileReader(this, runtime.featureRuntime);
-        readFunction = s -> fileReader.readFile(s);
+        readFunction = s -> JsValue.fromJava(fileReader.readFile(s));
         bridge = new ScenarioBridge();
         this.vars = vars;
         this.logger = logger;
@@ -215,7 +215,7 @@ public class ScenarioEngine {
             }
             result.add(row);
         }
-        vars.put(name.trim(), new Variable(result));
+        setVariable(name.trim(), result);
     }
 
     public void replace(String name, String token, String value) {
@@ -253,7 +253,7 @@ public class ScenarioEngine {
                 execute(v.getValue());
             } catch (Exception e) {
                 String prefix = afterFeature ? "afterFeature" : "afterScenario";
-                logger.warn("{} hook failed: {}", prefix, e.getMessage());
+                logger.warn("{} hook failed: {}", prefix, e + "");
             }
         }
     }
@@ -1122,11 +1122,11 @@ public class ScenarioEngine {
                 boolean optional = value.charAt(1) == '#';
                 value = value.substring(optional ? 2 : 1);
                 try {
-                    Variable v = evalJs(value);
-                    if (optional && v.isNull()) {
+                    JsValue jv = JS.eval(value);
+                    if (optional && jv.isNull()) {
                         attributesToRemove.add(attrib);
                     } else {
-                        attrib.setValue(v.getAsString());
+                        attrib.setValue(jv.getAsString());
                     }
                 } catch (Exception e) {
                     logger.trace("xml-attribute embedded expression failed, {}: {}", attrib.getName(), e.getMessage());
@@ -1151,12 +1151,12 @@ public class ScenarioEngine {
                     boolean optional = value.charAt(1) == '#';
                     value = value.substring(optional ? 2 : 1);
                     try {
-                        Variable v = evalJs(value);
-                        if (optional && v.isNull()) {
+                        JsValue jv = JS.eval(value);
+                        if (optional && jv.isNull()) {
                             elementsToRemove.add(child);
                         } else {
-                            if (v.isXml() || v.isMap()) {
-                                Node evalNode = v.isXml() ? v.getValue() : XmlUtils.fromMap(v.getValue());
+                            if (jv.isXml() || jv.isObject()) {
+                                Node evalNode = jv.isXml() ? jv.getValue() : XmlUtils.fromMap(jv.getValue());
                                 if (evalNode.getNodeType() == Node.DOCUMENT_NODE) {
                                     evalNode = evalNode.getFirstChild();
                                 }
@@ -1167,7 +1167,7 @@ public class ScenarioEngine {
                                     child.getParentNode().replaceChild(evalNode, child);
                                 }
                             } else {
-                                child.setNodeValue(v.getAsString());
+                                child.setNodeValue(jv.getAsString());
                             }
                         }
                     } catch (Exception e) {
@@ -1280,7 +1280,7 @@ public class ScenarioEngine {
                         json = new Json("{}");
                     }
                     target = new Variable(json.asMapOrList());
-                    vars.put(name, target);
+                    setVariable(name, target);
                 } else {
                     throw new RuntimeException("variable is null or not set '" + name + "'");
                 }
@@ -1297,13 +1297,13 @@ public class ScenarioEngine {
                 json.remove(path);
             } else {
                 json.set(path, value.<Object>getValue());
-            }
+            }            
         } else if (isXmlPath(path)) {
             if (target == null || target.isNull()) {
                 if (viaTable) { // auto create if using set via cucumber table as a convenience
                     Document empty = XmlUtils.newDocument();
                     target = new Variable(empty);
-                    vars.put(name, target);
+                    setVariable(name, target);
                 } else {
                     throw new RuntimeException("variable is null or not set '" + name + "'");
                 }
@@ -1323,6 +1323,7 @@ public class ScenarioEngine {
         } else {
             throw new RuntimeException("unexpected path: " + path);
         }
+
     }
 
     private static final String PATH = "path";

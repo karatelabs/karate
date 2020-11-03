@@ -114,22 +114,58 @@ class FeatureRuntimeTest {
         run("call-by-tag.feature");
         assertFalse(fr.result.isFailed());
     }
-    
+
     @Test
     void testCopyAndClone() {
         run("copy.feature");
         assertFalse(fr.result.isFailed());
-    }    
-    
+    }
+
     @Test
     void testMatchEachMagicVariables() {
         run("match-each-magic-variables.feature");
         assertFalse(fr.result.isFailed());
-    }     
-    
+    }
+
     @Test
     void testEvalAndSet() {
         run("eval-and-set.feature");
+        assertFalse(fr.result.isFailed());
+    }
+
+    @Test
+    void testExtract() {
+        run("extract.feature");
+        assertFalse(fr.result.isFailed());
+    }
+
+    @Test
+    void testConfigureInJs() {
+        run("configure-in-js.feature");
+        assertFalse(fr.result.isFailed());
+    }
+
+    @Test
+    void testTable() {
+        run("table.feature");
+        assertFalse(fr.result.isFailed());
+    }
+
+    @Test
+    void testSet() {
+        run("set.feature");
+        assertFalse(fr.result.isFailed());
+    }
+    
+    @Test
+    void testJsRead() {
+        run("js-read.feature");
+        assertFalse(fr.result.isFailed());
+    }    
+    
+    @Test
+    void testJsMapRepeat() {
+        run("js-map-repeat.feature");
         assertFalse(fr.result.isFailed());
     }     
 

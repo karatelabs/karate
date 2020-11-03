@@ -56,7 +56,7 @@ public class Json {
 
     public Json(String json) {
         this(JsonPath.parse(json));
-    } 
+    }
 
     public Json(Map o) {
         this(JsonPath.parse(o));
@@ -187,8 +187,8 @@ public class Json {
             path = path.substring(0, path.length() - 2);
         }
         try {
-            doc.read(path);
-            return true;
+            Object temp = doc.read(path);
+            return temp != null;
         } catch (PathNotFoundException pnfe) {
             return false;
         }
@@ -220,7 +220,10 @@ public class Json {
                 if (isArrayPath(pair.right)) {
                     doc.set(pair.left, new ArrayList());
                 } else {
-                    doc.set(pair.left, new LinkedHashMap());
+                    if (!pathExists(pair.left)) { // a necessary repetition
+                        doc.set(pair.left, new LinkedHashMap());
+                    }
+                    doc.put(pair.left, pair.right, new LinkedHashMap());
                 }
             } else {
                 doc.put(pair.left, pair.right, array ? new ArrayList() : new LinkedHashMap());

@@ -48,6 +48,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.graalvm.polyglot.Value;
 
 /**
@@ -61,13 +63,20 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object append(Value... vals) {
+        List list = new ArrayList();
+        JsList jsList = new JsList(list);
         if (vals.length == 0) {
-            return null;
+            return jsList;
+        }
+        Value val = vals[0];
+        if (val.hasArrayElements()) {
+            list.addAll(val.as(List.class));
+        } else {
+            list.add(val.as(Object.class));
         }
         if (vals.length == 1) {
-            return vals[0];
+            return jsList;
         }
-        List list = new ArrayList(vals[0].as(List.class));
         for (int i = 1; i < vals.length; i++) {
             Value v = vals[i];
             if (v.hasArrayElements()) {
@@ -76,7 +85,7 @@ public class ScenarioBridge implements PerfContext {
                 list.add(v.as(Object.class));
             }
         }
-        return new JsList(list);
+        return jsList;
     }
 
     public Object appendTo(String varName, Value... vals) {
@@ -97,8 +106,8 @@ public class ScenarioBridge implements PerfContext {
         engine.setVariable(varName, list);
         return new JsList(list);
     }
-    
-    public Object appendTo(Value ref, Value... vals) {        
+
+    public Object appendTo(Value ref, Value... vals) {
         List list;
         if (ref.hasArrayElements()) {
             list = new JsValue(ref).getAsList(); // make sure we unwrap the "original" list
@@ -114,7 +123,7 @@ public class ScenarioBridge implements PerfContext {
             }
         }
         return new JsList(list);
-    }    
+    }
 
     public Object call(String fileName) {
         return call(false, fileName, null);
@@ -205,8 +214,8 @@ public class ScenarioBridge implements PerfContext {
         getEngine().capturePerfEvent(event);
     }
 
-    public void configure(String key, Object o) {
-        getEngine().configure(key, new Variable(o));
+    public void configure(String key, Value value) {
+        getEngine().configure(key, new Variable(value));
     }
 
     public void embed(Object o, String contentType) {
@@ -219,6 +228,26 @@ public class ScenarioBridge implements PerfContext {
     public Object eval(String exp) {
         Variable result = getEngine().evalJs(exp);
         return JsValue.fromJava(result.getValue());
+    }
+
+    public String extract(String text, String regex, int group) {
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(text);
+        if (!matcher.find()) {
+            getEngine().logger.warn("failed to find pattern: {}", regex);
+            return null;
+        }
+        return matcher.group(group);
+    }
+
+    public List<String> extractAll(String text, String regex, int group) {
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(text);
+        List<String> list = new ArrayList();
+        while (matcher.find()) {
+            list.add(matcher.group(group));
+        }
+        return list;
     }
 
     public void fail(String reason) {
@@ -237,7 +266,7 @@ public class ScenarioBridge implements PerfContext {
             Value res = f.execute(v, i);
             // TODO breaking we used to support truthy values
             if (res.isBoolean() && res.asBoolean()) {
-                list.add(v.as(Object.class));
+                list.add(new JsValue(v).getValue());
             }
         }
         return new JsList(list);
@@ -272,7 +301,9 @@ public class ScenarioBridge implements PerfContext {
                 continue;
             }
             Value v = o.getMember(key);
-            map.put(key, v.as(Object.class));
+            if (v != null) {
+                map.put(key, v.as(Object.class));
+            }
         }
         return new JsMap(map);
     }
@@ -419,7 +450,7 @@ public class ScenarioBridge implements PerfContext {
         for (int i = 0; i < count; i++) {
             Value v = o.getArrayElement(i);
             Value res = f.execute(v, i);
-            list.add(res.as(Object.class));
+            list.add(new JsValue(res).getValue());
         }
         return new JsList(list);
     }
@@ -439,15 +470,15 @@ public class ScenarioBridge implements PerfContext {
         return new JsList(list);
     }
 
-    public Map<String, Object> match(Object actual, Object expected) {
+    public Object match(Object actual, Object expected) {
         MatchResult mr = getEngine().match(MatchType.EQUALS, actual, expected);
-        return mr.toMap();
+        return JsValue.fromJava(mr.toMap());
     }
 
-    public Map<String, Object> match(String exp) {
+    public Object match(String exp) {
         MatchStep ms = new MatchStep(exp);
         MatchResult mr = getEngine().match(ms.type, ms.name, ms.path, ms.expected);
-        return mr.toMap();
+        return JsValue.fromJava(mr.toMap());
     }
 
     public Object merge(Value... vals) {
@@ -483,7 +514,8 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object read(String name) {
-        return getEngine().fileReader.readFile(name);
+        Object result = getEngine().fileReader.readFile(name);
+        return JsValue.fromJava(result);
     }
 
     public String readAsString(String fileName) {
@@ -499,7 +531,7 @@ public class ScenarioBridge implements PerfContext {
         List list = new ArrayList(n);
         for (int i = 0; i < n; i++) {
             Value v = f.execute(i);
-            list.add(v.as(Object.class));
+            list.add(new JsValue(v).getValue());
         }
         return new JsList(list);
     }
