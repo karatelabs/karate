@@ -13,18 +13,6 @@ Scenario: arrays returned from js can be modified using 'set'
     * set json[1].a = 5
     * match json == [{a: 1}, {a: 5}, {b: 3}]
 
-Scenario: json behaves like a java map within functions (will change with graal)
-    * def payload = { a: 1, b: 2 }
-    * def keys = function(o){ return o.keySet() }
-    * def values = function(o){ return o.values() }
-    * def size = function(o){ return o.size() }
-    * json result = keys(payload)
-    * match result == ['a', 'b']
-    * json result = values(payload)
-    * match result == [1, 2]
-    * def length = size(payload)
-    * match length == 2
-
 Scenario: json-path can be performed in js
     * def json = [{foo: 1}, {foo: 2}]
     * def fun = function(arg) { return karate.jsonPath(arg, '$[*].foo') }
@@ -153,12 +141,6 @@ Scenario: append
     * def fun = function(){ var x = [1, 2]; return karate.append(x, 3, 4) }
     * match fun() == [1, 2, 3, 4]
 
-Scenario: simplest way to get the size of a json object
-    * def json = { a: 1, b: 2, c: 3 }
-    * def map = karate.toBean(json, 'java.util.HashMap')
-    * def count = map.size()
-    * match count == 3
-
 Scenario: get last array element (js)
     * def list = [1, 2, 3, 4]
     * def last = list[list.length-1]
@@ -184,12 +166,12 @@ Scenario: work around for the above
         """
     * def products = read('products.json')
     * def result = []
-    * karate.repeat(products.length, function(i){ if (hasId(products[i], 1)) result.add(products[i]) })
+    * karate.repeat(products.length, function(i){ if (hasId(products[i], 1)) result.push(products[i]) })
     * match result[*].name == ['Wotsit v1.5', 'Wotsit v2.5']
 
 Scenario: work around but using karate.filter
     * def id = 1
-    * def hasId = function(x){ return karate.jsonPath(x, '$.partIDs[?(@.id==' + id + ')]').length }
+    * def hasId = function(x){ return karate.jsonPath(x, '$.partIDs[?(@.id==' + id + ')]').length != 0 }
     * def products = read('products.json')
     * def result = karate.filter(products, hasId)
     * match result[*].name == ['Wotsit v1.5', 'Wotsit v2.5']
@@ -579,10 +561,10 @@ Scenario: karate.os
     * print 'os:', temp
     * match temp == { type: '#string', name: '#string' }
 
-Scenario: using the java contains api (will change with graal)
+Scenario: using the js includes api
     * def allowed = ['Music', 'Entertainment', 'Documentaries', 'Family']
     * def actual = ['Entertainment', 'Family']
-    * match each actual == '#? allowed.contains(_)'
+    * match each actual == '#? allowed.includes(_)'
 
 Scenario: using the java indexOf api (will change with graal)
     * def response = [{ name: 'a' }, { name: 'b' }, { name: 'c' }]
@@ -590,9 +572,9 @@ Scenario: using the java indexOf api (will change with graal)
     * def index = names.indexOf('b')
     * match index == 1
 
-Scenario: karate.forEach() and js arguments (may change with graal)
+Scenario: karate.forEach() and js arguments
     * def vals = []
-    * def fun = function(){ karate.forEach(arguments, function(k, v){ vals.add(v) }) }
+    * def fun = function(){ karate.forEach(arguments, function(x){ vals.push(x) }) }
     * fun('a', 'b', 'c')
     * match vals == ['a', 'b', 'c']
 
