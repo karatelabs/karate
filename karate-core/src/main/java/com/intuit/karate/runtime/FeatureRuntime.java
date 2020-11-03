@@ -91,9 +91,9 @@ public class FeatureRuntime implements Runnable {
         this(call.parentRuntime.featureRuntime.suite, call.feature, call);
         Variable arg = call.getArg();
         result.setLoopIndex(call.getLoopIndex());
-//        if (arg != null) {
-//            result.setCallArg(arg.getValue());
-//        }
+        if (arg != null) {
+            result.setCallArg(arg.getValue());
+        }
     }
 
     private FeatureRuntime(SuiteRuntime suite, Feature feature, ScenarioCall parentCall) {

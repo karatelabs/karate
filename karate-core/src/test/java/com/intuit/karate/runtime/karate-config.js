@@ -7,7 +7,7 @@ function fn() {
         return 'hello world'
       }
     },
-    utils: karate.call('classpath:com/intuit/karate/runtime/utils.feature')
+    configUtils: karate.call('classpath:com/intuit/karate/runtime/karate-config-utils.feature')
   };
   return config;
 }

@@ -30,7 +30,6 @@ import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.data.Json;
 import com.intuit.karate.data.JsonUtils;
-import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsMap;
@@ -337,7 +336,7 @@ public class ScenarioBridge implements PerfContext {
     // TODO migrate these to functions not properties
     //
     public ScenarioEngine getEngine() {
-        return ScenarioEngine.LOCAL.get();
+        return ScenarioEngine.get();
     }
 
     public String getEnv() {
@@ -520,8 +519,8 @@ public class ScenarioBridge implements PerfContext {
         getEngine().setVariables(map);
     }
 
-    public void set(String name, Object o) {
-        getEngine().setVariable(name, o);
+    public void set(String name, Value value) {
+        getEngine().setVariable(name, new Variable(value));
     }
 
     // this makes sense mainly for xpath manipulation from within js

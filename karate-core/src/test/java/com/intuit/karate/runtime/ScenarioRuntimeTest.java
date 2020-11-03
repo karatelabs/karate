@@ -504,4 +504,34 @@ class ScenarioRuntimeTest {
         assertFalse(sr.isFailed());
     }
 
+    @Test
+    void testEmbeddedExpressionFailuresAreNotBlockers() {
+        run(
+                "def expected = { a: '#number', b: '#(_$.a * 2)' }",
+                "def actual = [{a: 1, b: 2}, {a: 2, b: 4}]",
+                "match each actual == expected"
+        );
+        assertFalse(sr.isFailed());
+    }
+
+    @Test
+    void testMatchEachMagicVariablesDontLeak() {
+        run(
+                "def actual = [{a: 1, b: 2}, {a: 2, b: 4}]",
+                "match each actual == { a: '#number', b: '#(_$.a * 2)' }",
+                "def res = { b: '#(_$.a * 2)' }"
+        );
+        assertFalse(sr.isFailed());
+        matchVar("res", "{ b: '#string' }");
+    }
+
+    @Test
+    void testMatchMagicVariables() {
+        run(
+                "def temperature = { celsius: 100, fahrenheit: 212 }",
+                "match temperature contains { fahrenheit: '#($.celsius * 1.8 + 32)' }"
+        );
+        assertFalse(sr.isFailed());
+    }
+
 }

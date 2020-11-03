@@ -61,12 +61,18 @@ class FeatureRuntimeTest {
         run("callonce-bg.feature");
         assertFalse(fr.result.isFailed());
     }
-    
+
     @Test
     void testCallOnceWithUtilsPresentInKarateConfig() {
         run("callonce-bg.feature", "classpath:com/intuit/karate/runtime");
         assertFalse(fr.result.isFailed());
-    }    
+    }
+
+    @Test
+    void testCallOnceGlobal() {
+        run("callonce-global.feature");
+        assertFalse(fr.result.isFailed());
+    }
 
     @Test
     void testTags() {
@@ -98,16 +104,33 @@ class FeatureRuntimeTest {
 
     @Test
     void testCallJsFromFeatureUtilsDefinedInKarateConfig() {
-        run("config-js-fn.feature", "classpath:com/intuit/karate/runtime");
+        run("karate-config-fn.feature", "classpath:com/intuit/karate/runtime");
         assertFalse(fr.result.isFailed());
         matchContains(fr.getResult(), "{ helloVar: 'hello world' }");
     }
-    
+
     @Test
     void testCallByTag() {
         run("call-by-tag.feature");
         assertFalse(fr.result.isFailed());
-        report();
+    }
+    
+    @Test
+    void testCopyAndClone() {
+        run("copy.feature");
+        assertFalse(fr.result.isFailed());
     }    
+    
+    @Test
+    void testMatchEachMagicVariables() {
+        run("match-each-magic-variables.feature");
+        assertFalse(fr.result.isFailed());
+    }     
+    
+    @Test
+    void testEvalAndSet() {
+        run("eval-and-set.feature");
+        assertFalse(fr.result.isFailed());
+    }     
 
 }

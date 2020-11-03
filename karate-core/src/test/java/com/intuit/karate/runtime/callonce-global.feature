@@ -2,7 +2,7 @@ Feature: make sure a callonce (with shared scope) in the background
     does not leak variables created in the scenarios
 
 Background:
-* callonce read('called-noop.feature')
+* callonce read('callonce-global-called.feature')
 
 Scenario: first
   * assert typeof email == 'undefined'

@@ -133,13 +133,13 @@ class MatchTest {
         match("['foo', 'bar']", CONTAINS, "['baz']", FAILS);
         message("actual array does not contain expected item - baz");
     }
-    
+
     @Test
     void testListNotContains() {
         match("['foo', 'bar']", NOT_CONTAINS, "baz");
         match("['foo', 'bar']", NOT_CONTAINS, "bar", FAILS);
         message("actual contains expected");
-    }    
+    }
 
     @Test
     void testEach() {
@@ -151,6 +151,14 @@ class MatchTest {
         message("$[1] | not a number");
         match("[{ a: 1 }, { a: 2 }]", EACH_EQUALS, "#object");
         match("[{ a: 1 }, { a: 2 }]", EACH_EQUALS, "{ a: '#number' }");
+    }
+
+    @Test
+    void testEachWithMagicVariables() {
+        match("[{a: 1, b: 2}, {a: 2, b: 4}]", EACH_EQUALS, "{ a: '#number', b: '#(_$.a * 2)' }");
+        match("[{a: 1, b: 2}, {a: 2, b: 4}]", EACH_EQUALS, "{ a: '#number', b: '#? _ == _$.a * 2' }");
+        match("[{a: 1, b: 2}, {a: 2, b: 4}]", EACH_CONTAINS, "{ b: '#(_$.a * 2)' }");
+        match("[{a: 1, b: 2}, {a: 2, b: 4}]", EACH_CONTAINS, "{ b: '#? _ == _$.a * 2' }");        
     }
 
     @Test
@@ -230,13 +238,13 @@ class MatchTest {
         match("{ a: 1, b: 'foo', c: 2 }", EQUALS, "{ b: '#regex .{2}', c: 2, a: 1 }", FAILS);
         message("$.b | regex match failed");
     }
-    
+
     @Test
     void testNotPresentOnLhs() {
         match("#notpresent", EQUALS, 2, FAILS);
         message("actual path does not exist");
         match("#notpresent", EQUALS, "foo", FAILS);
-        message("actual path does not exist");        
+        message("actual path does not exist");
     }
 
     @Test

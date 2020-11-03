@@ -126,6 +126,10 @@ public class JsValue {
     public JsValue invoke(Object... args) {
         return new JsValue(original.execute(args));
     }
+    
+    public boolean isNull() {
+        return value == null;
+    }
 
     public boolean isObject() {
         return type == Type.OBJECT;

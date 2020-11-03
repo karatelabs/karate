@@ -112,7 +112,7 @@ public class ScenarioEngine {
     private boolean aborted;
     private Throwable failedReason;
 
-    protected JsEngine JS;
+    private JsEngine JS;
 
     // only used by mock server
     public ScenarioEngine(ScenarioRuntime runtime) {
@@ -127,6 +127,20 @@ public class ScenarioEngine {
         bridge = new ScenarioBridge();
         this.vars = vars;
         this.logger = logger;
+    }
+
+    private static final ThreadLocal<ScenarioEngine> THREAD_LOCAL = new ThreadLocal<ScenarioEngine>();
+
+    public static ScenarioEngine get() {
+        return THREAD_LOCAL.get();
+    }
+
+    protected static void set(ScenarioEngine se) {
+        THREAD_LOCAL.set(se);
+    }
+
+    protected static void remove() {
+        THREAD_LOCAL.remove();
     }
 
     // engine ==================================================================
@@ -236,7 +250,7 @@ public class ScenarioEngine {
         Variable v = afterFeature ? config.getAfterFeature() : config.getAfterScenario();
         if (v.isFunction()) {
             try {
-                v.invokeFunction(JS);
+                execute(v.getValue());
             } catch (Exception e) {
                 String prefix = afterFeature ? "afterFeature" : "afterScenario";
                 logger.warn("{} hook failed: {}", prefix, e.getMessage());
@@ -566,11 +580,11 @@ public class ScenarioEngine {
     }
 
     private void httpInvokeOnce() {
-        Map<String, Map> cookies = config.getCookies().evalAsMap(JS);
+        Map<String, Map> cookies = getOrEvalAsMap(config.getCookies());
         if (cookies != null) {
             http.cookies(cookies.values());
         }
-        Map<String, Object> headers = config.getHeaders().evalAsMap(JS);
+        Map<String, Object> headers = getOrEvalAsMap(config.getHeaders());
         if (headers != null) {
             http.headers(headers);
         }
@@ -682,7 +696,7 @@ public class ScenarioEngine {
         if (config.getCookies().isNull()) {
             config.setCookies(new Variable(cookies));
         } else {
-            Map<String, Object> map = config.getCookies().evalAsMap(JS);
+            Map<String, Object> map = getOrEvalAsMap(config.getCookies());
             map.putAll(cookies);
             config.setCookies(new Variable(map));
         }
@@ -778,14 +792,11 @@ public class ScenarioEngine {
         this.robot = robot;
     }
 
-    //==========================================================================
-    //
-    protected static final ThreadLocal<ScenarioEngine> LOCAL = new ThreadLocal<ScenarioEngine>();
-
-    // not in constructor because it has to be on Runnable.run() thread
-    public void init() {
+    //==========================================================================        
+    //       
+    protected void init() { // not in constructor because it has to be on Runnable.run() thread 
         JS = JsEngine.local();
-        logger.debug("js context: {}", JS);
+        logger.trace("js context: {}", JS);
         attachVariablesToJsContext();
         setHiddenVariable(KARATE, bridge);
         setHiddenVariable(READ, readFunction);
@@ -794,7 +805,7 @@ public class ScenarioEngine {
         http = new HttpRequestBuilder(client);
     }
 
-    protected void attachVariablesToJsContext() {
+    private void attachVariablesToJsContext() {
         vars.forEach((k, v) -> {
             switch (v.type) {
                 case FUNCTION:
@@ -812,7 +823,7 @@ public class ScenarioEngine {
         });
     }
 
-    protected Object attachToJsContext(Object o) {
+    private Object attachToJsContext(Object o) {
         // do this check first as graal functions are maps as well
         if (o instanceof Function) {
             return JS.attachFunction((Function) o);
@@ -839,6 +850,25 @@ public class ScenarioEngine {
         } else {
             return null;
         }
+    }
+
+    protected <T> Map<String, T> getOrEvalAsMap(Variable var) {
+        if (var.isFunction()) {
+            Variable v = execute(var.getValue());
+            return v.isMap() ? v.getValue() : null;
+        } else {
+            return var.isMap() ? var.getValue() : null;
+        }
+    }
+
+    protected Variable execute(Function fun, Object... args) {
+        Value v = JS.attachFunction(fun);
+        // we have to convert any arguments that may have originated from js
+        for (int i = 0; i < args.length; i++) {
+            args[i] = JsValue.fromJava(args[i]);
+        }
+        Value res = v.execute(args);
+        return new Variable(res);
     }
 
     public Variable evalJs(String js) {
@@ -1064,8 +1094,13 @@ public class ScenarioEngine {
                 }
                 boolean remove = value.charAt(1) == '#';
                 value = value.substring(remove ? 2 : 1);
-                Variable result = evalJs(value);
-                return remove && result.isNull() ? EmbedAction.remove() : EmbedAction.update(result.getValue());
+                try {
+                    JsValue result = JS.eval(value);
+                    return remove && result.isNull() ? EmbedAction.remove() : EmbedAction.update(result.getValue());
+                } catch (Exception e) {
+                    logger.trace("embedded expression failed {}: {}", value, e.getMessage());
+                    return null;
+                }
             default:
                 // do nothing
                 return null;
@@ -1094,7 +1129,7 @@ public class ScenarioEngine {
                         attrib.setValue(v.getAsString());
                     }
                 } catch (Exception e) {
-                    logger.trace("embedded xml-attribute eval failed, path: {}, reason: {}", attrib.getName(), e.getMessage());
+                    logger.trace("xml-attribute embedded expression failed, {}: {}", attrib.getName(), e.getMessage());
                 }
             }
         }
@@ -1136,7 +1171,7 @@ public class ScenarioEngine {
                             }
                         }
                     } catch (Exception e) {
-                        logger.trace("embedded xml-text eval failed, path: {}, reason: {}", child.getNodeName(), e.getMessage());
+                        logger.trace("xml embedded expression failed, {}: {}", child.getNodeName(), e.getMessage());
                     }
                 }
             } else if (child.hasChildNodes() || child.hasAttributes()) {
@@ -1510,7 +1545,7 @@ public class ScenarioEngine {
     public Variable call(Variable called, Variable arg, boolean sharedScope) {
         switch (called.type) {
             case FUNCTION:
-                return arg == null ? called.invokeFunction(JS) : called.invokeFunction(JS, new Object[]{arg.getValue()});
+                return arg == null ? execute(called.getValue()) : execute(called.getValue(), new Object[]{arg.getValue()});
             case FEATURE:
                 Variable res = callFeature(called.getValue(), arg, -1, sharedScope);
                 Object val = res.getValue(); // will always be a map
@@ -1593,7 +1628,7 @@ public class ScenarioEngine {
             FeatureRuntime fr = new FeatureRuntime(call);
             fr.run();
             // VERY IMPORTANT ! switch back from called feature js context
-            ScenarioEngine.LOCAL.set(this);
+            THREAD_LOCAL.set(this);
             runtime.addCallResult(fr.result);
             if (fr.result.isFailed()) {
                 KarateException ke = fr.result.getErrorsCombined();
@@ -1612,7 +1647,7 @@ public class ScenarioEngine {
                 if (isList) {
                     loopArg = iterator.hasNext() ? new Variable(iterator.next()) : Variable.NULL;
                 } else { // function
-                    loopArg = arg.invokeFunction(JS, loopIndex);
+                    loopArg = execute(arg.getValue(), loopIndex);
                 }
                 if (!loopArg.isMap()) {
                     if (!isList) {

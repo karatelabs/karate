@@ -125,8 +125,8 @@ public class MockHandler implements ServerHandler {
             engine.setVariable(REQUEST_FILES, files); // TODO add to docs
         }
         // highly unlikely but support mocks calling other mocks in the same jvm
-        ScenarioEngine prevEngine = ScenarioEngine.LOCAL.get();
-        ScenarioEngine.LOCAL.set(engine);
+        ScenarioEngine prevEngine = ScenarioEngine.get();
+        ScenarioEngine.set(engine);
         engine.init();
         for (FeatureSection fs : feature.getSections()) {
             if (fs.isOutline()) {
@@ -159,7 +159,7 @@ public class MockHandler implements ServerHandler {
                     responseHeaders = vars.remove(ScenarioEngine.RESPONSE_HEADERS);
                     responseDelay = vars.remove(RESPONSE_DELAY);
                 } // END TRANSACTION ===========================================
-                ScenarioEngine.LOCAL.set(prevEngine);
+                ScenarioEngine.set(prevEngine);
                 if (result.isFailed()) {
                     response = new Variable(result.getError().getMessage());
                     responseStatus = new Variable(500);
@@ -187,7 +187,7 @@ public class MockHandler implements ServerHandler {
                 return res;
             }
         }
-        ScenarioEngine.LOCAL.set(prevEngine);
+        ScenarioEngine.set(prevEngine);
         runtime.logger.warn("no scenarios matched, returning 404: {}", req);
         return new Response(404);
     }
@@ -218,7 +218,7 @@ public class MockHandler implements ServerHandler {
         if (pathParams == null) {
             return false;
         } else {
-            ScenarioEngine.LOCAL.get().setVariable(PATH_PARAMS, pathParams);
+            ScenarioEngine.get().setVariable(PATH_PARAMS, pathParams);
             return true;
         }
     }

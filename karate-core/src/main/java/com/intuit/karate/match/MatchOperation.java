@@ -164,6 +164,7 @@ public class MatchOperation {
                         context.JS.put("_$", o);
                         MatchOperation mo = new MatchOperation(context.descend(i), nestedMatchType, new MatchValue(o), expected);
                         mo.execute();
+                        context.JS.bindings().removeMember("_$");
                         if (!mo.pass) {
                             return fail("match each failed at index " + i);
                         }
@@ -236,7 +237,11 @@ public class MatchOperation {
                 MatchType nestedType = macroToMatchType(false, macro);
                 int startPos = matchTypeToStartPos(nestedType);
                 macro = macro.substring(startPos);
+                context.JS.put("$", context.root.actual.getValue());
+                context.JS.put("_", actual.getValue());
                 JsValue jv = context.JS.eval(macro);
+                context.JS.bindings().removeMember("$");
+                context.JS.bindings().removeMember("_");
                 MatchOperation mo = new MatchOperation(context, nestedType, actual, new MatchValue(jv.getValue()));
                 return mo.execute();
             } else if (macro.startsWith("[")) {
@@ -258,6 +263,8 @@ public class MatchOperation {
                             sizeExpr = bracketContents + " == _";
                         }
                         JsValue jv = context.JS.eval(sizeExpr);
+                        context.JS.bindings().removeMember("$");
+                        context.JS.bindings().removeMember("_");
                         if (!jv.isTrue()) {
                             return fail("actual array length is " + listSize);
                         }
@@ -331,6 +338,8 @@ public class MatchOperation {
                     context.JS.put("$", context.root.actual.getValue());
                     context.JS.put("_", actual.getValue());
                     JsValue jv = context.JS.eval(macro);
+                    context.JS.bindings().removeMember("$");
+                    context.JS.bindings().removeMember("_");
                     if (!jv.isTrue()) {
                         return fail("evaluated to 'false'");
                     }
