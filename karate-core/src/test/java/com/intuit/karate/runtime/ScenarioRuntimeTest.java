@@ -333,11 +333,14 @@ class ScenarioRuntimeTest {
                 "def bar = [1, 2]",
                 "def res2 = karate.append(bar, [3, 4])",
                 "def res3 = [1, 2]",
-                "karate.appendTo('res3', [3, 4])"
+                "karate.appendTo('res3', [3, 4])",
+                "def res4 = [1, 2]",
+                "karate.appendTo(res4, [3, 4])" // append to variable reference !
         );
         matchVar("res1", "{ a: 1, b: 2 }");
         matchVar("res2", "[1, 2, 3, 4]");
         matchVar("res3", "[1, 2, 3, 4]");
+        matchVar("res4", "[1, 2, 3, 4]");
     }
 
     @Test
@@ -480,7 +483,7 @@ class ScenarioRuntimeTest {
         );
         assertEquals(get("myVar"), "bar");
     }
-    
+
     @Test
     void testSelfValidationWithVariables() {
         run(
@@ -488,17 +491,17 @@ class ScenarioRuntimeTest {
                 "def min = 1",
                 "def max = 12",
                 "match date == { month: '#? _ >= min && _ <= max' }"
-        );    
+        );
         assertFalse(sr.isFailed());
     }
-    
+
     @Test
     void testReadAndMatchBytes() {
         run(
                 "bytes data = read('karate-logo.png')",
                 "match data == read('karate-logo.png')"
-        );    
-        assertFalse(sr.isFailed());        
+        );
+        assertFalse(sr.isFailed());
     }
 
 }

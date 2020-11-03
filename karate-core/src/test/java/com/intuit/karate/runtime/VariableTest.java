@@ -35,7 +35,7 @@ public class VariableTest {
         JsValue jv = je.eval("(function(a, b){ return a + b })");
         Variable fun = new Variable(jv);
         assertTrue(fun.isFunction());
-        Variable res = fun.invokeFunction(1, 2);
+        Variable res = fun.invokeFunction(je, 1, 2);
         assertEquals(3, res.<Number>getValue());
     }
 

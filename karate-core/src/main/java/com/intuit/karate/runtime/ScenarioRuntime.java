@@ -318,7 +318,7 @@ public class ScenarioRuntime implements Runnable {
             return;
         }
         try {
-            Map<String, Object> map = fun.evalAsMap();
+            Map<String, Object> map = fun.evalAsMap(engine.JS);
             engine.setVariables(map);
         } catch (Exception e) {
             logger.error("{} failed: {}", name, e.getMessage());

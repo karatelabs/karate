@@ -112,7 +112,7 @@ public class ScenarioEngine {
     private boolean aborted;
     private Throwable failedReason;
 
-    private JsEngine JS;
+    protected JsEngine JS;
 
     // only used by mock server
     public ScenarioEngine(ScenarioRuntime runtime) {
@@ -236,7 +236,7 @@ public class ScenarioEngine {
         Variable v = afterFeature ? config.getAfterFeature() : config.getAfterScenario();
         if (v.isFunction()) {
             try {
-                v.invokeFunction();
+                v.invokeFunction(JS);
             } catch (Exception e) {
                 String prefix = afterFeature ? "afterFeature" : "afterScenario";
                 logger.warn("{} hook failed: {}", prefix, e.getMessage());
@@ -566,11 +566,11 @@ public class ScenarioEngine {
     }
 
     private void httpInvokeOnce() {
-        Map<String, Map> cookies = config.getCookies().evalAsMap();
+        Map<String, Map> cookies = config.getCookies().evalAsMap(JS);
         if (cookies != null) {
             http.cookies(cookies.values());
         }
-        Map<String, Object> headers = config.getHeaders().evalAsMap();
+        Map<String, Object> headers = config.getHeaders().evalAsMap(JS);
         if (headers != null) {
             http.headers(headers);
         }
@@ -682,7 +682,7 @@ public class ScenarioEngine {
         if (config.getCookies().isNull()) {
             config.setCookies(new Variable(cookies));
         } else {
-            Map<String, Object> map = config.getCookies().evalAsMap();
+            Map<String, Object> map = config.getCookies().evalAsMap(JS);
             map.putAll(cookies);
             config.setCookies(new Variable(map));
         }
@@ -785,7 +785,7 @@ public class ScenarioEngine {
     // not in constructor because it has to be on Runnable.run() thread
     public void init() {
         JS = JsEngine.local();
-        logger.trace("js context: {}", JS);
+        logger.debug("js context: {}", JS);
         attachVariablesToJsContext();
         setHiddenVariable(KARATE, bridge);
         setHiddenVariable(READ, readFunction);
@@ -885,7 +885,6 @@ public class ScenarioEngine {
         Variable v;
         if (value instanceof Variable) {
             v = (Variable) value;
-            value = v.getValue();
         } else {
             v = new Variable(value);
         }
@@ -1511,7 +1510,7 @@ public class ScenarioEngine {
     public Variable call(Variable called, Variable arg, boolean sharedScope) {
         switch (called.type) {
             case FUNCTION:
-                return arg == null ? called.invokeFunction() : called.invokeFunction(new Object[]{arg.getValue()});
+                return arg == null ? called.invokeFunction(JS) : called.invokeFunction(JS, new Object[]{arg.getValue()});
             case FEATURE:
                 Variable res = callFeature(called.getValue(), arg, -1, sharedScope);
                 Object val = res.getValue(); // will always be a map
@@ -1613,7 +1612,7 @@ public class ScenarioEngine {
                 if (isList) {
                     loopArg = iterator.hasNext() ? new Variable(iterator.next()) : Variable.NULL;
                 } else { // function
-                    loopArg = arg.invokeFunction(loopIndex);
+                    loopArg = arg.invokeFunction(JS, loopIndex);
                 }
                 if (!loopArg.isMap()) {
                     if (!isList) {

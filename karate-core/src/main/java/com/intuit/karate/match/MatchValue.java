@@ -168,7 +168,7 @@ public class MatchValue {
         switch (type) {
             case LIST:
             case MAP:
-                return JsonUtils.toJson(value);
+                return JsonUtils.toJsonSafe(value, false);
             case XML:
                 return XmlUtils.toString(getValue());
             default:

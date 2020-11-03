@@ -2,5 +2,5 @@ Feature: feature reuse from karate-config.js
 
 Scenario:
 * print 'before config feature'
-* utils.hello()
+* call utils.hello
 * print 'after config feature'

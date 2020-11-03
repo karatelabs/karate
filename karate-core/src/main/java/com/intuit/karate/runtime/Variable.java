@@ -29,6 +29,7 @@ import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.data.Json;
 import com.intuit.karate.data.JsonUtils;
+import com.intuit.karate.graal.JsEngine;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -155,18 +156,19 @@ public class Variable {
         return type.name().toLowerCase();
     }
 
-    public Variable invokeFunction(Object... args) {
-        Function fun = getValue();
+    public Variable invokeFunction(JsEngine js, Object... args) {
+        Value v = js.attachFunction(getValue());
         // we have to convert any arguments that may have originated from js
         for (int i = 0; i < args.length; i++) {
             args[i] = JsValue.fromJava(args[i]);
         }
-        return new Variable(fun.apply(args));
+        Value res = v.execute(args);
+        return new Variable(res);
     }
 
-    public <T> Map<String, T> evalAsMap() {
+    public <T> Map<String, T> evalAsMap(JsEngine js) {
         if (isFunction()) {
-            Variable v = invokeFunction();
+            Variable v = invokeFunction(js);
             return v.isMap() ? v.getValue() : null;
         } else {
             return isMap() ? getValue() : null;

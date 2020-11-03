@@ -39,6 +39,11 @@ class FeatureRuntimeTest {
         assertTrue(mr.pass, mr.message);
     }
 
+    private void matchContains(Object actual, Object expected) {
+        MatchResult mr = Match.that(actual).contains(expected);
+        assertTrue(mr.pass, mr.message);
+    }
+
     @Test
     void testPrint() {
         run("print.feature");
@@ -52,10 +57,16 @@ class FeatureRuntimeTest {
     }
 
     @Test
-    void testCallOnceBg() {
+    void testCallOnce() {
         run("callonce-bg.feature");
         assertFalse(fr.result.isFailed());
     }
+    
+    @Test
+    void testCallOnceWithUtilsPresentInKarateConfig() {
+        run("callonce-bg.feature", "classpath:com/intuit/karate/runtime");
+        assertFalse(fr.result.isFailed());
+    }    
 
     @Test
     void testTags() {
@@ -79,16 +90,24 @@ class FeatureRuntimeTest {
     }
 
     @Test
-    void testCallJs() {
+    void testCallFeatureFromJs() {
         run("call-js.feature");
         assertFalse(fr.result.isFailed());
+        matchContains(fr.getResult(), "{ calledVar: 'hello world' }");
     }
 
     @Test
-    void testJsFromKarateConfig() {
+    void testCallJsFromFeatureUtilsDefinedInKarateConfig() {
         run("config-js-fn.feature", "classpath:com/intuit/karate/runtime");
-        report();
         assertFalse(fr.result.isFailed());
+        matchContains(fr.getResult(), "{ helloVar: 'hello world' }");
     }
+    
+    @Test
+    void testCallByTag() {
+        run("call-by-tag.feature");
+        assertFalse(fr.result.isFailed());
+        report();
+    }    
 
 }

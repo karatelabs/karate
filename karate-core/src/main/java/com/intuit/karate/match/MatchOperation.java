@@ -53,15 +53,15 @@ public class MatchOperation {
 
     boolean pass = true;
     String failReason;
-    
+
     public MatchOperation(MatchType type, MatchValue actual, MatchValue expected) {
         this(JsEngine.global(), null, type, actual, expected);
-    }    
+    }
 
     public MatchOperation(JsEngine js, MatchType type, MatchValue actual, MatchValue expected) {
         this(js, null, type, actual, expected);
     }
-    
+
     private MatchOperation(MatchContext context, MatchType type, MatchValue actual, MatchValue expected) {
         this(null, context, type, actual, expected);
     }
@@ -175,6 +175,11 @@ public class MatchOperation {
                 }
             default:
             // do nothing
+        }
+        if (actual.isNotPresent()) {
+            if (!expected.isString() || !expected.getAsString().startsWith("#")) {
+                return fail("actual path does not exist");
+            }
         }
         if (expected.isString()) {
             String expStr = expected.getValue();
@@ -552,15 +557,15 @@ public class MatchOperation {
     public String getFailureReasons() {
         return collectFailureReasons(this);
     }
-    
+
     private boolean isXmlAttributeOrMap() {
-        return context.xml && actual.isMap() 
+        return context.xml && actual.isMap()
                 && (context.name.equals("@") || actual.<Map>getValue().containsKey("_"));
-    }    
+    }
 
     private static String collectFailureReasons(MatchOperation root) {
         StringBuilder sb = new StringBuilder();
-        sb.append("match failed: ").append(root.type).append('\n');        
+        sb.append("match failed: ").append(root.type).append('\n');
         Collections.reverse(root.failures);
         Iterator<MatchOperation> iterator = root.failures.iterator();
         Set previousPaths = new HashSet();

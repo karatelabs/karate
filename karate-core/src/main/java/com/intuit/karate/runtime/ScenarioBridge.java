@@ -80,7 +80,6 @@ public class ScenarioBridge implements PerfContext {
         return new JsList(list);
     }
 
-    // TODO breaking appendTo(ref) will not work, use append()
     public Object appendTo(String varName, Value... vals) {
         ScenarioEngine engine = getEngine();
         Variable var = engine.vars.get(varName);
@@ -99,6 +98,24 @@ public class ScenarioBridge implements PerfContext {
         engine.setVariable(varName, list);
         return new JsList(list);
     }
+    
+    public Object appendTo(Value ref, Value... vals) {        
+        List list;
+        if (ref.hasArrayElements()) {
+            list = new JsValue(ref).getAsList(); // make sure we unwrap the "original" list
+        } else {
+            list = new ArrayList();
+        }
+        for (Value v : vals) {
+            if (v.hasArrayElements()) {
+                list.addAll(v.as(List.class));
+            } else {
+                Object temp = v.as(Object.class);
+                list.add(temp);
+            }
+        }
+        return new JsList(list);
+    }    
 
     public Object call(String fileName) {
         return call(false, fileName, null);

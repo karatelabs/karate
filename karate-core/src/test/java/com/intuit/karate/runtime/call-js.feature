@@ -1,9 +1,9 @@
 Feature: will a js call show up in the report
 
 Background:
-* def fun = function(){ karate.call('call-js-called.feature') }
+* def fun = function(){ return karate.call('call-js-called.feature') }
 
 Scenario:
 * print 'before call'
-* fun()
+* call fun
 * print 'after call'

@@ -4,6 +4,9 @@ Feature:
 Background:
   * callonce read('callonce-bg-called.feature')
 
+Scenario: first
+  * print 'in first'
+
 Scenario Outline: outline <value>
   * print 'in main outline value:', value
   * call read('callonce-bg-outline.feature')

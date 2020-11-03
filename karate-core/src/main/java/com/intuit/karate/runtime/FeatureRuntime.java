@@ -36,66 +36,66 @@ import java.util.Map;
  * @author pthomas3
  */
 public class FeatureRuntime implements Runnable {
-    
+
     public final SuiteRuntime suite;
     public final FeatureRuntime rootFeature;
     public final ScenarioCall caller;
     public final Feature feature;
     public final FeatureResult result;
     private final ScenarioGenerator scenarios;
-    
+
     public final Map<String, ScenarioCall.Result> FEATURE_CACHE = new HashMap();
-    
+
     private PerfHook perfRuntime;
     private Runnable next;
-    
+
     public Path getParentPath() {
         return feature.getPath().getParent();
     }
-    
+
     public Path getRootParentPath() {
         return rootFeature.getParentPath();
     }
-    
+
     public Path getPath() {
         return feature.getPath();
     }
-    
+
     public void setPerfRuntime(PerfHook perfRuntime) {
         this.perfRuntime = perfRuntime;
     }
-    
+
     public boolean isPerfMode() {
         return perfRuntime != null;
     }
-    
+
     public PerfHook getPerfRuntime() {
         return perfRuntime;
     }
-    
-    public void setCallArg(Map<String, Object> arg) {        
+
+    public void setCallArg(Map<String, Object> arg) {
         if (arg != null) {
             caller.setArg(new Variable(arg));
         }
     }
-    
+
     public void setNext(Runnable next) {
         this.next = next;
     }
-    
+
     public FeatureRuntime(SuiteRuntime suite, Feature feature) {
         this(suite, feature, ScenarioCall.none());
     }
-    
+
     public FeatureRuntime(ScenarioCall call) {
         this(call.parentRuntime.featureRuntime.suite, call.feature, call);
         Variable arg = call.getArg();
         result.setLoopIndex(call.getLoopIndex());
-        if (arg != null) {
-            result.setCallArg(arg.getValue());
-        }
+//        if (arg != null) {
+//            result.setCallArg(arg.getValue());
+//        }
     }
-    
+
     private FeatureRuntime(SuiteRuntime suite, Feature feature, ScenarioCall parentCall) {
         this.suite = suite;
         this.feature = feature;
@@ -104,50 +104,57 @@ public class FeatureRuntime implements Runnable {
         result = new FeatureResult(suite.results, feature);
         scenarios = new ScenarioGenerator(this, feature.getSections().iterator());
     }
-    
-    private ScenarioRuntime currentScenario;
-    
+
+    private ScenarioRuntime lastExecutedScenario;
+
     public Variable getResultVariable() {
-        if (currentScenario == null) {
+        if (lastExecutedScenario == null) {
             return Variable.NULL;
         }
-        return new Variable(currentScenario.engine.getAllVariablesAsMap());
+        return new Variable(lastExecutedScenario.engine.getAllVariablesAsMap());
     }
-    
+
     public Map<String, Object> getResult() {
         Variable var = getResultVariable();
         return var.isMap() ? var.getValue() : null;
     }
-    
+
     private boolean beforeHookDone;
-    
-    private void beforeHook() {
+    private boolean beforeHookResult = true;
+
+    // logic to run once only if there are runnable scenarios (selected by tag)
+    private boolean beforeHook() {
         if (beforeHookDone) {
-            return;
+            return beforeHookResult;
         }
         beforeHookDone = true;
         for (RuntimeHook hook : suite.hooks) {
-            hook.beforeFeature(this);
+            beforeHookResult = beforeHookResult && hook.beforeFeature(this);
         }
+        return beforeHookResult;
     }
-    
+
     @Override
     public void run() {
         try {
             while (scenarios.hasNext()) {
-                currentScenario = scenarios.next();
-                if (currentScenario.isSelectedForExecution()) {
-                    beforeHook();
-                    currentScenario.run();
-                    result.addResult(currentScenario.result);
+                ScenarioRuntime sr = scenarios.next();
+                if (sr.isSelectedForExecution()) {
+                    if (!beforeHook()) {
+                        suite.logger.info("before-feature hook returned [false], aborting: ", this);
+                        break;
+                    }
+                    lastExecutedScenario = sr;
+                    sr.run();
+                    result.addResult(sr.result);
                 } else {
-                    suite.logger.trace("excluded by tags: {}", currentScenario);
+                    suite.logger.trace("excluded by tags: {}", sr);
                 }
             }
             result.sortScenarioResults();
-            if (currentScenario != null) {
-                currentScenario.engine.invokeAfterHookIfConfigured(true);
-                result.setResultVariables(currentScenario.engine.getAllVariablesAsMap());
+            if (lastExecutedScenario != null) {
+                lastExecutedScenario.engine.invokeAfterHookIfConfigured(true);
+                result.setResultVariables(lastExecutedScenario.engine.getAllVariablesAsMap());
             }
             if (!result.isEmpty()) {
                 for (RuntimeHook hook : suite.hooks) {
@@ -162,5 +169,10 @@ public class FeatureRuntime implements Runnable {
             }
         }
     }
-    
+
+    @Override
+    public String toString() {
+        return feature.toString();
+    }
+
 }

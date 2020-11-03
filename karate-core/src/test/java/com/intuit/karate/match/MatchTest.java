@@ -230,6 +230,14 @@ class MatchTest {
         match("{ a: 1, b: 'foo', c: 2 }", EQUALS, "{ b: '#regex .{2}', c: 2, a: 1 }", FAILS);
         message("$.b | regex match failed");
     }
+    
+    @Test
+    void testNotPresentOnLhs() {
+        match("#notpresent", EQUALS, 2, FAILS);
+        message("actual path does not exist");
+        match("#notpresent", EQUALS, "foo", FAILS);
+        message("actual path does not exist");        
+    }
 
     @Test
     void testXml() {
