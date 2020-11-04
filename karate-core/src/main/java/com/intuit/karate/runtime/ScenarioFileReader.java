@@ -120,7 +120,7 @@ public class ScenarioFileReader {
         }
     }
 
-    private Resource toResource(String path) {
+    public Resource toResource(String path) {
         if (isClassPath(path)) {
             return new Resource(path, classLoader);
         } else if (isFilePath(path)) {

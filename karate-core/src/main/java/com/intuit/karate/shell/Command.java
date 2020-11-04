@@ -121,6 +121,15 @@ public class Command extends Thread {
     public static String getBuildDir() {
         return FileUtils.getBuildDir();
     }
+    
+    public static String[] prefixShellArgs(String line) {
+        switch (FileUtils.getOsType()) {
+            case WINDOWS:
+                return new String[]{"cmd", "/c", line};
+            default:
+                return new String[]{"sh", "-c", line};
+        }
+    }    
 
     private static final Set<Integer> PORTS_IN_USE = ConcurrentHashMap.newKeySet();
 

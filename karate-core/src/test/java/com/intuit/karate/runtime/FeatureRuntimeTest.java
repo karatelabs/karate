@@ -156,23 +156,29 @@ class FeatureRuntimeTest {
         run("set.feature");
         assertFalse(fr.result.isFailed());
     }
-    
+
     @Test
     void testSetXml() {
         run("set-xml.feature");
         assertFalse(fr.result.isFailed());
-    }    
-    
+    }
+
     @Test
     void testJsRead() {
         run("js-read.feature");
         assertFalse(fr.result.isFailed());
-    }    
-    
+    }
+
     @Test
     void testJsMapRepeat() {
         run("js-map-repeat.feature");
         assertFalse(fr.result.isFailed());
-    }     
+    }
+    
+    @Test
+    void testFork() {
+        run("fork.feature");
+        assertFalse(fr.result.isFailed());        
+    }
 
 }
