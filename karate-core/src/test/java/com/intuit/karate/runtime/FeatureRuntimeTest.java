@@ -158,6 +158,12 @@ class FeatureRuntimeTest {
     }
     
     @Test
+    void testSetXml() {
+        run("set-xml.feature");
+        assertFalse(fr.result.isFailed());
+    }    
+    
+    @Test
     void testJsRead() {
         run("js-read.feature");
         assertFalse(fr.result.isFailed());

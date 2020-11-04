@@ -544,5 +544,27 @@ class ScenarioRuntimeTest {
         );
         assertFalse(sr.isFailed());
     }
+    
+    @Test
+    void testMatchSchema() {
+        run(
+                "def dogSchema = { id: '#string', color: '#string' }",
+                "def schema = { id: '#string', name: '#string', dog: '##(dogSchema)' }",
+                "def response1 = { id: '123', name: 'foo' }",
+                "match response1 == schema",
+                "def response2 = { id: '123', name: 'foo', dog: { id: '456', color: 'brown' } }",
+                "match response2 == schema"
+        );
+        assertFalse(sr.isFailed());        
+    }    
+    
+    @Test
+    void testMatchSchemaMagicVariables() {
+        run(
+                "def response = { odds: [1, 2], count: 2 }",
+                "match response == { odds: '#[$.count]', count: '#number' }"
+        );
+        assertFalse(sr.isFailed());        
+    }
 
 }

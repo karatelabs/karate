@@ -36,7 +36,7 @@ Then match response ==
 * match $.odds == '##[_ > 0]'
 
 # should be an array of size equal to $.count
-* match $.odds == '#[$.count]'
+* match $ contains { odds: '#[$.count]' }
 
 # use a predicate function to validate each array element
 * def isValidOdd = function(o){ return o.name.length == 1 }

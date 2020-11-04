@@ -286,9 +286,9 @@ public class MatchOperation {
                                 macro = "#" + macro;
                             }
                             if (macro.startsWith("#")) {
-                                MatchType nestedType = type == MatchType.EQUALS ? MatchType.EACH_EQUALS : MatchType.EACH_NOT_EQUALS;
-                                MatchOperation mo = new MatchOperation(context, nestedType, actual, new MatchValue(macro));
-                                return mo.execute();
+                                MatchOperation mo = new MatchOperation(context, MatchType.EACH_EQUALS, actual, new MatchValue(macro));
+                                mo.execute();
+                                return mo.pass ? pass() : fail("all array elements matched");
                             } else { // schema reference
                                 MatchType nestedType = macroToMatchType(true, macro); // match each
                                 int startPos = matchTypeToStartPos(nestedType);

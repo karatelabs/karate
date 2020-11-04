@@ -1092,11 +1092,21 @@ public class ScenarioEngine {
                 if (!isEmbeddedExpression(value)) {
                     return null;
                 }
-                boolean remove = value.charAt(1) == '#';
-                value = value.substring(remove ? 2 : 1);
+                boolean optional = value.charAt(1) == '#';
+                value = value.substring(optional ? 2 : 1);
                 try {
                     JsValue result = JS.eval(value);
-                    return remove && result.isNull() ? EmbedAction.remove() : EmbedAction.update(result.getValue());
+                    if (optional) {
+                        if (result.isNull()) {
+                            return EmbedAction.remove();
+                        } else if (result.isObject() || result.isArray()) {
+                            // preserve optional JSON chunk schema-like references as-is, they are needed for future match attempts
+                            // TODO similar XML schema intelligence
+                            return null;
+                        }
+                        // and only substitute primitives ! 
+                    }
+                    return EmbedAction.update(result.getValue());
                 } catch (Exception e) {
                     logger.trace("embedded expression failed {}: {}", value, e.getMessage());
                     return null;
@@ -1297,7 +1307,7 @@ public class ScenarioEngine {
                 json.remove(path);
             } else {
                 json.set(path, value.<Object>getValue());
-            }            
+            }
         } else if (isXmlPath(path)) {
             if (target == null || target.isNull()) {
                 if (viaTable) { // auto create if using set via cucumber table as a convenience

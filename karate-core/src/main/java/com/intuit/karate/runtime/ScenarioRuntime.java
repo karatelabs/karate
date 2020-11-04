@@ -403,7 +403,7 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public boolean isSelectedForExecution() {
-        Feature feature = featureRuntime.feature;
+        Feature feature = scenario.getFeature();
         int callLine = feature.getCallLine();
         if (callLine != -1) {
             int sectionLine = scenario.getSection().getLine();
@@ -424,7 +424,7 @@ public class ScenarioRuntime implements Runnable {
             logger.trace("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
             return false;
         }
-        String callTag = scenario.getFeature().getCallTag();
+        String callTag = feature.getCallTag();
         if (callTag != null) {
             if (tags.contains(callTag)) {
                 logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
@@ -433,12 +433,16 @@ public class ScenarioRuntime implements Runnable {
             logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
             return false;
         }
-        if (tags.evaluate(featureRuntime.suite.tagSelector)) {
-            logger.trace("matched scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
-            return true;
+        if (caller.isNone()) {
+            if (tags.evaluate(featureRuntime.suite.tagSelector)) {
+                logger.trace("matched scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
+                return true;
+            }
+            logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
+            return false;
+        } else {
+            return true; // when called, all scenarios match by default
         }
-        logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
-        return false;
     }
 
     @Override

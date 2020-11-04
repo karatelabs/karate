@@ -105,6 +105,13 @@ class MatchTest {
     }
 
     @Test
+    void testNotEquals() {
+        match("[1, 2]", NOT_EQUALS, "#[1]");
+        match("[1, 2]", NOT_EQUALS, "#[]? _ > 2");
+        log();
+    }
+
+    @Test
     void testList() {
         match("[1, 2, 3]", EQUALS, "[1, 2, 3]");
         match("[1, 2, 3]", NOT_EQUALS, "[1, 2, 4]");
@@ -139,6 +146,8 @@ class MatchTest {
         match("['foo', 'bar']", NOT_CONTAINS, "baz");
         match("['foo', 'bar']", NOT_CONTAINS, "bar", FAILS);
         message("actual contains expected");
+        match("[{ foo: 1 }, { foo: 2 }, { foo: 3 }]", CONTAINS, "[{ foo: 0 }, { foo: 2 }, { foo: 3 }]", FAILS);
+        message("$[0] | not equal"); // TODO improve error message for this case
     }
 
     @Test
@@ -158,7 +167,7 @@ class MatchTest {
         match("[{a: 1, b: 2}, {a: 2, b: 4}]", EACH_EQUALS, "{ a: '#number', b: '#(_$.a * 2)' }");
         match("[{a: 1, b: 2}, {a: 2, b: 4}]", EACH_EQUALS, "{ a: '#number', b: '#? _ == _$.a * 2' }");
         match("[{a: 1, b: 2}, {a: 2, b: 4}]", EACH_CONTAINS, "{ b: '#(_$.a * 2)' }");
-        match("[{a: 1, b: 2}, {a: 2, b: 4}]", EACH_CONTAINS, "{ b: '#? _ == _$.a * 2' }");        
+        match("[{a: 1, b: 2}, {a: 2, b: 4}]", EACH_CONTAINS, "{ b: '#? _ == _$.a * 2' }");
     }
 
     @Test

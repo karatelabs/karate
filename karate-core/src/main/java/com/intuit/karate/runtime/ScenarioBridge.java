@@ -336,8 +336,9 @@ public class ScenarioBridge implements PerfContext {
             Variable result = engine.evalKarateExpression(exp);
             return JsValue.fromJava(result.getValue());
         } catch (Exception e) {
+            engine.setFailedReason(null); // special case
             engine.logger.warn("auto evaluation failed: {}", e.getMessage());
-            return new Variable(exp);
+            return exp;
         }
     }
 
@@ -615,8 +616,8 @@ public class ScenarioBridge implements PerfContext {
         return v.getAsString();
     }
 
-    public String typeOf(Object o) {
-        Variable v = new Variable(o);
+    public String typeOf(Value value) {
+        Variable v = new Variable(value);
         return v.getTypeString();
     }
 
