@@ -27,6 +27,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,8 +42,8 @@ public class HelloResource {
 
     @GET
     @Produces("text/plain")
-    public String getHello() {
-        return "hello world";
+    public String getHello(@QueryParam("hello") String hello) {
+        return hello + " world";
     }
     
     @POST

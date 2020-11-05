@@ -106,9 +106,6 @@ public class Chrome extends DevToolsDriver {
         if (!options.headless) {
             chrome.initWindowIdAndState();
         }
-        if (attachUrl != null) {
-            chrome.currentUrl = attachUrl;
-        }
         return chrome;
     }
 

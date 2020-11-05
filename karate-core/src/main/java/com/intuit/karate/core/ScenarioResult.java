@@ -33,7 +33,7 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class ScenarioResult {
+public class ScenarioResult implements Comparable<ScenarioResult> {
 
     private List<StepResult> stepResults = new ArrayList();
     private final Scenario scenario;
@@ -47,6 +47,15 @@ public class ScenarioResult {
 
     private Map<String, Object> backgroundJson;
     private Map<String, Object> json;
+
+    @Override
+    public int compareTo(ScenarioResult sr) {
+        int delta = scenario.getLine() - sr.scenario.getLine();
+        if (delta != 0) {
+            return delta;
+        }
+        return scenario.getExampleIndex() - sr.scenario.getExampleIndex();
+    }
 
     public void reset() {
         stepResults = new ArrayList();
@@ -268,10 +277,10 @@ public class ScenarioResult {
     public long getDurationNanos() {
         return durationNanos;
     }
-    
+
     public double getDurationMillis() {
         return Engine.nanosToMillis(durationNanos);
-    }    
+    }
 
     public String getThreadName() {
         return threadName;

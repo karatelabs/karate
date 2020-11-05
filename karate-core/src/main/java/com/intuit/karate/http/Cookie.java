@@ -23,11 +23,13 @@
  */
 package com.intuit.karate.http;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.DateTimeParseException;
+import java.util.*;
 
 /**
  *
@@ -44,7 +46,10 @@ public class Cookie extends LinkedHashMap<String, String> {
     public static final String MAX_AGE = "max-age";
     public static final String SECURE = "secure";
     public static final String PERSISTENT = "persistent";
-    public static final String HTTP_ONLY = "http-only";    
+    public static final String HTTP_ONLY = "http-only";
+    public static final DateTimeFormatter DT_FMT_V1 = DateTimeFormatter.ofPattern("EEE, dd-MMM-yy HH:mm:ss z");
+    public static final DateTimeFormatter DT_FMT_V2 = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss z");
+    public static final DateTimeFormatter DTFMTR_RFC1123 = new DateTimeFormatterBuilder().appendOptional(DT_FMT_V1).appendOptional(DT_FMT_V2).toFormatter();
     
     // cookies can be a map of maps, so some extra processing
     public static List<Cookie> toCookies(Map<String, Object> map) {
@@ -82,6 +87,21 @@ public class Cookie extends LinkedHashMap<String, String> {
 
     public String getValue() {
         return get(VALUE);
-    }        
+    }
+
+    public boolean isCookieExpired()
+    {
+        String exprDat = get(EXPIRES);
+        Date expires = null;
+        if ( null != exprDat) {
+            try {
+                expires = Date.from(ZonedDateTime.parse(get(EXPIRES), DTFMTR_RFC1123).toInstant());
+            } catch (DateTimeParseException ex) {
+                System.err.println("ex ->" + ex.getLocalizedMessage());
+            }
+        }
+        return null != expires && !expires.after(new Date());
+
+    }
     
 }

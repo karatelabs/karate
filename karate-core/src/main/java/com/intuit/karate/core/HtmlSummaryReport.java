@@ -99,7 +99,7 @@ public class HtmlSummaryReport extends HtmlReport {
         File file = saveHtmlToFile(targetDir, "karate-summary.html");
         System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
                 + FileUtils.getKarateVersion() + "\n"
-                + file.toURI()
+                + file.toPath().toUri()
                 + "\n===================================================================\n");
         return file;
     }

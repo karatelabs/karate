@@ -33,7 +33,7 @@ import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.appium.AndroidDriver;
 import com.intuit.karate.driver.chrome.Chrome;
 import com.intuit.karate.driver.chrome.ChromeWebDriver;
-import com.intuit.karate.driver.microsoft.EdgeDevToolsDriver;
+import com.intuit.karate.driver.microsoft.EdgeChromium;
 import com.intuit.karate.driver.microsoft.IeWebDriver;
 import com.intuit.karate.driver.microsoft.MsWebDriver;
 import com.intuit.karate.driver.firefox.GeckoWebDriver;
@@ -41,6 +41,7 @@ import com.intuit.karate.driver.appium.IosDriver;
 import com.intuit.karate.driver.microsoft.MsEdgeDriver;
 import com.intuit.karate.driver.safari.SafariWebDriver;
 import com.intuit.karate.driver.microsoft.WinAppDriver;
+import com.intuit.karate.driver.playwright.PlaywrightDriver;
 import com.intuit.karate.shell.Command;
 
 import java.io.File;
@@ -54,6 +55,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -66,6 +68,7 @@ public class DriverOptions {
     public final Map<String, Object> options;
     public final int timeout;
     public final boolean start;
+    public final boolean stop;
     public final String executable;
     public final String type;
     public final int port;
@@ -99,6 +102,8 @@ public class DriverOptions {
     public final boolean highlight;
     public final int highlightDuration;
     public final String attach;
+    public final String playwrightUrl;
+    public final Map<String, Object> playwrightOptions;
 
     // mutable during a test
     private boolean retryEnabled;
@@ -109,6 +114,7 @@ public class DriverOptions {
     private Integer timeoutOverride;
 
     // mutable when we return from called features
+    // TODO consider using Engine.THREAD_CONTEXT.get()
     private ScenarioContext context;
 
     public static final String SCROLL_JS_FUNCTION = "function(e){ var d = window.getComputedStyle(e).display;"
@@ -153,6 +159,7 @@ public class DriverOptions {
         timeout = get("timeout", Config.DEFAULT_TIMEOUT);
         type = get("type", null);
         start = get("start", true);
+        stop = get("stop", true);
         executable = get("executable", defaultExecutable);
         headless = get("headless", false);
         showProcessLog = get("showProcessLog", false);
@@ -204,7 +211,8 @@ public class DriverOptions {
         highlight = get("highlight", false);
         highlightDuration = get("highlightDuration", Config.DEFAULT_HIGHLIGHT_DURATION);
         attach = get("attach", null);
-
+        playwrightUrl = get("playwrightUrl", null);
+        playwrightOptions = get("playwrightOptions", null);
         // do this last to ensure things like logger, start-flag, webDriverUrl etc. are set
         port = resolvePort(defaultPort);
     }
@@ -246,8 +254,12 @@ public class DriverOptions {
     public void arg(String arg) {
         args.add(arg);
     }
-
+    
     public Command startProcess() {
+        return startProcess(null);
+    }
+
+    public Command startProcess(Consumer<String> listener) {
         if (beforeStart != null) {
             Command.execLine(null, beforeStart);
         }
@@ -259,6 +271,9 @@ public class DriverOptions {
                 args.addAll(addOptions);
             }
             command = new Command(false, processLogger, uniqueName, processLogFile, workingDir, args.toArray(new String[]{}));
+            if (listener != null) {
+                command.setListener(listener);
+            }
             command.start();
         }
         if (start) { // wait for a slow booting browser / driver process
@@ -287,7 +302,7 @@ public class DriverOptions {
                 case "chrome":
                     return Chrome.start(context, options, appender);
                 case "msedge":
-                    return EdgeDevToolsDriver.start(context, options, appender);
+                    return EdgeChromium.start(context, options, appender);
                 case "chromedriver":
                     return ChromeWebDriver.start(context, options, appender);
                 case "geckodriver":
@@ -306,6 +321,8 @@ public class DriverOptions {
                     return AndroidDriver.start(context, options, appender);
                 case "ios":
                     return IosDriver.start(context, options, appender);
+                case "playwright":
+                    return PlaywrightDriver.start(context, options, appender);
                 default:
                     logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
                     options.put("type", "chrome");
@@ -609,6 +626,12 @@ public class DriverOptions {
             }
         } while (attempts++ < pollAttempts);
         return false;
+    }
+    
+    public static String getPositionJs(String locator) {
+        String temp = "var r = " + selector(locator, DOCUMENT) 
+                + ".getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }";
+        return wrapInFunctionInvoke(temp);        
     }
 
     public Map<String, Object> newMapWithSelectedKeys(Map<String, Object> map, String... keys) {

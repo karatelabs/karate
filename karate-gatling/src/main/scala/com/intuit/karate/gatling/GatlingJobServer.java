@@ -31,7 +31,7 @@ import com.intuit.karate.job.JobConfig;
 import com.intuit.karate.job.JobServer;
 import java.io.File;
 import java.util.HashSet;
-import java.util.List;
+import java.util.Iterator;
 import java.util.Set;
 
 /**
@@ -48,7 +48,7 @@ public class GatlingJobServer extends JobServer {
     }
 
     @Override
-    public void addFeature(ExecutionContext exec, List<ScenarioExecutionUnit> units, Runnable onComplete) {
+    public void addFeature(ExecutionContext exec, Iterator<ScenarioExecutionUnit> units, Runnable onComplete) {
         // TODO not applicable
     }
 

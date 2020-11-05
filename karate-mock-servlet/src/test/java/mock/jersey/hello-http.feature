@@ -4,9 +4,10 @@ Scenario: get hello
 
 When url demoBaseUrl
 And path 'hello'
+And param hello = 'hey'
 When method get
 Then status 200
-And match response == 'hello world'
+And match response == 'hey world'
 
 Scenario: post cat
 

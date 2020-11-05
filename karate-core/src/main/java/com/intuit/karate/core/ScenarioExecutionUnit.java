@@ -56,8 +56,6 @@ public class ScenarioExecutionUnit implements Runnable {
     private boolean stopped = false;
     private boolean aborted = false;
     private StepResult lastStepResult;
-    private Runnable next;
-    private boolean last;
     private Step currentStep;
 
     private LogAppender appender;
@@ -119,18 +117,6 @@ public class ScenarioExecutionUnit implements Runnable {
 
     public boolean isStopped() {
         return stopped;
-    }
-
-    public void setNext(Runnable next) {
-        this.next = next;
-    }
-
-    public void setLast(boolean last) {
-        this.last = last;
-    }
-
-    public boolean isLast() {
-        return last;
     }
 
     public void init() {
@@ -206,7 +192,7 @@ public class ScenarioExecutionUnit implements Runnable {
     // extracted for debug
     public StepResult execute(Step step) {
         currentStep = step;
-        actions.context.setExecutionUnit(this);// just for deriving call stack        
+        actions.context.setExecutionUnit(this);// just for deriving call stack
         if (hooks != null) {
             boolean shouldExecute = true;
             for (ExecutionHook hook : hooks) {
@@ -329,10 +315,6 @@ public class ScenarioExecutionUnit implements Runnable {
         } catch (Exception e) {            
             result.addError("scenario execution failed", e);
             LOGGER.error("scenario execution failed: {}", e.getMessage());
-        } finally {
-            if (next != null) {
-                next.run();
-            }
         }
     }
 

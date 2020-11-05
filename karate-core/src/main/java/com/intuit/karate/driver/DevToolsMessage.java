@@ -46,7 +46,7 @@ public class DevToolsMessage {
     private Integer id;
     private String sessionId;
     private final String method;
-    private Map<String, Object> params;
+    private Json params;
     private Map<String, Object> error;
     private ScriptValue result;
     private Integer timeout;
@@ -82,29 +82,24 @@ public class DevToolsMessage {
     public boolean methodIs(String method) {
         return method.equals(this.method);
     }
+    
+    public String getParam(String path) {
+        return getParam(path, String.class);
+    }
 
-    public <T> T get(String path, Class<T> clazz) {
+    public <T> T getParam(String path, Class<T> clazz) {
         if (params == null) {
             return null;
         }
-        Json json = new Json(params);
         try {
-            return json.get(path, clazz);
+            return params.get(path, clazz);
         } catch (Exception e) {
             if (logger.isTraceEnabled()) {
-                logger.trace("json-path evaluation failed: {}", e.getMessage());
+                logger.trace("get param - json path failed: {} - {}", path, params);
             }
             return null;
         }
     }
-
-    public Map<String, Object> getParams() {
-        return params;
-    }
-
-    public void setParams(Map<String, Object> params) {
-        this.params = params;
-    }  
 
     public ScriptValue getResult() {
         return result;
@@ -150,13 +145,6 @@ public class DevToolsMessage {
         return new ScriptValue(result.getAsMap().get(key));
     }
 
-    public ScriptValue getParam(String key) {
-        if (params == null) {
-            return ScriptValue.NULL;
-        }
-        return new ScriptValue(params.get(key));
-    }
-
     public DevToolsMessage(DevToolsDriver driver, String method) {
         this.driver = driver;
         id = driver.nextId();
@@ -168,8 +156,11 @@ public class DevToolsMessage {
         this.driver = driver;
         id = (Integer) map.get("id");
         method = (String) map.get("method");
-        params = (Map) map.get("params");
-        Map temp = (Map) map.get("result");
+        Map temp = (Map) map.get("params");
+        if (temp != null) {
+            params = new Json(temp);
+        }
+        temp = (Map) map.get("result");
         if (temp != null) {
             if (temp.containsKey("result")) {
                 Object inner = temp.get("result");
@@ -191,31 +182,28 @@ public class DevToolsMessage {
         error = (Map) map.get("error");
     }
 
-    public DevToolsMessage param(String key, Object value) {
+    public DevToolsMessage param(String path, Object value) {
         if (params == null) {
-            params = new LinkedHashMap();
+            params = new Json();
         }
-        params.put(key, value);
+        params.set(path, value);
         return this;
     }
 
-    public DevToolsMessage params(Map<String, Object> params) {
-        this.params = params;
+    public DevToolsMessage params(Map<String, Object> map) {
+        this.params = new Json(map);
         return this;
     }
 
     public Map<String, Object> toMap() {
-        Map<String, Object> map = new HashMap(4);
+        Map<String, Object> map = new LinkedHashMap(4);
         map.put("id", id);
         if (sessionId != null) {
             map.put("sessionId", sessionId);
         }
         map.put("method", method);
         if (params != null) {
-            map.put("params", params);
-        }
-        if (result != null) {
-            map.put("result", result);
+            map.put("params", params.asMap());
         }
         return map;
     }

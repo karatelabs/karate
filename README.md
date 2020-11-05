@@ -281,13 +281,13 @@ So you need two `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-apache</artifactId>
-    <version>0.9.6</version>
+    <version>2.0.0</version>
     <scope>test</scope>
 </dependency>
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit5</artifactId>
-    <version>0.9.6</version>
+    <version>2.0.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -300,8 +300,8 @@ If you want to use [JUnit 4](#junit-4), use `karate-junit4` instead of `karate-j
 Alternatively for [Gradle](https://gradle.org) you need these two entries:
 
 ```yml
-    testCompile 'com.intuit.karate:karate-junit5:0.9.6'
-    testCompile 'com.intuit.karate:karate-apache:0.9.6'
+    testCompile 'com.intuit.karate:karate-junit5:2.0.0'
+    testCompile 'com.intuit.karate:karate-apache:2.0.0'
 ```
 
 Also refer to the wiki for using [Karate with Gradle](https://github.com/intuit/karate/wiki/Gradle).
@@ -317,7 +317,7 @@ You can replace the values of `com.mycompany` and `myproject` as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.9.6 \
+-DarchetypeVersion=2.0.0 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -565,11 +565,10 @@ Multiple feature files (or paths) can be specified, de-limited by the space char
 ```
 mvn test "-Dkarate.options=PathToFeatureFiles/order.feature:12" -Dtest=DemoTestParallel
 ```
-Note that this is currently not supported for [JUnit 5](#junit-5)  `@Karate.Test` annotation.
 
 ### Command Line - Gradle
 
-For Gradle you must extend the test task to allow the `karate.options` to be passed to the runtime (otherwise they get consumed by Gradle itself). To do that, add the following:
+For Gradle, you must extend the test task to allow the `karate.options` to be passed to the runtime (otherwise they get consumed by Gradle itself). To do that, add the following:
 
 ```yml
 test {
@@ -585,7 +584,11 @@ test {
 And then the above command in Gradle would look like:
 
 ```
-./gradlew test -Dtest=CatsRunner
+./gradlew test --tests *CatsRunner
+```
+or
+```
+./gradlew test -Dtest.single=CatsRunner
 ```
 
 ### Test Suites
@@ -4040,7 +4043,10 @@ The limitation of the Cucumber `Scenario Outline:` (seen above) is that the numb
 Also see the option below, where you can data-drive an `Examples:` table using JSON.
 
 ### Dynamic Scenario Outline
-You can feed an `Examples` table from a JSON array, which is great for those situations where the table-content is dynamically resolved at run-time. This capability is triggered when the table consists of a single "cell", i.e. there is exactly one row and one column in the table.  Here is an example (also see [this video](https://twitter.com/KarateDSL/status/1051433711814627329)):
+You can feed an `Examples` table from a custom data-source, which is great for those situations where the table-content is dynamically resolved at run-time. This capability is triggered when the table consists of a single "cell", i.e. there is exactly one row and one column in the table.
+
+#### JSON Array Data Source
+The "scenario expression" result is expected to be an array of JSON objects. Here is an example (also see [this video](https://twitter.com/KarateDSL/status/1051433711814627329)):
 
 ```cucumber
 Feature: scenario outline using a dynamic table
@@ -4063,3 +4069,24 @@ Scenario Outline: cat name: <name>
 ```
 
 The great thing about this approach is that you can set-up the JSON array using the `Background` section. Any [Karate expression](#karate-expressions) can be used in the "cell expression", and you can even use [Java-interop](#calling-java) to use external data-sources such as a database. Note that Karate has built-in support for [CSV files](#csv-files) and here is an example: [`dynamic-csv.feature`](karate-demo/src/test/java/demo/outline/dynamic-csv.feature).
+
+#### JSON Function Data Source
+An advanced option is where the "scenario expression" returns a JavaScript "generator" function. This is a very powerful way to generate test-data without having to load a large number of data rows into memory. The function has to return a JSON object. To signal the end of the data, just return `null`. The function argument is the row-index, so you can easily determine *when* to stop the generation of data. Here is an example:
+
+```cucumber
+Feature: scenario outline using a dynamic generator function
+
+Background:
+    * def generator = function(i){ if (i == 20) return null; return { name: 'cat' + i, age: i } }
+
+Scenario Outline: cat name: <name>
+    Given url demoBaseUrl
+    And path 'cats'
+    And request { name: '#(name)', age: '#(age)' }
+    When method post
+    Then status 200
+    And match response == { id: '#number', name: '#(name)' }
+
+    Examples:
+    | generator |
+```

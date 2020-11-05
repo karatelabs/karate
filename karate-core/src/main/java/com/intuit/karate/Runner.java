@@ -23,36 +23,19 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.ExecutionHook;
-import com.intuit.karate.core.FeatureContext;
-import com.intuit.karate.core.Engine;
-import com.intuit.karate.core.ExecutionContext;
-import com.intuit.karate.core.ExecutionHookFactory;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureExecutionUnit;
-import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.HtmlFeatureReport;
-import com.intuit.karate.core.HtmlReport;
-import com.intuit.karate.core.HtmlSummaryReport;
-import com.intuit.karate.core.ScenarioExecutionUnit;
-import com.intuit.karate.core.Tags;
+import com.intuit.karate.core.*;
 import com.intuit.karate.job.JobConfig;
 import com.intuit.karate.job.JobServer;
 import com.intuit.karate.job.ScenarioJobServer;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -241,7 +224,7 @@ public class Runner {
     }
 
     public static Results parallel(List<String> tags, List<String> paths, String scenarioName,
-            List<ExecutionHook> hooks, int threadCount, String reportDir) {
+                                   List<ExecutionHook> hooks, int threadCount, String reportDir) {
         Builder options = new Builder();
         options.tags = tags;
         options.paths = paths;
@@ -293,53 +276,78 @@ public class Runner {
         if (options.hooks != null) {
             options.hooks.forEach(h -> h.beforeAll(results));
         }
-        ExecutorService featureExecutor = Executors.newFixedThreadPool(threadCount, Executors.privilegedThreadFactory());
-        ExecutorService scenarioExecutor = Executors.newWorkStealingPool(threadCount);
-        List<Resource> resources = options.resolveResources();
-        try {
-            int count = resources.size();
-            CountDownLatch latch = new CountDownLatch(count);
-            List<FeatureResult> featureResults = new ArrayList(count);
-            for (int i = 0; i < count; i++) {
-                Resource resource = resources.get(i);
-                int index = i + 1;
-                Feature feature = FeatureParser.parse(resource);
-                feature.setCallName(options.scenarioName);
-                feature.setCallLine(resource.getLine());
-                FeatureContext featureContext = new FeatureContext(null, feature, options.tagSelector());
-                CallContext callContext = CallContext.forAsync(feature, options.hooks, options.hookFactory, null, false);
-                ExecutionContext execContext = new ExecutionContext(results, results.getStartTime(), featureContext, callContext, reportDir,
-                        r -> featureExecutor.submit(r), scenarioExecutor, Thread.currentThread().getContextClassLoader());
-                featureResults.add(execContext.result);
-                if (jobServer != null) {
-                    List<ScenarioExecutionUnit> units = feature.getScenarioExecutionUnits(execContext);
-                    jobServer.addFeature(execContext, units, () -> {
-                        onFeatureDone(results, execContext, reportDir, index, count);
-                        latch.countDown();
-                    });
-                } else {
-                    FeatureExecutionUnit unit = new FeatureExecutionUnit(execContext);
-                    unit.setNext(() -> {
-                        onFeatureDone(results, execContext, reportDir, index, count);
-                        latch.countDown();
-                    });
-                    featureExecutor.submit(unit);
-                }
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        ExecutorService featureExecutor = Executors.newWorkStealingPool(threadCount);
+        List<CompletableFuture> futures = new ArrayList();
+        CompletableFuture latch = new CompletableFuture();
+        Subscriber<CompletableFuture> subscriber = new Subscriber<CompletableFuture>() {
+            @Override
+            public void onNext(CompletableFuture result) {
+                futures.add(result);
             }
+
+            @Override
+            public void onComplete() {
+                latch.complete(Boolean.TRUE);
+            }
+        };
+        List<Resource> resources = options.resolveResources();
+        int count = resources.size();
+        List<FeatureResult> featureResults = new ArrayList(count);
+        ParallelProcessor<Resource, CompletableFuture> processor = new ParallelProcessor<Resource, CompletableFuture>(featureExecutor, resources.iterator()) {
+            int index = 0;
+
+            @Override
+            public Iterator<CompletableFuture> process(Resource resource) {
+                CompletableFuture future = new CompletableFuture();
+                try {
+                    Feature feature = FeatureParser.parse(resource);
+                    feature.setCallName(options.scenarioName);
+                    feature.setCallLine(resource.getLine());
+                    FeatureContext featureContext = new FeatureContext(null, feature, options.tagSelector());
+                    CallContext callContext = CallContext.forAsync(feature, options.hooks, options.hookFactory, null, false);
+                    ExecutionContext execContext = new ExecutionContext(results, results.getStartTime(), featureContext, callContext, reportDir,
+                            r -> featureExecutor.submit(r), featureExecutor, classLoader);
+                    featureResults.add(execContext.result);
+                    if (jobServer != null) {
+                        jobServer.addFeature(execContext, feature.getScenarioExecutionUnits(execContext), () -> {
+                            onFeatureDone(results, execContext, reportDir, ++index, count);
+                            future.complete(Boolean.TRUE);
+                        });
+                    } else {
+                        FeatureExecutionUnit unit = new FeatureExecutionUnit(execContext);
+                        unit.setNext(() -> {
+                            onFeatureDone(results, execContext, reportDir, ++index, count);
+                            future.complete(Boolean.TRUE);
+                        });
+                        unit.run();
+                    }
+                } catch (Exception e) {
+                    future.complete(Boolean.FALSE);
+                    LOGGER.error("runner failed: {}", e.getMessage());
+                    results.setFailureReason(e);
+                }
+                return Collections.singletonList(future).iterator();
+            }
+
+        };
+        try {
             if (jobServer != null) {
                 jobServer.startExecutors();
             }
-            LOGGER.info("waiting for parallel features to complete ...");
+            processor.subscribe(subscriber);
+            latch.join();
+            CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
+            CompletableFuture allFutures = CompletableFuture.allOf(futuresArray);
+            LOGGER.info("waiting for {} parallel features to complete ...", futuresArray.length);
             if (options.timeoutMinutes > 0) {
-                latch.await(options.timeoutMinutes, TimeUnit.MINUTES);
-                if (latch.getCount() > 0) {
-                    LOGGER.warn("parallel execution timed out after {} minutes, features remaining: {}",
-                            options.timeoutMinutes, latch.getCount());
-                }
+                allFutures.get(options.timeoutMinutes, TimeUnit.MINUTES);
             } else {
-                latch.await();
+                allFutures.join();
             }
+            LOGGER.info("all features complete");
             results.stopTimer();
+            featureExecutor.shutdownNow();
             HtmlSummaryReport summary = new HtmlSummaryReport();
             for (FeatureResult result : featureResults) {
                 int scenarioCount = result.getScenarioCount();
@@ -367,11 +375,8 @@ public class Runner {
                 options.hooks.forEach(h -> h.afterAll(results));
             }
         } catch (Exception e) {
-            LOGGER.error("karate parallel runner failed: ", e.getMessage());
+            LOGGER.error("runner failed: {}", e);
             results.setFailureReason(e);
-        } finally {
-            featureExecutor.shutdownNow();
-            scenarioExecutor.shutdownNow();
         }
         return results;
     }
@@ -386,7 +391,7 @@ public class Runner {
     }
 
     public static Map<String, Object> runFeature(File file, Map<String, Object> vars, boolean evalKarateConfig) {
-        Feature feature = FeatureParser.parse(file);
+        Feature feature = FeatureParser.parse(file, Thread.currentThread().getContextClassLoader());
         return runFeature(feature, vars, evalKarateConfig);
     }
 

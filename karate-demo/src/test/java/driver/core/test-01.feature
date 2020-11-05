@@ -7,6 +7,7 @@ Scenario Outline: using <config>
   * def config = <config>
   * config.showDriverLog = true
   * configure driver = config
+  * def playwright = config.type == 'playwright'
 
   Given driver webUrlBase + '/page-01'
   
@@ -39,6 +40,7 @@ Scenario Outline: using <config>
     
   # cookies
   * def cookie1 = { name: 'foo', value: 'bar' }
+  # foo=bar is set by the server
   And match driver.cookies contains '#(^cookie1)'
   And match cookie('foo') contains cookie1
 
@@ -130,26 +132,30 @@ Scenario Outline: using <config>
   * match elements.get(3).script('_.tagName') == 'BUTTON'
 
   # dialog - alert
-  When click('{}Show Alert')
-  Then match driver.dialog == 'this is an alert'
-  And dialog(true)
+  * if (playwright) dialog(true)
+  * click('{}Show Alert')
+  * match driver.dialog == 'this is an alert'
+  * if (!playwright) dialog(true)
 
   # dialog - confirm true
-  When click('{}Show Confirm')
-  Then match driver.dialog == 'this is a confirm'
-  And dialog(false)
-  And match text('#eg02DivId') == 'Cancel'
+  * if (playwright) dialog(false)
+  * click('{}Show Confirm')
+  * match driver.dialog == 'this is a confirm'
+  * if (!playwright) dialog(false)
+  * match text('#eg02DivId') == 'Cancel'
 
   # dialog - confirm false
-  When click('{}Show Confirm')
-  And dialog(true)
-  And match text('#eg02DivId') == 'OK'
+  * if (playwright) dialog(true)
+  * click('{}Show Confirm')
+  * if (!playwright) dialog(true)
+  * match text('#eg02DivId') == 'OK'
 
   # dialog - prompt
-  When click('{}Show Prompt')
-  Then match driver.dialog == 'this is a prompt'
-  And dialog(true, 'hello world')
-  And match text('#eg02DivId') == 'hello world'
+  * if (playwright) dialog(true, 'hello world')
+  * click('{}Show Prompt')
+  * match driver.dialog == 'this is a prompt'
+  * if (!playwright) dialog(true, 'hello world')
+  * match text('#eg02DivId') == 'hello world'
 
   # screenshot of selected element
   * screenshot('#eg02DivId')
@@ -294,6 +300,5 @@ Examples:
     | { type: 'chromedriver' } | { x: 50, y: 0, width: 250, height: 800 } |
     | { type: 'geckodriver' } | { x: 600, y: 0, width: 300, height: 800 } |
     | { type: 'safaridriver' } | { x: 1000, y: 0, width: 400, height: 800 } |
-    # | { type: 'mswebdriver' } |
-    # | { type: 'msedge' } |
+#    | { type: 'playwright' } | {} |
     

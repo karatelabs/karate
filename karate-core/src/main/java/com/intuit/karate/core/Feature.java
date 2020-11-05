@@ -23,15 +23,12 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.Logger;
 import com.intuit.karate.Resource;
-import com.intuit.karate.Script;
-import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StringUtils;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 /**
  *
@@ -99,64 +96,8 @@ public class Feature {
         return null;
     }
 
-    public List<ScenarioExecutionUnit> getScenarioExecutionUnits(ExecutionContext exec) {
-        List<ScenarioExecutionUnit> units = new ArrayList();
-        for (FeatureSection section : sections) {
-            if (section.isOutline()) {
-                for (Scenario scenario : section.getScenarioOutline().getScenarios()) {
-                    if (scenario.isDynamic()) {
-                        if (!FeatureExecutionUnit.isSelected(exec.featureContext, scenario, new Logger())) { // throwaway logger
-                            continue;
-                        }
-                        ScenarioExecutionUnit bgUnit = new ScenarioExecutionUnit(scenario, null, exec);
-                        bgUnit.run();
-                        ScenarioContext bgContext = bgUnit.getContext();
-                        if (bgContext == null || bgUnit.isStopped()) { // karate-config.js || background failed
-                            units.add(bgUnit); // exit early
-                            continue;
-                        }
-                        String expression = scenario.getDynamicExpression();
-                        ScriptValue listValue;
-                        try {
-                            listValue = Script.evalKarateExpression(expression, bgContext);
-                        } catch (Exception e) {
-                            String message = "dynamic expression evaluation failed: " + expression;
-                            bgUnit.result.addError(message, e);
-                            units.add(bgUnit); // exit early
-                            continue;
-                        }
-                        if (listValue.isListLike()) {
-                            List list = listValue.getAsList();
-                            int count = list.size();
-                            for (int i = 0; i < count; i++) {
-                                ScriptValue rowValue = new ScriptValue(list.get(i));
-                                if (rowValue.isMapLike()) {
-                                    Scenario dynamic = scenario.copy(i); // this will set exampleIndex
-                                    dynamic.setBackgroundDone(true);
-                                    Map<String, Object> map = rowValue.getAsMap();
-                                    dynamic.setExampleData(map); // and here we set exampleData
-                                    map.forEach((k, v) -> {
-                                        ScriptValue sv = new ScriptValue(v);
-                                        dynamic.replace("<" + k + ">", sv.getAsString());
-                                    });
-                                    ScenarioExecutionUnit unit = new ScenarioExecutionUnit(dynamic, bgUnit.result.getStepResults(), exec, bgContext);
-                                    units.add(unit);
-                                } else {
-                                    bgContext.logger.warn("ignoring dynamic expression list item {}, not map-like: {}", i, rowValue);
-                                }
-                            }
-                        } else {
-                            bgContext.logger.warn("ignoring dynamic expression, did not evaluate to list: {} - {}", expression, listValue);
-                        }
-                    } else {
-                        units.add(new ScenarioExecutionUnit(scenario, null, exec));
-                    }
-                }
-            } else {
-                units.add(new ScenarioExecutionUnit(section.getScenario(), null, exec));
-            }
-        }
-        return units;
+    public Iterator<ScenarioExecutionUnit> getScenarioExecutionUnits(ExecutionContext exec) {
+        return new FeatureScenarioIterator(exec, sections.iterator());
     }
 
     public void addSection(FeatureSection section) {

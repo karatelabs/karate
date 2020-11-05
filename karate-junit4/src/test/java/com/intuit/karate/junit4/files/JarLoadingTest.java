@@ -93,7 +93,7 @@ public class JarLoadingTest {
     @Test
     public void testClassPathJarResource() throws Exception {
         String relativePath = "classpath:example/dependency.feature";
-        Resource resource = new Resource(getContext(), relativePath);
+        Resource resource = new Resource(relativePath, getContext().classLoader);
         String temp = resource.getAsString();
         logger.debug("string: {}", temp);
     }
@@ -108,7 +108,7 @@ public class JarLoadingTest {
             list.add(() -> {
                 Path path = FileUtils.fromRelativeClassPath(relativePath, cl);
                 logger.debug("path: {}", path);
-                Resource resource = new Resource(path, relativePath, -1);
+                Resource resource = new Resource(path, relativePath, -1, cl);
                 Feature feature = FeatureParser.parse(resource);
                 Map<String, Object> map = Runner.runFeature(feature, null, true);
                 Boolean result = (Boolean) map.get("success");

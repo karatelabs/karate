@@ -188,10 +188,7 @@ public class ScenarioContext {
     }
 
     public Scenario getScenario() {
-        ScenarioContext threadContext = Engine.THREAD_CONTEXT.get();
-        ScenarioContext scenarioContext = (threadContext != null) ? threadContext : this;
-        ScenarioExecutionUnit unit = scenarioContext.executionUnit;
-        return (unit != null) ? unit.scenario : scenarioContext.scenario;
+        return (executionUnit != null) ? executionUnit.scenario : scenario;
     }
 
     public void setPrevRequest(HttpRequest prevRequest) {
@@ -238,31 +235,21 @@ public class ScenarioContext {
         return classLoader.getResourceAsStream(name);
     }
 
-    private static Map<String, Object> info(ScenarioContext context) {
+    public Map<String, Object> getScenarioInfo() {
         Map<String, Object> info = new HashMap(6);
-        Path featurePath = context.featureContext.feature.getPath();
+        Path featurePath = featureContext.feature.getPath();
         if (featurePath != null) {
             info.put("featureDir", featurePath.getParent().toString());
             info.put("featureFileName", featurePath.getFileName().toString());
         }
-        ScenarioExecutionUnit unit = context.executionUnit;
-        if (unit != null) { // should never happen
-            info.put("scenarioName", unit.scenario.getName());
-            info.put("scenarioDescription", unit.scenario.getDescription());
-            info.put("scenarioType", unit.scenario.getKeyword());
-            String errorMessage = unit.getError() == null ? null : unit.getError().getMessage();
+        if (executionUnit != null) { // should never happen
+            info.put("scenarioName", executionUnit.scenario.getName());
+            info.put("scenarioDescription", executionUnit.scenario.getDescription());
+            info.put("scenarioType", executionUnit.scenario.getKeyword());
+            String errorMessage = executionUnit.getError() == null ? null : executionUnit.getError().getMessage();
             info.put("errorMessage", errorMessage);
         }
         return info;
-    }
-
-    public Map<String, Object> getScenarioInfo() {
-        ScenarioContext threadContext = Engine.THREAD_CONTEXT.get();
-        if (threadContext != null) {
-            return info(threadContext);
-        } else {
-            return info(this);
-        }
     }
 
     public boolean hotReload() {
@@ -476,6 +463,7 @@ public class ScenarioContext {
 
     public void configure(String key, ScriptValue value) { // TODO use enum
         key = StringUtils.trimToEmpty(key);
+
         // if next line returns true, http-client needs re-building
         if (config.configure(key, value)) {
             if (key.startsWith("httpClient")) { // special case
@@ -654,15 +642,28 @@ public class ScenarioContext {
     }
 
     public void cookies(String expr) {
-        Map<String, Object> map = evalMapExpr(expr);
-        for (Map.Entry<String, Object> entry : map.entrySet()) {
-            String key = entry.getKey();
-            Object temp = entry.getValue();
-            if (temp == null) {
-                request.removeCookie(key);
-            } else {
-                request.setCookie(new Cookie(key, temp.toString()));
+        ScriptValue value = Script.evalKarateExpression(expr, this);
+        if (value.isListLike()) {
+            List<Map> mapList = value.getAsList();
+            mapList.forEach(currCookieSet
+                    -> {
+                Cookie cookie = new Cookie(String.valueOf(currCookieSet.get("name")), String.valueOf(currCookieSet.get("value")));
+                request.setCookie(cookie);
             }
+            );
+        } else if (value.isMapLike()) {
+            Map<String, Object> map = value.getAsMap();
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                String key = entry.getKey();
+                Object temp = entry.getValue();
+                if (temp == null) {
+                    request.removeCookie(key);
+                } else {
+                    request.setCookie(new Cookie(key, temp.toString()));
+                }
+            }
+        } else {
+            throw new KarateException("cannot create cookie from this expression: " + expr + " of type: " + value.getType());
         }
     }
 
@@ -1042,8 +1043,8 @@ public class ScenarioContext {
 
     public void driver(String expression) {
         ScriptValue sv = Script.evalKarateExpression(expression, this);
-         // re-create driver within a test if needed
-         // but user is expected to call quit() OR use the driver keyword with a JSON argument
+        // re-create driver within a test if needed
+        // but user is expected to call quit() OR use the driver keyword with a JSON argument
         if (driver == null || driver.isTerminated() || sv.isMapLike()) {
             Map<String, Object> options = config.getDriverOptions();
             if (options == null) {
@@ -1115,8 +1116,10 @@ public class ScenarioContext {
                 webSocketClients.forEach(WebSocketClient::close);
             }
             if (driver != null) {
-                driver.quit();
                 DriverOptions options = driver.getOptions();
+                if (options.stop) {
+                    driver.quit();
+                }
                 if (options.target != null) {
                     logger.debug("custom target configured, attempting stop()");
                     Map<String, Object> map = options.target.stop(logger);

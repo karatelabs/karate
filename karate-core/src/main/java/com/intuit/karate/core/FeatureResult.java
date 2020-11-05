@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
 /**
  *
  * @author pthomas3
@@ -43,7 +44,7 @@ import java.util.Map;
 public class FeatureResult {
 
     private final Results results;
-    private final Feature feature;    
+    private final Feature feature;
     private final List<ScenarioResult> scenarioResults = new ArrayList();
 
     private String displayName; // mutable for users who want to customize
@@ -119,7 +120,7 @@ public class FeatureResult {
 
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
-    }        
+    }
 
     public Feature getFeature() {
         return feature;
@@ -201,7 +202,7 @@ public class FeatureResult {
     public int getFailedCount() {
         return failedCount;
     }
-    
+
     public boolean isEmpty() {
         return scenarioCount == 0;
     }
@@ -209,7 +210,7 @@ public class FeatureResult {
     public int getScenarioCount() {
         return scenarioCount;
     }
-    
+
     public int getPassedCount() {
         return scenarioCount - failedCount;
     }
@@ -257,8 +258,12 @@ public class FeatureResult {
             }
         }
     }
+    
+    public void sortScenarioResults() {
+        Collections.sort(scenarioResults);
+    }
 
-    public List<ScenarioResult> getScenarioResults() {
+    public List<ScenarioResult> getScenarioResults() {        
         return scenarioResults;
     }
 

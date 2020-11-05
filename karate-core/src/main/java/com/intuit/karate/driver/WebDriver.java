@@ -111,13 +111,11 @@ public abstract class WebDriver implements Driver {
         String before = options.getPreSubmitHash();
         if (before != null) {
             logger.trace("submit requested, will wait for page load after next action on : {}", locator);
-            options.setPreSubmitHash(null); // clear the submit flag            
+            options.setPreSubmitHash(null); // clear the submit flag
             T result = action.get();
             Integer retryInterval = options.getRetryInterval();
             options.setRetryInterval(500); // reduce retry interval for this special case
             options.retry(() -> getSubmitHash(), hash -> !before.equals(hash), "waiting for document to change", false);
-            // extra precaution TODO is this needed
-            // waitUntil("document.readyState == 'complete'");
             options.setRetryInterval(retryInterval); // restore
             return result;
         } else {
@@ -139,7 +137,7 @@ public abstract class WebDriver implements Driver {
     }
 
     private Element evalLocator(String locator, String dotExpression) {
-        eval(prefixReturn(options.selector(locator) + "." + dotExpression));
+        eval(prefixReturn(DriverOptions.selector(locator) + "." + dotExpression));
         // if the js above did not throw an exception, the element exists
         return DriverElement.locatorExists(this, locator);
     }
@@ -376,7 +374,7 @@ public abstract class WebDriver implements Driver {
     }
 
     private String evalReturn(String locator, String dotExpression) {
-        return eval("return " + options.selector(locator) + "." + dotExpression).getAsString();
+        return eval("return " + DriverOptions.selector(locator) + "." + dotExpression).getAsString();
     }
 
     @Override
@@ -412,13 +410,13 @@ public abstract class WebDriver implements Driver {
     @Override
     public Map<String, Object> position(String locator) {
         return retryIfEnabled(locator, ()
-                -> eval("return " + options.selector(locator) + ".getBoundingClientRect()").getAsMap());
+                -> eval("return " + DriverOptions.selector(locator) + ".getBoundingClientRect()").getAsMap());
     }
 
     @Override
     public boolean enabled(String locator) {
         return retryIfEnabled(locator, ()
-                -> eval("return !" + options.selector(locator) + ".disabled").isBooleanTrue());
+                -> eval("return !" + DriverOptions.selector(locator) + ".disabled").isBooleanTrue());
     }
 
     private String prefixReturn(String expression) {
@@ -588,4 +586,11 @@ public abstract class WebDriver implements Driver {
     protected Base64.Decoder getDecoder() {
         return Base64.getDecoder();
     }
+
+    @Override
+    public byte[] pdf(Map<String, Object> printOptions){
+        String temp = http.path("print").post(printOptions).jsonPath("$.value").asString();
+        return Base64.getDecoder().decode(temp);
+    }
+
 }

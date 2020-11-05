@@ -24,7 +24,6 @@
 package com.intuit.karate.driver.appium;
 
 import com.intuit.karate.*;
-import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.Embed;
 import com.intuit.karate.driver.DriverElement;
 import com.intuit.karate.driver.DriverOptions;

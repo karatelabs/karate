@@ -27,6 +27,9 @@ import com.intuit.karate.Config;
 import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.http.Cookie;
+import com.intuit.karate.http.HttpUtils;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -106,6 +109,19 @@ public interface Driver extends Plugin {
 
     @AutoDef
     Map<String, Object> cookie(String name);
+
+    @AutoDef
+    default void setCookies(Map<String, Cookie> cookies){ // method to allow set cookies from feature file for UI tests.
+        System.out.println("got this cookie: " + cookies);
+        cookies.forEach( (k,v) ->{
+            // either uncomment below to have correct cookie
+            // cookie(HttpUtils.convertCookieToActualMap(v));
+            // if above line uncommented, comment below 2 lines.
+            v.remove(Cookie.SECURE);
+            v.remove(Cookie.PERSISTENT);
+            cookie((Map)v);
+        });
+    }
 
     @AutoDef
     void cookie(Map<String, Object> cookie);
@@ -435,6 +451,9 @@ public interface Driver extends Plugin {
         }
         return after;
     }
+
+    @AutoDef
+    public byte[] pdf(Map<String, Object> options);
 
     // for internal use ========================================================
     //        
