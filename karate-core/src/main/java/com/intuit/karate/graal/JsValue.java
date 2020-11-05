@@ -80,13 +80,13 @@ public class JsValue {
             }
         } else if (v.isHostObject()) { // java object
             if (v.isMetaObject()) { // java.lang.Class !
-                value = v; // special case, keep around as graal value, TODO wrap ?
+                value = v; // special case, keep around as graal value
             } else {
                 value = v.asHostObject();
             }
             type = Type.OTHER;
         } else if (v.canExecute()) {
-            value = v.as(Function.class);
+            value = v; // special case, keep around as graal value
             type = Type.FUNCTION;
         } else if (v.hasArrayElements()) {
             int size = (int) v.getArraySize();
@@ -173,9 +173,7 @@ public class JsValue {
     }
 
     public static Object fromJava(Object o) {
-        if (o instanceof JsFunction) {
-            return ((JsFunction) o).value;
-        } else if (o instanceof Function) {
+        if (o instanceof Function) {
             return o; // can be Map also, do this before Map
         } else if (o instanceof List) {
             return new JsList((List) o);

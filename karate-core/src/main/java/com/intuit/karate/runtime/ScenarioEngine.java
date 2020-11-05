@@ -39,7 +39,6 @@ import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
@@ -251,7 +250,7 @@ public class ScenarioEngine {
         Variable v = afterFeature ? config.getAfterFeature() : config.getAfterScenario();
         if (v.isFunction()) {
             try {
-                v.execute(JS);
+
             } catch (Exception e) {
                 String prefix = afterFeature ? "afterFeature" : "afterScenario";
                 logger.warn("{} hook failed: {}", prefix, e + "");
@@ -810,20 +809,13 @@ public class ScenarioEngine {
         vars.forEach((k, v) -> {
             switch (v.type) {
                 case FUNCTION:
-                    Function function;
-                    if (v.isJsFunction()) {
-                        JsFunction jf = v.getValue();
-                        function = jf.value.as(Function.class);
-                    } else {
-                        function = v.getValue();
-                    }
-                    Value value = JS.attachFunction(function);
-                    v = new Variable(value);
+                    Object o = attach(v.getValue());
+                    v = new Variable(o);
                     vars.put(k, v);
                     break;
                 case MAP:
                 case LIST:
-                    attachToJsContext(v.getValue());
+                    recurseAndAttach(v.getValue());
                     break;
                 default:
                 // do nothing
@@ -832,21 +824,16 @@ public class ScenarioEngine {
         });
     }
 
-    private Object attachToJsContext(Object o) {
+    private Object recurseAndAttach(Object o) {
         // do this check first as graal functions are maps as well
-        if (o instanceof Function) {
-            Value value = JS.attachFunction((Function) o);
-            return value.as(Function.class);
-        } else if (o instanceof JsFunction) { // yes this can happen with nested / hybrid feature calls
-            JsFunction jf = (JsFunction) o;
-            // retain as graal value, it may be referred to by path in future
-            return JS.attachFunction(jf.value.as(Function.class));
+        if (o instanceof Value || o instanceof Function) {
+            return attach(o);
         } else if (o instanceof List) {
             List list = (List) o;
             int count = list.size();
             for (int i = 0; i < count; i++) {
                 Object child = list.get(i);
-                Object result = attachToJsContext(child);
+                Object result = recurseAndAttach(child);
                 if (result != null) {
                     list.set(i, result);
                 }
@@ -855,7 +842,7 @@ public class ScenarioEngine {
         } else if (o instanceof Map) {
             Map<String, Object> map = (Map) o;
             map.forEach((k, v) -> {
-                Object result = attachToJsContext(v);
+                Object result = recurseAndAttach(v);
                 if (result != null) {
                     map.put(k, result);
                 }
@@ -866,17 +853,30 @@ public class ScenarioEngine {
         }
     }
 
+    public Object attach(Object o) {
+        Value value = Value.asValue(o);
+        value = JS.attach(value);
+        return new JsValue(value).getValue();
+    }
+
     protected <T> Map<String, T> getOrEvalAsMap(Variable var) {
         if (var.isFunction()) {
-            Variable v = var.execute(JS);
-            return v.isMap() ? v.getValue() : null;
+            Variable res = execute(var);
+            return res.isMap() ? res.getValue() : null;
         } else {
             return var.isMap() ? var.getValue() : null;
         }
     }
 
     public Variable execute(Variable var, Object... args) {
-        return var.execute(JS, args);
+        Value function;
+        if (var.isJsFunction()) {
+            function = var.getValue();
+        } else {
+            function = Value.asValue(var.getValue());
+        }
+        JsValue result = JS.execute(function, args);
+        return new Variable(result);
     }
 
     public Variable evalJs(String js) {
@@ -1564,12 +1564,11 @@ public class ScenarioEngine {
     public Variable call(Variable called, Variable arg, boolean sharedScope) {
         switch (called.type) {
             case FUNCTION:
-                return arg == null ? called.execute(JS) : called.execute(JS, new Object[]{arg.getValue()});
+                return arg == null ? execute(called) : execute(called, new Object[]{arg.getValue()});
             case FEATURE:
-                Variable res = callFeature(called.getValue(), arg, -1, sharedScope);
-                Object val = res.getValue(); // will always be a map
-                attachToJsContext(val);
-                return new Variable(val);
+                Variable res = callFeature(called.getValue(), arg, -1, sharedScope); 
+                recurseAndAttach(res.getValue()); // will always be a map, we update entries within
+                return res;
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);
         }
@@ -1666,7 +1665,7 @@ public class ScenarioEngine {
                 if (isList) {
                     loopArg = iterator.hasNext() ? new Variable(iterator.next()) : Variable.NULL;
                 } else { // function
-                    loopArg = arg.execute(JS, new Object[]{loopIndex});
+                    loopArg = execute(arg, new Object[]{loopIndex});
                 }
                 if (!loopArg.isMap()) {
                     if (!isList) {

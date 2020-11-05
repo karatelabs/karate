@@ -29,8 +29,6 @@ import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.data.Json;
 import com.intuit.karate.data.JsonUtils;
-import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsFunction;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -68,25 +66,26 @@ public class Variable {
 
     public final Type type;
     private final Object value;
+    
+    private static boolean isFunctionLike(Object o) {
+        if (o instanceof Value) {
+            Value v = (Value) o;
+            return v.canExecute();
+        } else {
+            return o instanceof Function;
+        }
+    }
 
     public Variable(Object o) {
         if (o instanceof Value) {
-            Value v = (Value) o;
-            if (v.canExecute()) {
-                o = new JsFunction(v);
-            } else {
-                o = new JsValue(v).getValue();
-            }
+            o = new JsValue((Value) o).getValue();
         } else if (o instanceof JsValue) {
-            JsValue jv = (JsValue) o;
-            if (jv.isFunction()) {
-                o = new JsFunction(jv.getOriginal());
-            } else {
-                o = jv.getValue();
-            }
+            o = ((JsValue) o).getValue();
         }
         if (o == null) {
             type = Type.NULL;
+        } else if (isFunctionLike(o)) { // has to be first since is also a Map
+            type = Type.FUNCTION;
         } else if (o instanceof Node) {
             type = Type.XML;
         } else if (o instanceof List) {
@@ -103,10 +102,8 @@ public class Variable {
             type = Type.BYTES;
         } else if (o instanceof Feature) {
             type = Type.FEATURE;
-        } else if (o instanceof JsFunction || o instanceof Function) {
-            type = Type.FUNCTION;
         } else {
-            type = Type.OTHER;
+            type = Type.OTHER; // note that the graal meta type (java.lang.Class) falls here as well
         }
         value = o;
     }
@@ -114,28 +111,9 @@ public class Variable {
     public <T> T getValue() {
         return (T) value;
     }
-    
-    public boolean isJsFunction() {
-        return value instanceof JsFunction;
-    }
-    
-    private static final Object[] ZERO_ARGS = new Object[0];
-    
-    public Variable execute(JsEngine je) {
-        return execute(je, ZERO_ARGS);
-    }
 
-    public Variable execute(JsEngine je, Object[] args) {
-        JsFunction toInvoke;
-        if (isJsFunction()) {
-            toInvoke = (JsFunction) value;
-        } else {
-            Function function = (Function) value;
-            Value graalFunction = je.attachFunction(function);
-            toInvoke = new JsFunction(graalFunction);
-        }
-        JsValue result = toInvoke.execute(je, args);
-        return new Variable(result);
+    public boolean isJsFunction() {
+        return value instanceof Value;
     }
 
     public boolean isBytes() {
