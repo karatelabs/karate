@@ -173,8 +173,10 @@ public class JsValue {
     }
 
     public static Object fromJava(Object o) {
-        if (o instanceof Function) { // can be map also, so do this first
-            return o;
+        if (o instanceof JsFunction) {
+            return ((JsFunction) o).value;
+        } else if (o instanceof Function) {
+            return o; // can be Map also, do this before Map
         } else if (o instanceof List) {
             return new JsList((List) o);
         } else if (o instanceof Map) {

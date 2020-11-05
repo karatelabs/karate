@@ -2,6 +2,7 @@ package com.intuit.karate.runtime;
 
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.graal.JsFunction;
 import java.util.function.Function;
 import org.graalvm.polyglot.Value;
 import org.junit.jupiter.api.AfterEach;
@@ -36,8 +37,10 @@ public class VariableTest {
         JsValue jv = je.eval("(function(a, b){ return a + b })");
         Variable var = new Variable(jv);
         assertTrue(var.isFunction());
-        Function fun = var.getValue();
-        assertEquals(3, fun.apply(new Object[]{1, 2}));
+        assertTrue(var.isJsFunction());
+        JsFunction jf = var.getValue();
+        JsValue res = jf.execute(je, new Object[]{1, 2});
+        assertEquals(3, res.<Integer>getValue());
     }
 
     @Test

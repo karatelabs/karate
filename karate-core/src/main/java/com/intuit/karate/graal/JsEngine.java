@@ -180,7 +180,7 @@ public class JsEngine {
         try {
             return jc.context.asValue(fun);
         } catch (Exception e) {
-            logger.trace("js context swap: {}", e.getMessage());
+            logger.trace("ENGINE context switch: {}", e.getMessage());
             String temp = "(" + fun.toString() + ")";
             return evalForValue(temp);
         }

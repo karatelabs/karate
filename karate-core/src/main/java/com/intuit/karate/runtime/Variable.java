@@ -29,6 +29,8 @@ import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.data.Json;
 import com.intuit.karate.data.JsonUtils;
+import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.graal.JsFunction;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -69,9 +71,19 @@ public class Variable {
 
     public Variable(Object o) {
         if (o instanceof Value) {
-            o = new JsValue((Value) o).getValue();
+            Value v = (Value) o;
+            if (v.canExecute()) {
+                o = new JsFunction(v);
+            } else {
+                o = new JsValue(v).getValue();
+            }
         } else if (o instanceof JsValue) {
-            o = ((JsValue) o).getValue();
+            JsValue jv = (JsValue) o;
+            if (jv.isFunction()) {
+                o = new JsFunction(jv.getOriginal());
+            } else {
+                o = jv.getValue();
+            }
         }
         if (o == null) {
             type = Type.NULL;
@@ -91,7 +103,7 @@ public class Variable {
             type = Type.BYTES;
         } else if (o instanceof Feature) {
             type = Type.FEATURE;
-        } else if (o instanceof Function) {
+        } else if (o instanceof JsFunction || o instanceof Function) {
             type = Type.FUNCTION;
         } else {
             type = Type.OTHER;
@@ -101,6 +113,29 @@ public class Variable {
 
     public <T> T getValue() {
         return (T) value;
+    }
+    
+    public boolean isJsFunction() {
+        return value instanceof JsFunction;
+    }
+    
+    private static final Object[] ZERO_ARGS = new Object[0];
+    
+    public Variable execute(JsEngine je) {
+        return execute(je, ZERO_ARGS);
+    }
+
+    public Variable execute(JsEngine je, Object[] args) {
+        JsFunction toInvoke;
+        if (isJsFunction()) {
+            toInvoke = (JsFunction) value;
+        } else {
+            Function function = (Function) value;
+            Value graalFunction = je.attachFunction(function);
+            toInvoke = new JsFunction(graalFunction);
+        }
+        JsValue result = toInvoke.execute(je, args);
+        return new Variable(result);
     }
 
     public boolean isBytes() {

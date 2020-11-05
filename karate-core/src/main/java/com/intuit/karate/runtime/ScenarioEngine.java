@@ -39,6 +39,7 @@ import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
@@ -250,7 +251,7 @@ public class ScenarioEngine {
         Variable v = afterFeature ? config.getAfterFeature() : config.getAfterScenario();
         if (v.isFunction()) {
             try {
-                execute(v.getValue());
+                v.execute(JS);
             } catch (Exception e) {
                 String prefix = afterFeature ? "afterFeature" : "afterScenario";
                 logger.warn("{} hook failed: {}", prefix, e + "");
@@ -809,7 +810,15 @@ public class ScenarioEngine {
         vars.forEach((k, v) -> {
             switch (v.type) {
                 case FUNCTION:
-                    v = new Variable(JS.attachFunction(v.getValue()));
+                    Function function;
+                    if (v.isJsFunction()) {
+                        JsFunction jf = v.getValue();
+                        function = jf.value.as(Function.class);
+                    } else {
+                        function = v.getValue();
+                    }
+                    Value value = JS.attachFunction(function);
+                    v = new Variable(value);
                     vars.put(k, v);
                     break;
                 case MAP:
@@ -826,7 +835,12 @@ public class ScenarioEngine {
     private Object attachToJsContext(Object o) {
         // do this check first as graal functions are maps as well
         if (o instanceof Function) {
-            return JS.attachFunction((Function) o);
+            Value value = JS.attachFunction((Function) o);
+            return value.as(Function.class);
+        } else if (o instanceof JsFunction) { // yes this can happen with nested / hybrid feature calls
+            JsFunction jf = (JsFunction) o;
+            // retain as graal value, it may be referred to by path in future
+            return JS.attachFunction(jf.value.as(Function.class));
         } else if (o instanceof List) {
             List list = (List) o;
             int count = list.size();
@@ -854,21 +868,15 @@ public class ScenarioEngine {
 
     protected <T> Map<String, T> getOrEvalAsMap(Variable var) {
         if (var.isFunction()) {
-            Variable v = execute(var.getValue());
+            Variable v = var.execute(JS);
             return v.isMap() ? v.getValue() : null;
         } else {
             return var.isMap() ? var.getValue() : null;
         }
     }
 
-    protected Variable execute(Function fun, Object... args) {
-        Value v = JS.attachFunction(fun);
-        // we have to convert any arguments that may have originated from js
-        for (int i = 0; i < args.length; i++) {
-            args[i] = JsValue.fromJava(args[i]);
-        }
-        Value res = v.execute(args);
-        return new Variable(res);
+    public Variable execute(Variable var, Object... args) {
+        return var.execute(JS, args);
     }
 
     public Variable evalJs(String js) {
@@ -1556,7 +1564,7 @@ public class ScenarioEngine {
     public Variable call(Variable called, Variable arg, boolean sharedScope) {
         switch (called.type) {
             case FUNCTION:
-                return arg == null ? execute(called.getValue()) : execute(called.getValue(), new Object[]{arg.getValue()});
+                return arg == null ? called.execute(JS) : called.execute(JS, new Object[]{arg.getValue()});
             case FEATURE:
                 Variable res = callFeature(called.getValue(), arg, -1, sharedScope);
                 Object val = res.getValue(); // will always be a map
@@ -1658,7 +1666,7 @@ public class ScenarioEngine {
                 if (isList) {
                     loopArg = iterator.hasNext() ? new Variable(iterator.next()) : Variable.NULL;
                 } else { // function
-                    loopArg = execute(arg.getValue(), loopIndex);
+                    loopArg = arg.execute(JS, new Object[]{loopIndex});
                 }
                 if (!loopArg.isMap()) {
                     if (!isList) {
