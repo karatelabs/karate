@@ -130,13 +130,17 @@ public class ScenarioEngine {
         this.logger = logger;
     }
 
-    private ScenarioEngine scenarioChild;
-    private ScenarioEngine scenarioParent;
+    private List<ScenarioEngine> children;
+    private ScenarioEngine parent;
 
     public ScenarioEngine child() {
-        scenarioChild = new ScenarioEngine(config, runtime, detachVariables(), logger);
-        scenarioChild.scenarioParent = this;
-        return scenarioChild;
+        ScenarioEngine child = new ScenarioEngine(config, runtime, detachVariables(), logger);
+        child.parent = this;
+        if (children == null) {
+            children = new ArrayList();
+        }
+        children.add(child);
+        return child;
     }
 
     private static final ThreadLocal<ScenarioEngine> THREAD_LOCAL = new ThreadLocal<ScenarioEngine>();
@@ -258,7 +262,7 @@ public class ScenarioEngine {
             return;
         }
         Variable v = afterFeature ? config.getAfterFeature() : config.getAfterScenario();
-        if (v.isFunction()) {
+        if (v.isJsOrJavaFunction()) {
             try {
                 executeFunction(v);
             } catch (Exception e) {
@@ -754,8 +758,8 @@ public class ScenarioEngine {
             signalResult = result;
             LOCK.notify();
         }
-        if (scenarioParent != null) {
-            scenarioParent.signal(result);
+        if (parent != null) {
+            parent.signal(result);
         }
     }
 
@@ -825,12 +829,10 @@ public class ScenarioEngine {
     private void attachVariables() {
         vars.forEach((k, v) -> {
             switch (v.type) {
-                case FUNCTION:
-                    if (v.isJsFunction()) {
-                        Value value = attach(v.getValue());
-                        v = new Variable(value);
-                        vars.put(k, v);
-                    }
+                case JS_FUNCTION:
+                    Value value = attach(v.getValue());
+                    v = new Variable(value);
+                    vars.put(k, v);
                     break;
                 case MAP:
                 case LIST:
@@ -839,8 +841,8 @@ public class ScenarioEngine {
                 case OTHER:
                     if (v.isJsFunctionWrapper()) {
                         JsFunction jf = v.getValue();
-                        Value value = attachSource(jf.source);
-                        v = new Variable(value);
+                        Value attached = attachSource(jf.source);
+                        v = new Variable(attached);
                         vars.put(k, v);
                     }
                     break;
@@ -855,11 +857,9 @@ public class ScenarioEngine {
         Map<String, Variable> detached = new HashMap(vars.size());
         vars.forEach((k, v) -> {
             switch (v.type) {
-                case FUNCTION:
-                    if (v.isJsFunction()) {
-                        JsFunction jf = new JsFunction(v.getValue());
-                        v = new Variable(jf);
-                    }
+                case JS_FUNCTION:
+                    JsFunction jf = new JsFunction(v.getValue());
+                    v = new Variable(jf);
                     break;
                 case MAP:
                 case LIST:
@@ -948,7 +948,7 @@ public class ScenarioEngine {
     }
 
     protected <T> Map<String, T> getOrEvalAsMap(Variable var) {
-        if (var.isFunction()) {
+        if (var.isJsOrJavaFunction()) {
             Variable res = executeFunction(var);
             return res.isMap() ? res.getValue() : null;
         } else {
@@ -957,15 +957,18 @@ public class ScenarioEngine {
     }
 
     public Variable executeFunction(Variable var, Object... args) {
-        if (var.isJsFunction()) {
-            Value function = var.getValue();
-            JsValue result = JS.execute(function, args);
-            return new Variable(result);
-        } else { // definitely a "call" with a single argument
-            Function function = var.getValue();
-            Object arg = args.length == 0 ? null : args[0];
-            Object result = function.apply(arg);
-            return new Variable(JsValue.unWrap(result));
+        switch (var.type) {
+            case JS_FUNCTION:
+                Value jsFunction = var.getValue();
+                JsValue jsResult = JS.execute(jsFunction, args);
+                return new Variable(jsResult);
+            case JAVA_FUNCTION:  // definitely a "call" with a single argument
+                Function javaFunction = var.getValue();
+                Object arg = args.length == 0 ? null : args[0];
+                Object javaResult = javaFunction.apply(arg);
+                return new Variable(JsValue.unWrap(javaResult));
+            default:
+                throw new RuntimeException("expected function, but was: " + var);
         }
     }
 
@@ -1020,8 +1023,8 @@ public class ScenarioEngine {
         if (JS != null) {
             JS.put(key, v.getValue());
         }
-        if (scenarioChild != null) {
-            scenarioChild.setVariable(key, value);
+        if (children != null) {
+            children.forEach(c -> c.setVariable(key, value));
         }
     }
 
@@ -1656,7 +1659,8 @@ public class ScenarioEngine {
 
     public Variable call(Variable called, Variable arg, boolean sharedScope) {
         switch (called.type) {
-            case FUNCTION:
+            case JS_FUNCTION:
+            case JAVA_FUNCTION:
                 return arg == null ? executeFunction(called) : executeFunction(called, new Object[]{arg.getValue()});
             case FEATURE:
                 Variable res = callFeature(called.getValue(), arg, -1, sharedScope);
@@ -1747,7 +1751,7 @@ public class ScenarioEngine {
             } else {
                 return fr.getResultVariable();
             }
-        } else if (arg.isList() || arg.isFunction()) {
+        } else if (arg.isList() || arg.isJsOrJavaFunction()) {
             List result = new ArrayList();
             List<String> errors = new ArrayList();
             int loopIndex = 0;

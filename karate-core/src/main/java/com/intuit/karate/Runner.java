@@ -266,6 +266,7 @@ public class Runner {
 
         Class optionsClass;
         ClassLoader classLoader;
+        Class relativeTo;
         Logger logger;
         String env;
         File workingDir;
@@ -286,7 +287,7 @@ public class Runner {
         public List<Feature> resolveFeatures() {
             if (features == null) {
                 if (resources == null) {
-                    resources = FileUtils.scanForFeatureFiles(paths, classLoader);
+                    resources = FileUtils.scanForFeatureFiles(paths, relativeTo, classLoader);
                 }
                 features = new ArrayList(resources.size());
                 for (Resource resource : resources) {
@@ -332,7 +333,12 @@ public class Runner {
             this.classLoader = cl;
             return this;
         }
-        
+
+        public Builder relativeTo(Class clazz) {
+            relativeTo = clazz;
+            return this;
+        }
+
         public Builder configDir(String dir) {
             this.configDir = dir;
             return this;
@@ -454,6 +460,11 @@ public class Runner {
             this.threadCount = threadCount;
             return Runner.parallel(this);
         }
+
+        @Override
+        public String toString() {
+            return paths + "";
+        }                
 
     }
 

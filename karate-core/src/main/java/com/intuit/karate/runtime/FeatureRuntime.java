@@ -42,7 +42,7 @@ public class FeatureRuntime implements Runnable {
     public final ScenarioCall caller;
     public final Feature feature;
     public final FeatureResult result;
-    private final ScenarioGenerator scenarios;
+    public final ScenarioGenerator scenarios;
 
     public final Map<String, ScenarioCall.Result> FEATURE_CACHE = new HashMap();
 
@@ -123,7 +123,7 @@ public class FeatureRuntime implements Runnable {
     private boolean beforeHookResult = true;
 
     // logic to run once only if there are runnable scenarios (selected by tag)
-    private boolean beforeHook() {
+    public boolean beforeHook() {
         if (beforeHookDone) {
             return beforeHookResult;
         }
@@ -146,26 +146,29 @@ public class FeatureRuntime implements Runnable {
                     }
                     lastExecutedScenario = sr;
                     sr.run();
-                    result.addResult(sr.result);
                 } else {
                     suite.logger.trace("excluded by tags: {}", sr);
                 }
             }
-            result.sortScenarioResults();
-            if (lastExecutedScenario != null) {
-                lastExecutedScenario.engine.invokeAfterHookIfConfigured(true);
-                result.setResultVariables(lastExecutedScenario.engine.getAllVariablesAsMap());
-            }
-            if (!result.isEmpty()) {
-                for (RuntimeHook hook : suite.hooks) {
-                    hook.afterFeature(this);
-                }
-            }
+            stop();
         } catch (Exception e) {
             suite.logger.error("feature runtime failed: {}", e.getMessage());
         } finally {
             if (next != null) {
                 next.run();
+            }
+        }
+    }
+
+    public void stop() {
+        result.sortScenarioResults();
+        if (lastExecutedScenario != null) {
+            lastExecutedScenario.engine.invokeAfterHookIfConfigured(true);
+            result.setResultVariables(lastExecutedScenario.engine.getAllVariablesAsMap());
+        }
+        if (!result.isEmpty()) {
+            for (RuntimeHook hook : suite.hooks) {
+                hook.afterFeature(this);
             }
         }
     }

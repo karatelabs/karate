@@ -490,12 +490,15 @@ public class FileUtils {
         return list;
     }
 
-    public static List<Resource> scanForFeatureFiles(List<String> paths, Class clazz) {
+    public static List<Resource> scanForFeatureFiles(List<String> paths, Class clazz, ClassLoader cl) {
         if (clazz == null) {
-            return scanForFeatureFiles(paths, ClassLoader.getSystemClassLoader());
+            return scanForFeatureFiles(paths, cl);
         }
         // this resolves paths relative to the passed-in class
         List<Resource> list = new ArrayList();
+        if (paths == null || paths.isEmpty()) {
+            paths = Collections.singletonList(toRelativeClassPath(clazz));
+        }
         for (String path : paths) {
             boolean classpath = isClassPath(path);
             if (!classpath) { // convert from relative path

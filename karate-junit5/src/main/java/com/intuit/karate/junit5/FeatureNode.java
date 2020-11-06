@@ -23,18 +23,15 @@
  */
 package com.intuit.karate.junit5;
 
-import com.intuit.karate.CallContext;
-import com.intuit.karate.core.ExecutionContext;
+import com.intuit.karate.SuiteRuntime;
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureContext;
-import com.intuit.karate.core.FeatureExecutionUnit;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.HtmlFeatureReport;
 import com.intuit.karate.core.HtmlSummaryReport;
-import com.intuit.karate.core.ScenarioExecutionUnit;
+import com.intuit.karate.runtime.FeatureRuntime;
+import com.intuit.karate.runtime.ScenarioGenerator;
+import com.intuit.karate.runtime.ScenarioRuntime;
 
-import java.io.File;
-import java.net.URI;
 import java.util.Iterator;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DynamicTest;
@@ -45,49 +42,46 @@ import org.junit.jupiter.api.DynamicTest;
  */
 public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest> {
 
-    public final Feature feature;
-    public final ExecutionContext exec;
-    public final FeatureExecutionUnit featureUnit;
+    public final SuiteRuntime suite;
     public final HtmlSummaryReport summary;
-    public final String reportDir;
-    public final Iterator<ScenarioExecutionUnit> iterator;
+    public final FeatureRuntime featureRuntime;
+    private final ScenarioGenerator generator;
 
-    public FeatureNode(String reportDir, HtmlSummaryReport summary, Feature feature, String tagSelector) {
-        this.reportDir = reportDir;
+    public FeatureNode(SuiteRuntime suite, HtmlSummaryReport summary, Feature feature, String tagSelector) {
+        this.suite = suite;
         this.summary = summary;
-        this.feature = feature;
-        FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
-        CallContext callContext = new CallContext(null, true);
-        exec = new ExecutionContext(null, System.currentTimeMillis(), featureContext, callContext, null, null, null);
-        featureUnit = new FeatureExecutionUnit(exec);
-        featureUnit.init();
-        iterator = featureUnit.getScenarioExecutionUnits();
+        featureRuntime = new FeatureRuntime(suite, feature);
+        generator = featureRuntime.scenarios;
     }
 
     @Override
     public boolean hasNext() {
-        return iterator.hasNext();
+        return generator.hasNext();
     }
 
     @Override
     public DynamicTest next() {
-        ScenarioExecutionUnit unit = iterator.next();
-        return DynamicTest.dynamicTest(unit.scenario.getNameForReport(), unit.scenario.getScenarioSrcUri() ,() -> {
-            if (featureUnit.isSelected(unit)) {
-                unit.run();
+        ScenarioRuntime runtime = generator.next();
+        return DynamicTest.dynamicTest(runtime.scenario.getNameForReport(), runtime.scenario.getScenarioSrcUri(), () -> {
+            if (runtime.isSelectedForExecution()) {
+                if (featureRuntime.beforeHook()) { // minimal code duplication from feature-runtime
+                    runtime.run();
+                } else {
+                    suite.logger.info("before-feature hook returned [false], aborting: ", featureRuntime);
+                }
             }
-            boolean failed = unit.result.isFailed();
-            if (!iterator.hasNext()) {
-                featureUnit.stop();
-                FeatureResult result = exec.result;
+            boolean failed = runtime.result.isFailed();
+            if (!generator.hasNext()) {
+                featureRuntime.stop();
+                FeatureResult result = featureRuntime.result;
                 if (!result.isEmpty()) {
                     result.printStats(null);
-                    HtmlFeatureReport.saveFeatureResult(reportDir, result);
+                    HtmlFeatureReport.saveFeatureResult(suite.reportDir, result);
                     summary.addFeatureResult(result);
                 }
             }
             if (failed) {
-                Assertions.fail(unit.result.getError().getMessage());
+                Assertions.fail(runtime.result.getError().getMessage());
             }
         });
     }
@@ -96,4 +90,5 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     public Iterator<DynamicTest> iterator() {
         return this;
     }
+
 }

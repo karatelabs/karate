@@ -58,7 +58,7 @@ public class ScenarioListener {
         get().executeVoid(args);
     }
 
-    public Object apply(Object... args) {
+    public <T> T apply(Object... args) {
         Value result = get().execute(args);
         return new JsValue(result).getValue();
     }

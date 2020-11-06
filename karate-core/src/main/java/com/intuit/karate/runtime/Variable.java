@@ -57,7 +57,8 @@ public class Variable {
         LIST,
         MAP,
         XML,
-        FUNCTION,
+        JS_FUNCTION,
+        JAVA_FUNCTION,
         FEATURE,
         OTHER
     }
@@ -67,15 +68,6 @@ public class Variable {
 
     public final Type type;
     private final Object value;
-    
-    private static boolean isFunctionLike(Object o) {
-        if (o instanceof Value) {
-            Value v = (Value) o;
-            return v.canExecute();
-        } else {
-            return o instanceof Function;
-        }
-    }
 
     public Variable(Object o) {
         if (o instanceof Value) {
@@ -85,8 +77,15 @@ public class Variable {
         }
         if (o == null) {
             type = Type.NULL;
-        } else if (isFunctionLike(o)) { // has to be first since is also a Map
-            type = Type.FUNCTION;
+        } else if (o instanceof Value) {
+            Value v = (Value) o;
+            if (v.canExecute()) {
+                type = Type.JS_FUNCTION;
+            } else {
+                type = Type.OTHER; // java.lang.Class
+            }
+        } else if (o instanceof Function) {
+            type = Type.JAVA_FUNCTION;
         } else if (o instanceof Node) {
             type = Type.XML;
         } else if (o instanceof List) {
@@ -104,7 +103,7 @@ public class Variable {
         } else if (o instanceof Feature) {
             type = Type.FEATURE;
         } else {
-            type = Type.OTHER; // note that the graal meta type (java.lang.Class) falls here as well
+            type = Type.OTHER;
         }
         value = o;
     }
@@ -113,10 +112,18 @@ public class Variable {
         return (T) value;
     }
 
-    public boolean isJsFunction() {
-        return value instanceof Value;
+    public boolean isJsOrJavaFunction() {
+        return type == Type.JS_FUNCTION || type == Type.JAVA_FUNCTION;
     }
-    
+
+    public boolean isJavaFunction() {
+        return type == Type.JAVA_FUNCTION;
+    }
+
+    public boolean isJsFunction() {
+        return type == Type.JS_FUNCTION;
+    }
+
     public boolean isJsFunctionWrapper() {
         return value instanceof JsFunction;
     }
@@ -155,10 +162,6 @@ public class Variable {
 
     public boolean isOther() {
         return type == Type.OTHER;
-    }
-
-    public boolean isFunction() {
-        return type == Type.FUNCTION;
     }
 
     public boolean isFeature() {

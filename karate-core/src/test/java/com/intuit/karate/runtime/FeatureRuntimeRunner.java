@@ -13,9 +13,9 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-class FeatureRunner {
+class FeatureRuntimeRunner {
     
-    static final Logger logger = LoggerFactory.getLogger(FeatureRunner.class);
+    static final Logger logger = LoggerFactory.getLogger(FeatureRuntimeRunner.class);
 
     FeatureRuntime fr;
 

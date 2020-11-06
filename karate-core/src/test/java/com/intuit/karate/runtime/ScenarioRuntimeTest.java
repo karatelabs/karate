@@ -408,7 +408,7 @@ class ScenarioRuntimeTest {
                 "def foo = karate.eval('() => 1 + 2')",
                 "def bar = foo()"
         );
-        assertTrue(sr.engine.vars.get("foo").isFunction());
+        assertTrue(sr.engine.vars.get("foo").isJsFunction());
         matchVar("bar", 3);
     }
 

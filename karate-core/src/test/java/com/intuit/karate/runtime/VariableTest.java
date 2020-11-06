@@ -34,8 +34,8 @@ public class VariableTest {
     void testFunction() {
         JsValue jv = je.eval("(function(a, b){ return a + b })");
         Variable var = new Variable(jv);
-        assertTrue(var.isFunction());
         assertTrue(var.isJsFunction());
+        assertFalse(var.isJavaFunction());
         JsValue res = je.execute(var.getValue(), new Object[]{1, 2});
         assertEquals(3, res.<Integer>getValue());
     }

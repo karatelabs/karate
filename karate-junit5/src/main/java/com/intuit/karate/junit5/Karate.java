@@ -23,20 +23,15 @@
  */
 package com.intuit.karate.junit5;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.Resource;
-import com.intuit.karate.RunnerOptions;
+import com.intuit.karate.Runner;
+import com.intuit.karate.SuiteRuntime;
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.HtmlSummaryReport;
-import com.intuit.karate.core.Tags;
-import java.io.File;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -54,9 +49,7 @@ public class Karate implements Iterable<DynamicNode> {
 
     }
 
-    private final List<String> tags = new ArrayList();
-    private final List<String> paths = new ArrayList();
-    private Class clazz;
+    private final Runner.Builder builder = new Runner.Builder();
 
     private static final HtmlSummaryReport SUMMARY = new HtmlSummaryReport();
     private static boolean shutdownHookRegistered;
@@ -67,49 +60,43 @@ public class Karate implements Iterable<DynamicNode> {
     }
 
     public Karate relativeTo(Class clazz) {
-        this.clazz = clazz;
+        builder.relativeTo(clazz);
         return this;
     }
 
     public Karate feature(String... paths) {
-        this.paths.addAll(Arrays.asList(paths));
+        builder.path(paths);
         return this;
     }
 
     public Karate tags(String... tags) {
-        this.tags.addAll(Arrays.asList(tags));
+        builder.tags(tags);
         return this;
+    }
+
+    public Runner.Builder builder() {
+        return builder;
     }
 
     @Override
     public Iterator<DynamicNode> iterator() {
-        RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(paths, tags, clazz);
-        List<Resource> resources = FileUtils.scanForFeatureFiles(options.getFeatures(), clazz);
-        List<Feature> features = new ArrayList(resources.size());
-        for (Resource resource : resources) {
-            Feature feature = FeatureParser.parse(resource);
-            feature.setCallName(options.getName());
-            feature.setCallLine(resource.getLine());
-            features.add(feature);
-        }
-        String tagSelector = Tags.fromKarateOptionsTags(options.getTags());
-        String reportDir = FileUtils.getBuildDir() + File.separator + "surefire-reports";
-        List<DynamicNode> list = new ArrayList<>(features.size());
-        for (Feature feature : features) {
-            FeatureNode featureNode = new FeatureNode(reportDir, SUMMARY, feature, tagSelector);
+        SuiteRuntime suite = new SuiteRuntime(builder);
+        List<DynamicNode> list = new ArrayList();
+        for (Feature feature : suite.features) {
+            FeatureNode featureNode = new FeatureNode(suite, SUMMARY, feature, suite.tagSelector);
             String testName = feature.getResource().getFileNameWithoutExtension();
             DynamicNode node = DynamicContainer.dynamicContainer(testName, featureNode);
             list.add(node);
         }
         if (list.isEmpty()) {
-            Assertions.fail("no features or scenarios found: " + options.getFeatures());
+            Assertions.fail("no features or scenarios found: " + builder);
         }
         synchronized (SUMMARY) {
             if (!shutdownHookRegistered) {
                 Runtime.getRuntime().addShutdownHook(new Thread() {
                     @Override
                     public void run() {
-                        SUMMARY.save(reportDir);
+                        SUMMARY.save(suite.reportDir);
                     }
                 });
                 shutdownHookRegistered = true;

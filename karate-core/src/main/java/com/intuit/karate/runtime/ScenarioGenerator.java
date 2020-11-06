@@ -98,7 +98,7 @@ public class ScenarioGenerator implements Iterator<ScenarioRuntime> {
                 String expression = currentScenario.getDynamicExpression();
                 try {
                     expressionValue = background.engine.evalKarateExpression(expression);
-                    if (expressionValue.isList() || expressionValue.isFunction()) {
+                    if (expressionValue.isList() || expressionValue.isJsOrJavaFunction()) {
                         // all good
                     } else {
                         throw new RuntimeException("result is neither list nor function: " + expressionValue);
@@ -113,7 +113,7 @@ public class ScenarioGenerator implements Iterator<ScenarioRuntime> {
             }
             final int rowIndex = index++;
             Variable rowValue;
-            if (expressionValue.isFunction()) {
+            if (expressionValue.isJsOrJavaFunction()) {
                 try {
                     rowValue = ScenarioEngine.get().executeFunction(expressionValue.getValue(), rowIndex);
                 } catch (Exception e) {
