@@ -46,7 +46,7 @@ class JsEngineTest {
         assertEquals("[\"a\",\"b\",\"c\"]", json);
         assertEquals("function(){ return ['a', 'b', 'c'] }", v.toString());
     }
-    
+
     @Test
     void testArrowFunctionZeroArg() {
         JsValue v = je.eval("() => ['a', 'b', 'c']");
@@ -56,22 +56,22 @@ class JsEngineTest {
         String json = je.toJson(res);
         assertEquals("[\"a\",\"b\",\"c\"]", json);
         assertEquals("() => ['a', 'b', 'c']", v.toString());
-    } 
-    
+    }
+
     @Test
     void testJsFunctionToJavaFunction() {
         Value v = je.evalForValue("() => 'hello'");
         assertTrue(v.canExecute());
         Function temp = (Function) v.as(Object.class);
-        String res = (String) temp.apply(null);       
+        String res = (String) temp.apply(null);
         assertEquals(res, "hello");
         v = je.evalForValue("(a, b) => a + b");
         assertTrue(v.canExecute());
         temp = v.as(Function.class);
-        Number num = (Number) temp.apply(new Object[]{1, 2});       
-        assertEquals(num, 3);        
+        Number num = (Number) temp.apply(new Object[]{1, 2});
+        assertEquals(num, 3);
     }
-    
+
     @Test
     void testArrowFunctionReturnsObject() {
         Value v = je.evalForValue("() => { a: 1 }");
@@ -83,8 +83,8 @@ class JsEngineTest {
         assertTrue(v.canExecute());
         res = v.execute();
         assertTrue(Match.that(res.as(Map.class)).isEqualTo("{ a: 1 }").pass);
-    }     
-    
+    }
+
     @Test
     void testArrowFunctionSingleArg() {
         JsValue v = je.eval("x => [x, x]");
@@ -94,7 +94,7 @@ class JsEngineTest {
         String json = je.toJson(res);
         assertEquals("[1,1]", json);
         assertEquals("x => [x, x]", v.toString());
-    }    
+    }
 
     @Test
     void testFunctionVariableExecute() {
@@ -167,20 +167,20 @@ class JsEngineTest {
         jv = je.eval("request.param('hello')");
         assertEquals(jv.getValue(), "world");
     }
-    
+
     @Test
     void testBoolean() {
         assertFalse(je.eval("1 == 2").isTrue());
         assertTrue(je.eval("1 == 1").isTrue());
     }
-    
+
     @Test
     void testStringInterpolation() {
         je.put("name", "John");
         JsValue temp = je.eval("`hello ${name}`");
         assertEquals(temp.getValue(), "hello John");
-    }    
-    
+    }
+
     @Test
     void testHostBytes() {
         JsValue v = je.eval("Java.type('com.intuit.karate.runtime.MockUtils')");

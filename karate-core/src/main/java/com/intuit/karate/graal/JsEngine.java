@@ -27,7 +27,6 @@ import com.intuit.karate.FileUtils;
 import java.io.File;
 import java.io.InputStream;
 import java.util.Map;
-import java.util.function.Function;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Engine;
 import org.graalvm.polyglot.Value;
@@ -112,8 +111,8 @@ public class JsEngine {
     private final JsContext jc;
     private Value stringify;
 
-    private JsEngine(JsContext sc) {
-        this.jc = sc;
+    private JsEngine(JsContext jc) {
+        this.jc = jc;
     }
 
     public Value bindings() {
@@ -169,7 +168,7 @@ public class JsEngine {
         if (v.isHostObject()) {
             jc.bindings.putMember(key, v);
         } else if (v.canExecute()) {
-            Value fun = evalForValue("(" + v.toString() + ")");
+            Value fun = evalForValue("(" + v.getSourceLocation().getCharacters() + ")");
             jc.bindings.putMember(key, fun);
         } else {
             put(key, JsValue.toJava(v));
@@ -181,17 +180,16 @@ public class JsEngine {
             return jc.context.asValue(function);
         } catch (Exception e) {
             logger.trace("context switch: {}", e.getMessage());
-            String temp = "(" + function.toString() + ")";
-            return evalForValue(temp);
+            CharSequence source = function.getSourceLocation().getCharacters();
+            return evalForValue("(" + source + ")");
         }
     }
 
     public JsValue execute(Value function, Object... args) {
-        Value toInvoke = attach(function);
         for (int i = 0; i < args.length; i++) {
             args[i] = JsValue.fromJava(args[i]);
         }
-        Value result = toInvoke.execute(args);
+        Value result = function.execute(args);
         return new JsValue(result);
     }
 

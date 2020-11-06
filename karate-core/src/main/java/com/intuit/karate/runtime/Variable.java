@@ -29,6 +29,7 @@ import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.data.Json;
 import com.intuit.karate.data.JsonUtils;
+import com.intuit.karate.graal.JsFunction;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -114,6 +115,10 @@ public class Variable {
 
     public boolean isJsFunction() {
         return value instanceof Value;
+    }
+    
+    public boolean isJsFunctionWrapper() {
+        return value instanceof JsFunction;
     }
 
     public boolean isBytes() {

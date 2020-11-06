@@ -179,6 +179,6 @@ class FeatureRuntimeTest {
     void testFork() {
         run("fork.feature");
         assertFalse(fr.result.isFailed());        
-    }
+    }       
 
 }

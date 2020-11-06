@@ -190,6 +190,18 @@ public class JsValue {
         return new JsValue(v).getValue();
     }
 
+    public static Object unWrap(Object o) {
+        if (o instanceof JsXml) {
+            return ((JsXml) o).getNode();
+        } else if (o instanceof JsMap) {
+            return ((JsMap) o).getMap();
+        } else if (o instanceof JsList) {
+            return ((JsList) o).getList();
+        } else {
+            return o;
+        }
+    }
+
     public static byte[] toBytes(Value v) {
         return toBytes(toJava(v));
     }

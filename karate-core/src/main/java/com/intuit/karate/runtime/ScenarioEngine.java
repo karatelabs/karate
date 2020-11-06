@@ -39,6 +39,7 @@ import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
@@ -127,6 +128,15 @@ public class ScenarioEngine {
         bridge = new ScenarioBridge();
         this.vars = vars;
         this.logger = logger;
+    }
+
+    private ScenarioEngine scenarioChild;
+    private ScenarioEngine scenarioParent;
+
+    public ScenarioEngine child() {
+        scenarioChild = new ScenarioEngine(config, runtime, detachVariables(), logger);
+        scenarioChild.scenarioParent = this;
+        return scenarioChild;
     }
 
     private static final ThreadLocal<ScenarioEngine> THREAD_LOCAL = new ThreadLocal<ScenarioEngine>();
@@ -250,7 +260,7 @@ public class ScenarioEngine {
         Variable v = afterFeature ? config.getAfterFeature() : config.getAfterScenario();
         if (v.isFunction()) {
             try {
-
+                executeFunction(v);
             } catch (Exception e) {
                 String prefix = afterFeature ? "afterFeature" : "afterScenario";
                 logger.warn("{} hook failed: {}", prefix, e + "");
@@ -744,6 +754,9 @@ public class ScenarioEngine {
             signalResult = result;
             LOCK.notify();
         }
+        if (scenarioParent != null) {
+            scenarioParent.signal(result);
+        }
     }
 
     public Object listen(long timeout, Runnable runnable) {
@@ -797,7 +810,7 @@ public class ScenarioEngine {
     protected void init() { // not in constructor because it has to be on Runnable.run() thread 
         JS = JsEngine.local();
         logger.trace("js context: {}", JS);
-        attachVariablesToJsContext();
+        attachVariables();
         setHiddenVariable(KARATE, bridge);
         setHiddenVariable(READ, readFunction);
         setVariables(magicVariables);
@@ -805,17 +818,31 @@ public class ScenarioEngine {
         http = new HttpRequestBuilder(client);
     }
 
-    private void attachVariablesToJsContext() {
+    protected boolean isInited() {
+        return JS != null;
+    }
+
+    private void attachVariables() {
         vars.forEach((k, v) -> {
             switch (v.type) {
                 case FUNCTION:
-                    Object o = attach(v.getValue());
-                    v = new Variable(o);
-                    vars.put(k, v);
+                    if (v.isJsFunction()) {
+                        Value value = attach(v.getValue());
+                        v = new Variable(value);
+                        vars.put(k, v);
+                    }
                     break;
                 case MAP:
                 case LIST:
                     recurseAndAttach(v.getValue());
+                    break;
+                case OTHER:
+                    if (v.isJsFunctionWrapper()) {
+                        JsFunction jf = v.getValue();
+                        Value value = attachSource(jf.source);
+                        v = new Variable(value);
+                        vars.put(k, v);
+                    }
                     break;
                 default:
                 // do nothing
@@ -824,10 +851,35 @@ public class ScenarioEngine {
         });
     }
 
+    private Map<String, Variable> detachVariables() {
+        Map<String, Variable> detached = new HashMap(vars.size());
+        vars.forEach((k, v) -> {
+            switch (v.type) {
+                case FUNCTION:
+                    if (v.isJsFunction()) {
+                        JsFunction jf = new JsFunction(v.getValue());
+                        v = new Variable(jf);
+                    }
+                    break;
+                case MAP:
+                case LIST:
+                    recurseAndDetach(v.getValue());
+                    break;
+                default:
+                // do nothing
+            }
+            detached.put(k, v);
+        });
+        return detached;
+    }
+
     private Object recurseAndAttach(Object o) {
-        // do this check first as graal functions are maps as well
-        if (o instanceof Value || o instanceof Function) {
-            return attach(o);
+        if (o instanceof Value) {
+            Value value = (Value) o;
+            return value.canExecute() ? attach(value) : null;
+        } else if (o instanceof JsFunction) {
+            JsFunction jf = (JsFunction) o;
+            return attachSource(jf.source);
         } else if (o instanceof List) {
             List list = (List) o;
             int count = list.size();
@@ -853,30 +905,68 @@ public class ScenarioEngine {
         }
     }
 
-    public Object attach(Object o) {
-        Value value = Value.asValue(o);
-        value = JS.attach(value);
-        return new JsValue(value).getValue();
+    private Object recurseAndDetach(Object o) {
+        if (o instanceof Value) {
+            Value value = (Value) o;
+            return value.canExecute() ? new JsFunction(value) : null;
+        } else if (o instanceof List) {
+            List list = (List) o;
+            int count = list.size();
+            for (int i = 0; i < count; i++) {
+                Object child = list.get(i);
+                Object result = recurseAndDetach(child);
+                if (result != null) {
+                    list.set(i, result);
+                }
+            }
+            return null;
+        } else if (o instanceof Map) {
+            Map<String, Object> map = (Map) o;
+            map.forEach((k, v) -> {
+                Object result = recurseAndDetach(v);
+                if (result != null) {
+                    map.put(k, result);
+                }
+            });
+            return null;
+        } else {
+            return null;
+        }
+    }
+
+    public Value attachSource(CharSequence source) {
+        Value value = JS.evalForValue("(" + source + ")");
+        return attach(value);
+    }
+
+    public Value attach(Value before) {
+        return JS.attach(before);
+    }
+
+    public JsValue executeJsValue(Value function, Object... args) {
+        return JS.execute(function, args);
     }
 
     protected <T> Map<String, T> getOrEvalAsMap(Variable var) {
         if (var.isFunction()) {
-            Variable res = execute(var);
+            Variable res = executeFunction(var);
             return res.isMap() ? res.getValue() : null;
         } else {
             return var.isMap() ? var.getValue() : null;
         }
     }
 
-    public Variable execute(Variable var, Object... args) {
-        Value function;
+    public Variable executeFunction(Variable var, Object... args) {
         if (var.isJsFunction()) {
-            function = var.getValue();
-        } else {
-            function = Value.asValue(var.getValue());
+            Value function = var.getValue();
+            JsValue result = JS.execute(function, args);
+            return new Variable(result);
+        } else { // definitely a "call" with a single argument
+            Function function = var.getValue();
+            Object arg = args.length == 0 ? null : args[0];
+            Object result = function.apply(arg);
+            return new Variable(JsValue.unWrap(result));
         }
-        JsValue result = JS.execute(function, args);
-        return new Variable(result);
     }
 
     public Variable evalJs(String js) {
@@ -912,7 +1002,7 @@ public class ScenarioEngine {
         return new KarateException(sb.toString());
     }
 
-    public void setHiddenVariable(String key, Object value) {
+    protected void setHiddenVariable(String key, Object value) {
         if (value instanceof Variable) {
             value = ((Variable) value).getValue();
         }
@@ -929,6 +1019,9 @@ public class ScenarioEngine {
         vars.put(key, v);
         if (JS != null) {
             JS.put(key, v.getValue());
+        }
+        if (scenarioChild != null) {
+            scenarioChild.setVariable(key, value);
         }
     }
 
@@ -1564,9 +1657,9 @@ public class ScenarioEngine {
     public Variable call(Variable called, Variable arg, boolean sharedScope) {
         switch (called.type) {
             case FUNCTION:
-                return arg == null ? execute(called) : execute(called, new Object[]{arg.getValue()});
+                return arg == null ? executeFunction(called) : executeFunction(called, new Object[]{arg.getValue()});
             case FEATURE:
-                Variable res = callFeature(called.getValue(), arg, -1, sharedScope); 
+                Variable res = callFeature(called.getValue(), arg, -1, sharedScope);
                 recurseAndAttach(res.getValue()); // will always be a map, we update entries within
                 return res;
             default:
@@ -1665,7 +1758,7 @@ public class ScenarioEngine {
                 if (isList) {
                     loopArg = iterator.hasNext() ? new Variable(iterator.next()) : Variable.NULL;
                 } else { // function
-                    loopArg = execute(arg, new Object[]{loopIndex});
+                    loopArg = executeFunction(arg, new Object[]{loopIndex});
                 }
                 if (!loopArg.isMap()) {
                     if (!isList) {

@@ -64,9 +64,6 @@ public class Config {
     private String proxyPassword;
     private List<String> nonProxyHosts;
     private String localAddress;
-    private Variable headers = Variable.NULL;
-    private Variable cookies = Variable.NULL;
-    private Variable responseHeaders = Variable.NULL;
     private int responseDelay;
     private boolean lowerCaseResponseHeaders = false;
     private boolean corsEnabled = false;
@@ -79,9 +76,13 @@ public class Config {
     private Target driverTarget;
     private Map<String, Object> driverOptions;
     private Map<String, Object> robotOptions; // TODO make generic plugin model
+    private HttpLogModifier logModifier;
+    
     private Variable afterScenario = Variable.NULL;
     private Variable afterFeature = Variable.NULL;
-    private HttpLogModifier logModifier;
+    private Variable headers = Variable.NULL;
+    private Variable cookies = Variable.NULL;
+    private Variable responseHeaders = Variable.NULL;
 
     // retry config
     private int retryInterval = DEFAULT_RETRY_INTERVAL;
@@ -272,9 +273,6 @@ public class Config {
         proxyPassword = parent.proxyPassword;
         nonProxyHosts = parent.nonProxyHosts;
         localAddress = parent.localAddress;
-        headers = parent.headers;
-        cookies = parent.cookies;
-        responseHeaders = parent.responseHeaders;
         responseDelay = parent.responseDelay;
         lowerCaseResponseHeaders = parent.lowerCaseResponseHeaders;
         corsEnabled = parent.corsEnabled;
@@ -285,8 +283,6 @@ public class Config {
         driverOptions = parent.driverOptions;
         robotOptions = parent.robotOptions;
         driverTarget = parent.driverTarget;
-        afterScenario = parent.afterScenario;
-        afterFeature = parent.afterFeature;
         showLog = parent.showLog;
         showAllSteps = parent.showAllSteps;
         retryInterval = parent.retryInterval;
@@ -296,6 +292,11 @@ public class Config {
         logModifier = parent.logModifier;
         callSingleCacheMinutes = parent.callSingleCacheMinutes;
         callSingleCacheDir = parent.callSingleCacheDir;
+        headers = parent.headers;
+        cookies = parent.cookies;
+        responseHeaders = parent.responseHeaders;   
+        afterScenario = parent.afterScenario;
+        afterFeature = parent.afterFeature;        
     }
 
     public void setCookies(Variable cookies) {
