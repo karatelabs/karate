@@ -625,6 +625,14 @@ class ScenarioRuntimeTest {
                 "def res = Base64.encoder.encodeToString('hello'.getBytes())"
         );
         matchVar("res", java.util.Base64.getEncoder().encodeToString("hello".getBytes()));
-    }
+    }    
+    
+    @Test
+    void testTypeConversionCsvEmpty() {
+        run(
+                "csv temp = ''"
+        );
+        matchVar("temp", "[]");        
+    }       
 
 }

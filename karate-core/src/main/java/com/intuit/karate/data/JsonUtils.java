@@ -49,6 +49,8 @@ import java.util.Set;
 import net.minidev.json.JSONStyle;
 import net.minidev.json.JSONValue;
 import net.minidev.json.parser.JSONParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
@@ -57,6 +59,8 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
  * @author pthomas3
  */
 public class JsonUtils {
+
+    private static final Logger logger = LoggerFactory.getLogger(JsonUtils.class);
 
     private JsonUtils() {
         // only static methods
@@ -147,15 +151,16 @@ public class JsonUtils {
     public static List<Map> fromCsv(String raw) {
         CsvReader reader = new CsvReader();
         reader.setContainsHeader(true);
+        List<Map> rows = new ArrayList();
         try {
             CsvContainer csv = reader.read(new StringReader(raw));
-            List<Map> rows = new ArrayList(csv.getRowCount());
             for (CsvRow row : csv.getRows()) {
                 rows.add(row.getFieldMap());
             }
             return rows;
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            logger.warn("failed to parse csv: {}", raw);
+            return rows;
         }
     }
 
