@@ -29,7 +29,7 @@ Feature: demo calling java methods with complex types
     * def billie = toCat({ id: 1, name: 'Billie' })
     * def fun = function(n, i){ return { id: i + 2, name: n } }
     * def kittens = karate.map(names, fun)
-    * billie.kittens = kittens
+    * billie.kittens = karate.toJava(kittens)
     * match toJson(billie) contains expected
     * match toJson(billie).kittens == expected.kittens
 

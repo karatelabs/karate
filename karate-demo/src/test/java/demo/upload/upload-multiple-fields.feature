@@ -5,7 +5,7 @@ Background:
 
 Scenario: upload multiple fields
     Given path 'files', 'fields'
-    And multipart fields { message: 'hello world', json: { foo: 'bar' } }
+    And multipart fields { message: 'hello world', json: { value: { foo: 'bar' } } }
     When method post
     Then status 200
     And match response == { message: 'hello world', json: { foo: 'bar' } }
