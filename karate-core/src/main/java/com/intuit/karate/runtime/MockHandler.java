@@ -35,6 +35,7 @@ import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.server.Request;
+import com.intuit.karate.server.ResourceType;
 import com.intuit.karate.server.Response;
 import com.intuit.karate.server.ServerHandler;
 import java.util.List;
@@ -49,15 +50,15 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class MockHandler implements ServerHandler {
-
+    
     private static final Logger logger = LoggerFactory.getLogger(MockHandler.class);
-
+    
     private static final String REQUEST_BYTES = "requestBytes";
     private static final String REQUEST_PARAMS = "requestParams";
     private static final String REQUEST_FILES = "requestFiles";
-
+    
     private static final String RESPONSE_DELAY = "responseDelay";
-
+    
     private static final String PATH_MATCHES = "pathMatches";
     private static final String METHOD_IS = "methodIs";
     private static final String TYPE_CONTAINS = "typeContains";
@@ -67,13 +68,13 @@ public class MockHandler implements ServerHandler {
     private static final String PARAM_EXISTS = "paramExists";
     private static final String PATH_PARAMS = "pathParams";
     private static final String BODY_PATH = "bodyPath";
-
+    
     private final Feature feature;
     private final String featureName;
     private final ScenarioRuntime runtime; // holds global config and vars
 
     protected static final ThreadLocal<Request> LOCAL_REQUEST = new ThreadLocal<Request>();
-
+    
     public MockHandler(Feature feature) {
         this.feature = feature;
         featureName = feature.getPath().toFile().getName();
@@ -104,9 +105,9 @@ public class MockHandler implements ServerHandler {
         }
         runtime.logger.info("mock server initialized: {}", featureName);
     }
-
+    
     private static final Result PASSED = Result.passed(0);
-
+    
     @Override
     public Response handle(Request req) {
         Thread.currentThread().setContextClassLoader(runtime.featureRuntime.suite.classLoader);
@@ -178,8 +179,12 @@ public class MockHandler implements ServerHandler {
                         res.setDelay(responseDelay.getAsInt());
                     }
                 }
-                if (response != null) {
+                if (response != null && !response.isNull()) {
                     res.setBody(response.getAsByteArray());
+                    if (res.getContentType() == null) {
+                        ResourceType rt = ResourceType.fromObject(response.getValue());
+                        res.setContentType(rt.contentType);
+                    }
                 }
                 if (responseStatus != null) {
                     res.setStatus(responseStatus.getAsInt());
@@ -191,7 +196,7 @@ public class MockHandler implements ServerHandler {
         runtime.logger.warn("no scenarios matched, returning 404: {}", req);
         return new Response(404);
     }
-
+    
     private boolean isMatchingScenario(Scenario scenario, ScenarioEngine engine) {
         String expression = StringUtils.trimToNull(scenario.getName() + scenario.getDescription());
         if (expression == null) {
@@ -211,7 +216,7 @@ public class MockHandler implements ServerHandler {
             return false;
         }
     }
-
+    
     public boolean pathMatches(String pattern) {
         String uri = LOCAL_REQUEST.get().getPath();
         Map<String, String> pathParams = HttpUtils.parseUriPattern(pattern, uri);
@@ -222,30 +227,30 @@ public class MockHandler implements ServerHandler {
             return true;
         }
     }
-
+    
     public boolean paramExists(String name) {
         Map<String, List<String>> params = LOCAL_REQUEST.get().getParams();
         return params == null ? false : params.containsKey(name);
     }
-
+    
     public String paramValue(String name) {
         return LOCAL_REQUEST.get().getParam(name);
     }
-
+    
     public boolean methodIs(String name) { // TODO no more supporting array arg
         return LOCAL_REQUEST.get().getMethod().equalsIgnoreCase(name);
     }
-
+    
     public boolean typeContains(String text) {
         String contentType = LOCAL_REQUEST.get().getContentType();
         return contentType == null ? false : contentType.contains(text);
     }
-
+    
     public boolean acceptContains(String text) {
         String acceptHeader = LOCAL_REQUEST.get().getHeader("Accept");
         return acceptHeader == null ? false : acceptHeader.contains(text);
     }
-
+    
     public boolean headerContains(String name, String value) {
         List<String> values = LOCAL_REQUEST.get().getHeaderValues(name);
         if (values != null) {
@@ -257,7 +262,7 @@ public class MockHandler implements ServerHandler {
         }
         return false;
     }
-
+    
     public Object bodyPath(String path) {
         Object body = LOCAL_REQUEST.get().getBodyConverted();
         if (body == null) {
@@ -271,5 +276,5 @@ public class MockHandler implements ServerHandler {
             return JsValue.fromJava(json.get(path));
         }
     }
-
+    
 }

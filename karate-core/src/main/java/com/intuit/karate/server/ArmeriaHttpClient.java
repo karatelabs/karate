@@ -27,7 +27,6 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.netty.NettyUtils;
 import com.intuit.karate.runtime.Config;
-import com.intuit.karate.runtime.ScenarioEngine;
 import com.linecorp.armeria.client.ClientRequestContext;
 import com.linecorp.armeria.client.DecoratingHttpClientFunction;
 import com.linecorp.armeria.client.WebClient;
@@ -60,14 +59,9 @@ public class ArmeriaHttpClient implements HttpClient, DecoratingHttpClientFuncti
     private Config config;
     private HttpRequest request;
     private RequestContext requestContext;
-    private ScenarioEngine engine;
 
     public void setRequestContext(RequestContext requestContext) {
         this.requestContext = requestContext;
-    }
-
-    public void setEngine(ScenarioEngine engine) {
-        this.engine = engine;
     }
 
     public ArmeriaHttpClient(Config config, Logger logger) {
@@ -77,7 +71,7 @@ public class ArmeriaHttpClient implements HttpClient, DecoratingHttpClientFuncti
     }
 
     @Override
-    public Response invoke(HttpRequest request) throws Exception {
+    public Response invoke(HttpRequest request) {
         this.request = request;
         HttpMethod httpMethod = HttpMethod.valueOf(request.getMethod());
         StringUtils.Pair urlAndPath = NettyUtils.parseUriIntoUrlBaseAndPath(request.getUrl());
@@ -91,11 +85,15 @@ public class ArmeriaHttpClient implements HttpClient, DecoratingHttpClientFuncti
         AggregatedHttpResponse ahr;
         Callable<AggregatedHttpResponse> callable = () -> webClient.execute(rhb.build(), body).aggregate().join();
         ServiceRequestContext src = requestContext == null ? null : requestContext.root();
-        if (src == null) {
-            ahr = callable.call();
-        } else {
-            Future<AggregatedHttpResponse> future = src.blockingTaskExecutor().submit(callable);
-            ahr = future.get();
+        try {
+            if (src == null) {
+                ahr = callable.call();
+            } else {
+                Future<AggregatedHttpResponse> future = src.blockingTaskExecutor().submit(callable);
+                ahr = future.get();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         ResponseHeaders rh = ahr.headers();
         Map<String, List<String>> responseHeaders = new LinkedHashMap(rh.size());
@@ -111,7 +109,7 @@ public class ArmeriaHttpClient implements HttpClient, DecoratingHttpClientFuncti
     }
 
     @Override
-    public void setConfig(Config config) {
+    public void setConfig(Config config, String keyThatChanged) {
         this.config = config;
     }
 
@@ -121,12 +119,7 @@ public class ArmeriaHttpClient implements HttpClient, DecoratingHttpClientFuncti
     }
 
     @Override
-    public void configChanged(String name) {
-
-    }
-
-    @Override
-    public HttpResponse execute(com.linecorp.armeria.client.HttpClient delegate, ClientRequestContext ctx, 
+    public HttpResponse execute(com.linecorp.armeria.client.HttpClient delegate, ClientRequestContext ctx,
             com.linecorp.armeria.common.HttpRequest req) throws Exception {
         ctx.log().whenAvailable(RequestLogProperty.REQUEST_HEADERS).thenAccept(log -> {
             request.setStartTimeMillis(log.requestStartTimeMillis());

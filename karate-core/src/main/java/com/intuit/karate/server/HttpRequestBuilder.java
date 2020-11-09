@@ -27,11 +27,13 @@ import com.intuit.karate.graal.VarArgsFunction;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.http.HttpUtils;
 import com.linecorp.armeria.common.QueryParams;
 import com.linecorp.armeria.common.QueryParamsBuilder;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -149,7 +151,7 @@ public class HttpRequestBuilder implements ProxyObject {
             urlAndPath = urlAndPath + append + qpb.toQueryString();
         }
         request.setUrl(urlAndPath);
-        if (multiPart != null) {
+        if (multiPart != null && body == null) { // body check is done for retry
             body = multiPart.build();
             String userContentType = getHeader(HttpConstants.HDR_CONTENT_TYPE);
             if (userContentType != null) {
@@ -166,24 +168,35 @@ public class HttpRequestBuilder implements ProxyObject {
             cookies.forEach(c -> cookieValues.add(ServerCookieEncoder.STRICT.encode(c)));
             header(HttpConstants.HDR_COOKIE, cookieValues);
         }
+        if (body != null) {
+            request.setBody(JsValue.toBytes(body));
+            if (multiPart == null) {
+                String contentType = getContentType();
+                if (contentType == null) {
+                    contentType = ResourceType.fromObject(body).contentType;
+                }
+                // TODO clean up http utils
+                Charset charset = HttpUtils.parseContentTypeCharset(contentType);
+                if (charset == null) {
+                    // client can be null when not in karate scenario
+                    charset = client == null ? null : client.getConfig().getCharset();
+                    if (charset != null) {
+                        // edge case, support setting content type to an empty string
+                        contentType = StringUtils.trimToNull(contentType);
+                        if (contentType != null) {
+                            contentType = contentType + "; charset=" + charset;
+                        }
+                    }
+                }
+                contentType(contentType);
+            }
+        }
         request.setHeaders(headers);
-        String mediaType = getHeader(HttpConstants.HDR_CONTENT_TYPE);
-        if (body != null && mediaType == null) {
-            mediaType = ResourceType.fromObject(body).contentType;
-        }
-        if (mediaType != null) {
-            contentType(mediaType);
-        }
-        request.setBody(JsValue.toBytes(body));
         return request;
     }
 
     public Response invoke() {
-        try {
-            return client.invoke(build());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        return client.invoke(build());
     }
 
     public boolean isRetry() {
@@ -240,7 +253,11 @@ public class HttpRequestBuilder implements ProxyObject {
         if (url == null) {
             url = "";
         }
-        return url.endsWith("/") ? url + getPath() : url + "/" + getPath();
+        String path = getPath();
+        if (path.isEmpty()) {
+            return url;
+        }
+        return url.endsWith("/") ? url + path : url + "/" + path;
     }
 
     public HttpRequestBuilder body(Object body) {
@@ -370,7 +387,7 @@ public class HttpRequestBuilder implements ProxyObject {
 
     public HttpRequestBuilder formField(String name, Object value) {
         if (multiPart == null) {
-            multiPart = new MultiPartBuilder(false, client.getConfig().getCharset());
+            multiPart = new MultiPartBuilder(false, client);
         }
         multiPart.part(name).value(value).add();
         return this;
@@ -378,7 +395,7 @@ public class HttpRequestBuilder implements ProxyObject {
 
     public HttpRequestBuilder multiPart(Map<String, Object> map) {
         if (multiPart == null) {
-            multiPart = new MultiPartBuilder(true, client.getConfig().getCharset());
+            multiPart = new MultiPartBuilder(true, client);
         }
         multiPart.part(map);
         return this;

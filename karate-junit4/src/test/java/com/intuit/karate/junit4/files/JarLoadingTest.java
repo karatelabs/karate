@@ -1,13 +1,10 @@
 package com.intuit.karate.junit4.files;
 
-import com.intuit.karate.CallContext;
 import com.intuit.karate.Resource;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.Runner;
-import com.intuit.karate.core.FeatureContext;
-import com.intuit.karate.core.ScenarioContext;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -83,17 +80,10 @@ public class JarLoadingTest {
         return new URLClassLoader(new URL[]{jar.toURI().toURL()});
     }
 
-    private ScenarioContext getContext() throws Exception {
-        Path featureDir = FileUtils.getPathContaining(getClass());
-        FeatureContext featureContext = FeatureContext.forWorkingDir("dev", featureDir.toFile());
-        CallContext callContext = new CallContext(null, true);
-        return new ScenarioContext(featureContext, callContext, getJarClassLoader2(), null, null);
-    }
-
     @Test
     public void testClassPathJarResource() throws Exception {
         String relativePath = "classpath:example/dependency.feature";
-        Resource resource = new Resource(relativePath, getContext().classLoader);
+        Resource resource = new Resource(relativePath, getJarClassLoader2());
         String temp = resource.getAsString();
         logger.debug("string: {}", temp);
     }

@@ -9,6 +9,7 @@ import static com.intuit.karate.runtime.RuntimeUtils.*;
 import java.io.File;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +22,12 @@ class ScenarioRuntimeTest {
 
     static final Logger logger = LoggerFactory.getLogger(ScenarioRuntimeTest.class);
 
+    @BeforeEach
+    void beforeEach() {
+        fail = false;
+    }
+
+    boolean fail;
     ScenarioRuntime sr;
 
     Object get(String name) {
@@ -29,6 +36,11 @@ class ScenarioRuntimeTest {
 
     ScenarioRuntime run(String... lines) {
         sr = runScenario(null, lines);
+        if (fail) {
+            assertTrue(sr.result.isFailed());
+        } else {
+            assertFalse(sr.result.isFailed());
+        }
         return sr;
     }
 
@@ -48,12 +60,11 @@ class ScenarioRuntimeTest {
                 "match a == 3"
         );
         assertEquals(3, get("a"));
-        assertFalse(sr.result.isFailed());
+        fail = true;
         run(
                 "def a = 1 + 2",
                 "match a == 4"
         );
-        assertTrue(sr.result.isFailed());
     }
 
     @Test
@@ -167,6 +178,15 @@ class ScenarioRuntimeTest {
                 "def res = karate.call('called1.feature')"
         );
         matchVar("res", "{ a: 1, foo: { hello: 'world' }, configSource: 'normal', __arg: null, __loop: -1 }");
+    }
+
+    @Test
+    void testCallWithJsonArgument() {
+        run(
+                "def fun = function(arg){ return [arg.first, arg.second] }",
+                "def res = call fun { first: 'foo', second: 'bar' }"
+        );
+        matchVar("res", "['foo', 'bar']");
     }
 
     @Test
@@ -394,6 +414,27 @@ class ScenarioRuntimeTest {
     }
 
     @Test
+    void testToBeanAdvanced() {
+        run(
+                "def pojoType = 'com.intuit.karate.runtime.SimplePojo'",
+                "def Pojo = Java.type(pojoType)",
+                "def toPojo = function(x){ return karate.toBean(x, pojoType) }",
+                "def toJson = function(x){ return karate.toJson(x, true) }",
+                "def bean = new Pojo()",
+                "bean.foo = 'hello'",
+                "def pojo = toPojo({ bar: 5 })",
+                "def json = toJson(pojo)"
+        );
+        matchVar("json", "{ bar: 5 }");
+        SimplePojo bean = (SimplePojo) get("bean");
+        assertEquals(0, bean.getBar());
+        assertEquals("hello", bean.getFoo());
+        SimplePojo pojo = (SimplePojo) get("pojo");
+        assertEquals(5, pojo.getBar());
+        assertNull(pojo.getFoo());
+    }
+
+    @Test
     void testToCsv() {
         run(
                 "def foo = [{a: 1, b: 2}, { a: 3, b: 4 }]",
@@ -544,7 +585,7 @@ class ScenarioRuntimeTest {
         );
         assertFalse(sr.isFailed());
     }
-    
+
     @Test
     void testMatchSchema() {
         run(
@@ -555,16 +596,35 @@ class ScenarioRuntimeTest {
                 "def response2 = { id: '123', name: 'foo', dog: { id: '456', color: 'brown' } }",
                 "match response2 == schema"
         );
-        assertFalse(sr.isFailed());        
-    }    
-    
+        assertFalse(sr.isFailed());
+    }
+
     @Test
     void testMatchSchemaMagicVariables() {
         run(
                 "def response = { odds: [1, 2], count: 2 }",
                 "match response == { odds: '#[$.count]', count: '#number' }"
         );
-        assertFalse(sr.isFailed());        
+        assertFalse(sr.isFailed());
+    }
+
+    @Test
+    void testJavaInteropStatic() {
+        run(
+                "def Utils = Java.type('com.intuit.karate.runtime.StaticUtils')",
+                "def array = ['a', 'b', 'c']",
+                "def res = Utils.concat(array)"
+        );
+        matchVar("res", "abc");
+    }
+
+    @Test
+    void testJavaInteropBase64() {
+        run(
+                "def Base64 = Java.type('java.util.Base64')",
+                "def res = Base64.encoder.encodeToString('hello'.getBytes())"
+        );
+        matchVar("res", java.util.Base64.getEncoder().encodeToString("hello".getBytes()));
     }
 
 }

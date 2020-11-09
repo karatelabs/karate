@@ -155,9 +155,4 @@ public class Resource {
         return relativePath;
     }
 
-    public static String relativePathToString(String relativePath) {
-        Resource resource = new Resource(relativePath);
-        return resource.getAsString();
-    }
-
 }

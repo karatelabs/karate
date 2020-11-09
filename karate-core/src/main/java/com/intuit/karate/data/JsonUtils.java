@@ -25,7 +25,6 @@ package com.intuit.karate.data;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptValue;
-import com.intuit.karate.graal.JsValue;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.spi.json.JsonProvider;
@@ -36,7 +35,6 @@ import de.siegmar.fastcsv.reader.CsvContainer;
 import de.siegmar.fastcsv.reader.CsvReader;
 import de.siegmar.fastcsv.reader.CsvRow;
 import de.siegmar.fastcsv.writer.CsvWriter;
-import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -51,8 +49,6 @@ import java.util.Set;
 import net.minidev.json.JSONStyle;
 import net.minidev.json.JSONValue;
 import net.minidev.json.parser.JSONParser;
-import net.minidev.json.reader.JsonWriter;
-import net.minidev.json.reader.JsonWriterI;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
@@ -66,17 +62,7 @@ public class JsonUtils {
         // only static methods
     }
 
-    private static class JsValueWriter implements JsonWriterI<JsValue> {
-
-        @Override
-        public <E extends JsValue> void writeJSONString(E value, Appendable out, JSONStyle compression) throws IOException {
-            JsonWriter.toStringWriter.writeJSONString("\"#" + value.type + "\"", out, compression);
-        }
-
-    }
-
     static {
-        JSONValue.registerWriter(JsValue.class, new JsValueWriter());
         // ensure that even if jackson (databind?) is on the classpath, don't switch provider
         Configuration.setDefaults(new Configuration.Defaults() {
             private final JsonProvider jsonProvider = new JsonSmartJsonProvider();
@@ -129,6 +115,15 @@ public class JsonUtils {
 
     public static Object fromJson(String json) {
         return JSONValue.parse(json);
+    }
+
+    public static Object fromJsonStrict(String json) {
+        JSONParser parser = new JSONParser(JSONParser.MODE_RFC4627);
+        try {
+            return parser.parse(json.trim());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static Object fromJson(String s, String className) {
@@ -319,8 +314,11 @@ public class JsonUtils {
         } else if (o instanceof String) {
             String value = (String) o;
             sb.append('"').append(escapeValue(value)).append('"');
-        } else {
+        } else if (o instanceof Number || o instanceof Boolean) {
             sb.append(o);
+        } else { // TODO custom writers ?
+            String value = o.toString();
+            sb.append('"').append(escapeValue(value)).append('"');
         }
     }
 

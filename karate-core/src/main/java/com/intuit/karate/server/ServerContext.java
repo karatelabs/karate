@@ -237,7 +237,7 @@ public class ServerContext implements ProxyObject {
 
     private final Consumer<String> SWITCH_FUNCTION = s -> RequestCycle.get().setSwitchTemplate(s);
     private static final Supplier<String> UUID_FUNCTION = () -> java.util.UUID.randomUUID().toString();
-    private final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s);
+    private final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s, false);
     private final VarArgsFunction HTTP_FUNCTION; // set in constructor
 
     private static final BiFunction<Object, Object, Object> REMOVE_FUNCTION = (o, k) -> {

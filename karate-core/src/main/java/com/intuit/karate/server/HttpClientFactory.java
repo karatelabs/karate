@@ -23,18 +23,17 @@
  */
 package com.intuit.karate.server;
 
-import com.intuit.karate.runtime.Config;
+import com.intuit.karate.runtime.ScenarioEngine;
 
 /**
  *
  * @author pthomas3
  */
-public interface HttpClient {
-
-    void setConfig(Config config, String keyThatChanged);
-
-    Config getConfig();
-
-    Response invoke(HttpRequest request);
-
+@FunctionalInterface
+public interface HttpClientFactory {
+    
+    public static final HttpClientFactory DEFAULT = engine -> new ArmeriaHttpClient(engine.getConfig(), engine.logger);
+    
+    HttpClient create(ScenarioEngine engine);
+    
 }

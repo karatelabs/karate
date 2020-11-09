@@ -79,20 +79,20 @@ public class ScenarioActions implements Actions {
     
     @Override
     @When("^path (.+)")
-    public void path(List<String> paths) {
-        engine.path(paths);
+    public void path(String exp) {
+        engine.path(exp);
     }
     
     @Override
     @When("^param ([^\\s]+) = (.+)")
-    public void param(String name, List<String> values) {
-        engine.param(name, values);
+    public void param(String name, String exp) {
+        engine.param(name, exp);
     }
     
     @Override
     @When("^params (.+)")
-    public void params(String expr) {
-        engine.params(expr);
+    public void params(String exp) {
+        engine.params(exp);
     }
     
     @Override
@@ -103,38 +103,38 @@ public class ScenarioActions implements Actions {
     
     @Override
     @When("^cookies (.+)")
-    public void cookies(String expr) {
-        engine.cookies(expr);
+    public void cookies(String exp) {
+        engine.cookies(exp);
     }
     
     @Override
     @When("^csv (.+) = (.+)")
-    public void csv(String name, String expression) {
-        engine.assign(AssignType.CSV, name, expression);
+    public void csv(String name, String exp) {
+        engine.assign(AssignType.CSV, name, exp);
     }
     
     @Override
     @When("^header ([^\\s]+) = (.+)")
-    public void header(String name, List<String> values) {
-        engine.header(name, values);
+    public void header(String name, String exp) {
+        engine.header(name, exp);
     }
     
     @Override
     @When("^headers (.+)")
-    public void headers(String expr) {
-        engine.headers(expr);
+    public void headers(String exp) {
+        engine.headers(exp);
     }
     
     @Override
     @When("^form field ([^\\s]+) = (.+)")
-    public void formField(String name, List<String> values) {
-        engine.formField(name, values);
+    public void formField(String name, String exp) {
+        engine.formField(name, exp);
     }
     
     @Override
     @When("^form fields (.+)")
-    public void formFields(String expr) {
-        engine.formFields(expr);
+    public void formFields(String exp) {
+        engine.formFields(exp);
     }
     
     @Override
@@ -179,68 +179,68 @@ public class ScenarioActions implements Actions {
     
     @Override
     @When("^def (.+) =$")
-    public void defDocstring(String name, String expression) {
-        engine.assign(AssignType.AUTO, name, expression);
+    public void defDocstring(String name, String exp) {
+        engine.assign(AssignType.AUTO, name, exp);
     }
     
     @Override
     @When("^def (\\w+) = (.+)")
-    public void def(String name, String expression) {
-        engine.assign(AssignType.AUTO, name, expression);
+    public void def(String name, String exp) {
+        engine.assign(AssignType.AUTO, name, exp);
     }
     
     @Override
     @When("^text (.+) =$")
-    public void text(String name, String expression) {
-        engine.assign(AssignType.TEXT, name, expression);
+    public void text(String name, String exp) {
+        engine.assign(AssignType.TEXT, name, exp);
     }
     
     @Override
     @When("^yaml (.+) = (.+)")
-    public void yaml(String name, String expression) {
-        engine.assign(AssignType.YAML, name, expression);
+    public void yaml(String name, String exp) {
+        engine.assign(AssignType.YAML, name, exp);
     }
     
     @Override
     @When("^copy (.+) = (.+)")
-    public void copy(String name, String expression) {
-        engine.assign(AssignType.COPY, name, expression);
+    public void copy(String name, String exp) {
+        engine.assign(AssignType.COPY, name, exp);
     }
     
     @Override
     @When("^json (.+) = (.+)")
-    public void json(String name, String expression) {
-        engine.assign(AssignType.JSON, name, expression);
+    public void json(String name, String exp) {
+        engine.assign(AssignType.JSON, name, exp);
     }
     
     @Override
     @When("^string (.+) = (.+)")
-    public void string(String name, String expression) {
-        engine.assign(AssignType.STRING, name, expression);
+    public void string(String name, String exp) {
+        engine.assign(AssignType.STRING, name, exp);
     }
     
     @Override
     @When("^xml (.+) = (.+)")
-    public void xml(String name, String expression) {
-        engine.assign(AssignType.XML, name, expression);
+    public void xml(String name, String exp) {
+        engine.assign(AssignType.XML, name, exp);
     }
     
     @Override
     @When("^xmlstring (.+) = (.+)")
-    public void xmlstring(String name, String expression) {
-        engine.assign(AssignType.XML_STRING, name, expression);
+    public void xmlstring(String name, String exp) {
+        engine.assign(AssignType.XML_STRING, name, exp);
     }
     
     @Override
     @When("^bytes (.+) = (.+)")
-    public void bytes(String name, String expression) {
-        engine.assign(AssignType.BYTE_ARRAY, name, expression);
+    public void bytes(String name, String exp) {
+        engine.assign(AssignType.BYTE_ARRAY, name, exp);
     }
     
     @Override
     @When("^assert (.+)")
-    public void assertTrue(String expression) {
-        engine.assertTrue(expression);
+    public void assertTrue(String exp) {
+        engine.assertTrue(exp);
     }
     
     @Override
@@ -275,8 +275,8 @@ public class ScenarioActions implements Actions {
     
     @Override
     @When("^multipart fields (.+)")
-    public void multipartFields(String expr) {
-        engine.multipartFields(expr);
+    public void multipartFields(String exp) {
+        engine.multipartFields(exp);
     }
     
     @Override
@@ -287,14 +287,14 @@ public class ScenarioActions implements Actions {
     
     @Override
     @When("^multipart files (.+)")
-    public void multipartFiles(String expr) {
-        engine.multipartFiles(expr);
+    public void multipartFiles(String exp) {
+        engine.multipartFiles(exp);
     }
     
     @Override
     @When("^print (.+)")
-    public void print(List<String> exps) {
-        engine.print(exps); // TODO refactor this to single line
+    public void print(String exp) {
+        engine.print(exp);
     }
     
     @Override
@@ -305,14 +305,14 @@ public class ScenarioActions implements Actions {
     
     @Override
     @When("^match (.+)(=|contains|any|only|deep)(.*)")
-    public void match(String expression, String op1, String op2, String rhs) {
+    public void match(String exp, String op1, String op2, String rhs) {
         if (op2 == null) {
             op2 = "";
         }
         if (rhs == null) {
             rhs = "";
         }
-        MatchStep m = new MatchStep(expression + op1 + op2 + rhs);
+        MatchStep m = new MatchStep(exp + op1 + op2 + rhs);
         engine.matchResult(m.type, m.name, m.path, m.expected);
     }
     
@@ -371,8 +371,8 @@ public class ScenarioActions implements Actions {
     
     @Override
     @When("^([\\w]+)([^\\s^\\w])(.+)")
-    public void eval(String name, String dotOrParen, String expression) {
-        engine.evalJs(name + dotOrParen + expression);
+    public void eval(String name, String dotOrParen, String exp) {
+        engine.evalJs(name + dotOrParen + exp);
     }
     
     @Override
@@ -385,14 +385,14 @@ public class ScenarioActions implements Actions {
     //
     @Override
     @When("^driver (.+)")
-    public void driver(String expression) {
-        engine.driver(expression);
+    public void driver(String exp) {
+        engine.driver(exp);
     }
     
     @Override
     @When("^robot (.+)")
-    public void robot(String expression) {
-        engine.robot(expression);
+    public void robot(String exp) {
+        engine.robot(exp);
     }
     
 }

@@ -50,7 +50,7 @@ public class ResponseBuilder {
     private byte[] body;
     private Set<Cookie> cookies;
     private Map<String, List<String>> headers;
-    private ResourceType resourceType = ResourceType.NONE;
+    private ResourceType resourceType = ResourceType.BINARY;
     private final ServerConfig config;
     private final ResourceResolver resourceResolver;
 

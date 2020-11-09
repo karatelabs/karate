@@ -81,14 +81,14 @@ public class StepActions implements Actions {
 
     @Override
     @When("^path (.+)")
-    public void path(List<String> paths) {
-        context.path(paths);
+    public void path(String exp) {
+        context.path(exp);
     }
 
     @Override
     @When("^param ([^\\s]+) = (.+)")
-    public void param(String name, List<String> values) {
-        context.param(name, values);
+    public void param(String name, String exp) {
+        context.param(name, exp);
     }
 
     @Override
@@ -117,8 +117,8 @@ public class StepActions implements Actions {
 
     @Override
     @When("^header ([^\\s]+) = (.+)")
-    public void header(String name, List<String> values) {
-        context.header(name, values);
+    public void header(String name, String exp) {
+        context.header(name, exp);
     }
 
     @Override
@@ -129,8 +129,8 @@ public class StepActions implements Actions {
 
     @Override
     @When("^form field ([^\\s]+) = (.+)")
-    public void formField(String name, List<String> values) {
-        context.formField(name, values);
+    public void formField(String name, String exp) {
+        context.formField(name, exp);
     }
 
     @Override
@@ -295,8 +295,8 @@ public class StepActions implements Actions {
 
     @Override
     @When("^print (.+)")
-    public void print(List<String> exps) {
-        context.print(exps);
+    public void print(String exp) {
+        context.print(exp);
     }
 
     @Override

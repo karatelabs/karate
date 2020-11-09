@@ -7,11 +7,10 @@ import com.intuit.karate.Resource;
 import com.intuit.karate.Runner;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.server.HttpClient;
+import com.intuit.karate.server.HttpClientFactory;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.HashMap;
-import java.util.function.Function;
 
 /**
  *
@@ -48,17 +47,16 @@ public class RuntimeUtils {
         return sg.next();
     }
 
-    public static ScenarioRuntime runScenario(Function<ScenarioEngine, HttpClient> clientFactory, String... lines) {
+    public static ScenarioRuntime runScenario(HttpClientFactory clientFactory, String... lines) {
         return run(clientFactory, toFeature(lines));
     }
 
-    public static ScenarioRuntime run(Function<ScenarioEngine, HttpClient> clientFactory, Feature feature) {
-        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature);
+    public static ScenarioRuntime run(HttpClientFactory clientFactory, Feature feature) {
+        Runner.Builder builder = new Runner.Builder();
+        builder.clientFactory(clientFactory);
+        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(builder), feature);
         ScenarioGenerator sg = new ScenarioGenerator(fr, feature.getSections().iterator());
         ScenarioRuntime sr = sg.next();
-        if (clientFactory != null) {
-            sr.engine.configure("clientFactory", new Variable(clientFactory));
-        }
         sr.run();
         return sr;
     }
@@ -66,7 +64,7 @@ public class RuntimeUtils {
     public static FeatureRuntime runFeature(String path) {
         return runFeature(path, null);
     }
-    
+
     public static FeatureRuntime runFeature(String path, String configDir) {
         Feature feature = FeatureParser.parse(path);
         Runner.Builder rb = new Runner.Builder();

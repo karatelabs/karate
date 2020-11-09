@@ -13,12 +13,7 @@ public class DummyClient implements HttpClient {
     private Config config = new Config();
 
     @Override
-    public void configChanged(String name) {
-
-    }
-
-    @Override
-    public void setConfig(Config config) {
+    public void setConfig(Config config, String key) {
         this.config = config;
     }
 

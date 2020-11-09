@@ -229,7 +229,7 @@ public class ScenarioContext {
 
     public URL getResource(String name) {
         return classLoader.getResource(name);
-    }       
+    }
 
     public InputStream getResourceAsStream(String name) {
         return classLoader.getResourceAsStream(name);
@@ -474,25 +474,6 @@ public class ScenarioContext {
         }
     }
 
-    private List<String> evalList(List<String> values) {
-        List<String> list = new ArrayList(values.size());
-        try {
-            for (String value : values) {
-                ScriptValue temp = Script.evalKarateExpression(value, this);
-                list.add(temp.getAsString());
-            }
-        } catch (Exception e) { // hack. for e.g. json with commas would land here
-            String joined = StringUtils.join(values, ',');
-            ScriptValue temp = Script.evalKarateExpression(joined, this);
-            if (temp.isListLike()) {
-                return temp.getAsList();
-            } else {
-                return Collections.singletonList(temp.getAsString());
-            }
-        }
-        return list;
-    }
-
     private Map<String, Object> evalMapExpr(String expr) {
         ScriptValue value = Script.evalKarateExpression(expr, this);
         if (!value.isMapLike()) {
@@ -591,25 +572,26 @@ public class ScenarioContext {
         request.setUrl(temp);
     }
 
-    public void path(List<String> paths) {
-        for (String path : paths) {
-            ScriptValue temp = Script.evalKarateExpression(path, this);
-            if (temp.isListLike()) {
-                List list = temp.getAsList();
-                for (Object o : list) {
-                    if (o == null) {
-                        continue;
-                    }
-                    request.addPath(o.toString());
+    public void path(String exp) {
+        ScriptValue value = Script.evalKarateExpression(exp, this);
+        if (value.isListLike()) {
+            for (Object p : value.getAsList()) {
+                if (p != null) {
+                    request.addPath(p.toString());
                 }
-            } else {
-                request.addPath(temp.getAsString());
             }
+        } else {
+            request.addPath(value.getAsString());
         }
     }
 
-    public void param(String name, List<String> values) {
-        request.setParam(name, evalList(values));
+    public void param(String name, String exp) {
+        ScriptValue value = Script.evalKarateExpression(exp, this);
+        if (value.isListLike()) {
+            request.setParam(name, value.getAsList());
+        } else {
+            request.setParam(name, value.getAsString());
+        }
     }
 
     public void params(String expr) {
@@ -667,8 +649,13 @@ public class ScenarioContext {
         }
     }
 
-    public void header(String name, List<String> values) {
-        request.setHeader(name, evalList(values));
+    public void header(String name, String exp) {
+        ScriptValue value = Script.evalKarateExpression(exp, this);
+        if (value.isListLike()) {
+            request.setHeader(name, value.getAsList());
+        } else {
+            request.setHeader(name, value.getAsString());
+        }
     }
 
     public void headers(String expr) {
@@ -688,8 +675,13 @@ public class ScenarioContext {
         }
     }
 
-    public void formField(String name, List<String> values) {
-        request.setFormField(name, evalList(values));
+    public void formField(String name, String exp) {
+        ScriptValue value = Script.evalKarateExpression(exp, this);
+        if (value.isListLike()) {
+            request.setFormField(name, value.getAsList());
+        } else {
+            request.setFormField(name, value.getAsString());
+        }
     }
 
     public void formFields(String expr) {
@@ -879,33 +871,8 @@ public class ScenarioContext {
         });
     }
 
-    public void print(List<String> exps) {
-        if (isPrintEnabled()) {
-            String prev = ""; // handle rogue commas embedded in string literals
-            StringBuilder sb = new StringBuilder();
-            sb.append("[print]");
-            for (String exp : exps) {
-                if (!prev.isEmpty()) {
-                    exp = prev + StringUtils.trimToNull(exp);
-                }
-                if (exp == null) {
-                    sb.append("null");
-                } else {
-                    ScriptValue sv = Script.getIfVariableReference(exp.trim(), this); // trim is important
-                    if (sv == null) {
-                        try {
-                            sv = Script.evalJsExpression(exp, this);
-                            prev = ""; // evalKarateExpression success, reset rogue comma detector
-                        } catch (Exception e) {
-                            prev = exp + ", ";
-                            continue;
-                        }
-                    }
-                    sb.append(' ').append(sv.getAsPrettyString());
-                }
-            }
-            logger.info("{}", sb);
-        }
+    public void print(String exp) {
+        logger.info("TODO print", exp);
     }
 
     public void status(int status) {

@@ -236,20 +236,23 @@ public class JsValue {
         }
     }
 
-    public static Object fromBytes(byte[] bytes) {
+    public static Object fromBytes(byte[] bytes, boolean jsonStrict) {
         if (bytes == null) {
             return null;
         }
         String raw = FileUtils.toString(bytes);
-        return fromString(raw);
+        return fromString(raw, jsonStrict);
     }
 
-    public static Object fromString(String raw) {
-        char firstChar = raw.trim().charAt(0);
-        switch (firstChar) {
+    public static Object fromString(String raw, boolean jsonStrict) {
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty()) {
+            return raw;
+        }
+        switch (trimmed.charAt(0)) {
             case '{':
             case '[':
-                return JsonUtils.fromJson(raw);
+                return jsonStrict ? JsonUtils.fromJsonStrict(raw) : JsonUtils.fromJson(raw);
             case '<':
                 return XmlUtils.toXmlDoc(raw);
             default:
@@ -259,7 +262,7 @@ public class JsValue {
 
     public static Object fromStringSafe(String raw) {
         try {
-            return fromString(raw);
+            return fromString(raw, false);
         } catch (Exception e) {
             logger.trace("failed to auto convert: {}", e + "");
             return raw;

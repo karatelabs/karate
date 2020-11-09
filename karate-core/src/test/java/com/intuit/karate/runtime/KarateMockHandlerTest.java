@@ -3,7 +3,7 @@ package com.intuit.karate.runtime;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import static com.intuit.karate.runtime.RuntimeUtils.runScenario;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +38,7 @@ class KarateMockHandlerTest {
         handler = new MockHandler(mock.build());
         MockClient client = new MockClient(handler);
         runtime = runScenario(e -> client, lines);
+        assertFalse(runtime.isFailed(), runtime.result.getFailureMessageForDisplay());
         return runtime;
     }
 
@@ -61,7 +62,35 @@ class KarateMockHandlerTest {
                 "method get"
         );
         matchVar("response", "hello world");
-    }    
+    }
+
+    @Test
+    void testSimplePost() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestHeaders");
+        run(
+                URL_STEP,
+                "path '/hello'",
+                "request { foo: 'bar' }",
+                "method post"
+        );
+        matchVar("response", "{ 'Content-Type': ['application/json; charset=UTF-8'] }");
+    }
+    
+    @Test
+    void testPathSubstitution() {
+        background().scenario(
+                "pathMatches('/hello/{id}')",
+                "def response = pathParams");
+        run(
+                URL_STEP,
+                "def id = 42",
+                "path 'hello', id",
+                "method get"
+        );
+        matchVar("response", "{ id: '42' }");        
+    }
 
     @Test
     void testParam() {
@@ -90,9 +119,9 @@ class KarateMockHandlerTest {
         );
         matchVar("response", "{ foo: ['bar'] }");
     }
-    
+
     @Test
-    void testParamWithCommas() {
+    void testParamWithEmbeddedCommas() {
         background().scenario(
                 "pathMatches('/hello')",
                 "def response = requestParams");
@@ -103,8 +132,22 @@ class KarateMockHandlerTest {
                 "method get"
         );
         matchVar("response", "{ foo: ['bar,baz'] }");
-    }    
+    }
     
+    @Test
+    void testParamMultiValue() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestParams");
+        run(
+                URL_STEP,
+                "param foo = ['bar', 'baz']",
+                "path '/hello'",
+                "method get"
+        );
+        matchVar("response", "{ foo: ['bar', 'baz'] }");        
+    }
+
     @Test
     void testHeaders() {
         background().scenario(
@@ -117,8 +160,52 @@ class KarateMockHandlerTest {
                 "method get"
         );
         matchVar("response", "{ foo: ['bar'] }");
-    }    
+    }
 
+    @Test
+    void testHeaderMultiValue() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestHeaders");
+        run(
+                URL_STEP,
+                "path '/hello'",
+                "def fun = function(arg){ return [arg.first, arg.second] }",
+                "header Authorization = call fun { first: 'foo', second: 'bar' }",
+                "method get"
+        );
+        matchVar("response", "{ Authorization: ['foo', 'bar'] }");
+    }
+
+    @Test
+    void testRequestContentTypeForJson() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestHeaders");
+        run(
+                URL_STEP,
+                "path '/hello'",
+                "request { foo: 'bar' }",
+                "method post"
+        );
+        matchVar("response", "{ 'Content-Type': ['application/json; charset=UTF-8'] }"); 
+    }
+    
+    @Test
+    void testResponseContentTypeForJson() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = { foo: 'bar'}");
+        run(
+                URL_STEP,
+                "path '/hello'",
+                "method get",
+                "match responseHeaders == { 'Content-Type': ['application/json'] }",
+                "match header content-type == 'application/json'",
+                "match header content-type contains 'json'"
+        );
+    }    
+    
     @Test
     void testCookie() {
         background().scenario(
@@ -180,7 +267,7 @@ class KarateMockHandlerTest {
         );
         matchVar("response", "{}");
     }
-    
+
     @Test
     void testFormFieldGet() {
         background().scenario(
@@ -192,9 +279,9 @@ class KarateMockHandlerTest {
                 "path '/hello'",
                 "method get"
         );
-        matchVar("response", "{ foo: ['bar'] }");        
+        matchVar("response", "{ foo: ['bar'] }");
     }
-    
+
     @Test
     void testFormFieldPost() {
         background().scenario(
@@ -206,7 +293,7 @@ class KarateMockHandlerTest {
                 "path '/hello'",
                 "method post"
         );
-        matchVar("response", "foo=bar");        
+        matchVar("response", "foo=bar");
     }
 
     @Test
@@ -220,9 +307,9 @@ class KarateMockHandlerTest {
                 "path '/hello'",
                 "method post"
         );
-        matchVar("response", "{ foo: ['bar'] }");         
+        matchVar("response", "{ foo: ['bar'] }");
     }
-    
+
     @Test
     void testMultiPartFile() {
         background().scenario(
@@ -234,7 +321,7 @@ class KarateMockHandlerTest {
                 "path '/hello'",
                 "method post"
         );
-        matchVar("response", "{ foo: [{ name: 'foo', value: 'hello', contentType: 'text/plain', charset: 'UTF-8', filename: 'foo.txt', transferEncoding: '7bit' }] }");         
-    }    
+        matchVar("response", "{ foo: [{ name: 'foo', value: 'hello', contentType: 'text/plain', charset: 'UTF-8', filename: 'foo.txt', transferEncoding: '7bit' }] }");
+    }
 
 }

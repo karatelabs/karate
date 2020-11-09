@@ -19,7 +19,7 @@ public class MockClient implements HttpClient {
     }
 
     @Override
-    public void setConfig(Config config) {
+    public void setConfig(Config config, String key) {
         this.config = config;
     }
 
@@ -31,11 +31,6 @@ public class MockClient implements HttpClient {
     @Override
     public Response invoke(HttpRequest request) {
         return handler.handle(request.toRequest());
-    }
-
-    @Override
-    public void configChanged(String name) {
-
     }
 
 }

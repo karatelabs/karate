@@ -41,10 +41,12 @@ public enum ResourceType {
     PNG("image/png", vals("png"), vals("png")),
     GIF("image/gif", vals("gif"), vals("gif")),
     JPEG("image/jpeg", vals("jpeg", "jpg"), vals("jpeg", "jpg")),
+    PDF("application/pdf", vals("pdf"), vals("pdf")),
     HTML("text/html", vals("html"), vals("html", "htm")),
     XML("application/xml", vals("xml"), vals("xml")),
     TEXT("text/plain", vals("plain"), vals("txt")),
-    NONE("application/octet-stream", vals(), vals());
+    MULTIPART("multipart/form-data", vals("multipart"), vals()),
+    BINARY("application/octet-stream", vals("octet"), vals());
 
     private static String[] vals(String... values) {
         return values;
@@ -72,19 +74,19 @@ public enum ResourceType {
 
     public static ResourceType fromFileExtension(String path) {
         if (path == null) {
-            return NONE;
+            return BINARY;
         }
         int pos = path.lastIndexOf('.');
         if (pos == -1 || pos == path.length() - 1) {
-            return NONE;
+            return BINARY;
         }
         String extension = path.substring(pos + 1).trim().toLowerCase();
         ResourceType rt = EXTENSION_MAP.get(extension);
-        return rt == null ? NONE : rt;
+        return rt == null ? BINARY : rt;
     }
 
     public boolean isStatic() {
-        return this != NONE;
+        return this != BINARY;
     }
 
     public boolean isHtml() {
@@ -97,10 +99,12 @@ public enum ResourceType {
 
     public boolean isBinary() {
         switch (this) {
+            case BINARY:
             case ICO:
             case PNG:
             case GIF:
             case JPEG:
+            case PDF:
                 return true;
             default:
                 return false;
@@ -109,7 +113,7 @@ public enum ResourceType {
 
     public static ResourceType fromContentType(String ct) {
         if (ct == null) {
-            return NONE;
+            return null;
         }
         ct = ct.toLowerCase();
         for (ResourceType rt : ResourceType.values()) {
@@ -119,7 +123,7 @@ public enum ResourceType {
                 }
             }
         }
-        return NONE;
+        return null;
     }
 
     public static ResourceType fromObject(Object o) {
@@ -130,7 +134,7 @@ public enum ResourceType {
         } else if (o instanceof Node) {
             return XML;
         } else {
-            return NONE;
+            return BINARY;
         }
     }
 

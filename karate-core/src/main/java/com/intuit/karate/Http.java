@@ -47,15 +47,15 @@ public class Http {
         public Match body() {
             return match.get("response");
         }
-        
+
         public Match bodyBytes() {
             return match.eval("responseBytes");
-        }        
-        
+        }
+
         public Match jsonPath(String exp) {
             return body().jsonPath(exp);
         }
-        
+
         public String header(String name) {
             Map<String, Object> map = match.get("responseHeaders").asMap();
             List<String> headers = (List) map.get(name);
@@ -81,16 +81,14 @@ public class Http {
     }
 
     public Http path(String... paths) {
-        List<String> list = new ArrayList(paths.length);
         for (String p : paths) {
-            list.add(Match.quote(p));
+            match.context.path(Match.quote(p));
         }
-        match.context.path(list);
         return this;
     }
-    
+
     public Http header(String name, String value) {
-        match.context.header(name, Collections.singletonList(Match.quote(value)));
+        match.context.header(name, Match.quote(value));
         return this;
     }
 
@@ -112,7 +110,7 @@ public class Http {
     public Response post(String body) {
         return post(new Json(body));
     }
-    
+
     public Response post(byte[] bytes) {
         return post(new ScriptValue(bytes));
     }
@@ -140,16 +138,16 @@ public class Http {
         Http http = new Http(Match.forHttp(appender), url);
         return http.url(url);
     }
-    
+
     public static Http forUrl(ScenarioContext context, String url) {
         Http http = new Http(Match.forHttp(context), url);
         return http.url(url);
-    }    
+    }
 
     public Match config(String key, String value) {
         return match.config(key, value);
     }
-    
+
     public Match config(Map<String, Object> config) {
         return match.config(config);
     }

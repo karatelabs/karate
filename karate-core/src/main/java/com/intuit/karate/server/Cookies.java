@@ -33,6 +33,7 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,9 +100,9 @@ public class Cookies {
         if (path != null) {
             cookie.setPath(path);
         }
-        String maxAge = (String) map.get(MAX_AGE);
+        Object maxAge = map.get(MAX_AGE);
         if (maxAge != null) {
-            cookie.setMaxAge(Long.parseLong(maxAge));
+            cookie.setMaxAge(Long.parseLong(maxAge + ""));
         }
         Boolean secure = (Boolean) map.get(SECURE);
         if (secure != null) {
@@ -122,6 +123,29 @@ public class Cookies {
             cookie.setValue("");
         }
         return cookie;
+    }
+
+    public static Map<String, Map> normalize(Object mapOrList) {
+        Map<String, Map> cookies = new HashMap();
+        if (mapOrList instanceof Map) {
+            Map<String, Object> map = (Map) mapOrList;
+            map.forEach((k, v) -> {
+                if (v instanceof String) {
+                    Map<String, Object> cookie = new HashMap(2);
+                    cookie.put("name", k);
+                    cookie.put("value", v);
+                    cookies.put(k, cookie);
+                } else if (v instanceof Map) {
+                    Map<String, Object> cookie = (Map) v;
+                    cookie.put("name", k);
+                    cookies.put(k, cookie);
+                }
+            });
+        } else if (mapOrList instanceof List) {
+            List<Map> list = (List) mapOrList;
+            list.forEach(map -> cookies.put((String) map.get("name"), map));
+        }
+        return cookies;
     }
 
     private static boolean isCookieExpired(String expirationDate) {

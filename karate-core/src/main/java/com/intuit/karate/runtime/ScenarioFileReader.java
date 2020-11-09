@@ -81,6 +81,14 @@ public class ScenarioFileReader {
             return FileUtils.toBytes(is); // TODO stream
         }
     }
+    
+    public File relativePathToFile(String relativePath) {
+        return toResource(relativePath).getPath().toFile();
+    }
+    
+    public byte[] readFileAsBytes(String path) {
+        return FileUtils.toBytes(readFileAsStream(path));
+    }
 
     public String readFileAsString(String path) {
         return FileUtils.toString(readFileAsStream(path));

@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class FeatureFailRunner {
+class FeatureFailRunner {
 
     static final Logger logger = LoggerFactory.getLogger(FeatureFailRunner.class);
 

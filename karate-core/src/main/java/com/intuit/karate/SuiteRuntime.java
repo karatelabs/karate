@@ -27,11 +27,14 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.runtime.RuntimeHook;
 import com.intuit.karate.runtime.RuntimeHookFactory;
 import com.intuit.karate.runtime.Tags;
+import com.intuit.karate.server.HttpClientFactory;
 import java.io.File;
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 /**
  *
@@ -52,17 +55,20 @@ public class SuiteRuntime {
     public final Results results;
     public final Collection<RuntimeHook> hooks;
     public final RuntimeHookFactory hookFactory;
+    public final HttpClientFactory clientFactory;
 
     public final Map<String, Object> SUITE_CACHE = new HashMap();
 
     public final String karateConfigDir;
     public final String karateBase;
     public final String karateConfig;
+
     public String karateConfigEnv;
 
     private String read(String name) {
         try {
-            return Resource.relativePathToString(name);
+            Resource resource = new Resource(name, classLoader);
+            return resource.getAsString();
         } catch (Exception e) {
             logger.trace("file not found: {} - {}", name, e.getMessage());
             return null;
@@ -92,6 +98,8 @@ public class SuiteRuntime {
         hookFactory = rb.hookFactory;
         features = rb.resolveFeatures();
         results = Results.startTimer(threadCount);
+        results.setReportDir(reportDir); // TODO unify
+        clientFactory = rb.clientFactory == null ? resolveClientFactory() : rb.clientFactory;
         //======================================================================
         if (rb.forMock) { // don't show logs and confuse people
             karateBase = null;
@@ -155,6 +163,32 @@ public class SuiteRuntime {
         hooksResolved = true;
         hooks.add(hookFactory.create());
         return hooks;
+    }
+
+    private static final String KARATE_HTTP_PROPERTIES = "classpath:karate-http.properties";
+    private static final String CLIENT_FACTORY = "client.factory";
+
+    private HttpClientFactory resolveClientFactory() {
+        try {
+            Resource resource = new Resource(KARATE_HTTP_PROPERTIES, classLoader);
+            InputStream is = resource.getStream();
+            if (is == null) {
+                throw new RuntimeException(KARATE_HTTP_PROPERTIES + " not found");
+            }
+            Properties props = new Properties();
+            props.load(is);
+            String className = props.getProperty(CLIENT_FACTORY);
+            if (className == null) {
+                throw new RuntimeException("property " + CLIENT_FACTORY + " not found in " + KARATE_HTTP_PROPERTIES);
+            }
+            Class clazz = Class.forName(className);
+            HttpClientFactory factory = (HttpClientFactory) clazz.newInstance();
+            logger.info("using http client factory: {}", factory.getClass());
+            return factory;
+        } catch (Exception e) {
+            logger.warn("using built-in http client, {}", e.getMessage());
+            return HttpClientFactory.DEFAULT;
+        }
     }
 
 }

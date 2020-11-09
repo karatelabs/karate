@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2020 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,92 +23,91 @@
  */
 package com.intuit.karate.http.apache;
 
-import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.http.*;
+import com.intuit.karate.Logger;
+import com.intuit.karate.runtime.Config;
+import com.intuit.karate.runtime.ScenarioEngine;
+import com.intuit.karate.server.HttpClient;
+import com.intuit.karate.server.HttpLogger;
+import com.intuit.karate.server.HttpRequest;
+import com.intuit.karate.server.Response;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.ProxySelector;
+import java.net.SocketAddress;
+import java.net.URI;
+import java.security.KeyStore;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import javax.net.ssl.SSLContext;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpException;
 import org.apache.http.HttpHost;
-import org.apache.http.ParseException;
+import org.apache.http.HttpMessage;
+import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CookieStore;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.config.SocketConfig;
-import org.apache.http.conn.ssl.*;
-import org.apache.http.cookie.Cookie;
-import org.apache.http.impl.client.*;
+import org.apache.http.conn.ssl.LenientSslConnectionSocketFactory;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.conn.ssl.TrustAllStrategy;
+import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
+import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.apache.http.impl.conn.SystemDefaultRoutePlanner;
-import org.apache.http.impl.cookie.BasicClientCookie;
-import org.apache.http.protocol.BasicHttpContext;
+import org.apache.http.protocol.HttpContext;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 
-import javax.net.ssl.SSLContext;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.*;
-import java.nio.charset.Charset;
-import java.security.KeyStore;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeParseException;
-import java.util.*;
-import java.util.Map.Entry;
-
-import static com.intuit.karate.http.Cookie.*;
-
 /**
+ *
  * @author pthomas3
  */
-public class ApacheHttpClient extends HttpClient<HttpEntity> {
+public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
 
-    public static final String URI_CONTEXT_KEY = ApacheHttpClient.class.getName() + ".URI";
+    private final ScenarioEngine engine;
+    private final Logger logger;
 
-    private HttpClientBuilder clientBuilder;
-    private URIBuilder uriBuilder;
-    private RequestBuilder requestBuilder;
-    private CookieStore cookieStore;
-    private Charset charset;
-
-    private void build() {
-        try {
-            URI uri = uriBuilder.build();
-            String method = request.getMethod();
-            requestBuilder = RequestBuilder.create(method).setUri(uri);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    public ApacheHttpClient(ScenarioEngine engine) {
+        this.engine = engine;
+        logger = engine.logger;
+        httpLogger = new HttpLogger(logger);
+        configure(engine.getConfig());
     }
 
-    @Override
-    public void configure(Config config, ScenarioContext context) {
+    private HttpClientBuilder clientBuilder;
+    private final HttpLogger httpLogger;
+
+    private void configure(Config config) {
         clientBuilder = HttpClientBuilder.create();
-        charset = config.getCharset();
         if (!config.isFollowRedirects()) {
             clientBuilder.disableRedirectHandling();
         } else { // support redirect on POST by default
             clientBuilder.setRedirectStrategy(new LaxRedirectStrategy());
         }
         clientBuilder.useSystemProperties();
-        cookieStore = new BasicCookieStore();
-        clientBuilder.setDefaultCookieStore(cookieStore);
         clientBuilder.setDefaultCookieSpecRegistry(LenientCookieSpec.registry());
-        RequestLoggingInterceptor requestInterceptor = new RequestLoggingInterceptor(context);
-        clientBuilder.addInterceptorLast(requestInterceptor);
-        clientBuilder.addInterceptorLast(new ResponseLoggingInterceptor(requestInterceptor, context));
         if (config.isSslEnabled()) {
             // System.setProperty("jsse.enableSNIExtension", "false");
             String algorithm = config.getSslAlgorithm(); // could be null
-            KeyStore trustStore = HttpUtils.getKeyStore(context,
-                    config.getSslTrustStore(), config.getSslTrustStorePassword(), config.getSslTrustStoreType());
-            KeyStore keyStore = HttpUtils.getKeyStore(context,
-                    config.getSslKeyStore(), config.getSslKeyStorePassword(), config.getSslKeyStoreType());
+            KeyStore trustStore = engine.getKeyStore(config.getSslTrustStore(), config.getSslTrustStorePassword(), config.getSslTrustStoreType());
+            KeyStore keyStore = engine.getKeyStore(config.getSslKeyStore(), config.getSslKeyStorePassword(), config.getSslKeyStoreType());
             SSLContext sslContext;
             try {
                 SSLContextBuilder builder = SSLContexts.custom()
@@ -135,7 +134,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
                 }
                 clientBuilder.setSSLSocketFactory(socketFactory);
             } catch (Exception e) {
-                context.logger.error("ssl context init failed: {}", e.getMessage());
+                logger.error("ssl context init failed: {}", e.getMessage());
                 throw new RuntimeException(e);
             }
         }
@@ -148,7 +147,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
                 InetAddress localAddress = InetAddress.getByName(config.getLocalAddress());
                 configBuilder.setLocalAddress(localAddress);
             } catch (Exception e) {
-                context.logger.warn("failed to resolve local address: {} - {}", config.getLocalAddress(), e.getMessage());
+                logger.warn("failed to resolve local address: {} - {}", config.getLocalAddress(), e.getMessage());
             }
         }
         clientBuilder.setDefaultRequestConfig(configBuilder.build());
@@ -178,7 +177,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
 
                         @Override
                         public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
-                            context.logger.info("connect failed to uri: {}", uri, ioe);
+                            logger.info("connect failed to uri: {}", uri, ioe);
                         }
                     };
                     clientBuilder.setRoutePlanner(new SystemDefaultRoutePlanner(proxySelector));
@@ -187,125 +186,36 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
                 throw new RuntimeException(e);
             }
         }
+        clientBuilder.addInterceptorLast(this);
     }
 
     @Override
-    protected void buildUrl(String url) {
-        try {
-            uriBuilder = new URIBuilder(url);
-            build();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+    public void setConfig(Config config, String keyThatChanged) {
+        configure(config);
+    }
+
+    @Override
+    public Config getConfig() {
+        return engine.getConfig();
+    }
+
+    private HttpRequest request;
+
+    @Override
+    public Response invoke(HttpRequest request) {
+        this.request = request;
+        RequestBuilder requestBuilder = RequestBuilder.create(request.getMethod()).setUri(request.getUrl());
+        if (request.getHeaders() != null) {
+            request.getHeaders().forEach((k, vals) -> vals.forEach(v -> requestBuilder.addHeader(k, v)));
         }
-    }
-
-    @Override
-    protected void buildPath(String path) {
-        String temp = uriBuilder.getPath();
-        if (temp == null) {
-            temp = "";
+        if (request.getBody() != null) {
+            requestBuilder.setEntity(new ByteArrayEntity(request.getBody()));
         }
-        if (!temp.endsWith("/")) {
-            temp = temp + "/";
-        }
-        if (path.startsWith("/")) {
-            path = path.substring(1);
-        }
-        uriBuilder.setPath(temp + path);
-        build();
-    }
-
-    @Override
-    protected void buildParam(String name, Object... values) {
-        if (values.length == 1) {
-            Object v = values[0];
-            if (v != null) {
-                uriBuilder.setParameter(name, v.toString());
-            }
-        } else {
-            Arrays.stream(values)
-                    .filter(Objects::nonNull)
-                    .forEach(o -> uriBuilder.addParameter(name, o.toString()));
-        }
-        build();
-    }
-
-    @Override
-    protected void buildHeader(String name, Object value, boolean replace) {
-        if (replace) {
-            requestBuilder.removeHeaders(name);
-        }
-        requestBuilder.addHeader(name, value == null ? null : value.toString());
-    }
-
-    @Override
-    protected void buildCookie(com.intuit.karate.http.Cookie c) {
-        BasicClientCookie cookie = new BasicClientCookie(c.getName(), c.getValue());
-        for (Entry<String, String> entry : c.entrySet()) {
-            switch (entry.getKey()) {
-                case DOMAIN:
-                    cookie.setDomain(entry.getValue());
-                    break;
-                case PATH:
-                    cookie.setPath(entry.getValue());
-                    break;
-                case EXPIRES: // add expires field for cookie.
-                    try {
-                        cookie.setExpiryDate(Date.from(ZonedDateTime.parse(entry.getValue(), DTFMTR_RFC1123).toInstant()));
-                    }
-                    catch ( DateTimeParseException ex)
-                    {
-                        System.err.println("ex ->" + ex.getLocalizedMessage());
-                    }
-                    break;
-                case MAX_AGE: // set max age
-                    int maxAge = Integer.parseInt(entry.getValue());
-                    if (maxAge >= 0) { // only for valid maxAge for cookie expiration.
-                        cookie.setExpiryDate(new Date(System.currentTimeMillis() + (maxAge * 1000)));
-                    }
-                    break;
-            }
-        }
-        if (cookie.getDomain() == null) {
-            cookie.setDomain(uriBuilder.getHost());
-        }
-        cookieStore.addCookie(cookie);
-    }
-
-    @Override
-    protected HttpEntity getEntity(List<MultiPartItem> items, String mediaType) {
-        return ApacheHttpUtils.getEntity(items, mediaType, charset);
-    }
-
-    @Override
-    protected HttpEntity getEntity(MultiValuedMap fields, String mediaType) {
-        return ApacheHttpUtils.getEntity(fields, mediaType, charset);
-    }
-
-    @Override
-    protected HttpEntity getEntity(String value, String mediaType) {
-        return ApacheHttpUtils.getEntity(value, mediaType, charset);
-    }
-
-    @Override
-    protected HttpEntity getEntity(InputStream value, String mediaType) {
-        return ApacheHttpUtils.getEntity(value, mediaType, charset);
-    }
-
-    @Override
-    protected HttpResponse makeHttpRequest(HttpEntity entity, ScenarioContext context) {
-        if (entity != null) {
-            requestBuilder.setEntity(entity);
-            requestBuilder.setHeader(entity.getContentType());
-        }
-        HttpUriRequest httpRequest = requestBuilder.build();
         CloseableHttpClient client = clientBuilder.build();
-        BasicHttpContext httpContext = new BasicHttpContext();
-        httpContext.setAttribute(URI_CONTEXT_KEY, getRequestUri());
         CloseableHttpResponse httpResponse;
         byte[] bytes;
         try {
-            httpResponse = client.execute(httpRequest, httpContext);
+            httpResponse = client.execute(requestBuilder.build());
             HttpEntity responseEntity = httpResponse.getEntity();
             if (responseEntity == null || responseEntity.getContent() == null) {
                 bytes = new byte[0];
@@ -313,47 +223,36 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
                 InputStream is = responseEntity.getContent();
                 bytes = FileUtils.toBytes(is);
             }
+            request.setEndTimeMillis(System.currentTimeMillis());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        HttpRequest actualRequest = context.getPrevRequest();
-        HttpResponse response = new HttpResponse(actualRequest.getStartTime(), actualRequest.getEndTime());
-        response.setUri(getRequestUri());
-        response.setBody(bytes);
-        response.setStatus(httpResponse.getStatusLine().getStatusCode());
-        for (Cookie c : cookieStore.getCookies()) {
-            com.intuit.karate.http.Cookie cookie = new com.intuit.karate.http.Cookie(c.getName(), c.getValue());
-            // while preparing the cookie in buildCookie method we used a BasicClientCookie. This conversion ensures we get path correctly.
-            BasicClientCookie cc = (BasicClientCookie) c;
-            cookie.put(DOMAIN, cc.getDomain());
-            cookie.put(PATH, cc.getPath());
-            if (c.getExpiryDate() != null) {
-                cookie.put(EXPIRES, c.getExpiryDate().getTime() + "");
-            }
-            cookie.put(PERSISTENT, c.isPersistent() + "");
-            cookie.put(SECURE, c.isSecure() + "");
-            response.addCookie(cookie);
-        }
-        cookieStore.clear(); // we rely on the StepDefs for cookie 'persistence'
-        for (Header header : httpResponse.getAllHeaders()) { // rely on setting cookies from set-cookie header, else these will be skipped.
-            if( header.getName().equalsIgnoreCase("Set-Cookie"))
-            {
-                List<HttpCookie> cookieMap = HttpCookie.parse(header.getValue());
-                cookieMap.forEach( ck -> {
-                    com.intuit.karate.http.Cookie cookie = new com.intuit.karate.http.Cookie(ck.getName(), ck.getValue());
-                    cookie.put(DOMAIN, ck.getDomain());
-                    cookie.put(PATH, null != ck.getPath() ? ck.getPath() : "/"); // lets make sure path is not null.
-                    cookie.put(MAX_AGE, ck.getMaxAge() + "");
-                });
-            }
-            response.addHeader(header.getName(), header.getValue());
-        }
+        Map<String, List<String>> headers = toHeaders(httpResponse);
+        Response response = new Response(httpResponse.getStatusLine().getStatusCode(), headers, bytes);
+        httpLogger.logResponse(getConfig(), request, response);
         return response;
     }
 
     @Override
-    protected String getRequestUri() {
-        return requestBuilder.getUri().toString();
+    public void process(org.apache.http.HttpRequest hr, HttpContext hc) throws HttpException, IOException {
+        request.setHeaders(toHeaders(hr));
+        httpLogger.logRequest(getConfig(), request);
+        request.setStartTimeMillis(System.currentTimeMillis());
+    }
+
+    private static Map<String, List<String>> toHeaders(HttpMessage msg) {
+        Header[] headers = msg.getAllHeaders();
+        Map<String, List<String>> map = new LinkedHashMap(headers.length);
+        for (Header outer : headers) {
+            String name = outer.getName();
+            Header[] inner = msg.getHeaders(name);
+            List<String> list = new ArrayList(inner.length);
+            for (Header h : inner) {
+                list.add(h.getValue());
+            }
+            map.put(name, list);
+        }
+        return map;
     }
 
 }

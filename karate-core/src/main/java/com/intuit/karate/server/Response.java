@@ -143,7 +143,7 @@ public class Response implements ProxyObject {
             return body;
         }
         try {
-            return JsValue.fromBytes(body);
+            return JsValue.fromBytes(body, false);
         } catch (Exception e) {
             logger.trace("failed to auto-convert response: {}", e);
             return getBodyAsString();
@@ -175,6 +175,10 @@ public class Response implements ProxyObject {
 
     public String getContentType() {
         return getHeader(HttpConstants.HDR_CONTENT_TYPE);
+    }
+    
+    public void setContentType(String contentType) {
+        setHeader(HttpConstants.HDR_CONTENT_TYPE, contentType);
     }
 
     public void setHeader(String name, List<String> values) {
@@ -235,7 +239,7 @@ public class Response implements ProxyObject {
                 return getBodyConverted();
             case DATA_TYPE:
                 ResourceType rt = getResourceType();
-                if (rt == null || rt == ResourceType.NONE) {
+                if (rt == null || rt == ResourceType.BINARY) {
                     return null;
                 }
                 return rt.name().toLowerCase();
@@ -278,7 +282,7 @@ public class Response implements ProxyObject {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("[status: ").append(status);
-        if (resourceType != null && resourceType != ResourceType.NONE) {
+        if (resourceType != null && resourceType != ResourceType.BINARY) {
             sb.append(", type: ").append(resourceType);
         }
         if (body != null) {

@@ -256,7 +256,7 @@ public class Request implements ProxyObject {
             return body;
         }
         try {
-            return JsValue.fromBytes(body);
+            return JsValue.fromBytes(body, false);
         } catch (Exception e) {
             logger.trace("failed to auto-convert response: {}", e);
             return getBodyAsString();

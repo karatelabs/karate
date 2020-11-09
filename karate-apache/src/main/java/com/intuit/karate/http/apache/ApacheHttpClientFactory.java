@@ -21,20 +21,21 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.server;
+package com.intuit.karate.http.apache;
 
-import com.intuit.karate.runtime.Config;
+import com.intuit.karate.runtime.ScenarioEngine;
+import com.intuit.karate.server.HttpClient;
+import com.intuit.karate.server.HttpClientFactory;
 
 /**
  *
  * @author pthomas3
  */
-public interface HttpClient {
+public class ApacheHttpClientFactory implements HttpClientFactory {
 
-    void setConfig(Config config, String keyThatChanged);
-
-    Config getConfig();
-
-    Response invoke(HttpRequest request);
+    @Override
+    public HttpClient create(ScenarioEngine engine) {
+        return new ApacheHttpClient(engine);
+    }
 
 }

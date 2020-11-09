@@ -31,12 +31,16 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class Json {
+
+    private static final Logger logger = LoggerFactory.getLogger(Json.class);
 
     private final DocumentContext doc;
     private final boolean array;
@@ -66,8 +70,17 @@ public class Json {
         this(JsonPath.parse(o));
     }
 
+    private static String toJsonString(Object o) {
+        try {
+            return JsonUtils.toJson(o);
+        } catch (Throwable t) {
+            logger.warn("object to json serialization failure, trying alternate approach: {}", t.getMessage());
+            return JsonUtils.toJsonSafe(o, false);
+        }
+    }
+
     public Json(Object o) {
-        this(JsonUtils.toJson(o));
+        this(toJsonString(o));
     }
 
     private Json(DocumentContext doc) {

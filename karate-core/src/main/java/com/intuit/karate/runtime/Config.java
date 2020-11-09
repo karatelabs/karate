@@ -28,12 +28,11 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.driver.DockerTarget;
 import com.intuit.karate.driver.Target;
 import com.intuit.karate.http.HttpLogModifier;
-import com.intuit.karate.server.ArmeriaHttpClient;
-import com.intuit.karate.server.HttpClient;
+import com.intuit.karate.server.Cookies;
+import com.intuit.karate.server.HttpClientFactory;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 
 /**
  *
@@ -72,12 +71,11 @@ public class Config {
     private boolean printEnabled = true;
     private boolean outlineVariablesAuto = true;
     private boolean abortedStepsShouldPass = false;
-    private Function<ScenarioEngine, HttpClient> clientFactory;
     private Target driverTarget;
     private Map<String, Object> driverOptions;
     private Map<String, Object> robotOptions; // TODO make generic plugin model
     private HttpLogModifier logModifier;
-    
+
     private Variable afterScenario = Variable.NULL;
     private Variable afterFeature = Variable.NULL;
     private Variable headers = Variable.NULL;
@@ -97,7 +95,7 @@ public class Config {
     private String callSingleCacheDir = FileUtils.getBuildDir();
 
     public Config() {
-        clientFactory = engine -> new ArmeriaHttpClient(engine.getConfig(), engine.logger);
+        // zero arg constructor
     }
 
     private static <T> T get(Map<String, Object> map, String key, T defaultValue) {
@@ -112,6 +110,9 @@ public class Config {
                 headers = value;
                 return false;
             case "cookies":
+                if (!value.isNull()) {
+                    value = new Variable(Cookies.normalize(value.getValue()));
+                }
                 cookies = value;
                 return false;
             case "responseHeaders":
@@ -196,9 +197,6 @@ public class Config {
                 charset = value.isNull() ? null : Charset.forName(value.getAsString());
                 return false;
             // here on the http client has to be re-constructed ================
-            case "clientFactory":
-                clientFactory = value.getValue();
-                return true;
             case "logModifier":
                 logModifier = value.getValue();
                 return true;
@@ -279,7 +277,6 @@ public class Config {
         logPrettyRequest = parent.logPrettyRequest;
         logPrettyResponse = parent.logPrettyResponse;
         printEnabled = parent.printEnabled;
-        clientFactory = parent.clientFactory;
         driverOptions = parent.driverOptions;
         robotOptions = parent.robotOptions;
         driverTarget = parent.driverTarget;
@@ -294,21 +291,13 @@ public class Config {
         callSingleCacheDir = parent.callSingleCacheDir;
         headers = parent.headers;
         cookies = parent.cookies;
-        responseHeaders = parent.responseHeaders;   
+        responseHeaders = parent.responseHeaders;
         afterScenario = parent.afterScenario;
-        afterFeature = parent.afterFeature;        
+        afterFeature = parent.afterFeature;
     }
 
     public void setCookies(Variable cookies) {
         this.cookies = cookies;
-    }
-
-    public void setClientFactory(Function<ScenarioEngine, HttpClient> clientFactory) {
-        this.clientFactory = clientFactory;
-    }
-
-    public Function<ScenarioEngine, HttpClient> getClientFactory() {
-        return clientFactory;
     }
 
     public boolean isSslEnabled() {

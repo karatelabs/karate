@@ -207,15 +207,4 @@ class JsonUtilsTest {
         Match.equals(doc, "[{ foo: 'goodbye', bar: '10', baz: 'true' }, { foo: 'cruel', bar: '20', baz: 'false' }, { foo: 'world', bar: '30', baz: 'true' }]");
     }
 
-    @Test
-    void testMalformed() {
-        String text = FileUtils.toString(getClass().getResourceAsStream("malformed.txt"));
-        try {
-            Object o = JsonUtils.toJsonDocStrict(text);
-            fail("we should not have reached here");
-        } catch (Exception e) {
-            assertTrue(e.getCause() instanceof ParseException);
-        }
-    }
-
 }

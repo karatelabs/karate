@@ -115,7 +115,7 @@ public class ScenarioGenerator implements Iterator<ScenarioRuntime> {
             Variable rowValue;
             if (expressionValue.isJsOrJavaFunction()) {
                 try {
-                    rowValue = ScenarioEngine.get().executeFunction(expressionValue.getValue(), rowIndex);
+                    rowValue = ScenarioEngine.get().executeFunction(expressionValue, rowIndex);
                 } catch (Exception e) {
                     String message = "dynamic function expression evaluation failed at index " + rowIndex + ": " + e.getMessage();
                     background.result.addFakeStepResult(message, e);

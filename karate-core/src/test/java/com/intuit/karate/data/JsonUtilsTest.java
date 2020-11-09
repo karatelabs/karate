@@ -1,5 +1,6 @@
 package com.intuit.karate.data;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.runtime.ComplexPojo;
@@ -7,6 +8,7 @@ import com.intuit.karate.runtime.SimplePojo;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import net.minidev.json.parser.ParseException;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 import org.slf4j.Logger;
@@ -80,5 +82,16 @@ class JsonUtilsTest {
         String json = JsonUtils.toJsonSafe(temp, false);        
         assertEquals("{\"two\":{\"one\":{\"two\":{\"one\":\"#ref:java.util.HashMap\"}}}}", json);
     }
+    
+    @Test
+    void testMalformed() {
+        String text = FileUtils.toString(getClass().getResourceAsStream("malformed.txt"));
+        try {
+            Object o = JsonUtils.fromJsonStrict(text);
+            fail("we should not have reached here");
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof ParseException);
+        }
+    }    
 
 }

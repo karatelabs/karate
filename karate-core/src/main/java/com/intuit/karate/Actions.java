@@ -38,23 +38,23 @@ public interface Actions {
     
     boolean isAborted();
 
-    void assertTrue(String expression);
+    void assertTrue(String exp);
 
     void call(String line);
 
     void callonce(String line);
     
-    void csv(String name, String expression);
+    void csv(String name, String exp);
 
-    void json(String name, String expression);
+    void json(String name, String exp);
 
-    void string(String name, String expression);
+    void string(String name, String exp);
 
-    void xml(String name, String expression);
+    void xml(String name, String exp);
 
-    void xmlstring(String name, String expression);
+    void xmlstring(String name, String exp);
     
-    void bytes(String name, String expression);
+    void bytes(String name, String exp);
 
     void configure(String key, String exp);
 
@@ -62,31 +62,31 @@ public interface Actions {
 
     void cookie(String name, String value);
 
-    void cookies(String expr);
+    void cookies(String exp);
 
-    void copy(String name, String expression);
+    void copy(String name, String exp);
 
-    void def(String name, String expression);
+    void def(String name, String exp);
 
-    void defDocstring(String name, String expression);
+    void defDocstring(String name, String exp);
 
     void eval(String exp);
 
     void evalDocstring(String exp);
     
-    void eval(String name, String dotOrParen, String expression);
+    void eval(String name, String dotOrParen, String exp);
     
-    void evalIf(String expression);
+    void evalIf(String exp);
     
-    void formField(String name, List<String> values);
+    void formField(String name, String exp);
 
-    void formFields(String expr);
+    void formFields(String exp);
 
-    void header(String name, List<String> values);
+    void header(String name, String exp);
 
-    void headers(String expr);
+    void headers(String exp);
 
-    void match(String expression, String op1, String op2, String rhs);        
+    void match(String exp, String op1, String op2, String rhs);        
 
     void method(String method);
     
@@ -94,21 +94,21 @@ public interface Actions {
 
     void multipartEntity(String value);
 
-    void multipartFiles(String expr);
+    void multipartFiles(String exp);
 
     void multipartField(String name, String value);
 
-    void multipartFields(String expr);
+    void multipartFields(String exp);
 
     void multipartFile(String name, String value);
 
-    void param(String name, List<String> values);
+    void param(String name, String exp);
 
-    void params(String expr);
+    void params(String exp);
 
-    void path(List<String> paths);
+    void path(String exp);
 
-    void print(List<String> exps);
+    void print(String exp);
 
     void remove(String name, String path);
 
@@ -132,16 +132,16 @@ public interface Actions {
 
     void table(String name, List<Map<String, String>> table);
 
-    void text(String name, String expression);
+    void text(String name, String exp);
 
-    void url(String expression);
+    void url(String exp);
     
-    void yaml(String name, String expression);        
+    void yaml(String name, String exp);        
     
     //==========================================================================
     //
-    void driver(String expression);
+    void driver(String exp);
     
-    void robot(String expression);
+    void robot(String exp);
 
 }

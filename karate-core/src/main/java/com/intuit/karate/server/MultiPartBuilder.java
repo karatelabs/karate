@@ -34,6 +34,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.multipart.HttpPostRequestEncoder;
 import io.netty.handler.codec.http.multipart.MemoryFileUpload;
+import java.io.File;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,7 +50,7 @@ public class MultiPartBuilder {
 
     private static final Logger logger = LoggerFactory.getLogger(MultiPartBuilder.class);
 
-    private final Charset defaultCharset;
+    private final HttpClient client;
     private final boolean multipart;
     private final HttpPostRequestEncoder encoder;
     private List<Part> formFields; // only for the edge case of GET
@@ -76,9 +77,9 @@ public class MultiPartBuilder {
         return multipart;
     }
 
-    public MultiPartBuilder(boolean multipart, Charset defaultCharset) {
+    public MultiPartBuilder(boolean multipart, HttpClient client) {
+        this.client = client;
         this.multipart = multipart;
-        this.defaultCharset = defaultCharset;
         DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.valueOf("POST"), "/");
         try {
             encoder = new HttpPostRequestEncoder(request, multipart);
@@ -98,7 +99,8 @@ public class MultiPartBuilder {
 
         Part(Map<String, Object> map) {
             name = (String) map.get("name");
-            value = map.get("value");
+            File file = (File) map.get("file");
+            value = file == null ? map.get("value") : file;
             contentType = (String) map.get("contentType");
             filename = (String) map.get("filename");
             transferEncoding = (String) map.get("transferEncoding");
@@ -158,22 +160,46 @@ public class MultiPartBuilder {
                     throw new RuntimeException(e);
                 }
             } else {
-                if (contentType == null) {
-                    contentType = ResourceType.fromObject(value).contentType;
-                }
-                byte[] bytes = value == null ? HttpConstants.ZERO_BYTES : JsValue.toBytes(value);
-                if (filename == null) {
-                    filename = ""; // will be treated as an inline value, behaves like null
-                }
-                if (charset == null) {
-                    charset = defaultCharset;
-                }
-                MemoryFileUpload item = new MemoryFileUpload(name, filename, contentType, transferEncoding, charset, bytes.length);
-                try {
-                    item.setContent(Unpooled.wrappedBuffer(bytes));
-                    encoder.addBodyHttpData(item);
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
+                if (value instanceof File) {
+                    File file = (File) value;
+                    if (filename == null) {
+                        filename = file.getName();
+                    }
+                    ResourceType resourceType;
+                    if (contentType == null) {
+                        resourceType = ResourceType.fromFileExtension(filename);
+                        contentType = resourceType.contentType;
+                    } else {
+                        resourceType = ResourceType.fromContentType(contentType);
+                        if (resourceType == null) {
+                            resourceType = ResourceType.BINARY;
+                        }
+                    }
+                    try {
+                        encoder.addBodyFileUpload(name, filename, file, contentType, !resourceType.isBinary());
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                } else {
+                    if (charset == null && client != null) { // TODO client null for unit test
+                        charset = client.getConfig().getCharset();
+                    }
+                    if (contentType == null) {
+                        ResourceType rt = ResourceType.fromObject(value);
+                        contentType = rt.contentType;
+                    }
+                    byte[] encoded = value == null ? HttpConstants.ZERO_BYTES : JsValue.toBytes(value);
+                    if (filename == null) {
+                        filename = ""; // will be treated as an inline value, behaves like null
+                    }
+                    MemoryFileUpload item = new MemoryFileUpload(name, filename, contentType, transferEncoding, charset, encoded.length);
+                    try {
+                        item.setContent(Unpooled.wrappedBuffer(encoded));
+                        encoder.addBodyHttpData(item);
+                        logger.debug("multipart: {}", item);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
                 }
             }
             return MultiPartBuilder.this;
@@ -196,12 +222,11 @@ public class MultiPartBuilder {
             // logger.debug("content type header: {}", contentTypeHeader);
             ByteBuf content;
             if (multipart) {
-                HttpContent data = encoder.readChunk(ByteBufAllocator.DEFAULT);
-                if (data == null) {
-                    logger.warn("no multipart data to encode, returning zero bytes");
-                    return HttpConstants.ZERO_BYTES;
+                content = Unpooled.buffer();
+                HttpContent data;
+                while ((data = encoder.readChunk(ByteBufAllocator.DEFAULT)) != null) {
+                    content.writeBytes(data.content());
                 }
-                content = data.content();
             } else {
                 FullHttpRequest fullRequest = (FullHttpRequest) request;
                 content = fullRequest.content();

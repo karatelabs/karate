@@ -35,6 +35,7 @@ import com.intuit.karate.core.Subscriber;
 import com.intuit.karate.runtime.FeatureRuntime;
 import com.intuit.karate.runtime.RuntimeHook;
 import com.intuit.karate.runtime.RuntimeHookFactory;
+import com.intuit.karate.server.HttpClientFactory;
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -282,6 +283,7 @@ public class Runner {
         List<Feature> features;
         Collection<RuntimeHook> hooks;
         RuntimeHookFactory hookFactory;
+        HttpClientFactory clientFactory;
         boolean forMock;
 
         public List<Feature> resolveFeatures() {
@@ -456,6 +458,11 @@ public class Runner {
             return this;
         }
 
+        public Builder clientFactory(HttpClientFactory clientFactory) {
+            this.clientFactory = clientFactory;
+            return this;
+        }
+
         public Results parallel(int threadCount) {
             this.threadCount = threadCount;
             return Runner.parallel(this);
@@ -464,7 +471,7 @@ public class Runner {
         @Override
         public String toString() {
             return paths + "";
-        }                
+        }
 
     }
 

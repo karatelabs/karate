@@ -24,6 +24,7 @@
 package com.intuit.karate.server;
 
 import com.intuit.karate.Logger;
+import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.HttpLogModifier;
 import com.intuit.karate.runtime.Config;
 import com.intuit.karate.runtime.Variable;
@@ -79,7 +80,7 @@ public class HttpLogger {
 
     private static void logBody(Config config, HttpLogModifier logModifier,
             StringBuilder sb, String uri, Object body, boolean request) {
-        if (body == null || body instanceof byte[]) {
+        if (body == null) {
             return;
         }
         Variable v = new Variable(body);
@@ -100,6 +101,20 @@ public class HttpLogger {
         return logModifier == null ? null : logModifier.enableForUri(uri) ? logModifier : null;
     }
 
+    public static String getStatusFailureMessage(int expected, Config config, HttpRequest request, Response response) {
+        String url = request.getUrl();
+        HttpLogModifier logModifier = logModifier(config, url);
+        String maskedUrl = logModifier == null ? url : logModifier.uri(url);
+        String rawResponse = response.getBodyAsString();
+        if (rawResponse != null && logModifier != null) {
+            rawResponse = logModifier.response(url, rawResponse);
+        }
+        long responseTime = request.getEndTimeMillis() - request.getStartTimeMillis();
+        return "status code was: " + response.getStatus() + ", expected: " + expected
+                + ", response time in milliseconds: " + responseTime + ", url: " + maskedUrl
+                + ", response: \n" + rawResponse;
+    }
+
     public void logRequest(Config config, HttpRequest request) {
         requestCount++;
         String uri = request.getUrl();
@@ -109,7 +124,13 @@ public class HttpLogger {
         sb.append("request:\n").append(requestCount).append(" > ")
                 .append(request.getMethod()).append(' ').append(maskedUri).append('\n');
         logHeaders(requestCount, " > ", sb, requestModifier, request.getHeaders());
-        logBody(config, requestModifier, sb, uri, request.getBody(), true);
+        ResourceType rt = ResourceType.fromContentType(request.getContentType());
+        if (rt == null || rt.isBinary()) {
+            // don't log body
+        } else {
+            Object converted = JsValue.fromBytes(request.getBody(), false);
+            logBody(config, requestModifier, sb, uri, converted, true);
+        }
         logger.debug("{}", sb);
     }
 
@@ -122,8 +143,13 @@ public class HttpLogger {
         sb.append("response time in milliseconds: ").append(elapsedTime).append('\n');
         sb.append(requestCount).append(" < ").append(response.getStatus()).append('\n');
         logHeaders(requestCount, " < ", sb, responseModifier, response.getHeaders());
-        logBody(config, responseModifier, sb, uri, response.getBodyConverted(), false);
-        logger.debug("{}", sb);
+        ResourceType rt = response.getResourceType();
+        if (rt == null || rt.isBinary()) {
+            // don't log body
+        } else {
+            logBody(config, responseModifier, sb, uri, response.getBodyConverted(), false);
+        }
+        logger.debug("{}\n", sb);
     }
 
 }

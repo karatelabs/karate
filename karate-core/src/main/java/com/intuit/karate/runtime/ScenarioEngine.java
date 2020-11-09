@@ -48,15 +48,20 @@ import com.intuit.karate.match.MatchValue;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
 import com.intuit.karate.server.ArmeriaHttpClient;
+import com.intuit.karate.server.Cookies;
 import com.intuit.karate.server.HttpClient;
 import com.intuit.karate.server.HttpConstants;
+import com.intuit.karate.server.HttpLogger;
 import com.intuit.karate.server.HttpRequest;
 import com.intuit.karate.server.HttpRequestBuilder;
 import com.intuit.karate.server.Request;
+import com.intuit.karate.server.ResourceType;
 import com.intuit.karate.server.Response;
 import com.intuit.karate.shell.Command;
 import com.jayway.jsonpath.PathNotFoundException;
 import java.io.File;
+import java.io.InputStream;
+import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -250,11 +255,11 @@ public class ScenarioEngine {
         }
     }
 
-    public void print(List<String> exps) {
+    public void print(String exp) {
         if (!config.isPrintEnabled()) {
             return;
         }
-        evalJs("karate.log('[print]'," + StringUtils.join(exps, ',') + ")");
+        evalJs("karate.log('[print]'," + exp + ")");
     }
 
     public void invokeAfterHookIfConfigured(boolean afterFeature) {
@@ -364,8 +369,7 @@ public class ScenarioEngine {
         // if next line returns true, http-client (may) need re-building
         if (config.configure(key, v)) {
             if (http != null) {
-                http.client.setConfig(config);
-                http.client.configChanged(key);
+                http.client.setConfig(config, key);
             }
         }
     }
@@ -379,8 +383,7 @@ public class ScenarioEngine {
     public void setConfig(Config config) {
         this.config = config;
         if (http != null) {
-            http.client.setConfig(config);
-            http.client.configChanged(null);
+            http.client.setConfig(config, null);
         }
     }
 
@@ -415,38 +418,37 @@ public class ScenarioEngine {
         http.url(evalAsString(exp));
     }
 
-    public void path(List<String> paths) {
-        for (String path : paths) {
-            http.path(evalAsString(path));
+    public void path(String exp) {
+        List list = evalJs("[" + exp + "]").getValue();
+        for (Object o : list) {
+            if (o != null) {
+                http.path(o.toString());
+            }
         }
     }
 
-    public void param(String name, List<String> exps) {
-        List<String> values = new ArrayList(exps.size());
-        if (exps.size() > 1) {
-            String first = exps.get(0);
-            if (first.startsWith("'") || first.startsWith("\"")) {
-                // special case, commas within string
-                String temp = StringUtils.join(exps, ',');
-                exps = Collections.singletonList(temp);
-            }
+    // TODO document that for params and headers, lists are supported but
+    // enclosed in square brackets
+    public void param(String name, String exp) {
+        Variable var = evalJs(exp);
+        if (var.isList()) {
+            http.param(name, var.<List>getValue());
+        } else {
+            http.param(name, var.getAsString());
         }
-        for (String exp : exps) {
-            values.add(evalAsString(exp));
-        }
-        http.param(name, values);
     }
 
     public void params(String expr) {
         evalAsMap(expr, (k, v) -> http.param(k, v));
     }
 
-    public void header(String name, List<String> exps) {
-        List<String> values = new ArrayList(exps.size());
-        for (String exp : exps) {
-            values.add(evalAsString(exp));
+    public void header(String name, String exp) {
+        Variable var = evalKarateExpression(exp);
+        if (var.isList()) {
+            http.header(name, var.<List>getValue());
+        } else {
+            http.header(name, var.getAsString());
         }
-        http.header(name, values);
     }
 
     public void headers(String expr) {
@@ -467,28 +469,29 @@ public class ScenarioEngine {
     // TODO document new options, [name = map | cookies listOfMaps]
     public void cookies(String exp) {
         Variable var = evalKarateExpression(exp);
-        if (var.isMap()) {
-            Map<String, Object> map = var.getValue();
-            map.forEach((k, v) -> {
-                if (v instanceof String) {
-                    http.cookie(k, (String) v);
-                } else if (v instanceof Map) {
-                    Map<String, Object> temp = (Map) v;
-                    temp.put("name", k);
-                    http.cookie(map);
-                }
-            });
-        } else if (var.isList()) {
-            List<Map> list = var.getValue();
-            list.forEach(map -> http.cookie(map));
+        Map<String, Map> cookies = Cookies.normalize(var.getValue());
+        http.cookies(cookies.values());
+    }
+
+    private void updateConfigCookies(Map<String, Map> cookies) {
+        if (cookies == null) {
+            return;
+        }
+        if (config.getCookies().isNull()) {
+            config.setCookies(new Variable(cookies));
         } else {
-            logger.warn("did not evaluate to map or list {}: {}", exp, var);
+            Map<String, Map> map = getOrEvalAsMap(config.getCookies());
+            map.putAll(cookies);
+            config.setCookies(new Variable(map));
         }
     }
 
-    public void formField(String name, List<String> exps) {
-        for (String exp : exps) {
-            http.formField(name, evalKarateExpression(exp).getValue());
+    public void formField(String name, String exp) {
+        Variable var = evalKarateExpression(exp);
+        if (var.isList()) {
+            http.formField(name, var.<List>getValue());
+        } else {
+            http.formField(name, var.getAsString());
         }
     }
 
@@ -512,24 +515,26 @@ public class ScenarioEngine {
         multipartFiles(exp);
     }
 
-    private void multipart(String name, Object value) {
+    private void multiPartInternal(String name, Object value) {
         Map<String, Object> map = new HashMap();
-        map.put("name", name);
-        if (value instanceof String) {
-            map.put("value", (String) value);
-            http.multiPart(map);
-        } else if (value instanceof Map) {
+        if (name != null) {
+            map.put("name", name);
+        }
+        if (value instanceof Map) {
             map.putAll((Map) value);
+            String toRead = (String) map.get("read");
+            if (toRead != null) {
+                File file = fileReader.relativePathToFile(toRead);
+                map.put("file", file);
+            }
             http.multiPart(map);
+        } else if (value instanceof String) {
+            map.put("value", (String) value);
+            multiPartInternal(name, map);
         } else if (value instanceof List) {
             List list = (List) value;
             for (Object o : list) {
-                if (o instanceof Map) {
-                    map.putAll((Map) o);
-                } else {
-                    map.put("value", o);
-                }
-                http.multiPart(map);
+                multiPartInternal(null, o);
             }
         } else {
             logger.warn("did not evaluate to string, map or list {}: {}", name, value);
@@ -538,18 +543,18 @@ public class ScenarioEngine {
 
     public void multipartFile(String name, String exp) {
         Variable var = evalKarateExpression(exp);
-        multipart(name, var.getValue());
+        multiPartInternal(name, var.getValue());
     }
 
     public void multipartFiles(String exp) {
         Variable var = evalKarateExpression(exp);
         if (var.isMap()) {
             Map<String, Object> map = var.getValue();
-            map.forEach((k, v) -> multipart(k, v));
+            map.forEach((k, v) -> multiPartInternal(k, v));
         } else if (var.isList()) {
             List<Map> list = var.getValue();
             for (Map map : list) {
-                http.multiPart(map);
+                multiPartInternal(null, map);
             }
         } else {
             logger.warn("did not evaluate to map or list {}: {}", exp, var);
@@ -582,7 +587,7 @@ public class ScenarioEngine {
         http.method(method);
         httpInvoke();
     }
-
+    
     // extracted for mock proceed()
     private void httpInvoke() {
         if (http.isRetry()) {
@@ -625,18 +630,24 @@ public class ScenarioEngine {
         byte[] bytes = response.getBody();
         Object body;
         String responseType;
-        try {
-            body = JsValue.fromBytes(bytes);
-        } catch (Exception e) {
-            body = FileUtils.toString(bytes);
-            logger.warn("auto-conversion of response failed: {}", e.getMessage());
-        }
-        if (body instanceof Map || body instanceof List) {
-            responseType = "json";
-        } else if (body instanceof Node) {
-            responseType = "xml";
+        ResourceType resourceType = response.getResourceType();
+        if (resourceType != null && resourceType.isBinary()) {
+            responseType = "binary";
+            body = bytes;
         } else {
-            responseType = "string";
+            try {
+                body = JsValue.fromBytes(bytes, true);
+            } catch (Exception e) {
+                body = FileUtils.toString(bytes);
+                logger.warn("auto-conversion of response failed: {}", e.getMessage());
+            }
+            if (body instanceof Map || body instanceof List) {
+                responseType = "json";
+            } else if (body instanceof Node) {
+                responseType = "xml";
+            } else {
+                responseType = "string";
+            }
         }
         setVariable(RESPONSE_STATUS, response.getStatus());
         setVariable(RESPONSE, body);
@@ -694,25 +705,29 @@ public class ScenarioEngine {
 
     public void status(int status) {
         if (status != response.getStatus()) {
-            String rawResponse = response.getBodyAsString();
-            String responseTime = vars.get(RESPONSE_TIME).getAsString();
-            String message = "status code was: " + response.getStatus() + ", expected: " + status
-                    + ", response time: " + responseTime + ", url: " + request.getUrl()
-                    + ", response: \n" + rawResponse;
+            // make sure log masking is applied
+            String message = HttpLogger.getStatusFailureMessage(status, config, request, response);
             setFailedReason(new KarateException(message));
         }
     }
 
-    private void updateConfigCookies(Map<String, Map> cookies) {
-        if (cookies == null) {
-            return;
+    public KeyStore getKeyStore(String trustStoreFile, String password, String type) {
+        if (trustStoreFile == null) {
+            return null;
         }
-        if (config.getCookies().isNull()) {
-            config.setCookies(new Variable(cookies));
-        } else {
-            Map<String, Object> map = getOrEvalAsMap(config.getCookies());
-            map.putAll(cookies);
-            config.setCookies(new Variable(map));
+        char[] passwordChars = password == null ? null : password.toCharArray();
+        if (type == null) {
+            type = KeyStore.getDefaultType();
+        }
+        try {
+            KeyStore keyStore = KeyStore.getInstance(type);
+            InputStream is = fileReader.readFileAsStream(trustStoreFile);
+            keyStore.load(is, passwordChars);
+            logger.debug("key store key count for {}: {}", trustStoreFile, keyStore.size());
+            return keyStore;
+        } catch (Exception e) {
+            logger.error("key store init failed: {}", e.getMessage());
+            throw new RuntimeException(e);
         }
     }
 
@@ -818,7 +833,7 @@ public class ScenarioEngine {
         setHiddenVariable(KARATE, bridge);
         setHiddenVariable(READ, readFunction);
         setVariables(magicVariables);
-        HttpClient client = config.getClientFactory().apply(this);
+        HttpClient client = runtime.featureRuntime.suite.clientFactory.create(this);
         http = new HttpRequestBuilder(client);
     }
 
@@ -1526,7 +1541,7 @@ public class ScenarioEngine {
             path = pair.right;
         }
         if ("header".equals(name)) { // convenience shortcut for asserting against response header
-            return match(matchType, RESPONSE_HEADERS, "$['" + path + "'][0]", rhs);
+            return matchHeader(matchType, path, rhs);
         }
         Variable actual;
         // karate started out by "defaulting" to JsonPath on the LHS of a match so we have this kludge
@@ -1561,6 +1576,13 @@ public class ScenarioEngine {
         }
         Variable expected = evalKarateExpression(rhs);
         return match(matchType, actual.getValue(), expected.getValue());
+    }
+
+    // TODO document that match header is case-insensitive at last
+    private MatchResult matchHeader(MatchType matchType, String name, String exp) {
+        Variable expected = evalKarateExpression(exp);
+        String actual = response.getHeader(name);
+        return match(matchType, actual, expected.getValue());
     }
 
     public MatchResult match(MatchType matchType, Object actual, Object expected) {
