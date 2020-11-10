@@ -1,10 +1,9 @@
 function fn() {
-  var varName = '_curId';
-  karate.set(varName, 0);
+  karate.set('_curId', 0);
   return function() {
-    var curId = karate.get(varName);
+    var curId = karate.get('_curId');
     var nextId = curId + 1;
-    karate.set(varName, nextId);
+    karate.set('_curId', nextId);
     return ~~nextId;
   }
 }  
