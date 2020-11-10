@@ -185,8 +185,7 @@ public class MultiPartBuilder {
                         charset = client.getConfig().getCharset();
                     }
                     if (contentType == null) {
-                        ResourceType rt = ResourceType.fromObject(value);
-                        contentType = rt.contentType;
+                        contentType = ResourceType.fromObject(value, ResourceType.BINARY).contentType;
                     }
                     byte[] encoded = value == null ? HttpConstants.ZERO_BYTES : JsValue.toBytes(value);
                     if (filename == null) {

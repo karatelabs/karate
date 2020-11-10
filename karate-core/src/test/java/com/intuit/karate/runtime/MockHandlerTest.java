@@ -95,7 +95,18 @@ class MockHandlerTest {
         request.path("/hello").param("foo", "world");
         handle();
         match(response.getBodyAsString(), "hello world");
-    }   
+    }
+
+    @Test
+    void testQueryParamExists() {
+        background().scenario(
+                "pathMatches('/hello') && paramExists('foo')",
+                "def response = 'hello ' + paramValue('foo')"
+        );
+        request.path("/hello").param("foo", "world");
+        handle();
+        match(response.getBodyAsString(), "hello world");
+    }
 
     @Test
     void testFormFieldsRequestPost() {
@@ -252,6 +263,18 @@ class MockHandlerTest {
         request.path("/hello");
         handle();
         match(response.getBody(), MockUtils.testBytes);
+    }
+
+    @Test
+    void testJsVariableInBackground() {
+        background(
+                "def nextId = call read('increment.js')"
+        ).scenario(
+                "pathMatches('/hello')", "def response = nextId()"
+        );
+        request.path("/hello");
+        handle();
+        match(response.getBodyAsString(), "1");        
     }
 
 }

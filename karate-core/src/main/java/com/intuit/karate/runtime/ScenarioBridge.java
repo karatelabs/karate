@@ -28,12 +28,12 @@ import com.intuit.karate.PerfContext;
 import com.intuit.karate.Resource;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
+import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.data.Json;
 import com.intuit.karate.data.JsonUtils;
 import com.intuit.karate.exception.KarateException;
-import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsMap;
 import com.intuit.karate.graal.JsValue;
@@ -49,12 +49,12 @@ import com.intuit.karate.server.ResourceType;
 import com.intuit.karate.shell.Command;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -228,7 +228,7 @@ public class ScenarioBridge implements PerfContext {
 
     public void embed(Object o, String contentType) {
         if (contentType == null) {
-            contentType = ResourceType.fromObject(o).contentType;
+            contentType = ResourceType.fromObject(o, ResourceType.BINARY).contentType;
         }
         getEngine().runtime.embed(JsValue.toBytes(o), contentType);
     }
@@ -247,7 +247,7 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public String exec(Value value) {
-        return execInternal(new JsValue(value).getValue());
+        return execInternal(new JsValue(value).getAsMap());
     }
 
     private String execInternal(Map<String, Object> options) {
@@ -397,12 +397,12 @@ public class ScenarioBridge implements PerfContext {
         Value funOut = (Value) options.get("listener");
         if (funOut != null && funOut.canExecute()) {
             ScenarioListener sl = new ScenarioListener(engine, funOut);
-            command.setListener(s -> sl.consume(s));
+            command.setListener(sl);
         }
         Value funErr = (Value) options.get("errorListener");
         if (funErr != null && funErr.canExecute()) {
             ScenarioListener sl = new ScenarioListener(engine, funErr);
-            command.setErrorListener(s -> sl.consume(s));
+            command.setErrorListener(sl);
         }
         Boolean start = (Boolean) options.get("start");
         if (start == null) {
@@ -677,6 +677,47 @@ public class ScenarioBridge implements PerfContext {
         getEngine().signal(result);
     }
 
+    public MockServer start(String mock) {
+        return startInternal(Collections.singletonMap("mock", mock));
+    }
+
+    public MockServer start(Value value) {
+        return startInternal(new JsValue(value).getAsMap());
+    }
+
+    private MockServer startInternal(Map<String, Object> config) {
+        String mock = (String) config.get("mock");
+        if (mock == null) {
+            throw new RuntimeException("'mock' is missing: " + config);
+        }
+        File feature = toJavaFile(mock);
+        MockServer.Builder builder = MockServer.feature(feature);
+        String certFile = (String) config.get("cert");
+        if (certFile != null) {
+            builder.certFile(toJavaFile(certFile));
+        }
+        String keyFile = (String) config.get("key");
+        if (keyFile != null) {
+            builder.keyFile(toJavaFile(keyFile));
+        }
+        Boolean ssl = (Boolean) config.get("ssl");
+        if (ssl == null) {
+            ssl = false;
+        }
+        Integer port = (Integer) config.get("port");
+        if (port == null) {
+            port = 0;
+        }
+        Map<String, Object> arg = (Map) config.get("arg");
+        builder.args(arg);
+        if (ssl) {
+            builder.https(port);
+        } else {
+            builder.http(port);
+        }
+        return builder.build();
+    }
+
     public void stop(int port) {
         Command.waitForSocket(port);
     }
@@ -702,7 +743,15 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object toJava(Value value) {
-        return new JsValue(value).getValue();
+        if (value.canExecute()) {
+            return new ScenarioListener(getEngine(), value);
+        } else {
+            return new JsValue(value).getValue();
+        }
+    }
+
+    private File toJavaFile(String path) {
+        return getEngine().fileReader.relativePathToFile(path);
     }
 
     public Object toJson(Value value) {
@@ -775,8 +824,7 @@ public class ScenarioBridge implements PerfContext {
         if (listener == null || !listener.canExecute()) {
             handler = m -> true;
         } else {
-            ScenarioListener sl = new ScenarioListener(getEngine(), listener);
-            handler = m -> sl.apply(m);
+            handler = new ScenarioListener(getEngine(), listener);
         }
         WebSocketOptions options = new WebSocketOptions(url, value == null ? null : new JsValue(value).getValue());
         options.setTextHandler(handler);
@@ -796,8 +844,7 @@ public class ScenarioBridge implements PerfContext {
         if (listener == null || !listener.canExecute()) {
             handler = m -> true;
         } else {
-            ScenarioListener sl = new ScenarioListener(getEngine(), listener);
-            handler = m -> sl.apply(m);
+            handler = new ScenarioListener(getEngine(), listener);
         }
         WebSocketOptions options = new WebSocketOptions(url, value == null ? null : new JsValue(value).getValue());
         options.setBinaryHandler(handler);

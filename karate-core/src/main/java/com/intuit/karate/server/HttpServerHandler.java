@@ -63,6 +63,7 @@ public class HttpServerHandler implements HttpService {
         Request request = new Request();
         request.setRequestContext(ctx);
         request.setUrl(req.path());
+        request.setUrlBase(req.scheme() + "://" + req.authority());
         request.setMethod(req.method().name());
         RequestHeaders rh = req.headers();
         if (rh != null) {

@@ -24,13 +24,15 @@
 package com.intuit.karate.runtime;
 
 import com.intuit.karate.graal.JsValue;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import org.graalvm.polyglot.Value;
 
 /**
  *
  * @author pthomas3
  */
-public class ScenarioListener {
+public class ScenarioListener implements Consumer, Function {
 
     private final ScenarioEngine parent;
     private final ScenarioEngine child;
@@ -54,12 +56,14 @@ public class ScenarioListener {
         return function;
     }
 
-    public void consume(Object... args) {
-        get().executeVoid(args);
+    @Override
+    public void accept(Object arg) {
+        get().executeVoid(arg);
     }
 
-    public <T> T apply(Object... args) {
-        Value result = get().execute(args);
+    @Override
+    public Object apply(Object arg) {
+        Value result = get().execute(arg);
         return new JsValue(result).getValue();
     }
 

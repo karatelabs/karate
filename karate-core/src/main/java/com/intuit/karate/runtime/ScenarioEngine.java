@@ -102,6 +102,7 @@ public class ScenarioEngine {
     public static final String REQUEST = "request";
     public static final String REQUEST_URL_BASE = "requestUrlBase";
     public static final String REQUEST_URI = "requestUri";
+    private static final String REQUEST_PARAMS = "requestParams";    
     public static final String REQUEST_METHOD = "requestMethod";
     public static final String REQUEST_HEADERS = "requestHeaders";
     private static final String REQUEST_TIME_STAMP = "requestTimeStamp";
@@ -114,7 +115,6 @@ public class ScenarioEngine {
     private final Function<String, Object> readFunction;
     private final ScenarioBridge bridge;
 
-    protected Map<String, Object> magicVariables;
     private boolean aborted;
     private Throwable failedReason;
 
@@ -587,7 +587,7 @@ public class ScenarioEngine {
         http.method(method);
         httpInvoke();
     }
-    
+
     // extracted for mock proceed()
     private void httpInvoke() {
         if (http.isRetry()) {
@@ -738,6 +738,7 @@ public class ScenarioEngine {
         String uri = vars.get(REQUEST_URI).getValue();
         String url = uri == null ? urlBase : urlBase + "/" + uri;
         http.url(url);
+        http.params(vars.get(REQUEST_PARAMS).getValue());
         http.method(vars.get(REQUEST_METHOD).getValue());
         http.headers(vars.get(REQUEST_HEADERS).<Map>getValue());
         http.removeHeader(HttpConstants.HDR_CONTENT_LENGTH);
@@ -832,7 +833,7 @@ public class ScenarioEngine {
         attachVariables();
         setHiddenVariable(KARATE, bridge);
         setHiddenVariable(READ, readFunction);
-        setVariables(magicVariables);
+        setVariables(runtime.magicVariables);
         HttpClient client = runtime.featureRuntime.suite.clientFactory.create(this);
         http = new HttpRequestBuilder(client);
     }
@@ -958,10 +959,6 @@ public class ScenarioEngine {
         return JS.attach(before);
     }
 
-    public JsValue executeJsValue(Value function, Object... args) {
-        return JS.execute(function, args);
-    }
-
     protected <T> Map<String, T> getOrEvalAsMap(Variable var) {
         if (var.isJsOrJavaFunction()) {
             Variable res = executeFunction(var);
@@ -975,7 +972,7 @@ public class ScenarioEngine {
         switch (var.type) {
             case JS_FUNCTION:
                 Value jsFunction = var.getValue();
-                JsValue jsResult = JS.execute(jsFunction, args);
+                JsValue jsResult = executeJsValue(jsFunction, args);
                 return new Variable(jsResult);
             case JAVA_FUNCTION:  // definitely a "call" with a single argument
                 Function javaFunction = var.getValue();
@@ -984,6 +981,17 @@ public class ScenarioEngine {
                 return new Variable(JsValue.unWrap(javaResult));
             default:
                 throw new RuntimeException("expected function, but was: " + var);
+        }
+    }
+
+    private JsValue executeJsValue(Value function, Object... args) {
+        try {
+            return JS.execute(function, args);
+        } catch (Exception e) {
+            String jsSource = function.getSourceLocation().getCharacters().toString();
+            KarateException ke = fromJsEvalException(jsSource, e);
+            setFailedReason(ke);
+            throw ke;
         }
     }
 

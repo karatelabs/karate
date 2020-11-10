@@ -129,6 +129,18 @@ class ScenarioRuntimeTest {
     }
 
     @Test
+    void testCallJsFunctionFromFile() {
+        run(
+                "def nextId = call read('increment.js')",
+                "def res1 = nextId()",
+                "def res2 = nextId()"
+        );
+        matchVar("res1", 1);
+        matchVar("res2", 2);
+        matchVar("_curId", 2);        
+    }
+
+    @Test
     void testCallKarateFeature() {
         run(
                 "def b = 'bar'",
@@ -625,14 +637,14 @@ class ScenarioRuntimeTest {
                 "def res = Base64.encoder.encodeToString('hello'.getBytes())"
         );
         matchVar("res", java.util.Base64.getEncoder().encodeToString("hello".getBytes()));
-    }    
-    
+    }
+
     @Test
     void testTypeConversionCsvEmpty() {
         run(
                 "csv temp = ''"
         );
-        matchVar("temp", "[]");        
-    }       
+        matchVar("temp", "[]");
+    }
 
 }

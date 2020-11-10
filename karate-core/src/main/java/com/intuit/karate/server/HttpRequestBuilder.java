@@ -172,8 +172,11 @@ public class HttpRequestBuilder implements ProxyObject {
             request.setBody(JsValue.toBytes(body));
             if (multiPart == null) {
                 String contentType = getContentType();
-                if (contentType == null) {
-                    contentType = ResourceType.fromObject(body).contentType;
+                if (contentType == null) {                    
+                    ResourceType rt = ResourceType.fromObject(body);
+                    if (rt != null) {
+                        contentType = rt.contentType;
+                    }
                 }
                 // TODO clean up http utils
                 Charset charset = HttpUtils.parseContentTypeCharset(contentType);
@@ -357,6 +360,11 @@ public class HttpRequestBuilder implements ProxyObject {
             params = new HashMap();
         }
         params.put(name, values);
+        return this;
+    }
+    
+    public HttpRequestBuilder params(Map<String, List<String>> params) {
+        this.params = params;
         return this;
     }
 

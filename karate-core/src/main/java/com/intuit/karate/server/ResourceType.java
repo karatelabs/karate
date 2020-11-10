@@ -127,14 +127,20 @@ public enum ResourceType {
     }
 
     public static ResourceType fromObject(Object o) {
+        return fromObject(o, null);
+    }
+
+    public static ResourceType fromObject(Object o, ResourceType defaultType) {
         if (o instanceof List || o instanceof Map) {
             return JSON;
         } else if (o instanceof String) {
             return TEXT;
         } else if (o instanceof Node) {
             return XML;
-        } else {
+        } else if (o instanceof byte[]) {
             return BINARY;
+        } else {
+            return defaultType;
         }
     }
 

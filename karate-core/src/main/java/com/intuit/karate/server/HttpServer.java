@@ -59,9 +59,11 @@ public class HttpServer {
     }
 
     public HttpServer(int port, ServerHandler handler) {
+        this(Server.builder().http(port), handler);
+    }
+
+    public HttpServer(ServerBuilder sb, ServerHandler handler) {
         this.handler = handler;
-        ServerBuilder sb = Server.builder();
-        sb.http(port);
         sb.service("prefix:/", new HttpServerHandler(handler));
         server = sb.build();
         future = server.start();

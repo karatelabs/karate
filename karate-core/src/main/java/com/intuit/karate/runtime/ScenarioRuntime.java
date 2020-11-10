@@ -51,9 +51,9 @@ import org.graalvm.polyglot.Value;
  * @author pthomas3
  */
 public class ScenarioRuntime implements Runnable {
-    
+
     public final Logger logger = new Logger();
-    
+
     public final FeatureRuntime featureRuntime;
     public final ScenarioRuntime background;
     public final ScenarioCall caller;
@@ -63,11 +63,12 @@ public class ScenarioRuntime implements Runnable {
     public final ScenarioResult result;
     public final ScenarioEngine engine;
     public final boolean reportDisabled;
-    
+    public final Map<String, Object> magicVariables;
+
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
         this(featureRuntime, scenario, null);
     }
-    
+
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario, ScenarioRuntime background) {
         this.featureRuntime = featureRuntime;
         this.caller = featureRuntime.caller;
@@ -84,6 +85,7 @@ public class ScenarioRuntime implements Runnable {
         }
         actions = new ScenarioActions(engine);
         this.scenario = scenario;
+        magicVariables = initMagicVariables(); // depends on scenario
         if (background == null) {
             this.background = null;
             result = new ScenarioResult(scenario, null);
@@ -97,44 +99,44 @@ public class ScenarioRuntime implements Runnable {
         tags = Tags.merge(featureRuntime.feature.getTags(), scenario.getTags());
         reportDisabled = tags.valuesFor("report").isAnyOf("false");
     }
-    
+
     public boolean isFailed() {
         return error != null || result.isFailed();
     }
-    
+
     public Step getCurrentStep() {
         return currentStep;
     }
-    
+
     public boolean isStopped() {
         return stopped;
     }
-    
+
     public LogAppender getAppender() {
         return appender;
     }
-    
+
     public void embed(byte[] bytes, String contentType) {
         Embed embed = new Embed();
         embed.setBytes(bytes);
         embed.setMimeType(contentType);
         embed(embed);
     }
-    
+
     public void embed(Embed embed) {
         if (embeds == null) {
             embeds = new ArrayList();
         }
         embeds.add(embed);
     }
-    
+
     public void addCallResult(FeatureResult fr) {
         if (callResults == null) {
             callResults = new ArrayList();
         }
         callResults.add(fr);
     }
-    
+
     private List<Step> steps;
     private LogAppender appender;
     private List<Embed> embeds;
@@ -145,7 +147,7 @@ public class ScenarioRuntime implements Runnable {
     private boolean stopped;
     private boolean aborted;
     private int stepIndex;
-    
+
     public void stepBack() {
         stopped = false;
         stepIndex -= 2;
@@ -153,7 +155,7 @@ public class ScenarioRuntime implements Runnable {
             stepIndex = 0;
         }
     }
-    
+
     public void stepReset() {
         stopped = false;
         stepIndex--;
@@ -161,15 +163,15 @@ public class ScenarioRuntime implements Runnable {
             stepIndex = 0;
         }
     }
-    
+
     public void stepProceed() {
         stopped = false;
     }
-    
+
     private int nextStepIndex() {
         return stepIndex++;
     }
-    
+
     public Result evalAsStep(String expression) {
         Step evalStep = new Step(scenario.getFeature(), scenario, scenario.getIndex() + 1);
         try {
@@ -179,7 +181,7 @@ public class ScenarioRuntime implements Runnable {
         }
         return StepRuntime.execute(evalStep, actions);
     }
-    
+
     public boolean hotReload() {
         boolean success = false;
         Feature feature = scenario.getFeature();
@@ -203,7 +205,7 @@ public class ScenarioRuntime implements Runnable {
         }
         return success;
     }
-    
+
     public Map<String, Object> getScenarioInfo() {
         Map<String, Object> info = new HashMap(6);
         Path featurePath = featureRuntime.feature.getPath();
@@ -218,7 +220,7 @@ public class ScenarioRuntime implements Runnable {
         info.put("errorMessage", errorMessage);
         return info;
     }
-    
+
     protected void logError(String message) {
         if (currentStep != null) {
             message = currentStep.getDebugInfo()
@@ -227,7 +229,7 @@ public class ScenarioRuntime implements Runnable {
         }
         logger.error("{}", message);
     }
-    
+
     @Override
     public void run() {
         try { // make sure we call afterRun() even on crashes
@@ -251,7 +253,7 @@ public class ScenarioRuntime implements Runnable {
             afterRun();
         }
     }
-    
+
     private static final ThreadLocal<LogAppender> APPENDER = new ThreadLocal<LogAppender>() {
         @Override
         protected LogAppender initialValue() {
@@ -259,8 +261,8 @@ public class ScenarioRuntime implements Runnable {
             return new FileLogAppender(new File(fileName));
         }
     };
-    
-    protected Map<String, Object> getMagicVariables() {
+
+    private Map<String, Object> initMagicVariables() {
         Map<String, Object> map = new HashMap();
         Variable arg = caller.getArg();
         if (caller.isNone()) { // if feature called via java api
@@ -274,7 +276,7 @@ public class ScenarioRuntime implements Runnable {
                 map.putAll(arg.getValue());
             }
         }
-        if (scenario.isOutline()) { // init examples row magic variables
+        if (scenario.isOutline() && !scenario.isDynamic()) { // init examples row magic variables
             Map<String, Object> exampleData = scenario.getExampleData();
             exampleData.forEach((k, v) -> map.put(k, v));
             map.put("__row", exampleData);
@@ -283,7 +285,7 @@ public class ScenarioRuntime implements Runnable {
         }
         return map;
     }
-    
+
     public void beforeRun() {
         String env = featureRuntime.suite.getEnv(); // this lazy-inits (one time) the suite env
         if (appender == null) { // not perf, not debug
@@ -294,7 +296,6 @@ public class ScenarioRuntime implements Runnable {
             steps = scenario.getBackgroundSteps();
         } else {
             steps = background == null ? scenario.getStepsIncludingBackground() : scenario.getSteps();
-            engine.magicVariables = getMagicVariables();
         }
         ScenarioEngine.set(engine);
         engine.init();
@@ -308,7 +309,7 @@ public class ScenarioRuntime implements Runnable {
         }
         featureRuntime.suite.resolveHooks().forEach(h -> h.beforeScenario(this));
     }
-    
+
     private void evalConfigJs(String js, String name) {
         if (js == null) {
             return;
@@ -373,7 +374,7 @@ public class ScenarioRuntime implements Runnable {
             return currentStepResult;
         }
     }
-    
+
     public void afterRun() {
         try {
             result.setEndTime(System.currentTimeMillis() - featureRuntime.suite.results.getStartTime());
@@ -403,7 +404,7 @@ public class ScenarioRuntime implements Runnable {
             // ScenarioEngine.remove();
         }
     }
-    
+
     public boolean isSelectedForExecution() {
         Feature feature = scenario.getFeature();
         int callLine = feature.getCallLine();
@@ -446,10 +447,10 @@ public class ScenarioRuntime implements Runnable {
             return true; // when called, all scenarios match by default
         }
     }
-    
+
     @Override
     public String toString() {
         return scenario.toString();
     }
-    
+
 }
