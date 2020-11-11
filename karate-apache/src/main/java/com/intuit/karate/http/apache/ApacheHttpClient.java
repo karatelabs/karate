@@ -28,6 +28,7 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.runtime.Config;
 import com.intuit.karate.runtime.ScenarioEngine;
 import com.intuit.karate.server.HttpClient;
+import com.intuit.karate.server.HttpConstants;
 import com.intuit.karate.server.HttpLogger;
 import com.intuit.karate.server.HttpRequest;
 import com.intuit.karate.server.Response;
@@ -83,6 +84,9 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
 
     private final ScenarioEngine engine;
     private final Logger logger;
+    private final HttpLogger httpLogger;
+
+    private HttpClientBuilder clientBuilder;
 
     public ApacheHttpClient(ScenarioEngine engine) {
         this.engine = engine;
@@ -90,9 +94,6 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         httpLogger = new HttpLogger(logger);
         configure(engine.getConfig());
     }
-
-    private HttpClientBuilder clientBuilder;
-    private final HttpLogger httpLogger;
 
     private void configure(Config config) {
         clientBuilder = HttpClientBuilder.create();
@@ -218,7 +219,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             httpResponse = client.execute(requestBuilder.build());
             HttpEntity responseEntity = httpResponse.getEntity();
             if (responseEntity == null || responseEntity.getContent() == null) {
-                bytes = new byte[0];
+                bytes = HttpConstants.ZERO_BYTES;
             } else {
                 InputStream is = responseEntity.getContent();
                 bytes = FileUtils.toBytes(is);

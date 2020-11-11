@@ -41,6 +41,7 @@ public class HttpRequest {
     private String method;
     private Map<String, List<String>> headers;
     private byte[] body;
+    private String bodyForDisplay;
 
     public void putHeader(String name, String... values) {
         putHeader(name, Arrays.asList(values));
@@ -106,6 +107,14 @@ public class HttpRequest {
     public void setBody(byte[] body) {
         this.body = body;
     }
+
+    public String getBodyForDisplay() {
+        return bodyForDisplay;
+    }    
+    
+    public void setBodyForDisplay(String bodyForDisplay) {
+        this.bodyForDisplay = bodyForDisplay;
+    }        
 
     public List<String> getHeaderValues(String name) { // TOTO optimize
         return StringUtils.getIgnoreKeyCase(headers, name);

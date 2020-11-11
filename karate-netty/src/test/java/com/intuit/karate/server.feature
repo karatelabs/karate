@@ -4,7 +4,6 @@ Feature:
 Background:
 * def cats = {}
 * def id = 0
-* configure cors = true
 
 Scenario: pathMatches('/v1/cats') && methodIs('post')
     * def cat = request

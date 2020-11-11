@@ -151,28 +151,34 @@ public class HttpRequestBuilder implements ProxyObject {
             urlAndPath = urlAndPath + append + qpb.toQueryString();
         }
         request.setUrl(urlAndPath);
-        if (multiPart != null && body == null) { // body check is done for retry
-            body = multiPart.build();
-            String userContentType = getHeader(HttpConstants.HDR_CONTENT_TYPE);
-            if (userContentType != null) {
-                String boundary = multiPart.getBoundary();
-                if (boundary != null) {
-                    contentType(userContentType + "; boundary=" + boundary);
+        if (multiPart != null) {
+            if (body == null) { // this is not-null only for a re-try, don't rebuild multi-part
+                body = multiPart.build();
+                String userContentType = getHeader(HttpConstants.HDR_CONTENT_TYPE);
+                if (userContentType != null) {
+                    String boundary = multiPart.getBoundary();
+                    if (boundary != null) {
+                        contentType(userContentType + "; boundary=" + boundary);
+                    }
+                } else {
+                    contentType(multiPart.getContentTypeHeader());
                 }
-            } else {
-                contentType(multiPart.getContentTypeHeader());
             }
+            request.setBodyForDisplay(multiPart.getBodyForDisplay());
         }
         if (cookies != null && !cookies.isEmpty()) {
             List<String> cookieValues = new ArrayList(cookies.size());
-            cookies.forEach(c -> cookieValues.add(ServerCookieEncoder.STRICT.encode(c)));
+            for (Cookie c : cookies) {
+                String cookieValue = ServerCookieEncoder.STRICT.encode(c);
+                cookieValues.add(cookieValue);
+            }
             header(HttpConstants.HDR_COOKIE, cookieValues);
         }
         if (body != null) {
             request.setBody(JsValue.toBytes(body));
             if (multiPart == null) {
                 String contentType = getContentType();
-                if (contentType == null) {                    
+                if (contentType == null) {
                     ResourceType rt = ResourceType.fromObject(body);
                     if (rt != null) {
                         contentType = rt.contentType;
@@ -362,7 +368,7 @@ public class HttpRequestBuilder implements ProxyObject {
         params.put(name, values);
         return this;
     }
-    
+
     public HttpRequestBuilder params(Map<String, List<String>> params) {
         this.params = params;
         return this;
@@ -383,9 +389,7 @@ public class HttpRequestBuilder implements ProxyObject {
         if (cookies == null) {
             cookies = new HashSet();
         }
-        if (cookie.maxAge() != 0) { // only add cookie to request if its not already expired.
-            cookies.add(cookie);
-        }
+        cookies.add(cookie);
         return this;
     }
 

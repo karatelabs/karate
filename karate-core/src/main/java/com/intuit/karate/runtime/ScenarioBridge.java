@@ -456,7 +456,7 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public String getEnv() {
-        return getEngine().runtime.featureRuntime.suite.getEnv();
+        return getEngine().runtime.featureRuntime.suite.resolveEnv();
     }
 
     public Object getInfo() {

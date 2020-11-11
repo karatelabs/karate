@@ -1043,7 +1043,7 @@ public class ScenarioEngine {
         return new KarateException(sb.toString());
     }
 
-    protected void setHiddenVariable(String key, Object value) {
+    public void setHiddenVariable(String key, Object value) {
         if (value instanceof Variable) {
             value = ((Variable) value).getValue();
         }

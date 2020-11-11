@@ -1,9 +1,7 @@
 package com.intuit.karate;
 
-import com.google.common.base.Charsets;
-import com.intuit.karate.netty.FeatureServer;
 import com.intuit.karate.netty.ProxyServer;
-import java.io.File;
+import com.intuit.karate.runtime.MockServer;
 import java.io.InputStream;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
@@ -30,13 +28,12 @@ public class ProxyServerTest {
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(ProxyServerTest.class);
 
     private static ProxyServer proxy;
-    private static FeatureServer server;
+    private static MockServer server;
 
     @BeforeClass
     public static void beforeClass() {
         proxy = new ProxyServer(0, null, null);
-        File file = FileUtils.getFileRelativeTo(ProxyServerTest.class, "server.feature");
-        server = FeatureServer.start(file, 0, false, null);
+        server = MockServer.feature("classpath:com/intuit/karate/server.feature").http(0).build();
         int port = server.getPort();
         System.setProperty("karate.server.port", port + "");
         System.setProperty("karate.server.ssl", ""); // for ci
@@ -63,7 +60,7 @@ public class ProxyServerTest {
 
     private static HttpUriRequest post(String url, String body) {
         HttpPost post = new HttpPost(url);
-        HttpEntity entity = new StringEntity(body, ContentType.create("application/json", Charsets.UTF_8));
+        HttpEntity entity = new StringEntity(body, ContentType.create("application/json", FileUtils.UTF8));
         post.setEntity(entity);
         return post;
     }

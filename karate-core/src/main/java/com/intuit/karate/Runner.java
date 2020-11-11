@@ -322,8 +322,7 @@ public class Runner {
             paths = ro.getFeatures();
             tags = ro.getTags();
             scenarioName = ro.getName();
-            String envTemp = ro.getEnv();
-            env = envTemp == null ? StringUtils.trimToNull(System.getProperty("karate.env")) : envTemp;
+            env = ro.getEnv();
             hooks = new ArrayList();
         }
 

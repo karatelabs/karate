@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2020 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,78 +23,66 @@
  */
 package com.intuit.karate.http.jersey;
 
-import com.intuit.karate.Config;
-import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.ScriptValue;
-import static com.intuit.karate.http.Cookie.*;
-import com.intuit.karate.http.HttpClient;
-import com.intuit.karate.http.HttpRequest;
-import com.intuit.karate.http.HttpResponse;
-import com.intuit.karate.http.HttpUtils;
-import com.intuit.karate.http.MultiPartItem;
-import com.intuit.karate.http.MultiValuedMap;
-import java.io.InputStream;
-import java.nio.charset.Charset;
+import com.intuit.karate.Logger;
+import com.intuit.karate.runtime.Config;
+import com.intuit.karate.runtime.ScenarioEngine;
+import com.intuit.karate.server.HttpClient;
+import com.intuit.karate.server.HttpLogger;
+import com.intuit.karate.server.HttpRequest;
+import com.intuit.karate.server.Response;
+import java.io.IOException;
 import java.security.KeyStore;
-import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeParseException;
-import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map.Entry;
+import java.util.Map;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.ClientRequestContext;
+import javax.ws.rs.client.ClientRequestFilter;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation.Builder;
+import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.Cookie;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedHashMap;
-import javax.ws.rs.core.NewCookie;
-import javax.ws.rs.core.Response;
+import javax.ws.rs.core.MultivaluedMap;
 import org.glassfish.jersey.SslConfigurator;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.HttpUrlConnectorProvider;
-import org.glassfish.jersey.media.multipart.BodyPart;
-import org.glassfish.jersey.media.multipart.FormDataBodyPart;
-import org.glassfish.jersey.media.multipart.MultiPart;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
-import org.glassfish.jersey.media.multipart.file.StreamDataBodyPart;
-import org.glassfish.jersey.message.internal.StringBuilderUtils;
 
 /**
  *
  * @author pthomas3
  */
-public class JerseyHttpClient extends HttpClient<Entity> {
+public class JerseyHttpClient implements HttpClient, ClientRequestFilter {
+
+    private final ScenarioEngine engine;
+    private final Logger logger;
+    private final HttpLogger httpLogger;
 
     private Client client;
-    private WebTarget target;
-    private Builder builder;
-    private Charset charset;
 
-    @Override
-    public void configure(Config config, ScenarioContext context) {
+    public JerseyHttpClient(ScenarioEngine engine) {
+        this.engine = engine;
+        logger = engine.logger;
+        httpLogger = new HttpLogger(logger);
+        configure(engine.getConfig());
+    }
+
+    private void configure(Config config) {
         ClientConfig cc = new ClientConfig();
         // support request body for DELETE (non-standard)
         cc.property(ClientProperties.SUPPRESS_HTTP_COMPLIANCE_VALIDATION, true);
-        charset = config.getCharset();
         if (!config.isFollowRedirects()) {
             cc.property(ClientProperties.FOLLOW_REDIRECTS, false);
         }
         ClientBuilder clientBuilder = ClientBuilder.newBuilder()
-                .withConfig(cc)
-                .register(new LoggingInterceptor(context)) // must be first
-                .register(MultiPartFeature.class);
+                .withConfig(cc).register(this);
         if (config.isSslEnabled()) {
             String algorithm = config.getSslAlgorithm(); // could be null
-            KeyStore trustStore = HttpUtils.getKeyStore(context,
-                    config.getSslTrustStore(), config.getSslTrustStorePassword(), config.getSslTrustStoreType());
-            KeyStore keyStore = HttpUtils.getKeyStore(context,
-                    config.getSslKeyStore(), config.getSslKeyStorePassword(), config.getSslKeyStoreType());
+            KeyStore trustStore = engine.getKeyStore(config.getSslTrustStore(), config.getSslTrustStorePassword(), config.getSslTrustStoreType());
+            KeyStore keyStore = engine.getKeyStore(config.getSslKeyStore(), config.getSslKeyStorePassword(), config.getSslKeyStoreType());
             SSLContext sslContext = SslConfigurator.newInstance()
                     .securityProtocol(algorithm) // will default to TLS if null
                     .trustStore(trustStore)
@@ -117,142 +105,63 @@ public class JerseyHttpClient extends HttpClient<Entity> {
     }
 
     @Override
-    public String getRequestUri() {
-        return target.getUri().toString();
+    public void setConfig(Config config, String keyThatChanged) {
+        configure(config);
     }
 
     @Override
-    public void buildUrl(String url) {
-        target = client.target(url);
-        builder = target.request();
+    public Config getConfig() {
+        return engine.getConfig();
     }
 
-    @Override
-    public void buildPath(String path) {
-        target = target.path(path);
-        builder = target.request();
-    }
+    private HttpRequest request;
 
     @Override
-    public void buildParam(String name, Object... values) {
-        target = target.queryParam(name, values);
-        builder = target.request();
-    }
-
-    @Override
-    public void buildHeader(String name, Object value, boolean replace) {
-        if (replace) {
-            builder.header(name, null);
+    public Response invoke(HttpRequest request) {
+        this.request = request;
+        WebTarget target = client.target(request.getUrl());
+        Invocation.Builder builder = target.request();
+        if (request.getHeaders() != null) {
+            request.getHeaders().forEach((k, vals) -> vals.forEach(v -> builder.header(k, v)));
         }
-        builder.header(name, value);
-    }
-
-    @Override
-    public void buildCookie(com.intuit.karate.http.Cookie c) {
-        // only add the cookie from request, if it isnt already expired.
-        if ( !c.isCookieExpired() )
-        {
-            Cookie cookie = new Cookie(c.getName(), c.getValue());
-            builder.cookie(cookie);
-        }
-    }
-
-    private MediaType getMediaType(String mediaType) {
-        Charset cs = HttpUtils.parseContentTypeCharset(mediaType);
-        if (cs == null) {
-            cs = charset;
-        }
-        MediaType mt = MediaType.valueOf(mediaType);
-        return cs == null ? mt : mt.withCharset(cs.name());
-    }
-
-    @Override
-    public Entity getEntity(MultiValuedMap fields, String mediaType) {
-        MultivaluedHashMap<String, Object> map = new MultivaluedHashMap<>();
-        for (Entry<String, List> entry : fields.entrySet()) {
-            map.put(entry.getKey(), entry.getValue());
-        }
-        // special handling, charset is not valid in content-type header here
-        int pos = mediaType.indexOf(';');
-        if (pos != -1) {
-            mediaType = mediaType.substring(0, pos);
-        }
-        MediaType mt = MediaType.valueOf(mediaType);
-        return Entity.entity(map, mt);
-    }
-
-    @Override
-    public Entity getEntity(List<MultiPartItem> items, String mediaType) {
-        MultiPart multiPart = new MultiPart();
-        for (MultiPartItem item : items) {
-            if (item.getValue() == null || item.getValue().isNull()) {
-                continue;
-            }
-            String name = item.getName();
-            String filename = item.getFilename();
-            ScriptValue sv = item.getValue();
-            String ct = item.getContentType();
-            if (ct == null) {
-                ct = HttpUtils.getContentType(sv);
-            }
-            MediaType itemType = MediaType.valueOf(ct);
-            if (name == null) { // most likely multipart/mixed
-                BodyPart bp = new BodyPart().entity(sv.getAsString()).type(itemType);
-                multiPart.bodyPart(bp);
-            } else if (filename != null) {
-                StreamDataBodyPart part = new StreamDataBodyPart(name, sv.getAsStream(), filename, itemType);
-                multiPart.bodyPart(part);
-            } else {
-                multiPart.bodyPart(new FormDataBodyPart(name, sv.getAsString(), itemType));
-            }
-        }
-        return Entity.entity(multiPart, mediaType);
-    }
-
-    @Override
-    public Entity getEntity(String value, String mediaType) {
-        return Entity.entity(value, getMediaType(mediaType));
-    }
-
-    @Override
-    public Entity getEntity(InputStream value, String mediaType) {
-        return Entity.entity(value, getMediaType(mediaType));
-    }
-
-    @Override
-    public HttpResponse makeHttpRequest(Entity entity, ScenarioContext context) {
         String method = request.getMethod();
         if ("PATCH".equals(method)) { // http://danofhisword.com/dev/2015/09/04/Jersey-Client-Http-Patch.html
             builder.property(HttpUrlConnectorProvider.SET_METHOD_WORKAROUND, true);
         }
-        Response resp;
-        if (entity != null) {
-            resp = builder.method(method, entity);
-        } else {
-            resp = builder.method(method);
-        }
-        HttpRequest actualRequest = context.getPrevRequest();
-        HttpResponse response = new HttpResponse(actualRequest.getStartTime(), actualRequest.getEndTime());
-        byte[] bytes = resp.readEntity(byte[].class);        
-        response.setUri(getRequestUri());
-        response.setBody(bytes);
-        response.setStatus(resp.getStatus());
-        for (NewCookie c : resp.getCookies().values()) {
-            com.intuit.karate.http.Cookie cookie = new com.intuit.karate.http.Cookie(c.getName(), c.getValue());
-            cookie.put(DOMAIN, c.getDomain());
-            cookie.put(PATH, c.getPath());
-            if (c.getExpiry() != null) {
-                cookie.put(EXPIRES, c.getExpiry().getTime() + "");
+        javax.ws.rs.core.Response httpResponse;
+        byte[] bytes;
+        try {
+            if (request.getBody() == null) {
+                httpResponse = builder.method(method);
+            } else {
+                String contentType = request.getContentType();
+                if (contentType == null) {
+                    contentType = MediaType.APPLICATION_OCTET_STREAM;
+                }
+                httpResponse = builder.method(method, Entity.entity(request.getBody(), contentType));
             }
-            cookie.put(SECURE, c.isSecure() + "");
-            cookie.put(HTTP_ONLY, c.isHttpOnly() + "");
-            cookie.put(MAX_AGE, c.getMaxAge() + "");
-            response.addCookie(cookie);
+            bytes = httpResponse.readEntity(byte[].class);
+            request.setEndTimeMillis(System.currentTimeMillis());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-        for (Entry<String, List<Object>> entry : resp.getHeaders().entrySet()) {
-            response.putHeader(entry.getKey(), entry.getValue());
-        }
+        Map<String, List<String>> headers = toHeaders(httpResponse.getStringHeaders());
+        Response response = new Response(httpResponse.getStatus(), headers, bytes);
+        httpLogger.logResponse(getConfig(), request, response);
         return response;
+    }
+
+    @Override
+    public void filter(ClientRequestContext requestContext) throws IOException {
+        request.setHeaders(toHeaders(requestContext.getStringHeaders()));
+        httpLogger.logRequest(getConfig(), request);
+        request.setStartTimeMillis(System.currentTimeMillis());
+    }
+
+    private static Map<String, List<String>> toHeaders(MultivaluedMap<String, String> headers) {
+        Map<String, List<String>> map = new LinkedHashMap(headers.size());
+        headers.forEach((k, v) -> map.put(k, v));
+        return map;
     }
 
 }

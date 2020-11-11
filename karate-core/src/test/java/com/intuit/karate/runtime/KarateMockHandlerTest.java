@@ -221,7 +221,7 @@ class KarateMockHandlerTest {
     }
 
     @Test
-    void testCookieIsRemovedIfExpired() {
+    void testCookieWithDateInThePast() {
         Calendar calendar = Calendar.getInstance();
         calendar.add(java.util.Calendar.DATE, -1);
         String pastDate = sdf.format(calendar.getTime());
@@ -234,11 +234,11 @@ class KarateMockHandlerTest {
                 "path '/hello'",
                 "method get"
         );
-        matchVar("response", "{}");
+        matchVar("response", "{ Cookie: ['foo=bar'] }");
     }
 
     @Test
-    void testCookieIsRetainedIfNotExpired() {
+    void testCookieWithDateInTheFuture() {
         Calendar calendar = Calendar.getInstance();
         calendar.add(java.util.Calendar.DATE, +1);
         String futureDate = sdf.format(calendar.getTime());
@@ -247,7 +247,7 @@ class KarateMockHandlerTest {
                 "def response = requestHeaders");
         run(
                 URL_STEP,
-                "cookie foo = {value:'bar', expires: '" + futureDate + "'}",
+                "cookie foo = { value: 'bar', expires: '" + futureDate + "' }",
                 "path '/hello'",
                 "method get"
         );
@@ -255,17 +255,17 @@ class KarateMockHandlerTest {
     }
 
     @Test
-    void testCookieisRemovedIfManuallyExpired() {
+    void testCookieWithMaxAgeZero() {
         background().scenario(
                 "pathMatches('/hello')",
                 "def response = requestHeaders");
         run(
                 URL_STEP,
-                "cookie foo = {value:'bar', max-age:'0'}",
+                "cookie foo = { value: 'bar', max-age: '0' }",
                 "path '/hello'",
                 "method get"
         );
-        matchVar("response", "{}");
+        matchVar("response", "{ Cookie: ['#string'] }");
     }
 
     @Test

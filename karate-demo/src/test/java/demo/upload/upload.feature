@@ -1,3 +1,4 @@
+@mock-servlet-todo
 Feature: file upload end-point
 
 Background:
@@ -27,7 +28,6 @@ Scenario: upload file
     * json fileInfo = FileChecker.getMetadata(id)
     * match fileInfo == { id: '#(id)', filename: 'test.pdf', message: 'hello world', contentType: 'application/pdf' }
 
-@mock-servlet-todo
 Scenario: upload with filename and content-type specified
     Given path 'files'
     And multipart file myFile = { read: 'test.pdf', filename: 'upload-name.pdf', contentType: 'application/pdf' }
@@ -72,7 +72,6 @@ Scenario: upload multipart/mixed
     Then status 200
     And match response == { id: '#uuid', filename: 'upload-name.pdf', message: 'hello world', contentType: 'application/pdf' }
 
-@mock-servlet-todo
 Scenario: multipart upload has content-length header set
     Given path 'search', 'headers'
     And multipart field myFile = read('test.pdf')

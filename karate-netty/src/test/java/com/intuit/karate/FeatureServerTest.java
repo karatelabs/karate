@@ -1,10 +1,10 @@
 package com.intuit.karate;
 
-import com.intuit.karate.netty.FeatureServer;
-import java.io.File;
+import com.intuit.karate.runtime.MockServer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import static org.junit.Assert.*;
 
 /**
  *
@@ -12,12 +12,11 @@ import org.junit.Test;
  */
 public class FeatureServerTest {
 
-    private static FeatureServer server;
+    private static MockServer server;
 
     @BeforeClass
     public static void beforeClass() {
-        File file = FileUtils.getFileRelativeTo(FeatureServerTest.class, "server.feature");
-        server = FeatureServer.start(file, 0, false, null);
+        server = MockServer.feature("classpath:com/intuit/karate/server.feature").http(0).corsEnabled().build();        
         int port = server.getPort();
         System.setProperty("karate.server.port", port + "");
         // needed to ensure we undo what the other test does to the jvm else ci fails
@@ -27,7 +26,8 @@ public class FeatureServerTest {
 
     @Test
     public void testClient() {
-        Runner.runFeature("classpath:com/intuit/karate/client.feature", null, true);
+        Results result = Runner.path("classpath:com/intuit/karate/client.feature").parallel(1);
+        assertEquals(result.getErrorMessages(), result.getFailCount(), 0);
     }
 
     @AfterClass

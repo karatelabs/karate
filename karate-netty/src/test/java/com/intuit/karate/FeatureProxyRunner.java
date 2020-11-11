@@ -1,7 +1,6 @@
 package com.intuit.karate;
 
-import com.intuit.karate.netty.FeatureServer;
-import java.io.File;
+import com.intuit.karate.runtime.MockServer;
 import org.junit.Test;
 
 /**
@@ -12,8 +11,7 @@ public class FeatureProxyRunner {
     
     @Test
     public void testServer() {
-        File file = FileUtils.getFileRelativeTo(FeatureProxyRunner.class, "proxy.feature");
-        FeatureServer server = FeatureServer.start(file, 8090, false, null);
+        MockServer server = MockServer.feature("classpath:com/intuit/karate/proxy.feature").http(8090).build();
         server.waitSync();
     }
     

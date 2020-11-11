@@ -1,3 +1,4 @@
+@mock-servlet-todo
 Feature: file upload end-point
 
 Background:

@@ -285,7 +285,7 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public void beforeRun() {
-        String env = featureRuntime.suite.getEnv(); // this lazy-inits (one time) the suite env
+        String env = featureRuntime.suite.resolveEnv(); // this lazy-inits (one time) the suite env
         if (appender == null) { // not perf, not debug
             appender = APPENDER.get();
         }

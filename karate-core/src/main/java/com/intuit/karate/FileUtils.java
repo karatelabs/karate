@@ -48,6 +48,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -341,6 +342,18 @@ public class FileUtils {
 
     public static InputStream toInputStream(String text) {
         return new ByteArrayInputStream(text.getBytes(UTF8));
+    }
+
+    public static void deleteDirectory(File file) {
+        Path pathToBeDeleted = file.toPath();
+        try {
+            Files.walk(pathToBeDeleted)
+                    .sorted(Comparator.reverseOrder())
+                    .map(Path::toFile)
+                    .forEach(File::delete);
+        } catch (Exception e) {
+            throw new RuntimeException();
+        }
     }
 
     public static String removeFileExtension(String path) {

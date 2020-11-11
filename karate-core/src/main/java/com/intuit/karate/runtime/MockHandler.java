@@ -110,18 +110,23 @@ public class MockHandler implements ServerHandler {
                 }
             }
         }
-        runtime.logger.info("mock server initialized: {}", featureName);
         globals = runtime.engine.detachVariables();
+        runtime.logger.info("mock server initialized: {}", featureName);
     }
 
     private static final Result PASSED = Result.passed(0);
 
     @Override
     public Response handle(Request req) {
+        // important for graal to work properly
         Thread.currentThread().setContextClassLoader(runtime.featureRuntime.suite.classLoader);
         LOCAL_REQUEST.set(req);
         req.processBody();
         ScenarioEngine engine = new ScenarioEngine(runtime, new HashMap(globals));
+        // highly unlikely but support mocks calling other mocks in the same jvm
+        ScenarioEngine prevEngine = ScenarioEngine.get();
+        ScenarioEngine.set(engine);
+        engine.init();
         engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
         engine.setVariable(ScenarioEngine.REQUEST_URI, req.getPath());
         engine.setVariable(ScenarioEngine.REQUEST_METHOD, req.getMethod());
@@ -131,12 +136,8 @@ public class MockHandler implements ServerHandler {
         engine.setVariable(REQUEST_BYTES, req.getBody());
         Map<String, List<Map<String, Object>>> files = req.getMultiPartFiles();
         if (files != null) {
-            engine.setVariable(REQUEST_FILES, files); // TODO add to docs
+            engine.setHiddenVariable(REQUEST_FILES, files); // TODO add to docs
         }
-        // highly unlikely but support mocks calling other mocks in the same jvm
-        ScenarioEngine prevEngine = ScenarioEngine.get();
-        ScenarioEngine.set(engine);
-        engine.init();
         for (FeatureSection fs : feature.getSections()) {
             if (fs.isOutline()) {
                 runtime.logger.warn("skipping scenario outline - {}:{}", featureName, fs.getScenarioOutline().getLine());
@@ -162,11 +163,11 @@ public class MockHandler implements ServerHandler {
                             break;
                         }
                     }
-                    Map<String, Variable> vars = engine.vars;
-                    response = vars.remove(ScenarioEngine.RESPONSE);
-                    responseStatus = vars.remove(ScenarioEngine.RESPONSE_STATUS);
-                    responseHeaders = vars.remove(ScenarioEngine.RESPONSE_HEADERS);
-                    responseDelay = vars.remove(RESPONSE_DELAY);
+                    response = engine.vars.remove(ScenarioEngine.RESPONSE);
+                    responseStatus = engine.vars.remove(ScenarioEngine.RESPONSE_STATUS);
+                    responseHeaders = engine.vars.remove(ScenarioEngine.RESPONSE_HEADERS);
+                    responseDelay = engine.vars.remove(RESPONSE_DELAY);
+                    globals.putAll(engine.detachVariables());
                 } // END TRANSACTION ===========================================
                 ScenarioEngine.set(prevEngine);
                 if (result.isFailed()) {

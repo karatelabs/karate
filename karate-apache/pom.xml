@@ -35,12 +35,6 @@
         </dependency>
         
         <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpmime</artifactId>
-            <version>${apache.httpcomponents.version}</version>
-        </dependency> 
-        
-        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jcl-over-slf4j</artifactId>
             <!-- this is tied to logback-classic version in karate-parent -->

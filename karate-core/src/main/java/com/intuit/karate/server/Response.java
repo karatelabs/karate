@@ -29,6 +29,7 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsValue;
+import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import java.util.ArrayList;
@@ -112,10 +113,8 @@ public class Response implements ProxyObject {
         }
         Map<String, Map> map = new HashMap();
         for (String value : values) {
-            Set<Cookie> cookies = ServerCookieDecoder.STRICT.decode(value);
-            for (Cookie cookie : cookies) {
-                map.put(cookie.name(), Cookies.toMap(cookie));
-            }
+            Cookie cookie = ClientCookieDecoder.STRICT.decode(value);
+            map.put(cookie.name(), Cookies.toMap(cookie));
         }
         return map;
     }
@@ -175,7 +174,7 @@ public class Response implements ProxyObject {
     public String getContentType() {
         return getHeader(HttpConstants.HDR_CONTENT_TYPE);
     }
-    
+
     public void setContentType(String contentType) {
         setHeader(HttpConstants.HDR_CONTENT_TYPE, contentType);
     }

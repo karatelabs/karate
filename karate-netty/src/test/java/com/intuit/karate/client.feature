@@ -32,27 +32,27 @@ Scenario: cats crud
     When method get
     Then status 200
     And match response contains ([billie, wild])
-    And match header Access-Control-Allow-Origin == '*'
+    # And match header Access-Control-Allow-Origin == '*'
 
-Scenario: cors options method handling
-    Given url mockServerUrl
-    When method options
-    Then status 200
-    And match header Allow == 'GET, HEAD, POST, PUT, DELETE, PATCH'
-    And match header Access-Control-Allow-Origin == '*'    
-    And match header Access-Control-Allow-Methods == 'GET, HEAD, POST, PUT, DELETE, PATCH'    
-    And match response == ''
+#Scenario: cors options method handling
+#    Given url mockServerUrl
+#    When method options
+#    Then status 200
+#    And match header Allow == 'GET, HEAD, POST, PUT, DELETE, PATCH'
+#    And match header Access-Control-Allow-Origin == '*'    
+#    And match header Access-Control-Allow-Methods == 'GET, HEAD, POST, PUT, DELETE, PATCH'    
+#    And match response == ''
 
-Scenario: cors options with access-control-request-headers
-    Given url mockServerUrl
-    And header Access-Control-Request-Headers = 'POST'
-    When method options   
-    Then status 200
-    And match header Allow == 'GET, HEAD, POST, PUT, DELETE, PATCH'
-    And match header Access-Control-Allow-Origin == '*'    
-    And match header Access-Control-Allow-Methods == 'GET, HEAD, POST, PUT, DELETE, PATCH'
-    And match header Access-Control-Allow-Headers == 'POST'
-    And match response == ''
+#Scenario: cors options with access-control-request-headers
+#    Given url mockServerUrl
+#    And header Access-Control-Request-Headers = 'POST'
+#    When method options   
+#    Then status 200
+#    And match header Allow == 'GET, HEAD, POST, PUT, DELETE, PATCH'
+#    And match header Access-Control-Allow-Origin == '*'    
+#    And match header Access-Control-Allow-Methods == 'GET, HEAD, POST, PUT, DELETE, PATCH'
+#    And match header Access-Control-Allow-Headers == 'POST'
+#    And match response == ''
 
 Scenario: body json path expression
     Given url mockServerUrl + 'body/json'

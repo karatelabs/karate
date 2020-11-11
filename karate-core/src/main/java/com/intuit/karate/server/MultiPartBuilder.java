@@ -33,6 +33,7 @@ import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.multipart.HttpPostRequestEncoder;
+import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.handler.codec.http.multipart.MemoryFileUpload;
 import java.io.File;
 import java.nio.charset.Charset;
@@ -54,6 +55,7 @@ public class MultiPartBuilder {
     private final boolean multipart;
     private final HttpPostRequestEncoder encoder;
     private List<Part> formFields; // only for the edge case of GET
+    private StringBuilder bodyForDisplay = new StringBuilder();
 
     private String contentTypeHeader;
 
@@ -75,6 +77,10 @@ public class MultiPartBuilder {
 
     public boolean isMultipart() {
         return multipart;
+    }
+
+    public String getBodyForDisplay() {
+        return bodyForDisplay.toString();
     }
 
     public MultiPartBuilder(boolean multipart, HttpClient client) {
@@ -215,6 +221,9 @@ public class MultiPartBuilder {
     }
 
     public byte[] build() {
+        for (InterfaceHttpData part : encoder.getBodyListAttributes()) {
+            bodyForDisplay.append('\n').append(part.toString()).append('\n');
+        }
         try {
             io.netty.handler.codec.http.HttpRequest request = encoder.finalizeRequest();
             contentTypeHeader = request.headers().get(HttpConstants.HDR_CONTENT_TYPE);

@@ -29,10 +29,8 @@ import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.formats.postman.PostmanConverter;
 import com.intuit.karate.job.JobExecutor;
 import com.intuit.karate.netty.FeatureServer;
-import com.intuit.karate.netty.FileChangedWatcher;
-import net.masterthought.cucumber.Configuration;
-import net.masterthought.cucumber.ReportBuilder;
-import org.apache.commons.collections.CollectionUtils;
+import com.intuit.karate.runtime.MockServer;
+import com.intuit.karate.server.SslContextFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -40,9 +38,6 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
@@ -61,8 +56,8 @@ public class Main implements Callable<Void> {
     @Option(names = {"-h", "--help"}, usageHelp = true, description = "display this help message")
     boolean help;
 
-    @Option(names = {"-m", "--mocks"}, description = "mock server file(s)")
-    List<File> mocks;
+    @Option(names = {"-m", "--mock"}, description = "mock server file")
+    File mock;
 
     @Option(names = {"-p", "--port"}, description = "mock server port (required for --mock)")
     Integer port;
@@ -156,7 +151,7 @@ public class Main implements Callable<Void> {
     @Override
     public Void call() throws Exception {
         if (clean) {
-            org.apache.commons.io.FileUtils.deleteDirectory(new File(output));
+            FileUtils.deleteDirectory(new File(output));
             logger.info("deleted directory: {}", output);
         }
         if (jobServerUrl != null) {
@@ -184,12 +179,6 @@ public class Main implements Callable<Void> {
             Results results = Runner
                     .path(fixed).tags(tags).scenarioName(name)
                     .reportDir(jsonOutputDir).hook(hook).parallel(threads);
-            Collection<File> jsonFiles = org.apache.commons.io.FileUtils.listFiles(new File(jsonOutputDir), new String[]{"json"}, true);
-            List<String> jsonPaths = new ArrayList(jsonFiles.size());
-            jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));
-            Configuration config = new Configuration(new File(output), new Date() + "");
-            ReportBuilder reportBuilder = new ReportBuilder(jsonPaths, config);
-            reportBuilder.generateReports();
             if (results.getFailCount() > 0) {
                 Exception ke = new KarateException("there are test failures !");
                 StackTraceElement[] newTrace = new StackTraceElement[]{
@@ -207,7 +196,7 @@ public class Main implements Callable<Void> {
         if (clean) {
             return null;
         }
-        if (CollectionUtils.isEmpty(mocks)) {
+        if (mock == null) {
             CommandLine.usage(this, System.err);
             return null;
         }
@@ -219,17 +208,21 @@ public class Main implements Callable<Void> {
         // these files will not be created, unless ssl or ssl proxying happens
         // and then they will be lazy-initialized
         if (cert == null || key == null) {
-            cert = new File(FeatureServer.DEFAULT_CERT_NAME);
-            key = new File(FeatureServer.DEFAULT_KEY_NAME);
+            cert = new File(SslContextFactory.DEFAULT_CERT_NAME);
+            key = new File(SslContextFactory.DEFAULT_KEY_NAME);
         }
         if (env != null) { // some advanced mocks may want karate.env
             System.setProperty(ScriptBindings.KARATE_ENV, env);
         }
-        FeatureServer server = FeatureServer.start(mocks, port, ssl, cert, key, null);
+        MockServer.Builder builder = MockServer.feature(mock).certFile(cert).keyFile(key).corsEnabled();
+        if (ssl) {
+            builder.https(port);
+        } else {
+            builder.http(port);
+        }
+        MockServer server = builder.build();
         if (watch) {
-            logger.info("--watch enabled, will hot-reload: {}", mocks.stream().map((f) -> f.getName()).collect(Collectors.toList()));
-            FileChangedWatcher watcher = new FileChangedWatcher(mocks, server, port, ssl, cert, key);
-            watcher.watch();
+            // TODO
         }
         server.waitSync();
         return null;

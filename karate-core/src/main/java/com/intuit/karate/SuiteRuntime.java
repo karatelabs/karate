@@ -42,8 +42,6 @@ import java.util.Properties;
  */
 public class SuiteRuntime {
 
-    private String env; // lazy inited
-
     public final String tagSelector;
     public final Logger logger;
     public final File workingDir;
@@ -63,6 +61,7 @@ public class SuiteRuntime {
     public final String karateBase;
     public final String karateConfig;
 
+    public String env; // can be lazy-inited
     public String karateConfigEnv;
 
     private String read(String name) {
@@ -87,6 +86,7 @@ public class SuiteRuntime {
 
     public SuiteRuntime(Runner.Builder rb) {
         env = rb.env;
+        karateConfigEnv = rb.env;
         tagSelector = Tags.fromKarateOptionsTags(rb.tags);
         logger = rb.logger;
         workingDir = rb.workingDir;
@@ -139,10 +139,12 @@ public class SuiteRuntime {
 
     private boolean envResolved;
 
-    public String getEnv() {
+    public String resolveEnv() {
         if (!envResolved) {
             envResolved = true;
-            env = StringUtils.trimToNull(System.getProperty("karate.env"));
+            if (env == null) {
+                env = StringUtils.trimToNull(System.getProperty("karate.env"));
+            }
             if (env != null) {
                 logger.info("karate.env is: '{}'", env);
                 karateConfigEnv = read(karateConfigDir + "karate-config-" + env + ".js");

@@ -47,10 +47,11 @@ public class HttpLogger {
 
     private static void logHeaders(int num, String prefix, StringBuilder sb,
             HttpLogModifier modifier, Map<String, List<String>> headers) {
-        if (headers == null) {
+        if (headers == null || headers.isEmpty()) {
             return;
         }
         headers.forEach((k, v) -> {
+            sb.append('\n');
             sb.append(num).append(prefix).append(k).append(": ");
             int count = v.size();
             if (count == 1) {
@@ -74,8 +75,8 @@ public class HttpLogger {
                     sb.append(']');
                 }
             }
-            sb.append('\n');
         });
+        sb.append('\n');
     }
 
     private static void logBody(Config config, HttpLogModifier logModifier,
@@ -101,6 +102,12 @@ public class HttpLogger {
         return logModifier == null ? null : logModifier.enableForUri(uri) ? logModifier : null;
     }
 
+    private static void appendLineFeedIfNeeded(StringBuilder sb) {
+        if (!Character.isSpaceChar(sb.charAt(sb.length() - 1))) {
+            sb.append('\n');
+        }
+    }
+
     public static String getStatusFailureMessage(int expected, Config config, HttpRequest request, Response response) {
         String url = request.getUrl();
         HttpLogModifier logModifier = logModifier(config, url);
@@ -122,15 +129,19 @@ public class HttpLogger {
         String maskedUri = requestModifier == null ? uri : requestModifier.uri(uri);
         StringBuilder sb = new StringBuilder();
         sb.append("request:\n").append(requestCount).append(" > ")
-                .append(request.getMethod()).append(' ').append(maskedUri).append('\n');
+                .append(request.getMethod()).append(' ').append(maskedUri);
         logHeaders(requestCount, " > ", sb, requestModifier, request.getHeaders());
         ResourceType rt = ResourceType.fromContentType(request.getContentType());
         if (rt == null || rt.isBinary()) {
             // don't log body
         } else {
-            Object converted = JsValue.fromBytes(request.getBody(), false);
+            Object converted = request.getBodyForDisplay();
+            if (converted == null) {
+                converted = JsValue.fromBytes(request.getBody(), false);
+            }
             logBody(config, requestModifier, sb, uri, converted, true);
         }
+        appendLineFeedIfNeeded(sb);
         logger.debug("{}", sb);
     }
 
@@ -141,7 +152,7 @@ public class HttpLogger {
         String uri = request.getUrl();
         HttpLogModifier responseModifier = logModifier(config, uri);
         sb.append("response time in milliseconds: ").append(elapsedTime).append('\n');
-        sb.append(requestCount).append(" < ").append(response.getStatus()).append('\n');
+        sb.append(requestCount).append(" < ").append(response.getStatus());
         logHeaders(requestCount, " < ", sb, responseModifier, response.getHeaders());
         ResourceType rt = response.getResourceType();
         if (rt == null || rt.isBinary()) {
@@ -149,7 +160,8 @@ public class HttpLogger {
         } else {
             logBody(config, responseModifier, sb, uri, response.getBodyConverted(), false);
         }
-        logger.debug("{}\n", sb);
+        appendLineFeedIfNeeded(sb);
+        logger.debug("{}", sb);
     }
 
 }
