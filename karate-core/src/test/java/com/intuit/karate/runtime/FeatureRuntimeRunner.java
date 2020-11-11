@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 class FeatureRuntimeRunner {
-    
+
     static final Logger logger = LoggerFactory.getLogger(FeatureRuntimeRunner.class);
 
     FeatureRuntime fr;
@@ -42,12 +42,17 @@ class FeatureRuntimeRunner {
     private void matchContains(Object actual, Object expected) {
         MatchResult mr = Match.that(actual).contains(expected);
         assertTrue(mr.pass, mr.message);
-    }    
-    
+    }
+
+    @Test
+    void testFork() {
+        run("fork.feature");
+    }
+
     @Test
     void testForkListener() {
         run("fork-listener.feature");
-        assertFalse(fr.result.isFailed());        
-    }     
-    
+        assertFalse(fr.result.isFailed());
+    }
+
 }

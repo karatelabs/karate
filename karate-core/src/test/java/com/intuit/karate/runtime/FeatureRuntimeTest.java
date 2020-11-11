@@ -169,11 +169,6 @@ class FeatureRuntimeTest {
     }
 
     @Test
-    void testFork() {
-        run("fork.feature");
-    }
-
-    @Test
     void testCallFeature() {
         run("call-feature.feature");
     }
