@@ -108,7 +108,7 @@ public class SuiteRuntime {
         } else {
             karateBase = read("classpath:karate-base.js");
             if (karateBase != null) {
-                logger.info("karate-base.js found on classpath");
+                logger.info("karate-base.js found [classpath:]");
             }
             String temp = rb.configDir;
             if (temp == null) {
@@ -130,9 +130,9 @@ public class SuiteRuntime {
             karateConfigDir = temp;
             karateConfig = read(karateConfigDir + "karate-config.js");
             if (karateConfig != null) {
-                logger.info("karate-config.js found in {}", karateConfigDir);
+                logger.info("karate-config.js found [{}]", karateConfigDir);
             } else {
-                logger.warn("karate-config.js not found in {}", karateConfigDir);
+                logger.warn("karate-config.js not found [{}]", karateConfigDir);
             }
         }
     }
@@ -149,7 +149,7 @@ public class SuiteRuntime {
                 logger.info("karate.env is: '{}'", env);
                 karateConfigEnv = read(karateConfigDir + "karate-config-" + env + ".js");
                 if (karateConfigEnv != null) {
-                    logger.info("karate-config-" + env + ".js found in {}", karateConfigDir);
+                    logger.info("karate-config-" + env + ".js found [{}]", karateConfigDir);
                 }
             }
         }

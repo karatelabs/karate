@@ -211,7 +211,7 @@ class FileUtilsTest {
         Resource resource = new Resource(path, relativePath, -1, cl);
         Feature feature = FeatureParser.parse(resource);
         try {
-            Map<String, Object> map = Runner.runFeature(feature, null, true);
+            Runner.runFeature(feature, null, true);
             fail("we should not have reached here");
         } catch (Exception e) {
             assertTrue(e instanceof KarateException);

@@ -70,7 +70,7 @@ public class FeatureResult {
             sb.append("report: ").append(reportPath).append('\n');
         }
         sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", scenarioCount, getPassedCount(), failedCount, durationMillis / 1000));
-        sb.append("---------------------------------------------------------");
+        sb.append("---------------------------------------------------------\n");
         System.out.println(sb);
     }
 
