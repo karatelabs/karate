@@ -33,6 +33,7 @@ import com.linecorp.armeria.common.ResponseHeadersBuilder;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import io.netty.util.AsciiString;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +56,7 @@ public class HttpServerHandler implements HttpService {
         return HttpResponse.from(req.aggregate().thenApply(ahr -> {
             Request request = toRequest(ctx, ahr);
             Response response = handler.handle(request);
-            return toResponse(response);
+            return toResponse(ctx, response);
         }));
     }
 
@@ -81,7 +82,7 @@ public class HttpServerHandler implements HttpService {
         return request;
     }
 
-    private HttpResponse toResponse(Response response) {
+    private HttpResponse toResponse(ServiceRequestContext ctx, Response response) {
         byte[] body = response.getBody();
         if (body == null) {
             body = HttpConstants.ZERO_BYTES;
@@ -91,7 +92,12 @@ public class HttpServerHandler implements HttpService {
         if (headers != null) {
             headers.forEach((k, v) -> rhb.add(k, v));
         }
-        return HttpResponse.of(rhb.build(), HttpData.wrap(body));
+        HttpResponse hr = HttpResponse.of(rhb.build(), HttpData.wrap(body));
+        if (response.getDelay() > 0) {
+            return HttpResponse.delayed(hr, Duration.ofMillis(response.getDelay()), ctx.eventLoop());
+        } else {
+            return hr;
+        }
     }
 
 }

@@ -50,7 +50,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     public FeatureNode(SuiteRuntime suite, HtmlSummaryReport summary, Feature feature, String tagSelector) {
         this.suite = suite;
         this.summary = summary;
-        featureRuntime = new FeatureRuntime(suite, feature);
+        featureRuntime = new FeatureRuntime(suite, feature, null);
         generator = featureRuntime.scenarios;
     }
 

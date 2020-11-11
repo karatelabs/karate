@@ -25,10 +25,8 @@ package com.intuit.karate.runtime;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.PerfContext;
-import com.intuit.karate.Resource;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
-import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.data.Json;
@@ -49,7 +47,6 @@ import com.intuit.karate.server.ResourceType;
 import com.intuit.karate.shell.Command;
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -723,8 +720,7 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public String toAbsolutePath(String relativePath) {
-        Resource resource = getEngine().fileReader.toResource(relativePath);
-        return resource.getPath().normalize().toAbsolutePath().toString();
+        return getEngine().fileReader.toAbsolutePath(relativePath);
     }
 
     public Object toBean(Object o, String className) {

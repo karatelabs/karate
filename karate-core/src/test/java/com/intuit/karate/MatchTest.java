@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
  */
 class MatchTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(MatchTest.class);
+    static final Logger logger = LoggerFactory.getLogger(MatchTest.class);
 
     @Test
     void testSomeMatches() {

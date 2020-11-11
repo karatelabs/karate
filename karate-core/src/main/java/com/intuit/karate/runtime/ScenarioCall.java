@@ -35,9 +35,10 @@ public class ScenarioCall {
     public final ScenarioRuntime parentRuntime;
     public final int depth;
     public final Feature feature;
+    public final Variable arg;
 
     private boolean callonce;
-    private Variable arg;
+
     private boolean sharedScope;
     private boolean karateConfigDisabled;
     private int loopIndex = -1;
@@ -62,14 +63,6 @@ public class ScenarioCall {
         return sharedScope;
     }
 
-    public void setArg(Variable arg) {
-        this.arg = arg;
-    }
-
-    public Variable getArg() {
-        return arg;
-    }
-
     public boolean isCallonce() {
         return callonce;
     }
@@ -85,12 +78,12 @@ public class ScenarioCall {
     public boolean isKarateConfigDisabled() {
         return karateConfigDisabled;
     }
-    
-    public static ScenarioCall none() {
-        return new ScenarioCall(null, null);
+
+    public static ScenarioCall none(Map<String, Object> arg) {
+        return new ScenarioCall(null, null, arg == null ? null : new Variable(arg));
     }
 
-    public ScenarioCall(ScenarioRuntime parentRuntime, Feature feature) {
+    public ScenarioCall(ScenarioRuntime parentRuntime, Feature feature, Variable arg) {
         this.parentRuntime = parentRuntime;
         this.feature = feature;
         if (parentRuntime == null) {
@@ -98,6 +91,7 @@ public class ScenarioCall {
         } else {
             depth = parentRuntime.caller.depth + 1;
         }
+        this.arg = arg;
     }
 
     public static class Result {

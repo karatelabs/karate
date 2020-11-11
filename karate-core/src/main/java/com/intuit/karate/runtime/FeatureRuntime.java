@@ -73,34 +73,27 @@ public class FeatureRuntime implements Runnable {
         return perfRuntime;
     }
 
-    public void setCallArg(Map<String, Object> arg) {
-        if (arg != null) {
-            caller.setArg(new Variable(arg));
-        }
-    }
-
     public void setNext(Runnable next) {
         this.next = next;
     }
 
-    public FeatureRuntime(SuiteRuntime suite, Feature feature) {
-        this(suite, feature, ScenarioCall.none());
+    public FeatureRuntime(SuiteRuntime suite, Feature feature, Map<String, Object> arg) {
+        this(suite, feature, ScenarioCall.none(arg));
     }
 
     public FeatureRuntime(ScenarioCall call) {
         this(call.parentRuntime.featureRuntime.suite, call.feature, call);
-        Variable arg = call.getArg();
         result.setLoopIndex(call.getLoopIndex());
-        if (arg != null) {
-            result.setCallArg(arg.getValue());
+        if (call.arg != null && !call.arg.isNull()) {
+            result.setCallArg(call.arg.getValue());
         }
     }
 
-    private FeatureRuntime(SuiteRuntime suite, Feature feature, ScenarioCall parentCall) {
+    private FeatureRuntime(SuiteRuntime suite, Feature feature, ScenarioCall caller) {
         this.suite = suite;
         this.feature = feature;
-        this.caller = parentCall;
-        this.rootFeature = parentCall.isNone() ? this : parentCall.parentRuntime.featureRuntime;
+        this.caller = caller;
+        this.rootFeature = caller.isNone() ? this : caller.parentRuntime.featureRuntime;
         result = new FeatureResult(suite.results, feature);
         scenarios = new ScenarioGenerator(this, feature.getSections().iterator());
     }

@@ -29,16 +29,19 @@ import com.intuit.karate.driver.DockerTarget;
 import com.intuit.karate.driver.Target;
 import com.intuit.karate.http.HttpLogModifier;
 import com.intuit.karate.server.Cookies;
-import com.intuit.karate.server.HttpClientFactory;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class Config {
+    
+    private static final Logger logger = LoggerFactory.getLogger(Config.class);
 
     public static final int DEFAULT_RETRY_INTERVAL = 3000;
     public static final int DEFAULT_RETRY_COUNT = 3;
@@ -65,7 +68,7 @@ public class Config {
     private String localAddress;
     private int responseDelay;
     private boolean lowerCaseResponseHeaders = false;
-    private boolean corsEnabled = false;
+    private boolean corsEnabled = false; // TODO deprecate
     private boolean logPrettyRequest;
     private boolean logPrettyResponse;
     private boolean printEnabled = true;
@@ -125,6 +128,7 @@ public class Config {
                 lowerCaseResponseHeaders = value.isTrue();
                 return false;
             case "cors":
+                logger.warn("'cors' is deprecated, use server start api instead");
                 corsEnabled = value.isTrue();
                 return false;
             case "logPrettyResponse":

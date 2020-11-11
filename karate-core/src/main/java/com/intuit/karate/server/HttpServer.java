@@ -37,7 +37,6 @@ public class HttpServer {
 
     private static final Logger logger = LoggerFactory.getLogger(HttpServer.class);
 
-    private final ServerHandler handler;
     private final Server server;
     private final CompletableFuture<Void> future;
     private final int port;
@@ -59,12 +58,12 @@ public class HttpServer {
     }
 
     public HttpServer(int port, ServerHandler handler) {
-        this(Server.builder().http(port), handler);
+        this(Server.builder()
+                .http(port)
+                .service("prefix:/", new HttpServerHandler(handler)));
     }
 
-    public HttpServer(ServerBuilder sb, ServerHandler handler) {
-        this.handler = handler;
-        sb.service("prefix:/", new HttpServerHandler(handler));
+    public HttpServer(ServerBuilder sb) {
         server = sb.build();
         future = server.start();
         future.join();

@@ -30,7 +30,6 @@ import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsValue;
 import io.netty.handler.codec.http.cookie.Cookie;
-import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import java.util.ArrayList;
 import java.util.Arrays;

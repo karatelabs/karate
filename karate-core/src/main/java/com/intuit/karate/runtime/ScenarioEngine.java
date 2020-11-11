@@ -90,6 +90,8 @@ public class ScenarioEngine {
 
     private static final String KARATE = "karate";
     private static final String READ = "read";
+    private static final String DRIVER = "driver";
+    private static final String ROBOT = "robot";
 
     public static final String RESPONSE = "response";
     public static final String RESPONSE_HEADERS = "responseHeaders";
@@ -102,13 +104,13 @@ public class ScenarioEngine {
     public static final String REQUEST = "request";
     public static final String REQUEST_URL_BASE = "requestUrlBase";
     public static final String REQUEST_URI = "requestUri";
-    private static final String REQUEST_PARAMS = "requestParams";    
+    private static final String REQUEST_PARAMS = "requestParams";
     public static final String REQUEST_METHOD = "requestMethod";
     public static final String REQUEST_HEADERS = "requestHeaders";
     private static final String REQUEST_TIME_STAMP = "requestTimeStamp";
 
     public final ScenarioRuntime runtime;
-    protected final ScenarioFileReader fileReader;
+    public final ScenarioFileReader fileReader;
     public final Map<String, Variable> vars;
     public final Logger logger;
 
@@ -121,8 +123,8 @@ public class ScenarioEngine {
     private JsEngine JS;
 
     // only used by mock server
-    public ScenarioEngine(ScenarioRuntime runtime) {
-        this(runtime.engine.config, runtime, runtime.engine.vars, runtime.logger);
+    public ScenarioEngine(ScenarioRuntime runtime, Map<String, Variable> vars) {
+        this(runtime.engine.config, runtime, vars, runtime.logger);
     }
 
     public ScenarioEngine(Config config, ScenarioRuntime runtime, Map<String, Variable> vars, Logger logger) {
@@ -664,6 +666,7 @@ public class ScenarioEngine {
         if (perfEventName != null) {
             PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, response.getStatus());
             capturePerfEvent(pe);
+
         }
     }
 
@@ -809,6 +812,18 @@ public class ScenarioEngine {
     private Driver driver;
     private Plugin robot;
 
+    private void autoDef(Plugin plugin, String instanceName) {
+        for (String methodName : plugin.methodNames()) {
+            String invoke = instanceName + "." + methodName;
+            String js = "(function(){ if (arguments.length == 0) return " + invoke + "();"
+                    + " if (arguments.length == 1) return " + invoke + "(arguments[0]);"
+                    + " if (arguments.length == 2) return " + invoke + "(arguments[0], arguments[1]);"
+                    + " return " + invoke + "(arguments[0], arguments[1], arguments[2]) })";
+            Variable v = evalJs(js);
+            setHiddenVariable(methodName, v);
+        }
+    }
+
     public void driver(String expression) {
 
     }
@@ -869,7 +884,7 @@ public class ScenarioEngine {
         });
     }
 
-    private Map<String, Variable> detachVariables() {
+    public Map<String, Variable> detachVariables() {
         Map<String, Variable> detached = new HashMap(vars.size());
         vars.forEach((k, v) -> {
             switch (v.type) {
@@ -1766,11 +1781,11 @@ public class ScenarioEngine {
 
     public Variable callFeature(Feature feature, Variable arg, int index, boolean sharedScope) {
         if (arg == null || arg.isMap()) {
-            ScenarioCall call = new ScenarioCall(runtime, feature);
-            call.setArg(arg);
+            ScenarioCall call = new ScenarioCall(runtime, feature, arg);
             call.setLoopIndex(index);
             call.setSharedScope(sharedScope);
             FeatureRuntime fr = new FeatureRuntime(call);
+            fr.setPerfRuntime(runtime.featureRuntime.getPerfRuntime());
             fr.run();
             // VERY IMPORTANT ! switch back from called feature js context
             THREAD_LOCAL.set(this);

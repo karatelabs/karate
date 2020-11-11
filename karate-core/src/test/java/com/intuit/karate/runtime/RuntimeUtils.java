@@ -42,7 +42,7 @@ public class RuntimeUtils {
 
     public static ScenarioRuntime runtime() {
         Feature feature = toFeature("* print 'test'");
-        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature);
+        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature, null);
         ScenarioGenerator sg = new ScenarioGenerator(fr, feature.getSections().iterator());
         return sg.next();
     }
@@ -54,7 +54,7 @@ public class RuntimeUtils {
     public static ScenarioRuntime run(HttpClientFactory clientFactory, Feature feature) {
         Runner.Builder builder = new Runner.Builder();
         builder.clientFactory(clientFactory);
-        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(builder), feature);
+        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(builder), feature, null);
         ScenarioGenerator sg = new ScenarioGenerator(fr, feature.getSections().iterator());
         ScenarioRuntime sr = sg.next();
         sr.run();
@@ -69,7 +69,7 @@ public class RuntimeUtils {
         Feature feature = FeatureParser.parse(path);
         Runner.Builder rb = new Runner.Builder();
         rb.configDir(configDir);
-        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(rb), feature);
+        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(rb), feature, null);
         fr.run();
         return fr;
     }

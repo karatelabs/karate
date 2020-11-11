@@ -26,11 +26,12 @@ package com.intuit.karate.runtime;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.server.HttpServer;
-import com.intuit.karate.server.ServerHandler;
+import com.intuit.karate.server.HttpServerHandler;
 import com.intuit.karate.server.SslContextFactory;
-import com.linecorp.armeria.common.SessionProtocol;
+import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
+import com.linecorp.armeria.server.cors.CorsService;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,8 +42,8 @@ import java.util.Map;
  */
 public class MockServer extends HttpServer {
 
-    private MockServer(ServerBuilder sb, ServerHandler handler) {
-        super(sb, handler);
+    private MockServer(ServerBuilder sb) {
+        super(sb);
     }
 
     public static class Builder {
@@ -54,6 +55,7 @@ public class MockServer extends HttpServer {
         final Feature feature;
         int port;
         boolean ssl;
+        boolean corsEnabled;
         File certFile;
         File keyFile;
         Map<String, Object> args;
@@ -92,6 +94,11 @@ public class MockServer extends HttpServer {
             return this;
         }
 
+        public Builder corsEnabled() {
+            corsEnabled = true;
+            return this;
+        }
+
         public MockServer build() {
             ServerBuilder sb = Server.builder();
             if (ssl) {
@@ -105,7 +112,12 @@ public class MockServer extends HttpServer {
                 sb.http(port);
             }
             MockHandler mockHandler = new MockHandler(feature, args);
-            return new MockServer(sb, mockHandler);
+            HttpService service = new HttpServerHandler(mockHandler);
+            if (corsEnabled) {
+                service = service.decorate(CorsService.builderForAnyOrigin().newDecorator());
+            }
+            sb.service("prefix:/", service);
+            return new MockServer(sb);
         }
 
     }

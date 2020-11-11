@@ -82,7 +82,7 @@ public class Runner {
             public Iterator<CompletableFuture> process(Feature feature) {
                 CompletableFuture future = new CompletableFuture();
                 try {
-                    FeatureRuntime fr = new FeatureRuntime(suite, feature);
+                    FeatureRuntime fr = new FeatureRuntime(suite, feature, null);
                     fr.setNext(() -> {
                         featureResults.add(fr.result);
                         onFeatureDone(fr, ++index, count);
@@ -172,9 +172,8 @@ public class Runner {
 
     public static Map<String, Object> runFeature(Feature feature, Map<String, Object> vars, boolean evalKarateConfig) {
         SuiteRuntime suite = new SuiteRuntime();
-        FeatureRuntime featureRuntime = new FeatureRuntime(suite, feature);
+        FeatureRuntime featureRuntime = new FeatureRuntime(suite, feature, vars);
         featureRuntime.caller.setKarateConfigDisabled(!evalKarateConfig);
-        featureRuntime.setCallArg(vars);
         featureRuntime.run();
         FeatureResult result = featureRuntime.result;
         if (result.isFailed()) {
@@ -204,10 +203,9 @@ public class Runner {
         builder.tags = tags;
         SuiteRuntime suite = new SuiteRuntime(builder); // sets tag selector
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
-        FeatureRuntime featureRuntime = new FeatureRuntime(suite, feature);
+        FeatureRuntime featureRuntime = new FeatureRuntime(suite, feature, arg);
         featureRuntime.setPerfRuntime(perf);
         featureRuntime.setNext(() -> perf.afterFeature());
-        featureRuntime.setCallArg(arg);
         perf.submit(featureRuntime);
     }
 

@@ -79,7 +79,7 @@ public class Karate extends ParentRunner<Feature> {
     @Override
     protected void runChild(Feature feature, RunNotifier notifier) {
         hook.setNotifier(notifier);
-        FeatureRuntime fr = new FeatureRuntime(suite, feature);
+        FeatureRuntime fr = new FeatureRuntime(suite, feature, null);
         fr.run();
         FeatureResult result = fr.result;
         if (!result.isEmpty()) {

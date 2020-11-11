@@ -44,7 +44,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.graalvm.polyglot.Value;
 
 /**
  *
@@ -264,16 +263,15 @@ public class ScenarioRuntime implements Runnable {
 
     private Map<String, Object> initMagicVariables() {
         Map<String, Object> map = new HashMap();
-        Variable arg = caller.getArg();
         if (caller.isNone()) { // if feature called via java api
-            if (arg != null && arg.isMap()) {
-                map.putAll(arg.getValue());
+            if (caller.arg != null && caller.arg.isMap()) {
+                map.putAll(caller.arg.getValue());
             }
         } else {
-            map.put("__arg", arg);
+            map.put("__arg", caller.arg);
             map.put("__loop", caller.getLoopIndex());
-            if (arg != null && arg.isMap()) {
-                map.putAll(arg.getValue());
+            if (caller.arg != null && caller.arg.isMap()) {
+                map.putAll(caller.arg.getValue());
             }
         }
         if (scenario.isOutline() && !scenario.isDynamic()) { // init examples row magic variables

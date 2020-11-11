@@ -38,6 +38,7 @@ import com.intuit.karate.server.Request;
 import com.intuit.karate.server.ResourceType;
 import com.intuit.karate.server.Response;
 import com.intuit.karate.server.ServerHandler;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -72,6 +73,7 @@ public class MockHandler implements ServerHandler {
     private final Feature feature;
     private final String featureName;
     private final ScenarioRuntime runtime; // holds global config and vars
+    private final Map<String, Variable> globals;
 
     protected static final ThreadLocal<Request> LOCAL_REQUEST = new ThreadLocal<Request>();
 
@@ -82,8 +84,7 @@ public class MockHandler implements ServerHandler {
     public MockHandler(Feature feature, Map<String, Object> args) {
         this.feature = feature;
         featureName = feature.getPath().toFile().getName();
-        FeatureRuntime featureRuntime = new FeatureRuntime(SuiteRuntime.forMock(), feature);
-        featureRuntime.setCallArg(args);
+        FeatureRuntime featureRuntime = new FeatureRuntime(SuiteRuntime.forMock(), feature, args);
         FeatureSection section = new FeatureSection();
         section.setIndex(-1); // TODO util for creating dummy scenario
         Scenario dummy = new Scenario(feature, section, -1);
@@ -110,6 +111,7 @@ public class MockHandler implements ServerHandler {
             }
         }
         runtime.logger.info("mock server initialized: {}", featureName);
+        globals = runtime.engine.detachVariables();
     }
 
     private static final Result PASSED = Result.passed(0);
@@ -119,7 +121,7 @@ public class MockHandler implements ServerHandler {
         Thread.currentThread().setContextClassLoader(runtime.featureRuntime.suite.classLoader);
         LOCAL_REQUEST.set(req);
         req.processBody();
-        ScenarioEngine engine = new ScenarioEngine(runtime);
+        ScenarioEngine engine = new ScenarioEngine(runtime, new HashMap(globals));
         engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
         engine.setVariable(ScenarioEngine.REQUEST_URI, req.getPath());
         engine.setVariable(ScenarioEngine.REQUEST_METHOD, req.getMethod());
@@ -160,7 +162,7 @@ public class MockHandler implements ServerHandler {
                             break;
                         }
                     }
-                    Map<String, Variable> vars = runtime.engine.vars;
+                    Map<String, Variable> vars = engine.vars;
                     response = vars.remove(ScenarioEngine.RESPONSE);
                     responseStatus = vars.remove(ScenarioEngine.RESPONSE_STATUS);
                     responseHeaders = vars.remove(ScenarioEngine.RESPONSE_HEADERS);
