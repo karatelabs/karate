@@ -510,9 +510,20 @@ public class ScenarioBridge implements PerfContext {
         return new HttpRequestBuilder(client).url(url);
     }
 
-    public Object listen(long timeout, Value f) {
-        assertIfJsFunction(f);
-        Object result = getEngine().listen(timeout, () -> f.execute());
+    public Object jsonPath(Object o, String exp) {
+        Json json = new Json(o);
+        return JsValue.fromJava(json.get(exp));
+    }
+
+    public Object keysOf(Value o) {
+        return new JsList(o.getMemberKeys());
+    }
+
+    public Object listen(long timeout, Value value) {
+        assertIfJsFunction(value);
+        ScenarioEngine engine = getEngine();
+        Runnable listener = new ScenarioListener(engine, value);
+        Object result = engine.listen(timeout, listener);
         return JsValue.fromJava(result);
     }
 
@@ -525,15 +536,6 @@ public class ScenarioBridge implements PerfContext {
         if (engine.getConfig().isPrintEnabled()) {
             engine.logger.info("{}", new LogWrapper(values));
         }
-    }
-
-    public Object jsonPath(Object o, String exp) {
-        Json json = new Json(o);
-        return JsValue.fromJava(json.get(exp));
-    }
-
-    public Object keysOf(Value o) {
-        return new JsList(o.getMemberKeys());
     }
 
     public Object lowerCase(Object o) {

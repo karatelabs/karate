@@ -32,20 +32,20 @@ import org.graalvm.polyglot.Value;
  *
  * @author pthomas3
  */
-public class ScenarioListener implements Consumer, Function {
-
+public class ScenarioListener implements Consumer, Function, Runnable {
+    
     private final ScenarioEngine parent;
     private final ScenarioEngine child;
     private final CharSequence source;
-
+    
     private Value function;
-
+    
     public ScenarioListener(ScenarioEngine parent, Value function) {
         this.parent = parent;
         this.child = parent.child();
         source = function.getSourceLocation().getCharacters();
     }
-
+    
     private Value get() {
         if (function != null) {
             return function;
@@ -55,16 +55,21 @@ public class ScenarioListener implements Consumer, Function {
         function = child.attachSource("(" + source + ")");
         return function;
     }
-
+    
     @Override
     public void accept(Object arg) {
         get().executeVoid(arg);
     }
-
+    
     @Override
     public Object apply(Object arg) {
         Value result = get().execute(arg);
         return new JsValue(result).getValue();
     }
-
+    
+    @Override
+    public void run() {
+        get().executeVoid();
+    }
+    
 }
