@@ -622,8 +622,8 @@ public class ScenarioBridge implements PerfContext {
         getEngine().set(name, path, new Variable(XmlUtils.toXmlDoc(xml)));
     }
 
-    public void signal(Object result) {
-        getEngine().signal(result);
+    public void signal(Value result) {
+        getEngine().signal(new JsValue(result).getValue());
     }
 
     public MockServer start(String mock) {

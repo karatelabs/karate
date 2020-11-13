@@ -46,7 +46,6 @@ public class ScenarioListener implements Consumer, Function, Runnable {
         this.parent = parent;
         this.child = parent.child();
         source = value.getSourceLocation().getCharacters();
-        logger.debug("init listener for: {}", value);
     }
 
     private Value function;
@@ -55,24 +54,20 @@ public class ScenarioListener implements Consumer, Function, Runnable {
         if (function != null) {
             return function;
         }
-        logger.debug("thread init");
         ScenarioEngine.set(child);
-        logger.debug("before listener init");
         child.init();
-        logger.debug("after listener init, before attach");
         function = child.attachSource(source);
-        logger.debug("after attach");
         return function;
     }
 
     @Override
     public void accept(Object arg) {
-        get().executeVoid(arg);
+        get().executeVoid(JsValue.fromJava(arg));
     }
 
     @Override
     public Object apply(Object arg) {
-        Value result = get().execute(arg);
+        Value result = get().execute(JsValue.fromJava(arg));
         return new JsValue(result).getValue();
     }
 
