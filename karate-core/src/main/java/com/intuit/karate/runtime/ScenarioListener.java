@@ -27,49 +27,58 @@ import com.intuit.karate.graal.JsValue;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.graalvm.polyglot.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class ScenarioListener implements Consumer, Function, Runnable {
-    
+
+    private static final Logger logger = LoggerFactory.getLogger(ScenarioListener.class);
+
     private final ScenarioEngine parent;
     private final ScenarioEngine child;
     private final CharSequence source;
-    
-    private Value function;
-    
-    public ScenarioListener(ScenarioEngine parent, Value function) {
+
+    public ScenarioListener(ScenarioEngine parent, Value value) {
         this.parent = parent;
         this.child = parent.child();
-        source = function.getSourceLocation().getCharacters();
+        source = value.getSourceLocation().getCharacters();
+        logger.debug("init listener for: {}", value);
     }
-    
+
+    private Value function;
+
     private Value get() {
         if (function != null) {
             return function;
         }
+        logger.debug("thread init");
         ScenarioEngine.set(child);
+        logger.debug("before listener init");
         child.init();
+        logger.debug("after listener init, before attach");
         function = child.attachSource(source);
+        logger.debug("after attach");
         return function;
     }
-    
+
     @Override
     public void accept(Object arg) {
         get().executeVoid(arg);
     }
-    
+
     @Override
     public Object apply(Object arg) {
         Value result = get().execute(arg);
         return new JsValue(result).getValue();
     }
-    
+
     @Override
     public void run() {
         get().executeVoid();
     }
-    
+
 }
