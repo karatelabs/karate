@@ -24,9 +24,10 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.Http;
-import com.intuit.karate.Json;
 import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptValue;
+import com.intuit.karate.data.Json;
+import com.intuit.karate.server.Response;
 import com.intuit.karate.shell.Command;
 import java.util.Base64;
 import java.util.Collections;
@@ -56,16 +57,16 @@ public abstract class WebDriver implements Driver {
         this.logger = options.driverLogger;
         command = options.startProcess();
         http = options.getHttp();
-        Http.Response response = http.path("session").post(options.getWebDriverSessionPayload());
-        if (response.status() != 200) {
-            String message = "webdriver session create status " + response.status() + ", " + response.body().asString();
+        Response response = http.path("session").post(options.getWebDriverSessionPayload());
+        if (response.getStatus() != 200) {
+            String message = "webdriver session create status " + response.getStatus() + ", " + response.getBodyAsString();
             logger.error(message);
             if (command != null) {
                 command.close(true);
             }
             throw new RuntimeException(message);
         }
-        sessionId = response.jsonPath("get[0] response..sessionId").asString();
+        sessionId = response.json().getFirst("$..sessionId");
         logger.debug("init session id: {}", sessionId);
         http.url("/session/" + sessionId);
         //windowId = http.path("window").get().jsonPath("$.value").asString();
@@ -123,17 +124,17 @@ public abstract class WebDriver implements Driver {
         }
     }
 
-    protected boolean isJavaScriptError(Http.Response res) {
-        return res.status() != 200
-                && !res.jsonPath("$.value").asString().contains("unexpected alert open");
+    protected boolean isJavaScriptError(Response res) {
+        return res.getStatus() != 200
+                && !res.json().<String>get("value").contains("unexpected alert open");
     }
 
-    protected boolean isLocatorError(Http.Response res) {
-        return res.status() != 200;
+    protected boolean isLocatorError(Response res) {
+        return res.getStatus() != 200;
     }
 
-    protected boolean isCookieError(Http.Response res) {
-        return res.status() != 200;
+    protected boolean isCookieError(Response res) {
+        return res.getStatus() != 200;
     }
 
     private Element evalLocator(String locator, String dotExpression) {
@@ -150,18 +151,18 @@ public abstract class WebDriver implements Driver {
 
     protected ScriptValue eval(String expression, List args) {
         Json json = new Json().set("script", expression).set("args", (args == null) ? Collections.EMPTY_LIST : args);
-        Http.Response res = http.path("execute", "sync").post(json);
+        Response res = http.path("execute", "sync").post(json);
         if (isJavaScriptError(res)) {
-            logger.warn("javascript failed, will retry once: {}", res.body().asString());
+            logger.warn("javascript failed, will retry once: {}", res.getBodyAsString());
             options.sleep();
             res = http.path("execute", "sync").post(json);
             if (isJavaScriptError(res)) {
-                String message = "javascript failed twice: " + res.body().asString();
+                String message = "javascript failed twice: " + res.getBodyAsString();
                 logger.error(message);
                 throw new RuntimeException(message);
             }
         }
-        return res.jsonPath("$.value").value();
+        return res.json().get("value");
     }
 
     protected ScriptValue eval(String expression) {
@@ -200,24 +201,24 @@ public abstract class WebDriver implements Driver {
     @Override
     public String elementId(String locator) {
         String json = selectorPayload(locator);
-        Http.Response res = http.path("element").post(json);
+        Response res = http.path("element").post(json);
         if (isLocatorError(res)) {
-            logger.warn("locator failed, will retry once: {}", res.body().asString());
+            logger.warn("locator failed, will retry once: {}", res.getBodyAsString());
             options.sleep();
             res = http.path("element").post(json);
             if (isLocatorError(res)) {
-                String message = "locator failed twice: " + res.body().asString();
+                String message = "locator failed twice: " + res.getBodyAsString();
                 logger.error(message);
                 throw new RuntimeException(message);
             }
         }
-        return res.jsonPath("get[0] $.." + getElementKey()).asString();
+        return res.json().<List<String>>get("$.." + getElementKey()).get(0);
     }
 
     @Override
     public List<String> elementIds(String locator) {
         return http.path("elements")
-                .post(selectorPayload(locator)).jsonPath("$.." + getElementKey()).asList();
+                .post(selectorPayload(locator)).json().get("$.." + getElementKey());
     }
 
     @Override
@@ -233,7 +234,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Map<String, Object> getDimensions() {
-        return http.path("window", "rect").get().jsonPath("$.value").asMap();
+        return http.path("window", "rect").get().json().getJson("value").asMap();
     }
 
     @Override
@@ -294,7 +295,7 @@ public abstract class WebDriver implements Driver {
             if (locator.startsWith("(")) {
                 evalFocus(locator);
                 elementId = http.path("element", "active").get()
-                        .jsonPath("get[0] $.." + getElementKey()).asString();
+                        .json().getFirst("$.." + getElementKey());
             } else {
                 elementId = elementId(locator);
             }
@@ -370,7 +371,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public String getUrl() {
-        return http.path("url").get().jsonPath("$.value").asString();
+        return http.path("url").get().json().get("value");
     }
 
     private String evalReturn(String locator, String dotExpression) {
@@ -443,24 +444,24 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public String getTitle() {
-        return http.path("title").get().jsonPath("$.value").asString();
+        return http.path("title").get().json().get("value");
     }
 
     @Override
     public List<Map> getCookies() {
-        return http.path("cookie").get().jsonPath("$.value").asList();
+        return http.path("cookie").get().json().get("value");
     }
 
     @Override
     public Map<String, Object> cookie(String name) {
-        return http.path("cookie", name).get().jsonPath("$.value").asMap();
+        return http.path("cookie", name).get().json().get("value");
     }
 
     @Override
     public void cookie(Map<String, Object> cookie) {
-        Http.Response res = http.path("cookie").post(Collections.singletonMap("cookie", cookie));
+        Response res = http.path("cookie").post(Collections.singletonMap("cookie", cookie));
         if (isCookieError(res)) {
-            throw new RuntimeException("set-cookie failed: " + res.body().asString());
+            throw new RuntimeException("set-cookie failed: " + res.getBodyAsString());
         }
     }
 
@@ -481,7 +482,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public String getDialog() {
-        return http.path("alert", "text").get().jsonPath("$.value").asString();
+        return http.path("alert", "text").get().json().get("value");
     }
 
     @Override
@@ -503,11 +504,11 @@ public abstract class WebDriver implements Driver {
     public byte[] screenshot(String locator, boolean embed) {
         String temp;
         if (locator == null) {
-            temp = http.path("screenshot").get().jsonPath("$.value").asString();
+            temp = http.path("screenshot").get().json().get("value");
         } else {
             temp = retryIfEnabled(locator, () -> {
                 String id = elementId(locator);
-                return http.path("element", id, "screenshot").get().jsonPath("$.value").asString();
+                return http.path("element", id, "screenshot").get().json().get("value");
             });
         }
         byte[] bytes = getDecoder().decode(temp);
@@ -519,7 +520,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public List<String> getPages() {
-        return http.path("window", "handles").get().jsonPath("$.value").asList();
+        return http.path("window", "handles").get().json().get("value");
     }
 
     @Override
@@ -588,8 +589,8 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public byte[] pdf(Map<String, Object> printOptions){
-        String temp = http.path("print").post(printOptions).jsonPath("$.value").asString();
+    public byte[] pdf(Map<String, Object> printOptions) {
+        String temp = http.path("print").post(printOptions).json().get("value");
         return Base64.getDecoder().decode(temp);
     }
 

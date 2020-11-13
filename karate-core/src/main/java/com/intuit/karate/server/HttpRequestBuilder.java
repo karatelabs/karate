@@ -23,10 +23,10 @@
  */
 package com.intuit.karate.server;
 
-import com.intuit.karate.graal.VarArgsFunction;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.graal.Methods;
 import com.intuit.karate.http.HttpUtils;
 import com.linecorp.armeria.common.QueryParams;
 import com.linecorp.armeria.common.QueryParamsBuilder;
@@ -415,7 +415,7 @@ public class HttpRequestBuilder implements ProxyObject {
 
     //==========================================================================
     //
-    private final VarArgsFunction PATH_FUNCTION = args -> {
+    private final Methods.FunVar PATH_FUNCTION = args -> {
         if (args.length == 0) {
             return getPath();
         } else {
@@ -432,7 +432,7 @@ public class HttpRequestBuilder implements ProxyObject {
         return o == null ? null : o.toString();
     }
 
-    private final VarArgsFunction PARAM_FUNCTION = args -> {
+    private final Methods.FunVar PARAM_FUNCTION = args -> {
         if (args.length == 1) {
             List<String> list = getParam(toString(args[0]));
             if (list == null || list.isEmpty()) {
@@ -445,7 +445,7 @@ public class HttpRequestBuilder implements ProxyObject {
         }
     };
 
-    private final VarArgsFunction HEADER_FUNCTION = args -> {
+    private final Methods.FunVar HEADER_FUNCTION = args -> {
         if (args.length == 1) {
             return getHeader(toString(args[0]));
         } else {
@@ -454,7 +454,7 @@ public class HttpRequestBuilder implements ProxyObject {
         }
     };
 
-    private final VarArgsFunction INVOKE_FUNCTION = args -> {
+    private final Methods.FunVar INVOKE_FUNCTION = args -> {
         switch (args.length) {
             case 0:
                 return invoke();
@@ -465,7 +465,7 @@ public class HttpRequestBuilder implements ProxyObject {
         }
     };
 
-    private final VarArgsFunction METHOD_FUNCTION = args -> {
+    private final Methods.FunVar METHOD_FUNCTION = args -> {
         if (args.length > 0) {
             return method((String) args[0]);
         } else {
@@ -473,7 +473,7 @@ public class HttpRequestBuilder implements ProxyObject {
         }
     };
 
-    private final VarArgsFunction BODY_FUNCTION = args -> {
+    private final Methods.FunVar BODY_FUNCTION = args -> {
         if (args == null) { // can be null
             return this;
         }

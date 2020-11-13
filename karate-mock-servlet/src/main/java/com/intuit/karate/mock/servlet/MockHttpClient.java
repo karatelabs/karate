@@ -165,4 +165,9 @@ public class MockHttpClient implements HttpClient {
         return map;
     }
 
+    @Override
+    public Logger getLogger() {
+        return logger;
+    }
+
 }

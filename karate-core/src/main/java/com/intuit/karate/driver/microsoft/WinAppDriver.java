@@ -23,9 +23,8 @@
  */
 package com.intuit.karate.driver.microsoft;
 
-import com.intuit.karate.Json;
 import com.intuit.karate.LogAppender;
-import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.data.Json;
 import com.intuit.karate.driver.DriverElement;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Element;
@@ -42,8 +41,8 @@ public class WinAppDriver extends WebDriver {
         super(options);
     }
 
-    public static WinAppDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(context, map, appender, 4727, 
+    public static WinAppDriver start(Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(map, appender, 4727, 
                 "C:/Program Files (x86)/Windows Application Driver/WinAppDriver");
         options.arg(options.port + "");
         return new WinAppDriver(options);
@@ -71,7 +70,7 @@ public class WinAppDriver extends WebDriver {
     @Override
     public String elementId(String id) {
         String body = getElementSelector(id);
-        return http.path("element").post(body).jsonPath("get[0] $..ELEMENT").asString();
+        return http.path("element").post(body).json().getFirst("$..ELEMENT");
     }
 
     @Override
@@ -84,7 +83,7 @@ public class WinAppDriver extends WebDriver {
     @Override
     public String text(String locator) {
         String id = elementId(locator);
-        return http.path("element", id, "text").get().jsonPath("$.value").asString();
+        return http.path("element", id, "text").get().json().get("value");
     }
 
     @Override

@@ -77,7 +77,7 @@ class KarateMockHandlerTest {
         );
         matchVar("response", "{ 'Content-Type': ['application/json; charset=UTF-8'] }");
     }
-    
+
     @Test
     void testPathSubstitution() {
         background().scenario(
@@ -89,7 +89,7 @@ class KarateMockHandlerTest {
                 "path 'hello', id",
                 "method get"
         );
-        matchVar("response", "{ id: '42' }");        
+        matchVar("response", "{ id: '42' }");
     }
 
     @Test
@@ -133,7 +133,7 @@ class KarateMockHandlerTest {
         );
         matchVar("response", "{ foo: ['bar,baz'] }");
     }
-    
+
     @Test
     void testParamMultiValue() {
         background().scenario(
@@ -145,7 +145,7 @@ class KarateMockHandlerTest {
                 "path '/hello'",
                 "method get"
         );
-        matchVar("response", "{ foo: ['bar', 'baz'] }");        
+        matchVar("response", "{ foo: ['bar', 'baz'] }");
     }
 
     @Test
@@ -188,9 +188,9 @@ class KarateMockHandlerTest {
                 "request { foo: 'bar' }",
                 "method post"
         );
-        matchVar("response", "{ 'Content-Type': ['application/json; charset=UTF-8'] }"); 
+        matchVar("response", "{ 'Content-Type': ['application/json; charset=UTF-8'] }");
     }
-    
+
     @Test
     void testResponseContentTypeForJson() {
         background().scenario(
@@ -204,8 +204,8 @@ class KarateMockHandlerTest {
                 "match header content-type == 'application/json'",
                 "match header content-type contains 'json'"
         );
-    }    
-    
+    }
+
     @Test
     void testCookie() {
         background().scenario(
@@ -322,6 +322,20 @@ class KarateMockHandlerTest {
                 "method post"
         );
         matchVar("response", "{ foo: [{ name: 'foo', value: 'hello', contentType: 'text/plain', charset: 'UTF-8', filename: 'foo.txt', transferEncoding: '7bit' }] }");
+    }
+
+    @Test
+    void testConfigureResponseHeaders() {
+        background("configure responseHeaders = { 'Content-Type': 'text/html' }")
+                .scenario(
+                        "pathMatches('/hello')",
+                        "def response = ''");
+        run(
+                URL_STEP,
+                "path '/hello'",
+                "method get"
+        );
+        matchVar("responseHeaders", "{ 'Content-Type': ['text/html'] }");
     }
 
 }

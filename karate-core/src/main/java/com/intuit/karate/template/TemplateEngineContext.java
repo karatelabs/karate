@@ -71,12 +71,11 @@ public class TemplateEngineContext implements IEngineContext {
         if (variableNames.contains(ENGINE)) {
             variableNames.remove(ENGINE);
             JsEngine local = (JsEngine) getVariable(ENGINE);
-            Value bindings = local.bindings();
-            for (String key : bindings.getMemberKeys()) {
+            for (String key : local.bindings.getMemberKeys()) {
                 if (RequestCycle.GLOBALS.contains(key)) {
                     continue;
                 }
-                Value v = bindings.getMember(key);
+                Value v = local.bindings.getMember(key);
                 je.putValue(key, v);
             }
         }

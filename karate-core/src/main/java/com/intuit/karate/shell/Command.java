@@ -187,14 +187,13 @@ public class Command extends Thread {
     public static boolean waitForHttp(String url) {
         int attempts = 0;
         long startTime = System.currentTimeMillis();
-        Http http = Http.forUrl(LogAppender.NO_OP, url);
+        Http http = Http.forUrl(url);
         do {
             if (attempts > 0) {
                 LOGGER.debug("attempt #{} waiting for http to be ready at: {}", attempts, url);
             }
             try {
-                Http.Response res = http.get();
-                int status = res.status();
+                int status = http.get().getStatus();
                 if (status == 200) {
                     long elapsedTime = System.currentTimeMillis() - startTime;
                     LOGGER.debug("ready to accept http connections after {} ms - {}", elapsedTime, url);

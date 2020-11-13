@@ -985,20 +985,12 @@ public class ScenarioContext {
     // driver and robot ========================================================     
     //
     private void autoDef(Plugin plugin, String instanceName) {
-        for (String methodName : plugin.methodNames()) {
-            String invoke = instanceName + "." + methodName;
-            String js = "function(){ if (arguments.length == 0) return " + invoke + "();"
-                    + " if (arguments.length == 1) return " + invoke + "(arguments[0]);"
-                    + " if (arguments.length == 2) return " + invoke + "(arguments[0], arguments[1]);"
-                    + " return " + invoke + "(arguments[0], arguments[1], arguments[2]) }";
-            ScriptValue sv = ScriptBindings.eval(js, bindings);
-            bindings.putAdditionalVariable(methodName, sv.getValue());
-        }
+
     }
 
     public void setDriver(Driver driver) {
         this.driver = driver;
-        driver.setContext(this);
+        // driver.setContext(this);
         bindings.putAdditionalVariable(ScriptBindings.DRIVER, driver);
         if (robot != null) {
             logger.warn("'robot' is active, use 'driver.' prefix for driver methods");
@@ -1021,7 +1013,7 @@ public class ScenarioContext {
             if (sv.isMapLike()) {
                 options.putAll(sv.getAsMap());
             }
-            setDriver(DriverOptions.start(this, options, appender));
+            setDriver(DriverOptions.start(options, logger, appender));
         }
         if (sv.isString()) {
             driver.setUrl(sv.getAsString());
@@ -1030,7 +1022,7 @@ public class ScenarioContext {
 
     public void setRobot(Plugin robot) {
         this.robot = robot;
-        robot.setContext(this);
+        // robot.setContext(this);
         bindings.putAdditionalVariable(ScriptBindings.ROBOT, robot);
         if (driver != null) {
             logger.warn("'driver' is active, use 'robot.' prefix for robot methods");
@@ -1055,7 +1047,7 @@ public class ScenarioContext {
             try {
                 Class clazz = Class.forName("com.intuit.karate.robot.RobotFactory");
                 PluginFactory factory = (PluginFactory) clazz.newInstance();
-                robot = factory.create(this, options);
+                // robot = factory.create(this, options);
             } catch (KarateException ke) {
                 throw ke;
             } catch (Exception e) {

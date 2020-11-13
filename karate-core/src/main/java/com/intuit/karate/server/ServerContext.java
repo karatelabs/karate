@@ -23,10 +23,10 @@
  */
 package com.intuit.karate.server;
 
-import com.intuit.karate.graal.VarArgsFunction;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.graal.Methods;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import java.io.InputStream;
@@ -164,9 +164,8 @@ public class ServerContext implements ProxyObject {
         }
     }
 
-    public String toJson(Object o) {
-        Value v = Value.asValue(o);
-        return RequestCycle.get().getLocalEngine().toJson(v);
+    public String toJson(Value value) {
+        return new JsValue(value).toJson();
     }
 
     public ServerConfig getConfig() {
@@ -238,7 +237,7 @@ public class ServerContext implements ProxyObject {
     private final Consumer<String> SWITCH_FUNCTION = s -> RequestCycle.get().setSwitchTemplate(s);
     private static final Supplier<String> UUID_FUNCTION = () -> java.util.UUID.randomUUID().toString();
     private final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s, false);
-    private final VarArgsFunction HTTP_FUNCTION; // set in constructor
+    private final Methods.FunVar HTTP_FUNCTION; // set in constructor
 
     private static final BiFunction<Object, Object, Object> REMOVE_FUNCTION = (o, k) -> {
         if (o instanceof Map && k != null) {
@@ -265,7 +264,7 @@ public class ServerContext implements ProxyObject {
             case UUID:
                 return UUID_FUNCTION;
             case TO_JSON:
-                return (Function<Object, String>) this::toJson;
+                return (Function<Value, String>) this::toJson;
             case FROM_JSON:
                 return FROM_JSON_FUNCTION;
             case REMOVE:

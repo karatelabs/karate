@@ -29,6 +29,7 @@ import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.server.Response;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.shell.FileLogAppender;
 import java.io.File;
@@ -68,7 +69,7 @@ public class JobExecutor {
             logger.error("unable to connect to server, aborting");
             System.exit(1);
         }
-        http = Http.forUrl(appender, serverUrl);
+        http = Http.forUrl(serverUrl);
         http.config("lowerCaseResponseHeaders", "true");
         // download ============================================================
         JobMessage download = invokeServer(new JobMessage("download"));
@@ -89,7 +90,7 @@ public class JobExecutor {
         environment = init.get("environment", Map.class);
         executeCommands(startupCommands, environment);
         shutdownCommands = init.getCommands("shutdownCommands");
-        logger.info("init done");        
+        logger.info("init done");
     }
 
     public static void run(String serverUrl) {
@@ -134,7 +135,7 @@ public class JobExecutor {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }    
+    }
 
     private void loopNext() {
         do {
@@ -198,7 +199,7 @@ public class JobExecutor {
             }
         }
     }
-    
+
     private JobMessage invokeServer(JobMessage req) {
         return invokeServer(http, jobId, executorId, req);
     }
@@ -214,23 +215,23 @@ public class JobExecutor {
             contentType = "application/json";
             body = new ScriptValue(req.body);
         }
-        Http.Response res = http.header(JobMessage.KARATE_METHOD, req.method)
+        Response res = http.header(JobMessage.KARATE_METHOD, req.method)
                 .header(JobMessage.KARATE_JOB_ID, jobId)
                 .header(JobMessage.KARATE_EXECUTOR_ID, executorId)
                 .header(JobMessage.KARATE_CHUNK_ID, req.getChunkId())
                 .header("content-type", contentType).post(body);
-        String method = StringUtils.trimToNull(res.header(JobMessage.KARATE_METHOD));
-        contentType = StringUtils.trimToNull(res.header("content-type"));
+        String method = StringUtils.trimToNull(res.getHeader(JobMessage.KARATE_METHOD));
+        contentType = StringUtils.trimToNull(res.getHeader("content-type"));
         JobMessage jm;
         if (contentType != null && contentType.contains("octet-stream")) {
             jm = new JobMessage(method);
-            jm.setBytes(res.bodyBytes().asType(byte[].class));
+            jm.setBytes(res.getBody());
         } else {
-            jm = new JobMessage(method, res.body().asMap());
+            jm = new JobMessage(method, res.json().asMap());
         }
-        jm.setJobId(StringUtils.trimToNull(res.header(JobMessage.KARATE_JOB_ID)));
-        jm.setExecutorId(StringUtils.trimToNull(res.header(JobMessage.KARATE_EXECUTOR_ID)));
-        jm.setChunkId(StringUtils.trimToNull(res.header(JobMessage.KARATE_CHUNK_ID)));
+        jm.setJobId(StringUtils.trimToNull(res.getHeader(JobMessage.KARATE_JOB_ID)));
+        jm.setExecutorId(StringUtils.trimToNull(res.getHeader(JobMessage.KARATE_EXECUTOR_ID)));
+        jm.setChunkId(StringUtils.trimToNull(res.getHeader(JobMessage.KARATE_CHUNK_ID)));
         return jm;
     }
 

@@ -21,32 +21,42 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.driver.microsoft;
+package com.intuit.karate.graal;
 
-import com.intuit.karate.LogAppender;
-import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.driver.WebDriver;
-import java.util.Map;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.List;
+import java.util.function.Supplier;
 
 /**
  *
  * @author pthomas3
  */
-public class MsEdgeDriver extends WebDriver {
+public class MethodInvoker implements Methods.FunVar {
 
-    public MsEdgeDriver(DriverOptions options) {
-        super(options);
-    }
+    private final Class type;
+    private final Object instance;
+    private final String methodName;
 
-    public static MsEdgeDriver start(Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(map, appender, 9515, "msedgedriver");
-        options.arg("--port=" + options.port);
-        return new MsEdgeDriver(options);
+    public MethodInvoker(Object instance, String methodName) {
+        this.type = instance.getClass();
+        this.instance = instance;
+        this.methodName = methodName;
     }
 
     @Override
-    public void activate() {
-        logger.warn("activate not implemented for mswebdriver");
+    public Object call(Object... args) {
+        Class[] types = new Class[args.length];
+        for (int i = 0; i < args.length; i++) {
+            Object arg = args[i];
+            types[i] = arg == null ? Object.class : arg.getClass();
+        }
+        try {
+            Method method = type.getMethod(methodName, types);
+            return method.invoke(instance, args);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }

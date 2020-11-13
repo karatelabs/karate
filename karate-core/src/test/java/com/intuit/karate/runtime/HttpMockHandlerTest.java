@@ -80,7 +80,7 @@ class HttpMockHandlerTest {
         response = handle().path("/hello").invoke("get");
         match(response.getBody(), MockUtils.testBytes);
     }
-    
+
     @Test
     void testEmptyResponse() {
         background().scenario(
@@ -89,6 +89,16 @@ class HttpMockHandlerTest {
         );
         response = handle().path("/hello").invoke("get");
         match(response.getBody(), HttpConstants.ZERO_BYTES);
-    }    
+    }
+
+    @Test
+    void testConfigureResponseHeaders() {
+        background("configure responseHeaders = { 'Content-Type': 'text/html' }")
+                .scenario(
+                        "pathMatches('/hello')",
+                        "def response = ''");
+        response = handle().path("/hello").invoke("get");
+        match(response.getHeader("Content-Type"), "text/html");
+    }
 
 }

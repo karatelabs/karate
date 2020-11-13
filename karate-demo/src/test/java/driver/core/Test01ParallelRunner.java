@@ -23,11 +23,9 @@
  */
 package driver.core;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
-import com.intuit.karate.netty.FeatureServer;
-import java.io.File;
+import com.intuit.karate.runtime.MockServer;
 import static org.junit.Assert.*;
 
 import demo.DemoTestParallel;
@@ -39,11 +37,10 @@ import org.junit.Test;
  * @author pthomas3
  */
 public class Test01ParallelRunner {
-    
+
     @BeforeClass
     public static void beforeClass() {
-        File file = FileUtils.getFileRelativeTo(Test01Runner.class, "_mock.feature");
-        FeatureServer server = FeatureServer.start(file, 0, false, null);
+        MockServer server = MockServer.feature("classpath:driver/core/_mock.feature").http(0).build();
         System.setProperty("karate.env", "mock");
         System.setProperty("web.url.base", "http://localhost:" + server.getPort());
     }
@@ -52,7 +49,7 @@ public class Test01ParallelRunner {
     public void testParallel() {
         Results results = Runner.path("classpath:driver/core/test-01.feature").reportDir("target/driver-demo").parallel(5);
         DemoTestParallel.generateReport(results.getReportDir());
-        assertTrue(results.getErrorMessages(), results.getFailCount() == 0);        
+        assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
     }
-       
+
 }

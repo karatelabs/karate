@@ -1,8 +1,11 @@
 package com.intuit.karate.graal;
 
+import com.intuit.karate.core.AutoDef;
+import com.intuit.karate.driver.Driver;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.runtime.MockUtils;
 import com.intuit.karate.server.Request;
+import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -42,8 +45,7 @@ class JsEngineTest {
         assertTrue(v.isFunction());
         JsValue res = v.invoke();
         assertTrue(res.isArray());
-        String json = je.toJson(res);
-        assertEquals("[\"a\",\"b\",\"c\"]", json);
+        assertEquals("[\"a\",\"b\",\"c\"]", res.toJson());
         assertEquals("function(){ return ['a', 'b', 'c'] }", v.toString());
     }
 
@@ -53,8 +55,7 @@ class JsEngineTest {
         assertTrue(v.isFunction());
         JsValue res = v.invoke();
         assertTrue(res.isArray());
-        String json = je.toJson(res);
-        assertEquals("[\"a\",\"b\",\"c\"]", json);
+        assertEquals("[\"a\",\"b\",\"c\"]", res.toJson());
         assertEquals("() => ['a', 'b', 'c']", v.toString());
     }
 
@@ -91,8 +92,7 @@ class JsEngineTest {
         assertTrue(v.isFunction());
         JsValue res = v.invoke(1);
         assertTrue(res.isArray());
-        String json = je.toJson(res);
-        assertEquals("[1,1]", json);
+        assertEquals("[1,1]", res.toJson());
         assertEquals("x => [x, x]", v.toString());
     }
 
@@ -187,6 +187,30 @@ class JsEngineTest {
         je.put("Utils", v.getValue());
         JsValue val = je.eval("Utils.testBytes");
         assertEquals(MockUtils.testBytes, val.getOriginal().asHostObject());
+    }
+
+    @Test
+    void testValueAndHostObject() {
+        SimplePojo sp = new SimplePojo();
+        Value v = Value.asValue(sp);
+        assertTrue(v.isHostObject());
+    }
+
+    @Test
+    void testAutoDefMethodInvoke() {
+        Object sad = new SimpleAutoDef();
+        for (Method m : sad.getClass().getMethods()) {
+            if (m.getAnnotation(AutoDef.class) != null) {
+                String name = m.getName();
+                je.put(name, new MethodInvoker(sad, name));
+            }
+        }
+        JsValue val = je.eval("hello('John')");
+        assertEquals(val.getAsString(), "hello John !");
+        val = je.eval("hello('John', 'Smith')");
+        assertEquals(val.getAsString(), "JohnSmith");
+        val = je.eval("hello('John', 'Smith', 'Rules')");
+        assertEquals(val.getAsString(), "JohnSmithRules");
     }
 
 }

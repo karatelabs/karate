@@ -167,6 +167,10 @@ public class JsValue {
     public String toString() {
         return original.toString();
     }
+    
+    public String toJson() {
+        return toString(value);
+    }
 
     public String getAsString() {
         return JsValue.toString(value);

@@ -2,6 +2,8 @@ package com.intuit.karate.runtime;
 
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.graal.JsEngine;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import org.graalvm.polyglot.Value;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +33,7 @@ public class VariableTest {
     }
 
     @Test
-    void testFunction() {
+    void testJsFunction() {
         JsValue jv = je.eval("(function(a, b){ return a + b })");
         Variable var = new Variable(jv);
         assertTrue(var.isJsFunction());
@@ -54,5 +56,23 @@ public class VariableTest {
         assertEquals(v.type, Variable.Type.OTHER);
         assertTrue(v.getValue() instanceof Value);
     }
+    
+    public String simpleFunction(String arg) {
+        return arg;
+    }
+    
+    public String simpleBiFunction(String arg1, String arg2) {
+        return arg1 + arg2;
+    }    
 
+    @Test
+    void testJavaFunction() {
+        Variable v = new Variable((Function<String, String>) this::simpleFunction);
+        assertTrue(v.isJavaFunction());
+        v = new Variable((BiFunction<String, String, String>) this::simpleBiFunction);
+        // maybe we are ok with this, karate "call" can be used only with functions
+        assertFalse(v.isJavaFunction());
+        
+    }
+    
 }

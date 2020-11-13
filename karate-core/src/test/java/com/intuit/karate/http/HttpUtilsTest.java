@@ -3,7 +3,6 @@ package com.intuit.karate.http;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Match;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
@@ -56,28 +55,8 @@ class HttpUtilsTest {
         Match.equals(map, "{ id: '1' }");
         map = HttpUtils.parseUriPattern("/api/{img}", "/api/billie.jpg");
         Match.equals(map, "{ img: 'billie.jpg' }");
-        map = HttpUtils.parseUriPattern("/{greedyPath:.+}", "/cats/1");
-        Match.equals(map, "{ greedyPath: 'cats/1' }");
-        map = HttpUtils.parseUriPattern("/cats/v{partialPath}x", "/cats/v1x");
-        Match.equals(map, "{ partialPath: '1' }");
-        map = HttpUtils.parseUriPattern("/cats/{duplicate}/{duplicate}", "/cats/v1/1043");
-        Match.equals(map, "{ duplicate: 'v1', 'duplicate@2': '1043' }");
-        map = HttpUtils.parseUriPattern("/cats/{}/{}", "/cats/v1/1043");
-        Match.equals(map, "{ ignored: 'v1', 'ignored@2': '1043' }");
         map = HttpUtils.parseUriPattern("/hello/{raw}", "/hello/�Ill~Formed@RequiredString!");
         Match.equals(map, "{ raw: '�Ill~Formed@RequiredString!' }");
-    }
-
-    @Test
-    void testCalculatePathMatchScore() {
-        List<Integer> score = HttpUtils.calculatePathMatchScore("/cats/{id}");
-        Match.equals(score, "[6,1,0]");
-        score = HttpUtils.calculatePathMatchScore("/cats/1");
-        Match.equals(score, "[7,0,0]");
-        score = HttpUtils.calculatePathMatchScore("/cats/1/");
-        Match.equals(score, "[7,0,0]");
-        score = HttpUtils.calculatePathMatchScore("cats/1/");
-        Match.equals(score, "[7,0,0]");
     }
 
     @Test

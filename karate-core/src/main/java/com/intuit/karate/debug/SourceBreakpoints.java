@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.debug;
 
-import com.intuit.karate.Json;
+import com.intuit.karate.data.Json;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -53,14 +53,14 @@ public class SourceBreakpoints {
 
     public SourceBreakpoints(Map<String, Object> map) {
         Json json = new Json(map);
-        name = json.getString("source.name");
-        path = json.getString("source.path");
-        List<Map<String, Object>> list = json.getList("breakpoints");
+        name = json.get("source.name");
+        path = json.get("source.path");
+        List<Map<String, Object>> list = json.get("breakpoints");
         breakpoints = new ArrayList(list.size());
         for (Map<String, Object> bm : list) {
             breakpoints.add(new Breakpoint(bm));
         }
-        sourceModified = json.getBoolean("sourceModified");
+        sourceModified = json.get("sourceModified");
     }
 
     @Override

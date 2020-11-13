@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.runtime.ScenarioEngine;
 import java.util.Map;
 
 /**
@@ -31,6 +32,6 @@ import java.util.Map;
  */
 public interface PluginFactory {
     
-    Plugin create(ScenarioContext context, Map<String, Object> options);
+    Plugin create(ScenarioEngine engine, Map<String, Object> options);
     
 }

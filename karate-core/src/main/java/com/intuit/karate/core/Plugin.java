@@ -34,8 +34,6 @@ import java.util.Map;
  */
 public interface Plugin {
 
-    void setContext(ScenarioContext context);
-
     Map<String, Object> afterScenario();
 
     List<String> methodNames();

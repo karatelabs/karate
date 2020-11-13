@@ -145,7 +145,7 @@ public class MockHandler implements ServerHandler {
             }
             Scenario scenario = fs.getScenario();
             if (isMatchingScenario(scenario, engine)) {
-                Response res = new Response(200);
+                Map<String, Object> configureHeaders;
                 Variable response, responseStatus, responseHeaders, responseDelay;
                 ScenarioActions actions = new ScenarioActions(engine);
                 Result result = PASSED;
@@ -163,6 +163,8 @@ public class MockHandler implements ServerHandler {
                             break;
                         }
                     }
+                    engine.mockAfterScenario();
+                    configureHeaders = engine.mockConfigureHeaders();
                     response = engine.vars.remove(ScenarioEngine.RESPONSE);
                     responseStatus = engine.vars.remove(ScenarioEngine.RESPONSE_STATUS);
                     responseHeaders = engine.vars.remove(ScenarioEngine.RESPONSE_HEADERS);
@@ -170,19 +172,14 @@ public class MockHandler implements ServerHandler {
                     globals.putAll(engine.detachVariables());
                 } // END TRANSACTION ===========================================
                 ScenarioEngine.set(prevEngine);
+                Response res = new Response(200);
                 if (result.isFailed()) {
                     response = new Variable(result.getError().getMessage());
                     responseStatus = new Variable(500);
                 } else {
+                    res.setHeaders(configureHeaders);
                     if (responseHeaders != null && responseHeaders.isMap()) {
-                        Map<String, Object> map = responseHeaders.getValue();
-                        map.forEach((k, v) -> {
-                            if (v instanceof List) {
-                                res.setHeader(k, (List) v);
-                            } else if (v != null) {
-                                res.setHeader(k, v.toString());
-                            }
-                        });
+                        res.setHeaders(responseHeaders.getValue());
                     }
                     if (responseDelay != null) {
                         res.setDelay(responseDelay.getAsInt());

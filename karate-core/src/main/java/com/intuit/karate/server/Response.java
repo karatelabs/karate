@@ -23,15 +23,15 @@
  */
 package com.intuit.karate.server;
 
-import com.intuit.karate.graal.VarArgsFunction;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.data.Json;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.graal.Methods;
 import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
 import io.netty.handler.codec.http.cookie.Cookie;
-import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -119,10 +119,6 @@ public class Response implements ProxyObject {
         return map;
     }
 
-    public void setHeaders(Map<String, List<String>> headers) {
-        this.headers = headers;
-    }
-
     public byte[] getBody() {
         return body;
     }
@@ -146,6 +142,10 @@ public class Response implements ProxyObject {
             logger.trace("failed to auto-convert response: {}", e);
             return getBodyAsString();
         }
+    }
+
+    public Json json() {
+        return body == null ? null : new Json(getBodyConverted());
     }
 
     public ResourceType getResourceType() {
@@ -190,11 +190,24 @@ public class Response implements ProxyObject {
         setHeader(name, Arrays.asList(values));
     }
 
+    public void setHeaders(Map<String, Object> map) {
+        if (map == null) {
+            return;
+        }
+        map.forEach((k, v) -> {
+            if (v instanceof List) {
+                setHeader(k, (List) v);
+            } else if (v != null) {
+                setHeader(k, v.toString());
+            }
+        });
+    }
+
     private static String toString(Object o) {
         return o == null ? null : o.toString();
     }
 
-    private final VarArgsFunction HEADER_FUNCTION = args -> {
+    private final Methods.FunVar HEADER_FUNCTION = args -> {
         if (args.length == 1) {
             return getHeader(toString(args[0]));
         } else {

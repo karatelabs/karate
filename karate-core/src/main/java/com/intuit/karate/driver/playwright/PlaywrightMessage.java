@@ -23,9 +23,8 @@
  */
 package com.intuit.karate.driver.playwright;
 
-import com.intuit.karate.Json;
+import com.intuit.karate.data.Json;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;

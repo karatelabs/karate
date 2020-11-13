@@ -23,7 +23,12 @@
  */
 package com.intuit.karate.server;
 
+import com.intuit.karate.Resource;
 import com.intuit.karate.runtime.ScenarioEngine;
+import java.io.InputStream;
+import java.util.Properties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -31,9 +36,37 @@ import com.intuit.karate.runtime.ScenarioEngine;
  */
 @FunctionalInterface
 public interface HttpClientFactory {
-    
-    public static final HttpClientFactory DEFAULT = engine -> new ArmeriaHttpClient(engine.getConfig(), engine.logger);
-    
+
     HttpClient create(ScenarioEngine engine);
+
+    public static final HttpClientFactory DEFAULT = engine -> new ArmeriaHttpClient(engine.getConfig(), engine.logger);
+
+    static final Logger logger = LoggerFactory.getLogger(HttpClientFactory.class);
     
+    static final String KARATE_HTTP_PROPERTIES = "classpath:karate-http.properties";
+    static final String CLIENT_FACTORY = "client.factory";
+
+    public static HttpClientFactory resolveClientFactory(ClassLoader classLoader) {
+        try {
+            Resource resource = new Resource(KARATE_HTTP_PROPERTIES, classLoader);
+            InputStream is = resource.getStream();
+            if (is == null) {
+                throw new RuntimeException(KARATE_HTTP_PROPERTIES + " not found");
+            }
+            Properties props = new Properties();
+            props.load(is);
+            String className = props.getProperty(CLIENT_FACTORY);
+            if (className == null) {
+                throw new RuntimeException("property " + CLIENT_FACTORY + " not found in " + KARATE_HTTP_PROPERTIES);
+            }
+            Class clazz = Class.forName(className);
+            HttpClientFactory factory = (HttpClientFactory) clazz.newInstance();
+            logger.info("using http client factory: {}", factory.getClass());
+            return factory;
+        } catch (Exception e) {
+            logger.warn("using built-in http client, {}", e.getMessage());
+            return HttpClientFactory.DEFAULT;
+        }
+    }
+
 }

@@ -28,7 +28,6 @@ import com.intuit.karate.debug.DapServer;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.formats.postman.PostmanConverter;
 import com.intuit.karate.job.JobExecutor;
-import com.intuit.karate.netty.FeatureServer;
 import com.intuit.karate.runtime.MockServer;
 import com.intuit.karate.server.SslContextFactory;
 import org.slf4j.Logger;
@@ -66,14 +65,14 @@ public class Main implements Callable<Void> {
     boolean watch;
 
     @Option(names = {"-s", "--ssl"}, description = "use ssl / https, will use '"
-            + FeatureServer.DEFAULT_CERT_NAME + "' and '" + FeatureServer.DEFAULT_KEY_NAME
+            + SslContextFactory.DEFAULT_CERT_NAME + "' and '" + SslContextFactory.DEFAULT_KEY_NAME
             + "' if they exist in the working directory, or generate them")
     boolean ssl;
 
-    @Option(names = {"-c", "--cert"}, description = "ssl certificate (default: " + FeatureServer.DEFAULT_CERT_NAME + ")")
+    @Option(names = {"-c", "--cert"}, description = "ssl certificate (default: " + SslContextFactory.DEFAULT_CERT_NAME + ")")
     File cert;
 
-    @Option(names = {"-k", "--key"}, description = "ssl private key (default: " + FeatureServer.DEFAULT_KEY_NAME + ")")
+    @Option(names = {"-k", "--key"}, description = "ssl private key (default: " + SslContextFactory.DEFAULT_KEY_NAME + ")")
     File key;
 
     @Option(names = {"-t", "--tags"}, description = "cucumber tags - e.g. '@smoke,~@ignore'")

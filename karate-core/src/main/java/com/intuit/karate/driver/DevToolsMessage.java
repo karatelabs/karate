@@ -23,8 +23,8 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.Json;
 import com.intuit.karate.ScriptValue;
+import com.intuit.karate.data.Json;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -82,17 +82,13 @@ public class DevToolsMessage {
     public boolean methodIs(String method) {
         return method.equals(this.method);
     }
-    
-    public String getParam(String path) {
-        return getParam(path, String.class);
-    }
 
-    public <T> T getParam(String path, Class<T> clazz) {
+    public <T> T getParam(String path) {
         if (params == null) {
             return null;
         }
         try {
-            return params.get(path, clazz);
+            return params.get(path);
         } catch (Exception e) {
             if (logger.isTraceEnabled()) {
                 logger.trace("get param - json path failed: {} - {}", path, params);

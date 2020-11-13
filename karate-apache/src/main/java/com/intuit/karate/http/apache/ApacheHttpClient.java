@@ -94,6 +94,11 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         httpLogger = new HttpLogger(logger);
         configure(engine.getConfig());
     }
+    
+    @Override
+    public Logger getLogger() {
+        return logger;
+    }    
 
     private void configure(Config config) {
         clientBuilder = HttpClientBuilder.create();

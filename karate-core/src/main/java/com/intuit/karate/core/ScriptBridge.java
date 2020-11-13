@@ -42,7 +42,6 @@ import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiValuedMap;
-import com.intuit.karate.netty.FeatureServer;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
 import com.intuit.karate.shell.Command;
@@ -698,22 +697,6 @@ public class ScriptBridge implements PerfContext {
         return getValue(name).getAsString();
     }
 
-    public boolean pathMatches(String path) {
-        String uri = getAsString(ScriptValueMap.VAR_REQUEST_URI);
-
-        Map<String, String> pathParams = HttpUtils.parseUriPattern(path, uri);
-        set(ScriptBindings.PATH_PARAMS, pathParams);
-        boolean matched = pathParams != null;
-
-        List<Integer> pathMatchScores = null;
-        if (matched) {
-            pathMatchScores = HttpUtils.calculatePathMatchScore(path);
-        }
-
-        set(ScriptBindings.PATH_MATCH_SCORES, pathMatchScores);
-        return matched;
-    }
-
     public boolean methodIs(String... methods) {
         String actual = getAsString(ScriptValueMap.VAR_REQUEST_METHOD);
         boolean match = Arrays.stream(methods).anyMatch((m) -> actual.equalsIgnoreCase(m));
@@ -787,55 +770,6 @@ public class ScriptBridge implements PerfContext {
         }
     }
 
-    public FeatureServer start(String mock) {
-        return start(Collections.singletonMap("mock", mock));
-    }
-
-    public FeatureServer start(Map<String, Object> config) {
-        List<String> mocks;
-        if (config.get("mock") instanceof String) {
-            mocks = Arrays.asList((String) config.get("mock"));
-        } else {
-            mocks = (List<String>) config.get("mock");
-        }
-        if (mocks == null || mocks.isEmpty()) {
-            throw new RuntimeException("'mock' is missing: " + config);
-        }
-        List<Feature> features = new ArrayList<>();
-        for (String mock : mocks) {
-            ScriptValue mockSv = FileUtils.readFile(mock, context());
-            if (!mockSv.isFeature()) {
-                throw new RuntimeException("'mock' is not a feature file: " + config + ", " + mockSv);
-            }
-            Feature feature = mockSv.getValue(Feature.class);
-            features.add(feature);
-        }
-        String certFile = (String) config.get("cert");
-        String keyFile = (String) config.get("key");
-        Boolean ssl = (Boolean) config.get("ssl");
-        if (ssl == null) {
-            ssl = false;
-        }
-        Integer port = (Integer) config.get("port");
-        if (port == null) {
-            port = 0;
-        }
-        Map<String, Object> arg = (Map) config.get("arg");
-        if (certFile != null && keyFile != null) {
-            ScriptValue certSv = FileUtils.readFile(certFile, context());
-            if (!certSv.isStream()) {
-                throw new RuntimeException("'cert' is not valid: " + config + ", " + certSv);
-            }
-            ScriptValue keySv = FileUtils.readFile(keyFile, context());
-            if (!keySv.isStream()) {
-                throw new RuntimeException("'key' is not valid: " + config + ", " + keySv);
-            }
-            return new FeatureServer(features.toArray(new Feature[0]), port, ssl, certSv.getAsStream(), keySv.getAsStream(), arg);
-        } else {
-            return new FeatureServer(features.toArray(new Feature[0]), port, ssl, arg);
-        }
-    }
-
     public String getEnv() {
         return context().featureContext.env;
     }
@@ -871,10 +805,6 @@ public class ScriptBridge implements PerfContext {
             list.add(matcher.group(group));
         }
         return list;
-    }
-
-    public Http http(String url) {
-        return Http.forUrl(context(), url);
     }
 
     public void stop(int port) {

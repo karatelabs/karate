@@ -23,10 +23,13 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.ScenarioContext;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import com.intuit.karate.runtime.ScenarioEngine;
+import com.intuit.karate.runtime.Variable;
+import com.intuit.karate.server.ArmeriaHttpClient;
+import com.intuit.karate.server.HttpClient;
+import com.intuit.karate.server.HttpRequest;
+import com.intuit.karate.server.HttpRequestBuilder;
+import com.intuit.karate.server.Response;
 import java.util.Map;
 
 /**
@@ -35,121 +38,111 @@ import java.util.Map;
  */
 public class Http {
 
-    private final Match match;
     public final String urlBase;
+    private final HttpRequestBuilder builder;
+    private final Logger logger;
 
-    public class Response {
+    private HttpRequest request;
+    private Response response;
 
-        public int status() {
-            return match.get("responseStatus").asInt();
-        }
-
-        public Match body() {
-            return match.get("response");
-        }
-
-        public Match bodyBytes() {
-            return match.eval("responseBytes");
-        }
-
-        public Match jsonPath(String exp) {
-            return body().jsonPath(exp);
-        }
-
-        public String header(String name) {
-            Map<String, Object> map = match.get("responseHeaders").asMap();
-            List<String> headers = (List) map.get(name);
-            if (headers != null && !headers.isEmpty()) {
-                return headers.get(0);
-            }
-            return null;
-        }
-
-    }
-
-    private Http(Match match, String urlBase) {
-        this.match = match;
+    public Http(HttpClient client, String urlBase) {
+        this.builder = new HttpRequestBuilder(client);
         this.urlBase = urlBase;
+        logger = client.getLogger();
     }
 
     public Http url(String url) {
         if (url.startsWith("/") && urlBase != null) {
             url = urlBase + url;
         }
-        match.context.url(Match.quote(url));
+        builder.url(url);
         return this;
     }
 
     public Http path(String... paths) {
         for (String p : paths) {
-            match.context.path(Match.quote(p));
+            builder.path(p);
         }
         return this;
     }
 
     public Http header(String name, String value) {
-        match.context.header(name, Match.quote(value));
+        builder.header(name, value);
         return this;
     }
 
     private Response handleError() {
-        Response res = new Response();
-        int code = res.status();
-        if (code >= 400) {
-            match.context.logger.warn("http response code: {}, response: {}, request: {}",
-                    code, res.body().asString(), match.context.getPrevRequest());
+        if (response.getStatus() >= 400) {
+            logger.warn("http response code: {}, response: {}, request: {}",
+                    response.getStatus(), response.getBodyAsString(), request);
         }
-        return res;
+        return response;
+    }
+
+    public Response method(String method, Object body) {
+        if (body != null) {
+            builder.body(body);
+        }
+        builder.method(method);
+        request = builder.build();
+        response = builder.client.invoke(request);
+        builder.reset();
+        return response;
+    }
+
+    public Response method(String method) {
+        return method(method, null);
     }
 
     public Response get() {
-        match.context.method("get");
+        method("get");
         return handleError();
     }
 
     public Response post(String body) {
-        return post(new Json(body));
+        com.intuit.karate.data.Json json = new com.intuit.karate.data.Json(body);
+        return post(json.asMapOrList());
     }
 
-    public Response post(byte[] bytes) {
-        return post(new ScriptValue(bytes));
-    }
-
-    public Response post(Map<String, Object> body) {
-        return post(new Json(body));
-    }
-
-    public Response post(ScriptValue body) {
-        match.context.request(body);
-        match.context.method("post");
+    public Response post(Object body) {
+        method("post", body);
         return handleError();
-    }
-
-    public Response post(Json json) { // avoid extra eval
-        return post(json.getValue());
     }
 
     public Response delete() {
-        match.context.method("delete");
+        method("delete");
         return handleError();
     }
 
-    public static Http forUrl(LogAppender appender, String url) {
-        Http http = new Http(Match.forHttp(appender), url);
+    public static Http forUrl(String url) {
+        HttpClient hc = new ArmeriaHttpClient(new com.intuit.karate.runtime.Config(), new Logger());
+        Http http = new Http(hc, url);
         return http.url(url);
     }
 
-    public static Http forUrl(ScenarioContext context, String url) {
-        Http http = new Http(Match.forHttp(context), url);
+    public static Http forUrl(ScenarioEngine engine, String url) {
+        if (engine == null) {
+            return forUrl(url);
+        }
+        HttpClient hc = engine.runtime.featureRuntime.suite.clientFactory.create(engine);
+        Http http = new Http(hc, url);
         return http.url(url);
     }
 
-    public Match config(String key, String value) {
-        return match.config(key, value);
+    public Http config(String key, String value) {
+        com.intuit.karate.runtime.Config config = builder.client.getConfig();
+        config.configure(key, new Variable(value));
+        builder.client.setConfig(config, key);
+        return this;
     }
 
-    public Match config(Map<String, Object> config) {
-        return match.config(config);
+    public Http config(Map<String, Object> map) {
+        com.intuit.karate.runtime.Config config = builder.client.getConfig();
+        map.forEach((k, v) -> {
+            config.configure(k, new Variable(v));
+        });
+        builder.client.setConfig(config, null);
+        return this;
     }
 
 }

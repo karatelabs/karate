@@ -27,7 +27,7 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Tag;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.graal.VarArgsFunction;
+import com.intuit.karate.graal.Methods;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -137,9 +137,9 @@ public class Tags implements Iterable<Tag> {
             return true;
         }
         JsEngine je = JsEngine.global();
-        je.put("anyOf", (VarArgsFunction) this::anyOf);
-        je.put("allOf", (VarArgsFunction) this::allOf);
-        je.put("not", (VarArgsFunction) this::not);
+        je.put("anyOf", (Methods.FunVar) this::anyOf);
+        je.put("allOf", (Methods.FunVar) this::allOf);
+        je.put("not", (Methods.FunVar) this::not);
         je.put("valuesFor", (Function<String, Values>) this::valuesFor);
         JsValue jv = je.eval(tagSelector);
         return jv.isTrue();

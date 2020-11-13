@@ -23,12 +23,11 @@
  */
 package com.intuit.karate.driver.playwright;
 
-import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.data.Json;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverElement;
 
@@ -101,8 +100,8 @@ public class PlaywrightDriver implements Driver {
         client.waitSync();
     }
 
-    public static PlaywrightDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(context, map, appender, 4444, "playwright");
+    public static PlaywrightDriver start(Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(map, appender, 4444, "playwright");
         String playwrightUrl;
         Command command;
         if (options.start) {

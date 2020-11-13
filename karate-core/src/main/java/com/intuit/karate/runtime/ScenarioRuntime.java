@@ -76,7 +76,7 @@ public class ScenarioRuntime implements Runnable {
         } else if (caller.isSharedScope()) {
             Config config = caller.parentRuntime.engine.getConfig();
             Map<String, Variable> vars = caller.parentRuntime.engine.vars;
-            engine = new ScenarioEngine(config, this, vars, logger);
+            engine = new ScenarioEngine(config, this, vars, logger);            
         } else { // new, but clone and copy data
             Config config = new Config(caller.parentRuntime.engine.getConfig());
             Map<String, Variable> vars = caller.parentRuntime.engine.copyVariables(false);

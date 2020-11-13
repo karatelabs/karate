@@ -26,10 +26,10 @@ package com.intuit.karate.driver.chrome;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.LogAppender;
-import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
+import com.intuit.karate.server.Response;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -52,8 +52,8 @@ public class Chrome extends DevToolsDriver {
         super(options, command, webSocketUrl);
     }
 
-    public static Chrome start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(context, map, appender, 9222,
+    public static Chrome start(Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(map, appender, 9222,
                 FileUtils.isOsWindows() ? DEFAULT_PATH_WIN : FileUtils.isOsMacOsX() ? DEFAULT_PATH_MAC : DEFAULT_PATH_LINUX);
         options.arg("--remote-debugging-port=" + options.port);
         options.arg("--no-first-run");
@@ -67,16 +67,15 @@ public class Chrome extends DevToolsDriver {
         Command command = options.startProcess();
         Http http = options.getHttp();
         Command.waitForHttp(http.urlBase);
-        Http.Response res = http.path("json").get();
-        if (res.body().asList().isEmpty()) {
+        Response res = http.path("json").get();
+        if (res.json().asList().isEmpty()) {
             if (command != null) {
                 command.close(true);
             }
             throw new RuntimeException("chrome server returned empty list from " + http.urlBase);
         }
-        String attachUrl = null;
         String webSocketUrl = null;
-        List<Map<String, Object>> targets = res.body().asList();
+        List<Map<String, Object>> targets = res.json().asList();
         for (Map<String, Object> target : targets) {
             String targetUrl = (String) target.get("url");
             if (targetUrl == null || targetUrl.startsWith("chrome-")) {
@@ -91,7 +90,6 @@ public class Chrome extends DevToolsDriver {
                 break;
             }
             if (targetUrl.contains(options.attach)) {
-                attachUrl = targetUrl;
                 break;
             }
         }
@@ -113,14 +111,14 @@ public class Chrome extends DevToolsDriver {
         Map<String, Object> options = new HashMap();
         options.put("executable", chromeExecutablePath);
         options.put("headless", headless);
-        return Chrome.start(null, options, null);
+        return Chrome.start(options, null);
     }
 
     public static Chrome start(Map<String, Object> options) {
         if (options == null) {
             options = new HashMap();
         }
-        return Chrome.start(null, options, null);
+        return Chrome.start(options, null);
     }
 
     public static Chrome start() {

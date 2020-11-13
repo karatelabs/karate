@@ -39,37 +39,37 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class Json {
-
+    
     private static final Logger logger = LoggerFactory.getLogger(Json.class);
-
+    
     private final DocumentContext doc;
     private final boolean array;
     private final String prefix;
-
+    
     private String prefix(String path) {
         return path.charAt(0) == '$' ? path : prefix + path;
     }
-
+    
     public static Json of(String json) {
         return new Json(json);
     }
-
+    
     public Json() {
         this("{}");
     }
-
+    
     public Json(String json) {
         this(JsonPath.parse(json));
     }
-
+    
     public Json(Map o) {
         this(JsonPath.parse(o));
     }
-
+    
     public Json(List o) {
         this(JsonPath.parse(o));
     }
-
+    
     private static String toJsonString(Object o) {
         try {
             return JsonUtils.toJson(o);
@@ -78,50 +78,58 @@ public class Json {
             return JsonUtils.toJsonSafe(o, false);
         }
     }
-
+    
     public Json(Object o) {
         this(toJsonString(o));
     }
-
+    
     private Json(DocumentContext doc) {
         this.doc = doc;
         array = (doc.json() instanceof List);
         prefix = array ? "$" : "$.";
     }
-
+    
     public Json getJson(String path) {
         return new Json(get(path, String.class));
     }
-
+    
     public <T> T get(String path) {
         return (T) doc.read(prefix(path));
     }
-
+    
+    public <T> T getFirst(String path) {
+        List<T> list = get(path);
+        if (list == null || list.isEmpty()) {
+            return null;
+        }
+        return list.get(0);
+    }
+    
     public <T> T get(String path, Class<T> clazz) {
         return doc.read(prefix(path), clazz);
     }
-
+    
     @Override
     public String toString() {
         return doc.jsonString();
     }
-
+    
     public boolean isArray() {
         return array;
     }
-
+    
     public Object asMapOrList() {
         return doc.read("$");
     }
-
+    
     public Map<String, Object> asMap() {
         return doc.read("$");
     }
-
+    
     public List asList() {
         return doc.read("$");
     }
-
+    
     public Json set(String path, String s) {
         if (JsonUtils.isJson(s)) {
             setInternal(path, new Json(s).asMapOrList());
@@ -133,26 +141,26 @@ public class Json {
         }
         return this;
     }
-
+    
     public Json remove(String path) {
         doc.delete(path);
         return this;
     }
-
+    
     public Json set(String path, Object o) {
         setInternal(path, o);
         return this;
     }
-
+    
     private boolean isArrayPath(String s) {
         return s.endsWith("]") && !s.endsWith("']");
     }
-
+    
     private String arrayKey(String s) {
         int pos = s.lastIndexOf('[');
         return s.substring(0, pos);
     }
-
+    
     private int arrayIndex(String s) {
         int leftPos = s.lastIndexOf('[');
         if (leftPos == -1) {
@@ -172,7 +180,7 @@ public class Json {
             return -1;
         }
     }
-
+    
     private void setInternal(String path, Object o) {
         path = prefix(path);
         if ("$".equals(path)) {
@@ -194,7 +202,7 @@ public class Json {
             doc.put(pair.left, pair.right, o);
         }
     }
-
+    
     public boolean pathExists(String path) {
         if (path.endsWith("[]")) {
             path = path.substring(0, path.length() - 2);
@@ -206,7 +214,7 @@ public class Json {
             return false;
         }
     }
-
+    
     private void createPath(String path, boolean array) {
         if (isArrayPath(path)) {
             String parentPath = arrayKey(path);
@@ -243,7 +251,7 @@ public class Json {
             }
         }
     }
-
+    
     public static StringUtils.Pair toParentAndLeaf(String path) {
         int pos = path.lastIndexOf('.');
         int temp = path.lastIndexOf("['");
@@ -257,5 +265,5 @@ public class Json {
         String left = path.substring(0, pos == -1 ? 0 : pos);
         return StringUtils.pair(left, right);
     }
-
+    
 }

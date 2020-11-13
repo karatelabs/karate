@@ -42,33 +42,27 @@ public class JsEngine {
     private static final Logger logger = LoggerFactory.getLogger(JsEngine.class);
 
     private static final String JS = "js";
-    private static final String JSON_STRINGIFY = "JSON.stringify";
     private static final String JS_EXPERIMENTAL_FOP = "js.experimental-foreign-object-prototype";
     private static final String JS_NASHORN_COMPAT = "js.nashorn-compat";
     private static final String TRUE = "true";
 
-    private static class JsContext {
-
-        final Context context;
-        final Value bindings;
-
-        JsContext(Engine engine) {
-            if (engine == null) {
-                engine = Engine.newBuilder().build();
-            }
-            context = Context.newBuilder(JS)
-                    .allowExperimentalOptions(true)
-                    .allowAllAccess(true)
-                    .option(JS_NASHORN_COMPAT, TRUE)
-                    .option(JS_EXPERIMENTAL_FOP, TRUE)
-                    .engine(engine).build();
-            bindings = context.getBindings(JS);
+    private static final ThreadLocal<JsEngine> GLOBAL_JS_ENGINE = new ThreadLocal<JsEngine>() {
+        @Override
+        protected JsEngine initialValue() {
+            return new JsEngine(createContext(null));
         }
+    };
 
-        Value eval(String exp) {
-            return context.eval(JS, exp);
+    private static Context createContext(Engine engine) {
+        if (engine == null) {
+            engine = Engine.newBuilder().build();
         }
-
+        return Context.newBuilder(JS)
+                .allowExperimentalOptions(true)
+                .allowAllAccess(true)
+                .option(JS_NASHORN_COMPAT, TRUE)
+                .option(JS_EXPERIMENTAL_FOP, TRUE)
+                .engine(engine).build();
     }
 
     public static JsValue evalGlobal(String src) {
@@ -80,43 +74,35 @@ public class JsEngine {
     }
 
     public static JsEngine global() {
-        return new JsEngine(GLOBAL_JS_CONTEXT.get());
+        return GLOBAL_JS_ENGINE.get();
     }
 
     public static void remove() {
-        GLOBAL_JS_CONTEXT.remove();
+        GLOBAL_JS_ENGINE.remove();
     }
 
     public static JsEngine local() {
-        Engine engine = GLOBAL_JS_CONTEXT.get().context.getEngine();
-        return new JsEngine(new JsContext(engine));
+        Engine engine = GLOBAL_JS_ENGINE.get().context.getEngine();
+        return new JsEngine(createContext(engine));
     }
 
     public static JsEngine localWithGlobalBindings() {
         JsEngine je = local();
-        Value bindings = global().jc.bindings;
+        Value bindings = global().bindings;
         for (String key : bindings.getMemberKeys()) {
             je.putValue(key, bindings.getMember(key));
         }
         return je;
     }
 
-    private static final ThreadLocal<JsContext> GLOBAL_JS_CONTEXT = new ThreadLocal<JsContext>() {
-        @Override
-        protected JsContext initialValue() {
-            return new JsContext(null);
-        }
-    };
+    //==========================================================================
+    //
+    public final Context context;
+    public final Value bindings;
 
-    private final JsContext jc;
-    private Value stringify;
-
-    private JsEngine(JsContext jc) {
-        this.jc = jc;
-    }
-
-    public Value bindings() {
-        return jc.bindings;
+    private JsEngine(Context context) {
+        this.context = context;
+        bindings = context.getBindings(JS);
     }
 
     public JsValue eval(InputStream is) {
@@ -128,48 +114,32 @@ public class JsEngine {
     }
 
     public JsValue eval(String exp) {
-        return new JsValue(jc.eval(exp));
+        return new JsValue(evalForValue(exp));
     }
 
     public Value evalForValue(String exp) {
-        return jc.eval(exp);
+        return context.eval(JS, exp);
     }
 
     public void put(String key, Object value) {
-        jc.bindings.putMember(key, JsValue.fromJava(value));
+        bindings.putMember(key, JsValue.fromJava(value));
     }
 
     public void putAll(Map<String, Object> map) {
         map.forEach((k, v) -> put(k, v));
     }
 
-    public boolean hasMember(String key) {
-        return jc.bindings.hasMember(key);
-    }
-
     public JsValue get(String key) {
-        Value value = jc.bindings.getMember(key);
+        Value value = bindings.getMember(key);
         return new JsValue(value);
-    }
-
-    public String toJson(Value v) {
-        if (stringify == null) {
-            stringify = evalForValue(JSON_STRINGIFY);
-        }
-        Value json = stringify.execute(v);
-        return json.asString();
-    }
-
-    public String toJson(JsValue jv) {
-        return toJson(jv.getOriginal());
     }
 
     public void putValue(String key, Value v) {
         if (v.isHostObject()) {
-            jc.bindings.putMember(key, v);
+            bindings.putMember(key, v);
         } else if (v.canExecute()) {
             Value fun = evalForValue("(" + v.getSourceLocation().getCharacters() + ")");
-            jc.bindings.putMember(key, fun);
+            bindings.putMember(key, fun);
         } else {
             put(key, JsValue.toJava(v));
         }
@@ -177,7 +147,7 @@ public class JsEngine {
 
     public Value attach(Value function) {
         try {
-            return jc.context.asValue(function);
+            return context.asValue(function);
         } catch (Exception e) {
             logger.trace("context switch: {}", e.getMessage());
             CharSequence source = function.getSourceLocation().getCharacters();
@@ -195,7 +165,7 @@ public class JsEngine {
 
     @Override
     public String toString() {
-        return jc.context.toString();
+        return context.toString();
     }
 
 }

@@ -60,6 +60,11 @@ public class ArmeriaHttpClient implements HttpClient, DecoratingHttpClientFuncti
     private HttpRequest request;
     private RequestContext requestContext;
 
+    @Override
+    public Logger getLogger() {
+        return logger;
+    }        
+
     public void setRequestContext(RequestContext requestContext) {
         this.requestContext = requestContext;
     }

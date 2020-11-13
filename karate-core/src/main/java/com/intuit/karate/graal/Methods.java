@@ -21,32 +21,28 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.driver.microsoft;
+package com.intuit.karate.graal;
 
-import com.intuit.karate.LogAppender;
-import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.driver.WebDriver;
-import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public class MsEdgeDriver extends WebDriver {
+public class Methods {
 
-    public MsEdgeDriver(DriverOptions options) {
-        super(options);
+    private static final Logger logger = LoggerFactory.getLogger(Methods.class);
+
+    private Methods() {
+        // only static methods
     }
 
-    public static MsEdgeDriver start(Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(map, appender, 9515, "msedgedriver");
-        options.arg("--port=" + options.port);
-        return new MsEdgeDriver(options);
-    }
+    @FunctionalInterface
+    public interface FunVar<T, U> {
 
-    @Override
-    public void activate() {
-        logger.warn("activate not implemented for mswebdriver");
+        U call(T... args);
+
     }
 
 }

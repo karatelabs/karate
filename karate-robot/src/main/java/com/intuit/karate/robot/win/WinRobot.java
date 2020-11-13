@@ -24,13 +24,13 @@
 package com.intuit.karate.robot.win;
 
 import com.intuit.karate.core.AutoDef;
-import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.Location;
 import com.intuit.karate.robot.Robot;
 import com.intuit.karate.robot.RobotBase;
 import com.intuit.karate.robot.StringMatcher;
 import com.intuit.karate.robot.Window;
+import com.intuit.karate.runtime.ScenarioEngine;
 import com.sun.jna.platform.win32.BaseTSD.ULONG_PTR;
 
 import com.sun.jna.platform.win32.User32;
@@ -52,8 +52,8 @@ public class WinRobot extends RobotBase {
 
     protected static final IUIAutomation UIA = IUIAutomation.INSTANCE;
 
-    public WinRobot(ScenarioContext context, Map<String, Object> options) {
-        super(context, options);
+    public WinRobot(ScenarioEngine engine, Map<String, Object> options) {
+        super(engine, options);
     }
 
     @Override

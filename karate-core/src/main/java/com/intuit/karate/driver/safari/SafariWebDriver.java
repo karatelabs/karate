@@ -26,7 +26,6 @@ package com.intuit.karate.driver.safari;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.LogAppender;
-import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Map;
@@ -41,8 +40,8 @@ public class SafariWebDriver extends WebDriver {
         super(options);
     }
 
-    public static SafariWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(context, map, appender, 5555, "safaridriver");
+    public static SafariWebDriver start(Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(map, appender, 5555, "safaridriver");
         options.arg("--port=" + options.port);
         return new SafariWebDriver(options);
     }

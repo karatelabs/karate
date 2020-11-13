@@ -25,7 +25,6 @@ package com.intuit.karate.runtime;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.PerfContext;
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.core.Scenario;
@@ -248,7 +247,7 @@ public class ScenarioBridge implements PerfContext {
     }
 
     private String execInternal(Map<String, Object> options) {
-        Command command = toCommand(false, options);
+        Command command = getEngine().fork(false, options);
         command.waitSync();
         return command.getAppender().collect();
     }
@@ -351,64 +350,15 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Command fork(List<String> args) {
-        return toCommand(true, Collections.singletonMap("args", args));
+        return getEngine().fork(true, args);
     }
 
     public Command fork(String line) {
-        return toCommand(true, Collections.singletonMap("line", line));
+        return getEngine().fork(true, line);
     }
 
     public Command fork(Value value) {
-        return toCommand(true, new JsValue(value).getAsMap());
-    }
-
-    private Command toCommand(boolean useLineFeed, Map<String, Object> options) {
-        Boolean useShell = (Boolean) options.get("useShell");
-        if (useShell == null) {
-            useShell = false;
-        }
-        List<String> list = (List) options.get("args");
-        String[] args;
-        if (list == null) {
-            String line = (String) options.get("line");
-            if (line == null) {
-                throw new RuntimeException("'line' or 'args' is required");
-            }
-            args = useShell ? Command.prefixShellArgs(line) : Command.tokenize(line);
-        } else {
-            String joined = StringUtils.join(list, ' ');
-            args = useShell ? Command.prefixShellArgs(joined) : list.toArray(new String[list.size()]);
-        }
-        String workingDir = (String) options.get("workingDir");
-        File workingFile = workingDir == null ? null : new File(workingDir);
-        ScenarioEngine engine = getEngine();
-        Command command = new Command(useLineFeed, engine.logger, null, null, workingFile, args);
-        Map env = (Map) options.get("env");
-        if (env != null) {
-            command.setEnvironment(env);
-        }
-        Boolean redirectErrorStream = (Boolean) options.get("redirectErrorStream");
-        if (redirectErrorStream != null) {
-            command.setRedirectErrorStream(redirectErrorStream);
-        }
-        Value funOut = (Value) options.get("listener");
-        if (funOut != null && funOut.canExecute()) {
-            ScenarioListener sl = new ScenarioListener(engine, funOut);
-            command.setListener(sl);
-        }
-        Value funErr = (Value) options.get("errorListener");
-        if (funErr != null && funErr.canExecute()) {
-            ScenarioListener sl = new ScenarioListener(engine, funErr);
-            command.setErrorListener(sl);
-        }
-        Boolean start = (Boolean) options.get("start");
-        if (start == null) {
-            start = true;
-        }
-        if (start) {
-            command.start();
-        }
-        return command;
+        return getEngine().fork(true, new JsValue(value).getAsMap());
     }
 
     // TODO breaking returns actual object not wrapper
@@ -613,7 +563,7 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public void proceed(String requestUrlBase) {
-        getEngine().proceed(requestUrlBase);
+        getEngine().mockProceed(requestUrlBase);
     }
 
     public Object read(String name) {

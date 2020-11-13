@@ -32,15 +32,18 @@ import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.core.Plugin;
+import com.intuit.karate.core.PluginFactory;
 import com.intuit.karate.core.StepResult;
 import com.intuit.karate.data.Json;
 import com.intuit.karate.data.JsonUtils;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
+import com.intuit.karate.driver.Key;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.graal.MethodInvoker;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchType;
@@ -92,6 +95,7 @@ public class ScenarioEngine {
     private static final String READ = "read";
     private static final String DRIVER = "driver";
     private static final String ROBOT = "robot";
+    private static final String KEY = "Key";
 
     public static final String RESPONSE = "response";
     public static final String RESPONSE_HEADERS = "responseHeaders";
@@ -275,57 +279,6 @@ public class ScenarioEngine {
             } catch (Exception e) {
                 String prefix = afterFeature ? "afterFeature" : "afterScenario";
                 logger.warn("{} hook failed: {}", prefix, e + "");
-            }
-        }
-    }
-
-    public void stop(StepResult lastStepResult) {
-        if (runtime.caller.isSharedScope()) {
-            ScenarioEngine parent = runtime.caller.parentRuntime.engine;
-            if (driver != null) { // a called feature inited the driver
-                parent.setDriver(driver);
-            }
-            if (robot != null) {
-                parent.setRobot(robot);
-            }
-            parent.webSocketClients = webSocketClients;
-            // return, don't kill driver just yet
-        } else if (runtime.caller.depth == 0) { // end of top-level scenario (no caller)
-            if (webSocketClients != null) {
-                webSocketClients.forEach(WebSocketClient::close);
-            }
-            if (driver != null) { // TODO move this to Plugin.afterScenario()
-                DriverOptions options = driver.getOptions();
-                if (options.stop) {
-                    driver.quit();
-                }
-                if (options.target != null) {
-                    logger.debug("custom target configured, attempting stop()");
-                    Map<String, Object> map = options.target.stop(logger);
-                    String video = (String) map.get("video");
-                    if (video != null && lastStepResult != null) {
-                        Embed embed = Embed.forVideoFile(video);
-                        lastStepResult.addEmbed(embed);
-                    }
-                } else {
-                    if (options.afterStop != null) {
-                        Command.execLine(null, options.afterStop);
-                    }
-                    if (options.videoFile != null) {
-                        File src = new File(options.videoFile);
-                        if (src.exists()) {
-                            String path = FileUtils.getBuildDir() + File.separator + System.currentTimeMillis() + ".mp4";
-                            File dest = new File(path);
-                            FileUtils.copy(src, dest);
-                            Embed embed = Embed.forVideoFile("../" + dest.getName());
-                            lastStepResult.addEmbed(embed);
-                            logger.debug("appended video to report: {}", dest.getPath());
-                        }
-                    }
-                }
-            }
-            if (robot != null) {
-                robot.afterScenario();
             }
         }
     }
@@ -736,7 +689,7 @@ public class ScenarioEngine {
 
     // http mock ===============================================================
     //
-    public void proceed(String requestUrlBase) {
+    public void mockProceed(String requestUrlBase) {
         String urlBase = requestUrlBase == null ? vars.get(REQUEST_URL_BASE).getValue() : requestUrlBase;
         String uri = vars.get(REQUEST_URI).getValue();
         String url = uri == null ? urlBase : urlBase + "/" + uri;
@@ -754,6 +707,16 @@ public class ScenarioEngine {
             }
         }
         httpInvoke();
+    }
+
+    public Map<String, Object> mockConfigureHeaders() {
+        return getOrEvalAsMap(config.getResponseHeaders());
+    }
+
+    public void mockAfterScenario() {
+        if (config.getAfterScenario().isJsOrJavaFunction()) {
+            executeFunction(config.getAfterScenario());
+        }
     }
 
     // websocket / async =======================================================
@@ -807,37 +770,193 @@ public class ScenarioEngine {
         }
     }
 
+    public Command fork(boolean useLineFeed, List<String> args) {
+        return fork(useLineFeed, Collections.singletonMap("args", args));
+    }
+
+    public Command fork(boolean useLineFeed, String line) {
+        return fork(useLineFeed, Collections.singletonMap("line", line));
+    }
+
+    public Command fork(boolean useLineFeed, Map<String, Object> options) {
+        Boolean useShell = (Boolean) options.get("useShell");
+        if (useShell == null) {
+            useShell = false;
+        }
+        List<String> list = (List) options.get("args");
+        String[] args;
+        if (list == null) {
+            String line = (String) options.get("line");
+            if (line == null) {
+                throw new RuntimeException("'line' or 'args' is required");
+            }
+            args = useShell ? Command.prefixShellArgs(line) : Command.tokenize(line);
+        } else {
+            String joined = StringUtils.join(list, ' ');
+            args = useShell ? Command.prefixShellArgs(joined) : list.toArray(new String[list.size()]);
+        }
+        String workingDir = (String) options.get("workingDir");
+        File workingFile = workingDir == null ? null : new File(workingDir);
+        Command command = new Command(useLineFeed, logger, null, null, workingFile, args);
+        Map env = (Map) options.get("env");
+        if (env != null) {
+            command.setEnvironment(env);
+        }
+        Boolean redirectErrorStream = (Boolean) options.get("redirectErrorStream");
+        if (redirectErrorStream != null) {
+            command.setRedirectErrorStream(redirectErrorStream);
+        }
+        Value funOut = (Value) options.get("listener");
+        if (funOut != null && funOut.canExecute()) {
+            ScenarioListener sl = new ScenarioListener(this, funOut);
+            command.setListener(sl);
+        }
+        Value funErr = (Value) options.get("errorListener");
+        if (funErr != null && funErr.canExecute()) {
+            ScenarioListener sl = new ScenarioListener(this, funErr);
+            command.setErrorListener(sl);
+        }
+        Boolean start = (Boolean) options.get("start");
+        if (start == null) {
+            start = true;
+        }
+        if (start) {
+            command.start();
+        }
+        return command;
+    }
+
     // ui driver / robot =======================================================
     //
     private Driver driver;
     private Plugin robot;
 
-    private void autoDef(Plugin plugin, String instanceName) {
-        for (String methodName : plugin.methodNames()) {
-            String invoke = instanceName + "." + methodName;
-            String js = "(function(){ if (arguments.length == 0) return " + invoke + "();"
-                    + " if (arguments.length == 1) return " + invoke + "(arguments[0]);"
-                    + " if (arguments.length == 2) return " + invoke + "(arguments[0], arguments[1]);"
-                    + " return " + invoke + "(arguments[0], arguments[1], arguments[2]) })";
-            Variable v = evalJs(js);
-            setHiddenVariable(methodName, v);
+    private void autoDef(Plugin plugin) {
+        for (String name : plugin.methodNames()) {
+            setHiddenVariable(name, new MethodInvoker(plugin, name));
         }
     }
 
-    public void driver(String expression) {
-
+    public void driver(String exp) {
+        Variable v = evalKarateExpression(exp);
+        // re-create driver within a test if needed
+        // but user is expected to call quit() OR use the driver keyword with a JSON argument
+        if (driver == null || driver.isTerminated() || v.isMap()) {
+            Map<String, Object> options = config.getDriverOptions();
+            if (options == null) {
+                options = new HashMap();
+            }
+            options.put("target", config.getDriverTarget());
+            if (v.isMap()) {
+                options.putAll(v.getValue());
+            }
+            setDriver(DriverOptions.start(options, logger, runtime.getAppender()));
+        }
+        if (v.isString()) {
+            driver.setUrl(v.getAsString());
+        }
     }
 
-    public void robot(String expression) {
-
+    public void robot(String exp) {
+        Variable v = evalKarateExpression(exp);
+        if (robot == null) {
+            Map<String, Object> options = config.getRobotOptions();
+            if (options == null) {
+                options = new HashMap();
+            }
+            if (v.isMap()) {
+                options.putAll(v.getValue());
+            } else if (v.isString()) {
+                options.put("window", v.getAsString());
+            }
+            try {
+                Class clazz = Class.forName("com.intuit.karate.robot.RobotFactory");
+                PluginFactory factory = (PluginFactory) clazz.newInstance();
+                robot = factory.create(this, options);
+            } catch (KarateException ke) {
+                throw ke;
+            } catch (Exception e) {
+                String message = "cannot instantiate robot, is 'karate-robot' included as a maven / gradle dependency ? " + e.getMessage();
+                logger.error(message);
+                throw new RuntimeException(message, e);
+            }
+            setRobot(robot);
+        }
     }
 
     public void setDriver(Driver driver) {
         this.driver = driver;
+        setHiddenVariable(DRIVER, driver);
+        if (robot != null) {
+            logger.warn("'robot' is active, use 'driver.' prefix for driver methods");
+            return;
+        }
+        autoDef(driver);
+        setHiddenVariable(KEY, Key.INSTANCE);
     }
 
-    public void setRobot(Plugin robot) {
+    public void setRobot(Plugin robot) { // TODO unify
         this.robot = robot;
+        // robot.setContext(this);
+        setHiddenVariable(ROBOT, robot);
+        if (driver != null) {
+            logger.warn("'driver' is active, use 'robot.' prefix for robot methods");
+            return;
+        }
+        autoDef(robot);
+        setHiddenVariable(KEY, Key.INSTANCE);
+    }
+
+    public void stop(StepResult lastStepResult) {
+        if (runtime.caller.isSharedScope()) {
+            // TODO life-cycle this hand off
+            ScenarioEngine caller = runtime.caller.parentRuntime.engine;
+            if (driver != null) { // a called feature inited the driver
+                caller.setDriver(driver);
+            }
+            if (robot != null) {
+                caller.setRobot(robot);
+            }
+            caller.webSocketClients = webSocketClients;
+            // return, don't kill driver just yet
+        } else if (runtime.caller.depth == 0) { // end of top-level scenario (no caller)
+            if (webSocketClients != null) {
+                webSocketClients.forEach(WebSocketClient::close);
+            }
+            if (driver != null) { // TODO move this to Plugin.afterScenario()
+                DriverOptions options = driver.getOptions();
+                if (options.stop) {
+                    driver.quit();
+                }
+                if (options.target != null) {
+                    logger.debug("custom target configured, attempting stop()");
+                    Map<String, Object> map = options.target.stop(logger);
+                    String video = (String) map.get("video");
+                    if (video != null && lastStepResult != null) {
+                        Embed embed = Embed.forVideoFile(video);
+                        lastStepResult.addEmbed(embed);
+                    }
+                } else {
+                    if (options.afterStop != null) {
+                        Command.execLine(null, options.afterStop);
+                    }
+                    if (options.videoFile != null) {
+                        File src = new File(options.videoFile);
+                        if (src.exists()) {
+                            String path = FileUtils.getBuildDir() + File.separator + System.currentTimeMillis() + ".mp4";
+                            File dest = new File(path);
+                            FileUtils.copy(src, dest);
+                            Embed embed = Embed.forVideoFile("../" + dest.getName());
+                            lastStepResult.addEmbed(embed);
+                            logger.debug("appended video to report: {}", dest.getPath());
+                        }
+                    }
+                }
+            }
+            if (robot != null) {
+                robot.afterScenario();
+            }
+        }
     }
 
     //==========================================================================        
@@ -851,6 +970,16 @@ public class ScenarioEngine {
         setVariables(runtime.magicVariables);
         HttpClient client = runtime.featureRuntime.suite.clientFactory.create(this);
         http = new HttpRequestBuilder(client);
+        // TODO improve life cycle and concept of shared objects
+        if (!runtime.caller.isNone()) {
+            ScenarioEngine caller = runtime.caller.parentRuntime.engine;
+            if (caller.driver != null) {
+                setDriver(caller.driver);
+            }
+            if (caller.robot != null) {
+                setRobot(caller.robot);
+            }
+        }
     }
 
     protected boolean isInited() {

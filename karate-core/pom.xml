@@ -12,7 +12,6 @@
     
     <properties>
         <antlr.version>4.7.1</antlr.version>
-        <jersey.version>2.30</jersey.version>
         <graal.version>20.2.0</graal.version>
     </properties>
 
@@ -81,11 +80,6 @@
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
             <version>4.0.3</version>
-        </dependency>
-        <dependency>
-            <groupId>org.glassfish.jersey.core</groupId>
-            <artifactId>jersey-common</artifactId>
-            <version>${jersey.version}</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -159,7 +153,6 @@
                                         <includes>
                                             <include>io.netty:*</include>
                                             <include>org.antlr:*</include>
-                                            <include>org.glassfish.jersey.core:*</include>
                                         </includes>
                                     </artifactSet>
                                     <relocations>
@@ -170,10 +163,6 @@
                                         <relocation>
                                             <pattern>org.antlr.v4</pattern>
                                             <shadedPattern>org.antlr.karate</shadedPattern>
-                                        </relocation>
-                                        <relocation>
-                                            <pattern>org.glassfish.jersey</pattern>
-                                            <shadedPattern>org.glassfish.jersey.karate</shadedPattern>
                                         </relocation>
                                     </relocations>
                                 </configuration>

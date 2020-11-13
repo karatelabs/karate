@@ -23,13 +23,49 @@
  */
 package com.intuit.karate.graal;
 
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import org.graalvm.polyglot.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  *
  * @author pthomas3
  */
-@FunctionalInterface
-public interface VarArgsFunction<T, U> {
+public class JsAsync implements Supplier, Function, Consumer, Runnable {
 
-    U call(T... args);
+    private static final Logger logger = LoggerFactory.getLogger(JsAsync.class);
+
+    private final Value value;
+
+    public static JsAsync of(Value value) {
+        return new JsAsync(value);
+    }
+
+    private JsAsync(Value value) {
+        this.value = value;
+    }
+
+    @Override
+    public Object get() {
+        return value.execute();
+    }
+
+    @Override
+    public Object apply(Object t) {
+        return value.execute(t);
+    }
+
+    @Override
+    public void accept(Object t) {
+        value.executeVoid(t);
+    }
+
+    @Override
+    public void run() {
+        value.executeVoid();
+    }
 
 }

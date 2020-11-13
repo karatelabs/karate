@@ -39,7 +39,7 @@ public class JobExecutorPulse extends TimerTask {
 
     public JobExecutorPulse(JobExecutor executor) {
         this.executor = executor;
-        http = Http.forUrl(executor.appender, executor.serverUrl);
+        http = Http.forUrl(executor.serverUrl);
     }
 
     public void start() {

@@ -63,6 +63,11 @@ public class JerseyHttpClient implements HttpClient, ClientRequestFilter {
 
     private Client client;
 
+    @Override
+    public Logger getLogger() {
+        return logger;
+    }
+
     public JerseyHttpClient(ScenarioEngine engine) {
         this.engine = engine;
         logger = engine.logger;
