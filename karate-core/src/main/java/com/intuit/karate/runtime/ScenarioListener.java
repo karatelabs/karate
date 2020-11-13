@@ -52,7 +52,7 @@ public class ScenarioListener implements Consumer, Function, Runnable {
         }
         ScenarioEngine.set(child);
         child.init();
-        function = child.attachSource("(" + source + ")");
+        function = child.attachSource(source);
         return function;
     }
     
