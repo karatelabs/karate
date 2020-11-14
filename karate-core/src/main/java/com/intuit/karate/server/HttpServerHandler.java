@@ -32,7 +32,6 @@ import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.common.ResponseHeadersBuilder;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import io.netty.util.AsciiString;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -68,11 +67,12 @@ public class HttpServerHandler implements HttpService {
         request.setMethod(req.method().name());
         RequestHeaders rh = req.headers();
         if (rh != null) {
-            Set<AsciiString> names = rh.names();
+            // this is actually Set<io.netty.util.AsciiString> but it causes maven-shade problems
+            Set names = rh.names();
             Map<String, List<String>> headers = new HashMap(names.size());
             request.setHeaders(headers);
-            for (AsciiString name : names) {
-                headers.put(name.toString(), rh.getAll(name));
+            for (Object name : names) {
+                headers.put(name.toString(), rh.getAll((CharSequence) name));
             }
         }
         if (!req.content().isEmpty()) {

@@ -10,7 +10,7 @@
     <artifactId>karate-netty</artifactId>
     <packaging>jar</packaging>
 
-    <dependencies>                            
+    <dependencies>                           
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-apache</artifactId>

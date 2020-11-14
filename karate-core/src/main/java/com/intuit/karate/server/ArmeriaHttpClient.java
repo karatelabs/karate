@@ -40,7 +40,6 @@ import com.linecorp.armeria.common.RequestHeadersBuilder;
 import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.common.logging.RequestLogProperty;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import io.netty.util.AsciiString;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -102,7 +101,7 @@ public class ArmeriaHttpClient implements HttpClient, DecoratingHttpClientFuncti
         }
         ResponseHeaders rh = ahr.headers();
         Map<String, List<String>> responseHeaders = new LinkedHashMap(rh.size());
-        for (AsciiString name : rh.names()) {
+        for (CharSequence name : rh.names()) {
             if (!HttpHeaderNames.STATUS.equals(name)) {
                 responseHeaders.put(name.toString(), rh.getAll(name));
             }
@@ -129,7 +128,7 @@ public class ArmeriaHttpClient implements HttpClient, DecoratingHttpClientFuncti
         ctx.log().whenAvailable(RequestLogProperty.REQUEST_HEADERS).thenAccept(log -> {
             request.setStartTimeMillis(log.requestStartTimeMillis());
             RequestHeaders rh = log.requestHeaders();
-            for (AsciiString name : rh.names()) {
+            for (CharSequence name : rh.names()) {
                 if (name.charAt(0) != ':') {
                     request.putHeader(name.toString(), rh.getAll(name));
                 }
