@@ -26,7 +26,6 @@ package com.intuit.karate.driver;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Logger;
-import com.intuit.karate.Script;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Feature;
@@ -45,7 +44,6 @@ import com.jayway.jsonpath.DocumentContext;
 import org.slf4j.MDC;
 
 import net.minidev.json.JSONArray;
-import net.minidev.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,19 +52,15 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
 /**
@@ -1038,6 +1032,20 @@ public abstract class DevToolsDriver implements Driver {
     {
         Map perfMtrx = method("Performance.getMetrics").send().getResult().getAsMap();
         FileUtils.writeToFile(new File("target/metrics.log"), perfMtrx.toString());
+    }
+
+    public JSONArray scriptAwaitPromise()
+    {
+        String axeResponse = (String) method("Runtime.evaluate")
+                // stringifying json response returns just fine else its undefined.
+                .param("expression", "axe.run().then(results => JSON.stringify(results))")
+                .param("awaitPromise", true) // awaiting promise.
+                .send().getResult().getValue();
+
+        DocumentContext axeResponseJson = JsonUtils.toJsonDoc(axeResponse);
+        Map responseMap = axeResponseJson.json();
+        JSONArray axeVioArr = (JSONArray) responseMap.get("violations");
+        return axeVioArr;
     }
 
 
