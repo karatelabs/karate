@@ -61,6 +61,7 @@
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
             <version>1.14</version>
+            <scope>test</scope>
         </dependency>        
         <dependency>
             <groupId>com.github.java-json-tools</groupId>
