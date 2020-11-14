@@ -1,22 +1,23 @@
-package com.intuit.karate;
+package com.intuit.karate.fatjar;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.netty.ProxyServer;
 import java.io.File;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public class ProxyServerSslMain {
+class ProxyServerSslMain {
 
-    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(ProxyServerSslMain.class);
+    static final org.slf4j.Logger logger = LoggerFactory.getLogger(ProxyServerSslMain.class);
 
-    private String html = FileUtils.toString(new File("src/test/java/com/intuit/karate/temp.html"));
+    String html = FileUtils.toString(new File("src/test/java/com/intuit/karate/fatjar/temp.html"));
 
     @Test
-    public void testProxy() {
+    void testProxy() {
         ProxyServer server = new ProxyServer(8090,
                 req -> {
                     if ("httpbin.org".equals(req.context.host)) {
