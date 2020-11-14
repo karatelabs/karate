@@ -108,7 +108,6 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             clientBuilder.setRedirectStrategy(new LaxRedirectStrategy());
         }
         clientBuilder.useSystemProperties();
-        clientBuilder.setDefaultCookieSpecRegistry(LenientCookieSpec.registry());
         if (config.isSslEnabled()) {
             // System.setProperty("jsse.enableSNIExtension", "false");
             String algorithm = config.getSslAlgorithm(); // could be null
@@ -145,7 +144,6 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             }
         }
         RequestConfig.Builder configBuilder = RequestConfig.custom()
-                .setCookieSpec(LenientCookieSpec.KARATE)
                 .setConnectTimeout(config.getConnectTimeout())
                 .setSocketTimeout(config.getReadTimeout());
         if (config.getLocalAddress() != null) {

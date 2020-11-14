@@ -98,7 +98,7 @@ public class SuiteRuntime {
         results = Results.startTimer(threadCount);
         results.setReportDir(reportDir); // TODO unify
         if (rb.clientFactory == null) {
-            clientFactory = HttpClientFactory.resolveClientFactory(classLoader);
+            clientFactory = HttpClientFactory.DEFAULT;
         } else {
             clientFactory = rb.clientFactory;
         }

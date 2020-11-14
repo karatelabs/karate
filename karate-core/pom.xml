@@ -36,7 +36,29 @@
             <groupId>com.linecorp.armeria</groupId>
             <artifactId>armeria</artifactId>
             <version>1.2.0</version>
-        </dependency>      
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.5.13</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-codec</groupId>
+                    <artifactId>commons-codec</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <!-- this is tied to logback-classic version in karate-parent -->
+            <version>1.7.25</version>
+            <scope>runtime</scope>
+        </dependency>                      
         <dependency>
             <groupId>org.antlr</groupId>
             <artifactId>antlr4-runtime</artifactId>
@@ -152,6 +174,7 @@
                                     <artifactSet>
                                         <includes>
                                             <include>io.netty:*</include>
+                                            <include>org.apache.httpcomponents:*</include>
                                             <include>org.antlr:*</include>
                                         </includes>
                                     </artifactSet>                 
@@ -160,6 +183,10 @@
                                             <pattern>io.netty</pattern>
                                             <shadedPattern>io.netty.karate</shadedPattern>
                                         </relocation>
+                                        <relocation>
+                                            <pattern>org.apache.httpcomponents</pattern>
+                                            <shadedPattern>org.apache.httpkarate</shadedPattern>
+                                        </relocation>                                        
                                         <relocation>
                                             <pattern>org.antlr.v4</pattern>
                                             <shadedPattern>org.antlr.karate</shadedPattern>
