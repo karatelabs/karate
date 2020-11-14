@@ -1,4 +1,3 @@
-@mock-servlet-todo
 Feature: file upload end-point
 
 Background:
@@ -63,6 +62,7 @@ Scenario: upload with content created dynamically
     And match header Content-Disposition contains 'hello.txt'
     And match header Content-Type contains 'text/plain'
 
+@mock-servlet-todo
 Scenario: upload multipart/mixed
     Given path 'files', 'mixed'
     And multipart field myJson = { value: { text: 'hello world' } }

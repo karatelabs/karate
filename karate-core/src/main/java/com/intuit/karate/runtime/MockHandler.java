@@ -56,7 +56,7 @@ public class MockHandler implements ServerHandler {
 
     private static final String REQUEST_BYTES = "requestBytes";
     private static final String REQUEST_PARAMS = "requestParams";
-    private static final String REQUEST_FILES = "requestFiles";
+    private static final String REQUEST_PARTS = "requestParts";
 
     private static final String RESPONSE_DELAY = "responseDelay";
 
@@ -134,9 +134,9 @@ public class MockHandler implements ServerHandler {
         engine.setVariable(ScenarioEngine.REQUEST, req.getBodyConverted());
         engine.setVariable(REQUEST_PARAMS, req.getParams());
         engine.setVariable(REQUEST_BYTES, req.getBody());
-        Map<String, List<Map<String, Object>>> files = req.getMultiPartFiles();
-        if (files != null) {
-            engine.setHiddenVariable(REQUEST_FILES, files); // TODO add to docs
+        Map<String, List<Map<String, Object>>> parts = req.getMultiParts();
+        if (parts != null) {
+            engine.setHiddenVariable(REQUEST_PARTS, parts); // TODO add to docs
         }
         for (FeatureSection fs : feature.getSections()) {
             if (fs.isOutline()) {

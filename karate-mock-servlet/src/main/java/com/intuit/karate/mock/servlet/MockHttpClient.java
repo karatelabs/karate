@@ -30,10 +30,10 @@ import com.intuit.karate.server.HttpClient;
 import com.intuit.karate.server.HttpConstants;
 import com.intuit.karate.server.HttpLogger;
 import com.intuit.karate.server.HttpRequest;
+import com.intuit.karate.server.Request;
 import com.intuit.karate.server.Response;
 import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
 import io.netty.handler.codec.http.cookie.Cookie;
-import io.netty.handler.codec.http.cookie.CookieDecoder;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import java.net.URI;
@@ -82,10 +82,12 @@ public class MockHttpClient implements HttpClient {
     }
 
     @Override
-    public Response invoke(HttpRequest request) {
+    public Response invoke(HttpRequest hr) {
+        Request request = hr.toRequest();
+        request.processBody();
         URI uri;
         try {
-            uri = new URI(request.getUrl());
+            uri = new URI(request.getUrlAndPath());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -110,17 +112,28 @@ public class MockHttpClient implements HttpClient {
                 }
             }
         }
-        if (request.getBody() != null) {
-            builder.content(request.getBody());
-        }
+        builder.content(request.getBody());
         MockHttpServletResponse res = new MockHttpServletResponse();
         MockHttpServletRequest req = builder.buildRequest(servletContext);
+        if (request.isMultiPart()) {
+            request.getMultiParts().forEach((name, v) -> {
+                for (Map<String, Object> map : v) {
+                    String fileName = (String) map.get("filename");
+                    if (fileName != null) {
+                        req.addPart(new MockPart(map));
+                    } else {
+                        String value = (String) map.get("value");
+                        req.addParameter(name, value);
+                    }
+                }
+            });
+        }
         Map<String, List<String>> headers = toHeaders(toCollection(req.getHeaderNames()), name -> toCollection(req.getHeaders(name)));
         request.setHeaders(headers);
-        httpLogger.logRequest(engine.getConfig(), request);
+        httpLogger.logRequest(engine.getConfig(), hr);
         try {
             servlet.service(req, res);
-            request.setEndTimeMillis(System.currentTimeMillis());
+            hr.setEndTimeMillis(System.currentTimeMillis());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -140,7 +153,7 @@ public class MockHttpClient implements HttpClient {
             headers.put(HttpConstants.HDR_SET_COOKIE, cookieValues);
         }
         Response response = new Response(res.getStatus(), headers, res.getContentAsByteArray());
-        httpLogger.logResponse(getConfig(), request, response);
+        httpLogger.logResponse(getConfig(), hr, response);
         return response;
     }
 

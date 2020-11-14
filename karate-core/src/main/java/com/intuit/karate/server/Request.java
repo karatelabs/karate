@@ -93,13 +93,14 @@ public class Request implements ProxyObject {
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
+    private String urlAndPath;
     private String urlBase;
     private String path;
     private String method;
     private Map<String, List<String>> params;
     private Map<String, List<String>> headers;
     private byte[] body;
-    private Map<String, List<Map<String, Object>>> multiPartFiles;
+    private Map<String, List<Map<String, Object>>> multiParts;
     private ResourceType resourceType;
     private String resourcePath;
     private String pathParam;
@@ -118,8 +119,12 @@ public class Request implements ProxyObject {
         return getHeader(HttpConstants.HDR_HX_REQUEST) != null;
     }
 
-    public Map<String, List<Map<String, Object>>> getMultiPartFiles() {
-        return multiPartFiles;
+    public boolean isMultiPart() {
+        return multiParts != null;
+    }
+
+    public Map<String, List<Map<String, Object>>> getMultiParts() {
+        return multiParts;
     }
 
     public List<String> getHeaderValues(String name) {
@@ -140,14 +145,18 @@ public class Request implements ProxyObject {
     }
 
     public String getParam(String name) {
-        if (params == null) {
-            return null;
-        }
-        List<String> values = params.get(name);
+        List<String> values = getParamValues(name);
         if (values == null || values.isEmpty()) {
             return null;
         }
         return values.get(0);
+    }
+
+    public List<String> getParamValues(String name) {
+        if (params == null) {
+            return null;
+        }
+        return params.get(name);
     }
 
     public String getPath() {
@@ -155,6 +164,7 @@ public class Request implements ProxyObject {
     }
 
     public void setUrl(String url) {
+        urlAndPath = url;
         StringUtils.Pair pair = NettyUtils.parseUriIntoUrlBaseAndPath(url);
         urlBase = pair.left;
         QueryStringDecoder qsd = new QueryStringDecoder(pair.right);
@@ -169,6 +179,10 @@ public class Request implements ProxyObject {
         }
         setPath(path);
         setParams(queryParams);
+    }
+
+    public String getUrlAndPath() {
+        return urlAndPath;
     }
 
     public String getUrlBase() {
@@ -279,10 +293,10 @@ public class Request implements ProxyObject {
     }
 
     public Map<String, Object> getMultiPart(String name) {
-        if (multiPartFiles == null) {
+        if (multiParts == null) {
             return null;
         }
-        List<Map<String, Object>> parts = multiPartFiles.get(name);
+        List<Map<String, Object>> parts = multiParts.get(name);
         if (parts == null || parts.isEmpty()) {
             return null;
         }
@@ -304,6 +318,7 @@ public class Request implements ProxyObject {
         boolean multipart;
         if (contentType.startsWith("multipart")) {
             multipart = true;
+            multiParts = new HashMap();
         } else if (contentType.contains("form-urlencoded")) {
             multipart = false;
         } else {
@@ -317,39 +332,35 @@ public class Request implements ProxyObject {
         try {
             for (InterfaceHttpData part : decoder.getBodyHttpDatas()) {
                 String name = part.getName();
-                if (part instanceof FileUpload) {
-                    if (multiPartFiles == null) {
-                        multiPartFiles = new HashMap();
-                    }
-                    List<Map<String, Object>> list = multiPartFiles.get(name);
+                if (multipart) {
+                    List<Map<String, Object>> list = multiParts.get(name);
                     if (list == null) {
                         list = new ArrayList();
-                        multiPartFiles.put(name, list);
+                        multiParts.put(name, list);
                     }
                     Map<String, Object> map = new HashMap();
                     list.add(map);
-                    FileUpload fup = (FileUpload) part;
-                    map.put("name", name);
-                    map.put("filename", fup.getFilename());
-                    Charset charset = fup.getCharset();
-                    if (charset != null) {
-                        map.put("charset", charset.name());
+                    if (part instanceof FileUpload) {
+                        FileUpload fup = (FileUpload) part;
+                        map.put("name", name);
+                        map.put("filename", fup.getFilename());
+                        Charset charset = fup.getCharset();
+                        if (charset != null) {
+                            map.put("charset", charset.name());
+                        }
+                        String ct = fup.getContentType();
+                        map.put("contentType", ct);
+                        map.put("value", fup.get()); // bytes
+                        String transferEncoding = fup.getContentTransferEncoding();
+                        if (transferEncoding != null) {
+                            map.put("transferEncoding", transferEncoding);
+                        }
+                    } else { // simple multi-part key-value pair
+                        Attribute attribute = (Attribute) part;
+                        map.put("name", name);
+                        map.put("value", attribute.getValue());
                     }
-                    String ct = fup.getContentType();
-                    map.put("contentType", ct);
-                    ResourceType rt = ResourceType.fromContentType(ct);
-                    Object value;
-                    if (rt.isBinary()) {
-                        value = fup.get();
-                    } else {
-                        value = charset == null ? fup.getString() : fup.getString(charset);
-                    }
-                    map.put("value", value);
-                    String transferEncoding = fup.getContentTransferEncoding();
-                    if (transferEncoding != null) {
-                        map.put("transferEncoding", transferEncoding);
-                    }
-                } else { // url-encoded form-field or simple multi-part value
+                } else { // url-encoded form-field
                     Attribute attribute = (Attribute) part;
                     List<String> list = params.get(name);
                     if (list == null) {
@@ -394,7 +405,7 @@ public class Request implements ProxyObject {
             case MULTI_PART:
                 return (Function<String, Object>) this::getMultiPartAsJsValue;
             case MULTI_PARTS:
-                return JsValue.fromJava(multiPartFiles);
+                return JsValue.fromJava(multiParts);
             case GET:
             case POST:
             case PUT:

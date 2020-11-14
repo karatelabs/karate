@@ -300,28 +300,28 @@ class KarateMockHandlerTest {
     void testMultiPartField() {
         background().scenario(
                 "pathMatches('/hello')",
-                "def response = requestParams");
+                "def response = requestParts");
         run(
                 URL_STEP,
                 "multipart field foo = 'bar'",
                 "path '/hello'",
                 "method post"
         );
-        matchVar("response", "{ foo: ['bar'] }");
+        matchVar("response", "{ foo: [{ name: 'foo', value: '#notnull' }] }");
     }
 
     @Test
     void testMultiPartFile() {
         background().scenario(
                 "pathMatches('/hello')",
-                "def response = requestFiles");
+                "def response = requestParts");
         run(
                 URL_STEP,
                 "multipart file foo = { filename: 'foo.txt', value: 'hello' }",
                 "path '/hello'",
                 "method post"
         );
-        matchVar("response", "{ foo: [{ name: 'foo', value: 'hello', contentType: 'text/plain', charset: 'UTF-8', filename: 'foo.txt', transferEncoding: '7bit' }] }");
+        matchVar("response", "{ foo: [{ name: 'foo', value: '#notnull', contentType: 'text/plain', charset: 'UTF-8', filename: 'foo.txt', transferEncoding: '7bit' }] }");
     }
 
     @Test
