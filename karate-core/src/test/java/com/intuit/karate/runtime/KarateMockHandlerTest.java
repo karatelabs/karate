@@ -300,14 +300,14 @@ class KarateMockHandlerTest {
     void testMultiPartField() {
         background().scenario(
                 "pathMatches('/hello')",
-                "def response = requestParts");
+                "def response = requestParams");
         run(
                 URL_STEP,
                 "multipart field foo = 'bar'",
                 "path '/hello'",
                 "method post"
         );
-        matchVar("response", "{ foo: [{ name: 'foo', value: '#notnull' }] }");
+        matchVar("response", "{ foo: ['bar'] }");
     }
 
     @Test

@@ -118,13 +118,12 @@ public class MockHttpClient implements HttpClient {
         if (request.isMultiPart()) {
             request.getMultiParts().forEach((name, v) -> {
                 for (Map<String, Object> map : v) {
-                    String fileName = (String) map.get("filename");
-                    if (fileName != null) {
-                        req.addPart(new MockPart(map));
-                    } else {
-                        String value = (String) map.get("value");
-                        req.addParameter(name, value);
-                    }
+                    req.addPart(new MockPart(map));
+                }
+            });
+            request.getParams().forEach((name, v) -> {
+                for (String value : v) {
+                    req.addParameter(name, value);
                 }
             });
         }

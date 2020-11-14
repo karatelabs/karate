@@ -332,7 +332,7 @@ public class Request implements ProxyObject {
         try {
             for (InterfaceHttpData part : decoder.getBodyHttpDatas()) {
                 String name = part.getName();
-                if (multipart) {
+                if (multipart && part instanceof FileUpload) {
                     List<Map<String, Object>> list = multiParts.get(name);
                     if (list == null) {
                         list = new ArrayList();
@@ -340,27 +340,21 @@ public class Request implements ProxyObject {
                     }
                     Map<String, Object> map = new HashMap();
                     list.add(map);
-                    if (part instanceof FileUpload) {
-                        FileUpload fup = (FileUpload) part;
-                        map.put("name", name);
-                        map.put("filename", fup.getFilename());
-                        Charset charset = fup.getCharset();
-                        if (charset != null) {
-                            map.put("charset", charset.name());
-                        }
-                        String ct = fup.getContentType();
-                        map.put("contentType", ct);
-                        map.put("value", fup.get()); // bytes
-                        String transferEncoding = fup.getContentTransferEncoding();
-                        if (transferEncoding != null) {
-                            map.put("transferEncoding", transferEncoding);
-                        }
-                    } else { // simple multi-part key-value pair
-                        Attribute attribute = (Attribute) part;
-                        map.put("name", name);
-                        map.put("value", attribute.getValue());
+                    FileUpload fup = (FileUpload) part;
+                    map.put("name", name);
+                    map.put("filename", fup.getFilename());
+                    Charset charset = fup.getCharset();
+                    if (charset != null) {
+                        map.put("charset", charset.name());
                     }
-                } else { // url-encoded form-field
+                    String ct = fup.getContentType();
+                    map.put("contentType", ct);
+                    map.put("value", fup.get()); // bytes
+                    String transferEncoding = fup.getContentTransferEncoding();
+                    if (transferEncoding != null) {
+                        map.put("transferEncoding", transferEncoding);
+                    }
+                } else { // form-field, url-encoded if not multipart
                     Attribute attribute = (Attribute) part;
                     List<String> list = params.get(name);
                     if (list == null) {

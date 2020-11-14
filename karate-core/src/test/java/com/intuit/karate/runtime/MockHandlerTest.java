@@ -217,7 +217,7 @@ class MockHandlerTest {
     void testMultiPart() {
         background().scenario(
                 "pathMatches('/hello')",
-                "def foo = requestParts.foo[0].value",
+                "def foo = requestParams.foo[0]",
                 "string bar = requestParts.bar[0].value",
                 "def response = { foo: '#(foo)', bar: '#(bar)' }"
         );
