@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.runtime.Tags;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;

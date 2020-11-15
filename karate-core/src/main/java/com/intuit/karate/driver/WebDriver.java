@@ -25,8 +25,8 @@ package com.intuit.karate.driver;
 
 import com.intuit.karate.Http;
 import com.intuit.karate.Logger;
-import com.intuit.karate.ScriptValue;
 import com.intuit.karate.data.Json;
+import com.intuit.karate.runtime.Variable;
 import com.intuit.karate.server.Response;
 import com.intuit.karate.shell.Command;
 import java.util.Base64;
@@ -149,7 +149,7 @@ public abstract class WebDriver implements Driver {
         return DriverElement.locatorExists(this, locator);
     }
 
-    protected ScriptValue eval(String expression, List args) {
+    protected Variable eval(String expression, List args) {
         Json json = new Json().set("script", expression).set("args", (args == null) ? Collections.EMPTY_LIST : args);
         Response res = http.path("execute", "sync").post(json);
         if (isJavaScriptError(res)) {
@@ -162,10 +162,10 @@ public abstract class WebDriver implements Driver {
                 throw new RuntimeException(message);
             }
         }
-        return res.json().get("value");
+        return new Variable(res.json().get("value"));
     }
 
-    protected ScriptValue eval(String expression) {
+    protected Variable eval(String expression) {
         return eval(expression, null);
     }
 
@@ -411,13 +411,13 @@ public abstract class WebDriver implements Driver {
     @Override
     public Map<String, Object> position(String locator) {
         return retryIfEnabled(locator, ()
-                -> eval("return " + DriverOptions.selector(locator) + ".getBoundingClientRect()").getAsMap());
+                -> eval("return " + DriverOptions.selector(locator) + ".getBoundingClientRect()").getValue());
     }
 
     @Override
     public boolean enabled(String locator) {
         return retryIfEnabled(locator, ()
-                -> eval("return !" + DriverOptions.selector(locator) + ".disabled").isBooleanTrue());
+                -> eval("return !" + DriverOptions.selector(locator) + ".disabled").isTrue());
     }
 
     private String prefixReturn(String expression) {
@@ -428,7 +428,7 @@ public abstract class WebDriver implements Driver {
     public boolean waitUntil(String expression) {
         return options.retry(() -> {
             try {
-                return eval(prefixReturn(expression)).isBooleanTrue();
+                return eval(prefixReturn(expression)).isTrue();
             } catch (Exception e) {
                 logger.warn("waitUntil evaluate failed: {}", e.getMessage());
                 return false;

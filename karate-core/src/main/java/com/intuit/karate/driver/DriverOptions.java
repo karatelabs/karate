@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.LogAppender;
@@ -41,6 +40,7 @@ import com.intuit.karate.driver.microsoft.MsEdgeDriver;
 import com.intuit.karate.driver.safari.SafariWebDriver;
 import com.intuit.karate.driver.microsoft.WinAppDriver;
 import com.intuit.karate.driver.playwright.PlaywrightDriver;
+import com.intuit.karate.runtime.Config;
 import com.intuit.karate.runtime.ScenarioEngine;
 import com.intuit.karate.shell.Command;
 

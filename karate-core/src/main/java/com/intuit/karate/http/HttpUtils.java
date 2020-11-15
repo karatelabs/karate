@@ -1,16 +1,9 @@
 package com.intuit.karate.http;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.ScriptValue;
-import com.intuit.karate.ScriptValue.Type;
 import com.intuit.karate.StringUtils;
 
-import static com.intuit.karate.http.HttpClient.*;
-import java.io.InputStream;
 import java.net.HttpCookie;
 import java.nio.charset.Charset;
-import java.security.KeyStore;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -45,26 +38,6 @@ public class HttpUtils {
 
     private HttpUtils() {
         // only static methods
-    }
-
-    public static KeyStore getKeyStore(ScenarioContext context, String trustStoreFile, String password, String type) {
-        if (trustStoreFile == null) {
-            return null;
-        }
-        char[] passwordChars = password == null ? null : password.toCharArray();
-        if (type == null) {
-            type = KeyStore.getDefaultType();
-        }
-        try {
-            KeyStore keyStore = KeyStore.getInstance(type);
-            InputStream is = FileUtils.readFileAsStream(trustStoreFile, context);
-            keyStore.load(is, passwordChars);
-            context.logger.debug("key store key count for {}: {}", trustStoreFile, keyStore.size());
-            return keyStore;
-        } catch (Exception e) {
-            context.logger.error("key store init failed: {}", e.getMessage());
-            throw new RuntimeException(e);
-        }
     }
 
     public static boolean isPrintable(String mediaType) {
@@ -110,18 +83,6 @@ public class HttpUtils {
             map.put(key, val);
         }
         return map;
-    }
-
-    public static String getContentType(ScriptValue sv) {
-        if (sv.isStream()) {
-            return APPLICATION_OCTET_STREAM;
-        } else if (sv.getType() == Type.XML) {
-            return APPLICATION_XML;
-        } else if (sv.isJsonLike()) {
-            return APPLICATION_JSON;
-        } else {
-            return TEXT_PLAIN;
-        }
     }
 
     public static Map<String, Cookie> parseCookieHeaderString(String header) {

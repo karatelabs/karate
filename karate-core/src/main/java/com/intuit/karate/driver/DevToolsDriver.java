@@ -24,15 +24,16 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Logger;
-import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.data.Json;
+import com.intuit.karate.data.JsonUtils;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
 import com.intuit.karate.runtime.MockHandler;
 import com.intuit.karate.runtime.ScenarioEngine;
+import com.intuit.karate.runtime.Variable;
 import com.intuit.karate.server.HttpRequest;
 import com.intuit.karate.server.Response;
 import com.intuit.karate.shell.Command;
@@ -101,7 +102,7 @@ public abstract class DevToolsDriver implements Driver {
                 // to avoid swamping the console when large base64 encoded binary responses happen
                 logger.debug("<< {}", StringUtils.truncate(text, 1024, true));
             }
-            Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
+            Map<String, Object> map = new Json(text).asMap();
             DevToolsMessage dtm = new DevToolsMessage(this, map);
             receive(dtm);
         });
@@ -314,7 +315,7 @@ public abstract class DevToolsDriver implements Driver {
         if (dtm.isResultError()) {
             return Collections.EMPTY_LIST;
         }
-        return dtm.getResult("nodeIds").getAsList();
+        return dtm.getResult("nodeIds").getValue();
     }
     
     @Override
@@ -330,15 +331,15 @@ public abstract class DevToolsDriver implements Driver {
     protected void initWindowIdAndState() {
         DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", rootFrameId).send();
         if (!dtm.isResultError()) {
-            windowId = dtm.getResult("windowId").getValue(Integer.class);
-            windowState = (String) dtm.getResult("bounds").getAsMap().get("windowState");
+            windowId = dtm.getResult("windowId").getValue();
+            windowState = (String) dtm.getResult("bounds").<Map>getValue().get("windowState");
         }
     }
     
     @Override
     public Map<String, Object> getDimensions() {
         DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", rootFrameId).send();
-        Map<String, Object> map = dtm.getResult("bounds").getAsMap();
+        Map<String, Object> map = dtm.getResult("bounds").getValue();
         Integer x = (Integer) map.remove("left");
         Integer y = (Integer) map.remove("top");
         map.put("x", x);
@@ -414,8 +415,8 @@ public abstract class DevToolsDriver implements Driver {
     
     private void history(int delta) {
         DevToolsMessage dtm = method("Page.getNavigationHistory").send();
-        int currentIndex = dtm.getResult("currentIndex").getValue(Integer.class);
-        List<Map> list = dtm.getResult("entries").getValue(List.class);
+        int currentIndex = dtm.getResult("currentIndex").getValue();
+        List<Map> list = dtm.getResult("entries").getValue();
         int targetIndex = currentIndex + delta;
         if (targetIndex < 0 || targetIndex == list.size()) {
             return;
@@ -662,14 +663,14 @@ public abstract class DevToolsDriver implements Driver {
     public boolean enabled(String id) {
         retryIfEnabled(id);
         DevToolsMessage dtm = eval(DriverOptions.selector(id) + ".disabled");
-        return !dtm.getResult().isBooleanTrue();
+        return !dtm.getResult().isTrue();
     }
     
     @Override
     public boolean waitUntil(String expression) {
         return options.retry(() -> {
             try {
-                return eval(expression, true).getResult().isBooleanTrue();
+                return eval(expression, true).getResult().isTrue();
             } catch (Exception e) {
                 logger.warn("waitUntil evaluate failed: {}", e.getMessage());
                 return false;
@@ -695,7 +696,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public List<Map> getCookies() {
         DevToolsMessage dtm = method("Network.getAllCookies").send();
-        return dtm.getResult("cookies").getAsList();
+        return dtm.getResult("cookies").getValue();
     }
     
     @Override
@@ -768,7 +769,7 @@ public abstract class DevToolsDriver implements Driver {
         boolean submitTemp = submit; // in case we are prepping for a submit().mouse(locator).click()
         submit = false;
         retryIfEnabled(locator);
-        Map<String, Object> map = eval(DriverOptions.getPositionJs(locator)).getResult().getAsMap();
+        Map<String, Object> map = eval(DriverOptions.getPositionJs(locator)).getResult().getValue();
         submit = submitTemp;
         return map;
     }
@@ -794,7 +795,7 @@ public abstract class DevToolsDriver implements Driver {
     // chrome only
     public byte[] screenshotFull() {
         DevToolsMessage layout = method("Page.getLayoutMetrics").send();
-        Map<String, Object> size = layout.getResult("contentSize").getAsMap();
+        Map<String, Object> size = layout.getResult("contentSize").getValue();
         Map<String, Object> map = options.newMapWithSelectedKeys(size, "height", "width");
         map.put("x", 0);
         map.put("y", 0);
@@ -811,7 +812,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public List<String> getPages() {
         DevToolsMessage dtm = method("Target.getTargets").send();
-        return dtm.getResult("targetInfos.targetId").getAsList();
+        return dtm.getResult("targetInfos.targetId").getValue();
     }
     
     @Override
@@ -820,7 +821,7 @@ public abstract class DevToolsDriver implements Driver {
             return;
         }
         DevToolsMessage dtm = method("Target.getTargets").send();
-        List<Map> targets = dtm.getResult("targetInfos").getAsList();
+        List<Map> targets = dtm.getResult("targetInfos").getValue();
         String targetId = null;
         for (Map map : targets) {
             String title = (String) map.get("title");
@@ -844,7 +845,7 @@ public abstract class DevToolsDriver implements Driver {
             return;
         }
         DevToolsMessage dtm = method("Target.getTargets").send();
-        List<Map> targets = dtm.getResult("targetInfos").getAsList();
+        List<Map> targets = dtm.getResult("targetInfos").getValue();
         if (index < targets.size()) {
             Map target = targets.get(index);
             String targetId = (String) target.get("targetId");
@@ -901,7 +902,7 @@ public abstract class DevToolsDriver implements Driver {
             return;
         }
         dtm = method("Page.createIsolatedWorld").param("frameId", frameId).send();
-        executionContextId = dtm.getResult("executionContextId").getValue(Integer.class);
+        executionContextId = dtm.getResult("executionContextId").getValue();
         if (executionContextId == null) {
             logger.warn("execution context is null, unable to switch frame by locator: {}", locator);
         }
@@ -927,7 +928,7 @@ public abstract class DevToolsDriver implements Driver {
     }
     
     public void intercept(Map<String, Object> config) {
-        config = new ScriptValue(config).getAsMap(); // ensure js is pre-processed, TODO graal
+        config = new Variable(config).getValue(); // ensure js is pre-processed, TODO graal
         List<String> patterns = (List) config.get("patterns");
         if (patterns == null) {
             throw new RuntimeException("missing array argument 'patterns': " + config);

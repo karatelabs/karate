@@ -85,7 +85,6 @@ Scenario: non-expired cookie is in response
     Then status 200
     And match response[0] contains { name: 'foo', value: 'bar', domain: '.abc.com' }
 
-@apache
 Scenario: max-age is -1, cookie should persist.
     Given path 'search', 'cookies'
     And cookie foo = {value:'bar', max-age:'-1', path:'/search'}

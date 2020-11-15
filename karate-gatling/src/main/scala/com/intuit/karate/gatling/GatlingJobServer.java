@@ -24,14 +24,11 @@
 package com.intuit.karate.gatling;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.core.ExecutionContext;
-import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.job.ChunkResult;
 import com.intuit.karate.job.JobConfig;
 import com.intuit.karate.job.JobServer;
 import java.io.File;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 
 /**
@@ -45,11 +42,6 @@ public class GatlingJobServer extends JobServer {
 
     public GatlingJobServer(JobConfig config) {
         super(config, "target/gatling");
-    }
-
-    @Override
-    public void addFeature(ExecutionContext exec, Iterator<ScenarioExecutionUnit> units, Runnable onComplete) {
-        // TODO not applicable
     }
 
     @Override

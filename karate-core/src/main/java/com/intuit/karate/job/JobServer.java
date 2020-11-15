@@ -24,8 +24,6 @@
 package com.intuit.karate.job;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.core.ExecutionContext;
-import com.intuit.karate.core.ScenarioExecutionUnit;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -95,7 +93,7 @@ public abstract class JobServer {
         }
     }    
 
-    public abstract void addFeature(ExecutionContext exec, Iterator<ScenarioExecutionUnit> units, Runnable onComplete);
+    // public abstract void addFeature(ExecutionContext exec, Iterator<ScenarioExecutionUnit> units, Runnable onComplete);
 
     public abstract ChunkResult getNextChunk(String executorId);
 

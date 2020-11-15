@@ -27,8 +27,8 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
-import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.runtime.Variable;
 import com.intuit.karate.server.Response;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.shell.FileLogAppender;
@@ -206,14 +206,14 @@ public class JobExecutor {
 
     protected static JobMessage invokeServer(Http http, String jobId, String executorId, JobMessage req) {
         byte[] bytes = req.getBytes();
-        ScriptValue body;
+        Variable body;
         String contentType;
         if (bytes != null) {
             contentType = "application/octet-stream";
-            body = new ScriptValue(bytes);
+            body = new Variable(bytes);
         } else {
             contentType = "application/json";
-            body = new ScriptValue(req.body);
+            body = new Variable(req.body);
         }
         Response res = http.header(JobMessage.KARATE_METHOD, req.method)
                 .header(JobMessage.KARATE_JOB_ID, jobId)

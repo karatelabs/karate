@@ -346,4 +346,9 @@ public class DriverElement implements Element {
         return driver.near(locator);
     }
 
+    @Override
+    public String toString() {
+        return locator;
+    }        
+
 }

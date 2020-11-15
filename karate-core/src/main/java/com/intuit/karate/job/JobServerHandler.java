@@ -24,8 +24,9 @@
 package com.intuit.karate.job;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.JsonUtils;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.data.Json;
+import com.intuit.karate.data.JsonUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -94,7 +95,7 @@ public abstract class JobServerHandler extends SimpleChannelInboundHandler<FullH
                     req.setBytes(bytes);
                 } else {
                     String json = FileUtils.toString(bytes);
-                    Map<String, Object> map = JsonUtils.toJsonDoc(json).read("$");
+                    Map<String, Object> map = new Json(json).asMap();
                     req = new JobMessage(method, map);
                 }
                 req.setExecutorId(executorId);

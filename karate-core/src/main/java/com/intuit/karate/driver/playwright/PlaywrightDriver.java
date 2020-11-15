@@ -23,11 +23,11 @@
  */
 package com.intuit.karate.driver.playwright;
 
-import com.intuit.karate.JsonUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.data.Json;
+import com.intuit.karate.data.JsonUtils;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverElement;
 
@@ -157,7 +157,7 @@ public class PlaywrightDriver implements Driver {
                 // to avoid swamping the console when large base64 encoded binary responses happen
                 logger.debug("<< {}", StringUtils.truncate(text, 1024, true));
             }
-            Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
+            Map<String, Object> map = new Json(text).asMap();
             PlaywrightMessage pwm = new PlaywrightMessage(this, map);
             receive(pwm);
         });

@@ -24,19 +24,14 @@
 package com.intuit.karate.job;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.JsonUtils;
-import com.intuit.karate.Logger;
 import com.intuit.karate.core.Embed;
-import com.intuit.karate.core.ExecutionContext;
-import com.intuit.karate.core.FeatureExecutionUnit;
 import com.intuit.karate.core.Scenario;
-import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.core.ScenarioResult;
+import com.intuit.karate.data.Json;
 import static com.intuit.karate.job.JobServer.LOGGER;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -55,23 +50,7 @@ public class ScenarioJobServer extends JobServer {
         super(config, reportDir);
     }
 
-    @Override
-    public void addFeature(ExecutionContext exec, Iterator<ScenarioExecutionUnit> units, Runnable onComplete) {
-        Logger logger = new Logger();
-        List<Scenario> selected = new ArrayList();
-        while (units.hasNext()) {
-            Scenario scenario = units.next().scenario;
-            if (FeatureExecutionUnit.isSelected(exec.featureContext, scenario, logger)) {
-                selected.add(scenario);
-            }
-        }
-        if (selected.isEmpty()) {
-            onComplete.run();
-        } else {
-            FeatureScenarios fs = new FeatureScenarios(exec, selected, onComplete);
-            FEATURE_QUEUE.add(fs);
-        }
-    }
+    // TODO add feature
 
     @Override
     public ChunkResult getNextChunk(String executorId) {
@@ -104,7 +83,7 @@ public class ScenarioJobServer extends JobServer {
         }
         String json = FileUtils.toString(jsonFile);
         File videoFile = getFirstFileWithExtension(upload, "mp4");
-        List<Map<String, Object>> list = JsonUtils.toJsonDoc(json).read("$[0].elements");
+        List<Map<String, Object>> list = new Json(json).get("$[0].elements");
         synchronized (CHUNK_RESULTS) {
             ChunkResult cr = CHUNK_RESULTS.remove(chunkId);
             LOGGER.info("chunk complete: {}, remaining: {}", chunkId, CHUNK_RESULTS.keySet());

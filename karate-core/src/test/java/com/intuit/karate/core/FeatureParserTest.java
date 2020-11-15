@@ -1,6 +1,10 @@
 package com.intuit.karate.core;
 
-import com.intuit.karate.Match;
+import com.intuit.karate.Runner;
+import com.intuit.karate.SuiteRuntime;
+import com.intuit.karate.match.Match;
+import com.intuit.karate.match.MatchResult;
+import com.intuit.karate.runtime.FeatureRuntime;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
@@ -17,17 +21,26 @@ class FeatureParserTest {
 
     static FeatureResult execute(String name) {
         Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/" + name);
-        return Engine.executeFeatureSync(null, feature, "not('@ignore')", null);
+        Runner.Builder builder = new Runner.Builder();
+        builder.tags("~@ignore");
+        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(builder), feature, null);
+        fr.run();
+        return fr.result;
     }
+    
+    private void match(Object actual, Object expected) {
+        MatchResult mr = Match.that(actual).isEqualTo(expected);
+        assertTrue(mr.pass, mr.message);
+    }    
 
     @Test
     void testEngineForSimpleFeature() {
         FeatureResult result = execute("test-simple.feature");
         Map<String, Object> map = result.toMap();
-        Match.equals(map.get("tags"), "[{ name: '@foo', line: 1 }]");
+        match(map.get("tags"), "[{ name: '@foo', line: 1 }]");
         ScenarioResult sr = (ScenarioResult) result.getScenarioResults().get(0);
         map = sr.toMap();
-        Match.equals(map.get("tags"), "[{ name: '@bar', line: 5 }]");
+        match(map.get("tags"), "[{ name: '@bar', line: 5 }]");
         Engine.saveResultJson("target", result, null);
         Engine.saveResultXml("target", result, null);
     }
@@ -72,15 +85,15 @@ class FeatureParserTest {
         for (StepResult step : result.getScenarioResults().get(0).getStepResults()) {
             assertEquals("passed", step.getResult().getStatus());
         }
-        Map<String, Object> map = result.getResultAsPrimitiveMap();
-        Match.equalsText(map.get("backSlash"), "C:\\foo\\bar\\");
+        Map<String, Object> map = result.getResultVariables();
+        match(map.get("backSlash"), "C:\\foo\\bar\\");
     }
 
     @Test
     void testSetTable() {
         FeatureResult result = execute("test-set-table.feature");
-        Map<String, Object> map = result.getResultAsPrimitiveMap();
-        Match.equals(map.get("output"), "{ name: 'Bob', age: 2 }");
+        Map<String, Object> map = result.getResultVariables();
+        match(map.get("output"), "{ name: 'Bob', age: 2 }");
     }
 
     @Test
@@ -97,14 +110,14 @@ class FeatureParserTest {
     @Test
     void testEmptyFirstLine() {
         FeatureResult result = execute("test-empty-first-line1.feature");
-        Map<String, Object> map = result.getResultAsPrimitiveMap();
-        Match.equalsText(map.get("foo"), "bar");
+        Map<String, Object> map = result.getResultVariables();
+        match(map.get("foo"), "bar");
         result = execute("test-empty-first-line2.feature");
-        map = result.getResultAsPrimitiveMap();
-        Match.equalsText(map.get("foo"), "bar");
+        map = result.getResultVariables();
+        match(map.get("foo"), "bar");
         result = execute("test-empty-first-line3.feature");
-        map = result.getResultAsPrimitiveMap();
-        Match.equalsText(map.get("foo"), "bar");
+        map = result.getResultVariables();
+        match(map.get("foo"), "bar");
     }
 
     @Test
@@ -115,23 +128,23 @@ class FeatureParserTest {
     @Test
     void testTablePipe() {
         FeatureResult result = execute("test-table-pipe.feature");
-        Map<String, Object> map = result.getResultAsPrimitiveMap();
-        Match.equalsText(map.get("value"), "pi|pe");
+        Map<String, Object> map = result.getResultVariables();
+        match(map.get("value"), "pi|pe");
     }
 
     @Test
     void testOutlineName() {
         FeatureResult result = execute("test-outline-name.feature");
-        Map<String, Object> map = result.getResultAsPrimitiveMap();
-        Match.equalsText(map.get("name"), "Nyan");
-        Match.equalsText(map.get("title"), "name is Nyan and age is 5");
+        Map<String, Object> map = result.getResultVariables();
+        match(map.get("name"), "Nyan");
+        match(map.get("title"), "name is Nyan and age is 5");
     }
 
     @Test
     void testTagsMultiline() {
         FeatureResult result = execute("test-tags-multiline.feature");
-        Map<String, Object> map = result.getResultAsPrimitiveMap();
-        Match.contains(map.get("tags"), "[ 'tag1', 'tag2', 'tag3', 'tag4' ]");
+        Map<String, Object> map = result.getResultVariables();
+        Match.that(map.get("tags")).contains("[ 'tag1', 'tag2', 'tag3', 'tag4' ]").isTrue();
     }
 
     @Test
@@ -143,9 +156,9 @@ class FeatureParserTest {
     void testOutlineDynamic() {
         FeatureResult result = execute("test-outline-dynamic.feature");
         assertEquals(2, result.getScenarioResults().size());
-        Map<String, Object> map = result.getResultAsPrimitiveMap();
-        Match.equalsText(map.get("name"), "Nyan");
-        Match.equalsText(map.get("title"), "name is Nyan and age is 7");
+        Map<String, Object> map = result.getResultVariables();
+        match(map.get("name"), "Nyan");
+        match(map.get("title"), "name is Nyan and age is 7");
     }
 
     @Test
@@ -161,8 +174,8 @@ class FeatureParserTest {
     void testEmptyBackground() {
         FeatureResult result = execute("test-empty-background.feature");
         assertFalse(result.isFailed());
-        Map<String, Object> map = result.getResultAsPrimitiveMap();
-        Match.equals(map.get("temp"), "['foo']");
+        Map<String, Object> map = result.getResultVariables();
+        match(map.get("temp"), "['foo']");
     }
 
     @Test

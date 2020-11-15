@@ -1,6 +1,6 @@
 package mock.contract;
 
-import com.intuit.karate.JsonUtils;
+import com.intuit.karate.data.JsonUtils;
 import com.intuit.karate.demo.config.ServerStartedInitializingBean;
 import java.util.Collection;
 import java.util.Map;

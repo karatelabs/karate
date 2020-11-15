@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2019 Intuit Inc.
+ * Copyright 2020 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,14 +21,21 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.core;
+package com.intuit.karate;
 
 /**
  *
  * @author pthomas3
  */
-public interface ExecutionHookFactory {
+public class Constants {
     
-    ExecutionHook create();
+    private Constants() {
+        // only static methods
+    }
+    
+    public static final String KARATE_CONFIG_DIR = "karate.config.dir";
+    public static final String KARATE_ENV = "karate.env";
+    public static final String SUREFIRE_REPORTS = "surefire-reports";
+    
     
 }

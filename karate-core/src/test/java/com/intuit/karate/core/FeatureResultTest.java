@@ -1,6 +1,8 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.SuiteRuntime;
+import com.intuit.karate.runtime.FeatureRuntime;
 import java.io.File;
 import java.util.Map;
 import java.util.function.IntBinaryOperator;
@@ -19,7 +21,9 @@ public class FeatureResultTest {
 
     static FeatureResult result(String name) {
         Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/" + name);
-        return Engine.executeFeatureSync(null, feature, null, null);
+        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature, null);
+        fr.run();
+        return fr.result;
     }
 
     static String xml(FeatureResult result) {
@@ -33,8 +37,8 @@ public class FeatureResultTest {
         assertEquals(2, result.getFailedCount());
         assertEquals(3, result.getScenarioCount());
         String contents = xml(result);
-        assertTrue(contents.contains("assert evaluated to false: a != 1"));
-        assertTrue(contents.contains("assert evaluated to false: a == 3"));
+        assertTrue(contents.contains("did not evaluate to 'true': a != 1"));
+        assertTrue(contents.contains("did not evaluate to 'true': a == 3"));
 
         // failure1 should have first step as failure, and second step as skipped
         // TODO: generate the expected content string, below code puts a hard dependency
@@ -81,7 +85,7 @@ public class FeatureResultTest {
     void testLambdaFunctionsInScenarioFeature() throws Exception {
         FeatureResult result = result("caller-with-lambda-arg.feature");
         assertEquals(0, result.getFailedCount());
-        JSONArray dataArr = (JSONArray) result.getResultAsPrimitiveMap().get("data");
+        JSONArray dataArr = (JSONArray) result.getResultVariables().get("data");
         assertTrue(((Map) dataArr.get(0)).get("javaSum") instanceof IntBinaryOperator);
     }
 

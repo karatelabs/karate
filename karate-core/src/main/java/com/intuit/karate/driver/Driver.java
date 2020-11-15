@@ -23,10 +23,10 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.Config;
 import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.Plugin;
 import com.intuit.karate.http.Cookie;
+import com.intuit.karate.runtime.Config;
 
 import java.util.ArrayList;
 import java.util.Collections;

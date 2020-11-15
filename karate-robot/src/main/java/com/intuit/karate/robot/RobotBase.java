@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.robot;
 
-import com.intuit.karate.Config;
+import com.intuit.karate.runtime.Config;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Plugin;

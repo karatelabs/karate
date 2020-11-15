@@ -1,8 +1,7 @@
 package com.intuit.karate.gatling
 
 import akka.actor.ActorSystem
-import com.intuit.karate.core.ScenarioContext
-import com.intuit.karate.http.{HttpRequestBuilder, HttpUtils}
+import com.intuit.karate.http.HttpUtils
 import com.intuit.karate.netty.NettyUtils
 import com.intuit.karate.runtime.ScenarioRuntime
 import com.intuit.karate.server.HttpRequest

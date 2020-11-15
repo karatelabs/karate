@@ -24,7 +24,7 @@
 package com.intuit.karate.debug;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.JsonUtils;
+import com.intuit.karate.data.Json;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
 public class DapDecoder extends ByteToMessageDecoder {
 
     private static final Logger logger = LoggerFactory.getLogger(DapDecoder.class);
-    
+
     private int remaining;
 
     @Override
@@ -68,7 +68,7 @@ public class DapDecoder extends ByteToMessageDecoder {
             }
         }
     }
-    
+
     private static int findCrLfCrLf(ByteBuf buffer) {
         int totalLength = buffer.readableBytes();
         int readerIndex = buffer.readerIndex();
@@ -80,14 +80,14 @@ public class DapDecoder extends ByteToMessageDecoder {
             }
         }
         return -1;
-    }    
+    }
 
     private static DapMessage encode(ByteBuf in, int length) {
         String msg = in.readCharSequence(length, FileUtils.UTF8).toString();
         if (logger.isTraceEnabled()) {
             logger.trace(">> {}", msg);
         }
-        Map<String, Object> map = JsonUtils.toJsonDoc(msg).read("$");
+        Map<String, Object> map = new Json(msg).asMap();
         return new DapMessage(map);
     }
 

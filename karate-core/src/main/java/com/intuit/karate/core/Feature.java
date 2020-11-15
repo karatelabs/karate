@@ -27,7 +27,6 @@ import com.intuit.karate.Resource;
 import com.intuit.karate.StringUtils;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -94,10 +93,6 @@ public class Feature {
             }
         }
         return null;
-    }
-
-    public Iterator<ScenarioExecutionUnit> getScenarioExecutionUnits(ExecutionContext exec) {
-        return new FeatureScenarioIterator(exec, sections.iterator());
     }
 
     public void addSection(FeatureSection section) {

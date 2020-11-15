@@ -76,7 +76,7 @@ public class ScenarioRuntime implements Runnable {
         } else if (caller.isSharedScope()) {
             Config config = caller.parentRuntime.engine.getConfig();
             Map<String, Variable> vars = caller.parentRuntime.engine.vars;
-            engine = new ScenarioEngine(config, this, vars, logger);            
+            engine = new ScenarioEngine(config, this, vars, logger);
         } else { // new, but clone and copy data
             Config config = new Config(caller.parentRuntime.engine.getConfig());
             Map<String, Variable> vars = caller.parentRuntime.engine.copyVariables(false);
@@ -85,11 +85,10 @@ public class ScenarioRuntime implements Runnable {
         actions = new ScenarioActions(engine);
         this.scenario = scenario;
         magicVariables = initMagicVariables(); // depends on scenario
+        this.background = background; // used only to check which steps remain
         if (background == null) {
-            this.background = null;
             result = new ScenarioResult(scenario, null);
         } else {
-            this.background = background;
             result = new ScenarioResult(scenario, background.result.getStepResults());
         }
         if (featureRuntime.isPerfMode()) {
@@ -249,7 +248,9 @@ public class ScenarioRuntime implements Runnable {
             logError("scenario [run] failed\n" + e.getMessage());
             currentStepResult = result.addFakeStepResult("scenario [run] failed", e);
         } finally {
-            afterRun();
+            if (!scenario.isDynamic()) { // don't add "fake" scenario to feature results
+                afterRun();
+            }
         }
     }
 

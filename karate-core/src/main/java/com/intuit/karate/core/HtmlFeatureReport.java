@@ -24,6 +24,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.XmlUtils;
+import com.intuit.karate.runtime.Tags;
 import java.io.File;
 import java.util.Collections;
 import java.util.List;

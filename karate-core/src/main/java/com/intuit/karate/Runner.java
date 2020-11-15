@@ -317,7 +317,7 @@ public class Runner {
             logger = new Logger();
             workingDir = new File("");
             buildDir = FileUtils.getBuildDir();
-            reportDir = buildDir + File.separator + "surefire-reports";
+            reportDir = buildDir + File.separator + Constants.SUREFIRE_REPORTS;
             threadCount = ro.getThreads();
             paths = ro.getFeatures();
             tags = ro.getTags();

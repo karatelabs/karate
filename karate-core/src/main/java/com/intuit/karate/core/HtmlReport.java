@@ -24,10 +24,10 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Results;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
+import com.intuit.karate.data.JsonUtils;
 import java.io.File;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
@@ -154,13 +154,13 @@ public abstract class HtmlReport {
         link.setTextContent("Summary");
         return link;
     }
-    
+
     protected Element tagsLink() {
         Element link = node("a", null);
         link.setAttribute("href", "karate-tags.html");
         link.setTextContent("Tags");
         return link;
-    }    
+    }
 
     protected static String getHtmlFileName(FeatureResult result) {
         return result.getPackageQualifiedName() + ".html";
@@ -202,7 +202,7 @@ public abstract class HtmlReport {
             long startTime = sr.getStartTime();
             item.put("start", startTime);
             long endTime = sr.getEndTime() - 1; // avoid overlap when rendering
-            item.put("end", endTime); 
+            item.put("end", endTime);
             String startTimeString = dateFormat.format(new Date(startTime));
             String endTimeString = dateFormat.format(new Date(endTime));
             content = content + " " + startTimeString + "-" + endTimeString;

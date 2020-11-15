@@ -238,32 +238,6 @@ class XmlUtilsTest {
         assertEquals(XmlUtils.toString(tempNode), "<foo><bar>baz</bar></foo>");
     }
 
-    final static String TEACHERS_XML = "<teachers>\n"
-            + "	<teacher department=\"science\" id=\"309\">\n"
-            + "		<subject>math</subject>\n"
-            + "		<subject>physics</subject>\n"
-            + "	</teacher>\n"
-            + "	<teacher department=\"arts\" id=\"310\">\n"
-            + "		<subject>political education</subject>\n"
-            + "		<subject>english</subject>\n"
-            + "	</teacher>\n"
-            + "</teachers>";
-
-    @Test
-    void testConversionToMapRoundTrip() {
-        String xpath = "//teacher[@department='science']/subject";
-        Node node = XmlUtils.toXmlDoc(TEACHERS_XML.replaceAll("\n\\s*", ""));
-        ScriptValue sv1 = Script.evalXmlPathOnXmlNode(node, xpath);
-        assertTrue(sv1.getType() == ScriptValue.Type.LIST);
-        String before = XmlUtils.toString(node);
-        Map map = (Map) XmlUtils.toObject(node);
-        Node temp = XmlUtils.fromMap(map);
-        ScriptValue sv2 = Script.evalXmlPathOnXmlNode(temp, xpath);
-        assertTrue(sv2.getType() == ScriptValue.Type.LIST);
-        String after = XmlUtils.toString(temp);
-        assertEquals(after, before);
-    }
-
     @Test
     void testStripNameSpacePrefixes() {
         assertEquals("/", XmlUtils.stripNameSpacePrefixes("/"));

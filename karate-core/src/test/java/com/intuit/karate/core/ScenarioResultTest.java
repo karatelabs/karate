@@ -1,8 +1,8 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.JsonUtils;
-import com.intuit.karate.Match;
+import com.intuit.karate.data.Json;
+import com.intuit.karate.match.Match;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -20,12 +20,12 @@ class ScenarioResultTest {
     @Test
     void testJsonToScenarioResult() {
         String json = FileUtils.toString(getClass().getResourceAsStream("simple1.json"));
-        List<Map<String, Object>> list = JsonUtils.toJsonDoc(json).read("$[0].elements");
+        List<Map<String, Object>> list = new Json(json).get("$[0].elements");
         Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/simple1.feature");
         Scenario scenario = feature.getSections().get(0).getScenario();
         ScenarioResult sr = new ScenarioResult(scenario, list, true);
-        Match.init(list.get(0)).equalsObject(sr.backgroundToMap());
-        Match.init(list.get(1)).equalsObject(sr.toMap());
+        Match.that(list.get(0)).isEqualTo(sr.backgroundToMap()).isTrue();
+        Match.that(list.get(1)).isEqualTo(sr.toMap()).isTrue();
     }
 
 }

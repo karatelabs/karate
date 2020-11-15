@@ -24,7 +24,6 @@
 package com.intuit.karate.robot;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.linux.LinuxRobot;
 import com.intuit.karate.robot.mac.MacRobot;
 import com.intuit.karate.robot.win.WinRobot;

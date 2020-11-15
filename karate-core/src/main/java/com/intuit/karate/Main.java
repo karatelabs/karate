@@ -164,16 +164,16 @@ public class Main implements Callable<Void> {
         }
         if (tests != null) {
             if (env != null) {
-                System.setProperty(ScriptBindings.KARATE_ENV, env);
+                System.setProperty(Constants.KARATE_ENV, env);
             }
-            String configDir = System.getProperty(ScriptBindings.KARATE_CONFIG_DIR);
+            String configDir = System.getProperty(Constants.KARATE_CONFIG_DIR);
             configDir = StringUtils.trimToNull(configDir);
             if (configDir == null) {
-                System.setProperty(ScriptBindings.KARATE_CONFIG_DIR, new File("").getAbsolutePath());
+                System.setProperty(Constants.KARATE_CONFIG_DIR, new File("").getAbsolutePath());
             }
             List<String> fixed = tests.stream().map(f -> new File(f).getAbsolutePath()).collect(Collectors.toList());
             // this avoids mixing json created by other means which will break the cucumber report
-            String jsonOutputDir = output + File.separator + ScriptBindings.SUREFIRE_REPORTS;
+            String jsonOutputDir = output + File.separator + Constants.SUREFIRE_REPORTS;
             CliExecutionHook hook = new CliExecutionHook(false, jsonOutputDir, false);
             Results results = Runner
                     .path(fixed).tags(tags).scenarioName(name)
@@ -211,7 +211,7 @@ public class Main implements Callable<Void> {
             key = new File(SslContextFactory.DEFAULT_KEY_NAME);
         }
         if (env != null) { // some advanced mocks may want karate.env
-            System.setProperty(ScriptBindings.KARATE_ENV, env);
+            System.setProperty(Constants.KARATE_ENV, env);
         }
         MockServer.Builder builder = MockServer.feature(mock).certFile(cert).keyFile(key).corsEnabled();
         if (ssl) {

@@ -5,6 +5,7 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.exception.KarateException;
+import com.intuit.karate.runtime.FeatureRuntime;
 import java.io.File;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
@@ -28,8 +29,9 @@ class RunnerTest {
 
     static String resultXml(String name) {
         Feature feature = FeatureParser.parse("classpath:com/intuit/karate/" + name);
-        FeatureResult result = Engine.executeFeatureSync(null, feature, null, null);
-        File file = Engine.saveResultXml("target", result, null);
+        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature, null);
+        fr.run();
+        File file = Engine.saveResultXml("target", fr.result, null);
         return FileUtils.toString(file);
     }
 

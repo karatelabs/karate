@@ -24,12 +24,11 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Results;
-import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.data.JsonUtils;
 import com.intuit.karate.exception.KarateException;
-import com.jayway.jsonpath.JsonPath;
+import com.intuit.karate.runtime.Tags;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -54,7 +53,6 @@ public class FeatureResult {
     private double durationMillis;
 
     private Map<String, Object> resultVariables;
-    private ScriptValueMap resultVars; // TODO remove
     private Map<String, Object> callArg;
     private int loopIndex;
 
@@ -173,8 +171,7 @@ public class FeatureResult {
             return null;
         }
         try {
-            Map temp = JsonUtils.removeCyclicReferences(callArg);
-            return JsonUtils.toPrettyJsonString(JsonPath.parse(temp));
+            return JsonUtils.toJsonSafe(callArg, true);
         } catch (Throwable t) {
             return "#error: " + t.getMessage();
         }
@@ -222,17 +219,6 @@ public class FeatureResult {
 
     public List<Throwable> getErrors() {
         return errors;
-    }
-
-    public Map<String, Object> getResultAsPrimitiveMap() {
-        if (resultVars == null) {
-            return Collections.EMPTY_MAP;
-        }
-        return resultVars.toPrimitiveMap();
-    }
-
-    public void setResultVars(ScriptValueMap resultVars) {
-        this.resultVars = resultVars;
     }
 
     private void addError(Throwable error) {

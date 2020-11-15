@@ -23,8 +23,8 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.ScriptValue;
 import com.intuit.karate.data.Json;
+import com.intuit.karate.runtime.Variable;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -48,7 +48,7 @@ public class DevToolsMessage {
     private final String method;
     private Json params;
     private Map<String, Object> error;
-    private ScriptValue result;
+    private Variable result;
     private Integer timeout;
 
     public Integer getId() {
@@ -97,7 +97,7 @@ public class DevToolsMessage {
         }
     }
 
-    public ScriptValue getResult() {
+    public Variable getResult() {
         return result;
     }
 
@@ -105,11 +105,11 @@ public class DevToolsMessage {
         if (result == null) {
             return null;
         }
-        Json json = new Json(result.getValue());
+        Json json = new Json(result.<Object>getValue());
         return json.get(path, clazz);
     }
 
-    public void setResult(ScriptValue result) {
+    public void setResult(Variable result) {
         this.result = result;
     }
 
@@ -127,18 +127,18 @@ public class DevToolsMessage {
         if (error != null) {
             return true;
         }
-        if (result == null || !result.isMapLike()) {
+        if (result == null || !result.isMap()) {
             return false;
         }
-        String resultError = (String) result.getAsMap().get("subtype");
+        String resultError = (String) result.<Map>getValue().get("subtype");
         return "error".equals(resultError);
     }
 
-    public ScriptValue getResult(String key) {
-        if (result == null || !result.isMapLike()) {
+    public Variable getResult(String key) {
+        if (result == null || !result.isMap()) {
             return null;
         }
-        return new ScriptValue(result.getAsMap().get(key));
+        return new Variable(result.<Map>getValue().get(key));
     }
 
     public DevToolsMessage(DevToolsDriver driver, String method) {
@@ -161,18 +161,18 @@ public class DevToolsMessage {
             if (temp.containsKey("result")) {
                 Object inner = temp.get("result");
                 if (inner instanceof List) {
-                    result = new ScriptValue(toMap((List) inner));
+                    result = new Variable(toMap((List) inner));
                 } else {
                     Map innerMap = (Map) inner;
                     String subtype = (String) innerMap.get("subtype");
                     if ("error".equals(subtype) || innerMap.containsKey("objectId")) {
-                        result = new ScriptValue(innerMap);
+                        result = new Variable(innerMap);
                     } else { // Runtime.evaluate "returnByValue" is true
-                        result = new ScriptValue(innerMap.get("value"));
+                        result = new Variable(innerMap.get("value"));
                     }
                 }
             } else {
-                result = new ScriptValue(temp);
+                result = new Variable(temp);
             }
         }
         error = (Map) map.get("error");

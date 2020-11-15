@@ -23,9 +23,9 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.Script;
-import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.data.JsonUtils;
+import com.intuit.karate.graal.JsEngine;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -156,10 +156,10 @@ public class Table {
         try {
             switch (col.type) {
                 case EVALUATED:
-                    if (Script.isJson(raw)) {
+                    if (JsonUtils.isJson(raw)) {
                         raw = '(' + raw + ')';
                     }
-                    return ScriptBindings.eval(raw, null).getValue();
+                    return JsEngine.evalGlobal(raw).getValue();
                 default:
                     if (StringUtils.isBlank(raw)) {
                         return null;

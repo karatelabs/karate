@@ -24,7 +24,7 @@
 package com.intuit.karate.data;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScriptValue;
+import com.intuit.karate.runtime.Variable;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.spi.json.JsonProvider;
@@ -178,7 +178,7 @@ public class JsonUtils {
             String[] row = new String[colCount];
             List cols = new ArrayList(map.values());
             for (int i = 0; i < colCount; i++) {
-                row[i] = new ScriptValue(cols.get(i)).getAsString();
+                row[i] = new Variable(cols.get(i)).getAsString();
             }
             csv.add(row);
         }

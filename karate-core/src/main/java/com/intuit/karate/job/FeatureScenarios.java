@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.job;
 
-import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.Scenario;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,13 +33,11 @@ import java.util.List;
  */
 public class FeatureScenarios {
 
-    private final ExecutionContext exec;
     public final List<Scenario> scenarios;   
     public final List<ChunkResult> chunks;    
     private final Runnable onComplete;
 
-    public FeatureScenarios(ExecutionContext exec, List<Scenario> scenarios, Runnable onComplete) {
-        this.exec = exec;
+    public FeatureScenarios(List<Scenario> scenarios, Runnable onComplete) {
         this.scenarios = scenarios;
         chunks = new ArrayList(scenarios.size());
         this.onComplete = onComplete;
@@ -60,15 +57,16 @@ public class FeatureScenarios {
 
     public void onComplete() {
         for (ChunkResult chunk : chunks) {
-            exec.result.addResult(chunk.getResult());
+            // exec.result.addResult(chunk.getResult());
         }
         onComplete.run();
     }
 
     @Override
     public String toString() {
-        return exec.featureContext.feature.toString()
-                + " (" + chunks.size() + "/" + (scenarios.size() + chunks.size()) + ")";
+        return "TODO"; // TODO
+//        return exec.featureContext.feature.toString()
+//                + " (" + chunks.size() + "/" + (scenarios.size() + chunks.size()) + ")";
     }
 
 }

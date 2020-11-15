@@ -114,7 +114,7 @@ public class SuiteRuntime {
             }
             String temp = rb.configDir;
             if (temp == null) {
-                temp = StringUtils.trimToNull(System.getProperty("karate.config.dir"));
+                temp = StringUtils.trimToNull(System.getProperty(Constants.KARATE_CONFIG_DIR));
                 if (temp == null) {
                     temp = "classpath:";
                 }
@@ -145,7 +145,7 @@ public class SuiteRuntime {
         if (!envResolved) {
             envResolved = true;
             if (env == null) {
-                env = StringUtils.trimToNull(System.getProperty("karate.env"));
+                env = StringUtils.trimToNull(System.getProperty(Constants.KARATE_ENV));
             }
             if (env != null) {
                 logger.info("karate.env is: '{}'", env);

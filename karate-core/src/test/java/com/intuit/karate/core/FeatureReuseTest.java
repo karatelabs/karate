@@ -1,6 +1,8 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.SuiteRuntime;
+import com.intuit.karate.runtime.FeatureRuntime;
 import java.io.File;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
@@ -17,15 +19,16 @@ class FeatureReuseTest {
 
     static String resultXml(String name) {
         Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/" + name);
-        FeatureResult result = Engine.executeFeatureSync(null, feature, null, null);
-        File file = Engine.saveResultXml("target", result, null);
+        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature, null);
+        fr.run();
+        File file = Engine.saveResultXml("target", fr.result, null);
         return FileUtils.toString(file);
     }
 
     @Test
     void testFailureInCalledShouldFailTest() throws Exception {
         String contents = resultXml("caller.feature");
-        assertTrue(contents.contains("assert evaluated to false: input != 4"));
+        assertTrue(contents.contains("did not evaluate to 'true': input != 4"));
     }
 
     @Test

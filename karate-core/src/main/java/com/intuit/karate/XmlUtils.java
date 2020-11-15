@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.data.Json;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 
@@ -35,7 +36,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
@@ -463,9 +463,8 @@ public class XmlUtils {
     }
 
     public static Document toXmlDoc(Object o) {
-        DocumentContext json = JsonUtils.toJsonDoc(o);
-        Object mapOrArray = json.read("$"); // for pojos will always be a map
-        return fromObject("root", mapOrArray); // keep it simple for people to write generic xpath starting with /root
+        Json json = new Json(o);
+        return fromObject("root", json.asMapOrList()); // keep it simple for people to write generic xpath starting with /root
     }
 
     public static String toXml(Object o) {

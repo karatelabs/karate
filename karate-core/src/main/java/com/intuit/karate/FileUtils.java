@@ -23,11 +23,8 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.exception.KarateFileNotFoundException;
-import com.jayway.jsonpath.DocumentContext;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -130,36 +127,6 @@ public class FileUtils {
         return text.endsWith(".feature");
     }
 
-    public static ScriptValue readFile(String text, ScenarioContext context) {
-        StringUtils.Pair pair = parsePathAndTags(text);
-        text = pair.left;
-        if (isJsonFile(text) || isXmlFile(text) || isJavaScriptFile(text)) {
-            String contents = readFileAsString(text, context);
-            contents = StringUtils.fixJavaScriptFunction(contents);
-            ScriptValue temp = Script.evalKarateExpression(contents, context);
-            return new ScriptValue(temp.getValue(), text);
-        } else if (isTextFile(text) || isGraphQlFile(text)) {
-            String contents = readFileAsString(text, context);
-            return new ScriptValue(contents, text);
-        } else if (isFeatureFile(text)) {
-            Resource fr = toResource(text, context);
-            Feature feature = FeatureParser.parse(fr);
-            feature.setCallTag(pair.right);
-            return new ScriptValue(feature, text);
-        } else if (isCsvFile(text)) {
-            String contents = readFileAsString(text, context);
-            DocumentContext doc = JsonUtils.fromCsv(contents);
-            return new ScriptValue(doc, text);
-        } else if (isYamlFile(text)) {
-            String contents = readFileAsString(text, context);
-            DocumentContext doc = JsonUtils.fromYaml(contents);
-            return new ScriptValue(doc, text);
-        } else {
-            InputStream is = readFileAsStream(text, context);
-            return new ScriptValue(is, text);
-        }
-    }
-
     public static String removePrefix(String text) {
         if (text == null) {
             return null;
@@ -185,52 +152,6 @@ public class FileUtils {
         Feature feature = FeatureParser.parse(pair.left);
         feature.setCallTag(pair.right);
         return feature;
-    }
-
-    public static Resource toResource(String path, ScenarioContext context) {
-        if (isClassPath(path)) {
-            return new Resource(path, context.classLoader);
-        } else if (isFilePath(path)) {
-            String temp = removePrefix(path);
-            return new Resource(new File(temp), path, context.classLoader);
-        } else if (isThisPath(path)) {
-            String temp = removePrefix(path);
-            Path parentPath = context.featureContext.parentPath;
-            Path childPath = parentPath.resolve(temp);
-            return new Resource(childPath, context.classLoader);
-        } else {
-            try {
-                Path parentPath = context.rootFeatureContext.parentPath;
-                Path childPath = parentPath.resolve(path);
-                return new Resource(childPath, context.classLoader);
-            } catch (Exception e) {
-                LOGGER.error("feature relative path resolution failed: {}", e.getMessage());
-                throw e;
-            }
-        }
-    }
-
-    public static String readFileAsString(String path, ScenarioContext context) {
-        return toString(readFileAsStream(path, context));
-    }
-
-    public static InputStream readFileAsStream(String path, ScenarioContext context) {
-        try {
-            return toResource(path, context).getStream();
-        } catch (Exception e) {
-            InputStream inputStream = context.getResourceAsStream(removePrefix(path));
-            if (inputStream == null) {
-                // attempt to get the file using the class classloader
-                // workaround for spring boot
-                inputStream = FileUtils.class.getClassLoader().getResourceAsStream(path);
-            }
-            if (inputStream == null) {
-                String message = String.format("could not find or read file: %s", path);
-                context.logger.trace("{}", message);
-                throw new KarateFileNotFoundException(message);
-            }
-            return inputStream;
-        }
     }
 
     public static String toPackageQualifiedName(String path) {
@@ -266,20 +187,6 @@ public class FileUtils {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public static String toPrettyString(String raw) {
-        raw = StringUtils.trimToEmpty(raw);
-        try {
-            if (Script.isJson(raw)) {
-                return JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(raw));
-            } else if (Script.isXml(raw)) {
-                return XmlUtils.toString(XmlUtils.toXmlDoc(raw), true);
-            }
-        } catch (Exception e) {
-            LOGGER.warn("parsing failed: {}", e.getMessage());
-        }
-        return raw;
     }
 
     public static byte[] toBytes(InputStream is) {

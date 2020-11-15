@@ -24,6 +24,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.runtime.Tags;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

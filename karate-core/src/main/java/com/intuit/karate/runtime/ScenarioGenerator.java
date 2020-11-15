@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.runtime;
 
-import com.intuit.karate.ScriptValue;
 import com.intuit.karate.core.FeatureSection;
 import com.intuit.karate.core.Scenario;
 import java.util.Collections;
@@ -136,8 +135,8 @@ public class ScenarioGenerator implements Iterator<ScenarioRuntime> {
                 Map<String, Object> map = rowValue.getValue();
                 dynamic.setExampleData(map); // and here we set exampleData
                 map.forEach((k, v) -> {
-                    ScriptValue sv = new ScriptValue(v);
-                    dynamic.replace("<" + k + ">", sv.getAsString());
+                    Variable var = new Variable(v);
+                    dynamic.replace("<" + k + ">", var.getAsString());
                 });
                 next = new ScenarioRuntime(featureRuntime, dynamic, background);
                 return true;
