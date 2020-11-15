@@ -48,7 +48,7 @@ public class GeckoWebDriver extends WebDriver {
     
     @Override
     protected String getJsonForFrame(String text) {
-        return new Json().set("frameId", text).toString();
+        return Json.object().set("frameId", text).toString();
     }    
 
     @Override

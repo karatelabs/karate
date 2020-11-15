@@ -83,7 +83,7 @@ public class ScenarioJobServer extends JobServer {
         }
         String json = FileUtils.toString(jsonFile);
         File videoFile = getFirstFileWithExtension(upload, "mp4");
-        List<Map<String, Object>> list = new Json(json).get("$[0].elements");
+        List<Map<String, Object>> list = Json.of(json).get("$[0].elements");
         synchronized (CHUNK_RESULTS) {
             ChunkResult cr = CHUNK_RESULTS.remove(chunkId);
             LOGGER.info("chunk complete: {}, remaining: {}", chunkId, CHUNK_RESULTS.keySet());

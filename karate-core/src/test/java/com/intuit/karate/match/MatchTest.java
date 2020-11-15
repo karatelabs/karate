@@ -178,7 +178,7 @@ class MatchTest {
 
     @Test
     void testSchema() {
-        Json json = new Json("{ a: '#number' }");
+        Json json = Json.of("{ a: '#number' }");
         Map map = json.asMap();
         match("[{ a: 1 }, { a: 2 }]", EACH_EQUALS, map);
         JsEngine.global().put("schema", map);

@@ -130,7 +130,7 @@ public class MatchValue {
             if (s.isEmpty()) {
                 return o;
             } else if (JsonUtils.isJson(s)) {
-                return new Json(s).asMapOrList();
+                return Json.of(s).value();
             } else if (XmlUtils.isXml(s)) {
                 return XmlUtils.toXmlDoc(s);
             } else {

@@ -102,7 +102,7 @@ public abstract class DevToolsDriver implements Driver {
                 // to avoid swamping the console when large base64 encoded binary responses happen
                 logger.debug("<< {}", StringUtils.truncate(text, 1024, true));
             }
-            Map<String, Object> map = new Json(text).asMap();
+            Map<String, Object> map = Json.of(text).value();
             DevToolsMessage dtm = new DevToolsMessage(this, map);
             receive(dtm);
         });

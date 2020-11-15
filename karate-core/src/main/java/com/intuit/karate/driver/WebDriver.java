@@ -150,7 +150,7 @@ public abstract class WebDriver implements Driver {
     }
 
     protected Variable eval(String expression, List args) {
-        Json json = new Json().set("script", expression).set("args", (args == null) ? Collections.EMPTY_LIST : args);
+        Json json = Json.object().set("script", expression).set("args", (args == null) ? Collections.EMPTY_LIST : args);
         Response res = http.path("execute", "sync").post(json);
         if (isJavaScriptError(res)) {
             logger.warn("javascript failed, will retry once: {}", res.getBodyAsString());
@@ -174,22 +174,22 @@ public abstract class WebDriver implements Driver {
     }
 
     protected String getJsonForInput(String text) {
-        return new Json().set("text", text).toString();
+        return Json.object().set("text", text).toString();
     }
 
     protected String getJsonForHandle(String text) {
-        return new Json().set("handle", text).toString();
+        return Json.object().set("handle", text).toString();
     }
 
     protected String getJsonForFrame(String text) {
-        return new Json().set("id", text).toString();
+        return Json.object().set("id", text).toString();
     }
 
     protected String selectorPayload(String locator) {
         if (locator.startsWith("{")) {
             locator = DriverOptions.preProcessWildCard(locator);
         }
-        Json json = new Json();
+        Json json = Json.object();
         if (locator.startsWith("/")) {
             json.set("using", "xpath").set("value", locator);
         } else {
@@ -201,11 +201,11 @@ public abstract class WebDriver implements Driver {
     @Override
     public String elementId(String locator) {
         String json = selectorPayload(locator);
-        Response res = http.path("element").post(json);
+        Response res = http.path("element").postJson(json);
         if (isLocatorError(res)) {
             logger.warn("locator failed, will retry once: {}", res.getBodyAsString());
             options.sleep();
-            res = http.path("element").post(json);
+            res = http.path("element").postJson(json);
             if (isLocatorError(res)) {
                 String message = "locator failed twice: " + res.getBodyAsString();
                 logger.error(message);
@@ -218,7 +218,7 @@ public abstract class WebDriver implements Driver {
     @Override
     public List<String> elementIds(String locator) {
         return http.path("elements")
-                .post(selectorPayload(locator)).json().get("$.." + getElementKey());
+                .postJson(selectorPayload(locator)).json().get("$.." + getElementKey());
     }
 
     @Override
@@ -228,13 +228,13 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public void setUrl(String url) {
-        Json json = new Json().set("url", url);
+        Json json = Json.object().set("url", url);
         http.path("url").post(json);
     }
 
     @Override
     public Map<String, Object> getDimensions() {
-        return http.path("window", "rect").get().json().getJson("value").asMap();
+        return http.path("window", "rect").get().json().getJson("value").value();
     }
 
     @Override
@@ -244,7 +244,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public void refresh() {
-        http.path("refresh").post("{}");
+        http.path("refresh").postJson("{}");
     }
 
     @Override
@@ -255,27 +255,27 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public void back() {
-        http.path("back").post("{}");
+        http.path("back").postJson("{}");
     }
 
     @Override
     public void forward() {
-        http.path("forward").post("{}");
+        http.path("forward").postJson("{}");
     }
 
     @Override
     public void maximize() {
-        http.path("window", "maximize").post("{}");
+        http.path("window", "maximize").postJson("{}");
     }
 
     @Override
     public void minimize() {
-        http.path("window", "minimize").post("{}");
+        http.path("window", "minimize").postJson("{}");
     }
 
     @Override
     public void fullscreen() {
-        http.path("window", "fullscreen").post("{}");
+        http.path("window", "fullscreen").postJson("{}");
     }
 
     @Override
@@ -299,7 +299,7 @@ public abstract class WebDriver implements Driver {
             } else {
                 elementId = elementId(locator);
             }
-            http.path("element", elementId, "value").post(getJsonForInput(value));
+            http.path("element", elementId, "value").postJson(getJsonForInput(value));
             return DriverElement.locatorExists(this, locator);
         });
     }
@@ -488,10 +488,10 @@ public abstract class WebDriver implements Driver {
     @Override
     public void dialog(boolean accept, String text) {
         if (text == null) {
-            http.path("alert", accept ? "accept" : "dismiss").post("{}");
+            http.path("alert", accept ? "accept" : "dismiss").postJson("{}");
         } else {
             http.path("alert", "text").post(Collections.singletonMap("text", text));
-            http.path("alert", "accept").post("{}");
+            http.path("alert", "accept").postJson("{}");
         }
     }
 
@@ -530,7 +530,7 @@ public abstract class WebDriver implements Driver {
         }
         List<String> list = getPages();
         for (String handle : list) {
-            http.path("window").post(getJsonForHandle(handle));
+            http.path("window").postJson(getJsonForHandle(handle));
             String title = getTitle();
             if (title != null && title.contains(titleOrUrl)) {
                 return;
@@ -547,24 +547,24 @@ public abstract class WebDriver implements Driver {
         if (index == -1) {
             return;
         }
-        String json = new Json().set("id", index).toString();
-        http.path("window").post(json);
+        String json = Json.object().set("id", index).toString();
+        http.path("window").postJson(json);
     }
 
     @Override
     public void switchFrame(int index) {
         if (index == -1) {
-            http.path("frame", "parent").post("{}");
+            http.path("frame", "parent").postJson("{}");
             return;
         }
-        String json = new Json().set("id", index).toString();
-        http.path("frame").post(json);
+        String json = Json.object().set("id", index).toString();
+        http.path("frame").postJson(json);
     }
 
     @Override
     public void switchFrame(String locator) {
         if (locator == null) { // reset to parent frame
-            http.path("frame", "parent").post("{}");
+            http.path("frame", "parent").postJson("{}");
             return;
         }
         retryIfEnabled(locator, () -> {

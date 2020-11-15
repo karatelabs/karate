@@ -65,7 +65,7 @@ public abstract class AppiumDriver extends WebDriver {
         if (isBrowserSession) { // use WebDriver selector strategies for mobile browser
             return super.selectorPayload(id);
         }
-        Json json = new Json();
+        Json json = Json.object();
         if (id.startsWith("/")) {
             json.set("using", "xpath").set("value", id);
         } else if (id.startsWith("@")) {
@@ -87,22 +87,22 @@ public abstract class AppiumDriver extends WebDriver {
     @Override
     public Element click(String locator) {
         String id = elementId(locator);
-        http.path("element", id, "click").post("{}");
+        http.path("element", id, "click").postJson("{}");
         return DriverElement.locatorExists(this, locator);
     }
 
     public void setContext(String context) {
-        Json contextBody = new Json();
+        Json contextBody = Json.object();
         contextBody.set("name", context);
         http.path("context").post(contextBody);
     }
 
     public void hideKeyboard() {
-        http.path("appium", "device", "hide_keyboard").post("{}");
+        http.path("appium", "device", "hide_keyboard").postJson("{}");
     }
 
     public String startRecordingScreen() {
-        return http.path("appium", "start_recording_screen").post("{}").json().get("value");
+        return http.path("appium", "start_recording_screen").postJson("{}").json().get("value");
     }
 
     public String startRecordingScreen(Map<String, Object> payload) {
@@ -112,7 +112,7 @@ public abstract class AppiumDriver extends WebDriver {
     }
 
     public String stopRecordingScreen() {
-        return http.path("appium", "stop_recording_screen").post("{}").json().get("value");
+        return http.path("appium", "stop_recording_screen").postJson("{}").json().get("value");
     }
 
     public String stopRecordingScreen(Map<String, Object> payload) {

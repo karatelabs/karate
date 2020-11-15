@@ -462,8 +462,7 @@ public class XmlUtils {
     }
 
     public static Document toXmlDoc(Object o) {
-        Json json = new Json(o);
-        return fromObject("root", json.asMapOrList()); // keep it simple for people to write generic xpath starting with /root
+        return fromObject("root", Json.of(o).value()); // keep it simple for people to write generic xpath starting with /root
     }
 
     public static String toXml(Object o) {

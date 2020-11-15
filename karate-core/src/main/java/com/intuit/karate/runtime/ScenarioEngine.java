@@ -1572,21 +1572,19 @@ public class ScenarioEngine {
                 if (viaTable) { // auto create if using set via cucumber table as a convenience
                     Json json;
                     if (path.startsWith("$[") && !path.startsWith("$['")) {
-                        json = new Json("[]");
+                        json = Json.of("[]");
                     } else {
-                        json = new Json("{}");
+                        json = Json.of("{}");
                     }
-                    target = new Variable(json.asMapOrList());
+                    target = new Variable(json.value());
                     setVariable(name, target);
                 } else {
                     throw new RuntimeException("variable is null or not set '" + name + "'");
                 }
             }
             Json json;
-            if (target.isMap()) {
-                json = new Json(target.<Map>getValue());
-            } else if (target.isList()) {
-                json = new Json(target.<List>getValue());
+            if (target.isMapOrList()) {
+                json = Json.of(target.<Object>getValue());
             } else {
                 throw new RuntimeException("cannot set json path on type: " + target);
             }
@@ -1985,7 +1983,7 @@ public class ScenarioEngine {
     }
 
     public Variable evalJsonPath(Variable v, String path) {
-        Json json = new Json(v.getValueAndForceParsingAsJson());
+        Json json = Json.of(v.getValueAndForceParsingAsJson());
         try {
             return new Variable(json.get(path));
         } catch (PathNotFoundException e) {
@@ -2108,8 +2106,8 @@ public class ScenarioEngine {
             }
             return sv;
         } else if (isJson(text)) {
-            Json json = new Json(text);
-            return evalEmbeddedExpressions(new Variable(json.asMapOrList()));
+            Json json = Json.of(text);
+            return evalEmbeddedExpressions(new Variable(json.value()));
         } else if (isXml(text)) {
             Document doc = XmlUtils.toXmlDoc(text);
             return evalEmbeddedExpressions(new Variable(doc));

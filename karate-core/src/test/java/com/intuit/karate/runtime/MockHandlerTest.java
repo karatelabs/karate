@@ -50,7 +50,7 @@ class MockHandlerTest {
     }
 
     private Map<String, Object> json(String raw) {
-        return new Json(raw).asMap();
+        return Json.of(raw).asMap();
     }
 
     @Test

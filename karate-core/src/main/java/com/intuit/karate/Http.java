@@ -90,9 +90,9 @@ public class Http {
         return method("get");
     }
 
-    public Response post(String body) {
-        Json json = new Json(body);
-        return post(json.asMapOrList());
+    public Response postJson(String body) {
+        Json json = Json.of(body);
+        return post(json.value());
     }
 
     public Response post(Object body) {

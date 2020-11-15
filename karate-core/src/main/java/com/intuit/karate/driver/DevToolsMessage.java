@@ -105,7 +105,7 @@ public class DevToolsMessage {
         if (result == null) {
             return null;
         }
-        Json json = new Json(result.<Object>getValue());
+        Json json = Json.of(result.getValue());
         return json.get(path, clazz);
     }
 
@@ -154,7 +154,7 @@ public class DevToolsMessage {
         method = (String) map.get("method");
         Map temp = (Map) map.get("params");
         if (temp != null) {
-            params = new Json(temp);
+            params = Json.of(temp);
         }
         temp = (Map) map.get("result");
         if (temp != null) {
@@ -180,14 +180,14 @@ public class DevToolsMessage {
 
     public DevToolsMessage param(String path, Object value) {
         if (params == null) {
-            params = new Json();
+            params = Json.object();
         }
         params.set(path, value);
         return this;
     }
 
     public DevToolsMessage params(Map<String, Object> map) {
-        this.params = new Json(map);
+        this.params = Json.of(map);
         return this;
     }
 
@@ -199,7 +199,7 @@ public class DevToolsMessage {
         }
         map.put("method", method);
         if (params != null) {
-            map.put("params", params.asMap());
+            map.put("params", params.value());
         }
         return map;
     }

@@ -87,7 +87,7 @@ public class DapDecoder extends ByteToMessageDecoder {
         if (logger.isTraceEnabled()) {
             logger.trace(">> {}", msg);
         }
-        Map<String, Object> map = new Json(msg).asMap();
+        Map<String, Object> map = Json.of(msg).value();
         return new DapMessage(map);
     }
 

@@ -47,7 +47,7 @@ public class MsWebDriver extends WebDriver {
 
     @Override
     protected String getJsonForInput(String text) {
-        return new Json().set("keysToSend[0]", text).toString();
+        return Json.object().set("keysToSend[0]", text).toString();
     }
 
     @Override

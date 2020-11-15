@@ -461,7 +461,7 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object jsonPath(Object o, String exp) {
-        Json json = new Json(o);
+        Json json = Json.of(o);
         return JsValue.fromJava(json.get(exp));
     }
 
@@ -676,7 +676,7 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object toBean(Object o, String className) {
-        Json json = new Json(o);
+        Json json = Json.of(o);
         Object bean = JsonUtils.fromJson(json.toString(), className);
         return JsValue.fromJava(bean);
     }
@@ -709,7 +709,7 @@ public class ScenarioBridge implements PerfContext {
     public Object toJson(Value value, boolean removeNulls) {
         JsValue jv = new JsValue(value);
         String json = JsonUtils.toJson(jv.getValue());
-        Object result = new Json(json).asMapOrList();
+        Object result = Json.of(json).value();
         if (removeNulls) {
             JsonUtils.removeKeysWithNullValues(result);
         }

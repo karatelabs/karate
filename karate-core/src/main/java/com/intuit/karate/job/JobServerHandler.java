@@ -95,7 +95,7 @@ public abstract class JobServerHandler extends SimpleChannelInboundHandler<FullH
                     req.setBytes(bytes);
                 } else {
                     String json = FileUtils.toString(bytes);
-                    Map<String, Object> map = new Json(json).asMap();
+                    Map<String, Object> map = Json.of(json).value();
                     req = new JobMessage(method, map);
                 }
                 req.setExecutorId(executorId);

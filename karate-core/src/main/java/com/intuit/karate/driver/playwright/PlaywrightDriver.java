@@ -157,7 +157,7 @@ public class PlaywrightDriver implements Driver {
                 // to avoid swamping the console when large base64 encoded binary responses happen
                 logger.debug("<< {}", StringUtils.truncate(text, 1024, true));
             }
-            Map<String, Object> map = new Json(text).asMap();
+            Map<String, Object> map = Json.of(text).value();
             PlaywrightMessage pwm = new PlaywrightMessage(this, map);
             receive(pwm);
         });
@@ -313,7 +313,7 @@ public class PlaywrightDriver implements Driver {
         return timeout(null);
     }
 
-    private static final Map<String, Object> NO_ARGS = new Json("{ value: { v: 'undefined' }, handles: [] }").asMap();
+    private static final Map<String, Object> NO_ARGS = Json.of("{ value: { v: 'undefined' }, handles: [] }").value();
 
     private PlaywrightMessage evalOnce(String expression, boolean quickly, boolean fireAndForget) {
         PlaywrightMessage toSend = frame("evaluateExpression")

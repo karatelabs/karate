@@ -18,7 +18,7 @@ class JsonTest {
     static final Logger logger = LoggerFactory.getLogger(JsonTest.class);
 
     private void match(Json json, String expected) {
-        MatchResult mr = Match.that(json.asMapOrList()).isEqualTo(expected);
+        MatchResult mr = Match.that(json.value()).isEqualTo(expected);
         assertTrue(mr.pass, mr.message);
     }
 
@@ -39,7 +39,7 @@ class JsonTest {
 
     @Test
     void testSetAndRemove() {
-        Json json = new Json();
+        Json json = Json.object();
         match(json, "{}");
         assertTrue(json.pathExists("$"));
         assertFalse(json.pathExists("$.foo"));
@@ -70,7 +70,7 @@ class JsonTest {
         match(json, "{ foo: {} }");
         json.remove("foo");
         match(json, "{}");
-        json = new Json("[]");
+        json = Json.of("[]");
         match(json, "[]");
         json.set("$[0].foo", "[1, 2]");
         match(json, "[{ foo: [1, 2] }]");
@@ -78,21 +78,20 @@ class JsonTest {
         match(json, "[{ foo: [1, 2] }, { foo: [3, 4] }]");
         json.remove("$[0]");
         match(json, "[{ foo: [3, 4] }]");        
-        json = new Json();
-        json.set("$.foo[]", "a");
+        json = Json.object().set("$.foo[]", "a");
         match(json, "{ foo: ['a'] }");
     }
     
     @Test
     void testSetNestedObject() {
-        Json json = new Json("{ name: 'Wild', kitten: null }");
+        Json json = Json.of("{ name: 'Wild', kitten: null }");
         json.set("$.kitten.name", "Bob");
         match(json, "{ name: 'Wild', kitten: { name: 'Bob' } }");
     }
     
     @Test
     void testSetNestedArray() {
-        Json json = new Json("[]");
+        Json json = Json.of("[]");
         json.set("$[0].name.first", "Bob");
         match(json, "[{ name: { first: 'Bob' } }]");
     }    

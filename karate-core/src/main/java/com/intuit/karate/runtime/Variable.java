@@ -45,9 +45,9 @@ import org.w3c.dom.Node;
  * @author pthomas3
  */
 public class Variable {
-
+    
     private static final Logger logger = LoggerFactory.getLogger(Variable.class);
-
+    
     public static enum Type {
         NULL,
         BOOLEAN,
@@ -62,13 +62,13 @@ public class Variable {
         FEATURE,
         OTHER
     }
-
+    
     public static final Variable NULL = new Variable(null);
     public static final Variable NOT_PRESENT = new Variable("#notpresent");
-
+    
     public final Type type;
     private final Object value;
-
+    
     public Variable(Object o) {
         if (o instanceof Value) {
             o = new JsValue((Value) o).getValue();
@@ -107,75 +107,75 @@ public class Variable {
         }
         value = o;
     }
-
+    
     public <T> T getValue() {
         return (T) value;
     }
-
+    
     public boolean isJsOrJavaFunction() {
         return type == Type.JS_FUNCTION || type == Type.JAVA_FUNCTION;
     }
-
+    
     public boolean isJavaFunction() {
         return type == Type.JAVA_FUNCTION;
     }
-
+    
     public boolean isJsFunction() {
         return type == Type.JS_FUNCTION;
     }
-
+    
     public boolean isJsFunctionWrapper() {
         return value instanceof JsFunction;
     }
-
+    
     public boolean isBytes() {
         return type == Type.BYTES;
     }
-
+    
     public boolean isString() {
         return type == Type.STRING;
     }
-
+    
     public boolean isList() {
         return type == Type.LIST;
     }
-
+    
     public boolean isMap() {
         return type == Type.MAP;
     }
-
+    
     public boolean isMapOrList() {
         return type == Type.MAP || type == Type.LIST;
     }
-
+    
     public boolean isXml() {
         return type == Type.XML;
     }
-
+    
     public boolean isNumber() {
         return type == Type.NUMBER;
     }
-
+    
     public boolean isNull() {
         return type == Type.NULL;
     }
-
+    
     public boolean isOther() {
         return type == Type.OTHER;
     }
-
+    
     public boolean isFeature() {
         return type == Type.FEATURE;
     }
-
+    
     public boolean isTrue() {
         return type == Type.BOOLEAN && ((Boolean) value);
     }
-
+    
     public String getTypeString() {
         return type.name().toLowerCase();
     }
-
+    
     public Node getAsXml() {
         switch (type) {
             case XML:
@@ -192,11 +192,11 @@ public class Variable {
                 throw new RuntimeException("cannot convert to xml:" + this);
         }
     }
-
+    
     public Object getValueAndConvertIfXmlToMap() {
         return isXml() ? XmlUtils.toObject(getValue()) : value;
     }
-
+    
     public Object getValueAndForceParsingAsJson() {
         switch (type) {
             case LIST:
@@ -208,13 +208,13 @@ public class Variable {
             case XML:
                 return XmlUtils.toObject(getValue());
             case OTHER: // pojo
-                return new Json(value).asMapOrList();
+                return Json.of(value).value();
             default:
                 throw new RuntimeException("cannot convert to json: " + this);
         }
-
+        
     }
-
+    
     public byte[] getAsByteArray() {
         if (type == Type.BYTES) {
             return getValue();
@@ -222,7 +222,7 @@ public class Variable {
             return FileUtils.toBytes(getAsString());
         }
     }
-
+    
     public String getAsString() {
         switch (type) {
             case NULL:
@@ -243,7 +243,7 @@ public class Variable {
                 return value.toString();
         }
     }
-
+    
     public String getAsPrettyString() {
         switch (type) {
             case LIST:
@@ -255,11 +255,11 @@ public class Variable {
                 return getAsString();
         }
     }
-
+    
     public String getAsPrettyXmlString() {
         return XmlUtils.toString(getAsXml(), true);
     }
-
+    
     public int getAsInt() {
         if (isNumber()) {
             return ((Number) value).intValue();
@@ -267,7 +267,7 @@ public class Variable {
             return Integer.valueOf(getAsString());
         }
     }
-
+    
     public Variable copy(boolean deep) {
         switch (type) {
             case LIST:
@@ -280,7 +280,7 @@ public class Variable {
                 return this;
         }
     }
-
+    
     public Variable toLowerCase() {
         switch (type) {
             case STRING:
@@ -296,7 +296,7 @@ public class Variable {
                 return this;
         }
     }
-
+    
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -305,5 +305,5 @@ public class Variable {
         sb.append("]");
         return sb.toString();
     }
-
+    
 }

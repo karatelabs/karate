@@ -380,26 +380,26 @@ public class ScenarioEngineTest {
 
     @Test
     void testSetViaTable() {
-        Json json = new Json("[{path: 'bar', value: \"'baz'\" }]");
+        Json json = Json.of("[{path: 'bar', value: \"'baz'\" }]");
         engine.setViaTable("foo", null, json.asList());
         matchEquals("foo", "{ bar: 'baz' }");
-        json = new Json("[{path: 'bar', value: 'null' }]"); // has no effect
+        json = Json.of("[{path: 'bar', value: 'null' }]"); // has no effect
         engine.setViaTable("foo", null, json.asList());
         matchEquals("foo", "{ bar: 'baz' }");
-        json = new Json("[{path: 'bar', value: '(null)' }]"); // has effect
+        json = Json.of("[{path: 'bar', value: '(null)' }]"); // has effect
         engine.setViaTable("foo", null, json.asList());
         matchEquals("foo", "{ bar: null }");
     }
 
     @Test
     void testTable() {
-        Json json = new Json("[{foo: '1', bar: \"'baz'\" }]");
+        Json json = Json.of("[{foo: '1', bar: \"'baz'\" }]");
         engine.table("tab", json.asList());
         matchEquals("tab", "[{ foo: 1, bar: 'baz' }]");
-        json = new Json("[{foo: '', bar: \"'baz'\" }]");
+        json = Json.of("[{foo: '', bar: \"'baz'\" }]");
         engine.table("tab", json.asList());
         matchEquals("tab", "[{ bar: 'baz' }]");
-        json = new Json("[{foo: '(null)', bar: \"'baz'\" }]");
+        json = Json.of("[{foo: '(null)', bar: \"'baz'\" }]");
         engine.table("tab", json.asList());
         matchEquals("tab", "[{ foo: null, bar: 'baz' }]");
     }
@@ -410,7 +410,7 @@ public class ScenarioEngineTest {
         engine.replace("foo", "world", "'blah'");
         matchEquals("foo", "'hello blah'");
         assign("str", "'ha <foo> ha'");
-        Json json = new Json("[{token: 'foo', value: \"'bar'\" }]");
+        Json json = Json.of("[{token: 'foo', value: \"'bar'\" }]");
         engine.replaceTable("str", json.asList());
         matchEquals("str", "'ha bar ha'");
     }

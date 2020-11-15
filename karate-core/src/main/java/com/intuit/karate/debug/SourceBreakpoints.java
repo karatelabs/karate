@@ -52,7 +52,7 @@ public class SourceBreakpoints {
     }
 
     public SourceBreakpoints(Map<String, Object> map) {
-        Json json = new Json(map);
+        Json json = Json.of(map);
         name = json.get("source.name");
         path = json.get("source.path");
         List<Map<String, Object>> list = json.get("breakpoints");

@@ -77,7 +77,7 @@ public class PlaywrightMessage {
 
     public PlaywrightMessage param(String path, Object value) {
         if (params == null) {
-            params = new Json();
+            params = Json.object();
         }
         params.set(path, value);
         return this;
@@ -89,7 +89,7 @@ public class PlaywrightMessage {
     }
 
     public PlaywrightMessage params(Map<String, Object> map) {
-        params = new Json(map);
+        params = Json.of(map);
         return this;
     }
 
@@ -186,18 +186,18 @@ public class PlaywrightMessage {
         method = (String) map.get("method");
         Map temp = (Map) map.get("params");
         if (temp != null) {
-            params = new Json(temp);
+            params = Json.of(temp);
         }
         temp = (Map) map.get("result");
         if (temp != null) {
-            result = new Json(temp);
+            result = Json.of(temp);
         }
         temp = (Map) map.get("error");
         if (temp != null) {
             if (temp.containsKey("error")) {
                 temp = (Map) temp.get("error");
             }
-            error = new Json(temp);
+            error = Json.of(temp);
         }
     }
 
@@ -209,7 +209,7 @@ public class PlaywrightMessage {
         map.put("guid", guid);
         map.put("method", method);
         if (params != null) {
-            map.put("params", params.asMap());
+            map.put("params", params.value());
         }
         return map;
     }

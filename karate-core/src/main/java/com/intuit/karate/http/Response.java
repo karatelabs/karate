@@ -145,7 +145,7 @@ public class Response implements ProxyObject {
     }
 
     public Json json() {
-        return body == null ? null : new Json(getBodyConverted());
+        return body == null ? null : Json.of(getBodyConverted());
     }
 
     public ResourceType getResourceType() {

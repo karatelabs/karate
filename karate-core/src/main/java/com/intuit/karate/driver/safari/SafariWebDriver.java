@@ -58,7 +58,7 @@ public class SafariWebDriver extends WebDriver {
             map.put("y", y < 2 ? 2 : y);
         }
         String json = JsonUtils.toJson(map);
-        http.path("window", "rect").post(json);
+        http.path("window", "rect").postJson(json);
     }    
     
     @Override

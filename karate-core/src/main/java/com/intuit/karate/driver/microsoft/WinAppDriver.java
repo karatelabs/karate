@@ -54,7 +54,7 @@ public class WinAppDriver extends WebDriver {
     }
     
     private String getElementSelector(String id) {
-        Json json = new Json();
+        Json json = Json.object();
         if (id.startsWith("/")) {
             json.set("using", "xpath").set("value", id);
         } else if (id.startsWith("@")){
@@ -70,13 +70,13 @@ public class WinAppDriver extends WebDriver {
     @Override
     public String elementId(String id) {
         String body = getElementSelector(id);
-        return http.path("element").post(body).json().getFirst("$..ELEMENT");
+        return http.path("element").postJson(body).json().getFirst("$..ELEMENT");
     }
 
     @Override
     public Element click(String locator) {
         String id = elementId(locator);
-        http.path("element", id, "click").post("{}");
+        http.path("element", id, "click").postJson("{}");
         return DriverElement.locatorExists(this, locator);
     }
 
@@ -88,7 +88,7 @@ public class WinAppDriver extends WebDriver {
 
     @Override
     protected String getJsonForInput(String text) {
-        return new Json().set("value[0]", text).toString();
+        return Json.object().set("value[0]", text).toString();
     }
 
 }
