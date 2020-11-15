@@ -24,7 +24,6 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.http.HttpUtils;
 import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

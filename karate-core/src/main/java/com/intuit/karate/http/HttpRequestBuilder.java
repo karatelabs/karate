@@ -228,6 +228,13 @@ public class HttpRequestBuilder implements ProxyObject {
         this.method = method;
         return this;
     }
+    
+    public HttpRequestBuilder paths(String ... paths) {
+        for (String path : paths) {
+            path(path);
+        }
+        return this;
+    }
 
     public HttpRequestBuilder path(String path) {
         if (path == null) {

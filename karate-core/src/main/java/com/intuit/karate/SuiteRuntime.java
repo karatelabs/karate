@@ -72,14 +72,14 @@ public class SuiteRuntime {
         }
     }
 
-    public static SuiteRuntime forMock() {
-        Runner.Builder builder = new Runner.Builder();
-        builder.forMock = true;
+    public static SuiteRuntime forTempUse() {
+        Runner.Builder builder = Runner.builder();
+        builder.forTempUse = true;
         return new SuiteRuntime(builder);
-    }
+    }    
 
     public SuiteRuntime() {
-        this(new Runner.Builder());
+        this(Runner.builder());
     }
 
     public SuiteRuntime(Runner.Builder rb) {
@@ -103,7 +103,7 @@ public class SuiteRuntime {
             clientFactory = rb.clientFactory;
         }
         //======================================================================
-        if (rb.forMock) { // don't show logs and confuse people
+        if (rb.forTempUse) { // don't show logs and confuse people
             karateBase = null;
             karateConfig = null;
             karateConfigDir = null;

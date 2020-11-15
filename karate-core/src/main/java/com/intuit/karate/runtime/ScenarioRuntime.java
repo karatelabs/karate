@@ -52,8 +52,7 @@ import java.util.Map;
  */
 public class ScenarioRuntime implements Runnable {
 
-    public final Logger logger = new Logger();
-
+    public final Logger logger;
     public final FeatureRuntime featureRuntime;
     public final ScenarioRuntime background;
     public final ScenarioCall caller;
@@ -70,6 +69,7 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario, ScenarioRuntime background) {
+        logger = new Logger();
         this.featureRuntime = featureRuntime;
         this.caller = featureRuntime.caller;
         if (caller.isNone()) {

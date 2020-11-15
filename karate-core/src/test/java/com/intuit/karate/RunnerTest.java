@@ -3,7 +3,6 @@ package com.intuit.karate;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.runtime.FeatureRuntime;
 import java.io.File;
 import java.util.Map;
@@ -28,7 +27,7 @@ class RunnerTest {
 
     static String resultXml(String name) {
         Feature feature = FeatureParser.parse("classpath:com/intuit/karate/" + name);
-        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature, null);
+        FeatureRuntime fr = FeatureRuntime.of(feature);
         fr.run();
         File file = Engine.saveResultXml("target", fr.result, null);
         return FileUtils.toString(file);

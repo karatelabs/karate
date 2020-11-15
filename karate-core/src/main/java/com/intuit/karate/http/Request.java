@@ -27,7 +27,6 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.http.HttpUtils;
 import com.linecorp.armeria.common.RequestContext;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;

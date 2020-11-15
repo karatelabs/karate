@@ -70,7 +70,7 @@ public class JobExecutor {
             System.exit(1);
         }
         http = Http.forUrl(serverUrl);
-        http.config("lowerCaseResponseHeaders", "true");
+        http.configure("lowerCaseResponseHeaders", "true");
         // download ============================================================
         JobMessage download = invokeServer(new JobMessage("download"));
         logger.info("download response: {}", download);

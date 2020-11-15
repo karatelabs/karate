@@ -21,7 +21,7 @@ public class FeatureResultTest {
 
     static FeatureResult result(String name) {
         Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/" + name);
-        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature, null);
+        FeatureRuntime fr = FeatureRuntime.of(new SuiteRuntime(), feature);
         fr.run();
         return fr.result;
     }

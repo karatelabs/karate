@@ -80,7 +80,7 @@ public abstract class WebDriver implements Driver {
     public Driver timeout(Integer millis) {
         options.setTimeout(millis);
         // this will "reset" to default if null was set above
-        http.config("readTimeout", options.getTimeout() + "");
+        http.configure("readTimeout", options.getTimeout() + "");
         return this;
     }
 

@@ -21,9 +21,9 @@ class FeatureParserTest {
 
     static FeatureResult execute(String name) {
         Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/" + name);
-        Runner.Builder builder = new Runner.Builder();
+        Runner.Builder builder = Runner.builder();
         builder.tags("~@ignore");
-        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(builder), feature, null);
+        FeatureRuntime fr = FeatureRuntime.of(new SuiteRuntime(builder), feature);
         fr.run();
         return fr.result;
     }

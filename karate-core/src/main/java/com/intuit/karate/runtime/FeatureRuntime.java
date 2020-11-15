@@ -24,9 +24,12 @@
 package com.intuit.karate.runtime;
 
 import com.intuit.karate.PerfHook;
+import com.intuit.karate.Resource;
 import com.intuit.karate.SuiteRuntime;
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
+import java.io.File;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
@@ -77,8 +80,24 @@ public class FeatureRuntime implements Runnable {
         this.next = next;
     }
 
-    public FeatureRuntime(SuiteRuntime suite, Feature feature, Map<String, Object> arg) {
-        this(suite, feature, ScenarioCall.none(arg));
+    public static FeatureRuntime forTempUse() {
+        SuiteRuntime sr = SuiteRuntime.forTempUse();
+        File workingDir = new File(sr.buildDir);
+        Resource resource = Resource.of(workingDir.toPath(), "Feature:\nScenario:\n");
+        Feature feature = FeatureParser.parse(resource);
+        return FeatureRuntime.of(sr, feature);
+    }
+
+    public static FeatureRuntime of(Feature feature) {
+        return FeatureRuntime.of(new SuiteRuntime(), feature, null);
+    }
+
+    public static FeatureRuntime of(SuiteRuntime sr, Feature feature) {
+        return FeatureRuntime.of(sr, feature, null);
+    }
+
+    public static FeatureRuntime of(SuiteRuntime sr, Feature feature, Map<String, Object> arg) {
+        return new FeatureRuntime(sr, feature, ScenarioCall.none(arg));
     }
 
     public FeatureRuntime(ScenarioCall call) {

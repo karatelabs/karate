@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.http;
 
-import com.intuit.karate.http.HttpUtils;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 

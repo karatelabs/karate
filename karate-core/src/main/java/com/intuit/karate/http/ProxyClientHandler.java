@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.http;
 
-import com.intuit.karate.http.HttpUtils;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;

@@ -141,6 +141,13 @@ public class ScenarioEngine {
         this.logger = logger;
     }
 
+    public static ScenarioEngine forTempUse() {
+        FeatureRuntime fr = FeatureRuntime.forTempUse();
+        ScenarioRuntime sr = fr.scenarios.next();
+        sr.engine.init();
+        return sr.engine;
+    }
+
     private List<ScenarioEngine> children;
     private ScenarioEngine parent;
 
@@ -305,13 +312,34 @@ public class ScenarioEngine {
 
     // http ====================================================================
     //
-    private HttpRequestBuilder http; // see init() method
+    private HttpRequestBuilder requestBuilder; // see init() method
     private HttpRequest request;
     private Response response;
     private Config config;
+    
+    public Config getConfig() {
+        return config;
+    }    
+    
+    // important: use this to trigger client re-config
+    // callonce routine is one example
+    public void setConfig(Config config) {
+        this.config = config;
+        if (requestBuilder != null) {
+            requestBuilder.client.setConfig(config, null);
+        }
+    }    
 
-    public HttpRequest getPrevRequest() {
-        return request == null ? null : request;
+    public HttpRequest getRequest() {
+        return request;
+    }
+
+    public Response getResponse() {
+        return response;
+    }
+
+    public HttpRequestBuilder getRequestBuilder() {
+        return requestBuilder;
     }
 
     public void configure(String key, String exp) {
@@ -323,22 +351,9 @@ public class ScenarioEngine {
         key = StringUtils.trimToEmpty(key);
         // if next line returns true, http-client (may) need re-building
         if (config.configure(key, v)) {
-            if (http != null) {
-                http.client.setConfig(config, key);
+            if (requestBuilder != null) {
+                requestBuilder.client.setConfig(config, key);
             }
-        }
-    }
-
-    public Config getConfig() {
-        return config;
-    }
-
-    // important: use this to trigger client re-config
-    // callonce routine is one example
-    public void setConfig(Config config) {
-        this.config = config;
-        if (http != null) {
-            http.client.setConfig(config, null);
         }
     }
 
@@ -370,14 +385,14 @@ public class ScenarioEngine {
     }
 
     public void url(String exp) {
-        http.url(evalAsString(exp));
+        requestBuilder.url(evalAsString(exp));
     }
 
     public void path(String exp) {
         List list = evalJs("[" + exp + "]").getValue();
         for (Object o : list) {
             if (o != null) {
-                http.path(o.toString());
+                requestBuilder.path(o.toString());
             }
         }
     }
@@ -387,37 +402,37 @@ public class ScenarioEngine {
     public void param(String name, String exp) {
         Variable var = evalJs(exp);
         if (var.isList()) {
-            http.param(name, var.<List>getValue());
+            requestBuilder.param(name, var.<List>getValue());
         } else {
-            http.param(name, var.getAsString());
+            requestBuilder.param(name, var.getAsString());
         }
     }
 
     public void params(String expr) {
-        evalAsMap(expr, (k, v) -> http.param(k, v));
+        evalAsMap(expr, (k, v) -> requestBuilder.param(k, v));
     }
 
     public void header(String name, String exp) {
         Variable var = evalKarateExpression(exp);
         if (var.isList()) {
-            http.header(name, var.<List>getValue());
+            requestBuilder.header(name, var.<List>getValue());
         } else {
-            http.header(name, var.getAsString());
+            requestBuilder.header(name, var.getAsString());
         }
     }
 
     public void headers(String expr) {
-        evalAsMap(expr, (k, v) -> http.header(k, v));
+        evalAsMap(expr, (k, v) -> requestBuilder.header(k, v));
     }
 
     public void cookie(String name, String exp) {
         Variable var = evalKarateExpression(exp);
         if (var.isString()) {
-            http.cookie(name, var.getAsString());
+            requestBuilder.cookie(name, var.getAsString());
         } else if (var.isMap()) {
             Map<String, Object> map = var.getValue();
             map.put("name", name);
-            http.cookie(map);
+            requestBuilder.cookie(map);
         }
     }
 
@@ -425,7 +440,7 @@ public class ScenarioEngine {
     public void cookies(String exp) {
         Variable var = evalKarateExpression(exp);
         Map<String, Map> cookies = Cookies.normalize(var.getValue());
-        http.cookies(cookies.values());
+        requestBuilder.cookies(cookies.values());
     }
 
     private void updateConfigCookies(Map<String, Map> cookies) {
@@ -444,9 +459,9 @@ public class ScenarioEngine {
     public void formField(String name, String exp) {
         Variable var = evalKarateExpression(exp);
         if (var.isList()) {
-            http.formField(name, var.<List>getValue());
+            requestBuilder.formField(name, var.<List>getValue());
         } else {
-            http.formField(name, var.getAsString());
+            requestBuilder.formField(name, var.getAsString());
         }
     }
 
@@ -455,7 +470,7 @@ public class ScenarioEngine {
         if (var.isMap()) {
             Map<String, Object> map = var.getValue();
             map.forEach((k, v) -> {
-                http.formField(k, v);
+                requestBuilder.formField(k, v);
             });
         } else {
             logger.warn("did not evaluate to map {}: {}", exp, var);
@@ -482,7 +497,7 @@ public class ScenarioEngine {
                 File file = fileReader.relativePathToFile(toRead);
                 map.put("file", file);
             }
-            http.multiPart(map);
+            requestBuilder.multiPart(map);
         } else if (value instanceof String) {
             map.put("value", (String) value);
             multiPartInternal(name, map);
@@ -518,7 +533,7 @@ public class ScenarioEngine {
 
     public void request(String body) {
         Variable v = evalKarateExpression(body);
-        http.body(v.getValue());
+        requestBuilder.body(v.getValue());
     }
 
     public void soapAction(String exp) {
@@ -526,43 +541,44 @@ public class ScenarioEngine {
         if (action == null) {
             action = "";
         }
-        http.header("SOAPAction", action);
-        http.contentType("text/xml");
+        requestBuilder.header("SOAPAction", action);
+        requestBuilder.contentType("text/xml");
         method("POST");
     }
 
     public void retry(String condition) {
-        http.setRetryUntil(condition);
+        requestBuilder.setRetryUntil(condition);
     }
 
     public void method(String method) {
         if (!HttpConstants.HTTP_METHODS.contains(method.toUpperCase())) { // support expressions also
             method = evalKarateExpression(method).getAsString();
         }
-        http.method(method);
+        requestBuilder.method(method);
         httpInvoke();
     }
 
     // extracted for mock proceed()
-    private void httpInvoke() {
-        if (http.isRetry()) {
+    public Response httpInvoke() {
+        if (requestBuilder.isRetry()) {
             httpInvokeWithRetries();
         } else {
             httpInvokeOnce();
         }
-        http.reset();
+        requestBuilder.reset();
+        return response;
     }
 
     private void httpInvokeOnce() {
         Map<String, Map> cookies = getOrEvalAsMap(config.getCookies());
         if (cookies != null) {
-            http.cookies(cookies.values());
+            requestBuilder.cookies(cookies.values());
         }
         Map<String, Object> headers = getOrEvalAsMap(config.getHeaders());
         if (headers != null) {
-            http.headers(headers);
+            requestBuilder.headers(headers);
         }
-        request = http.build();
+        request = requestBuilder.build();
         String perfEventName = null; // acts as a flag to report perf if not null
         if (runtime.featureRuntime.isPerfMode()) {
             perfEventName = runtime.featureRuntime.getPerfRuntime().getPerfEventName(request, runtime);
@@ -570,7 +586,7 @@ public class ScenarioEngine {
         long startTime = System.currentTimeMillis();
         request.setStartTimeMillis(startTime);
         try {
-            response = http.client.invoke(request);
+            response = requestBuilder.client.invoke(request);
         } catch (Exception e) {
             long endTime = System.currentTimeMillis();
             long responseTime = endTime - startTime;
@@ -642,7 +658,7 @@ public class ScenarioEngine {
             httpInvokeOnce();
             Variable v;
             try {
-                v = evalKarateExpression(http.getRetryUntil());
+                v = evalKarateExpression(requestBuilder.getRetryUntil());
             } catch (Exception e) {
                 logger.warn("retry condition evaluation failed: {}", e.getMessage());
                 v = Variable.NULL;
@@ -653,7 +669,7 @@ public class ScenarioEngine {
                 }
                 break;
             } else {
-                logger.debug("retry condition not satisfied: {}", http.getRetryUntil());
+                logger.debug("retry condition not satisfied: {}", requestBuilder.getRetryUntil());
             }
             retryCount++;
         }
@@ -693,16 +709,16 @@ public class ScenarioEngine {
         String urlBase = requestUrlBase == null ? vars.get(REQUEST_URL_BASE).getValue() : requestUrlBase;
         String uri = vars.get(REQUEST_URI).getValue();
         String url = uri == null ? urlBase : urlBase + "/" + uri;
-        http.url(url);
-        http.params(vars.get(REQUEST_PARAMS).getValue());
-        http.method(vars.get(REQUEST_METHOD).getValue());
-        http.headers(vars.get(REQUEST_HEADERS).<Map>getValue());
-        http.removeHeader(HttpConstants.HDR_CONTENT_LENGTH);
-        http.body(vars.get(REQUEST).getValue());
-        if (http.client instanceof ArmeriaHttpClient) {
+        requestBuilder.url(url);
+        requestBuilder.params(vars.get(REQUEST_PARAMS).getValue());
+        requestBuilder.method(vars.get(REQUEST_METHOD).getValue());
+        requestBuilder.headers(vars.get(REQUEST_HEADERS).<Map>getValue());
+        requestBuilder.removeHeader(HttpConstants.HDR_CONTENT_LENGTH);
+        requestBuilder.body(vars.get(REQUEST).getValue());
+        if (requestBuilder.client instanceof ArmeriaHttpClient) {
             Request mockRequest = MockHandler.LOCAL_REQUEST.get();
             if (mockRequest != null) {
-                ArmeriaHttpClient client = (ArmeriaHttpClient) http.client;
+                ArmeriaHttpClient client = (ArmeriaHttpClient) requestBuilder.client;
                 client.setRequestContext(mockRequest.getRequestContext());
             }
         }
@@ -969,7 +985,7 @@ public class ScenarioEngine {
         setHiddenVariable(READ, readFunction);
         setVariables(runtime.magicVariables);
         HttpClient client = runtime.featureRuntime.suite.clientFactory.create(this);
-        http = new HttpRequestBuilder(client);
+        requestBuilder = new HttpRequestBuilder(client);
         // TODO improve life cycle and concept of shared objects
         if (!runtime.caller.isNone()) {
             ScenarioEngine caller = runtime.caller.parentRuntime.engine;

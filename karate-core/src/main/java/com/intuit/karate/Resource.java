@@ -30,7 +30,6 @@ import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -46,8 +45,6 @@ public class Resource {
     private final String relativePath;
     private final String packageQualifiedName;
     private ClassLoader classLoader;
-
-    public static final Resource EMPTY = new Resource(Paths.get(""), "", -1, Thread.currentThread().getContextClassLoader());
 
     public static Resource of(Path path, String text) {
         return new Resource(path, Thread.currentThread().getContextClassLoader()) {

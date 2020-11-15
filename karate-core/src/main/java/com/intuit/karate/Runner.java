@@ -82,7 +82,7 @@ public class Runner {
             public Iterator<CompletableFuture> process(Feature feature) {
                 CompletableFuture future = new CompletableFuture();
                 try {
-                    FeatureRuntime fr = new FeatureRuntime(suite, feature, null);
+                    FeatureRuntime fr = FeatureRuntime.of(suite, feature);
                     fr.setNext(() -> {
                         featureResults.add(fr.result);
                         onFeatureDone(fr, ++index, count);
@@ -172,7 +172,7 @@ public class Runner {
 
     public static Map<String, Object> runFeature(Feature feature, Map<String, Object> vars, boolean evalKarateConfig) {
         SuiteRuntime suite = new SuiteRuntime();
-        FeatureRuntime featureRuntime = new FeatureRuntime(suite, feature, vars);
+        FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, vars);
         featureRuntime.caller.setKarateConfigDisabled(!evalKarateConfig);
         featureRuntime.run();
         FeatureResult result = featureRuntime.result;
@@ -203,7 +203,7 @@ public class Runner {
         builder.tags = tags;
         SuiteRuntime suite = new SuiteRuntime(builder); // sets tag selector
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
-        FeatureRuntime featureRuntime = new FeatureRuntime(suite, feature, arg);
+        FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, arg);
         featureRuntime.setPerfRuntime(perf);
         featureRuntime.setNext(() -> perf.afterFeature());
         perf.submit(featureRuntime);
@@ -282,7 +282,7 @@ public class Runner {
         Collection<RuntimeHook> hooks;
         RuntimeHookFactory hookFactory;
         HttpClientFactory clientFactory;
-        boolean forMock;
+        boolean forTempUse;
 
         public List<Feature> resolveFeatures() {
             if (features == null) {
@@ -304,7 +304,7 @@ public class Runner {
             return features;
         }
 
-        public Builder() {
+        private Builder() {
             this(new RunnerOptions());
         }
 
@@ -480,6 +480,10 @@ public class Runner {
     public static Builder path(List<String> paths) {
         Builder builder = new Builder();
         return builder.path(paths);
+    }
+
+    public static Builder builder() {
+        return new Runner.Builder();
     }
 
 }

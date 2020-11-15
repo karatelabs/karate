@@ -49,7 +49,7 @@ public class Karate implements Iterable<DynamicNode> {
 
     }
 
-    private final Runner.Builder builder = new Runner.Builder();
+    private final Runner.Builder builder = Runner.builder();
 
     private static final HtmlSummaryReport SUMMARY = new HtmlSummaryReport();
     private static boolean shutdownHookRegistered;

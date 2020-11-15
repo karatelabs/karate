@@ -424,7 +424,7 @@ public class ScenarioBridge implements PerfContext {
 
     // TODO breaking uri has been renamed to url
     public Object getPrevRequest() {
-        HttpRequest hr = getEngine().getPrevRequest();
+        HttpRequest hr = getEngine().getRequest();
         if (hr == null) {
             return null;
         }

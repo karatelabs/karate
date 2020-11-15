@@ -25,9 +25,6 @@ package com.intuit.karate;
 
 import com.intuit.karate.runtime.ScenarioEngine;
 import com.intuit.karate.runtime.Variable;
-import com.intuit.karate.http.ArmeriaHttpClient;
-import com.intuit.karate.http.HttpClient;
-import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.Response;
 import java.util.Map;
@@ -39,30 +36,31 @@ import java.util.Map;
 public class Http {
 
     public final String urlBase;
+    private final ScenarioEngine engine;
     private final HttpRequestBuilder builder;
-    private final Logger logger;
 
-    private HttpRequest request;
-    private Response response;
+    public static Http forUrl(String url) {
+        return new Http(url);
+    }
 
-    public Http(HttpClient client, String urlBase) {
-        this.builder = new HttpRequestBuilder(client);
+    public void setAppender(LogAppender appender) {
+        engine.logger.setAppender(appender);
+    }
+
+    private Http(String urlBase) {
         this.urlBase = urlBase;
-        logger = client.getLogger();
+        engine = ScenarioEngine.forTempUse();
+        builder = engine.getRequestBuilder();
+        builder.url(urlBase);
     }
 
     public Http url(String url) {
-        if (url.startsWith("/") && urlBase != null) {
-            url = urlBase + url;
-        }
         builder.url(url);
         return this;
     }
 
     public Http path(String... paths) {
-        for (String p : paths) {
-            builder.path(p);
-        }
+        builder.paths(paths);
         return this;
     }
 
@@ -71,22 +69,16 @@ public class Http {
         return this;
     }
 
-    private Response handleError() {
-        if (response.getStatus() >= 400) {
-            logger.warn("http response code: {}, response: {}, request: {}",
-                    response.getStatus(), response.getBodyAsString(), request);
-        }
-        return response;
-    }
-
     public Response method(String method, Object body) {
         if (body != null) {
             builder.body(body);
         }
         builder.method(method);
-        request = builder.build();
-        response = builder.client.invoke(request);
-        builder.reset();
+        Response response = engine.httpInvoke();
+        if (response.getStatus() >= 400) {
+            engine.logger.warn("http response code: {}, response: {}, request: {}",
+                    response.getStatus(), response.getBodyAsString(), engine.getRequest());
+        }
         return response;
     }
 
@@ -95,53 +87,29 @@ public class Http {
     }
 
     public Response get() {
-        method("get");
-        return handleError();
+        return method("get");
     }
 
     public Response post(String body) {
-        com.intuit.karate.Json json = new com.intuit.karate.Json(body);
+        Json json = new Json(body);
         return post(json.asMapOrList());
     }
 
     public Response post(Object body) {
-        method("post", body);
-        return handleError();
+        return method("post", body);
     }
 
     public Response delete() {
-        method("delete");
-        return handleError();
+        return method("delete");
     }
 
-    public static Http forUrl(String url) {
-        HttpClient hc = new ArmeriaHttpClient(new com.intuit.karate.runtime.Config(), new Logger());
-        Http http = new Http(hc, url);
-        return http.url(url);
-    }
-
-    public static Http forUrl(ScenarioEngine engine, String url) {
-        if (engine == null) {
-            return forUrl(url);
-        }
-        HttpClient hc = engine.runtime.featureRuntime.suite.clientFactory.create(engine);
-        Http http = new Http(hc, url);
-        return http.url(url);
-    }
-
-    public Http config(String key, String value) {
-        com.intuit.karate.runtime.Config config = builder.client.getConfig();
-        config.configure(key, new Variable(value));
-        builder.client.setConfig(config, key);
+    public Http configure(String key, Object value) {
+        engine.configure(key, new Variable(value));
         return this;
     }
 
-    public Http config(Map<String, Object> map) {
-        com.intuit.karate.runtime.Config config = builder.client.getConfig();
-        map.forEach((k, v) -> {
-            config.configure(k, new Variable(v));
-        });
-        builder.client.setConfig(config, null);
+    public Http configure(Map<String, Object> map) {
+        map.forEach((k, v) -> configure(k, v));
         return this;
     }
 

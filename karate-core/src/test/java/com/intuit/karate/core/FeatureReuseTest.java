@@ -19,7 +19,7 @@ class FeatureReuseTest {
 
     static String resultXml(String name) {
         Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/" + name);
-        FeatureRuntime fr = new FeatureRuntime(new SuiteRuntime(), feature, null);
+        FeatureRuntime fr = FeatureRuntime.of(new SuiteRuntime(), feature);
         fr.run();
         File file = Engine.saveResultXml("target", fr.result, null);
         return FileUtils.toString(file);

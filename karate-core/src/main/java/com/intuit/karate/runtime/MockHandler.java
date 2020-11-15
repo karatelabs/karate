@@ -85,7 +85,7 @@ public class MockHandler implements ServerHandler {
     public MockHandler(Feature feature, Map<String, Object> args) {
         this.feature = feature;
         featureName = feature.getPath().toFile().getName();
-        FeatureRuntime featureRuntime = new FeatureRuntime(SuiteRuntime.forMock(), feature, args);
+        FeatureRuntime featureRuntime = FeatureRuntime.of(SuiteRuntime.forTempUse(), feature, args);
         FeatureSection section = new FeatureSection();
         section.setIndex(-1); // TODO util for creating dummy scenario
         Scenario dummy = new Scenario(feature, section, -1);
