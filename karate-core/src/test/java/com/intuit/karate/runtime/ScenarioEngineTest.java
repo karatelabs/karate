@@ -1,8 +1,8 @@
 package com.intuit.karate.runtime;
 
-import com.intuit.karate.AssignType;
+import com.intuit.karate.core.AssignType;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.data.Json;
+import com.intuit.karate.Json;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchType;

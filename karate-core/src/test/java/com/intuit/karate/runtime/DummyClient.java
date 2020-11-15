@@ -1,9 +1,9 @@
 package com.intuit.karate.runtime;
 
 import com.intuit.karate.Logger;
-import com.intuit.karate.server.HttpClient;
-import com.intuit.karate.server.HttpRequest;
-import com.intuit.karate.server.Response;
+import com.intuit.karate.http.HttpClient;
+import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.Response;
 
 /**
  *

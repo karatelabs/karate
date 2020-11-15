@@ -27,7 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Results;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
-import com.intuit.karate.data.JsonUtils;
+import com.intuit.karate.JsonUtils;
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;

@@ -24,7 +24,7 @@
 package com.intuit.karate.driver.microsoft;
 
 import com.intuit.karate.LogAppender;
-import com.intuit.karate.data.Json;
+import com.intuit.karate.Json;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Map;

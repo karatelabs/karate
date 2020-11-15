@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.runtime;
 
+import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
@@ -36,7 +37,7 @@ import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
-import com.intuit.karate.exception.KarateException;
+import com.intuit.karate.KarateException;
 import com.intuit.karate.shell.FileLogAppender;
 import java.io.File;
 import java.nio.file.Path;

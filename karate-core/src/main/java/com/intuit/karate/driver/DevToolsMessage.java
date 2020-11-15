@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.data.Json;
+import com.intuit.karate.Json;
 import com.intuit.karate.runtime.Variable;
 import java.util.HashMap;
 import java.util.LinkedHashMap;

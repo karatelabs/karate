@@ -1,7 +1,7 @@
 package com.intuit.karate.fatjar;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.netty.ProxyServer;
+import com.intuit.karate.http.ProxyServer;
 import java.io.File;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;

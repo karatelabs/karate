@@ -4,7 +4,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import com.intuit.karate.http.LenientTrustManager;
-import com.intuit.karate.netty.ProxyServer;
+import com.intuit.karate.http.ProxyServer;
 import com.intuit.karate.runtime.MockServer;
 import java.io.InputStream;
 import javax.net.ssl.SSLContext;

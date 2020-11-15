@@ -1,6 +1,6 @@
 package com.intuit.karate.fatjar;
 
-import com.intuit.karate.netty.ProxyServer;
+import com.intuit.karate.http.ProxyServer;
 import org.junit.jupiter.api.Test;
 
 /**

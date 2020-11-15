@@ -1,7 +1,9 @@
 package com.intuit.karate.runtime;
 
-import com.intuit.karate.data.Json;
-import com.intuit.karate.server.*;
+import com.intuit.karate.http.HttpClient;
+import com.intuit.karate.http.HttpRequestBuilder;
+import com.intuit.karate.http.Response;
+import com.intuit.karate.Json;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import java.util.Map;

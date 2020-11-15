@@ -25,11 +25,10 @@ package com.intuit.karate;
 
 import com.intuit.karate.cli.CliExecutionHook;
 import com.intuit.karate.debug.DapServer;
-import com.intuit.karate.exception.KarateException;
-import com.intuit.karate.formats.postman.PostmanConverter;
+import com.intuit.karate.formats.PostmanConverter;
 import com.intuit.karate.job.JobExecutor;
 import com.intuit.karate.runtime.MockServer;
-import com.intuit.karate.server.SslContextFactory;
+import com.intuit.karate.http.SslContextFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;

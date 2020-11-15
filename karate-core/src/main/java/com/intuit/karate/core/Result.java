@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.exception.KarateException;
+import com.intuit.karate.KarateException;
 
 import java.util.HashMap;
 import java.util.Map;

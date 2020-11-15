@@ -23,12 +23,13 @@
  */
 package com.intuit.karate.runtime;
 
+import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.Actions;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Action;
 import com.intuit.karate.core.Result;
 import com.intuit.karate.core.Step;
-import com.intuit.karate.exception.KarateException;
+import com.intuit.karate.KarateException;
 import cucumber.api.java.en.When;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;

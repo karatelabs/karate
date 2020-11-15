@@ -7,7 +7,7 @@ import com.intuit.karate.Resource;
 import com.intuit.karate.Runner;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.server.HttpClientFactory;
+import com.intuit.karate.http.HttpClientFactory;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.HashMap;

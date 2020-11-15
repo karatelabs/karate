@@ -27,7 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.WebDriver;
-import com.intuit.karate.server.Response;
+import com.intuit.karate.http.Response;
 import java.util.Map;
 
 /**

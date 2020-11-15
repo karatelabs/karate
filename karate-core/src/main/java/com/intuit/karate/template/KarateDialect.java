@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.server.ServerConfig;
+import com.intuit.karate.http.ServerConfig;
 import java.util.HashSet;
 import java.util.Set;
 import org.thymeleaf.dialect.AbstractProcessorDialect;

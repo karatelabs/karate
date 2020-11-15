@@ -23,12 +23,12 @@
  */
 package com.intuit.karate.runtime;
 
-import com.intuit.karate.server.ArmeriaHttpClient;
+import com.intuit.karate.http.ArmeriaHttpClient;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
-import com.intuit.karate.server.HttpRequestBuilder;
-import com.intuit.karate.server.HttpServer;
-import com.intuit.karate.server.Response;
+import com.intuit.karate.http.HttpRequestBuilder;
+import com.intuit.karate.http.HttpServer;
+import com.intuit.karate.http.Response;
 import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;

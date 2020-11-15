@@ -24,7 +24,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.data.JsonUtils;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.graal.JsEngine;
 import java.util.ArrayList;
 import java.util.Collection;

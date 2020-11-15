@@ -24,8 +24,8 @@
 package com.intuit.karate.match;
 
 import com.intuit.karate.XmlUtils;
-import com.intuit.karate.data.Json;
-import com.intuit.karate.data.JsonUtils;
+import com.intuit.karate.Json;
+import com.intuit.karate.JsonUtils;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;

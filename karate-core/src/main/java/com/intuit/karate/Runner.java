@@ -35,7 +35,7 @@ import com.intuit.karate.core.Subscriber;
 import com.intuit.karate.runtime.FeatureRuntime;
 import com.intuit.karate.runtime.RuntimeHook;
 import com.intuit.karate.runtime.RuntimeHookFactory;
-import com.intuit.karate.server.HttpClientFactory;
+import com.intuit.karate.http.HttpClientFactory;
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;

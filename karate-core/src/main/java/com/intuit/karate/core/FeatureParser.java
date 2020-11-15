@@ -26,7 +26,7 @@ package com.intuit.karate.core;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Resource;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.exception.KarateException;
+import com.intuit.karate.KarateException;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;

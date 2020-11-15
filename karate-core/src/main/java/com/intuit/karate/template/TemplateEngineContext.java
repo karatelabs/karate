@@ -25,8 +25,8 @@ package com.intuit.karate.template;
 
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.server.RedirectException;
-import com.intuit.karate.server.RequestCycle;
+import com.intuit.karate.http.RedirectException;
+import com.intuit.karate.http.RequestCycle;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;

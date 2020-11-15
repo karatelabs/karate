@@ -3,7 +3,7 @@ package com.intuit.karate.runtime;
 import com.intuit.karate.PerfHook;
 import com.intuit.karate.Runner;
 import com.intuit.karate.core.PerfEvent;
-import com.intuit.karate.server.HttpRequest;
+import com.intuit.karate.http.HttpRequest;
 import java.util.Collections;
 import java.util.Map;
 import org.junit.jupiter.api.AfterAll;

@@ -24,13 +24,11 @@
 package com.intuit.karate.runtime;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.Logger;
 import com.intuit.karate.Resource;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.data.JsonUtils;
-import com.intuit.karate.exception.KarateFileNotFoundException;
+import com.intuit.karate.JsonUtils;
 import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Path;
@@ -107,7 +105,7 @@ public class ScenarioFileReader {
             if (inputStream == null) {
                 String message = String.format("could not find or read file: %s", path);
                 engine.logger.trace("{}", message);
-                throw new KarateFileNotFoundException(message);
+                throw new RuntimeException(message);
             }
             return inputStream;
         }

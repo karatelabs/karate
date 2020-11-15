@@ -25,7 +25,7 @@ package com.intuit.karate.driver.safari;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
-import com.intuit.karate.data.JsonUtils;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Map;

@@ -24,10 +24,10 @@
 package com.intuit.karate.template;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.server.ServerConfig;
+import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.server.RequestCycle;
-import com.intuit.karate.server.ResourceResolver;
+import com.intuit.karate.http.RequestCycle;
+import com.intuit.karate.http.ResourceResolver;
 import java.io.InputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

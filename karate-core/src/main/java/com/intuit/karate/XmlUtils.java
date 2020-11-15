@@ -23,7 +23,6 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.data.Json;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 

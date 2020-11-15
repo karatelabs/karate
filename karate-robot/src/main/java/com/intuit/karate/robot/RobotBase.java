@@ -28,7 +28,7 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Plugin;
 import com.intuit.karate.driver.Keys;
-import com.intuit.karate.exception.KarateException;
+import com.intuit.karate.KarateException;
 import com.intuit.karate.runtime.ScenarioEngine;
 import com.intuit.karate.runtime.Variable;
 import com.intuit.karate.shell.Command;

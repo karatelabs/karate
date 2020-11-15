@@ -1,10 +1,10 @@
 package com.intuit.karate.runtime.mock;
 
+import com.intuit.karate.http.HttpServer;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.server.*;
 import com.intuit.karate.runtime.MockHandler;
 import java.io.File;
 import static org.junit.jupiter.api.Assertions.*;

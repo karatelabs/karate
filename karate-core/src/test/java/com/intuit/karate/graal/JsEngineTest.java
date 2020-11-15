@@ -4,7 +4,7 @@ import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.runtime.MockUtils;
-import com.intuit.karate.server.Request;
+import com.intuit.karate.http.Request;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;

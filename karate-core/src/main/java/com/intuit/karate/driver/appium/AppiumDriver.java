@@ -25,7 +25,7 @@ package com.intuit.karate.driver.appium;
 
 import com.intuit.karate.*;
 import com.intuit.karate.core.Embed;
-import com.intuit.karate.data.Json;
+import com.intuit.karate.Json;
 import com.intuit.karate.driver.DriverElement;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Element;

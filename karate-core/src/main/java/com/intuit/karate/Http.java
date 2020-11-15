@@ -25,11 +25,11 @@ package com.intuit.karate;
 
 import com.intuit.karate.runtime.ScenarioEngine;
 import com.intuit.karate.runtime.Variable;
-import com.intuit.karate.server.ArmeriaHttpClient;
-import com.intuit.karate.server.HttpClient;
-import com.intuit.karate.server.HttpRequest;
-import com.intuit.karate.server.HttpRequestBuilder;
-import com.intuit.karate.server.Response;
+import com.intuit.karate.http.ArmeriaHttpClient;
+import com.intuit.karate.http.HttpClient;
+import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.HttpRequestBuilder;
+import com.intuit.karate.http.Response;
 import java.util.Map;
 
 /**
@@ -100,7 +100,7 @@ public class Http {
     }
 
     public Response post(String body) {
-        com.intuit.karate.data.Json json = new com.intuit.karate.data.Json(body);
+        com.intuit.karate.Json json = new com.intuit.karate.Json(body);
         return post(json.asMapOrList());
     }
 

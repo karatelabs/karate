@@ -25,9 +25,9 @@ package com.intuit.karate.runtime;
 
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.server.HttpServer;
-import com.intuit.karate.server.HttpServerHandler;
-import com.intuit.karate.server.SslContextFactory;
+import com.intuit.karate.http.HttpServer;
+import com.intuit.karate.http.HttpServerHandler;
+import com.intuit.karate.http.SslContextFactory;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;

@@ -25,8 +25,8 @@ package com.intuit.karate.job;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.data.Json;
-import com.intuit.karate.data.JsonUtils;
+import com.intuit.karate.Json;
+import com.intuit.karate.JsonUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;

@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.server.RedirectException;
+import com.intuit.karate.http.RedirectException;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Set;

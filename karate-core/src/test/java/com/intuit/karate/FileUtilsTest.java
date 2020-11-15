@@ -2,7 +2,6 @@ package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.exception.KarateException;
 import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;

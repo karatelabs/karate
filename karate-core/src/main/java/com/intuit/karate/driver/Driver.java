@@ -25,7 +25,6 @@ package com.intuit.karate.driver;
 
 import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.Plugin;
-import com.intuit.karate.http.Cookie;
 import com.intuit.karate.runtime.Config;
 
 import java.util.ArrayList;
@@ -109,16 +108,9 @@ public interface Driver extends Plugin {
     Map<String, Object> cookie(String name);
 
     @AutoDef
-    default void setCookies(Map<String, Cookie> cookies) { // method to allow set cookies from feature file for UI tests.
+    default void setCookies(List<Map<String, Object>> cookies) {
         System.out.println("got this cookie: " + cookies);
-        cookies.forEach((k, v) -> {
-            // either uncomment below to have correct cookie
-            // cookie(HttpUtils.convertCookieToActualMap(v));
-            // if above line uncommented, comment below 2 lines.
-            v.remove(Cookie.SECURE);
-            v.remove(Cookie.PERSISTENT);
-            cookie((Map) v);
-        });
+        cookies.forEach(c -> cookie(c));
     }
 
     @AutoDef

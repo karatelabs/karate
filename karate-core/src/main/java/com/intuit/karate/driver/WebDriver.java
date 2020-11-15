@@ -25,9 +25,9 @@ package com.intuit.karate.driver;
 
 import com.intuit.karate.Http;
 import com.intuit.karate.Logger;
-import com.intuit.karate.data.Json;
+import com.intuit.karate.Json;
 import com.intuit.karate.runtime.Variable;
-import com.intuit.karate.server.Response;
+import com.intuit.karate.http.Response;
 import com.intuit.karate.shell.Command;
 import java.util.Base64;
 import java.util.Collections;

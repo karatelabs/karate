@@ -28,7 +28,7 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.driver.DockerTarget;
 import com.intuit.karate.driver.Target;
 import com.intuit.karate.http.HttpLogModifier;
-import com.intuit.karate.server.Cookies;
+import com.intuit.karate.http.Cookies;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;

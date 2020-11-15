@@ -1,8 +1,8 @@
 package demo;
 
-import com.intuit.karate.server.ServerConfig;
-import com.intuit.karate.server.HttpServer;
-import com.intuit.karate.server.RequestHandler;
+import com.intuit.karate.http.ServerConfig;
+import com.intuit.karate.http.HttpServer;
+import com.intuit.karate.http.RequestHandler;
 import org.junit.jupiter.api.Test;
 
 /**

@@ -29,7 +29,7 @@ import com.intuit.karate.LogAppender;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.server.Response;
+import com.intuit.karate.http.Response;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;

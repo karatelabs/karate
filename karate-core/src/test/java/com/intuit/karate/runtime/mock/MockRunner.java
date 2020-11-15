@@ -3,7 +3,7 @@ package com.intuit.karate.runtime.mock;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import com.intuit.karate.runtime.*;
-import com.intuit.karate.server.HttpServer;
+import com.intuit.karate.http.HttpServer;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;

@@ -1,7 +1,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.data.Json;
+import com.intuit.karate.Json;
 import com.intuit.karate.match.Match;
 import java.util.List;
 import java.util.Map;

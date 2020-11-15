@@ -1,6 +1,6 @@
 package com.intuit.karate.match;
 
-import com.intuit.karate.data.Json;
+import com.intuit.karate.Json;
 import com.intuit.karate.graal.JsEngine;
 import static org.junit.jupiter.api.Assertions.*;
 import static com.intuit.karate.match.MatchType.*;

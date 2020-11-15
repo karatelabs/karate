@@ -1,10 +1,8 @@
 package com.intuit.karate.gatling
 
 import akka.actor.ActorSystem
-import com.intuit.karate.http.HttpUtils
-import com.intuit.karate.netty.NettyUtils
+import com.intuit.karate.http.{HttpUtils, HttpRequest}
 import com.intuit.karate.runtime.ScenarioRuntime
-import com.intuit.karate.server.HttpRequest
 import io.gatling.core.CoreComponents
 import io.gatling.core.config.GatlingConfiguration
 import io.gatling.core.protocol.{Protocol, ProtocolComponents, ProtocolKey}
@@ -19,7 +17,7 @@ class KarateProtocol(val uriPatterns: Map[String, Seq[MethodPause]]) extends Pro
     if (methodPause.isDefined) methodPause.get.pause else 0
   }
   val defaultNameResolver = (req: HttpRequest, ctx: ScenarioRuntime) => {
-    val pathPair = NettyUtils.parseUriIntoUrlBaseAndPath(req.getUrl)
+    val pathPair = HttpUtils.parseUriIntoUrlBaseAndPath(req.getUrl)
     val matchedUri = pathMatches(pathPair.right)
     if (matchedUri.isDefined) matchedUri.get else pathPair.right
   }

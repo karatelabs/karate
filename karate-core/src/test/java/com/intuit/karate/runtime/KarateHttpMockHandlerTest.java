@@ -3,7 +3,7 @@ package com.intuit.karate.runtime;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import static com.intuit.karate.runtime.RuntimeUtils.runScenario;
-import com.intuit.karate.server.HttpServer;
+import com.intuit.karate.http.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;

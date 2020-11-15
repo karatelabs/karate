@@ -28,7 +28,7 @@ import com.intuit.karate.Http;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.server.Response;
+import com.intuit.karate.http.Response;
 import com.intuit.karate.shell.Command;
 
 import java.util.Collections;

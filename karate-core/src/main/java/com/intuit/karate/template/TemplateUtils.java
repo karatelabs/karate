@@ -23,8 +23,8 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.server.ServerConfig;
-import com.intuit.karate.server.RequestCycle;
+import com.intuit.karate.http.ServerConfig;
+import com.intuit.karate.http.RequestCycle;
 import java.util.Map;
 import org.thymeleaf.IEngineConfiguration;
 import org.thymeleaf.ITemplateEngine;

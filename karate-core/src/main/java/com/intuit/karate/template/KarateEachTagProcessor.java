@@ -24,7 +24,7 @@
 package com.intuit.karate.template;
 
 import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.server.RequestCycle;
+import com.intuit.karate.http.RequestCycle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.context.ITemplateContext;

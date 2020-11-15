@@ -4,7 +4,6 @@ import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.runtime.FeatureRuntime;
 import java.io.File;
 import java.util.Map;

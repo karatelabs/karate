@@ -25,7 +25,7 @@ package com.intuit.karate.graal;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
-import com.intuit.karate.data.JsonUtils;
+import com.intuit.karate.JsonUtils;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;

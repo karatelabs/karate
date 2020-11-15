@@ -24,7 +24,7 @@
 package com.intuit.karate.debug;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.data.Json;
+import com.intuit.karate.Json;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;

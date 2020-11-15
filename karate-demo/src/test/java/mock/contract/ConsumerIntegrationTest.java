@@ -1,6 +1,6 @@
 package mock.contract;
 
-import com.intuit.karate.data.JsonUtils;
+import com.intuit.karate.JsonUtils;
 import org.junit.AfterClass;
 import org.junit.Test;
 import static org.junit.Assert.*;

@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.server.ServerConfig;
+import com.intuit.karate.http.ServerConfig;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

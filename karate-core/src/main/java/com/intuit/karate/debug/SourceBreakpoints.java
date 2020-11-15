@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.debug;
 
-import com.intuit.karate.data.Json;
+import com.intuit.karate.Json;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

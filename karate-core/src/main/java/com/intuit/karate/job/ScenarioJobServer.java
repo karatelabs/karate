@@ -27,7 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
-import com.intuit.karate.data.Json;
+import com.intuit.karate.Json;
 import static com.intuit.karate.job.JobServer.LOGGER;
 import java.io.File;
 import java.util.ArrayList;

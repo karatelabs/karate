@@ -24,8 +24,8 @@
 package com.intuit.karate.mock.servlet;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.server.HttpConstants;
-import com.intuit.karate.server.ResourceType;
+import com.intuit.karate.http.HttpConstants;
+import com.intuit.karate.http.ResourceType;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;

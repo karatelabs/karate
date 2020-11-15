@@ -1,9 +1,9 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
-import java.util.Arrays;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
@@ -64,21 +64,24 @@ class HttpUtilsTest {
         map = HttpUtils.parseUriPattern("/hello/{raw}", "/hello/�Ill~Formed@RequiredString!");
         match(map, "{ raw: '�Ill~Formed@RequiredString!' }");
     }
-
-    @Test
-    void testParseCookieString() {
-        String header = "Set-Cookie: foo=\"bar\";Version=1";
-        Map<String, Cookie> map = HttpUtils.parseCookieHeaderString(header);
-        match(map, "{ foo: '#object' }"); // only one entry
-        Match.that(map.get("foo")).contains("{ name: 'foo', value: 'bar' }").isTrue();
+    
+    static void splitUrl(String raw, String left, String right) {
+        StringUtils.Pair pair = HttpUtils.parseUriIntoUrlBaseAndPath(raw);
+        assertEquals(left, pair.left);
+        assertEquals(right, pair.right);
     }
 
     @Test
-    void testCreateCookieString() {
-        Cookie c1 = new Cookie("foo", "bar");
-        Cookie c2 = new Cookie("hello", "world");
-        String header = HttpUtils.createCookieHeaderValue(Arrays.asList(c1, c2));
-        match(header, "foo=bar; hello=world");
-    }
+    void testUriParsing() {
+        splitUrl("http://foo/bar", "http://foo", "/bar");
+        splitUrl("/bar", null, "/bar");
+        splitUrl("/bar?baz=ban", null, "/bar?baz=ban");
+        splitUrl("http://foo/bar?baz=ban", "http://foo", "/bar?baz=ban");
+        splitUrl("localhost:50856", null, "");
+        splitUrl("127.0.0.1:50856", null, "");
+        splitUrl("http://foo:8080/bar", "http://foo:8080", "/bar");
+        splitUrl("http://foo.com:8080/bar", "http://foo.com:8080", "/bar");
+        splitUrl("https://api.randomuser.me/?nat=us", "https://api.randomuser.me", "/?nat=us");
+    }    
 
 }
