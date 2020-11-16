@@ -40,8 +40,8 @@ import com.intuit.karate.driver.microsoft.MsEdgeDriver;
 import com.intuit.karate.driver.safari.SafariWebDriver;
 import com.intuit.karate.driver.microsoft.WinAppDriver;
 import com.intuit.karate.driver.playwright.PlaywrightDriver;
-import com.intuit.karate.runtime.Config;
-import com.intuit.karate.runtime.ScenarioEngine;
+import com.intuit.karate.core.Config;
+import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.shell.Command;
 
 import java.io.File;

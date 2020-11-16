@@ -1,9 +1,8 @@
 package com.intuit.karate.graal;
 
 import com.intuit.karate.core.AutoDef;
-import com.intuit.karate.driver.Driver;
 import com.intuit.karate.match.Match;
-import com.intuit.karate.runtime.MockUtils;
+import com.intuit.karate.core.MockUtils;
 import com.intuit.karate.http.Request;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -183,7 +182,7 @@ class JsEngineTest {
 
     @Test
     void testHostBytes() {
-        JsValue v = je.eval("Java.type('com.intuit.karate.runtime.MockUtils')");
+        JsValue v = je.eval("Java.type('com.intuit.karate.core.MockUtils')");
         je.put("Utils", v.getValue());
         JsValue val = je.eval("Utils.testBytes");
         assertEquals(MockUtils.testBytes, val.getOriginal().asHostObject());

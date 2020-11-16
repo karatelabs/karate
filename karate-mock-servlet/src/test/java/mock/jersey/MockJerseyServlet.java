@@ -24,7 +24,7 @@
 package mock.jersey;
 
 import com.intuit.karate.mock.servlet.MockHttpClient;
-import com.intuit.karate.runtime.ScenarioEngine;
+import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpClientFactory;
 import javax.servlet.Servlet;

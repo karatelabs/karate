@@ -2,7 +2,7 @@ package driver.core;
 
 import com.intuit.karate.junit4.Karate;
 import com.intuit.karate.KarateOptions;
-import com.intuit.karate.runtime.MockServer;
+import com.intuit.karate.core.MockServer;
 import com.intuit.karate.shell.Command;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;

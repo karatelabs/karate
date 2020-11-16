@@ -28,7 +28,6 @@ import com.intuit.karate.Results;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.KarateException;
-import com.intuit.karate.runtime.Tags;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;

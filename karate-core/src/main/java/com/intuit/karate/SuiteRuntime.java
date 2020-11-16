@@ -24,9 +24,9 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.runtime.RuntimeHook;
-import com.intuit.karate.runtime.RuntimeHookFactory;
-import com.intuit.karate.runtime.Tags;
+import com.intuit.karate.core.RuntimeHook;
+import com.intuit.karate.core.RuntimeHookFactory;
+import com.intuit.karate.core.Tags;
 import com.intuit.karate.http.HttpClientFactory;
 import java.io.File;
 import java.util.Collection;

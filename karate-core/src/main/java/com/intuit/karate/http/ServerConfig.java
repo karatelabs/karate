@@ -24,7 +24,7 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.Logger;
-import com.intuit.karate.runtime.Config;
+import com.intuit.karate.core.Config;
 import com.intuit.karate.http.ResourceResolver.*;
 import com.linecorp.armeria.common.RequestContext;
 import java.util.HashMap;

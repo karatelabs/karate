@@ -1,6 +1,6 @@
 package mock.web;
 
-import com.intuit.karate.runtime.MockServer;
+import com.intuit.karate.core.MockServer;
 import org.junit.Test;
 
 /**

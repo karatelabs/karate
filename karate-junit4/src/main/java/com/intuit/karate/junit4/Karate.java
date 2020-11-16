@@ -29,7 +29,7 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.HtmlFeatureReport;
 import com.intuit.karate.core.HtmlSummaryReport;
-import com.intuit.karate.runtime.FeatureRuntime;
+import com.intuit.karate.core.FeatureRuntime;
 import java.io.IOException;
 import java.util.List;
 import org.junit.Test;

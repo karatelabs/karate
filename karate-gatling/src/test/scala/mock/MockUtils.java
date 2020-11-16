@@ -1,7 +1,7 @@
 package mock;
 
 import com.intuit.karate.PerfContext;
-import com.intuit.karate.runtime.MockServer;
+import com.intuit.karate.core.MockServer;
 
 import java.util.Collections;
 import java.util.Map;

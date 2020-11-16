@@ -28,7 +28,7 @@ import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.ImageElement;
 import com.intuit.karate.robot.RobotBase;
 import com.intuit.karate.robot.Window;
-import com.intuit.karate.runtime.ScenarioEngine;
+import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.shell.Command;
 import java.util.Collections;
 import java.util.List;

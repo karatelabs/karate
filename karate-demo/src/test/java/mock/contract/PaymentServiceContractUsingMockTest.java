@@ -2,7 +2,7 @@ package mock.contract;
 
 import com.intuit.karate.junit4.Karate;
 import com.intuit.karate.KarateOptions;
-import com.intuit.karate.runtime.MockServer;
+import com.intuit.karate.core.MockServer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;

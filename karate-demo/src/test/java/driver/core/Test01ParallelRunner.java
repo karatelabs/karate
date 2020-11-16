@@ -25,7 +25,7 @@ package driver.core;
 
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
-import com.intuit.karate.runtime.MockServer;
+import com.intuit.karate.core.MockServer;
 import static org.junit.Assert.*;
 
 import demo.DemoTestParallel;

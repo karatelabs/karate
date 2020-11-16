@@ -28,9 +28,9 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.HtmlFeatureReport;
 import com.intuit.karate.core.HtmlSummaryReport;
-import com.intuit.karate.runtime.FeatureRuntime;
-import com.intuit.karate.runtime.ScenarioGenerator;
-import com.intuit.karate.runtime.ScenarioRuntime;
+import com.intuit.karate.core.FeatureRuntime;
+import com.intuit.karate.core.ScenarioGenerator;
+import com.intuit.karate.core.ScenarioRuntime;
 
 import java.util.Iterator;
 import org.junit.jupiter.api.Assertions;

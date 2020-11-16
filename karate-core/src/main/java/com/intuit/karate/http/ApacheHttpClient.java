@@ -25,8 +25,8 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
-import com.intuit.karate.runtime.Config;
-import com.intuit.karate.runtime.ScenarioEngine;
+import com.intuit.karate.core.Config;
+import com.intuit.karate.core.ScenarioEngine;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;

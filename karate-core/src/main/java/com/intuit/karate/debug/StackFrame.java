@@ -25,7 +25,7 @@ package com.intuit.karate.debug;
 
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.Step;
-import com.intuit.karate.runtime.ScenarioRuntime;
+import com.intuit.karate.core.ScenarioRuntime;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;

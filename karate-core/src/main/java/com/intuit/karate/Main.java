@@ -27,7 +27,7 @@ import com.intuit.karate.cli.CliExecutionHook;
 import com.intuit.karate.debug.DapServer;
 import com.intuit.karate.formats.PostmanConverter;
 import com.intuit.karate.job.JobExecutor;
-import com.intuit.karate.runtime.MockServer;
+import com.intuit.karate.core.MockServer;
 import com.intuit.karate.http.SslContextFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -5,7 +5,6 @@ import java.util.function.Consumer
 
 import akka.actor.ActorSystem
 import com.intuit.karate.core._
-import com.intuit.karate.runtime.ScenarioRuntime
 import com.intuit.karate.http.HttpRequest
 import com.intuit.karate.{PerfHook, Runner}
 import io.gatling.commons.stats.{KO, OK}

@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.runtime.ScenarioEngine;
 import java.util.Map;
 
 /**

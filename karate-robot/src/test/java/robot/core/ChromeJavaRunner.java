@@ -6,8 +6,8 @@ import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.driver.Keys;
 import com.intuit.karate.robot.RobotBase;
 import com.intuit.karate.robot.RobotFactory;
-import com.intuit.karate.runtime.FeatureRuntime;
-import com.intuit.karate.runtime.ScenarioRuntime;
+import com.intuit.karate.core.FeatureRuntime;
+import com.intuit.karate.core.ScenarioRuntime;
 import org.junit.Test;
 
 /**

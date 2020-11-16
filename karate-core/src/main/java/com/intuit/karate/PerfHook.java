@@ -24,7 +24,7 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.PerfEvent;
-import com.intuit.karate.runtime.ScenarioRuntime;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.http.HttpRequest;
 
 /**

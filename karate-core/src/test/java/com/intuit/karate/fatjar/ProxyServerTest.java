@@ -4,7 +4,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import com.intuit.karate.http.ProxyServer;
-import com.intuit.karate.runtime.MockServer;
+import com.intuit.karate.core.MockServer;
 import java.io.InputStream;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;

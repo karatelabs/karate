@@ -8,7 +8,6 @@ import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
@@ -143,7 +142,7 @@ class FileUtilsTest {
     
     @Test
     void testScanFile() {
-        String relativePath = "classpath:com/intuit/karate/test/test.feature";
+        String relativePath = "classpath:com/intuit/karate/test/file-utils-test.feature";
         ClassLoader cl = getClass().getClassLoader();
         List<Resource> files = FileUtils.scanForFeatureFilesOnClassPath(cl);
         boolean found = false;
@@ -161,7 +160,7 @@ class FileUtilsTest {
     
     @Test
     void testScanFileWithLineNumber() {
-        String relativePath = "classpath:com/intuit/karate/test/test.feature:3";
+        String relativePath = "classpath:com/intuit/karate/test/file-utils-test.feature:3";
         List<Resource> files = FileUtils.scanForFeatureFiles(Collections.singletonList(relativePath), getClass().getClassLoader());
         assertEquals(1, files.size());
         assertEquals(3, files.get(0).getLine());
@@ -189,7 +188,7 @@ class FileUtilsTest {
     
     @Test
     void testGetClasspathAbsolute() {
-        File file = new File("src/test/java/com/intuit/karate/multi-scenario.feature").getAbsoluteFile();
+        File file = new File("src/test/java/com/intuit/karate/core/runner/multi-scenario.feature").getAbsoluteFile();
         String scan = "classpath:" + file.getPath();
         List<Resource> resources = FileUtils.scanForFeatureFiles(Collections.singletonList(scan), ClassLoader.getSystemClassLoader());
         assertEquals(1, resources.size());

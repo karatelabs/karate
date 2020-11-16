@@ -24,7 +24,7 @@
 package com.intuit.karate;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.runtime.Variable;
+import com.intuit.karate.core.Variable;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.spi.json.JsonProvider;

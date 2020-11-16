@@ -25,7 +25,7 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.runtime.Config;
+import com.intuit.karate.core.Config;
 import com.linecorp.armeria.client.ClientRequestContext;
 import com.linecorp.armeria.client.DecoratingHttpClientFunction;
 import com.linecorp.armeria.client.WebClient;

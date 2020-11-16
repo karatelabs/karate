@@ -3,7 +3,7 @@ package mock.proxy;
 import com.intuit.karate.Runner;
 import com.intuit.karate.Results;
 import com.intuit.karate.KarateOptions;
-import com.intuit.karate.runtime.MockServer;
+import com.intuit.karate.core.MockServer;
 import org.junit.AfterClass;
 import static org.junit.Assert.assertTrue;
 import org.junit.BeforeClass;

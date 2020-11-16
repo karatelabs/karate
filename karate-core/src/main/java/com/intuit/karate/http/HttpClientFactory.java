@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.http;
 
-import com.intuit.karate.runtime.ScenarioEngine;
+import com.intuit.karate.core.ScenarioEngine;
 
 /**
  *

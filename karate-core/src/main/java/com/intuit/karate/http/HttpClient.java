@@ -24,7 +24,7 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.Logger;
-import com.intuit.karate.runtime.Config;
+import com.intuit.karate.core.Config;
 
 /**
  *

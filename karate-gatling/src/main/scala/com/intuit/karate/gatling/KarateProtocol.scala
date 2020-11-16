@@ -2,7 +2,7 @@ package com.intuit.karate.gatling
 
 import akka.actor.ActorSystem
 import com.intuit.karate.http.{HttpUtils, HttpRequest}
-import com.intuit.karate.runtime.ScenarioRuntime
+import com.intuit.karate.core.ScenarioRuntime
 import io.gatling.core.CoreComponents
 import io.gatling.core.config.GatlingConfiguration
 import io.gatling.core.protocol.{Protocol, ProtocolComponents, ProtocolKey}

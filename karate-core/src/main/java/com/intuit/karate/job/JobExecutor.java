@@ -28,7 +28,7 @@ import com.intuit.karate.Http;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.runtime.Variable;
+import com.intuit.karate.core.Variable;
 import com.intuit.karate.http.Response;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.shell.FileLogAppender;

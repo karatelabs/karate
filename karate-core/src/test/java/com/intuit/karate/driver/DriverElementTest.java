@@ -1,6 +1,6 @@
 package com.intuit.karate.driver;
 
-import com.intuit.karate.runtime.Variable;
+import com.intuit.karate.core.Variable;
 import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;

@@ -30,7 +30,7 @@ import com.intuit.karate.robot.Robot;
 import com.intuit.karate.robot.RobotBase;
 import com.intuit.karate.robot.StringMatcher;
 import com.intuit.karate.robot.Window;
-import com.intuit.karate.runtime.ScenarioEngine;
+import com.intuit.karate.core.ScenarioEngine;
 import com.sun.jna.platform.win32.BaseTSD.ULONG_PTR;
 
 import com.sun.jna.platform.win32.User32;

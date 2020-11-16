@@ -1,11 +1,8 @@
 Feature:
 
 Scenario:
-* table cats
-    | name   | age |
-    | 'Bob'  | 2   |
-    | 'Wild' | 4   |
-    | 'Nyan' | 3   |
-
-* match cats == [{name: 'Bob', age: 2}, {name: 'Wild', age: 4}, {name: 'Nyan', age: 3}]
-
+* table data
+    | first  | last    | age |
+    | 'John' | 'Smith' |  20 |
+    | 'Bill' |         |  40 |
+* match data == [{ first: 'John', last: 'Smith', age: 20 }, { first: 'Bill', age: 40 }]

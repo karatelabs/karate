@@ -23,8 +23,8 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.runtime.ScenarioEngine;
-import com.intuit.karate.runtime.Variable;
+import com.intuit.karate.core.ScenarioEngine;
+import com.intuit.karate.core.Variable;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.Response;
 import java.util.Map;

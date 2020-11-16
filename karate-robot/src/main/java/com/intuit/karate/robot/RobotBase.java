@@ -23,14 +23,14 @@
  */
 package com.intuit.karate.robot;
 
-import com.intuit.karate.runtime.Config;
+import com.intuit.karate.core.Config;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Plugin;
 import com.intuit.karate.driver.Keys;
 import com.intuit.karate.KarateException;
-import com.intuit.karate.runtime.ScenarioEngine;
-import com.intuit.karate.runtime.Variable;
+import com.intuit.karate.core.ScenarioEngine;
+import com.intuit.karate.core.Variable;
 import com.intuit.karate.shell.Command;
 import java.awt.Dimension;
 import java.awt.MouseInfo;

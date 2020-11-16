@@ -24,8 +24,8 @@
 package com.intuit.karate.mock.servlet;
 
 import com.intuit.karate.Logger;
-import com.intuit.karate.runtime.Config;
-import com.intuit.karate.runtime.ScenarioEngine;
+import com.intuit.karate.core.Config;
+import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConstants;
 import com.intuit.karate.http.HttpLogger;
