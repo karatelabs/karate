@@ -1,7 +1,7 @@
 package com.intuit.karate.core.parser;
 
 import com.intuit.karate.Runner;
-import com.intuit.karate.SuiteRuntime;
+import com.intuit.karate.Suite;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
@@ -27,10 +27,10 @@ class FeatureParserTest {
     static final Logger logger = LoggerFactory.getLogger(FeatureParserTest.class);
 
     static FeatureResult execute(String name) {
-        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/parser/" + name);
+        Feature feature = Feature.read("classpath:com/intuit/karate/core/parser/" + name);
         Runner.Builder builder = Runner.builder();
         builder.tags("~@ignore");
-        FeatureRuntime fr = FeatureRuntime.of(new SuiteRuntime(builder), feature);
+        FeatureRuntime fr = FeatureRuntime.of(new Suite(builder), feature);
         fr.run();
         return fr.result;
     }
@@ -69,7 +69,7 @@ class FeatureParserTest {
 
     @Test
     void testParsingFeatureDescription() {
-        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/parser/test-simple.feature");
+        Feature feature = Feature.read("classpath:com/intuit/karate/core/parser/test-simple.feature");
         assertEquals("the first line", feature.getName());
         assertEquals("and the second", feature.getDescription());
     }
@@ -170,10 +170,10 @@ class FeatureParserTest {
 
     @Test
     void testStepEditing() throws Exception {
-        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/parser/test-simple.feature");
+        Feature feature = Feature.read("classpath:com/intuit/karate/core/parser/test-simple.feature");
         Step step = feature.getStep(0, -1, 0);
         assertEquals("def a = 1", step.getText());
-        FeatureParser.updateStepFromText(step, "* def a = 2 - 1");
+        step.parseAndUpdateFrom("* def a = 2 - 1");
         assertEquals("def a = 2 - 1", step.getText());
     }
 
@@ -187,7 +187,7 @@ class FeatureParserTest {
 
     @Test
     void testHide() {
-        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/parser/test-hide.feature");
+        Feature feature = Feature.read("classpath:com/intuit/karate/core/parser/test-hide.feature");
         Step step = feature.getStep(0, -1, 0);
         assertTrue(step.isPrefixStar());
         assertFalse(step.isPrint());

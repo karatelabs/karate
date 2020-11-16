@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.RuntimeHook;
+
 /**
  *
  * @author pthomas3

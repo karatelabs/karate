@@ -93,14 +93,13 @@ public class Result {
     }
 
     public static Result failed(long nanos, Throwable error, Step step) {
-        String featureName = Engine.getFeatureName(step);
         if (error instanceof KarateException) {
             // use as is
         } else {
-            error = new KarateException(featureName + ":" + step.getLine() + " - " + error);
+            error = new KarateException(step.getDebugInfo() + " - " + error);
         }
         StackTraceElement[] newTrace = new StackTraceElement[]{
-            new StackTraceElement("✽", step.getPrefix() + ' ' + step.getText() + ' ', featureName, step.getLine())
+            new StackTraceElement("✽", step.getPrefix() + ' ' + step.getText() + ' ', step.getDebugInfo(), step.getLine())
         };
         error.setStackTrace(newTrace);
         return new Result(FAILED, nanos, error, false);

@@ -23,17 +23,10 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.core.AssignType;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
-import com.intuit.karate.core.Embed;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.PerfEvent;
-import com.intuit.karate.core.Plugin;
-import com.intuit.karate.core.PluginFactory;
-import com.intuit.karate.core.StepResult;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.driver.Driver;
@@ -326,7 +319,7 @@ public class ScenarioEngine {
     public void setConfig(Config config) {
         this.config = config;
         if (requestBuilder != null) {
-            requestBuilder.client.setConfig(config, null);
+            requestBuilder.client.setConfig(config);
         }
     }    
 
@@ -349,10 +342,10 @@ public class ScenarioEngine {
 
     public void configure(String key, Variable v) {
         key = StringUtils.trimToEmpty(key);
-        // if next line returns true, http-client (may) need re-building
+        // if next line returns true, config is http-client related
         if (config.configure(key, v)) {
             if (requestBuilder != null) {
-                requestBuilder.client.setConfig(config, key);
+                requestBuilder.client.setConfig(config);
             }
         }
     }

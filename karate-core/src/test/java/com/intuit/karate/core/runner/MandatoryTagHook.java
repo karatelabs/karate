@@ -1,11 +1,11 @@
 package com.intuit.karate.core.runner;
 
-import com.intuit.karate.SuiteRuntime;
+import com.intuit.karate.Suite;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
 import com.intuit.karate.core.Tag;
 import com.intuit.karate.core.FeatureRuntime;
-import com.intuit.karate.core.RuntimeHook;
+import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.core.ScenarioRuntime;
 
 /**
@@ -48,12 +48,12 @@ public class MandatoryTagHook implements RuntimeHook {
     }
 
     @Override
-    public void beforeSuite(SuiteRuntime sr) {
+    public void beforeSuite(Suite sr) {
 
     }
 
     @Override
-    public void afterSuite(SuiteRuntime sr) {
+    public void afterSuite(Suite sr) {
 
     }
 

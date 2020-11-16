@@ -1,7 +1,7 @@
 Feature: testing binary response handling
 
 Background: 
-    * def Utils = Java.type('com.intuit.karate.runtime.MockUtils')
+    * def Utils = Java.type('com.intuit.karate.core.MockUtils')
 
 Scenario: get binary result and make sure it hasn't been corrupted
     Given url mockServerUrl

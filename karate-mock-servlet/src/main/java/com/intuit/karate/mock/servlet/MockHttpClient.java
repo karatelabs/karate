@@ -72,7 +72,7 @@ public class MockHttpClient implements HttpClient {
     }
 
     @Override
-    public void setConfig(Config config, String keyThatChanged) {
+    public void setConfig(Config config) {
         // 
     }
 
@@ -175,11 +175,6 @@ public class MockHttpClient implements HttpClient {
             map.put(name, list);
         }
         return map;
-    }
-
-    @Override
-    public Logger getLogger() {
-        return logger;
     }
 
 }

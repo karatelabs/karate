@@ -24,7 +24,6 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.RuntimeHook;
 import com.intuit.karate.core.RuntimeHookFactory;
 import com.intuit.karate.core.Tags;
 import com.intuit.karate.http.HttpClientFactory;
@@ -38,7 +37,7 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class SuiteRuntime {
+public class Suite {
 
     public final String tagSelector;
     public final Logger logger;
@@ -72,17 +71,17 @@ public class SuiteRuntime {
         }
     }
 
-    public static SuiteRuntime forTempUse() {
+    public static Suite forTempUse() {
         Runner.Builder builder = Runner.builder();
         builder.forTempUse = true;
-        return new SuiteRuntime(builder);
+        return new Suite(builder);
     }    
 
-    public SuiteRuntime() {
+    public Suite() {
         this(Runner.builder());
     }
 
-    public SuiteRuntime(Runner.Builder rb) {
+    public Suite(Runner.Builder rb) {
         env = rb.env;
         karateConfigEnv = rb.env;
         tagSelector = Tags.fromKarateOptionsTags(rb.tags);

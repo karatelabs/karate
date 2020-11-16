@@ -20,7 +20,7 @@ class MockRunner {
 
     static HttpServer startMockServer() {
         MockServer server = MockServer
-                .feature("classpath:com/intuit/karate/runtime/mock/_mock.feature")
+                .feature("classpath:com/intuit/karate/core/mock/_mock.feature")
                 .http(0).build();
         System.setProperty("karate.server.port", server.getPort() + "");
         return server;
@@ -34,8 +34,8 @@ class MockRunner {
     Results results;
 
     private void run(String name) {
-        results = Runner.path("classpath:com/intuit/karate/runtime/mock/" + name)
-                .configDir("classpath:com/intuit/karate/runtime/mock")
+        results = Runner.path("classpath:com/intuit/karate/core/mock/" + name)
+                .configDir("classpath:com/intuit/karate/core/mock")
                 .tags("~@ignore").parallel(1);
         assertEquals(0, results.getFailCount(), results.getErrorMessages());
     }

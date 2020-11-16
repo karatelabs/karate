@@ -293,7 +293,7 @@ public class Scenario {
         // this could be made conditional based on config - if navigating to feature file needed, then use below else return null.
         String workingDir = System.getProperty("user.dir");
         // we can use getPath as well - though that will point to feature file from compiled location i.e. target
-        String featurePath = this.feature.getRelativePath().replace("classpath:", "");
+        String featurePath = this.feature.getResource().getRelativePath().replace("classpath:", "");
         return URI.create(new File(workingDir + "/src/test/java/" + featurePath).toURI().toString() + "?line="
                 + this.line);
     }

@@ -23,20 +23,12 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.Embed;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.Result;
-import com.intuit.karate.core.Scenario;
-import com.intuit.karate.core.ScenarioResult;
-import com.intuit.karate.core.Step;
-import com.intuit.karate.core.StepResult;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.shell.FileLogAppender;
 import java.io.File;
@@ -174,7 +166,7 @@ public class ScenarioRuntime implements Runnable {
     public Result evalAsStep(String expression) {
         Step evalStep = new Step(scenario.getFeature(), scenario, scenario.getIndex() + 1);
         try {
-            FeatureParser.updateStepFromText(evalStep, expression);
+            evalStep.parseAndUpdateFrom(expression);
         } catch (Exception e) {
             return Result.failed(0, e, evalStep);
         }
@@ -184,7 +176,7 @@ public class ScenarioRuntime implements Runnable {
     public boolean hotReload() {
         boolean success = false;
         Feature feature = scenario.getFeature();
-        feature = FeatureParser.parse(feature.getResource());
+        feature = Feature.read(feature.getResource());
         for (Step oldStep : steps) {
             Step newStep = feature.findStepByLine(oldStep.getLine());
             if (newStep == null) {
@@ -194,7 +186,7 @@ public class ScenarioRuntime implements Runnable {
             String newText = newStep.getText();
             if (!oldText.equals(newText)) {
                 try {
-                    FeatureParser.updateStepFromText(oldStep, newStep.getText());
+                    oldStep.parseAndUpdateFrom(newStep.getText());
                     logger.info("hot reloaded line: {} - {}", newStep.getLine(), newStep.getText());
                     success = true;
                 } catch (Exception e) {
@@ -207,7 +199,7 @@ public class ScenarioRuntime implements Runnable {
 
     public Map<String, Object> getScenarioInfo() {
         Map<String, Object> info = new HashMap(6);
-        Path featurePath = featureRuntime.feature.getPath();
+        Path featurePath = featureRuntime.feature.getResource().getPath();
         if (featurePath != null) {
             info.put("featureDir", featurePath.getParent().toString());
             info.put("featureFileName", featurePath.getFileName().toString());

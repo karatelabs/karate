@@ -23,12 +23,10 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.PerfHook;
 import com.intuit.karate.Resource;
-import com.intuit.karate.SuiteRuntime;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.core.FeatureResult;
+import com.intuit.karate.Suite;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -40,7 +38,7 @@ import java.util.Map;
  */
 public class FeatureRuntime implements Runnable {
 
-    public final SuiteRuntime suite;
+    public final Suite suite;
     public final FeatureRuntime rootFeature;
     public final ScenarioCall caller;
     public final Feature feature;
@@ -53,7 +51,7 @@ public class FeatureRuntime implements Runnable {
     private Runnable next;
 
     public Path getParentPath() {
-        return feature.getPath().getParent();
+        return feature.getResource().getPath().getParent();
     }
 
     public Path getRootParentPath() {
@@ -61,7 +59,7 @@ public class FeatureRuntime implements Runnable {
     }
 
     public Path getPath() {
-        return feature.getPath();
+        return feature.getResource().getPath();
     }
 
     public void setPerfRuntime(PerfHook perfRuntime) {
@@ -81,22 +79,22 @@ public class FeatureRuntime implements Runnable {
     }
 
     public static FeatureRuntime forTempUse() {
-        SuiteRuntime sr = SuiteRuntime.forTempUse();
+        Suite sr = Suite.forTempUse();
         File workingDir = new File(sr.buildDir);
-        Resource resource = Resource.of(workingDir.toPath(), "Feature:\nScenario:\n");
-        Feature feature = FeatureParser.parse(resource);
+        Resource resource = Resource.withContent(workingDir.toPath(), "Feature:\nScenario:\n");
+        Feature feature = Feature.read(resource);
         return FeatureRuntime.of(sr, feature);
     }
 
     public static FeatureRuntime of(Feature feature) {
-        return FeatureRuntime.of(new SuiteRuntime(), feature, null);
+        return FeatureRuntime.of(new Suite(), feature, null);
     }
 
-    public static FeatureRuntime of(SuiteRuntime sr, Feature feature) {
+    public static FeatureRuntime of(Suite sr, Feature feature) {
         return FeatureRuntime.of(sr, feature, null);
     }
 
-    public static FeatureRuntime of(SuiteRuntime sr, Feature feature, Map<String, Object> arg) {
+    public static FeatureRuntime of(Suite sr, Feature feature, Map<String, Object> arg) {
         return new FeatureRuntime(sr, feature, ScenarioCall.none(arg));
     }
 
@@ -108,7 +106,7 @@ public class FeatureRuntime implements Runnable {
         }
     }
 
-    private FeatureRuntime(SuiteRuntime suite, Feature feature, ScenarioCall caller) {
+    private FeatureRuntime(Suite suite, Feature feature, ScenarioCall caller) {
         this.suite = suite;
         this.feature = feature;
         this.caller = caller;

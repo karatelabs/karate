@@ -53,7 +53,7 @@ public class FeatureBuilder {
                 return is;
             }
         };
-        return FeatureParser.parse(resource);
+        return Feature.read(resource);
     }
 
 }

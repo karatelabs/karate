@@ -24,7 +24,7 @@
 package com.intuit.karate.junit4;
 
 import com.intuit.karate.Runner;
-import com.intuit.karate.SuiteRuntime;
+import com.intuit.karate.Suite;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.HtmlFeatureReport;
@@ -49,7 +49,7 @@ public class Karate extends ParentRunner<Feature> {
 
     private static final Logger logger = LoggerFactory.getLogger(Karate.class);
 
-    private final SuiteRuntime suite;
+    private final Suite suite;
     private final HtmlSummaryReport summary;
     private final JunitHook hook;
 
@@ -62,7 +62,7 @@ public class Karate extends ParentRunner<Feature> {
         hook = new JunitHook();
         Runner.Builder builder = new Runner.Builder(clazz);
         builder.hook(hook);
-        suite = new SuiteRuntime(builder);
+        suite = new Suite(builder);
         summary = new HtmlSummaryReport();
     }
 

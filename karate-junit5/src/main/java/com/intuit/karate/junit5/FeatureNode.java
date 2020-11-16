@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.junit5;
 
-import com.intuit.karate.SuiteRuntime;
+import com.intuit.karate.Suite;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.HtmlFeatureReport;
@@ -42,12 +42,12 @@ import org.junit.jupiter.api.DynamicTest;
  */
 public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest> {
 
-    public final SuiteRuntime suite;
+    public final Suite suite;
     public final HtmlSummaryReport summary;
     public final FeatureRuntime featureRuntime;
     private final ScenarioGenerator generator;
 
-    public FeatureNode(SuiteRuntime suite, HtmlSummaryReport summary, Feature feature, String tagSelector) {
+    public FeatureNode(Suite suite, HtmlSummaryReport summary, Feature feature, String tagSelector) {
         this.suite = suite;
         this.summary = summary;
         featureRuntime = FeatureRuntime.of(suite, feature);

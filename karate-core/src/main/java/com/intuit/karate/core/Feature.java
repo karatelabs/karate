@@ -25,7 +25,7 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.Resource;
 import com.intuit.karate.StringUtils;
-import java.nio.file.Path;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,14 +46,30 @@ public class Feature {
     private Background background;
     private List<FeatureSection> sections = new ArrayList();
 
-    private List<String> lines;
-
     private String callTag;
     private String callName;
     private int callLine = -1;
 
-    public Feature(Resource resource) {
+    public static Feature read(String path) {
+        return read(new Resource(path));
+    }
+
+    public static Feature read(File file) {
+        return read(new Resource(file));
+    }
+
+    public static Feature read(Resource resource) {
+        Feature feature = new Feature(resource);
+        FeatureParser.parse(feature);
+        return feature;
+    }
+
+    private Feature(Resource resource) {
         this.resource = resource;
+    }
+
+    public Resource getResource() {
+        return resource;
     }
 
     public boolean isBackgroundPresent() {
@@ -122,58 +138,6 @@ public class Feature {
         return steps.get(stepIndex);
     }
 
-    public Feature replaceStep(Step step, String text) {
-        return replaceLines(step.getLine(), step.getEndLine(), text);
-    }
-
-    public Feature replaceLines(int start, int end, String text) {
-        for (int i = start - 1; i < end - 1; i++) {
-            lines.remove(start);
-        }
-        lines.set(start - 1, text);
-        return replaceText(getText());
-    }
-
-    public Feature addLine(int index, String line) {
-        lines.add(index, line);
-        return replaceText(getText());
-    }
-
-    public String getText() {
-        initLines();
-        return joinLines();
-    }
-
-    public void initLines() {
-        if (lines == null) {
-            if (resource != null) {
-                lines = StringUtils.toStringLines(resource.getAsString());
-            }
-        }
-    }
-
-    public String joinLines(int startLine, int endLine) {
-        initLines();
-        StringBuilder sb = new StringBuilder();
-        if (endLine > lines.size()) {
-            endLine = lines.size();
-        }
-        for (int i = startLine; i < endLine; i++) {
-            String temp = lines.get(i);
-            sb.append(temp).append("\n");
-        }
-        return sb.toString();
-    }
-
-    public String joinLines() {
-        int lineCount = lines.size();
-        return joinLines(0, lineCount);
-    }
-
-    public Feature replaceText(String text) {
-        return FeatureParser.parseText(this, text);
-    }
-
     public String getCallTag() {
         return callTag;
     }
@@ -196,26 +160,6 @@ public class Feature {
 
     public void setCallLine(int callLine) {
         this.callLine = callLine;
-    }
-
-    public List<String> getLines() {
-        return lines;
-    }
-
-    public void setLines(List<String> lines) {
-        this.lines = lines;
-    }
-
-    public Resource getResource() {
-        return resource;
-    }
-
-    public Path getPath() {
-        return resource == null ? null : resource.getPath();
-    }
-
-    public String getRelativePath() {
-        return resource == null ? null : resource.getRelativePath();
     }
 
     public int getLine() {

@@ -1,10 +1,9 @@
 package com.intuit.karate.core.runner;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.SuiteRuntime;
+import com.intuit.karate.Suite;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
 import java.io.File;
@@ -24,8 +23,8 @@ public class FeatureResultTest {
     static final Logger logger = LoggerFactory.getLogger(FeatureResultTest.class);
 
     static FeatureResult result(String name) {
-        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/runner/" + name);
-        FeatureRuntime fr = FeatureRuntime.of(new SuiteRuntime(), feature);
+        Feature feature = Feature.read("classpath:com/intuit/karate/core/runner/" + name);
+        FeatureRuntime fr = FeatureRuntime.of(new Suite(), feature);
         fr.run();
         return fr.result;
     }

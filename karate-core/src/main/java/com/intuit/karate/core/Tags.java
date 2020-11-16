@@ -24,7 +24,6 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.Tag;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.graal.Methods;

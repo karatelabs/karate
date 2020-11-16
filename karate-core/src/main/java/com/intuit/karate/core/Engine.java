@@ -62,15 +62,6 @@ public class Engine {
         return (double) nanos / MILLION;
     }
 
-    private static final String UNKNOWN = "-unknown-";
-
-    public static String getFeatureName(Step step) {
-        if (step.getScenario() == null) {
-            return UNKNOWN;
-        }
-        return step.getScenario().getFeature().getPath().getFileName().toString();
-    }
-
     public static File saveResultJson(String targetDir, FeatureResult result, String fileName) {
         List<Map> single = Collections.singletonList(result.toMap());
         String json = JsonUtils.toJson(single);

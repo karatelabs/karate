@@ -87,7 +87,7 @@ public class MavenJobConfig implements JobConfig {
     @Override
     public List<JobCommand> getMainCommands(JobContext chunk) {
         Scenario scenario = chunk.getScenario();
-        String path = scenario.getFeature().getRelativePath();
+        String path = scenario.getFeature().getResource().getRelativePath();
         int line = scenario.getLine();
         String temp = "mvn exec:java -Dexec.mainClass=com.intuit.karate.cli.Main -Dexec.classpathScope=test"
                 + " -Dexec.args=" + path + ":" + line;

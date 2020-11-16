@@ -54,7 +54,7 @@ public class JarLoadingTest {
         Path path = FileUtils.fromRelativeClassPath("classpath:demo/jar1/caller.feature", cl);
         String relativePath = FileUtils.toRelativeClassPath(path, cl);
         assertEquals("classpath:demo/jar1/caller.feature", relativePath);
-        Feature feature = FeatureParser.parse(resource);
+        Feature feature = Feature.read(resource);
         Thread.currentThread().setContextClassLoader(cl);
         Map<String, Object> map = Runner.runFeature(feature, null, false);
         assertEquals(true, map.get("success"));
@@ -99,7 +99,7 @@ public class JarLoadingTest {
                 Path path = FileUtils.fromRelativeClassPath(relativePath, cl);
                 logger.debug("path: {}", path);
                 Resource resource = new Resource(path, relativePath, -1, cl);
-                Feature feature = FeatureParser.parse(resource);
+                Feature feature = Feature.read(resource);
                 Map<String, Object> map = Runner.runFeature(feature, null, true);
                 Boolean result = (Boolean) map.get("success");
                 logger.debug("done: {}", result);

@@ -26,8 +26,6 @@ package com.intuit.karate.core;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Resource;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.JsonUtils;
 import java.io.File;
 import java.io.InputStream;
@@ -65,7 +63,7 @@ public class ScenarioFileReader {
             return readFileAsString(text);
         } else if (isFeatureFile(text)) {
             Resource fr = toResource(text);
-            Feature feature = FeatureParser.parse(fr);
+            Feature feature = Feature.read(fr);
             feature.setCallTag(pair.right);
             return feature;
         } else if (isCsvFile(text)) {

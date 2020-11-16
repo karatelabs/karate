@@ -32,9 +32,9 @@ import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
 import com.intuit.karate.core.FeatureRuntime;
-import com.intuit.karate.core.RuntimeHook;
+import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.core.ScenarioRuntime;
-import com.intuit.karate.SuiteRuntime;
+import com.intuit.karate.Suite;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -63,12 +63,12 @@ public class CliExecutionHook implements RuntimeHook {
     }
     
     @Override
-    public void beforeSuite(SuiteRuntime suite) {
+    public void beforeSuite(Suite suite) {
         
     }    
     
     @Override
-    public void afterSuite(SuiteRuntime suite) {
+    public void afterSuite(Suite suite) {
         if (htmlReport) {
             summary.save(targetDir);
         }

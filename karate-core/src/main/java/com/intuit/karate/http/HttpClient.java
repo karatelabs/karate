@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.http;
 
-import com.intuit.karate.Logger;
 import com.intuit.karate.core.Config;
 
 /**
@@ -32,12 +31,10 @@ import com.intuit.karate.core.Config;
  */
 public interface HttpClient {
 
-    void setConfig(Config config, String keyThatChanged);
+    void setConfig(Config config);
 
     Config getConfig();
 
     Response invoke(HttpRequest request);
-    
-    Logger getLogger();
 
 }

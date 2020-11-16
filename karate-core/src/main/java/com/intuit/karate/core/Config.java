@@ -200,10 +200,10 @@ public class Config {
             case "charset":
                 charset = value.isNull() ? null : Charset.forName(value.getAsString());
                 return false;
-            // here on the http client has to be re-constructed ================
             case "logModifier":
                 logModifier = value.getValue();
-                return true;
+                return false;                
+            // here on the http client has to be re-constructed ================
             case "ssl":
                 if (value.isString()) {
                     sslEnabled = true;

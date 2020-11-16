@@ -23,8 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.http.HttpServer;
 import com.intuit.karate.http.HttpServerHandler;
 import com.intuit.karate.http.SslContextFactory;
@@ -123,11 +121,11 @@ public class MockServer extends HttpServer {
     }
 
     public static Builder feature(String path) {
-        return new Builder(FeatureParser.parse(path));
+        return new Builder(Feature.read(path));
     }
 
     public static Builder feature(File file) {
-        return new Builder(FeatureParser.parse(file));
+        return new Builder(Feature.read(file));
     }
 
     public static Builder feature(Feature feature) {

@@ -21,9 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.core;
+package com.intuit.karate;
 
-import com.intuit.karate.SuiteRuntime;
+import com.intuit.karate.core.FeatureRuntime;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
 
@@ -43,9 +44,9 @@ public interface RuntimeHook {
 
     void afterFeature(FeatureRuntime fr);
 
-    void beforeSuite(SuiteRuntime suite);
+    void beforeSuite(Suite suite);
 
-    void afterSuite(SuiteRuntime suite);
+    void afterSuite(Suite suite);
 
     boolean beforeStep(Step step, ScenarioRuntime sr);
 

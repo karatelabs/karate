@@ -7,7 +7,6 @@ import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureRuntime;
 import java.io.File;
 import java.util.Map;
@@ -31,7 +30,7 @@ class RunnerTest {
     }
 
     static String resultXml(String name) {
-        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/runner/" + name);
+        Feature feature = Feature.read("classpath:com/intuit/karate/core/runner/" + name);
         FeatureRuntime fr = FeatureRuntime.of(feature);
         fr.run();
         File file = Engine.saveResultXml("target", fr.result, null);

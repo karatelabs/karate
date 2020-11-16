@@ -24,13 +24,8 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.ScenarioActions;
-import com.intuit.karate.SuiteRuntime;
+import com.intuit.karate.Suite;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureSection;
-import com.intuit.karate.core.Result;
-import com.intuit.karate.core.Scenario;
-import com.intuit.karate.core.Step;
 import com.intuit.karate.Json;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.graal.JsValue;
@@ -72,7 +67,6 @@ public class MockHandler implements ServerHandler {
     private static final String BODY_PATH = "bodyPath";
 
     private final Feature feature;
-    private final String featureName;
     private final ScenarioRuntime runtime; // holds global config and vars
     private final Map<String, Variable> globals;
 
@@ -84,8 +78,7 @@ public class MockHandler implements ServerHandler {
 
     public MockHandler(Feature feature, Map<String, Object> args) {
         this.feature = feature;
-        featureName = feature.getPath().toFile().getName();
-        FeatureRuntime featureRuntime = FeatureRuntime.of(SuiteRuntime.forTempUse(), feature, args);
+        FeatureRuntime featureRuntime = FeatureRuntime.of(Suite.forTempUse(), feature, args);
         FeatureSection section = new FeatureSection();
         section.setIndex(-1); // TODO util for creating dummy scenario
         Scenario dummy = new Scenario(feature, section, -1);
@@ -105,14 +98,14 @@ public class MockHandler implements ServerHandler {
             for (Step step : feature.getBackground().getSteps()) {
                 Result result = StepRuntime.execute(step, runtime.actions);
                 if (result.isFailed()) {
-                    String message = "mock-server background failed - " + featureName + ":" + step.getLine();
+                    String message = "mock-server background failed - " + feature + ":" + step.getLine();
                     runtime.logger.error(message);
                     throw new KarateException(message, result.getError());
                 }
             }
         }
         globals = runtime.engine.detachVariables();
-        runtime.logger.info("mock server initialized: {}", featureName);
+        runtime.logger.info("mock server initialized: {}", feature);
     }
 
     private static final Result PASSED = Result.passed(0);
@@ -141,7 +134,7 @@ public class MockHandler implements ServerHandler {
         }
         for (FeatureSection fs : feature.getSections()) {
             if (fs.isOutline()) {
-                runtime.logger.warn("skipping scenario outline - {}:{}", featureName, fs.getScenarioOutline().getLine());
+                runtime.logger.warn("skipping scenario outline - {}:{}", feature, fs.getScenarioOutline().getLine());
                 break;
             }
             Scenario scenario = fs.getScenario();
@@ -154,11 +147,11 @@ public class MockHandler implements ServerHandler {
                     for (Step step : scenario.getSteps()) {
                         result = StepRuntime.execute(step, actions);
                         if (result.isAborted()) {
-                            runtime.logger.debug("abort at {}:{}", featureName, step.getLine());
+                            runtime.logger.debug("abort at {}:{}", feature, step.getLine());
                             break;
                         }
                         if (result.isFailed()) {
-                            String message = "server-side scenario failed, " + featureName + ":" + step.getLine()
+                            String message = "server-side scenario failed, " + feature + ":" + step.getLine()
                                     + "\n" + step.toString() + "\n" + result.getError().getMessage();
                             runtime.logger.error(message);
                             break;

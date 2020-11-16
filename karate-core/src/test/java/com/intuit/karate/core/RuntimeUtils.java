@@ -1,6 +1,6 @@
 package com.intuit.karate.core;
 
-import com.intuit.karate.SuiteRuntime;
+import com.intuit.karate.Suite;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.Resource;
@@ -35,7 +35,7 @@ public class RuntimeUtils {
                 return is;
             }
         };
-        return FeatureParser.parse(resource);
+        return Feature.read(resource);
     }
 
     public static ScenarioRuntime runtime() {
@@ -52,7 +52,7 @@ public class RuntimeUtils {
     public static ScenarioRuntime run(HttpClientFactory clientFactory, Feature feature) {
         Runner.Builder builder = Runner.builder();
         builder.clientFactory(clientFactory);
-        FeatureRuntime fr = FeatureRuntime.of(new SuiteRuntime(builder), feature);
+        FeatureRuntime fr = FeatureRuntime.of(new Suite(builder), feature);
         ScenarioGenerator sg = new ScenarioGenerator(fr, feature.getSections().iterator());
         ScenarioRuntime sr = sg.next();
         sr.run();
@@ -64,10 +64,10 @@ public class RuntimeUtils {
     }
 
     public static FeatureRuntime runFeature(String path, String configDir) {
-        Feature feature = FeatureParser.parse(path);
+        Feature feature = Feature.read(path);
         Runner.Builder rb = Runner.builder();
         rb.configDir(configDir);
-        FeatureRuntime fr = FeatureRuntime.of(new SuiteRuntime(rb), feature);
+        FeatureRuntime fr = FeatureRuntime.of(new Suite(rb), feature);
         fr.run();
         return fr;
     }

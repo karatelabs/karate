@@ -23,6 +23,9 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.KarateException;
+import com.intuit.karate.Resource;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -43,8 +46,30 @@ public class Step {
     private String docString;
     private Table table;
 
+    private static final List<String> PREFIXES = Arrays.asList("*", "Given", "When", "Then", "And", "But");
+
+    public void parseAndUpdateFrom(String text) {
+        final String stepText = text.trim();
+        boolean hasPrefix = PREFIXES.stream().anyMatch(prefixValue -> stepText.startsWith(prefixValue));
+        // to avoid parser considering text without prefix as scenario comments / doc-string
+        if (!hasPrefix) {
+            text = "* " + stepText;
+        }
+        text = "Feature:\nScenario:\n" + text;
+        Resource resource = Resource.withContent(feature.getResource().getPath(), text);
+        Feature tempFeature = Feature.read(resource);
+        Step tempStep = tempFeature.getStep(0, -1, 0);
+        if (tempStep == null) {
+            throw new KarateException("invalid expression: " + text);
+        }
+        this.prefix = tempStep.prefix;
+        this.text = tempStep.text;
+        this.docString = tempStep.docString;
+        this.table = tempStep.table;
+    }
+
     public String getDebugInfo() {
-        return feature.getRelativePath() + ":" + line;
+        return feature + ":" + line;
     }
 
     public boolean isPrint() {
@@ -143,7 +168,7 @@ public class Step {
 
     public void setComments(List<String> comments) {
         this.comments = comments;
-    }    
+    }
 
     @Override
     public String toString() {

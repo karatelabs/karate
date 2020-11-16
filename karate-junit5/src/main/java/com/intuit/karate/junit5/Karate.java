@@ -24,7 +24,7 @@
 package com.intuit.karate.junit5;
 
 import com.intuit.karate.Runner;
-import com.intuit.karate.SuiteRuntime;
+import com.intuit.karate.Suite;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.HtmlSummaryReport;
 import java.lang.annotation.ElementType;
@@ -80,7 +80,7 @@ public class Karate implements Iterable<DynamicNode> {
 
     @Override
     public Iterator<DynamicNode> iterator() {
-        SuiteRuntime suite = new SuiteRuntime(builder);
+        Suite suite = new Suite(builder);
         List<DynamicNode> list = new ArrayList();
         for (Feature feature : suite.features) {
             FeatureNode featureNode = new FeatureNode(suite, SUMMARY, feature, suite.tagSelector);

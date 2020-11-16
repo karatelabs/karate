@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.core.Feature;
 import java.util.Map;
 
 /**

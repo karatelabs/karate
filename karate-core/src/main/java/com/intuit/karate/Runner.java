@@ -25,7 +25,6 @@ package com.intuit.karate;
 
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.HtmlFeatureReport;
 import com.intuit.karate.core.HtmlReport;
@@ -33,7 +32,6 @@ import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.ParallelProcessor;
 import com.intuit.karate.core.Subscriber;
 import com.intuit.karate.core.FeatureRuntime;
-import com.intuit.karate.core.RuntimeHook;
 import com.intuit.karate.core.RuntimeHookFactory;
 import com.intuit.karate.http.HttpClientFactory;
 import java.io.File;
@@ -53,7 +51,7 @@ public class Runner {
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Runner.class);
 
     public static Results parallel(Builder options) {
-        SuiteRuntime suite = new SuiteRuntime(options);
+        Suite suite = new Suite(options);
         if (options.hooks != null) {
             options.hooks.forEach(h -> h.beforeSuite(suite));
         }
@@ -156,7 +154,7 @@ public class Runner {
                     Engine.saveResultXml(reportDir, result, null);
                 }
                 String status = result.isFailed() ? "fail" : "pass";
-                LOGGER.info("<<{}>> feature {} of {}: {}", status, index, count, feature.getRelativePath());
+                LOGGER.info("<<{}>> feature {} of {}: {}", status, index, count, feature);
                 result.printStats(file.getPath());
             } catch (Exception e) {
                 LOGGER.error("<<error>> unable to write report file(s): {}", e.getMessage());
@@ -165,13 +163,13 @@ public class Runner {
         } else {
             fr.suite.results.addToSkipCount(1);
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("<<skip>> feature {} of {}: {}", index, count, feature.getRelativePath());
+                LOGGER.trace("<<skip>> feature {} of {}: {}", index, count, feature);
             }
         }
     }
 
     public static Map<String, Object> runFeature(Feature feature, Map<String, Object> vars, boolean evalKarateConfig) {
-        SuiteRuntime suite = new SuiteRuntime();
+        Suite suite = new Suite();
         FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, vars);
         featureRuntime.caller.setKarateConfigDisabled(!evalKarateConfig);
         featureRuntime.run();
@@ -183,7 +181,7 @@ public class Runner {
     }
 
     public static Map<String, Object> runFeature(File file, Map<String, Object> vars, boolean evalKarateConfig) {
-        Feature feature = FeatureParser.parse(file, Thread.currentThread().getContextClassLoader());
+        Feature feature = Feature.read(file);
         return runFeature(feature, vars, evalKarateConfig);
     }
 
@@ -193,7 +191,7 @@ public class Runner {
     }
 
     public static Map<String, Object> runFeature(String path, Map<String, Object> vars, boolean evalKarateConfig) {
-        Feature feature = FeatureParser.parse(path);
+        Feature feature = Feature.read(path);
         return runFeature(feature, vars, evalKarateConfig);
     }
 
@@ -201,7 +199,7 @@ public class Runner {
     public static void callAsync(String path, List<String> tags, Map<String, Object> arg, PerfHook perf) {
         Builder builder = new Builder();
         builder.tags = tags;
-        SuiteRuntime suite = new SuiteRuntime(builder); // sets tag selector
+        Suite suite = new Suite(builder); // sets tag selector
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, arg);
         featureRuntime.setPerfRuntime(perf);
@@ -291,7 +289,7 @@ public class Runner {
                 }
                 features = new ArrayList(resources.size());
                 for (Resource resource : resources) {
-                    Feature feature = FeatureParser.parse(resource);
+                    Feature feature = Feature.read(resource);
                     feature.setCallLine(resource.getLine());
                     features.add(feature);
                 }

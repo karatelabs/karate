@@ -1,6 +1,5 @@
 package com.intuit.karate.core;
 
-import com.intuit.karate.Logger;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.Response;
@@ -14,14 +13,13 @@ public class MockClient implements HttpClient {
 
     private final ServerHandler handler;
     private Config config = new Config();
-    private final Logger logger = new Logger();
-
+    
     public MockClient(ServerHandler handler) {
         this.handler = handler;
     }
 
     @Override
-    public void setConfig(Config config, String key) {
+    public void setConfig(Config config) {
         this.config = config;
     }
 
@@ -33,11 +31,6 @@ public class MockClient implements HttpClient {
     @Override
     public Response invoke(HttpRequest request) {
         return handler.handle(request.toRequest());
-    }
-
-    @Override
-    public Logger getLogger() {
-        return logger;
     }
 
 }

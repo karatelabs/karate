@@ -88,12 +88,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         logger = engine.logger;
         httpLogger = new HttpLogger(logger);
         configure(engine.getConfig());
-    }
-    
-    @Override
-    public Logger getLogger() {
-        return logger;
-    }    
+    }  
 
     private void configure(Config config) {
         clientBuilder = HttpClientBuilder.create();
@@ -189,7 +184,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     }
 
     @Override
-    public void setConfig(Config config, String keyThatChanged) {
+    public void setConfig(Config config) {
         configure(config);
     }
 

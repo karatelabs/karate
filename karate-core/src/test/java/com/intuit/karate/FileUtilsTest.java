@@ -1,7 +1,6 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
 import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -207,7 +206,7 @@ class FileUtilsTest {
         ClassLoader cl = getJarClassLoader();
         Path path = FileUtils.fromRelativeClassPath(relativePath, cl);
         Resource resource = new Resource(path, relativePath, -1, cl);
-        Feature feature = FeatureParser.parse(resource);
+        Feature feature = Feature.read(resource);
         try {
             Runner.runFeature(feature, null, true);
             fail("we should not have reached here");
@@ -220,7 +219,7 @@ class FileUtilsTest {
     void testUsingBadPath() {
         String relativePath = "/foo/bar/feeder.feature";
         try {
-            FeatureParser.parse(relativePath);
+            Feature.read(relativePath);
             fail("we should not have reached here");
         } catch (Exception e) {
             assertEquals(e.getCause().getClass(), java.io.FileNotFoundException.class);

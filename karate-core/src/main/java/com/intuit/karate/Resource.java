@@ -46,7 +46,12 @@ public class Resource {
     private final String packageQualifiedName;
     private ClassLoader classLoader;
 
-    public static Resource of(Path path, String text) {
+    public static Resource withContent(String text) {
+        File file = new File(FileUtils.getBuildDir());
+        return Resource.withContent(file.toPath(), text);
+    }
+
+    public static Resource withContent(Path path, String text) {
         return new Resource(path, Thread.currentThread().getContextClassLoader()) {
             final InputStream is = FileUtils.toInputStream(text);
 
@@ -55,6 +60,10 @@ public class Resource {
                 return is;
             }
         };
+    }
+
+    public Resource(File file) {
+        this(file.toPath(), null, -1, Thread.currentThread().getContextClassLoader());
     }
 
     public Resource(File file, String relativePath, ClassLoader cl) {

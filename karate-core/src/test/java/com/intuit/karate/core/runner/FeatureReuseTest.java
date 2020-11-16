@@ -1,10 +1,9 @@
 package com.intuit.karate.core.runner;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.SuiteRuntime;
+import com.intuit.karate.Suite;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureRuntime;
 import java.io.File;
 import static org.junit.jupiter.api.Assertions.*;
@@ -21,8 +20,8 @@ class FeatureReuseTest {
     static final Logger logger = LoggerFactory.getLogger(FeatureReuseTest.class);
 
     static String resultXml(String name) {
-        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/runner/" + name);
-        FeatureRuntime fr = FeatureRuntime.of(new SuiteRuntime(), feature);
+        Feature feature = Feature.read("classpath:com/intuit/karate/core/runner/" + name);
+        FeatureRuntime fr = FeatureRuntime.of(new Suite(), feature);
         fr.run();
         File file = Engine.saveResultXml("target", fr.result, null);
         return FileUtils.toString(file);

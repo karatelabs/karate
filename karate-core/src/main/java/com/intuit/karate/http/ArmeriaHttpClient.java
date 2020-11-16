@@ -56,12 +56,7 @@ public class ArmeriaHttpClient implements HttpClient, DecoratingHttpClientFuncti
 
     private Config config;
     private HttpRequest request;
-    private RequestContext requestContext;
-
-    @Override
-    public Logger getLogger() {
-        return logger;
-    }        
+    private RequestContext requestContext;     
 
     public void setRequestContext(RequestContext requestContext) {
         this.requestContext = requestContext;
@@ -112,7 +107,7 @@ public class ArmeriaHttpClient implements HttpClient, DecoratingHttpClientFuncti
     }
 
     @Override
-    public void setConfig(Config config, String keyThatChanged) {
+    public void setConfig(Config config) {
         this.config = config;
     }
 
