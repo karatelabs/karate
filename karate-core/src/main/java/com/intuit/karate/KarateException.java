@@ -28,13 +28,13 @@ package com.intuit.karate;
  * @author pthomas3
  */
 public class KarateException extends RuntimeException {
-    
+
     public KarateException(String message) {
         super(message);
     }
-    
+
     public KarateException(String message, Throwable cause) {
-        super(message + cause == null ? "" : "\n" + cause.getMessage());
+        super(message, cause);
     }
-    
+
 }

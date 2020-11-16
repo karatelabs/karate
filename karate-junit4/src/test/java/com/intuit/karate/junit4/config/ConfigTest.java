@@ -20,7 +20,7 @@ public class ConfigTest {
     @Test
     public void testOverrideEnvAndDir() {        
         System.setProperty("karate.env", "confenvdir");
-        System.setProperty("karate.config.dir", "conf");
+        System.setProperty("karate.config.dir", "src/test/resources/conf");
         Runner.runFeature(this.getClass(), "config-envdir.feature", null, true);
         System.clearProperty("karate.config.dir");
     }

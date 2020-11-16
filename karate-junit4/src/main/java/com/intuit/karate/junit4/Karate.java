@@ -49,26 +49,29 @@ public class Karate extends ParentRunner<Feature> {
 
     private static final Logger logger = LoggerFactory.getLogger(Karate.class);
 
-    private final Suite suite;
+    private final Class annotatedClass;
     private final HtmlSummaryReport summary;
     private final JunitHook hook;
+    private final List<Feature> features;
+
+    private Suite suite; // lazy-init so that karate.env is resolved correctly
 
     public Karate(Class<?> clazz) throws InitializationError, IOException {
         super(clazz);
+        this.annotatedClass = clazz;
         List<FrameworkMethod> testMethods = getTestClass().getAnnotatedMethods(Test.class);
         if (!testMethods.isEmpty()) {
             logger.warn("WARNING: there are methods annotated with '@Test', they will NOT be run when using '@RunWith(Karate.class)'");
         }
-        hook = new JunitHook();
-        Runner.Builder builder = new Runner.Builder(clazz);
-        builder.hook(hook);
-        suite = new Suite(builder);
         summary = new HtmlSummaryReport();
+        hook = new JunitHook();
+        Suite tempSuite = new Suite(new Runner.Builder(clazz).forTempUse());
+        features = tempSuite.features;
     }
 
     @Override
     public List<Feature> getChildren() {
-        return suite.features;
+        return features;
     }
 
     @Override
@@ -78,6 +81,12 @@ public class Karate extends ParentRunner<Feature> {
 
     @Override
     protected void runChild(Feature feature, RunNotifier notifier) {
+        if (suite == null) {
+            Runner.Builder rb = new Runner.Builder(annotatedClass);
+            rb.hook(hook);
+            rb.features(features);
+            suite = new Suite(rb);
+        }
         hook.setNotifier(notifier);
         FeatureRuntime fr = FeatureRuntime.of(suite, feature);
         fr.run();

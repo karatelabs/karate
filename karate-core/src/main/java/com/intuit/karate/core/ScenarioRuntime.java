@@ -279,7 +279,7 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public void beforeRun() {
-        String env = featureRuntime.suite.resolveEnv(); // this lazy-inits (one time) the suite env
+        String env = featureRuntime.suite.env; // this lazy-inits (one time) the suite env
         if (appender == null) { // not perf, not debug
             appender = APPENDER.get();
         }
@@ -299,23 +299,25 @@ public class ScenarioRuntime implements Runnable {
             evalConfigJs(featureRuntime.suite.karateConfig, "karate-config.js");
             evalConfigJs(featureRuntime.suite.karateConfigEnv, "karate-config-" + env + ".js");
         }
-        featureRuntime.suite.resolveHooks().forEach(h -> h.beforeScenario(this));
+        if (background == null) {
+            featureRuntime.suite.hooks.forEach(h -> h.beforeScenario(this));
+        }
     }
 
-    private void evalConfigJs(String js, String name) {
+    private void evalConfigJs(String js, String displayName) {
         if (js == null) {
             return;
         }
         Variable fun = engine.evalKarateExpression(js);
         if (!fun.isJsFunction()) {
-            logger.warn("not a valid js function: {}", name);
+            logger.warn("not a valid js function: {}", displayName);
             return;
         }
         try {
             Map<String, Object> map = engine.getOrEvalAsMap(fun);
             engine.setVariables(map);
         } catch (Exception e) {
-            logger.error("{} failed: {}", name, e.getMessage());
+            logger.error("{} failed: {}", displayName, e.getMessage());
             KarateException ke = ScenarioEngine.fromJsEvalException(js, e);
             throw ke;
         }

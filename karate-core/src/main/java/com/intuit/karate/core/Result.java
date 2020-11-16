@@ -93,11 +93,11 @@ public class Result {
     }
 
     public static Result failed(long nanos, Throwable error, Step step) {
-        if (error instanceof KarateException) {
-            // use as is
-        } else {
-            error = new KarateException(step.getDebugInfo() + " - " + error);
+        String message = error.getMessage();
+        if (message == null) {
+            message = error + ""; // make sure we show something meaningful
         }
+        error = new KarateException(message + "\n" + step.getDebugInfo());
         StackTraceElement[] newTrace = new StackTraceElement[]{
             new StackTraceElement("✽", step.getPrefix() + ' ' + step.getText() + ' ', step.getDebugInfo(), step.getLine())
         };

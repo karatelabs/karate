@@ -302,11 +302,36 @@ public class Runner {
             return features;
         }
 
+        public Collection<RuntimeHook> resolveHooks() {
+            if (hookFactory != null) {
+                hook(hookFactory.create());
+            }
+            if (hooks == null) {
+                hooks = Collections.EMPTY_LIST;
+            }
+            return hooks;
+        }
+
+        public String resolveEnv() {
+            if (env == null) {
+                env = StringUtils.trimToNull(System.getProperty(Constants.KARATE_ENV));
+            }
+            if (env != null) {
+                logger.info("karate.env is: '{}'", env);
+            }
+            return env;
+        }
+
+        public Builder forTempUse() {
+            forTempUse = true;
+            return this;
+        }
+
         private Builder() {
             this(new RunnerOptions());
         }
 
-        public Builder(Class optionsClass) {
+        public Builder(Class optionsClass) { // TODO deprecate this junit4 legacy
             this(RunnerOptions.fromAnnotationAndSystemProperties(null, null, optionsClass));
         }
 
@@ -321,7 +346,6 @@ public class Runner {
             tags = ro.getTags();
             scenarioName = ro.getName();
             env = ro.getEnv();
-            hooks = new ArrayList();
         }
 
         //======================================================================

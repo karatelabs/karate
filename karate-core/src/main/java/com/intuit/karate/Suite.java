@@ -24,7 +24,6 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.RuntimeHookFactory;
 import com.intuit.karate.core.Tags;
 import com.intuit.karate.http.HttpClientFactory;
 import java.io.File;
@@ -39,6 +38,7 @@ import java.util.Map;
  */
 public class Suite {
 
+    public final String env;
     public final String tagSelector;
     public final Logger logger;
     public final File workingDir;
@@ -49,17 +49,14 @@ public class Suite {
     public final List<Feature> features;
     public final Results results;
     public final Collection<RuntimeHook> hooks;
-    public final RuntimeHookFactory hookFactory;
     public final HttpClientFactory clientFactory;
-
-    public final Map<String, Object> SUITE_CACHE = new HashMap();
 
     public final String karateConfigDir;
     public final String karateBase;
     public final String karateConfig;
+    public final String karateConfigEnv;
 
-    public String env; // can be lazy-inited
-    public String karateConfigEnv;
+    public final Map<String, Object> SUITE_CACHE = new HashMap();
 
     private String read(String name) {
         try {
@@ -72,18 +69,15 @@ public class Suite {
     }
 
     public static Suite forTempUse() {
-        Runner.Builder builder = Runner.builder();
-        builder.forTempUse = true;
-        return new Suite(builder);
-    }    
+        return new Suite(Runner.builder().forTempUse());
+    }
 
     public Suite() {
         this(Runner.builder());
     }
 
     public Suite(Runner.Builder rb) {
-        env = rb.env;
-        karateConfigEnv = rb.env;
+        env = rb.resolveEnv();
         tagSelector = Tags.fromKarateOptionsTags(rb.tags);
         logger = rb.logger;
         workingDir = rb.workingDir;
@@ -91,8 +85,7 @@ public class Suite {
         reportDir = rb.reportDir;
         classLoader = rb.classLoader;
         threadCount = rb.threadCount;
-        hooks = rb.hooks;
-        hookFactory = rb.hookFactory;
+        hooks = rb.resolveHooks(); // ensure that hook factory is processed on the suite thread=
         features = rb.resolveFeatures();
         results = Results.startTimer(threadCount);
         results.setReportDir(reportDir); // TODO unify
@@ -106,6 +99,7 @@ public class Suite {
             karateBase = null;
             karateConfig = null;
             karateConfigDir = null;
+            karateConfigEnv = null;
         } else {
             karateBase = read("classpath:karate-base.js");
             if (karateBase != null) {
@@ -135,37 +129,15 @@ public class Suite {
             } else {
                 logger.warn("karate-config.js not found [{}]", karateConfigDir);
             }
-        }
-    }
-
-    private boolean envResolved;
-
-    public String resolveEnv() {
-        if (!envResolved) {
-            envResolved = true;
-            if (env == null) {
-                env = StringUtils.trimToNull(System.getProperty(Constants.KARATE_ENV));
-            }
             if (env != null) {
-                logger.info("karate.env is: '{}'", env);
                 karateConfigEnv = read(karateConfigDir + "karate-config-" + env + ".js");
                 if (karateConfigEnv != null) {
                     logger.info("karate-config-" + env + ".js found [{}]", karateConfigDir);
                 }
+            } else {
+                karateConfigEnv = null;
             }
         }
-        return env;
-    }
-
-    private boolean hooksResolved;
-
-    public Collection<RuntimeHook> resolveHooks() {
-        if (hookFactory == null || hooksResolved) {
-            return hooks;
-        }
-        hooksResolved = true;
-        hooks.add(hookFactory.create());
-        return hooks;
     }
 
 }

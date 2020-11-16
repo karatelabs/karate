@@ -66,4 +66,5 @@ public class MandatoryTagHook implements RuntimeHook {
     public void afterStep(StepResult result, ScenarioRuntime sr) {
 
     }
+    
 }
