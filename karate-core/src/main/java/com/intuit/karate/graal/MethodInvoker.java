@@ -48,8 +48,8 @@ public class MethodInvoker implements Methods.FunVar {
     public Object call(Object... args) {
         Class[] types = new Class[args.length];
         for (int i = 0; i < args.length; i++) {
-            Object arg = args[i];
-            types[i] = arg == null ? Object.class : arg.getClass();
+            args[i] = JsValue.fromJava(args[i]);
+            types[i] = args[i] == null ? Object.class : args[i].getClass();
         }
         try {
             Method method = type.getMethod(methodName, types);
