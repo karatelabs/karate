@@ -22,24 +22,6 @@ class FileUtilsTest {
     static final Logger logger = LoggerFactory.getLogger(FileUtilsTest.class);
     
     @Test
-    void testIsClassPath() {
-        assertFalse(FileUtils.isClassPath("foo/bar/baz"));
-        assertTrue(FileUtils.isClassPath("classpath:foo/bar/baz"));
-    }
-    
-    @Test
-    void testIsFilePath() {
-        assertFalse(FileUtils.isFilePath("foo/bar/baz"));
-        assertTrue(FileUtils.isFilePath("file:/foo/bar/baz"));
-    }
-    
-    @Test
-    void testIsThisPath() {
-        assertFalse(FileUtils.isThisPath("foo/bar/baz"));
-        assertTrue(FileUtils.isThisPath("this:/foo/bar/baz"));
-    }
-    
-    @Test
     void testIsJsonFile() {
         assertFalse(FileUtils.isJsonFile("foo.txt"));
         assertTrue(FileUtils.isJsonFile("foo.json"));

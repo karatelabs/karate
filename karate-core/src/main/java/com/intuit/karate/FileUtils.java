@@ -72,10 +72,7 @@ public class FileUtils {
 
     public static final String CLASSPATH_COLON = CLASSPATH + ":";
     private static final String DOT_FEATURE = ".feature";
-    public static final String THIS_COLON = "this:";
-    public static final String FILE_COLON = "file:";
-    public static final String SRC_TEST_JAVA = "src/test/java";
-    public static final String SRC_TEST_RESOURCES = "src/test/resources";
+
     private static final ClassLoader CLASS_LOADER = FileUtils.class.getClassLoader();
 
     private FileUtils() {
@@ -84,14 +81,6 @@ public class FileUtils {
 
     public static final boolean isClassPath(String text) {
         return text.startsWith(CLASSPATH_COLON);
-    }
-
-    public static final boolean isFilePath(String text) {
-        return text.startsWith(FILE_COLON);
-    }
-
-    public static final boolean isThisPath(String text) {
-        return text.startsWith(THIS_COLON);
     }
 
     public static final boolean isJsonFile(String text) {

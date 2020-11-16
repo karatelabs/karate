@@ -33,6 +33,8 @@ import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
+import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.multipart.Attribute;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import io.netty.handler.codec.http.multipart.HttpPostMultipartRequestDecoder;
@@ -141,6 +143,18 @@ public class Request implements ProxyObject {
 
     public String getContentType() {
         return getHeader(HttpConstants.HDR_CONTENT_TYPE);
+    }
+    
+    public List<Cookie> getCookies() {
+         List<String> cookieValues = getHeaderValues(HttpConstants.HDR_COOKIE);
+         if (cookieValues == null) {
+             return Collections.EMPTY_LIST;
+         }
+         List<Cookie> cookies = new ArrayList(cookieValues.size());
+         for (String cookieValue : cookieValues) {
+             cookies.add(ClientCookieDecoder.STRICT.decode(cookieValue));
+         }
+         return cookies;
     }
 
     public String getParam(String name) {

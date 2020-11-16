@@ -32,8 +32,6 @@ import com.intuit.karate.http.HttpLogger;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.Request;
 import com.intuit.karate.http.Response;
-import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
-import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import java.net.URI;
@@ -46,6 +44,7 @@ import java.util.Map;
 import java.util.function.Function;
 import javax.servlet.Servlet;
 import javax.servlet.ServletContext;
+import javax.servlet.http.Cookie;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -94,23 +93,19 @@ public class MockHttpClient implements HttpClient {
         MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.request(request.getMethod(), uri);
         if (request.getHeaders() != null) {
             request.getHeaders().forEach((k, vals) -> builder.header(k, vals.toArray()));
-            List<String> cookieValues = request.getHeaderValues(HttpConstants.HDR_COOKIE);
-            if (cookieValues != null) {
-                for (String cookieValue : cookieValues) {
-                    Cookie c = ClientCookieDecoder.STRICT.decode(cookieValue);
-                    javax.servlet.http.Cookie cookie = new javax.servlet.http.Cookie(c.name(), c.value());
-                    if (c.domain() != null) {
-                        cookie.setDomain(c.domain());
-                    }
-                    if (c.path() != null) {
-                        cookie.setPath(c.path());
-                    }
-                    cookie.setHttpOnly(c.isHttpOnly());
-                    cookie.setSecure(c.isSecure());
-                    cookie.setMaxAge((int) c.maxAge());
-                    builder.cookie(cookie);
+            request.getCookies().forEach(c -> {
+                Cookie cookie = new Cookie(c.name(), c.value());
+                if (c.domain() != null) {
+                    cookie.setDomain(c.domain());
                 }
-            }
+                if (c.path() != null) {
+                    cookie.setPath(c.path());
+                }
+                cookie.setHttpOnly(c.isHttpOnly());
+                cookie.setSecure(c.isSecure());
+                cookie.setMaxAge((int) c.maxAge());
+                builder.cookie(cookie);
+            });
         }
         builder.content(request.getBody());
         MockHttpServletResponse res = new MockHttpServletResponse();
