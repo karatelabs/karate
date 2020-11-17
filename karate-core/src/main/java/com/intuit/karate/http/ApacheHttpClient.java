@@ -27,6 +27,42 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.Config;
 import com.intuit.karate.core.ScenarioEngine;
+
+import org.apache.http.Header;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpException;
+import org.apache.http.HttpHost;
+import org.apache.http.HttpMessage;
+import org.apache.http.HttpRequestInterceptor;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CookieStore;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.RequestBuilder;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.config.SocketConfig;
+import org.apache.http.conn.ssl.LenientSslConnectionSocketFactory;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.conn.ssl.TrustAllStrategy;
+import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
+import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.impl.client.BasicCookieStore;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.LaxRedirectStrategy;
+import org.apache.http.impl.conn.SystemDefaultRoutePlanner;
+import org.apache.http.impl.cookie.BasicClientCookie;
+import org.apache.http.protocol.HttpContext;
+import org.apache.http.ssl.SSLContextBuilder;
+import org.apache.http.ssl.SSLContexts;
+
+import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
+import io.netty.handler.codec.http.cookie.Cookie;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
@@ -41,35 +77,8 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
 import javax.net.ssl.SSLContext;
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpException;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpMessage;
-import org.apache.http.HttpRequestInterceptor;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.RequestBuilder;
-import org.apache.http.client.utils.URIBuilder;
-import org.apache.http.config.SocketConfig;
-import org.apache.http.conn.ssl.LenientSslConnectionSocketFactory;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.conn.ssl.TrustAllStrategy;
-import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
-import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.LaxRedirectStrategy;
-import org.apache.http.impl.conn.SystemDefaultRoutePlanner;
-import org.apache.http.protocol.HttpContext;
-import org.apache.http.ssl.SSLContextBuilder;
-import org.apache.http.ssl.SSLContexts;
 
 /**
  *
@@ -80,6 +89,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     private final ScenarioEngine engine;
     private final Logger logger;
     private final HttpLogger httpLogger;
+    private CookieStore cookieStore;
 
     private HttpClientBuilder clientBuilder;
 
@@ -98,6 +108,9 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             clientBuilder.setRedirectStrategy(new LaxRedirectStrategy());
         }
         clientBuilder.useSystemProperties();
+        cookieStore = new BasicCookieStore();
+        clientBuilder.setDefaultCookieStore(cookieStore);
+        //clientBuilder.setDefaultCookieSpecRegistry(LenientCookieSpec.registry());
         if (config.isSslEnabled()) {
             // System.setProperty("jsse.enableSNIExtension", "false");
             String algorithm = config.getSslAlgorithm(); // could be null
@@ -200,7 +213,24 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         this.request = request;
         RequestBuilder requestBuilder = RequestBuilder.create(request.getMethod()).setUri(request.getUrl());
         if (request.getHeaders() != null) {
-            request.getHeaders().forEach((k, vals) -> vals.forEach(v -> requestBuilder.addHeader(k, v)));
+            //request.getHeaders().forEach((k, vals) -> vals.forEach(v -> requestBuilder.addHeader(k, v)));
+                request.getHeaders().forEach((k, vals) ->
+                {
+                    if (k.equalsIgnoreCase(HttpConstants.HDR_COOKIE)) { // header cookie should be set via cookie store.
+                        vals.forEach(currCookie -> {
+                                    Cookie currCookieNetty = ClientCookieDecoder.LAX.decode(currCookie); // decode
+                                    if (null != currCookieNetty) {
+                                        BasicClientCookie basicClientCookie = new BasicClientCookie(currCookieNetty.name(), currCookieNetty.value());
+                                        basicClientCookie.setDomain(null == currCookieNetty.domain() ? "127.0.0.1" : currCookieNetty.domain());
+                                        basicClientCookie.setPath(null == currCookieNetty.path() ? "/" : currCookieNetty.path());
+                                        cookieStore.addCookie(basicClientCookie);
+                                    }
+                                }
+                        );
+                    } else {
+                        vals.forEach(v -> requestBuilder.addHeader(k, v));
+                    }
+                });
         }
         if (request.getBody() != null) {
             requestBuilder.setEntity(new ByteArrayEntity(request.getBody()));
@@ -210,6 +240,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         byte[] bytes;
         try {
             httpResponse = client.execute(requestBuilder.build());
+            cookieStore.clear();
             HttpEntity responseEntity = httpResponse.getEntity();
             if (responseEntity == null || responseEntity.getContent() == null) {
                 bytes = HttpConstants.ZERO_BYTES;

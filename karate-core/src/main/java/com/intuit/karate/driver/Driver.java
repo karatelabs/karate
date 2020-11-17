@@ -24,8 +24,8 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.core.AutoDef;
-import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.Config;
+import com.intuit.karate.core.Plugin;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -444,6 +444,15 @@ public interface Driver extends Plugin {
 
     @AutoDef
     public byte[] pdf(Map<String, Object> options);
+
+    @AutoDef
+    default void setCookies(Map<String,Map> cookiesMap) { // method to allow set cookies from feature file for UI tests.
+        cookiesMap.forEach((k, v) -> {
+            v.putIfAbsent("path", "/"); // path must be present. either we throw exception or bypass this way.
+            v.putIfAbsent("domain", "127.0.0.1"); // domain must be present.
+            cookie(v);
+        });
+    }
 
     // for internal use ========================================================
     //        

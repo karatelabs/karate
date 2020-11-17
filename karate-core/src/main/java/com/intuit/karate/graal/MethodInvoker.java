@@ -24,9 +24,7 @@
 package com.intuit.karate.graal;
 
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.List;
-import java.util.function.Supplier;
+import java.util.Map;
 
 /**
  *
@@ -50,11 +48,18 @@ public class MethodInvoker implements Methods.FunVar {
         for (int i = 0; i < args.length; i++) {
             args[i] = JsValue.fromJava(args[i]);
             types[i] = args[i] == null ? Object.class : args[i].getClass();
+            if (types[i].getName().equals("com.intuit.karate.graal.JsMap")) {
+                // forces the method to have Map as a parameter - not exact impl, which is true for any reflection call.
+                // driver class has methods expecting Maps.
+                types[i] = Map.class;
+                args[i] = ((JsMap)args[i]).getMap();
+            }
         }
         try {
             Method method = type.getMethod(methodName, types);
             return method.invoke(instance, args);
         } catch (Exception e) {
+            e.printStackTrace();
             throw new RuntimeException(e);
         }
     }
