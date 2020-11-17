@@ -1,14 +1,12 @@
 package com.intuit.karate.core;
 
+import static com.intuit.karate.TestUtils.*;
 import com.intuit.karate.http.ApacheHttpClient;
-import com.intuit.karate.match.Match;
-import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.http.HttpConstants;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpServer;
 import com.intuit.karate.http.Response;
 import org.junit.jupiter.api.AfterEach;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,11 +38,6 @@ class HttpMockHandlerTest {
     FeatureBuilder background(String... lines) {
         mock = FeatureBuilder.background(lines);
         return mock;
-    }
-
-    private void match(Object actual, Object expected) {
-        MatchResult mr = Match.that(actual).isEqualTo(expected);
-        assertTrue(mr.pass, mr.message);
     }
 
     @AfterEach

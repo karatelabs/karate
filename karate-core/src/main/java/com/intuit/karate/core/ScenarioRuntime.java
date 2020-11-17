@@ -279,7 +279,6 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public void beforeRun() {
-        String env = featureRuntime.suite.env; // this lazy-inits (one time) the suite env
         if (appender == null) { // not perf, not debug
             appender = APPENDER.get();
         }
@@ -297,7 +296,7 @@ public class ScenarioRuntime implements Runnable {
             // evaluate config js, variables above will apply !
             evalConfigJs(featureRuntime.suite.karateBase, "karate-base.js");
             evalConfigJs(featureRuntime.suite.karateConfig, "karate-config.js");
-            evalConfigJs(featureRuntime.suite.karateConfigEnv, "karate-config-" + env + ".js");
+            evalConfigJs(featureRuntime.suite.karateConfigEnv, "karate-config-" + featureRuntime.suite.env + ".js");
         }
         if (background == null) {
             featureRuntime.suite.hooks.forEach(h -> h.beforeScenario(this));

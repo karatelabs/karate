@@ -1,5 +1,6 @@
 package com.intuit.karate.core;
 
+import com.intuit.karate.TestUtils;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import java.io.File;
@@ -23,7 +24,7 @@ class FeatureRuntimeRunner {
     }
 
     private FeatureRuntime run(String name, String configDir) {
-        fr = RuntimeUtils.runFeature("classpath:com/intuit/karate/core/" + name, configDir);
+        fr = TestUtils.runFeature("classpath:com/intuit/karate/core/" + name, configDir);
         return fr;
     }
 

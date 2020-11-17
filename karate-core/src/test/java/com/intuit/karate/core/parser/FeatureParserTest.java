@@ -4,7 +4,6 @@ import com.intuit.karate.Runner;
 import com.intuit.karate.Suite;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.Step;

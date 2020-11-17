@@ -1,13 +1,9 @@
 package com.intuit.karate.core;
 
+import static com.intuit.karate.TestUtils.*;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.Response;
-import com.intuit.karate.Json;
-import com.intuit.karate.match.Match;
-import com.intuit.karate.match.MatchResult;
-import java.util.Map;
-import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -42,15 +38,6 @@ class MockHandlerTest {
         response = handler.handle(request.build().toRequest());
         request = new HttpRequestBuilder(client).method("GET");
         return response;
-    }
-
-    private void match(Object actual, Object expected) {
-        MatchResult mr = Match.that(actual).isEqualTo(expected);
-        assertTrue(mr.pass, mr.message);
-    }
-
-    private Map<String, Object> json(String raw) {
-        return Json.of(raw).asMap();
     }
 
     @Test
@@ -184,7 +171,7 @@ class MockHandlerTest {
                 "pathMatches('/hello') && bodyPath('$.foo') == 'bar'",
                 "def response = { success: true }"
         );
-        request.path("/hello").body(json("{ foo: 'bar' }"));
+        request.path("/hello").bodyJson("{ foo: 'bar' }");
         handle();
         match(response.getBodyConverted(), "{ success: true }");
     }
@@ -224,8 +211,8 @@ class MockHandlerTest {
                 "def response = { foo: '#(foo)', bar: '#(bar)' }"
         );
         request.path("/hello")
-                .multiPart(json("{ name: 'foo', value: 'hello world' }"))
-                .multiPart(json("{ name: 'bar', value: 'some bytes', filename: 'bar.txt' }"))
+                .multiPartJson("{ name: 'foo', value: 'hello world' }")
+                .multiPartJson("{ name: 'bar', value: 'some bytes', filename: 'bar.txt' }")
                 .method("POST");
         handle();
         match(response.getBodyConverted(), "{ foo: 'hello world', bar: 'some bytes' }");
@@ -276,7 +263,7 @@ class MockHandlerTest {
         );
         request.path("/hello");
         handle();
-        match(response.getBodyAsString(), "1");        
+        match(response.getBodyAsString(), "1");
     }
 
 }

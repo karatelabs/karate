@@ -1,5 +1,6 @@
 package com.intuit.karate.core;
 
+import com.intuit.karate.TestUtils;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -16,7 +17,7 @@ class FeatureFailRunner {
     FeatureRuntime fr;
 
     private FeatureRuntime run(String name) {
-        fr = RuntimeUtils.runFeature("classpath:com/intuit/karate/core/" + name);
+        fr = TestUtils.runFeature("classpath:com/intuit/karate/core/" + name);
         return fr;
     }
 
