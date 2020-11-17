@@ -1,6 +1,6 @@
 package com.intuit.karate.core;
 
-import com.intuit.karate.http.ArmeriaHttpClient;
+import com.intuit.karate.http.ApacheHttpClient;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.http.HttpConstants;
@@ -30,7 +30,8 @@ class HttpMockHandlerTest {
     HttpRequestBuilder handle() {
         handler = new MockHandler(mock.build());
         server = new HttpServer(0, handler);
-        ArmeriaHttpClient client = new ArmeriaHttpClient(new Config(), new com.intuit.karate.Logger());
+        ScenarioEngine se = ScenarioEngine.forTempUse();
+        ApacheHttpClient client = new ApacheHttpClient(se);
         http = new HttpRequestBuilder(client);
         http.url("http://localhost:" + server.getPort());
         return http;
