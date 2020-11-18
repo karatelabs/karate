@@ -41,6 +41,7 @@ import io.netty.handler.codec.http.multipart.HttpPostMultipartRequestDecoder;
 import io.netty.handler.codec.http.multipart.HttpPostStandardRequestDecoder;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
+
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,6 +52,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+
+import org.apache.http.impl.cookie.BasicClientCookie;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
 import org.slf4j.Logger;
@@ -157,6 +160,19 @@ public class Request implements ProxyObject {
          return cookies;
     }
 
+    public List<BasicClientCookie> getBasicClientCookies() {
+        List<BasicClientCookie> basicClientCookieList = new ArrayList<>();
+        getCookies().forEach(nettyCookie ->
+                {
+                    BasicClientCookie basicClientCookie = new BasicClientCookie(nettyCookie.name(), nettyCookie.value());
+                    basicClientCookie.setDomain(null == nettyCookie.domain() ? "127.0.0.1" : nettyCookie.domain());
+                    basicClientCookie.setPath(null == nettyCookie.path() ? "/" : nettyCookie.path());
+                    basicClientCookieList.add(basicClientCookie);
+                }
+        );
+        return basicClientCookieList;
+    }
+
     public String getParam(String name) {
         List<String> values = getParamValues(name);
         if (values == null || values.isEmpty()) {
@@ -207,7 +223,7 @@ public class Request implements ProxyObject {
     }
 
     public void setPath(String path) {
-        if (path.charAt(0) == '/') {
+        if (path.length() > 0 && path.charAt(0) == '/') {
             path = path.substring(1);
         }
         this.path = path;

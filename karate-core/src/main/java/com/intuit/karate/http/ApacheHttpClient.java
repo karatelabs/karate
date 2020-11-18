@@ -55,13 +55,9 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.apache.http.impl.conn.SystemDefaultRoutePlanner;
-import org.apache.http.impl.cookie.BasicClientCookie;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
-
-import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
-import io.netty.handler.codec.http.cookie.Cookie;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -212,25 +208,12 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     public Response invoke(HttpRequest request) {
         this.request = request;
         RequestBuilder requestBuilder = RequestBuilder.create(request.getMethod()).setUri(request.getUrl());
+
+        this.request.toRequest().getBasicClientCookies().forEach(currCookie -> cookieStore.addCookie(currCookie));
         if (request.getHeaders() != null) {
-            //request.getHeaders().forEach((k, vals) -> vals.forEach(v -> requestBuilder.addHeader(k, v)));
-                request.getHeaders().forEach((k, vals) ->
-                {
-                    if (k.equalsIgnoreCase(HttpConstants.HDR_COOKIE)) { // header cookie should be set via cookie store.
-                        vals.forEach(currCookie -> {
-                                    Cookie currCookieNetty = ClientCookieDecoder.LAX.decode(currCookie); // decode
-                                    if (null != currCookieNetty) {
-                                        BasicClientCookie basicClientCookie = new BasicClientCookie(currCookieNetty.name(), currCookieNetty.value());
-                                        basicClientCookie.setDomain(null == currCookieNetty.domain() ? "127.0.0.1" : currCookieNetty.domain());
-                                        basicClientCookie.setPath(null == currCookieNetty.path() ? "/" : currCookieNetty.path());
-                                        cookieStore.addCookie(basicClientCookie);
-                                    }
-                                }
-                        );
-                    } else {
-                        vals.forEach(v -> requestBuilder.addHeader(k, v));
-                    }
-                });
+            // we remove these since already taken care-off above.
+            request.getHeaders().remove(HttpConstants.HDR_COOKIE);
+            request.getHeaders().forEach((k, vals) -> vals.forEach(v -> requestBuilder.addHeader(k, v)));
         }
         if (request.getBody() != null) {
             requestBuilder.setEntity(new ByteArrayEntity(request.getBody()));

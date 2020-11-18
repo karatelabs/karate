@@ -190,6 +190,7 @@ public class JsValue {
         }
     }
 
+
     public static Object toJava(Value v) {
         return new JsValue(v).getValue();
     }
@@ -203,6 +204,18 @@ public class JsValue {
             return ((JsList) o).getList();
         } else {
             return o;
+        }
+    }
+
+    public static Class unWrapClass(Object o) {
+        if (o instanceof JsXml) {
+            return Node.class;
+        } else if (o instanceof JsMap) {
+            return Map.class;
+        } else if (o instanceof JsList) {
+            return List.class;
+        } else {
+            return o.getClass();
         }
     }
 

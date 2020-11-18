@@ -7,11 +7,16 @@ import com.intuit.karate.http.HttpConstants;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpServer;
 import com.intuit.karate.http.Response;
+
 import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.netty.handler.codec.http.cookie.Cookie;
+import io.netty.handler.codec.http.cookie.DefaultCookie;
+
 
 /**
  *
@@ -102,4 +107,14 @@ class HttpMockHandlerTest {
         match(response.getHeader("Content-Type"), "text/html");
     }
 
+    @Test
+    void testCookie() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestHeaders");
+        Cookie cookie = new DefaultCookie("someKey","someValue");
+        cookie.setDomain("localhost");
+        response = handle().path("/hello").cookie(cookie).invoke("get");
+        assertTrue(response.getBodyConverted().toString().contains("someKey=someValue"));
+    }
 }

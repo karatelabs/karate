@@ -46,14 +46,9 @@ public class MethodInvoker implements Methods.FunVar {
     public Object call(Object... args) {
         Class[] types = new Class[args.length];
         for (int i = 0; i < args.length; i++) {
-            args[i] = JsValue.fromJava(args[i]);
-            types[i] = args[i] == null ? Object.class : args[i].getClass();
-            if (types[i].getName().equals("com.intuit.karate.graal.JsMap")) {
-                // forces the method to have Map as a parameter - not exact impl, which is true for any reflection call.
-                // driver class has methods expecting Maps.
-                types[i] = Map.class;
-                args[i] = ((JsMap)args[i]).getMap();
-            }
+            Object obj1 = JsValue.fromJava(args[i]);
+            args[i] = JsValue.unWrap(args[i]);
+            types[i] = args[i] == null ? Object.class : JsValue.unWrapClass(obj1);
         }
         try {
             Method method = type.getMethod(methodName, types);
