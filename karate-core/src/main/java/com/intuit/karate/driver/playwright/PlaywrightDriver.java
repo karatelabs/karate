@@ -647,7 +647,7 @@ public class PlaywrightDriver implements Driver {
     }
 
     @Override
-    public String getDialog() {
+    public String getDialogText() {
         return currentDialogText;
     }
 

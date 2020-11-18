@@ -36,7 +36,6 @@ import com.intuit.karate.KarateException;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.graal.MethodInvoker;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchType;
@@ -57,6 +56,7 @@ import com.intuit.karate.shell.Command;
 import com.jayway.jsonpath.PathNotFoundException;
 import java.io.File;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -309,11 +309,11 @@ public class ScenarioEngine {
     private HttpRequest request;
     private Response response;
     private Config config;
-    
+
     public Config getConfig() {
         return config;
-    }    
-    
+    }
+
     // important: use this to trigger client re-config
     // callonce routine is one example
     public void setConfig(Config config) {
@@ -321,7 +321,7 @@ public class ScenarioEngine {
         if (requestBuilder != null) {
             requestBuilder.client.setConfig(config);
         }
-    }    
+    }
 
     public HttpRequest getRequest() {
         return request;
@@ -840,9 +840,15 @@ public class ScenarioEngine {
     private Driver driver;
     private Plugin robot;
 
-    private void autoDef(Plugin plugin) {
-        for (String name : plugin.methodNames()) {
-            setHiddenVariable(name, new MethodInvoker(plugin, name));
+    private void autoDef(Plugin plugin, String instanceName) {
+        for (String methodName : plugin.methodNames()) {
+            String invoke = instanceName + "." + methodName;
+            String js = "function(){ if (arguments.length == 0) return " + invoke + "();"
+                    + " if (arguments.length == 1) return " + invoke + "(arguments[0]);"
+                    + " if (arguments.length == 2) return " + invoke + "(arguments[0], arguments[1]);"
+                    + " return " + invoke + "(arguments[0], arguments[1], arguments[2]) }";
+            
+            setHiddenVariable(methodName, evalJs(js));
         }
     }
 
@@ -900,7 +906,7 @@ public class ScenarioEngine {
             logger.warn("'robot' is active, use 'driver.' prefix for driver methods");
             return;
         }
-        autoDef(driver);
+        autoDef(driver, DRIVER);
         setHiddenVariable(KEY, Key.INSTANCE);
     }
 
@@ -912,7 +918,7 @@ public class ScenarioEngine {
             logger.warn("'driver' is active, use 'robot.' prefix for robot methods");
             return;
         }
-        autoDef(robot);
+        autoDef(robot, ROBOT);
         setHiddenVariable(KEY, Key.INSTANCE);
     }
 

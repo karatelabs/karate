@@ -1,10 +1,8 @@
 package com.intuit.karate.graal;
 
-import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.core.MockUtils;
 import com.intuit.karate.http.Request;
-import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -193,23 +191,6 @@ class JsEngineTest {
         SimplePojo sp = new SimplePojo();
         Value v = Value.asValue(sp);
         assertTrue(v.isHostObject());
-    }
-
-    @Test
-    void testAutoDefMethodInvoke() {
-        Object sad = new SimpleAutoDef();
-        for (Method m : sad.getClass().getMethods()) {
-            if (m.getAnnotation(AutoDef.class) != null) {
-                String name = m.getName();
-                je.put(name, new MethodInvoker(sad, name));
-            }
-        }
-        JsValue val = je.eval("hello('John')");
-        assertEquals(val.getAsString(), "hello John !");
-        val = je.eval("hello('John', 'Smith')");
-        assertEquals(val.getAsString(), "JohnSmith");
-        val = je.eval("hello('John', 'Smith', 'Rules')");
-        assertEquals(val.getAsString(), "JohnSmithRules");
     }
 
 }

@@ -94,7 +94,7 @@ public interface Driver extends Plugin {
 
     List<String> getPages(); // getter
 
-    String getDialog(); // getter
+    String getDialogText(); // getter
 
     @AutoDef
     byte[] screenshot(boolean embed);
