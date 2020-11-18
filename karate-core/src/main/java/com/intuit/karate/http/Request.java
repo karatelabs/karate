@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import static java.util.stream.Collectors.toList;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
 import org.slf4j.Logger;
@@ -150,11 +151,7 @@ public class Request implements ProxyObject {
          if (cookieValues == null) {
              return Collections.EMPTY_LIST;
          }
-         List<Cookie> cookies = new ArrayList(cookieValues.size());
-         for (String cookieValue : cookieValues) {
-             cookies.add(ClientCookieDecoder.STRICT.decode(cookieValue));
-         }
-         return cookies;
+         return cookieValues.stream().map(ClientCookieDecoder.STRICT::decode).collect(toList());
     }
 
     public String getParam(String name) {

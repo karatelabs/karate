@@ -488,7 +488,7 @@ public class ScenarioEngine {
             String toRead = (String) map.get("read");
             if (toRead != null) {
                 File file = fileReader.relativePathToFile(toRead);
-                map.put("file", file);
+                map.put("value", file);
             }
             requestBuilder.multiPart(map);
         } else if (value instanceof String) {

@@ -28,7 +28,6 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.graal.Methods;
-import com.intuit.karate.http.HttpUtils;
 import com.linecorp.armeria.common.QueryParams;
 import com.linecorp.armeria.common.QueryParamsBuilder;
 import io.netty.handler.codec.http.cookie.Cookie;
@@ -138,9 +137,9 @@ public class HttpRequestBuilder implements ProxyObject {
         method = method.toUpperCase();
         request.setMethod(method);
         if ("GET".equals(method) && multiPart != null) {
-            List<MultiPartBuilder.Part> parts = multiPart.getFormFields();
+            Map<String, Object> parts = multiPart.getFormFields();
             if (parts != null) {
-                parts.forEach(p -> param(p.getName(), (String) p.getValue()));
+                parts.forEach((k, v) -> param(k, (String) v));
             }
             multiPart = null;
         }
@@ -413,10 +412,10 @@ public class HttpRequestBuilder implements ProxyObject {
         if (multiPart == null) {
             multiPart = new MultiPartBuilder(false, client);
         }
-        multiPart.part(name).value(value).add();
+        multiPart.part(name, value);
         return this;
     }
-    
+
     public HttpRequestBuilder multiPartJson(String json) {
         return multiPart(Json.of(json).value());
     }

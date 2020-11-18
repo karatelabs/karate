@@ -37,8 +37,7 @@ import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.handler.codec.http.multipart.MemoryFileUpload;
 import java.io.File;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +53,7 @@ public class MultiPartBuilder {
     private final HttpClient client;
     private final boolean multipart;
     private final HttpPostRequestEncoder encoder;
-    private List<Part> formFields; // only for the edge case of GET
+    private Map<String, Object> formFields; // only for the edge case of GET
     private StringBuilder bodyForDisplay = new StringBuilder();
 
     private String contentTypeHeader;
@@ -67,7 +66,7 @@ public class MultiPartBuilder {
         return pos == -1 ? null : contentTypeHeader.substring(pos + 1);
     }
 
-    public List<Part> getFormFields() {
+    public Map<String, Object> getFormFields() {
         return formFields;
     }
 
@@ -94,130 +93,85 @@ public class MultiPartBuilder {
         }
     }
 
-    public class Part {
-
-        private final String name;
-        private Object value;
-        private String contentType;
-        private String transferEncoding;
-        private String filename;
-        private Charset charset;
-
-        Part(Map<String, Object> map) {
-            name = (String) map.get("name");
-            File file = (File) map.get("file");
-            value = file == null ? map.get("value") : file;
-            contentType = (String) map.get("contentType");
-            filename = (String) map.get("filename");
-            transferEncoding = (String) map.get("transferEncoding");
-            String charsetString = (String) map.get("charset");
-            if (charsetString != null) {
-                charset = Charset.forName(charsetString);
+    public MultiPartBuilder part(Map<String, Object> map) {
+        String name = (String) map.get("name");
+        Object value = map.get("value");
+        if (!multipart) {
+            String stringValue = JsValue.toString(value);
+            if (formFields == null) {
+                formFields = new HashMap();
             }
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public Object getValue() {
-            return value;
-        }
-
-        Part(String name) {
-            this.name = name;
-        }
-
-        Part value(Object value) {
-            this.value = value;
-            return this;
-        }
-
-        Part filename(String filename) {
-            this.filename = filename;
-            return this;
-        }
-
-        Part contentType(String contentType) {
-            this.contentType = contentType;
-            return this;
-        }
-
-        Part transferEncoding(String transferEncoding) {
-            this.transferEncoding = transferEncoding;
-            return this;
-        }
-
-        Part charset(String charset) {
-            this.charset = Charset.forName(charset);
-            return this;
-        }
-
-        MultiPartBuilder add() {
-            if (!multipart) {
-                String stringValue = JsValue.toString(value);
-                if (formFields == null) {
-                    formFields = new ArrayList();
+            formFields.put(name, stringValue);
+            try {
+                encoder.addBodyAttribute(name, stringValue);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            if (value instanceof File) {
+                File file = (File) value;
+                String filename = (String) map.get("filename");
+                if (filename == null) {
+                    filename = file.getName();
                 }
-                formFields.add(new Part(name).value(stringValue));
+                String contentType = (String) map.get("contentType");
+                ResourceType resourceType;
+                if (contentType == null) {
+                    resourceType = ResourceType.fromFileExtension(filename);
+                    contentType = resourceType.contentType;
+                } else {
+                    resourceType = ResourceType.fromContentType(contentType);
+                    if (resourceType == null) {
+                        resourceType = ResourceType.BINARY;
+                    }
+                }
                 try {
-                    encoder.addBodyAttribute(name, stringValue);
+                    encoder.addBodyFileUpload(name, filename, file, contentType, !resourceType.isBinary());
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
             } else {
-                if (value instanceof File) {
-                    File file = (File) value;
-                    if (filename == null) {
-                        filename = file.getName();
-                    }
-                    ResourceType resourceType;
-                    if (contentType == null) {
-                        resourceType = ResourceType.fromFileExtension(filename);
-                        contentType = resourceType.contentType;
-                    } else {
-                        resourceType = ResourceType.fromContentType(contentType);
-                        if (resourceType == null) {
-                            resourceType = ResourceType.BINARY;
-                        }
-                    }
-                    try {
-                        encoder.addBodyFileUpload(name, filename, file, contentType, !resourceType.isBinary());
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
+                String contentType = (String) map.get("contentType");
+                ResourceType resourceType;
+                if (contentType == null) {
+                    resourceType = ResourceType.fromObject(value, ResourceType.BINARY);
+                    contentType = resourceType.contentType;
                 } else {
+                    resourceType = ResourceType.fromContentType(contentType);
+                }
+                Charset cs = null;
+                if (!resourceType.isBinary()) {
+                    String charset = (String) map.get("charset");
                     if (charset == null && client != null) { // TODO client null for unit test
-                        charset = client.getConfig().getCharset();
-                    }
-                    if (contentType == null) {
-                        contentType = ResourceType.fromObject(value, ResourceType.BINARY).contentType;
-                    }
-                    byte[] encoded = value == null ? HttpConstants.ZERO_BYTES : JsValue.toBytes(value);
-                    if (filename == null) {
-                        filename = ""; // will be treated as an inline value, behaves like null
-                    }
-                    MemoryFileUpload item = new MemoryFileUpload(name, filename, contentType, transferEncoding, charset, encoded.length);
-                    try {
-                        item.setContent(Unpooled.wrappedBuffer(encoded));
-                        encoder.addBodyHttpData(item);
-                        logger.debug("multipart: {}", item);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
+                        cs = client.getConfig().getCharset();
+                    } else if (charset != null) {
+                        cs = Charset.forName(charset);
                     }
                 }
+                byte[] encoded = value == null ? HttpConstants.ZERO_BYTES : JsValue.toBytes(value);
+                String filename = (String) map.get("filename");
+                if (filename == null) {
+                    filename = ""; // will be treated as an inline value, behaves like null
+                }
+                String transferEncoding = (String) map.get("transferEncoding");
+                MemoryFileUpload item = new MemoryFileUpload(name, filename, contentType, transferEncoding, cs, encoded.length);
+                try {
+                    item.setContent(Unpooled.wrappedBuffer(encoded));
+                    encoder.addBodyHttpData(item);
+                    logger.debug("multipart: {}", item);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
             }
-            return MultiPartBuilder.this;
         }
-
+        return this;
     }
 
-    public MultiPartBuilder part(Map<String, Object> map) {
-        return new Part(map).add();
-    }
-
-    public Part part(String name) {
-        return new Part(name);
+    public MultiPartBuilder part(String name, Object value) {
+        Map<String, Object> map = new HashMap();
+        map.put("name", name);
+        map.put("value", value);
+        return part(map);
     }
 
     public byte[] build() {

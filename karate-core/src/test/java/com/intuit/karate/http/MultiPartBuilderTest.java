@@ -28,7 +28,7 @@ class MultiPartBuilderTest {
     @Test
     void testMultiPart() {
         MultiPartBuilder builder = new MultiPartBuilder(true, null);
-        builder.part("bar").value("hello world").add();
+        builder.part("bar", "hello world");
         byte[] bytes = builder.build();
         String boundary = builder.getBoundary();
         String actual = FileUtils.toString(bytes);
@@ -47,7 +47,7 @@ class MultiPartBuilderTest {
     @Test
     void testUrlEncoded() {
         MultiPartBuilder builder = new MultiPartBuilder(false, null);
-        builder.part("bar").value("hello world").add();
+        builder.part("bar", "hello world");
         byte[] bytes = builder.build();
         assertEquals("application/x-www-form-urlencoded", builder.getContentTypeHeader());
         String actual = FileUtils.toString(bytes);
