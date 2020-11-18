@@ -24,24 +24,18 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Json;
+import com.intuit.karate.JsonUtils;
+import com.intuit.karate.KarateException;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
-import com.intuit.karate.Json;
-import com.intuit.karate.JsonUtils;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Key;
-import com.intuit.karate.KarateException;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.match.Match;
-import com.intuit.karate.match.MatchResult;
-import com.intuit.karate.match.MatchType;
-import com.intuit.karate.match.MatchValue;
-import com.intuit.karate.http.WebSocketClient;
-import com.intuit.karate.http.WebSocketOptions;
 import com.intuit.karate.http.ArmeriaHttpClient;
 import com.intuit.karate.http.Cookies;
 import com.intuit.karate.http.HttpClient;
@@ -52,11 +46,16 @@ import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.Request;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.Response;
+import com.intuit.karate.http.WebSocketClient;
+import com.intuit.karate.http.WebSocketOptions;
+import com.intuit.karate.match.Match;
+import com.intuit.karate.match.MatchResult;
+import com.intuit.karate.match.MatchType;
+import com.intuit.karate.match.MatchValue;
 import com.intuit.karate.shell.Command;
 import com.jayway.jsonpath.PathNotFoundException;
 import java.io.File;
 import java.io.InputStream;
-import java.lang.reflect.Method;
 import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -615,16 +614,16 @@ public class ScenarioEngine {
         }
         setVariable(RESPONSE_STATUS, response.getStatus());
         setVariable(RESPONSE, body);
-        setVariable(RESPONSE_BYTES, bytes);
-        setVariable(RESPONSE_TYPE, responseType);
         setVariable(RESPONSE_HEADERS, response.getHeaders());
+        setHiddenVariable(RESPONSE_BYTES, bytes);
+        setHiddenVariable(RESPONSE_TYPE, responseType);
         cookies = response.getCookies();
         updateConfigCookies(cookies);
-        setVariable(RESPONSE_COOKIES, cookies);
+        setHiddenVariable(RESPONSE_COOKIES, cookies);
         startTime = request.getStartTimeMillis(); // in case it was re-adjusted by http client
         long endTime = request.getEndTimeMillis();
-        setVariable(REQUEST_TIME_STAMP, startTime);
-        setVariable(RESPONSE_TIME, endTime - startTime);
+        setHiddenVariable(REQUEST_TIME_STAMP, startTime);
+        setHiddenVariable(RESPONSE_TIME, endTime - startTime);
         if (perfEventName != null) {
             PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, response.getStatus());
             capturePerfEvent(pe);
@@ -847,7 +846,7 @@ public class ScenarioEngine {
                     + " if (arguments.length == 1) return " + invoke + "(arguments[0]);"
                     + " if (arguments.length == 2) return " + invoke + "(arguments[0], arguments[1]);"
                     + " return " + invoke + "(arguments[0], arguments[1], arguments[2]) }";
-            
+
             setHiddenVariable(methodName, evalJs(js));
         }
     }
