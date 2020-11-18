@@ -47,6 +47,10 @@ class KarateHttpMockHandlerTest {
     private void matchVar(String name, Object expected) {
         match(get(name), expected);
     }
+    
+    private void matchVarContains(String name, Object expected) {
+        matchContains(get(name), expected);
+    }    
 
     @AfterEach
     void afterEach() {
@@ -65,6 +69,22 @@ class KarateHttpMockHandlerTest {
                 "method get"
         );
         matchVar("response", "hello world");
+    }
+    
+    @Test
+    void testThatCookieIsPartOfRequestForApache() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestHeaders");
+        startMockServer();
+        run(
+                urlStep(), 
+                "path '/hello'",
+                "cookie foo = 'bar'",
+                "method get"
+        );
+        matchVarContains("response", "{ cookie: ['foo=bar'] }");        
+        
     }
 
 }

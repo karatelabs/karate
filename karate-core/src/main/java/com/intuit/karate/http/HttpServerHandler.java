@@ -71,8 +71,12 @@ public class HttpServerHandler implements HttpService {
             Set names = rh.names();
             Map<String, List<String>> headers = new HashMap(names.size());
             request.setHeaders(headers);
-            for (Object name : names) {
-                headers.put(name.toString(), rh.getAll((CharSequence) name));
+            for (Object o : names) {
+                CharSequence name = (CharSequence) o;
+                if (name.charAt(0) == ':') {
+                    continue;
+                }
+                headers.put(o.toString(), rh.getAll(name));
             }
         }
         if (!req.content().isEmpty()) {
