@@ -2,7 +2,6 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.match.Match;
-import com.intuit.karate.match.MatchResult;
 import static com.intuit.karate.TestUtils.*;
 import java.io.File;
 import java.util.List;
@@ -44,11 +43,6 @@ class ScenarioRuntimeTest {
 
     private void matchVar(String name, Object expected) {
         match(get(name), expected);
-    }
-
-    private void match(Object actual, Object expected) {
-        MatchResult mr = Match.that(actual).isEqualTo(expected);
-        assertTrue(mr.pass, mr.message);
     }
 
     @Test

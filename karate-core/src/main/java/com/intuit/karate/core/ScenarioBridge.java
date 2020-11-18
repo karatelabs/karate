@@ -90,7 +90,7 @@ public class ScenarioBridge implements PerfContext {
         return jsList;
     }
 
-    public Object appendTo(String varName, Value... vals) {
+    private Object appendToInternal(String varName, Value... vals) {
         ScenarioEngine engine = getEngine();
         Variable var = engine.vars.get(varName);
         if (!var.isList()) {
@@ -110,6 +110,9 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object appendTo(Value ref, Value... vals) {
+        if (ref.isString()) {
+            return appendToInternal(ref.asString(), vals);
+        }
         List list;
         if (ref.hasArrayElements()) {
             list = new JsValue(ref).getAsList(); // make sure we unwrap the "original" list
