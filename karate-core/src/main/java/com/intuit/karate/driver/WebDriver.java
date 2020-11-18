@@ -481,7 +481,7 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public String getDialog() {
+    public String getDialogText() {
         return http.path("alert", "text").get().json().get("value");
     }
 

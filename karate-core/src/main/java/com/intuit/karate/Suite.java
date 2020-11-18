@@ -61,6 +61,7 @@ public class Suite {
     private String read(String name) {
         try {
             Resource resource = new Resource(name, classLoader);
+            logger.debug("[config] {}", resource.getPath());
             return resource.getAsString();
         } catch (Exception e) {
             logger.trace("file not found: {} - {}", name, e.getMessage());
@@ -102,9 +103,6 @@ public class Suite {
             karateConfigEnv = null;
         } else {
             karateBase = read("classpath:karate-base.js");
-            if (karateBase != null) {
-                logger.info("karate-base.js found [classpath:]");
-            }
             String temp = rb.configDir;
             if (temp == null) {
                 temp = StringUtils.trimToNull(System.getProperty(Constants.KARATE_CONFIG_DIR));
@@ -125,15 +123,11 @@ public class Suite {
             karateConfigDir = temp;
             karateConfig = read(karateConfigDir + "karate-config.js");
             if (karateConfig != null) {
-                logger.info("karate-config.js found [{}]", karateConfigDir);
             } else {
                 logger.warn("karate-config.js not found [{}]", karateConfigDir);
             }
             if (env != null) {
                 karateConfigEnv = read(karateConfigDir + "karate-config-" + env + ".js");
-                if (karateConfigEnv != null) {
-                    logger.info("karate-config-" + env + ".js found [{}]", karateConfigDir);
-                }
             } else {
                 karateConfigEnv = null;
             }

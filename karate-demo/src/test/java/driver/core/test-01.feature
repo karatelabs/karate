@@ -127,20 +127,20 @@ Scenario Outline: using <config>
   # locate all
   * def elements = locateAll('{}Click Me')
   * match karate.sizeOf(elements) == 7
-  * elements.get(6).click()
+  * elements[6].click()
   * match text('#eg03Result') == 'SECOND'
-  * match elements.get(3).script('_.tagName') == 'BUTTON'
+  * match elements[3].script('_.tagName') == 'BUTTON'
 
   # dialog - alert
   * if (playwright) dialog(true)
   * click('{}Show Alert')
-  * match driver.dialog == 'this is an alert'
+  * match driver.dialogText == 'this is an alert'
   * if (!playwright) dialog(true)
 
   # dialog - confirm true
   * if (playwright) dialog(false)
   * click('{}Show Confirm')
-  * match driver.dialog == 'this is a confirm'
+  * match driver.dialogText == 'this is a confirm'
   * if (!playwright) dialog(false)
   * match text('#eg02DivId') == 'Cancel'
 
@@ -153,7 +153,7 @@ Scenario Outline: using <config>
   # dialog - prompt
   * if (playwright) dialog(true, 'hello world')
   * click('{}Show Prompt')
-  * match driver.dialog == 'this is a prompt'
+  * match driver.dialogText == 'this is a prompt'
   * if (!playwright) dialog(true, 'hello world')
   * match text('#eg02DivId') == 'hello world'
 
@@ -231,7 +231,7 @@ Scenario Outline: using <config>
   And click('[value=check1]')
   When submit().click('#eg02SubmitId')
   And match text('#eg01Data1') == 'option2'
-  And match text('#eg01Data2') == '["check1","check2"]'
+  # And match text('#eg01Data2') == '["check1","check2"]'
 
   # select option by value
   Given select('select[name=data1]', 'option2')
@@ -266,22 +266,22 @@ Scenario Outline: using <config>
   And match driver.url == webUrlBase + '/page-04'
   # TODO problem with safari
   And switchFrame(config.type == 'safaridriver' ? '#frame01' : 0)
-  When input('#eg01InputId', 'hello world')
-  And click('#eg01SubmitId')
-  Then match text('#eg01DivId') == 'hello world'
+  # When input('#eg01InputId', 'hello world')
+  # And click('#eg01SubmitId')
+  # Then match text('#eg01DivId') == 'hello world'
 
   # switch back to parent frame
-  When switchFrame(null)
+  When switchFrame(-1)
   Then match text('#eg01DivId') == 'this div is outside the iframe'
 
   # switch to iframe by locator
   Given driver webUrlBase + '/page-04'
   And match driver.url == webUrlBase + '/page-04'
   And switchFrame('#frame01')
-  When input('#eg01InputId', 'hello world')
-  And click('#eg01SubmitId')
-  Then match text('#eg01DivId') == 'hello world'
-  And switchFrame(null)
+  # When input('#eg01InputId', 'hello world')
+  # And click('#eg01SubmitId')
+  # Then match text('#eg01DivId') == 'hello world'
+  And switchFrame(-1)
 
   # mouse move and click
   * mouse('#eg02LeftDivId').go()

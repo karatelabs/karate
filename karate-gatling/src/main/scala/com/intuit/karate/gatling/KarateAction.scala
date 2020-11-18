@@ -55,7 +55,10 @@ class KarateAction(val name: String, val tags: Seq[String], val protocol: Karate
         r.run()
       }
 
-      override def afterFeature(): Unit = next ! session
+      override def afterFeature(vars: java.util.Map[String, Object]): Unit = {
+        val map = if (vars == null) Map.empty else vars.asScala
+        next ! session.setAll(map)
+      }
     }
 
     val pauseFunction: Consumer[java.lang.Number] = t => pause(t.intValue())

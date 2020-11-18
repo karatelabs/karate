@@ -1,11 +1,9 @@
 package com.intuit.karate.core;
 
-import com.intuit.karate.match.Match;
-import com.intuit.karate.match.MatchResult;
-import static com.intuit.karate.core.RuntimeUtils.runScenario;
+import static com.intuit.karate.TestUtils.*;
+import static com.intuit.karate.TestUtils.runScenario;
 import com.intuit.karate.http.HttpServer;
 import org.junit.jupiter.api.AfterEach;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,10 +48,9 @@ class KarateHttpMockHandlerTest {
         match(get(name), expected);
     }
     
-    private void match(Object actual, Object expected) {
-        MatchResult mr = Match.that(actual).isEqualTo(expected);
-        assertTrue(mr.pass, mr.message);
-    }
+    private void matchVarContains(String name, Object expected) {
+        matchContains(get(name), expected);
+    }    
 
     @AfterEach
     void afterEach() {
@@ -72,6 +69,22 @@ class KarateHttpMockHandlerTest {
                 "method get"
         );
         matchVar("response", "hello world");
+    }
+    
+    @Test
+    void testThatCookieIsPartOfRequestForApache() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestHeaders");
+        startMockServer();
+        run(
+                urlStep(), 
+                "path '/hello'",
+                "cookie foo = 'bar'",
+                "method get"
+        );
+        matchVarContains("response", "{ cookie: ['foo=bar'] }");        
+        
     }
 
 }

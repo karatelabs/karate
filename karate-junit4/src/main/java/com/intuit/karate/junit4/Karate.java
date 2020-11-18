@@ -32,12 +32,15 @@ import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.FeatureRuntime;
 import java.io.IOException;
 import java.util.List;
+import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.internal.runners.statements.RunBefores;
 import org.junit.runner.Description;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
 import org.junit.runners.model.FrameworkMethod;
 import org.junit.runners.model.InitializationError;
+import org.junit.runners.model.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,6 +73,22 @@ public class Karate extends ParentRunner<Feature> {
     }
 
     @Override
+    protected Statement withBeforeClasses(Statement statement) {
+        List<FrameworkMethod> befores = getTestClass().getAnnotatedMethods(BeforeClass.class);
+        Statement main = new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                Runner.Builder rb = new Runner.Builder(annotatedClass);
+                rb.hook(hook);
+                rb.features(features);
+                Karate.this.suite = new Suite(rb);
+                statement.evaluate();
+            }
+        };
+        return befores.isEmpty() ? main : new RunBefores(main, befores, null);
+    }
+
+    @Override
     public List<Feature> getChildren() {
         return features;
     }
@@ -81,12 +100,6 @@ public class Karate extends ParentRunner<Feature> {
 
     @Override
     protected void runChild(Feature feature, RunNotifier notifier) {
-        if (suite == null) {
-            Runner.Builder rb = new Runner.Builder(annotatedClass);
-            rb.hook(hook);
-            rb.features(features);
-            suite = new Suite(rb);
-        }
         hook.setNotifier(notifier);
         FeatureRuntime fr = FeatureRuntime.of(suite, feature);
         fr.run();

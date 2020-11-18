@@ -26,6 +26,7 @@ package com.intuit.karate;
 import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.http.HttpRequest;
+import java.util.Map;
 
 /**
  *
@@ -39,6 +40,6 @@ public interface PerfHook {
     
     void submit(Runnable runnable);
     
-    void afterFeature();
+    void afterFeature(Map<String, Object> vars);
 
 }

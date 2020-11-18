@@ -1,8 +1,7 @@
 package com.intuit.karate.core;
 
-import com.intuit.karate.match.Match;
-import com.intuit.karate.match.MatchResult;
-import static com.intuit.karate.core.RuntimeUtils.runScenario;
+import static com.intuit.karate.TestUtils.*;
+import static com.intuit.karate.TestUtils.runScenario;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -45,12 +44,7 @@ class KarateMockHandlerTest {
     private void matchVar(String name, Object expected) {
         match(get(name), expected);
     }
-
-    private void match(Object actual, Object expected) {
-        MatchResult mr = Match.that(actual).isEqualTo(expected);
-        assertTrue(mr.pass, mr.message);
-    }
-
+    
     @Test
     void testSimpleGet() {
         background().scenario(
