@@ -83,6 +83,7 @@
                 <configuration>
                     <disableCompiler>true</disableCompiler>
                     <skip>${skipTests}</skip>
+                    <runMultipleSimulations>true</runMultipleSimulations>
                 </configuration>
                 <executions>
                     <execution>

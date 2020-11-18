@@ -1,5 +1,6 @@
 package com.intuit.karate.gatling
 
+import java.util
 import java.util.Collections
 import java.util.function.Consumer
 
@@ -33,6 +34,8 @@ class KarateAction(val name: String, val tags: Seq[String], val protocol: Karate
 
   override def execute(session: Session) = {
 
+    var updatedSession = session
+
     val executionHook = new ExecutionHook {
 
       override def beforeScenario(scenario: Scenario, ctx: ScenarioContext) = true
@@ -41,7 +44,25 @@ class KarateAction(val name: String, val tags: Seq[String], val protocol: Karate
 
       override def beforeFeature(feature: Feature, ctx: ExecutionContext) = true
 
-      override def afterFeature(result: FeatureResult, ctx: ExecutionContext) = {}
+      override def afterFeature(result: FeatureResult, ctx: ExecutionContext) = {
+        def getFilteredAttributes(): Map[String, Any] = {
+          def getAttributes(): scala.collection.mutable.Map[String, Any] = {
+            val gatling = result.getResultAsPrimitiveMap.get("__gatling")
+            gatling match {
+              case mapWrapper: scala.collection.convert.Wrappers.MapWrapper[String, Any] =>
+                mapWrapper.asScala
+              case javaMap: util.Map[String, Any] =>
+                javaMap.asScala
+            }
+          }
+          val attributes = getAttributes()
+          attributes.-("userId", "pause").toMap
+        }
+        val attributes = getFilteredAttributes()
+        if (attributes != updatedSession.attributes) {
+          updatedSession = updatedSession.copy(attributes = attributes)
+        }
+      }
 
       override def beforeAll(results: Results) = {}
 
@@ -70,7 +91,7 @@ class KarateAction(val name: String, val tags: Seq[String], val protocol: Karate
     implicit val executor: ExecutionContextExecutor = system.dispatcher
     val asyncSystem: Consumer[Runnable] = r => Future { r.run() }
     val pauseFunction: Consumer[java.lang.Number] = t => pause(t.intValue())
-    val asyncNext: Runnable = () => next ! session
+    val asyncNext: Runnable = { () => next ! updatedSession }
     val attribs: Object = (session.attributes + ("userId" -> session.userId) + ("pause" -> pauseFunction))
       .asInstanceOf[Map[String, AnyRef]].asJava
     val arg = Collections.singletonMap("__gatling", attribs)
