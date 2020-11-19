@@ -273,10 +273,20 @@ public class MockHandler implements ServerHandler {
         }
         if (path.startsWith("/")) {
             Variable v = ScenarioEngine.evalXmlPath(new Variable(body), path);
-            return JsValue.fromJava(v.getValue());
+            if (v.isNotPresent()) {
+                return null;
+            } else {
+                return JsValue.fromJava(v.getValue());
+            }
         } else {
             Json json = Json.of(body);
-            return JsValue.fromJava(json.get(path));
+            Object result;
+            try {
+                result = json.get(path);
+            } catch (Exception e) {
+                return null;
+            }
+            return JsValue.fromJava(result);
         }
     }
 

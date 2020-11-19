@@ -296,6 +296,10 @@ public class Variable {
         }
     }
     
+    public boolean isNotPresent() {
+        return "#notpresent".equals(value);
+    }    
+    
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();

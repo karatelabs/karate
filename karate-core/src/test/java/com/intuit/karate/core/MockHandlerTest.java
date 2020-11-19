@@ -259,11 +259,64 @@ class MockHandlerTest {
         background(
                 "def nextId = call read('increment.js')"
         ).scenario(
-                "pathMatches('/hello')", "def response = nextId()"
+                "pathMatches('/hello')", 
+                "def response = nextId()"
         );
         request.path("/hello");
         handle();
         match(response.getBodyAsString(), "1");
     }
+    
+    @Test
+    void testJsonBodyPathThatExists() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = bodyPath('/root/foo')"
+        );
+        request.path("/hello")
+                .bodyJson("{ root: { foo: 'bar' } }");
+        handle();
+        match(response.getBodyAsString(), "bar");        
+    } 
+    
+    @Test
+    void testJsonBodyPathThatDoesNotExist() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def result = bodyPath('root.nope')",
+                "def response = result == null ? 'NULL' : 'NOTNULL'"                
+        );
+        request.path("/hello")
+                .bodyJson("{ root: { foo: 'bar' } }");
+        handle();
+        match(response.getBodyAsString(), "NULL");        
+    }      
+    
+    @Test
+    void testXmlBodyPathThatExists() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = bodyPath('/root/foo')"
+        );
+        request.path("/hello")
+                .body("<root><foo>bar</foo></root>")
+                .contentType("application/xml");
+        handle();
+        match(response.getBodyAsString(), "bar");        
+    }
+    
+    @Test
+    void testXmlBodyPathThatDoesNotExist() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def result = bodyPath('/root/nope')",
+                "def response = result == null ? 'NULL' : 'NOTNULL'"
+        );
+        request.path("/hello")
+                .body("<root><foo>bar</foo></root>")
+                .contentType("application/xml");
+        handle();
+        match(response.getBodyAsString(), "NULL");        
+    }    
 
 }
