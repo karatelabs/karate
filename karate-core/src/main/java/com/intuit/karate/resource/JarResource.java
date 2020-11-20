@@ -60,11 +60,28 @@ public class JarResource implements Resource {
     public String getRelativePath() {
         return relativePath;
     }      
+    
+    @Override
+    public Resource resolve(String path) {
+        int pos = relativePath.lastIndexOf('/');
+        String parentPath = pos == -1 ? "" : relativePath.substring(0, pos);
+        return ResourceUtils.getResource("classpath:" + parentPath + "/" + path);
+    }    
 
     @Override
     public InputStream getStream() {
         return new ByteArrayInputStream(bytes);
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        return relativePath.equals(obj);
+    }        
+
+    @Override
+    public int hashCode() {
+        return relativePath.hashCode();
+    }        
     
     @Override
     public String toString() {

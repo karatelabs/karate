@@ -33,6 +33,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -54,25 +55,72 @@ public class ResourceUtils {
         // only static methods
     }
 
-    public static List<Resource> findResourcesByExtension(String extension, String... paths) {
-        List<Resource> list = new ArrayList();
-        try (ScanResult scanResult = new ClassGraph().acceptPaths(paths).scan()) {
-            ResourceList rl = scanResult.getResourcesWithExtension(extension);
-            rl.forEachByteArrayIgnoringIOException((res, bytes) -> {
-                URI uri = res.getURI();
-                if ("file".equals(uri.getScheme())) {
-                    File file = Paths.get(uri).toFile();
-                    list.add(new FileResource(file, true, res.getPath()));
-                } else {
-                    list.add(new JarResource(bytes, res.getPath()));
-                }
-            });
+    public static Resource getResource(String path) {
+        if (path.startsWith("classpath:")) {
+            List<Resource> resources = new ArrayList();
+            try (ScanResult scanResult = new ClassGraph().acceptPaths("/").scan()) {
+                ResourceList rl = scanResult.getResourcesWithPath(removePrefix(path));
+                rl.forEachByteArrayIgnoringIOException((res, bytes) -> {
+                    URI uri = res.getURI();
+                    if ("file".equals(uri.getScheme())) {
+                        File file = Paths.get(uri).toFile();
+                        resources.add(new FileResource(file, true, res.getPath()));
+                    } else {
+                        resources.add(new JarResource(bytes, res.getPath()));
+                    }
+                });
+            }
+            if (resources.isEmpty()) {
+                throw new RuntimeException("not found: " + path);
+            }
+            return resources.get(0);
+        } else {
+            File file = new File(removePrefix(path));
+            if (!file.exists()) {
+                throw new RuntimeException("not found: " + path);
+            }
+            return new FileResource(file);
         }
-        return list;
     }
 
-    public static List<Resource> findFilesByExtension(String extension, File... files) {
-        Set<File> results = new HashSet();
+    public static Collection<Resource> findResourcesByExtension(String extension, String... paths) {
+        Set<Resource> set = new HashSet(); // de-dupe
+        List<File> fileRoots = new ArrayList();
+        List<String> pathRoots = new ArrayList();
+        for (String path : paths) {
+            if (path.startsWith("classpath:")) {
+                pathRoots.add(removePrefix(path));
+            } else {
+                fileRoots.add(new File(removePrefix(path)));
+            }
+        }
+        if (!fileRoots.isEmpty()) {
+            set.addAll(findFilesByExtension(extension, fileRoots));
+        } else {
+            String[] searchPaths;
+            if (pathRoots.isEmpty()) {
+                searchPaths = new String[]{"/"}; // optimize, don't include class files in scan
+            } else {
+                searchPaths = pathRoots.toArray(new String[pathRoots.size()]);
+            }
+            try (ScanResult scanResult = new ClassGraph().acceptPaths(searchPaths).scan()) {
+                ResourceList rl = scanResult.getResourcesWithExtension(extension);
+                rl.forEachByteArrayIgnoringIOException((res, bytes) -> {
+                    URI uri = res.getURI();
+                    if ("file".equals(uri.getScheme())) {
+                        File file = Paths.get(uri).toFile();
+                        set.add(new FileResource(file, true, res.getPath()));
+                    } else {
+                        set.add(new JarResource(bytes, res.getPath()));
+                    }
+                });
+            }
+        }
+        return set;
+    }
+
+    private static List<Resource> findFilesByExtension(String extension, List<File> files) {
+        List<File> results = new ArrayList();
         for (File base : files) {
             Path searchPath = base.toPath();
             Stream<Path> stream;
@@ -90,6 +138,11 @@ public class ResourceUtils {
             }
         }
         return results.stream().map(f -> new FileResource(f)).collect(Collectors.toList());
+    }
+
+    private static String removePrefix(String text) {
+        int pos = text.indexOf(':');
+        return pos == -1 ? text : text.substring(pos + 1);
     }
 
 }

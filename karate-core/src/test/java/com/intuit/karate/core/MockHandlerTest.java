@@ -271,7 +271,7 @@ class MockHandlerTest {
     void testJsonBodyPathThatExists() {
         background().scenario(
                 "pathMatches('/hello')",
-                "def response = bodyPath('/root/foo')"
+                "def response = bodyPath('root.foo')"
         );
         request.path("/hello")
                 .bodyJson("{ root: { foo: 'bar' } }");

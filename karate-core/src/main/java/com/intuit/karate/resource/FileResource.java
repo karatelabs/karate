@@ -38,7 +38,11 @@ public class FileResource implements Resource {
     private final String relativePath;
 
     public FileResource(File file) {
-        this(file, false, file.getPath().replace('\\', '/'));
+        this(file, false);
+    }
+
+    private FileResource(File file, boolean classpath) {
+        this(file, classpath, file.getPath().replace('\\', '/'));
     }
 
     public FileResource(File file, boolean classPath, String relativePath) {
@@ -68,12 +72,32 @@ public class FileResource implements Resource {
     }
 
     @Override
+    public Resource resolve(String path) {
+        int pos = relativePath.lastIndexOf('/');
+        String parentPath = pos == -1 ? "" : relativePath.substring(0, pos);
+        if (classPath) {
+            parentPath = "classpath:" + parentPath;
+        }
+        return ResourceUtils.getResource(parentPath + "/" + path);
+    }
+
+    @Override
     public InputStream getStream() {
         try {
             return new FileInputStream(file);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return file.equals(obj);
+    }
+
+    @Override
+    public int hashCode() {
+        return file.hashCode();
     }
 
     @Override

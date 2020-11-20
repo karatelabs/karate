@@ -40,6 +40,8 @@ public interface Resource {
     
     String getRelativePath();
     
+    Resource resolve(String path);
+    
     default String getPrefixedPath() {
         return isClassPath() ? "classpath:" + getRelativePath() : getRelativePath();
     }
