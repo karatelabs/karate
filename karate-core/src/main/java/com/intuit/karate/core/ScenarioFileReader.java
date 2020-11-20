@@ -24,12 +24,12 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.Resource;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.resource.Resource;
+import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
 import java.io.InputStream;
-import java.nio.file.Path;
 
 /**
  *
@@ -39,12 +39,10 @@ public class ScenarioFileReader {
 
     private final ScenarioEngine engine;
     private final FeatureRuntime featureRuntime;
-    private final ClassLoader classLoader;
 
     public ScenarioFileReader(ScenarioEngine engine, FeatureRuntime featureRuntime) {
         this.engine = engine;
         this.featureRuntime = featureRuntime;
-        classLoader = featureRuntime.suite.classLoader;
     }
 
     public Object readFile(String text) {
@@ -79,12 +77,12 @@ public class ScenarioFileReader {
     }
 
     public File relativePathToFile(String relativePath) {
-        return toResource(relativePath).getPath().toFile();
+        return toResource(relativePath).getFile();
     }
 
     public String toAbsolutePath(String relativePath) {
         Resource resource = toResource(relativePath);
-        return resource.getPath().normalize().toAbsolutePath().toString();
+        return resource.getFile().getAbsolutePath();
     }
 
     public byte[] readFileAsBytes(String path) {
@@ -96,17 +94,7 @@ public class ScenarioFileReader {
     }
 
     public InputStream readFileAsStream(String path) {
-        try {
-            return toResource(path).getStream();
-        } catch (Exception e) {
-            InputStream inputStream = classLoader.getResourceAsStream(removePrefix(path));
-            if (inputStream == null) {
-                String message = String.format("could not find or read file: %s", path);
-                engine.logger.trace("{}", message);
-                throw new RuntimeException(message);
-            }
-            return inputStream;
-        }
+        return toResource(path).getStream();
     }
 
     private static String removePrefix(String text) {
@@ -131,24 +119,13 @@ public class ScenarioFileReader {
 
     public Resource toResource(String path) {
         if (isClassPath(path)) {
-            return new Resource(path, classLoader);
+            return ResourceUtils.getResource(path);
         } else if (isFilePath(path)) {
-            String temp = removePrefix(path);
-            return new Resource(new File(temp), path, classLoader);
+            return ResourceUtils.getResource(removePrefix(path));
         } else if (isThisPath(path)) {
-            String temp = removePrefix(path);
-            Path parentPath = featureRuntime.getParentPath();
-            Path childPath = parentPath.resolve(temp);
-            return new Resource(childPath, classLoader);
+            return featureRuntime.resolveFromThis(removePrefix(path));
         } else {
-            try {
-                Path parentPath = featureRuntime.getRootParentPath();
-                Path childPath = parentPath.resolve(path);
-                return new Resource(childPath, classLoader);
-            } catch (Exception e) {
-                engine.logger.error("feature relative path resolution failed: {}", e.getMessage());
-                throw e;
-            }
+            return featureRuntime.resolveFromRoot(path);
         }
     }
 

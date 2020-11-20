@@ -26,6 +26,7 @@ package com.intuit.karate.template;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.http.ResourceResolver;
+import com.intuit.karate.resource.ResourceUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
@@ -72,7 +73,7 @@ public class TemplateResource implements ITemplateResource {
         if (mount == null) {
             is = resourceResolver.read(name + DOT_HTML);
         } else {
-            is = FileUtils.resourceAsStream(mount + DOT_HTML);
+            is = ResourceUtils.classPathToStream(mount + DOT_HTML);
         }
         return new StringReader(FileUtils.toString(is));
     }

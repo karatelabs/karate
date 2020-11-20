@@ -32,7 +32,6 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.shell.FileLogAppender;
 import java.io.File;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -199,10 +198,10 @@ public class ScenarioRuntime implements Runnable {
 
     public Map<String, Object> getScenarioInfo() {
         Map<String, Object> info = new HashMap(6);
-        Path featurePath = featureRuntime.feature.getResource().getPath();
-        if (featurePath != null) {
-            info.put("featureDir", featurePath.getParent().toString());
-            info.put("featureFileName", featurePath.getFileName().toString());
+        File featureFile = featureRuntime.feature.getResource().getFile();
+        if (featureFile != null) {
+            info.put("featureDir", featureFile.getParent());
+            info.put("featureFileName", featureFile.getName());
         }
         info.put("scenarioName", scenario.getName());
         info.put("scenarioDescription", scenario.getDescription());

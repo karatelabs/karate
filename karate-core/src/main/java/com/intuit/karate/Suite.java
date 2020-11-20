@@ -26,6 +26,8 @@ package com.intuit.karate;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.Tags;
 import com.intuit.karate.http.HttpClientFactory;
+import com.intuit.karate.resource.Resource;
+import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
 import java.util.Collection;
 import java.util.HashMap;
@@ -60,9 +62,9 @@ public class Suite {
 
     private String read(String name) {
         try {
-            Resource resource = new Resource(name, classLoader);
-            logger.debug("[config] {}", resource.getPath());
-            return resource.getAsString();
+            Resource resource = ResourceUtils.getResource(name);
+            logger.debug("[config] {}", resource.getPrefixedPath());
+            return FileUtils.toString(resource.getStream());
         } catch (Exception e) {
             logger.trace("file not found: {} - {}", name, e.getMessage());
             return null;

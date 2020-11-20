@@ -10,7 +10,7 @@ class CliExecutionHookTest {
 
     @Test
     void testCli() {
-        Main.main(new String[]{"-t", "~@ignore", "-T", "2", "classpath:com/intuit/karate/multi-scenario.feature"});
+        Main.main(new String[]{"-t", "~@ignore", "-T", "2", "classpath:com/intuit/karate/core/runner/multi-scenario.feature"});
     }
 
 }

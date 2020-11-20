@@ -25,10 +25,11 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.PerfHook;
-import com.intuit.karate.Resource;
 import com.intuit.karate.Suite;
+import com.intuit.karate.resource.FileResource;
+import com.intuit.karate.resource.MemoryResource;
+import com.intuit.karate.resource.Resource;
 import java.io.File;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -50,16 +51,12 @@ public class FeatureRuntime implements Runnable {
     private PerfHook perfRuntime;
     private Runnable next;
 
-    public Path getParentPath() {
-        return feature.getResource().getPath().getParent();
+    public Resource resolveFromThis(String path) {
+        return feature.getResource().resolve(path);
     }
 
-    public Path getRootParentPath() {
-        return rootFeature.getParentPath();
-    }
-
-    public Path getPath() {
-        return feature.getResource().getPath();
+    public Resource resolveFromRoot(String path) {
+        return rootFeature.feature.getResource().resolve(path);
     }
 
     public void setPerfRuntime(PerfHook perfRuntime) {
@@ -81,7 +78,7 @@ public class FeatureRuntime implements Runnable {
     public static FeatureRuntime forTempUse() {
         Suite sr = Suite.forTempUse();
         File workingDir = new File(sr.buildDir);
-        Resource resource = Resource.withContent(workingDir.toPath(), "Feature:\nScenario:\n");
+        Resource resource = new MemoryResource(workingDir, "Feature:\nScenario:\n");
         Feature feature = Feature.read(resource);
         return FeatureRuntime.of(sr, feature);
     }

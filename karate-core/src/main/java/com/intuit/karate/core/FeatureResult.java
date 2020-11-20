@@ -56,7 +56,7 @@ public class FeatureResult {
     private int loopIndex;
 
     public void printStats(String reportPath) {
-        String featureName = feature.getResource().getRelativePath();
+        String featureName = feature.getResource().getPrefixedPath();
         if (feature.getCallLine() != -1) {
             featureName = featureName + ":" + feature.getCallLine();
         }
@@ -113,7 +113,7 @@ public class FeatureResult {
     public FeatureResult(Results results, Feature feature) {
         this.results = results;
         this.feature = feature;
-        displayName = FileUtils.removePrefix(feature.getResource().getRelativePath());
+        displayName = feature.getResource().getRelativePath();
     }
 
     public void setDisplayName(String displayName) {

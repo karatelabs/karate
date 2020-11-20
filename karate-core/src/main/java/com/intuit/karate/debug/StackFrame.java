@@ -26,7 +26,7 @@ package com.intuit.karate.debug;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.ScenarioRuntime;
-import java.nio.file.Path;
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -48,9 +48,9 @@ public class StackFrame {
         line = step.getLine();
         Scenario scenario = context.scenario;
         name = scenario.getDisplayMeta();
-        Path path = step.getFeature().getResource().getPath();
-        source.put("name", path.getFileName().toString());
-        source.put("path", path.toString());
+        File file = step.getFeature().getResource().getFile();
+        source.put("name", file.getName());
+        source.put("path", file.getPath());
         source.put("sourceReference", 0); //if not zero, source can be requested by client via a message
     }
 

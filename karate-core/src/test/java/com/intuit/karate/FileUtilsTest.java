@@ -2,11 +2,6 @@ package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
 import java.io.File;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.nio.file.Path;
-import java.util.Collections;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
@@ -99,19 +94,6 @@ class FileUtilsTest {
     }
     
     @Test
-    void testWindowsFileNames() {
-        String path = "com/intuit/karate/cucumber/scenario.feature";
-        String fixed = FileUtils.toPackageQualifiedName(path);
-        assertEquals("com.intuit.karate.cucumber.scenario", fixed);
-        path = "file:C:\\Users\\Karate\\scenario.feature";
-        fixed = FileUtils.toPackageQualifiedName(path);
-        assertEquals("Users.Karate.scenario", fixed);
-        path = "file:../Karate/scenario.feature";
-        fixed = FileUtils.toPackageQualifiedName(path);
-        assertEquals("Karate.scenario", fixed);
-    }
-    
-    @Test
     void testRenameZeroLengthFile() {
         long time = System.currentTimeMillis();
         String name = "target/" + time + ".json";
@@ -122,89 +104,13 @@ class FileUtilsTest {
     }
     
     @Test
-    void testScanFile() {
-        String relativePath = "classpath:com/intuit/karate/test/file-utils-test.feature";
-        ClassLoader cl = getClass().getClassLoader();
-        List<Resource> files = FileUtils.scanForFeatureFilesOnClassPath(cl);
-        boolean found = false;
-        for (Resource file : files) {
-            String actualPath = file.getRelativePath().replace('\\', '/');
-            if (actualPath.equals(relativePath)) {
-                String temp = FileUtils.toRelativeClassPath(file.getPath(), cl);
-                assertEquals(temp, actualPath);
-                found = true;
-                break;
-            }
-        }
-        assertTrue(found);
-    }
-    
-    @Test
-    void testScanFileWithLineNumber() {
-        String relativePath = "classpath:com/intuit/karate/test/file-utils-test.feature:3";
-        List<Resource> files = FileUtils.scanForFeatureFiles(Collections.singletonList(relativePath), getClass().getClassLoader());
-        assertEquals(1, files.size());
-        assertEquals(3, files.get(0).getLine());
-    }
-    
-    @Test
-    void testScanFilePath() {
-        String relativePath = "classpath:com/intuit/karate/test";
-        List<Resource> files = FileUtils.scanForFeatureFiles(true, relativePath, getClass().getClassLoader());
-        assertEquals(1, files.size());
-    }
-    
-    @Test
-    void testRelativePathForClass() {
-        assertEquals("classpath:com/intuit/karate", FileUtils.toRelativeClassPath(getClass()));
-    }
-    
-    @Test
-    void testGetAllClasspaths() {
-        List<URL> urls = FileUtils.getAllClassPathUrls(getClass().getClassLoader());
-        for (URL url : urls) {
-            logger.debug("url: {}", url);
-        }
-    }
-    
-    @Test
-    void testGetClasspathAbsolute() {
-        File file = new File("src/test/java/com/intuit/karate/core/runner/multi-scenario.feature").getAbsoluteFile();
-        String scan = "classpath:" + file.getPath();
-        List<Resource> resources = FileUtils.scanForFeatureFiles(Collections.singletonList(scan), ClassLoader.getSystemClassLoader());
-        assertEquals(1, resources.size());
-        assertEquals(file, resources.get(0).getPath().toFile());
-    }
-    
-    static ClassLoader getJarClassLoader() throws Exception {
-        File jar = new File("src/test/resources/karate-test.jar");
-        assertTrue(jar.exists());
-        return new URLClassLoader(new URL[]{jar.toURI().toURL()});
-    }
-    
-    @Test
-    void testUsingKarateBase() throws Exception {
-        String relativePath = "classpath:demo/jar1/caller.feature";
-        ClassLoader cl = getJarClassLoader();
-        Path path = FileUtils.fromRelativeClassPath(relativePath, cl);
-        Resource resource = new Resource(path, relativePath, -1, cl);
-        Feature feature = Feature.read(resource);
-        try {
-            Runner.runFeature(feature, null, true);
-            fail("we should not have reached here");
-        } catch (Exception e) {
-            assertTrue(e instanceof KarateException);
-        }
-    }
-    
-    @Test
     void testUsingBadPath() {
         String relativePath = "/foo/bar/feeder.feature";
         try {
             Feature.read(relativePath);
             fail("we should not have reached here");
         } catch (Exception e) {
-            assertEquals(e.getCause().getClass(), java.io.FileNotFoundException.class);
+            assertEquals(e.getMessage(), "not found: /foo/bar/feeder.feature");
         }
     }
     

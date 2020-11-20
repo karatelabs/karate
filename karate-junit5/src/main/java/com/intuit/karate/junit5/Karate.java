@@ -27,6 +27,7 @@ import com.intuit.karate.Runner;
 import com.intuit.karate.Suite;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.HtmlSummaryReport;
+import com.intuit.karate.resource.ResourceUtils;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -59,7 +60,7 @@ public class Karate implements Iterable<DynamicNode> {
         return new Karate().feature(paths);
     }
 
-    public Karate relativeTo(Class clazz) {
+    public Karate relativeTo(Class clazz) {        
         builder.relativeTo(clazz);
         return this;
     }

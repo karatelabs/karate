@@ -34,12 +34,14 @@ import com.intuit.karate.core.Subscriber;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.RuntimeHookFactory;
 import com.intuit.karate.http.HttpClientFactory;
+import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -186,7 +188,7 @@ public class Runner {
     }
 
     public static Map<String, Object> runFeature(Class relativeTo, String path, Map<String, Object> vars, boolean evalKarateConfig) {
-        File file = FileUtils.getFileRelativeTo(relativeTo, path);
+        File file = ResourceUtils.getFileRelativeTo(relativeTo, path);
         return runFeature(file, vars, evalKarateConfig);
     }
 
@@ -250,20 +252,12 @@ public class Runner {
         return options.parallel(threadCount);
     }
 
-    public static Results parallel(List<Resource> resources, int threadCount, String reportDir) {
-        Builder options = new Builder();
-        options.resources = resources;
-        options.reportDir = reportDir;
-        return options.parallel(threadCount);
-    }
-
     //==========================================================================
     //
     public static class Builder {
 
         Class optionsClass;
         ClassLoader classLoader;
-        Class relativeTo;
         Logger logger;
         String env;
         File workingDir;
@@ -275,8 +269,8 @@ public class Runner {
         String scenarioName;
         List<String> tags;
         List<String> paths;
-        List<Resource> resources;
         List<Feature> features;
+        String relativeTo;
         Collection<RuntimeHook> hooks;
         RuntimeHookFactory hookFactory;
         HttpClientFactory clientFactory;
@@ -284,15 +278,20 @@ public class Runner {
 
         public List<Feature> resolveFeatures() {
             if (features == null) {
-                if (resources == null) {
-                    resources = FileUtils.scanForFeatureFiles(paths, relativeTo, classLoader);
+                if (paths != null && !paths.isEmpty()) {
+                    if (relativeTo != null) {
+                        paths = paths.stream().map(p -> {
+                            if (!p.endsWith(".feature")) {
+                                p = p + ".feature";
+                            }
+                            return relativeTo + "/" + p;
+                        }).collect(Collectors.toList());
+                    }
+                } else if (relativeTo != null) {
+                    paths = new ArrayList();
+                    paths.add(relativeTo);
                 }
-                features = new ArrayList(resources.size());
-                for (Resource resource : resources) {
-                    Feature feature = Feature.read(resource);
-                    feature.setCallLine(resource.getLine());
-                    features.add(feature);
-                }
+                features = ResourceUtils.findFeatureFiles(paths);
             }
             if (scenarioName != null) {
                 for (Feature feature : features) {
@@ -355,11 +354,6 @@ public class Runner {
             return this;
         }
 
-        public Builder relativeTo(Class clazz) {
-            relativeTo = clazz;
-            return this;
-        }
-
         public Builder configDir(String dir) {
             this.configDir = dir;
             return this;
@@ -386,6 +380,11 @@ public class Runner {
             if (value != null) {
                 this.buildDir = value;
             }
+            return this;
+        }
+
+        public Builder relativeTo(Class clazz) {
+            relativeTo = "classpath:" + ResourceUtils.toPathFromClassPathRoot(clazz);
             return this;
         }
 
@@ -417,20 +416,6 @@ public class Runner {
         public Builder tags(String... tags) {
             tags(Arrays.asList(tags));
             return this;
-        }
-
-        public Builder resources(Collection<Resource> value) {
-            if (value != null) {
-                if (resources == null) {
-                    resources = new ArrayList();
-                }
-                resources.addAll(value);
-            }
-            return this;
-        }
-
-        public Builder resources(Resource... value) {
-            return resources(Arrays.asList(value));
         }
 
         public Builder features(Collection<Feature> value) {

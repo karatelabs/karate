@@ -24,7 +24,9 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.KarateException;
-import com.intuit.karate.Resource;
+import com.intuit.karate.resource.FileResource;
+import com.intuit.karate.resource.MemoryResource;
+import com.intuit.karate.resource.Resource;
 import java.util.Arrays;
 import java.util.List;
 
@@ -56,7 +58,7 @@ public class Step {
             text = "* " + stepText;
         }
         text = "Feature:\nScenario:\n" + text;
-        Resource resource = Resource.withContent(feature.getResource().getPath(), text);
+        Resource resource = new MemoryResource(feature.getResource().getFile(), text);
         Feature tempFeature = Feature.read(resource);
         Step tempStep = tempFeature.getStep(0, -1, 0);
         if (tempStep == null) {

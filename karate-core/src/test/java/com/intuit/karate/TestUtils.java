@@ -1,10 +1,5 @@
 package com.intuit.karate;
 
-import com.intuit.karate.Suite;
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.Logger;
-import com.intuit.karate.Resource;
-import com.intuit.karate.Runner;
 import com.intuit.karate.core.Config;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
@@ -14,8 +9,10 @@ import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
-import java.io.InputStream;
-import java.nio.file.Path;
+import com.intuit.karate.resource.MemoryResource;
+import com.intuit.karate.resource.Resource;
+import com.intuit.karate.resource.ResourceUtils;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -48,15 +45,8 @@ public class TestUtils {
         for (String line : lines) {
             sb.append("* ").append(line).append('\n');
         }
-        InputStream is = FileUtils.toInputStream(sb.toString());
-        ClassLoader cl = Thread.currentThread().getContextClassLoader();
-        Path path = FileUtils.fromRelativeClassPath("classpath:com/intuit/karate/core/dummy.feature", cl);
-        Resource resource = new Resource(path, cl) {
-            @Override
-            public InputStream getStream() {
-                return is;
-            }
-        };
+        File file = ResourceUtils.getFileRelativeTo(TestUtils.class, "core/dummy.feature");
+        Resource resource = new MemoryResource(file, sb.toString());
         return Feature.read(resource);
     }
 
@@ -88,6 +78,7 @@ public class TestUtils {
     public static FeatureRuntime runFeature(String path, String configDir) {
         Feature feature = Feature.read(path);
         Runner.Builder rb = Runner.builder();
+        rb.features(feature);
         rb.configDir(configDir);
         FeatureRuntime fr = FeatureRuntime.of(new Suite(rb), feature);
         fr.run();
@@ -126,15 +117,8 @@ public class TestUtils {
 
         public Feature build() {
             String text = StringUtils.join(list, '\n');
-            InputStream is = FileUtils.toInputStream(text);
-            ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            Path path = FileUtils.fromRelativeClassPath("classpath:com/intuit/karate/core/dummy.feature", cl);
-            Resource resource = new Resource(path, cl) {
-                @Override
-                public InputStream getStream() {
-                    return is;
-                }
-            };
+            File file = ResourceUtils.getFileRelativeTo(getClass(), "core/dummy.feature");
+            Resource resource = new MemoryResource(file, text);
             return Feature.read(resource);
         }
 

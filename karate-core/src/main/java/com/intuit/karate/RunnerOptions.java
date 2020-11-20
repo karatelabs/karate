@@ -23,9 +23,9 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.resource.ResourceUtils;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -149,8 +149,9 @@ public class RunnerOptions {
             }
         }
         if (clazz != null && (features == null || features.isEmpty())) {
-            String relative = FileUtils.toRelativeClassPath(clazz);
-            features = Collections.singletonList(relative);
+            String relative = ResourceUtils.toPathFromClassPathRoot(clazz);
+            features = new ArrayList();
+            features.add("classpath:" + relative);
         }
         String line = StringUtils.trimToNull(System.getProperty("karate.options"));
         RunnerOptions options;

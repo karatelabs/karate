@@ -98,7 +98,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     }
 
     protected boolean isBreakpoint(Step step, int line) {
-        String path = step.getFeature().getResource().getPath().toString();
+        String path = step.getFeature().getResource().getFile().getPath();
         int pos = findPos(path);
         SourceBreakpoints sb;
         if (pos != -1) {

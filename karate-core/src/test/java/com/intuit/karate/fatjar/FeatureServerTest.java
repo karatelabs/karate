@@ -28,7 +28,9 @@ class FeatureServerTest {
 
     @Test
     void testClient() {
-        Results result = Runner.path("classpath:com/intuit/karate/client.feature").parallel(1);
+        Results result = Runner.path("classpath:com/intuit/karate/fatjar/client.feature")
+                .configDir("classpath:com/intuit/karate/fatjar")
+                .parallel(1);
         assertEquals(result.getFailCount(), 0, result.getErrorMessages());
     }
 

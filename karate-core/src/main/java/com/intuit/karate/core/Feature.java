@@ -23,8 +23,10 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.Resource;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.resource.FileResource;
+import com.intuit.karate.resource.Resource;
+import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,11 +53,11 @@ public class Feature {
     private int callLine = -1;
 
     public static Feature read(String path) {
-        return read(new Resource(path));
+        return read(ResourceUtils.getResource(path));
     }
 
     public static Feature read(File file) {
-        return read(new Resource(file));
+        return read(new FileResource(file));
     }
 
     public static Feature read(Resource resource) {

@@ -75,10 +75,9 @@ public class FileResource implements Resource {
     public Resource resolve(String path) {
         int pos = relativePath.lastIndexOf('/');
         String parentPath = pos == -1 ? "" : relativePath.substring(0, pos);
-        if (classPath) {
-            parentPath = "classpath:" + parentPath;
-        }
-        return ResourceUtils.getResource(parentPath + "/" + path);
+        String childPath = parentPath + "/" + path.replace('\\', '/');
+        File child = new File(file.getParent() + File.separator + path);
+        return new FileResource(child, classPath, childPath);
     }
 
     @Override

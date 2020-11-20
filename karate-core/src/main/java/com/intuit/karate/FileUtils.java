@@ -24,6 +24,8 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.resource.Resource;
+import com.intuit.karate.resource.ResourceUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -32,25 +34,17 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -301,283 +295,6 @@ public class FileUtils {
         }
     }
 
-    public static String toStandardPath(String path) {
-        if (path == null) {
-            return null;
-        }
-        path = path.replace('\\', '/');
-        return path.startsWith("/") ? path.substring(1) : path;
-    }
-
-    public static String toRelativeClassPath(Path path, ClassLoader cl) {
-        if (isJarPath(path.toUri())) {
-            return CLASSPATH_COLON + toStandardPath(path.toString());
-        }
-        for (URL url : getAllClassPathUrls(cl)) {
-            Path rootPath = urlToPath(url, null);
-            if (rootPath != null && path.startsWith(rootPath)) {
-                Path relativePath = rootPath.relativize(path);
-                return CLASSPATH_COLON + toStandardPath(relativePath.toString());
-            }
-        }
-        // we didn't find this on the classpath, fall back to absolute
-        return path.toString().replace('\\', '/');
-    }
-
-    public static File getDirContaining(Class clazz) {
-        Path path = getPathContaining(clazz);
-        return path.toFile();
-    }
-
-    public static Path getPathContaining(Class clazz) {
-        String relative = packageAsPath(clazz);
-        URL url = clazz.getClassLoader().getResource(relative);
-        return urlToPath(url, null);
-    }
-
-    private static String packageAsPath(Class clazz) {
-        Package p = clazz.getPackage();
-        String relative = "";
-        if (p != null) {
-            relative = p.getName().replace('.', '/');
-        }
-        return relative;
-    }
-
-    public static File getFileRelativeTo(Class clazz, String path) {
-        Path dirPath = getPathContaining(clazz);
-        File file = new File(dirPath + File.separator + path);
-        if (file.exists()) {
-            return file;
-        }
-        try {
-            URL relativePath = clazz.getClassLoader().getResource(packageAsPath(clazz) + File.separator + path);
-            return Paths.get(relativePath.toURI()).toFile();
-        } catch (Exception e) {
-            throw new IllegalArgumentException(String.format("Cannot resolve path '%s' relative to class '%s' ", path, clazz.getName()), e);
-        }
-    }
-
-    public static String toRelativeClassPath(Class clazz) {
-        Path dirPath = getPathContaining(clazz);
-        return toRelativeClassPath(dirPath, clazz.getClassLoader());
-    }
-
-    public static Path fromRelativeClassPath(String relativePath, ClassLoader cl) {
-        relativePath = removePrefix(relativePath);
-        URL url = cl.getResource(relativePath);
-        if (url == null) { // assume this is a "real" path to a file
-            return new File(relativePath).toPath();
-        }
-        return urlToPath(url, relativePath);
-    }
-
-    public static Path fromRelativeClassPath(String relativePath, Path parentPath) {
-        boolean classpath = isClassPath(relativePath);
-        relativePath = removePrefix(relativePath);
-        if (classpath) { // use context file-system resolution
-            return parentPath.resolve(relativePath);
-        } else {
-            return new File(relativePath).toPath();
-        }
-    }
-
-    public static List<Resource> scanForFeatureFilesOnClassPath(ClassLoader cl) {
-        return scanForFeatureFiles(true, CLASSPATH_COLON, cl);
-    }
-
-    public static List<Resource> scanForFeatureFiles(List<String> paths, ClassLoader cl) {
-        if (paths == null) {
-            return Collections.EMPTY_LIST;
-        }
-        List<Resource> list = new ArrayList();
-        for (String path : paths) {
-            boolean classpath = isClassPath(path);
-            list.addAll(scanForFeatureFiles(classpath, path, cl));
-        }
-        return list;
-    }
-
-    public static List<Resource> scanForFeatureFiles(List<String> paths, Class clazz, ClassLoader cl) {
-        if (clazz == null) {
-            return scanForFeatureFiles(paths, cl);
-        }
-        // this resolves paths relative to the passed-in class
-        List<Resource> list = new ArrayList();
-        if (paths == null || paths.isEmpty()) {
-            paths = Collections.singletonList(toRelativeClassPath(clazz));
-        }
-        for (String path : paths) {
-            boolean classpath = isClassPath(path);
-            if (!classpath) { // convert from relative path
-                if (!path.endsWith(".feature")) {
-                    path = path + ".feature";
-                }
-                path = toRelativeClassPath(clazz) + "/" + path;
-            }
-            list.addAll(scanForFeatureFiles(true, path, clazz.getClassLoader()));
-        }
-        return list;
-    }
-
-    public static boolean isJarPath(URI uri) {
-        return uri.toString().contains("!/");
-    }
-
-    public static Path urlToPath(URL url, String relativePath) {
-        try {
-            URI uri = url.toURI();
-            if (isJarPath(uri)) {
-                FileSystem fs = getFileSystem(uri);
-                Path path = fs.getRootDirectories().iterator().next();
-                if (relativePath != null) {
-                    return path.resolve(relativePath);
-                } else {
-                    return path;
-                }
-            } else {
-                return Paths.get(uri);
-            }
-        } catch (Exception e) {
-            LOGGER.trace("invalid path: {}", e.getMessage());
-            return null;
-        }
-    }
-
-    public static List<URL> getAllClassPathUrls(ClassLoader classLoader) {
-        try {
-            List<URL> list = new ArrayList();
-            Enumeration<URL> iterator = classLoader.getResources("");
-            while (iterator.hasMoreElements()) {
-                URL url = iterator.nextElement();
-                list.add(url);
-            }
-            if (classLoader instanceof URLClassLoader) {
-                for (URL u : ((URLClassLoader) classLoader).getURLs()) {
-                    URL url = new URL("jar:" + u + "!/");
-                    list.add(url);
-                }
-            } else {
-                String classpath = System.getProperty("java.class.path");
-                if (classpath != null && !classpath.isEmpty()) {
-                    String[] classpathEntries = classpath.split(File.pathSeparator);
-                    for (String classpathEntry : classpathEntries) {
-                        if (classpathEntry.endsWith(".jar")) {
-                            String entryWithForwardSlashes = classpathEntry.replaceAll("\\\\", "/");
-                            boolean startsWithSlash = entryWithForwardSlashes.startsWith("/");
-                            URL url = new URL("jar:file:" + (startsWithSlash ? "" : "/") + entryWithForwardSlashes + "!/");
-                            list.add(url);
-                        }
-                    }
-                }
-            }
-            return list;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static final Map<URI, FileSystem> FILE_SYSTEM_CACHE = new HashMap();
-
-    private static FileSystem getFileSystem(URI uri) {
-        FileSystem fs = FILE_SYSTEM_CACHE.get(uri);
-        if (fs != null) {
-            return fs;
-        }
-        // java nio has some problems here !
-        synchronized (FILE_SYSTEM_CACHE) {
-            fs = FILE_SYSTEM_CACHE.get(uri); // retry with lock
-            if (fs != null) {
-                return fs;
-            }
-            try {
-                fs = FileSystems.getFileSystem(uri);
-            } catch (Exception e) {
-                try {
-                    LOGGER.trace("creating file system for URI: {} - {}", uri, e.getMessage());
-                    fs = FileSystems.newFileSystem(uri, Collections.emptyMap());
-                } catch (IOException ioe) {
-                    LOGGER.error("file system creation failed for URI: {} - {}", uri, ioe.getMessage());
-                    throw new RuntimeException(ioe);
-                }
-            }
-            FILE_SYSTEM_CACHE.put(uri, fs);
-            return fs;
-        }
-    }
-
-    public static List<Resource> scanForFeatureFiles(boolean classpath, String searchPath, ClassLoader cl) {
-        List<Resource> files = new ArrayList();
-        if (classpath) {
-            searchPath = removePrefix(searchPath);
-            for (URL url : getAllClassPathUrls(cl)) {
-                collectFeatureFiles(url, searchPath, files, cl);
-            }
-            return files;
-        } else {
-            collectFeatureFiles(null, searchPath, files, cl);
-            return files;
-        }
-    }
-
-    private static void collectFeatureFiles(URL url, String searchPath, List<Resource> files, ClassLoader cl) {
-        boolean classpath = url != null;
-        int colonPos = searchPath.lastIndexOf(':');
-        int line = -1;
-        if (colonPos > 1) { // line number has been appended, and not windows "C:\foo" kind of path
-            try {
-                line = Integer.valueOf(searchPath.substring(colonPos + 1));
-                searchPath = searchPath.substring(0, colonPos);
-            } catch (Exception e) {
-                // defensive coding, abort attempting to parse line number
-            }
-        }
-        Path rootPath;
-        Path search;
-        if (classpath) {
-            File test = new File(searchPath);
-            if (test.exists() && test.isAbsolute()) {
-                // although the classpath: prefix was used this is an absolute path ! fix
-                classpath = false;
-            }
-        }
-        if (classpath) {
-            rootPath = urlToPath(url, null);
-            if (rootPath == null) { // windows edge case
-                return;
-            }
-            search = rootPath.resolve(searchPath);
-        } else {
-            rootPath = new File(".").getAbsoluteFile().toPath();
-            search = Paths.get(searchPath);
-        }
-        Stream<Path> stream;
-        try {
-            stream = Files.walk(search);
-        } catch (IOException e) { // NoSuchFileException            
-            return;
-        }
-        for (Iterator<Path> paths = stream.iterator(); paths.hasNext();) {
-            Path path = paths.next();
-            Path fileName = path.getFileName();
-            if (fileName != null && fileName.toString().endsWith(".feature")) {
-                if (!files.isEmpty()) {
-                    // since the classpath search paths are in pairs or groups
-                    // skip if we found this already
-                    // else duplication happens if we use absolute paths as search paths
-                    Path prev = files.get(files.size() - 1).getPath();
-                    if (path.equals(prev)) {
-                        continue;
-                    }
-                }
-                String relativePath = rootPath.relativize(path.toAbsolutePath()).toString();
-                relativePath = toStandardPath(relativePath).replaceAll("[.]+/", "");
-                String prefix = classpath ? CLASSPATH_COLON : "";
-                files.add(new Resource(path, prefix + relativePath, line, cl));
-            }
-        }
-    }
-
     // TODO use this <Set> based and tighter routine for feature files above
     private static void walkPath(Path root, Set<String> results, Predicate<Path> predicate) {
         Stream<Path> stream;
@@ -610,7 +327,7 @@ public class FileUtils {
             Enumeration<URL> urls = CLASS_LOADER.getResources(basePath);
             while (urls.hasMoreElements()) {
                 URL url = urls.nextElement();
-                Path path = urlToPath(url, null);
+                Path path = Paths.get(url.toURI());
                 walkPath(path, results, IS_JS_FILE);
             }
         } catch (Exception e) {

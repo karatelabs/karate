@@ -35,7 +35,6 @@ import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.Suite;
-import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.locks.ReentrantLock;
@@ -88,8 +87,8 @@ public class CliExecutionHook implements RuntimeHook {
     public boolean beforeScenario(ScenarioRuntime sr) {
         if (intellij && sr.caller.depth == 0) {
             Scenario scenario = sr.scenario;
-            Path absolutePath = scenario.getFeature().getResource().getPath().toAbsolutePath();
-            log(String.format(TEMPLATE_TEST_STARTED, getCurrentTime(), absolutePath + ":" + scenario.getLine(), escape(scenario.getNameForReport())));
+            String path = scenario.getFeature().getResource().getRelativePath();
+            log(String.format(TEMPLATE_TEST_STARTED, getCurrentTime(), path + ":" + scenario.getLine(), escape(scenario.getNameForReport())));
             // log(String.format(TEMPLATE_SCENARIO_STARTED, getCurrentTime()));
         }
         return true;
@@ -111,8 +110,8 @@ public class CliExecutionHook implements RuntimeHook {
     public boolean beforeFeature(FeatureRuntime fr) {
         if (intellij && fr.caller.depth == 0) {
             Feature feature = fr.feature;
-            Path absolutePath = feature.getResource().getPath().toAbsolutePath();
-            log(String.format(TEMPLATE_TEST_SUITE_STARTED, getCurrentTime(), absolutePath + ":" + feature.getLine(), escape(feature.getNameForReport())));
+            String path = feature.getResource().getRelativePath();
+            log(String.format(TEMPLATE_TEST_SUITE_STARTED, getCurrentTime(), path + ":" + feature.getLine(), escape(feature.getNameForReport())));
         }
         return true;
     }
