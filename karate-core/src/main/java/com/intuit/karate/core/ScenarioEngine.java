@@ -33,7 +33,6 @@ import com.intuit.karate.XmlUtils;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Key;
-import com.intuit.karate.graal.JsAsync;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.graal.JsValue;
@@ -70,7 +69,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -122,7 +120,7 @@ public class ScenarioEngine {
     private boolean aborted;
     private Throwable failedReason;
 
-    private JsEngine JS;
+    protected JsEngine JS;
 
     // only used by mock server
     public ScenarioEngine(ScenarioRuntime runtime, Map<String, Variable> vars) {
@@ -749,9 +747,10 @@ public class ScenarioEngine {
 
     public void signal(Object result) {
         logger.debug("signal called: {}", result);
-        SIGNAL.complete(result);
         if (parent != null) {
             parent.signal(result);
+        } else {
+            SIGNAL.complete(result);
         }
     }
 
@@ -768,9 +767,12 @@ public class ScenarioEngine {
         } catch (Exception e) {
             logger.error("listen timed out: {}", e + "");
         }
-        SIGNAL = new CompletableFuture();
-        setHiddenVariable(LISTEN_RESULT, listenResult);
-        return listenResult;
+        synchronized (JS.context) {
+            SIGNAL = new CompletableFuture();
+            setHiddenVariable(LISTEN_RESULT, listenResult);
+            logger.debug("exit listen state with result: {}", listenResult);
+            return listenResult;
+        }
     }
 
     public Command fork(boolean useLineFeed, List<String> args) {
@@ -811,8 +813,8 @@ public class ScenarioEngine {
         }
         Value funOut = (Value) options.get("listener");
         if (funOut != null && funOut.canExecute()) {
-             ScenarioListener sl = new ScenarioListener(this, funOut);
-             command.setListener(sl);
+            ScenarioListener sl = new ScenarioListener(this, funOut);
+            command.setListener(sl);
         }
         Value funErr = (Value) options.get("errorListener");
         if (funErr != null && funErr.canExecute()) {

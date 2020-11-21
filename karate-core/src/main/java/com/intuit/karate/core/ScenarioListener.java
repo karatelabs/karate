@@ -62,18 +62,24 @@ public class ScenarioListener implements Consumer, Function, Runnable {
 
     @Override
     public void accept(Object arg) {
-        get().executeVoid(JsValue.fromJava(arg));
+        synchronized (parent.JS.context) {
+            get().executeVoid(JsValue.fromJava(arg));
+        }
     }
 
     @Override
     public Object apply(Object arg) {
-        Value result = get().execute(JsValue.fromJava(arg));
-        return new JsValue(result).getValue();
+        synchronized (parent.JS.context) {
+            Value result = get().execute(JsValue.fromJava(arg));
+            return new JsValue(result).getValue();
+        }
     }
 
     @Override
     public void run() {
-        get().executeVoid();
+        synchronized (parent.JS.context) {
+            get().executeVoid();
+        }
     }
 
 }
