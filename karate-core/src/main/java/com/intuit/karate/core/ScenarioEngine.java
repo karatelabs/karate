@@ -33,6 +33,7 @@ import com.intuit.karate.XmlUtils;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Key;
+import com.intuit.karate.graal.JsAsync;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.graal.JsValue;
@@ -66,7 +67,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -96,6 +100,8 @@ public class ScenarioEngine {
     private static final String RESPONSE_COOKIES = "responseCookies";
     private static final String RESPONSE_TIME = "responseTime";
     private static final String RESPONSE_TYPE = "responseType";
+
+    private static final String LISTEN_RESULT = "listenResult";
 
     public static final String REQUEST = "request";
     public static final String REQUEST_URL_BASE = "requestUrlBase";
@@ -730,8 +736,7 @@ public class ScenarioEngine {
     // websocket / async =======================================================
     //   
     private List<WebSocketClient> webSocketClients;
-    private Object signalResult;
-    private final Object LOCK = new Object();
+    CompletableFuture SIGNAL = new CompletableFuture();
 
     public WebSocketClient webSocket(WebSocketOptions options) {
         WebSocketClient webSocketClient = new WebSocketClient(options, logger);
@@ -743,39 +748,29 @@ public class ScenarioEngine {
     }
 
     public void signal(Object result) {
-        logger.trace("signal called: {}", result);
-        synchronized (LOCK) {
-            signalResult = result;
-            LOCK.notify();
-        }
+        logger.debug("signal called: {}", result);
+        SIGNAL.complete(result);
         if (parent != null) {
             parent.signal(result);
         }
     }
 
-    public Object listen(long timeout, Runnable runnable) {
-        if (runnable != null) {
-            logger.trace("submitting listen function");
-            new Thread(runnable).start();
+    public void listen(String exp) {
+        Variable v = evalKarateExpression(exp);
+        listen(v.getAsInt());
+    }
+
+    public Object listen(long timeout) {
+        logger.debug("entered listen state with timeout: {}", timeout);
+        Object listenResult = null;
+        try {
+            listenResult = SIGNAL.get(timeout, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            logger.error("listen timed out: {}", e + "");
         }
-        synchronized (LOCK) {
-            if (signalResult != null) {
-                logger.debug("signal arrived early ! result: {}", signalResult);
-                Object temp = signalResult;
-                signalResult = null;
-                return temp;
-            }
-            try {
-                logger.trace("entered listen wait state");
-                LOCK.wait(timeout);
-                logger.trace("exit listen wait state, result: {}", signalResult);
-            } catch (InterruptedException e) {
-                logger.error("listen timed out: {}", e.getMessage());
-            }
-            Object temp = signalResult;
-            signalResult = null;
-            return temp;
-        }
+        SIGNAL = new CompletableFuture();
+        setHiddenVariable(LISTEN_RESULT, listenResult);
+        return listenResult;
     }
 
     public Command fork(boolean useLineFeed, List<String> args) {
@@ -816,8 +811,8 @@ public class ScenarioEngine {
         }
         Value funOut = (Value) options.get("listener");
         if (funOut != null && funOut.canExecute()) {
-            ScenarioListener sl = new ScenarioListener(this, funOut);
-            command.setListener(sl);
+             ScenarioListener sl = new ScenarioListener(this, funOut);
+             command.setListener(sl);
         }
         Value funErr = (Value) options.get("errorListener");
         if (funErr != null && funErr.canExecute()) {

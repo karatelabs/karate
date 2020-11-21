@@ -380,6 +380,12 @@ public class ScenarioActions implements Actions {
     public void evalIf(String exp) {
         engine.evalJs("if " + exp);
     }
+    
+    @Override
+    @When("^listen (.+)")
+    public void listen(String body) {
+        engine.listen(body);
+    }    
 
     //==========================================================================
     //

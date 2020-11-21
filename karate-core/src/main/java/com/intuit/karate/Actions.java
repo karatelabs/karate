@@ -85,6 +85,8 @@ public interface Actions {
     void header(String name, String exp);
 
     void headers(String exp);
+    
+    void listen(String exp);
 
     void match(String exp, String op1, String op2, String rhs);        
 

@@ -26,6 +26,7 @@ package com.intuit.karate.graal;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import static com.intuit.karate.graal.JsValue.*;
 import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +35,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class JsAsync implements Supplier, Function, Consumer, Runnable {
+public class JsAsync implements Supplier, Function, Consumer, Runnable, Methods.FunVar {
 
     private static final Logger logger = LoggerFactory.getLogger(JsAsync.class);
 
@@ -50,22 +51,42 @@ public class JsAsync implements Supplier, Function, Consumer, Runnable {
 
     @Override
     public Object get() {
-        return value.execute();
+        synchronized (this) {
+            return toJava(value.execute());
+        }
     }
 
     @Override
     public Object apply(Object t) {
-        return value.execute(t);
+        synchronized (this) {
+            return toJava(value.execute(fromJava(t)));
+        }
     }
 
     @Override
     public void accept(Object t) {
-        value.executeVoid(t);
+        logger.debug("before sync");
+        synchronized (this) {
+            value.executeVoid(fromJava(t));
+        }
+        logger.debug("after sync");
     }
 
     @Override
     public void run() {
-        value.executeVoid();
+        synchronized (this) {
+            value.executeVoid();
+        }
+    }
+
+    @Override
+    public Object call(Object... args) {
+        synchronized (this) {
+            for (int i = 0; i < args.length; i++) {
+                args[i] = fromJava(args[i]);
+            }
+            return toJava(value.execute(args));
+        }
     }
 
 }

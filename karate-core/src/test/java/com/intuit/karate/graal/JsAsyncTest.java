@@ -1,6 +1,7 @@
 package com.intuit.karate.graal;
 
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.graalvm.polyglot.Value;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
@@ -17,22 +18,46 @@ class JsAsyncTest {
 
     @Test
     void testAsync() throws Exception {
-        AtomicReference<String> ref = new AtomicReference();
-        JsEngine je = JsEngine.local();
-        je.eval("var world = function(){ return 'world' }");
-        Value fun = je.evalForValue("(function(){ return 'hello ' + world() })");
-        Runnable code = () -> {
-            JsEngine child = JsEngine.local();
-            child.put("hello", JsAsync.of(fun));
-            JsValue res = child.eval("hello()");
-            String result = res.getAsString();
-            logger.debug("result: {}", result);
-            ref.set(result);
-        };
-        Thread thread = new Thread(code);
+        final CountDownLatch startGate = new CountDownLatch(1);
+        final CountDownLatch endGate = new CountDownLatch(1);
+        final AtomicBoolean hadException = new AtomicBoolean(false);
+        String code = "(function(x,y) { return JSON.stringify({x:x,y:y}); })";
+        JsEngine je1 = JsEngine.local();
+        Value fun1 = je1.evalForValue(code);
+        JsAsync async = JsAsync.of(fun1);
+        Thread thread = new Thread(() -> {
+            try {
+                startGate.await();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            for (int i = 0; i < 1000; i++) {
+                try {
+                    String encoded = (String) async.call(42, 43);
+                    assertEquals("{\"x\":42,\"y\":43}", encoded);
+                    // logger.debug("ok: {}", i);
+                } catch (Exception e) {
+                    logger.error("{}", e.getMessage());
+                    hadException.set(true);
+                }
+            }
+            endGate.countDown();
+        });
         thread.start();
+        startGate.countDown();
+        for (int i = 0; i < 1000; i++) {
+            try {
+                String encoded = (String) async.call(42, 43);
+                assertEquals("{\"x\":42,\"y\":43}", encoded);
+                // logger.debug("ok: {}", i);
+            } catch (Exception e) {
+                logger.error("{}", e.getMessage());
+                hadException.set(true);
+            }
+        }
+        endGate.await();
         thread.join();
-        assertEquals("hello world", ref.get());
+        assertFalse(hadException.get());
     }
 
 }

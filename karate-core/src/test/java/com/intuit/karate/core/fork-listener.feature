@@ -17,5 +17,5 @@ function(line) {
 }
 """
 * def proc = karate.fork({ args: ['ping', 'google.com'], listener: listener, useShell: true })
-* def output = karate.listen(10000)
-* print 'console output:', output
+* listen 5000
+* print 'console output:', listenResult

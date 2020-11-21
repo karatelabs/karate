@@ -470,18 +470,6 @@ public class ScenarioBridge implements PerfContext {
         return new JsList(o.getMemberKeys());
     }
 
-    public Object listen(long timeout, Value value) {
-        assertIfJsFunction(value);
-        ScenarioEngine engine = getEngine();
-        Runnable listener = new ScenarioListener(engine, value);
-        Object result = engine.listen(timeout, listener);
-        return JsValue.fromJava(result);
-    }
-
-    public Object listen(long timeout) {
-        return JsValue.fromJava(getEngine().listen(timeout, null));
-    }
-
     public void log(Value... values) {
         ScenarioEngine engine = getEngine();
         if (engine.getConfig().isPrintEnabled()) {

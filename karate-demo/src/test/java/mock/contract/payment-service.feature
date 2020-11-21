@@ -13,8 +13,9 @@ Scenario: create, get, update, list and delete payments
     Then status 200
     And match response == { id: '#number', amount: 5.67, description: 'test one' }
     And def id = response.id
-    * json shipment = karate.listen(5000)
-    * print '### received:', shipment
+    * listen 5000
+    * json shipment = listenResult
+    * print '### received:', listenResult
     * match shipment == { paymentId: '#(id)', status: 'shipped' }
 
     Given path id
