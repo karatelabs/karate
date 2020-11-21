@@ -66,7 +66,7 @@ public class Chrome extends DevToolsDriver {
         }
         Command command = options.startProcess();
         Http http = options.getHttp();
-        Command.waitForHttp(http.urlBase);
+        Command.waitForHttp(http.urlBase + "/json");
         Response res = http.path("json").get();
         if (res.json().asList().isEmpty()) {
             if (command != null) {

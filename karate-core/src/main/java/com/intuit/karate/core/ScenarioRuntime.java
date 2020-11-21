@@ -28,7 +28,6 @@ import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.shell.FileLogAppender;
 import java.io.File;
@@ -356,7 +355,7 @@ public class ScenarioRuntime implements Runnable {
                 error = stepResult.getError();
                 logError(error.getMessage());
             }
-            String stepLog = StringUtils.trimToNull(appender.collect()); // make sure we collect after error logging
+            String stepLog = appender.collect(); // make sure we collect after error logging
             currentStepResult = new StepResult(step, stepResult, stepLog, embeds, callResults);
             callResults = null;
             embeds = null;
@@ -385,7 +384,7 @@ public class ScenarioRuntime implements Runnable {
                 currentStepResult.addCallResults(callResults);
                 callResults = null;
             }
-            String stepLog = StringUtils.trimToNull(appender.collect());
+            String stepLog = appender.collect();
             currentStepResult.appendToStepLog(stepLog);
         } catch (Exception e) {
             logError("scenario [cleanup] failed\n" + e.getMessage());
