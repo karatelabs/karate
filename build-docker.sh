@@ -1,7 +1,7 @@
 #!/bin/bash
 set -x -e
 
-docker run -it --rm -v "$(pwd)":/karate -w /karate -v "$HOME/.m2":/root/.m2 maven:3-jdk-8 bash karate-docker/karate-chrome/install.sh
+docker run --rm -v "$(pwd)":/karate -w /karate -v "$HOME/.m2":/root/.m2 maven:3-jdk-8 bash karate-docker/karate-chrome/install.sh
 
 docker build -t karate-chrome karate-docker/karate-chrome
 
@@ -12,6 +12,6 @@ docker run --name karate --rm --cap-add=SYS_ADMIN -v "$PWD":/src -v "$HOME/.m2":
 # it does not have to have completed startup, the command / karate test below will wait
 sleep 5
 
-docker exec -it -w /src karate mvn test -f karate-core/pom.xml -Dtest=driver.DockerRunner
+docker exec -w /src karate mvn test -f karate-core/pom.xml -Dtest=driver.DockerRunner
 docker stop karate
 wait
