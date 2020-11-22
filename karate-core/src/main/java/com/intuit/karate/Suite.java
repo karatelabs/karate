@@ -52,6 +52,7 @@ public class Suite {
     public final Results results;
     public final Collection<RuntimeHook> hooks;
     public final HttpClientFactory clientFactory;
+    public final Map<String, String> systemProperties;
 
     public final String karateConfigDir;
     public final String karateBase;
@@ -81,6 +82,10 @@ public class Suite {
 
     public Suite(Runner.Builder rb) {
         env = rb.resolveEnv();
+        systemProperties = new HashMap(System.getProperties());
+        if (rb.systemProperties != null) {
+            systemProperties.putAll(rb.systemProperties);
+        }
         tagSelector = Tags.fromKarateOptionsTags(rb.tags);
         logger = rb.logger;
         workingDir = rb.workingDir;

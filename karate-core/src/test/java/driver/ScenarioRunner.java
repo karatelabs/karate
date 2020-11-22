@@ -21,14 +21,16 @@ class ScenarioRunner {
     static void beforeAll() {
         ServerConfig config = new ServerConfig()
                 .fileSystemRoot("src/test/java/driver/html")
+                .useGlobalSession(true)
                 .homePagePath("00");
         RequestHandler handler = new RequestHandler(config);
-        server = new HttpServer(8080, handler);        
+        server = new HttpServer(0, handler);        
     }
     
     @Test
     void testMock() {
         Results results = Runner.path("src/test/java/driver/00.feature")
+                .systemProperty("server.port", server.getPort() + "")
                 .configDir("src/test/java/driver").parallel(1);
         assertEquals(0, results.getFailCount(), results.getErrorMessages());
     }    

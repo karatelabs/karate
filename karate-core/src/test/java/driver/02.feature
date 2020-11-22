@@ -1,8 +1,7 @@
 Feature:
 
 Background:
-* driver serverUrl
-* click('{}02')
+* driver serverUrl + '/02'
 
 Scenario:
 # wait for slow loading element

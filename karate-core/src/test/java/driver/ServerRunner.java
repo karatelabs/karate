@@ -15,6 +15,7 @@ class ServerRunner {
     void testServer() {
         ServerConfig config = new ServerConfig()
                 .fileSystemRoot("src/test/java/driver/html")
+                .useGlobalSession(true)
                 .homePagePath("00");
         RequestHandler handler = new RequestHandler(config);
         HttpServer server = new HttpServer(8080, handler);

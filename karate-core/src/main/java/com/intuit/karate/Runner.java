@@ -275,6 +275,7 @@ public class Runner {
         RuntimeHookFactory hookFactory;
         HttpClientFactory clientFactory;
         boolean forTempUse;
+        Map<String, String> systemProperties;
 
         public List<Feature> resolveFeatures() {
             if (features == null) {
@@ -363,6 +364,14 @@ public class Runner {
             this.env = env;
             return this;
         }
+        
+        public Builder systemProperty(String key, String value) {
+            if (systemProperties == null) {
+                systemProperties = new HashMap();
+            }
+            systemProperties.put(key, value);
+            return this;
+        }       
 
         public Builder logger(Logger logger) {
             this.logger = logger;

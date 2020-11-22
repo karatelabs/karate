@@ -438,7 +438,7 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object getProperties() {
-        return new JsMap(System.getProperties());
+        return new JsMap(getEngine().runtime.featureRuntime.suite.systemProperties);
     }
 
     public Scenario getScenario() {

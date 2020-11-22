@@ -24,7 +24,6 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;

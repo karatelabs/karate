@@ -41,6 +41,7 @@ public class ServerConfig {
     private String homePagePath = "index";
     private String sessionCookieName = "karate.sid";
     private boolean stripContextPathFromRequest;
+    private boolean useGlobalSession;
     private SessionStore sessionStore = JvmSessionStore.INSTANCE;
     private int sessionExpirySeconds = 60 * 10;
     private ResourceResolver resourceResolver = new ClassPathResourceResolver(null);
@@ -54,6 +55,8 @@ public class ServerConfig {
         if (path.startsWith("api/")) {
             context.setApi(true);
             context.setLockNeeded(true);
+            context.setSession(GLOBAL_SESSION);
+        } else if (useGlobalSession) {
             context.setSession(GLOBAL_SESSION);
         }
         return context;
@@ -88,6 +91,10 @@ public class ServerConfig {
     public boolean isStripContextPathFromRequest() {
         return stripContextPathFromRequest;
     }
+
+    public boolean isUseGlobalSession() {
+        return useGlobalSession;
+    }        
 
     public int getSessionExpirySeconds() {
         return sessionExpirySeconds;
@@ -155,6 +162,11 @@ public class ServerConfig {
         stripContextPathFromRequest = value;
         return this;
     }
+    
+    public ServerConfig useGlobalSession(boolean value) {
+        useGlobalSession = value;
+        return this;
+    }    
 
     public ServerConfig sessionStore(SessionStore value) {
         sessionStore = value;

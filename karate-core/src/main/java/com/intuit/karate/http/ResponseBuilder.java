@@ -50,7 +50,7 @@ public class ResponseBuilder {
     private byte[] body;
     private Set<Cookie> cookies;
     private Map<String, List<String>> headers;
-    private ResourceType resourceType = ResourceType.BINARY;
+    private ResourceType resourceType;
     private final ServerConfig config;
     private final ResourceResolver resourceResolver;
 
@@ -153,7 +153,7 @@ public class ResponseBuilder {
             String json = JsonUtils.toJson(merged);
             header(HttpConstants.HDR_HX_TRIGGER, json);
         }
-        if (resourceType.isHtml() && context.isAjax() && context.getAfterSettleScripts() != null) {
+        if (resourceType != null && resourceType.isHtml() && context.isAjax() && context.getAfterSettleScripts() != null) {
             StringBuilder sb = new StringBuilder();
             for (String js : context.getAfterSettleScripts()) {
                 if (sb.length() > 0) {
@@ -190,8 +190,11 @@ public class ResponseBuilder {
         return status(response.getStatus());
     }
 
-    public Response buildStatic(Request request) {
+    public Response buildStatic(Request request) { // TODO ETag header handling
         resourceType = request.getResourceType();
+        if (resourceType == null) {
+            resourceType = ResourceType.BINARY;
+        }
         contentType(resourceType.contentType);
         try {
             InputStream is = resourceResolver.read(request.getResourcePath());

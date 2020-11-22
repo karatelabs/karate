@@ -1,8 +1,7 @@
 Feature:
 
 Background:
-* driver serverUrl
-* click('{}01')
+* driver serverUrl + '/01'
 
 Scenario:
 # assert page url
@@ -11,10 +10,27 @@ Scenario:
 # assert page title
 * match driver.title == 'Page 01'
 
+# navigate to new page
+* click('a')
+
+# wait for new page to load
+* waitForUrl(serverUrl + '/02')
+
+# assert for driver title
+* match driver.title == 'Page 02'
+
 # browser navigation: back
 * back()
-* match driver.title == 'Driver Tests Home Page'
+
+# wait for page to re-load
+* waitForUrl(serverUrl + '/01')
+
+* match driver.title == 'Page 01'
 
 # browser navigation: forward
 * forward()
-* match driver.title == 'Page 01'
+
+# wait for page to re-load
+* waitForUrl(serverUrl + '/02')
+
+* match driver.title == 'Page 02'

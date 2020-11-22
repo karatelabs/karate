@@ -83,17 +83,11 @@ public class RequestHandler implements ServerHandler {
             }
             return response().buildStatic(request);
         }
-        Session session;
+        Session session = context.getSession(); // can be pre-resolved by context-factory
         boolean newSession = false;
-        if (context.isStateless()) {
-            session = null;
-        } else if (context.isApi()) {
-            session = context.getSession();
-        } else {
+        if (session == null && !context.isStateless()) {
             String sessionId = context.getSessionCookieValue();
-            if (sessionId == null) {
-                session = null;
-            } else {
+            if (sessionId != null) {
                 session = sessionStore.get(sessionId);
                 if (session != null && isExpired(session)) {
                     logger.debug("session expired: {}", session);
@@ -116,8 +110,6 @@ public class RequestHandler implements ServerHandler {
                     }
                     return rb.status(302);
                 }
-            } else {
-                // logger.debug("session exists: {} - {}", request, sessionId);
             }
         }
         RequestCycle rc = RequestCycle.get();
