@@ -1,6 +1,7 @@
 #!/bin/bash
 set -x -e
 
+# this moves karate binaries to karate-docker/karate-chrome/target
 docker run --rm -v "$(pwd)":/karate -w /karate -v "$HOME/.m2":/root/.m2 maven:3-jdk-8 bash karate-docker/karate-chrome/install.sh
 
 docker build -t karate-chrome karate-docker/karate-chrome
