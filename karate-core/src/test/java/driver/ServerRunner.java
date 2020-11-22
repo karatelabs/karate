@@ -9,17 +9,21 @@ import org.junit.jupiter.api.Test;
  *
  * @author pthomas3
  */
-class ServerRunner {
-    
+public class ServerRunner {
+
     @Test
     void testServer() {
+        HttpServer server = start(8080);
+        server.waitSync();
+    }
+
+    public static HttpServer start(int port) {
         ServerConfig config = new ServerConfig()
                 .fileSystemRoot("src/test/java/driver/html")
                 .useGlobalSession(true)
                 .homePagePath("00");
         RequestHandler handler = new RequestHandler(config);
-        HttpServer server = new HttpServer(8080, handler);
-        server.waitSync();
-    }    
-    
+        return new HttpServer(port, handler);
+    }
+
 }

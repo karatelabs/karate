@@ -1,8 +1,16 @@
 #!/bin/bash
 set -x -e
-mvn clean install -DskipTests -P pre-release -Djavacpp.platform=linux-x86_64
+
+mvn clean verify -DskipTests -Djavacpp.platform=linux-x86_64
+
 KARATE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-mvn -f karate-netty/pom.xml install -DskipTests -P fatjar
-cp karate-netty/target/karate-${KARATE_VERSION}.jar /root/.m2/karate.jar
-mvn -f examples/jobserver/pom.xml test-compile exec:java -Dexec.mainClass=common.Main -Dexec.classpathScope=test
-mvn -f examples/gatling/pom.xml test
+MVN_INSTALL=org.apache.maven.plugins:maven-install-plugin:3.0.0-M1:install-file
+MVN_REPO=karate-docker/karate-chrome/target/repository
+
+for MODULE in core junit4 junit5 gatling mock-servlet
+do
+  mvn ${MVN_INSTALL} -Dfile=karate-${MODULE}/target/karate-${MODULE}-${KARATE_VERSION}.jar -DlocalRepositoryPath=${MVN_REPO}
+done
+
+mvn -f karate-core/pom.xml package -DskipTests -P fatjar
+cp karate-core/target/karate-${KARATE_VERSION}.jar karate-docker/karate-chrome/target/karate.jar
