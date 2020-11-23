@@ -6,10 +6,11 @@
     <link rel="icon" href="00.ico">
   </head>
   <body>
-    <p>assert on page url</p>
-    <p>assert on page title</p>
-    <p>browser navigation: back</p>
-    <p>browser navigation: forward</p>
+    <script ka:lang="js">
+      session.counter01 = session.counter01 || 0;
+      session.counter01++;
+    </script>    
+    <div>this page has been loaded <span th:text="session.counter01" id="pageLoadCount"></span> times</div>
     <a href="/02">Page 02</a>
   </body>
 </html>

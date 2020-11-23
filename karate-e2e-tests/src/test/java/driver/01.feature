@@ -10,6 +10,17 @@ Scenario:
 # assert page title
 * match driver.title == 'Page 01'
 
+# before refresh()
+* match text('#pageLoadCount') == '1'
+
+# refresh page
+* refresh()
+* match text('#pageLoadCount') == '2'
+
+# reload page
+* refresh()
+* match text('#pageLoadCount') == '3'
+
 # navigate to new page
 * click('a')
 
