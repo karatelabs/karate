@@ -11,13 +11,13 @@ import org.junit.jupiter.api.Test;
  *
  * @author pthomas3
  */
-class ScenarioRunner {
+class LocalRunner {
     
     static HttpServer server;
     
     @BeforeAll
     static void beforeAll() {
-        server = ServerRunner.start(0);        
+        server = ServerStarter.start(0);        
     }
     
     @Test

@@ -17,7 +17,7 @@ class DockerRunner {
     
     @BeforeAll
     static void beforeAll() {
-        server = ServerRunner.start(0);
+        server = ServerStarter.start(0);
     }
     
     @Test

@@ -76,4 +76,9 @@ public class MemoryResource implements Resource {
         return new ByteArrayInputStream(bytes);
     }
 
+    @Override
+    public String toString() {
+        return getPrefixedPath();
+    }
+
 }

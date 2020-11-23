@@ -51,11 +51,12 @@
         <module>karate-core</module>
         <module>karate-junit4</module>
         <module>karate-junit5</module>
-        <module>karate-gatling</module>
         <module>karate-demo</module>
-        <module>karate-robot</module>
+        <module>karate-gatling</module>
         <module>karate-mock-servlet</module>
+        <module>karate-robot</module>
         <module>karate-archetype</module>
+        <module>karate-e2e-tests</module>
     </modules>
 
     <dependencies>

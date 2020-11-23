@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
  *
  * @author pthomas3
  */
-public class ServerRunner {
+public class ServerStarter {
 
     @Test
     void testServer() {
