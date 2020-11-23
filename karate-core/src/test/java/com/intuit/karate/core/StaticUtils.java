@@ -20,4 +20,16 @@ public class StaticUtils {
         return sb.toString();
     }
     
+    public static String fromInt(int num) {
+        return "value is " + num;
+    }    
+    
+    public static String fromDouble(double num) {
+        return "value is " + num;
+    }
+    
+    public static String fromNumber(Number num) {
+        return "value is " + num.doubleValue();
+    }    
+    
 }

@@ -129,7 +129,7 @@ class ScenarioRuntimeTest {
         );
         matchVar("res1", 1);
         matchVar("res2", 2);
-        matchVar("_curId", 2);        
+        matchVar("_curId", 2);
     }
 
     @Test
@@ -637,6 +637,21 @@ class ScenarioRuntimeTest {
                 "csv temp = ''"
         );
         matchVar("temp", "[]");
+    }
+
+    @Test
+    void testJavaInteropParameters() {
+        run(
+                "def Utils = Java.type('com.intuit.karate.core.StaticUtils')",
+                "def res1 = Utils.fromInt(2)",
+                "def res2 = Utils.fromDouble(2)",
+                "def res3 = Utils.fromDouble(2.0)",
+                "def res4 = Utils.fromNumber(2.0)"                
+        );
+        matchVar("res1", "value is 2");
+        matchVar("res2", "value is 2.0");
+        matchVar("res3", "value is 2.0");
+        matchVar("res4", "value is 2.0");        
     }
 
 }
