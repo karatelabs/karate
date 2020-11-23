@@ -177,6 +177,38 @@ class ScenarioRuntimeTest {
     }
 
     @Test
+    void testCallSingleThatReturnsJson() {
+        run(
+                "def res = karate.callSingle('called3.js')"
+        );
+        matchVar("res", "{ varA: '2', varB: '3' }");
+    }
+
+    @Test
+    void testKarateCallThatReturnsJson() {
+        run(
+                "def res = karate.call('called3.js')"
+        );
+        matchVar("res", "{ varA: '2', varB: '3' }");
+    }
+    
+    @Test
+    void testCallSingleWithinJs() {
+        run(
+                "def res = karate.call('called3-caller1.js')"
+        );
+        matchVar("res", "{ varA: '2', varB: '3' }");
+    } 
+    
+    @Test
+    void testKarateCallWithinJs() {
+        run(
+                "def res = karate.call('called3-caller2.js')"
+        );
+        matchVar("res", "{ varA: '2', varB: '3' }");
+    }     
+
+    @Test
     void testCallFromJs() {
         run(
                 "def res = karate.call('called1.feature')"
@@ -646,12 +678,12 @@ class ScenarioRuntimeTest {
                 "def res1 = Utils.fromInt(2)",
                 "def res2 = Utils.fromDouble(2)",
                 "def res3 = Utils.fromDouble(2.0)",
-                "def res4 = Utils.fromNumber(2.0)"                
+                "def res4 = Utils.fromNumber(2.0)"
         );
         matchVar("res1", "value is 2");
         matchVar("res2", "value is 2.0");
         matchVar("res3", "value is 2.0");
-        matchVar("res4", "value is 2.0");        
+        matchVar("res4", "value is 2.0");
     }
 
 }
