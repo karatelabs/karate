@@ -2,7 +2,7 @@
 set -x -e
 
 # assumes a maven build has completed so the jar files are in place
-# mvn clean verify -DskipTests -Djavacpp.platform=linux-x86_64
+# mvn -B clean verify -P pre-release -DskipTests -Djavacpp.platform=linux-x86_64
 
 KARATE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
 MVN_INSTALL=org.apache.maven.plugins:maven-install-plugin:3.0.0-M1:install-file
