@@ -158,7 +158,7 @@ public class ScenarioBridge implements PerfContext {
         final Map<String, Object> CACHE = engine.runtime.featureRuntime.suite.SUITE_CACHE;
         if (CACHE.containsKey(fileName)) {
             engine.logger.trace("callSingle cache hit: {}", fileName);
-            return CACHE.get(fileName);
+            return JsValue.fromJava(CACHE.get(fileName));
         }
         long startTime = System.currentTimeMillis();
         engine.logger.trace("callSingle waiting for lock: {}", fileName);
@@ -166,7 +166,7 @@ public class ScenarioBridge implements PerfContext {
             if (CACHE.containsKey(fileName)) { // retry
                 long endTime = System.currentTimeMillis() - startTime;
                 engine.logger.warn("this thread waited {} milliseconds for callSingle lock: {}", endTime, fileName);
-                return CACHE.get(fileName);
+                return JsValue.fromJava(CACHE.get(fileName));
             }
             // this thread is the 'winner'
             engine.logger.info(">> lock acquired, begin callSingle: {}", fileName);
@@ -209,7 +209,7 @@ public class ScenarioBridge implements PerfContext {
             }
             CACHE.put(fileName, result);
             engine.logger.info("<< lock released, cached callSingle: {}", fileName);
-            return result;
+            return JsValue.fromJava(result);
         }
     }
 

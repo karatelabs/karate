@@ -1,5 +1,5 @@
 function() {
-  var result = karate.callSingle('called3.js');  
-  // karate.log('result:', result);
-  return result;
+  var result = karate.callSingle('called3.js');
+  karate.log('varA:', result.varA);
+  return result.varA;
 }

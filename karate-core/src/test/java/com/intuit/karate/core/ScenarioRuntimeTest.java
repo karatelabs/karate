@@ -197,7 +197,7 @@ class ScenarioRuntimeTest {
         run(
                 "def res = karate.call('called3-caller1.js')"
         );
-        matchVar("res", "{ varA: '2', varB: '3' }");
+        matchVar("res", "2");
     } 
     
     @Test
@@ -205,7 +205,7 @@ class ScenarioRuntimeTest {
         run(
                 "def res = karate.call('called3-caller2.js')"
         );
-        matchVar("res", "{ varA: '2', varB: '3' }");
+        matchVar("res", "2");
     }     
 
     @Test
