@@ -26,7 +26,6 @@ package com.intuit.karate.core;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.PerfHook;
 import com.intuit.karate.Suite;
-import com.intuit.karate.resource.FileResource;
 import com.intuit.karate.resource.MemoryResource;
 import com.intuit.karate.resource.Resource;
 import java.io.File;
@@ -112,20 +111,6 @@ public class FeatureRuntime implements Runnable {
         scenarios = new ScenarioGenerator(this, feature.getSections().iterator());
     }
 
-    private ScenarioRuntime lastExecutedScenario;
-
-    public Variable getResultVariable() {
-        if (lastExecutedScenario == null) {
-            return Variable.NULL;
-        }
-        return new Variable(lastExecutedScenario.engine.getAllVariablesAsMap());
-    }
-
-    public Map<String, Object> getResult() {
-        Variable var = getResultVariable();
-        return var.isMap() ? var.getValue() : null;
-    }
-
     private boolean beforeHookDone;
     private boolean beforeHookResult = true;
 
@@ -167,11 +152,13 @@ public class FeatureRuntime implements Runnable {
         }
     }
 
+    private ScenarioRuntime lastExecutedScenario;
+
     public void stop() {
         result.sortScenarioResults();
         if (lastExecutedScenario != null) {
             lastExecutedScenario.engine.invokeAfterHookIfConfigured(true);
-            result.setResultVariables(lastExecutedScenario.engine.getAllVariablesAsMap());
+            result.setVariables(lastExecutedScenario.engine.getAllVariablesAsMap());
         }
         if (!result.isEmpty()) {
             for (RuntimeHook hook : suite.hooks) {

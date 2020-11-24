@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.Results;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.JsonUtils;
@@ -245,11 +244,11 @@ public class FeatureResult {
         }
     }
 
-    public void setResultVariables(Map<String, Object> resultVariables) {
+    public void setVariables(Map<String, Object> resultVariables) {
         this.resultVariables = resultVariables;
     }
 
-    public Map<String, Object> getResultVariables() {
+    public Map<String, Object> getVariables() {
         return resultVariables;
     }
 

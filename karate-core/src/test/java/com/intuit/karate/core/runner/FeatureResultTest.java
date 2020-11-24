@@ -88,7 +88,7 @@ public class FeatureResultTest {
     void testLambdaFunctionsInScenarioFeature() throws Exception {
         FeatureResult result = result("caller-with-lambda-arg.feature");
         assertEquals(0, result.getFailedCount());
-        JSONArray dataArr = (JSONArray) result.getResultVariables().get("data");
+        JSONArray dataArr = (JSONArray) result.getVariables().get("data");
         assertTrue(((Map) dataArr.get(0)).get("javaSum") instanceof IntBinaryOperator);
     }
 
