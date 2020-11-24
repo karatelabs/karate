@@ -42,12 +42,10 @@ public class FeatureResult {
 
     private final Results results;
     private final Feature feature;
-    private final List<ScenarioResult> scenarioResults = new ArrayList();
+    private final List<ScenarioResult> scenarioResults = new ArrayList<>();
 
     private String displayName; // mutable for users who want to customize
-    private int scenarioCount;
-    private int failedCount;
-    private List<Throwable> errors;
+    private List<Throwable> errors = new ArrayList<>();
     private double durationMillis;
 
     private Map<String, Object> resultVariables;
@@ -65,7 +63,7 @@ public class FeatureResult {
         if (reportPath != null) {
             sb.append("report: ").append(reportPath).append('\n');
         }
-        sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", scenarioCount, getPassedCount(), failedCount, durationMillis / 1000));
+        sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", getScenarioCount(), getPassedCount(), getFailedCount(), durationMillis / 1000));
         sb.append("---------------------------------------------------------\n");
         System.out.println(sb);
     }
@@ -196,23 +194,23 @@ public class FeatureResult {
     }
 
     public int getFailedCount() {
-        return failedCount;
+        return getErrors().size();
     }
 
     public boolean isEmpty() {
-        return scenarioCount == 0;
+        return getScenarioCount() == 0;
     }
 
     public int getScenarioCount() {
-        return scenarioCount;
+        return getScenarioResults().size();
     }
 
     public int getPassedCount() {
-        return scenarioCount - failedCount;
+        return getScenarioCount() - getFailedCount();
     }
 
     public boolean isFailed() {
-        return errors != null && !errors.isEmpty();
+        return getFailedCount() > 0;
     }
 
     public List<Throwable> getErrors() {
@@ -220,17 +218,12 @@ public class FeatureResult {
     }
 
     private void addError(Throwable error) {
-        failedCount++;
-        if (errors == null) {
-            errors = new ArrayList();
-        }
         errors.add(error);
     }
 
     public void addResult(ScenarioResult result) {
         scenarioResults.add(result);
         durationMillis += Engine.nanosToMillis(result.getDurationNanos());
-        scenarioCount++;
         if (result.isFailed()) {
             Scenario scenario = result.getScenario();
             if (scenario.isOutline()) {
