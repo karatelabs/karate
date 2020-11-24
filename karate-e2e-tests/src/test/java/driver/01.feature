@@ -18,7 +18,7 @@ Scenario:
 * match text('#pageLoadCount') == '2'
 
 # reload page
-* refresh()
+* reload()
 * match text('#pageLoadCount') == '3'
 
 # navigate to new page
@@ -45,3 +45,6 @@ Scenario:
 * waitForUrl(serverUrl + '/02')
 
 * match driver.title == 'Page 02'
+
+# driver.dimensions
+* match driver.dimensions == { x: '#number', y: '#number', width: '#number', height: '#number', windowState: 'normal' }

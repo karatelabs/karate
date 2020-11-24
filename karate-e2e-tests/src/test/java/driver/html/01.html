@@ -10,7 +10,9 @@
       session.counter01 = session.counter01 || 0;
       session.counter01++;
     </script>    
-    <div>this page has been loaded <span th:text="session.counter01" id="pageLoadCount"></span> times</div>
+    <div>this page has been loaded
+      <span th:text="session.counter01" id="pageLoadCount"></span> times
+    </div>
     <a href="/02">Page 02</a>
   </body>
 </html>
