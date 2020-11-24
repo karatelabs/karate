@@ -98,7 +98,7 @@ class PerfHookTest {
     @Test
     void testPerfHook5() {
         // Run a scenario which doesn't exist
-        List<String> tags = Collections.singletonList("xyz");
+        List<String> tags = Collections.singletonList("@name=doesntExist");
         Map<String, Object> arg = Collections.emptyMap();
         Runner.callAsync("classpath:com/intuit/karate/core/perf.feature", tags, arg, perfHook);
         assertNull(eventName);
@@ -106,7 +106,24 @@ class PerfHookTest {
         assertNull(vars);
     }
 
-    private void match(Object actual, Object expected) {
+    @Test
+    void testPerfHook6() {
+        // Run a feature which doesn't exist
+        List<String> tags = Collections.emptyList();
+        Map<String, Object> arg = Collections.emptyMap();
+        boolean pass = false;
+        try {
+            Runner.callAsync("classpath:com/intuit/karate/core/doesntExist.feature", tags, arg, perfHook);
+        } catch (RuntimeException e) {
+            pass = true;
+        }
+        assertTrue(pass);
+        assertNull(eventName);
+        assertNull(failed);
+        assertNull(vars);
+    }
+
+        private void match(Object actual, Object expected) {
         MatchResult mr = Match.that(actual).isEqualTo(expected);
         assertTrue(mr.pass, mr.message);
     }
