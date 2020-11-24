@@ -91,14 +91,14 @@ class FeatureParserTest {
         for (StepResult step : result.getScenarioResults().get(0).getStepResults()) {
             assertEquals("passed", step.getResult().getStatus());
         }
-        Map<String, Object> map = result.getResultVariables();
+        Map<String, Object> map = result.getVariables();
         match(map.get("backSlash"), "C:\\foo\\bar\\");
     }
 
     @Test
     void testSetTable() {
         FeatureResult result = execute("test-set-table.feature");
-        Map<String, Object> map = result.getResultVariables();
+        Map<String, Object> map = result.getVariables();
         match(map.get("output"), "{ name: 'Bob', age: 2 }");
     }
 
@@ -116,13 +116,13 @@ class FeatureParserTest {
     @Test
     void testEmptyFirstLine() {
         FeatureResult result = execute("test-empty-first-line1.feature");
-        Map<String, Object> map = result.getResultVariables();
+        Map<String, Object> map = result.getVariables();
         match(map.get("foo"), "bar");
         result = execute("test-empty-first-line2.feature");
-        map = result.getResultVariables();
+        map = result.getVariables();
         match(map.get("foo"), "bar");
         result = execute("test-empty-first-line3.feature");
-        map = result.getResultVariables();
+        map = result.getVariables();
         match(map.get("foo"), "bar");
     }
 
@@ -134,14 +134,14 @@ class FeatureParserTest {
     @Test
     void testTablePipe() {
         FeatureResult result = execute("test-table-pipe.feature");
-        Map<String, Object> map = result.getResultVariables();
+        Map<String, Object> map = result.getVariables();
         match(map.get("value"), "pi|pe");
     }
 
     @Test
     void testOutlineName() {
         FeatureResult result = execute("test-outline-name.feature");
-        Map<String, Object> map = result.getResultVariables();
+        Map<String, Object> map = result.getVariables();
         match(map.get("name"), "Nyan");
         match(map.get("title"), "name is Nyan and age is 5");
     }
@@ -149,7 +149,7 @@ class FeatureParserTest {
     @Test
     void testTagsMultiline() {
         FeatureResult result = execute("test-tags-multiline.feature");
-        Map<String, Object> map = result.getResultVariables();
+        Map<String, Object> map = result.getVariables();
         Match.that(map.get("tags")).contains("[ 'tag1', 'tag2', 'tag3', 'tag4' ]").isTrue();
     }
 
@@ -162,7 +162,7 @@ class FeatureParserTest {
     void testOutlineDynamic() {
         FeatureResult result = execute("test-outline-dynamic.feature");
         assertEquals(2, result.getScenarioResults().size());
-        Map<String, Object> map = result.getResultVariables();
+        Map<String, Object> map = result.getVariables();
         match(map.get("name"), "Nyan");
         match(map.get("title"), "name is Nyan and age is 7");
     }
@@ -180,7 +180,7 @@ class FeatureParserTest {
     void testEmptyBackground() {
         FeatureResult result = execute("test-empty-background.feature");
         assertFalse(result.isFailed());
-        Map<String, Object> map = result.getResultVariables();
+        Map<String, Object> map = result.getVariables();
         match(map.get("temp"), "['foo']");
     }
 

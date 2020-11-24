@@ -55,12 +55,17 @@ class KarateAction(val name: String, val tags: Seq[String], val protocol: Karate
         r.run()
       }
 
-      override def afterFeature(vars: java.util.Map[String, Object]): Unit = {
-        val map = if (vars == null) Map.empty else {
+      override def afterFeature(fr: FeatureResult): Unit = {
+        val vars = fr.getVariables
+        val attributes = if (vars == null) Map.empty else {
           vars.remove("__gatling")
           vars.asScala
         }
-        next ! session.setAll(map)
+        if (fr.isEmpty || fr.isFailed) {
+          next ! session.markAsFailed.setAll(attributes)
+        } else {
+          next ! session.setAll(attributes)
+        }
       }
     }
 

@@ -179,7 +179,7 @@ public class Runner {
         if (result.isFailed()) {
             throw result.getErrorsCombined();
         }
-        return result.getResultVariables();
+        return result.getVariables();
     }
 
     public static Map<String, Object> runFeature(File file, Map<String, Object> vars, boolean evalKarateConfig) {
@@ -205,7 +205,7 @@ public class Runner {
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, arg);
         featureRuntime.setPerfRuntime(perf);
-        featureRuntime.setNext(() -> perf.afterFeature(featureRuntime.getResult()));
+        featureRuntime.setNext(() -> perf.afterFeature(featureRuntime.result));
         perf.submit(featureRuntime);
     }
 

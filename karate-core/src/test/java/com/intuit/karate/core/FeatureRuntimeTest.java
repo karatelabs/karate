@@ -85,38 +85,44 @@ class FeatureRuntimeTest {
     @Test
     void testTags() {
         run("tags.feature");
-        match(fr.getResult(), "{ configSource: 'normal', tagNames: ['two=foo,bar', 'one'], tagValues: { one: [], two: ['foo', 'bar'] } }");
+        match(fr.result.getVariables(), "{ configSource: 'normal', tagNames: ['two=foo,bar', 'one'], tagValues: { one: [], two: ['foo', 'bar'] } }");
     }
 
     @Test
     void testAbort() {
         run("abort.feature");
-        match(fr.getResult(), "{ configSource: 'normal', before: true }");
+        match(fr.result.getVariables(), "{ configSource: 'normal', before: true }");
     }
 
     @Test
     void testFailApi() {
         fail = true;
         run("fail-api.feature");
-        match(fr.getResult(), "{ configSource: 'normal', before: true }");
+        match(fr.result.getVariables(), "{ configSource: 'normal', before: true }");
     }
 
     @Test
     void testCallFeatureFromJs() {
         run("call-js.feature");
-        matchContains(fr.getResult(), "{ calledVar: 'hello world' }");
+        matchContains(fr.result.getVariables(), "{ calledVar: 'hello world' }");
     }
 
     @Test
     void testCallJsFromFeatureUtilsDefinedInKarateConfig() {
         run("karate-config-fn.feature", "classpath:com/intuit/karate/core/");
-        matchContains(fr.getResult(), "{ helloVar: 'hello world' }");
+        matchContains(fr.result.getVariables(), "{ helloVar: 'hello world' }");
     }
 
     @Test
     void testCallByTag() {
         run("call-by-tag.feature");
     }
+    
+    @Test
+    void testCallByTagCalled() {
+        run("call-by-tag-called.feature");
+        matchContains(fr.result.getVariables(), "{ bar: 3 }"); // last scenario
+    }    
 
     @Test
     void testCopyAndClone() {

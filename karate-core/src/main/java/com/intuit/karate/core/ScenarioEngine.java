@@ -1928,7 +1928,7 @@ public class ScenarioEngine {
                 KarateException ke = fr.result.getErrorsCombined();
                 throw ke;
             } else {
-                return fr.getResultVariable();
+                return new Variable(fr.result.getVariables());
             }
         } else if (arg.isList() || arg.isJsOrJavaFunction()) {
             List result = new ArrayList();
