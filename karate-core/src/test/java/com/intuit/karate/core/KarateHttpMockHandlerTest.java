@@ -19,15 +19,15 @@ class KarateHttpMockHandlerTest {
     MockHandler handler;
     HttpServer server;
     FeatureBuilder mock;
-    ScenarioRuntime runtime;    
-    
+    ScenarioRuntime runtime;
+
     String urlStep() {
         return "url 'http://localhost:" + server.getPort() + "'";
     }
 
     void startMockServer() {
         handler = new MockHandler(mock.build());
-        server = new HttpServer(0, handler);       
+        server = new HttpServer(0, handler);
     }
 
     FeatureBuilder background(String... lines) {
@@ -39,7 +39,7 @@ class KarateHttpMockHandlerTest {
         return runtime.engine.vars.get(name).getValue();
     }
 
-    ScenarioRuntime run(String... lines) {        
+    ScenarioRuntime run(String... lines) {
         runtime = runScenario(null, lines);
         return runtime;
     }
@@ -47,10 +47,10 @@ class KarateHttpMockHandlerTest {
     private void matchVar(String name, Object expected) {
         match(get(name), expected);
     }
-    
+
     private void matchVarContains(String name, Object expected) {
         matchContains(get(name), expected);
-    }    
+    }
 
     @AfterEach
     void afterEach() {
@@ -64,13 +64,13 @@ class KarateHttpMockHandlerTest {
                 "def response = 'hello world'");
         startMockServer();
         run(
-                urlStep(), 
+                urlStep(),
                 "path '/hello'",
                 "method get"
         );
         matchVar("response", "hello world");
     }
-    
+
     @Test
     void testThatCookieIsPartOfRequestForApache() {
         background().scenario(
@@ -78,13 +78,27 @@ class KarateHttpMockHandlerTest {
                 "def response = requestHeaders");
         startMockServer();
         run(
-                urlStep(), 
+                urlStep(),
                 "path '/hello'",
                 "cookie foo = 'bar'",
                 "method get"
         );
-        matchVarContains("response", "{ cookie: ['foo=bar'] }");        
-        
+        matchVarContains("response", "{ cookie: ['foo=bar'] }");
     }
+    
+    @Test
+    void testThatExoticContentTypeIsPreserved() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestHeaders");
+        startMockServer();
+        run(
+                urlStep(),
+                "path '/hello'",
+                "header Content-Type = 'application/xxx.pingixxxxxx.checkUsernamePassword+json'",
+                "method post"
+        );
+        matchVarContains("response", "{ 'content-type': ['application/xxx.pingixxxxxx.checkUsernamePassword+json'] }");
+    }    
 
 }
