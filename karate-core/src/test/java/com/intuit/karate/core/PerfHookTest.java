@@ -123,7 +123,7 @@ class PerfHookTest {
         assertNull(vars);
     }
 
-        private void match(Object actual, Object expected) {
+    private void match(Object actual, Object expected) {
         MatchResult mr = Match.that(actual).isEqualTo(expected);
         assertTrue(mr.pass, mr.message);
     }
