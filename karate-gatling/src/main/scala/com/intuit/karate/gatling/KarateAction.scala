@@ -55,12 +55,12 @@ class KarateAction(val name: String, val tags: Seq[String], val protocol: Karate
         r.run()
       }
 
-      override def afterFeature(vars: java.util.Map[String, Object]): Unit = {
+      override def afterFeature(failed: Boolean, vars: java.util.Map[String, Object]): Unit = {
         val map = if (vars == null) Map.empty else {
           vars.remove("__gatling")
           vars.asScala
         }
-        next ! session.setAll(map)
+        next ! (if (failed) session.copy(baseStatus = KO) else session).setAll(map)
       }
     }
 

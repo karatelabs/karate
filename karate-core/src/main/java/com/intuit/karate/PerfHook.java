@@ -40,6 +40,6 @@ public interface PerfHook {
     
     void submit(Runnable runnable);
     
-    void afterFeature(Map<String, Object> vars);
+    void afterFeature(boolean failed, Map<String, Object> vars);
 
 }

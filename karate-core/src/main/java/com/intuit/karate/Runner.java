@@ -205,7 +205,7 @@ public class Runner {
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, arg);
         featureRuntime.setPerfRuntime(perf);
-        featureRuntime.setNext(() -> perf.afterFeature(featureRuntime.getResult()));
+        featureRuntime.setNext(() -> perf.afterFeature(featureRuntime.result.isFailed(), featureRuntime.getResult()));
         perf.submit(featureRuntime);
     }
 

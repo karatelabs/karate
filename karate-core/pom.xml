@@ -13,6 +13,7 @@
     <properties>
         <antlr.version>4.7.1</antlr.version>
         <graal.version>20.3.0</graal.version>
+        <jaxb.version>2.3.0</jaxb.version>
     </properties>
 
     <dependencies>
@@ -113,7 +114,12 @@
             <artifactId>junit-jupiter</artifactId>
             <version>${junit5.version}</version>
             <scope>test</scope>
-        </dependency>		
+        </dependency>
+        <dependency>
+            <groupId>javax.xml.bind</groupId>
+            <artifactId>jaxb-api</artifactId>
+            <version>${jaxb.version}</version>
+        </dependency>
     </dependencies>
 
     <build>

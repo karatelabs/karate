@@ -64,7 +64,7 @@ class PerfHookTest {
         }
 
         @Override
-        public void afterFeature(Map<String, Object> vars) {
+        public void afterFeature(boolean failed, Map<String, Object> vars) {
             logger.debug("afterFeature called");
         }
     };
