@@ -2,13 +2,11 @@ package com.intuit.karate.core;
 
 import java.util.ArrayList;
 import java.util.List;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  *
  * @author pthomas3
  */
-@XmlRootElement
 public class Cat {
     
     private int id;
