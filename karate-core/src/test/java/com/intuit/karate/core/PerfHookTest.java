@@ -136,13 +136,13 @@ class PerfHookTest {
         // Run a feature which doesn't exist
         List<String> tags = Collections.emptyList();
         Map<String, Object> arg = Collections.emptyMap();
-        boolean pass = false;
+        String feature = "com/intuit/karate/core/doesntExist.feature";
         try {
-            Runner.callAsync("classpath:com/intuit/karate/core/doesntExist.feature", tags, arg, perfHook);
+            Runner.callAsync("classpath:" + feature, tags, arg, perfHook);
+            fail("we expected execution to fail");
         } catch (RuntimeException e) {
-            pass = true;
+            assertEquals(e.getMessage(), "not found: " + feature);
         }
-        assertTrue(pass);
         assertNull(eventName);
         assertNull(featureResult);
     }
