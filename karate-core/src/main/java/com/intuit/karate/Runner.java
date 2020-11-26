@@ -61,7 +61,7 @@ public class Runner {
         final CompletableFuture latch = new CompletableFuture();
         Results results = suite.results;
         final List<FeatureResult> featureResults = new ArrayList(count);
-        ExecutorService EXECUTOR = suite.threadCount == 1 ? new SyncExecutorService() : Executors.newWorkStealingPool();
+        ExecutorService EXECUTOR = suite.threadCount == 1 ? new SyncExecutorService() : Executors.newWorkStealingPool(suite.threadCount);
         ParallelProcessor<Feature, FeatureResult> processor
                 = new ParallelProcessor<Feature, FeatureResult>(EXECUTOR, suite.threadCount, suite.features.stream()) {
             int index = 0;
@@ -91,11 +91,13 @@ public class Runner {
         };
         try {
             processor.execute();
-            LOGGER.info("waiting for {} parallel features to complete ...", count);
-            if (options.timeoutMinutes > 0) {
-                latch.get(options.timeoutMinutes, TimeUnit.MINUTES);
-            } else {
-                latch.join();
+            if (suite.threadCount > 1) {
+                LOGGER.info("waiting for {} parallel features to complete ...", count);
+                if (options.timeoutMinutes > 0) {
+                    latch.get(options.timeoutMinutes, TimeUnit.MINUTES);
+                } else {
+                    latch.join();
+                }                
             }
             LOGGER.info("all features complete");
         } catch (Exception e) {
