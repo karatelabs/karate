@@ -45,23 +45,23 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     public final Suite suite;
     public final HtmlSummaryReport summary;
     public final FeatureRuntime featureRuntime;
-    private final ScenarioGenerator generator;
+    private final Iterator<ScenarioRuntime> scenarios;
 
     public FeatureNode(Suite suite, HtmlSummaryReport summary, Feature feature, String tagSelector) {
         this.suite = suite;
         this.summary = summary;
         featureRuntime = FeatureRuntime.of(suite, feature);
-        generator = featureRuntime.scenarios;
+        scenarios = new ScenarioGenerator(featureRuntime).iterator();
     }
 
     @Override
     public boolean hasNext() {
-        return generator.hasNext();
+        return scenarios.hasNext();
     }
 
     @Override
     public DynamicTest next() {
-        ScenarioRuntime runtime = generator.next();
+        ScenarioRuntime runtime = scenarios.next();
         return DynamicTest.dynamicTest(runtime.scenario.getNameForReport(), runtime.scenario.getScenarioSrcUri(), () -> {
             if (runtime.isSelectedForExecution()) {
                 if (featureRuntime.beforeHook()) { // minimal code duplication from feature-runtime
@@ -71,8 +71,8 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
                 }
             }
             boolean failed = runtime.result.isFailed();
-            if (!generator.hasNext()) {
-                featureRuntime.stop();
+            if (!scenarios.hasNext()) {
+                featureRuntime.onComplete();
                 FeatureResult result = featureRuntime.result;
                 if (!result.isEmpty()) {
                     result.printStats(null);

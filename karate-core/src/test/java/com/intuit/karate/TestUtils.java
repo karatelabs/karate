@@ -53,8 +53,7 @@ public class TestUtils {
     public static ScenarioRuntime runtime() {
         Feature feature = toFeature("* print 'test'");
         FeatureRuntime fr = FeatureRuntime.of(feature);
-        ScenarioGenerator sg = new ScenarioGenerator(fr, feature.getSections().iterator());
-        return sg.next();
+        return new ScenarioGenerator(fr).first();
     }
 
     public static ScenarioRuntime runScenario(HttpClientFactory clientFactory, String... lines) {
@@ -65,8 +64,7 @@ public class TestUtils {
         Runner.Builder builder = Runner.builder();
         builder.clientFactory(clientFactory);
         FeatureRuntime fr = FeatureRuntime.of(new Suite(builder), feature);
-        ScenarioGenerator sg = new ScenarioGenerator(fr, feature.getSections().iterator());
-        ScenarioRuntime sr = sg.next();
+        ScenarioRuntime sr = new ScenarioGenerator(fr).first();
         sr.run();
         return sr;
     }

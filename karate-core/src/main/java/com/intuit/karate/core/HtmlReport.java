@@ -191,7 +191,7 @@ public abstract class HtmlReport {
                 groupId = groupsMap.size() + 1;
                 groupsMap.put(threadName, groupId);
             }
-            Map<String, Object> item = new LinkedHashMap(7);
+            Map<String, Object> item = new LinkedHashMap(10);
             items.add(item);
             item.put("id", id++);
             item.put("group", groupId);
@@ -211,6 +211,9 @@ public abstract class HtmlReport {
                 content = content + " " + scenarioTitle;
             }
             item.put("title", content);
+            if (sr.isFailed()) {
+                item.put("className", "failed");
+            }
         }
         List<Map> groups = new ArrayList(groupsMap.size());
         groupsMap.forEach((k, v) -> {

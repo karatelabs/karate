@@ -29,8 +29,11 @@ import com.intuit.karate.Suite;
 import com.intuit.karate.resource.MemoryResource;
 import com.intuit.karate.resource.Resource;
 import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 /**
  *
@@ -108,7 +111,7 @@ public class FeatureRuntime implements Runnable {
         this.caller = caller;
         this.rootFeature = caller.isNone() ? this : caller.parentRuntime.featureRuntime;
         result = new FeatureResult(suite.results, feature);
-        scenarios = new ScenarioGenerator(this, feature.getSections().iterator());
+        scenarios = new ScenarioGenerator(this);
     }
 
     private boolean beforeHookDone;
@@ -126,35 +129,56 @@ public class FeatureRuntime implements Runnable {
         return beforeHookResult;
     }
 
-    @Override
-    public void run() {
-        try {
-            while (scenarios.hasNext()) {
-                ScenarioRuntime sr = scenarios.next();
+    private ExecutorService executorService;
+
+    public void setExecutorService(ExecutorService executorService) {
+        this.executorService = executorService;
+    }
+
+    private ParallelProcessor<ScenarioRuntime, ScenarioResult> processor() {
+        final boolean shouldRunSync = executorService == null;
+        if (shouldRunSync) {
+            executorService = new SyncExecutorService();
+        }
+        return new ParallelProcessor<ScenarioRuntime, ScenarioResult>(executorService, suite.threadCount, scenarios.stream()) {
+
+            @Override
+            public Iterator<ScenarioResult> process(ScenarioRuntime sr) {
                 if (sr.isSelectedForExecution()) {
                     if (!beforeHook()) {
                         suite.logger.info("before-feature hook returned [false], aborting: ", this);
-                        break;
+                    } else {
+                        lastExecutedScenario = sr;
+                        sr.run();
                     }
-                    lastExecutedScenario = sr;
-                    sr.run();
                 } else {
                     suite.logger.trace("excluded by tags: {}", sr);
                 }
+                // once process() has been called, we must return a result
+                return Collections.singletonList(sr.result).iterator();
             }
-            stop();
-        } catch (Exception e) {
-            suite.logger.error("feature runtime failed: {}", e.getMessage());
-        } finally {
-            if (next != null) {
-                next.run();
+
+            @Override
+            public boolean shouldRunSynchronously(ScenarioRuntime sr) {
+                return shouldRunSync || sr.tags.valuesFor("parallel").isAnyOf("false");
             }
-        }
+
+            @Override
+            public void onComplete() {
+                FeatureRuntime.this.onComplete();
+            }                        
+
+        };
+    }
+
+    @Override
+    public void run() {
+        processor().execute();
     }
 
     private ScenarioRuntime lastExecutedScenario;
 
-    public void stop() {
+    public void onComplete() {
         result.sortScenarioResults();
         if (lastExecutedScenario != null) {
             lastExecutedScenario.engine.invokeAfterHookIfConfigured(true);
@@ -164,6 +188,9 @@ public class FeatureRuntime implements Runnable {
             for (RuntimeHook hook : suite.hooks) {
                 hook.afterFeature(this);
             }
+        }
+        if (next != null) {
+            next.run();
         }
     }
 

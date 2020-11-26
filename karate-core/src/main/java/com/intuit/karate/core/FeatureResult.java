@@ -260,4 +260,9 @@ public class FeatureResult {
         return scenarioResults;
     }
 
+    @Override
+    public String toString() {
+        return displayName;
+    }        
+
 }

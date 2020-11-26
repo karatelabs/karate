@@ -27,12 +27,17 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Spliterator;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  *
  * @author pthomas3
  */
-public class ScenarioGenerator implements Iterator<ScenarioRuntime> {
+public class ScenarioGenerator implements Spliterator<ScenarioRuntime> {
 
     private final FeatureRuntime featureRuntime;
     private final Iterator<FeatureSection> sections;
@@ -40,24 +45,48 @@ public class ScenarioGenerator implements Iterator<ScenarioRuntime> {
     // state
     private Iterator<Scenario> scenarios;
     private Scenario currentScenario;
-    private ScenarioRuntime next;
 
     // dynamic
     private Variable expressionValue;
     private int index;
     private ScenarioRuntime background;
 
-    public ScenarioGenerator(FeatureRuntime featureRuntime, Iterator<FeatureSection> sections) {
+    public ScenarioGenerator(FeatureRuntime featureRuntime) {
         this.featureRuntime = featureRuntime;
-        this.sections = sections;
-        hasNext(); // important, this has to be called to init
+        this.sections = featureRuntime.feature.getSections().iterator();
+    }
+
+    public Stream<ScenarioRuntime> stream() {
+        return StreamSupport.stream(this, false);
+    }
+
+    public ScenarioRuntime first() {
+        return stream().findFirst().get();
+    }
+
+    public Iterator<ScenarioRuntime> iterator() {
+        return new Iterator<ScenarioRuntime>() {
+            
+            final AtomicReference<ScenarioRuntime> next = new AtomicReference();
+            
+            @Override
+            public boolean hasNext() {
+                if (next.get() != null) {
+                    return true;
+                }
+                return tryAdvance(sr -> next.set(sr));
+            }
+
+            @Override
+            public ScenarioRuntime next() {
+                return next.getAndSet(null);
+            }
+
+        };
     }
 
     @Override
-    public boolean hasNext() {
-        if (next != null) {
-            return true;
-        }
+    public boolean tryAdvance(Consumer<? super ScenarioRuntime> action) {
         if (currentScenario == null) {
             if (scenarios == null) {
                 if (sections.hasNext()) {
@@ -78,7 +107,7 @@ public class ScenarioGenerator implements Iterator<ScenarioRuntime> {
                 background = null;
             } else {
                 scenarios = null;
-                return hasNext();
+                return tryAdvance(action);
             }
         }
         if (currentScenario.isDynamic()) {
@@ -87,7 +116,7 @@ public class ScenarioGenerator implements Iterator<ScenarioRuntime> {
                 background.run();
                 if (background.result.isFailed()) { // karate-config.js || background failed
                     currentScenario = null;
-                    next = background;
+                    action.accept(background);
                     return true; // exit early
                 }
             }
@@ -104,7 +133,7 @@ public class ScenarioGenerator implements Iterator<ScenarioRuntime> {
                     String message = "dynamic expression evaluation failed: " + expression;
                     background.result.addFakeStepResult(message, e);
                     currentScenario = null;
-                    next = background;
+                    action.accept(background);
                     return true; // exit early
                 }
             }
@@ -117,14 +146,14 @@ public class ScenarioGenerator implements Iterator<ScenarioRuntime> {
                     String message = "dynamic function expression evaluation failed at index " + rowIndex + ": " + e.getMessage();
                     background.result.addFakeStepResult(message, e);
                     currentScenario = null;
-                    next = background;
+                    action.accept(background);
                     return true; // exit early                    
                 }
             } else { // is list
                 List list = expressionValue.getValue();
                 if (rowIndex >= list.size()) {
                     currentScenario = null;
-                    return hasNext();
+                    return tryAdvance(action);
                 }
                 rowValue = new Variable(list.get(rowIndex));
             }
@@ -136,25 +165,33 @@ public class ScenarioGenerator implements Iterator<ScenarioRuntime> {
                     Variable var = new Variable(v);
                     dynamic.replace("<" + k + ">", var.getAsString());
                 });
-                next = new ScenarioRuntime(featureRuntime, dynamic, background);
+                action.accept(new ScenarioRuntime(featureRuntime, dynamic, background));
                 return true;
             } else { // assume that this is signal to stop the dynamic scenario outline
-                background.logger.debug("dynamic expression complete at index: {}, not map-like: {}", rowIndex, rowValue);
+                background.logger.info("*** dynamic expression complete at index: {}, not map-like: {}", rowIndex, rowValue);
                 currentScenario = null;
-                return hasNext();
+                return tryAdvance(action);
             }
         } else {
-            next = new ScenarioRuntime(featureRuntime, currentScenario);
+            action.accept(new ScenarioRuntime(featureRuntime, currentScenario));
             currentScenario = null;
             return true;
         }
     }
 
     @Override
-    public ScenarioRuntime next() {
-        ScenarioRuntime temp = next;
-        next = null;
-        return temp;
+    public Spliterator<ScenarioRuntime> trySplit() {
+        return null;
+    }
+
+    @Override
+    public long estimateSize() {
+        return 0;
+    }
+
+    @Override
+    public int characteristics() {
+        return 0;
     }
 
 }

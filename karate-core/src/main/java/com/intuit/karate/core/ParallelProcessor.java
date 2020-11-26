@@ -28,6 +28,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Semaphore;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,69 +37,66 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public abstract class ParallelProcessor<I, O> implements Processor<I, O> {
+public abstract class ParallelProcessor<I, O> {
 
     private static final Logger logger = LoggerFactory.getLogger(ParallelProcessor.class);
 
     private final ExecutorService executor;
-    private final Iterator<I> publisher;
-    private final List<CompletableFuture<Boolean>> futures = new ArrayList();
+    private final Semaphore semaphore;
+    private final Stream<I> publisher;
 
-    private Subscriber<O> subscriber;
-
-    public ParallelProcessor(ExecutorService executor, Iterator<I> publisher) {
+    public ParallelProcessor(ExecutorService executor, int batchSize, Stream<I> publisher) {
         this.executor = executor;
+        semaphore = new Semaphore(batchSize);
         this.publisher = publisher;
     }
 
-    private void execute(final boolean sync, final I in, final Subscriber<O> s) {
-        Iterator<O> out = process(in);
-        if (sync) {
-            out.forEachRemaining(s::onNext);
-        } else {
-            out.forEachRemaining(o -> {
-                synchronized (s) { // synchronized is important if multiple threads
-                    s.onNext(o);
+    public void execute() {
+        final List<CompletableFuture> futures = new ArrayList();
+        publisher.forEach(in -> {
+            final CompletableFuture future = new CompletableFuture();
+            futures.add(future);
+            waitForHeadRoom();
+            executor.submit(() -> {
+                try {
+                    process(in);
+                    future.complete(Boolean.TRUE);
+                    semaphore.release();
+                } catch (Exception e) {
+                    logger.error("[parallel] input item failed: {}", e.getMessage());
                 }
             });
-        }
-    }
-
-    @Override
-    public void onNext(final I in) {
-        boolean sync = shouldRunSynchronously(in);
-        if (sync) {
-            execute(sync, in, subscriber);
-        } else {
-            CompletableFuture<Boolean> cf = new CompletableFuture();
-            futures.add(cf);
-            executor.submit(() -> {
-                execute(sync, in, subscriber);
-                cf.complete(Boolean.TRUE);
-            });
-        }
-    }
-
-    @Override
-    public void subscribe(final Subscriber<O> subscriber) {
-        this.subscriber = subscriber;
-        publisher.forEachRemaining(this::onNext);
-        CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
-        if (futuresArray.length > 0) {
+        });
+        if (futures.size() > 0) {
+            waitForHeadRoom();
+            final CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);;
             executor.submit(() -> { // will not block caller even when waiting for completion
                 CompletableFuture.allOf(futuresArray).join();
-                subscriber.onComplete();
+                // IMPORTANT: release parent locks first ...
+                onComplete();
+                // before freeing up main thread
+                semaphore.release();
             });
-        } else {
-            subscriber.onComplete();
+            waitForHeadRoom();
         }
     }
 
-    @Override
-    public abstract Iterator<O> process(I in);
+    private void waitForHeadRoom() {
+        try {
+            semaphore.acquire();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     public boolean shouldRunSynchronously(I in) {
+        // parallel by default
+        // but allow a per work-item strategy
         return false;
     }
+
+    public abstract Iterator<O> process(I in);
+
+    public abstract void onComplete();
 
 }

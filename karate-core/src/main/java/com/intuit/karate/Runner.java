@@ -30,9 +30,9 @@ import com.intuit.karate.core.HtmlFeatureReport;
 import com.intuit.karate.core.HtmlReport;
 import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.ParallelProcessor;
-import com.intuit.karate.core.Subscriber;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.RuntimeHookFactory;
+import com.intuit.karate.core.SyncExecutorService;
 import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
@@ -57,60 +57,55 @@ public class Runner {
         if (options.hooks != null) {
             options.hooks.forEach(h -> h.beforeSuite(suite));
         }
-        ExecutorService featureExecutor = Executors.newWorkStealingPool(suite.threadCount);
-        List<CompletableFuture> futures = new ArrayList();
-        CompletableFuture latch = new CompletableFuture();
-        Subscriber<CompletableFuture> subscriber = new Subscriber<CompletableFuture>() {
+        int count = suite.features.size();
+        final CompletableFuture latch = new CompletableFuture();
+        Results results = suite.results;
+        final List<FeatureResult> featureResults = new ArrayList(count);
+        ExecutorService EXECUTOR = suite.threadCount == 1 ? new SyncExecutorService() : Executors.newWorkStealingPool();
+        ParallelProcessor<Feature, FeatureResult> processor
+                = new ParallelProcessor<Feature, FeatureResult>(EXECUTOR, suite.threadCount, suite.features.stream()) {
+            int index = 0;
+
             @Override
-            public void onNext(CompletableFuture result) {
-                futures.add(result);
+            public Iterator<FeatureResult> process(Feature feature) {
+                FeatureRuntime fr = FeatureRuntime.of(suite, feature);
+                fr.setExecutorService(EXECUTOR);
+                fr.setNext(() -> {
+                    featureResults.add(fr.result);
+                    onFeatureDone(fr, ++index, count);
+                });
+                try {
+                    fr.run();
+                } catch (Exception e) {
+                    LOGGER.info("[runner] feature failed: {}", e.getMessage());
+                    results.setFailureReason(e);
+                }
+                return Collections.singletonList(fr.result).iterator();
             }
 
             @Override
             public void onComplete() {
                 latch.complete(Boolean.TRUE);
             }
-        };
-        int count = suite.features.size();
-        Results results = suite.results;
-        final List<FeatureResult> featureResults = new ArrayList(count);
-        ParallelProcessor<Feature, CompletableFuture> processor
-                = new ParallelProcessor<Feature, CompletableFuture>(featureExecutor, suite.features.iterator()) {
-            int index = 0;
 
-            @Override
-            public Iterator<CompletableFuture> process(Feature feature) {
-                CompletableFuture future = new CompletableFuture();
-                try {
-                    FeatureRuntime fr = FeatureRuntime.of(suite, feature);
-                    fr.setNext(() -> {
-                        featureResults.add(fr.result);
-                        onFeatureDone(fr, ++index, count);
-                        future.complete(Boolean.TRUE);
-                    });
-                    fr.run();
-                } catch (Exception e) {
-                    future.complete(Boolean.FALSE);
-                    LOGGER.error("runner failed: {}", e.getMessage());
-                    results.setFailureReason(e);
-                }
-                return Collections.singletonList(future).iterator();
-            }
         };
         try {
-            processor.subscribe(subscriber);
-            latch.join();
-            CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
-            CompletableFuture allFutures = CompletableFuture.allOf(futuresArray);
-            LOGGER.info("waiting for {} parallel features to complete ...", futuresArray.length);
+            processor.execute();
+            LOGGER.info("waiting for {} parallel features to complete ...", count);
             if (options.timeoutMinutes > 0) {
-                allFutures.get(options.timeoutMinutes, TimeUnit.MINUTES);
+                latch.get(options.timeoutMinutes, TimeUnit.MINUTES);
             } else {
-                allFutures.join();
+                latch.join();
             }
             LOGGER.info("all features complete");
+        } catch (Exception e) {
+            LOGGER.error("runner failed: " + e);
+            results.setFailureReason(e);
+        } finally {
             suite.results.stopTimer();
-            featureExecutor.shutdownNow();
+            EXECUTOR.shutdownNow();
+        }
+        try {
             HtmlSummaryReport summary = new HtmlSummaryReport();
             for (FeatureResult result : featureResults) {
                 int scenarioCount = result.getScenarioCount();
@@ -138,7 +133,7 @@ public class Runner {
                 options.hooks.forEach(h -> h.afterSuite(suite));
             }
         } catch (Exception e) {
-            LOGGER.error("runner failed: {}", e);
+            LOGGER.error("runner failed: " + e);
             results.setFailureReason(e);
         }
         return results;
@@ -364,14 +359,14 @@ public class Runner {
             this.env = env;
             return this;
         }
-        
+
         public Builder systemProperty(String key, String value) {
             if (systemProperties == null) {
                 systemProperties = new HashMap();
             }
             systemProperties.put(key, value);
             return this;
-        }       
+        }
 
         public Builder logger(Logger logger) {
             this.logger = logger;
