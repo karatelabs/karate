@@ -38,6 +38,7 @@ import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -61,7 +62,7 @@ public class Runner {
         final CompletableFuture latch = new CompletableFuture();
         Results results = suite.results;
         final List<FeatureResult> featureResults = new ArrayList(count);
-        ExecutorService EXECUTOR = suite.threadCount == 1 ? new SyncExecutorService() : Executors.newWorkStealingPool(suite.threadCount);
+        ExecutorService EXECUTOR = suite.threadCount == 1 ? new SyncExecutorService() : Executors.newWorkStealingPool(suite.threadCount * 2);
         ParallelProcessor<Feature, FeatureResult> processor
                 = new ParallelProcessor<Feature, FeatureResult>(EXECUTOR, suite.threadCount, suite.features.stream()) {
             int index = 0;
@@ -86,7 +87,8 @@ public class Runner {
             @Override
             public void onComplete() {
                 latch.complete(Boolean.TRUE);
-            }
+                LOGGER.info("all features complete");
+            }                        
 
         };
         try {
@@ -98,8 +100,7 @@ public class Runner {
                 } else {
                     latch.join();
                 }                
-            }
-            LOGGER.info("all features complete");
+            }            
         } catch (Exception e) {
             LOGGER.error("runner failed: " + e);
             results.setFailureReason(e);
