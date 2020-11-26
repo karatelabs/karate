@@ -17,6 +17,7 @@ class CatsSimulation extends Simulation {
 
   val create = scenario("create").exec(karateFeature("classpath:mock/cats-create.feature")).exec(session => {
     println("*** id in gatling: " + session("id").as[String])
+    println("*** session status in gatling: " + session.status)
     session
   })
   val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature@name=delete"))
