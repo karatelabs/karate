@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
  *
  * @author pthomas3
  */
-class CliExecutionHookTest {
+class CliExecutionHookRunner {
 
     @Test
     void testCli() {
