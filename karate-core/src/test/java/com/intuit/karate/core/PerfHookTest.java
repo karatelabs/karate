@@ -152,7 +152,7 @@ class PerfHookTest {
         assertTrue(mr.pass, mr.message);
     }
 
-        String eventName;
+    String eventName;
     FeatureResult featureResult;
 
     PerfHook perfHook = new PerfHook() {

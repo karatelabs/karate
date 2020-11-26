@@ -390,7 +390,9 @@ public class ScenarioRuntime implements Runnable {
             logError("scenario [cleanup] failed\n" + e.getMessage());
             currentStepResult = result.addFakeStepResult("scenario [cleanup] failed", e);
         } finally {
-            featureRuntime.result.addResult(result);
+            synchronized (featureRuntime) {
+                featureRuntime.result.addResult(result);
+            }
             // don't remove, we may need this alive for afterFeature hooks
             // ScenarioEngine.remove();
         }

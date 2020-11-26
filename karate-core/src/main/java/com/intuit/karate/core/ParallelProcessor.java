@@ -24,7 +24,6 @@
 package com.intuit.karate.core;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -37,48 +36,43 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public abstract class ParallelProcessor<I, O> {
+public abstract class ParallelProcessor<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(ParallelProcessor.class);
 
     private final ExecutorService executor;
     private final Semaphore semaphore;
-    private final Stream<I> publisher;
+    private final Stream<T> publisher;
+    private final List<CompletableFuture> futures = new ArrayList();
 
-    public ParallelProcessor(ExecutorService executor, int batchSize, Stream<I> publisher) {
+    public ParallelProcessor(ExecutorService executor, int batchSize, Stream<T> publisher) {
         this.executor = executor;
         semaphore = new Semaphore(batchSize);
         this.publisher = publisher;
     }
 
     public void execute() {
-        final List<CompletableFuture> futures = new ArrayList();
         publisher.forEach(in -> {
-            final CompletableFuture future = new CompletableFuture();
-            futures.add(future);
-            waitForHeadRoom();
-            executor.submit(() -> {
-                try {
-                    process(in);
-                    future.complete(Boolean.TRUE);
-                    semaphore.release();
-                } catch (Exception e) {
-                    logger.error("[parallel] input item failed: {}", e.getMessage());
-                }
-            });
+            if (shouldRunSynchronously(in)) {
+                process(in);
+            } else {
+                final CompletableFuture future = new CompletableFuture();
+                futures.add(future);
+                waitForHeadRoom();
+                executor.submit(() -> {
+                    try {
+                        process(in);
+                        future.complete(Boolean.TRUE);
+                        semaphore.release();
+                    } catch (Exception e) {
+                        logger.error("[parallel] input item failed: {}", e.getMessage());
+                    }
+                });
+            }
         });
-        if (futures.size() > 0) {
-            waitForHeadRoom();
-            final CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);;
-            executor.submit(() -> { // will not block caller even when waiting for completion
-                CompletableFuture.allOf(futuresArray).join();
-                // IMPORTANT: release parent locks first ...
-                onComplete();
-                // before freeing up main thread
-                semaphore.release();
-            });
-            waitForHeadRoom();
-        }
+        final CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
+        CompletableFuture.allOf(futuresArray).join();
+        onComplete();
     }
 
     private void waitForHeadRoom() {
@@ -89,13 +83,13 @@ public abstract class ParallelProcessor<I, O> {
         }
     }
 
-    public boolean shouldRunSynchronously(I in) {
+    public boolean shouldRunSynchronously(T in) {
         // parallel by default
         // but allow a per work-item strategy
         return false;
     }
 
-    public abstract Iterator<O> process(I in);
+    public abstract void process(T in);
 
     public abstract void onComplete();
 

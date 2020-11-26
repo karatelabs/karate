@@ -27,11 +27,14 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.driver.DockerTarget;
 import com.intuit.karate.driver.Target;
+import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.http.HttpLogModifier;
 import com.intuit.karate.http.Cookies;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
+import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +43,7 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class Config {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(Config.class);
 
     public static final int DEFAULT_RETRY_INTERVAL = 3000;
@@ -99,6 +102,38 @@ public class Config {
 
     public Config() {
         // zero arg constructor
+    }
+
+    private static Variable attach(Variable v, JsEngine je) {
+        if (v.isJsFunctionWrapper()) {
+            JsFunction jf = v.getValue();
+            Value attached = je.attachSource(jf.source);
+            return new Variable(attached);
+        } else {
+            return v;
+        }
+    }
+
+    private static Variable detach(Variable v) {
+        if (v.isJsFunction()) {
+            return new Variable(new JsFunction(v.getValue()));
+        } else {
+            return v;
+        }
+    }
+
+    protected void attach(JsEngine je) {
+        afterScenario = attach(afterScenario, je);
+        afterFeature = attach(afterFeature, je);
+        headers = attach(headers, je);
+        cookies = attach(cookies, je);
+    }
+
+    protected void detach() {
+        afterScenario = detach(afterScenario);
+        afterFeature = detach(afterFeature);
+        headers = detach(headers);
+        cookies = detach(cookies);
     }
 
     private static <T> T get(Map<String, Object> map, String key, T defaultValue) {
@@ -202,7 +237,7 @@ public class Config {
                 return false;
             case "logModifier":
                 logModifier = value.getValue();
-                return false;                
+                return false;
             // here on the http client has to be re-constructed ================
             case "ssl":
                 if (value.isString()) {

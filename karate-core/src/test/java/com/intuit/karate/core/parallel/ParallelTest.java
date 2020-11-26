@@ -32,7 +32,7 @@ class ParallelTest {
         Results results = Runner.path("classpath:com/intuit/karate/core/parallel/test.feature")
                 .configDir("classpath:com/intuit/karate/core/parallel")
                 .systemProperty("server.port", server.getPort() + "")
-                .parallel(1);
+                .parallel(3);
         assertEquals(0, results.getFailCount(), results.getErrorMessages());
     }    
     

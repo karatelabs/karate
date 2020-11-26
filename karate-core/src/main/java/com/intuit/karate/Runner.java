@@ -37,11 +37,8 @@ import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.slf4j.LoggerFactory;
 
@@ -59,20 +56,21 @@ public class Runner {
             options.hooks.forEach(h -> h.beforeSuite(suite));
         }
         int count = suite.features.size();
-        final CompletableFuture latch = new CompletableFuture();
         Results results = suite.results;
         final List<FeatureResult> featureResults = new ArrayList(count);
-        ExecutorService EXECUTOR = suite.threadCount == 1 ? new SyncExecutorService() : Executors.newWorkStealingPool(suite.threadCount * 2);
-        ParallelProcessor<Feature, FeatureResult> processor
-                = new ParallelProcessor<Feature, FeatureResult>(EXECUTOR, suite.threadCount, suite.features.stream()) {
+        ExecutorService executor = suite.threadCount == 1 ? new SyncExecutorService() : Executors.newWorkStealingPool(suite.threadCount * 2);
+        ParallelProcessor<Feature> processor = new ParallelProcessor<Feature>(executor, suite.threadCount, suite.features.stream()) {
+
             int index = 0;
 
             @Override
-            public Iterator<FeatureResult> process(Feature feature) {
+            public void process(Feature feature) {
                 FeatureRuntime fr = FeatureRuntime.of(suite, feature);
-                fr.setExecutorService(EXECUTOR);
+                fr.setExecutorService(executor);
                 fr.setNext(() -> {
-                    featureResults.add(fr.result);
+                    synchronized (featureResults) {
+                        featureResults.add(fr.result);
+                    }
                     onFeatureDone(fr, ++index, count);
                 });
                 try {
@@ -81,34 +79,17 @@ public class Runner {
                     LOGGER.info("[runner] feature failed: {}", e.getMessage());
                     results.setFailureReason(e);
                 }
-                return Collections.singletonList(fr.result).iterator();
             }
 
             @Override
             public void onComplete() {
-                latch.complete(Boolean.TRUE);
-                LOGGER.info("all features complete");
-            }                        
+                LOGGER.info("last feature complete");
+            }
 
         };
         try {
-            processor.execute();
-            if (suite.threadCount > 1) {
-                LOGGER.info("waiting for {} parallel features to complete ...", count);
-                if (options.timeoutMinutes > 0) {
-                    latch.get(options.timeoutMinutes, TimeUnit.MINUTES);
-                } else {
-                    latch.join();
-                }                
-            }            
-        } catch (Exception e) {
-            LOGGER.error("runner failed: " + e);
-            results.setFailureReason(e);
-        } finally {
+            processor.execute(); // will block
             suite.results.stopTimer();
-            EXECUTOR.shutdownNow();
-        }
-        try {
             HtmlSummaryReport summary = new HtmlSummaryReport();
             for (FeatureResult result : featureResults) {
                 int scenarioCount = result.getScenarioCount();
@@ -127,7 +108,7 @@ public class Runner {
                     summary.addFeatureResult(result);
                 }
             }
-            // saving reports can in rare cases throw errors, so do within try block
+            // saving reports can in rare cases throw errors, so do all this within try-catch
             summary.save(suite.reportDir);
             results.printStats(suite.threadCount);
             Engine.saveStatsJson(suite.reportDir, results);
@@ -138,6 +119,8 @@ public class Runner {
         } catch (Exception e) {
             LOGGER.error("runner failed: " + e);
             results.setFailureReason(e);
+        } finally {
+            executor.shutdownNow();
         }
         return results;
     }
@@ -157,7 +140,7 @@ public class Runner {
                 LOGGER.info("<<{}>> feature {} of {}: {}", status, index, count, feature);
                 result.printStats(file.getPath());
             } catch (Exception e) {
-                LOGGER.error("<<error>> unable to write report file(s): {}", e.getMessage());
+                LOGGER.error("<<error>> unable to write report file(s): {} - {}", feature, e + "");
                 result.printStats(null);
             }
         } else {

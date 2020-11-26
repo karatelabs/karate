@@ -50,6 +50,9 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
 
     @Override
     public int compareTo(ScenarioResult sr) {
+        if (sr == null) {
+            return 1;
+        }
         int delta = scenario.getLine() - sr.scenario.getLine();
         if (delta != 0) {
             return delta;

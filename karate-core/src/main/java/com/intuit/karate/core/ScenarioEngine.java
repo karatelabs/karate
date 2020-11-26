@@ -67,6 +67,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -321,6 +322,7 @@ public class ScenarioEngine {
     // callonce routine is one example
     public void setConfig(Config config) {
         this.config = config;
+        config.attach(JS);
         if (requestBuilder != null) {
             requestBuilder.client.setConfig(config);
         }
@@ -1102,8 +1104,7 @@ public class ScenarioEngine {
     }
 
     public Value attachSource(CharSequence source) {
-        Value value = JS.evalForValue("(" + source + ")");
-        return attach(value);
+        return JS.attachSource(source);
     }
 
     public Value attach(Value before) {
@@ -1868,17 +1869,16 @@ public class ScenarioEngine {
 
     private Variable result(ScenarioCall.Result result, boolean sharedScope) {
         if (sharedScope) { // if shared scope
+            vars.clear(); // clean slate
+            vars.putAll(copy(result.vars, false)); // clone for safety     
+            init(); // this will also insert magic variables
             setConfig(new Config(result.config)); // re-apply config from time of snapshot
-            if (result.vars != null) {
-                vars.clear(); // clean slate
-                vars.putAll(copy(result.vars, false)); // clone for safety     
-                init(); // this will also insert magic variables
-                return Variable.NULL; // since we already reset the vars above we return null
-                // else the call() routine would try to do it again
-                // note that shared scope means a return value is meaningless
-            }
+            return Variable.NULL; // since we already reset the vars above we return null
+            // else the call() routine would try to do it again
+            // note that shared scope means a return value is meaningless
+        } else {
+            return result.value.copy(false); // clone result for safety 
         }
-        return result.value.copy(false); // clone result for safety 
     }
 
     private Variable callOnce(String cacheKey, Variable called, Variable arg, boolean sharedScope) {
@@ -1888,7 +1888,9 @@ public class ScenarioEngine {
         ScenarioCall.Result result = CACHE.get(cacheKey);
         if (result != null) {
             logger.trace("callonce cache hit for: {}", cacheKey);
-            return result(result, sharedScope);
+            synchronized (CACHE) {
+                return result(result, sharedScope);
+            }
         }
         long startTime = System.currentTimeMillis();
         logger.trace("callonce waiting for lock: {}", cacheKey);
@@ -1906,7 +1908,9 @@ public class ScenarioEngine {
             // this prevents the state from being clobbered by the subsequent steps of this
             // first scenario that is about to use the result
             Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? copyVariables(false) : null;
-            result = new ScenarioCall.Result(resultValue.copy(false), new Config(config), clonedVars);
+            Config clonedConfig = new Config(config);
+            clonedConfig.detach();
+            result = new ScenarioCall.Result(resultValue.copy(false), clonedConfig, clonedVars);
             CACHE.put(cacheKey, result);
             logger.info("<< lock released, cached callonce: {}", cacheKey);
             return resultValue; // another routine will apply globally if needed

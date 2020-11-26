@@ -144,6 +144,11 @@ public class JsEngine {
             put(key, JsValue.toJava(v));
         }
     }
+    
+    public Value attachSource(CharSequence source) {
+        Value value = evalForValue("(" + source + ")");
+        return attach(value);        
+    }
 
     public Value attach(Value function) {
         try {

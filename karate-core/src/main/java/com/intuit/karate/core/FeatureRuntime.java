@@ -29,9 +29,7 @@ import com.intuit.karate.Suite;
 import com.intuit.karate.resource.MemoryResource;
 import com.intuit.karate.resource.Resource;
 import java.io.File;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
@@ -135,15 +133,16 @@ public class FeatureRuntime implements Runnable {
         this.executorService = executorService;
     }
 
-    private ParallelProcessor<ScenarioRuntime, ScenarioResult> processor() {
-        final boolean shouldRunSync = executorService == null;
-        if (shouldRunSync) {
+    @Override
+    public void run() {
+        final boolean sequentialScenarios = executorService == null;
+        if (sequentialScenarios) {
             executorService = new SyncExecutorService();
         }
-        return new ParallelProcessor<ScenarioRuntime, ScenarioResult>(executorService, suite.threadCount, scenarios.stream()) {
+        new ParallelProcessor<ScenarioRuntime>(executorService, suite.threadCount, scenarios.stream()) {
 
             @Override
-            public Iterator<ScenarioResult> process(ScenarioRuntime sr) {
+            public void process(ScenarioRuntime sr) {
                 if (sr.isSelectedForExecution()) {
                     if (!beforeHook()) {
                         suite.logger.info("before-feature hook returned [false], aborting: ", this);
@@ -154,26 +153,21 @@ public class FeatureRuntime implements Runnable {
                 } else {
                     suite.logger.trace("excluded by tags: {}", sr);
                 }
-                // once process() has been called, we must return a result
-                return Collections.singletonList(sr.result).iterator();
             }
 
             @Override
             public boolean shouldRunSynchronously(ScenarioRuntime sr) {
-                return shouldRunSync || sr.tags.valuesFor("parallel").isAnyOf("false");
+                return sequentialScenarios || sr.tags.valuesFor("parallel").isAnyOf("false");
             }
 
             @Override
             public void onComplete() {
-                FeatureRuntime.this.onComplete();
-            }                        
+                synchronized (FeatureRuntime.this) {
+                    FeatureRuntime.this.onComplete();
+                }
+            }
 
-        };
-    }
-
-    @Override
-    public void run() {
-        processor().execute();
+        }.execute();
     }
 
     private ScenarioRuntime lastExecutedScenario;
