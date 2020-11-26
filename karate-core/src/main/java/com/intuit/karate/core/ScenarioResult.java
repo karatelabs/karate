@@ -308,4 +308,9 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         this.endTime = endTime;
     }
 
+    @Override
+    public String toString() {
+        return failedStep == null ? scenario.toString() : failedStep + "";
+    }        
+
 }

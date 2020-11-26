@@ -139,7 +139,7 @@ public class ScenarioEngine {
 
     public static ScenarioEngine forTempUse() {
         FeatureRuntime fr = FeatureRuntime.forTempUse();
-        ScenarioRuntime sr = fr.scenarios.next();
+        ScenarioRuntime sr = new ScenarioGenerator(fr).first();
         sr.engine.init();
         return sr.engine;
     }
