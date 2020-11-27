@@ -36,6 +36,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.internal.runners.statements.RunBefores;
 import org.junit.runner.Description;
+import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
 import org.junit.runners.model.FrameworkMethod;
@@ -68,7 +69,8 @@ public class Karate extends ParentRunner<Feature> {
         }
         summary = new HtmlSummaryReport();
         hook = new JunitHook();
-        Suite tempSuite = new Suite(new Runner.Builder(clazz).forTempUse());
+        Runner.Builder rb = Runner.builder().fromKarateAnnotation(clazz).forTempUse();
+        Suite tempSuite = new Suite(rb);
         features = tempSuite.features;
     }
 
@@ -78,7 +80,7 @@ public class Karate extends ParentRunner<Feature> {
         Statement main = new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                Runner.Builder rb = new Runner.Builder(annotatedClass);
+                Runner.Builder rb = Runner.builder().fromKarateAnnotation(annotatedClass);
                 rb.hook(hook);
                 rb.features(features);
                 Karate.this.suite = new Suite(rb);
@@ -114,7 +116,11 @@ public class Karate extends ParentRunner<Feature> {
     @Override
     public void run(RunNotifier notifier) {
         super.run(notifier);
-        summary.save(suite.reportDir);
+        if (suite == null) {
+            logger.warn("no feature files scanned");
+        } else {
+            summary.save(suite.reportDir);
+        }
     }
 
 }

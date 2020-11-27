@@ -83,7 +83,8 @@ public class Suite {
     }
 
     public Suite(Runner.Builder rb) {
-        env = rb.resolveEnv();
+        rb.resolveAll(); // ensure things like the hook factory are on the right thread
+        env = rb.env;
         systemProperties = new HashMap(System.getProperties());
         if (rb.systemProperties != null) {
             systemProperties.putAll(rb.systemProperties);
@@ -96,11 +97,11 @@ public class Suite {
         classLoader = rb.classLoader;
         threadCount = rb.threadCount;
         batchLimiter = new Semaphore(threadCount);
-        hooks = rb.resolveHooks(); // ensure that hook factory is processed on the suite thread=
-        features = rb.resolveFeatures();
+        hooks = rb.hooks;
+        features = rb.features;
         results = new Results();
         results.setThreadCount(threadCount);
-        results.setReportDir(reportDir); // TODO unify
+        results.setReportDir(reportDir);
         if (rb.clientFactory == null) {
             clientFactory = HttpClientFactory.DEFAULT;
         } else {

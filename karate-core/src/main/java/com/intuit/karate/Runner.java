@@ -190,7 +190,7 @@ public class Runner {
     }
 
     public static Results parallel(Class<?> clazz, int threadCount, String reportDir) {
-        return new Builder(clazz).reportDir(reportDir).parallel(threadCount);
+        return builder().fromKarateAnnotation(clazz).reportDir(reportDir).parallel(threadCount);
     }
 
     public static Results parallel(List<String> tags, List<String> paths, int threadCount, String reportDir) {
@@ -237,7 +237,7 @@ public class Runner {
         File workingDir;
         String buildDir;
         String configDir;
-        int threadCount;
+        int threadCount = 1;
         int timeoutMinutes;
         String reportDir;
         String scenarioName;
@@ -251,11 +251,46 @@ public class Runner {
         boolean forTempUse;
         Map<String, String> systemProperties;
 
-        public List<Feature> resolveFeatures() {
+        public void resolveAll() {
+            if (systemProperties == null) {
+                systemProperties = new HashMap(System.getProperties());
+            } else {
+                systemProperties.putAll(new HashMap(System.getProperties()));
+            }
+            // env
+            String tempOptions = StringUtils.trimToNull(systemProperties.get(Constants.KARATE_OPTIONS));
+            if (tempOptions != null) {
+                logger.info("using system property 'karate.options': {}", tempOptions);
+                RunnerOptions ro = RunnerOptions.parseCommandLine(tempOptions);
+                if (ro.tags != null) {
+                    tags = ro.tags;
+                }
+                if (ro.features != null) {
+                    paths = ro.features;
+                }
+            }
+            String tempEnv = StringUtils.trimToNull(systemProperties.get(Constants.KARATE_ENV));
+            if (tempEnv != null) {
+                logger.info("using system property 'karate.env': {}", tempEnv);
+                env = tempEnv;
+            } else if (env != null) {
+                logger.info("karate.env is: '{}'", env);
+            }
+            // hooks
+            if (hookFactory != null) {
+                hook(hookFactory.create());
+            }
+            if (hooks == null) {
+                hooks = Collections.EMPTY_LIST;
+            }
+            // features
             if (features == null) {
                 if (paths != null && !paths.isEmpty()) {
                     if (relativeTo != null) {
                         paths = paths.stream().map(p -> {
+                            if (p.startsWith("classpath:")) {
+                                return p;
+                            }
                             if (!p.endsWith(".feature")) {
                                 p = p + ".feature";
                             }
@@ -273,27 +308,6 @@ public class Runner {
                     feature.setCallName(scenarioName);
                 }
             }
-            return features;
-        }
-
-        public Collection<RuntimeHook> resolveHooks() {
-            if (hookFactory != null) {
-                hook(hookFactory.create());
-            }
-            if (hooks == null) {
-                hooks = Collections.EMPTY_LIST;
-            }
-            return hooks;
-        }
-
-        public String resolveEnv() {
-            if (env == null) {
-                env = StringUtils.trimToNull(System.getProperty(Constants.KARATE_ENV));
-            }
-            if (env != null) {
-                logger.info("karate.env is: '{}'", env);
-            }
-            return env;
         }
 
         public Builder forTempUse() {
@@ -301,25 +315,12 @@ public class Runner {
             return this;
         }
 
-        private Builder() {
-            this(new RunnerOptions());
-        }
-
-        public Builder(Class optionsClass) { // TODO deprecate this junit4 legacy
-            this(RunnerOptions.fromAnnotationAndSystemProperties(null, null, optionsClass));
-        }
-
-        public Builder(RunnerOptions ro) {
+        public Builder() {
             classLoader = Thread.currentThread().getContextClassLoader();
             logger = new Logger();
             workingDir = new File("");
             buildDir = FileUtils.getBuildDir();
             reportDir = buildDir + File.separator + Constants.SUREFIRE_REPORTS;
-            threadCount = ro.getThreads();
-            paths = ro.getFeatures();
-            tags = ro.getTags();
-            scenarioName = ro.getName();
-            env = ro.getEnv();
         }
 
         //======================================================================
@@ -369,6 +370,19 @@ public class Runner {
         public Builder relativeTo(Class clazz) {
             relativeTo = "classpath:" + ResourceUtils.toPathFromClassPathRoot(clazz);
             return this;
+        }
+
+        public Builder fromKarateAnnotation(Class<?> clazz) { // TODO deprecate            
+            KarateOptions ko = clazz.getAnnotation(KarateOptions.class);
+            if (ko != null) {
+                if (ko.tags().length > 0) {
+                    tags = Arrays.asList(ko.tags());
+                }
+                if (ko.features().length > 0) {
+                    paths = Arrays.asList(ko.features());
+                }
+            }
+            return relativeTo(clazz);
         }
 
         public Builder path(String... value) {

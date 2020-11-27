@@ -35,6 +35,7 @@ public class Constants {
     
     public static final String KARATE_CONFIG_DIR = "karate.config.dir";
     public static final String KARATE_ENV = "karate.env";
+    public static final String KARATE_OPTIONS = "karate.options";
     public static final String SUREFIRE_REPORTS = "surefire-reports";
     
     

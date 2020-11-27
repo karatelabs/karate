@@ -23,9 +23,7 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.resource.ResourceUtils;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -135,40 +133,6 @@ public class RunnerOptions {
         String[] args = line.split("\\s+");
         RunnerOptions options = parseStringArgs(args);
         options.name = nameTemp;
-        return options;
-    }
-
-    public static RunnerOptions fromAnnotationAndSystemProperties(List<String> features, List<String> tags, Class<?> clazz) {
-        KarateOptions ko = clazz == null ? null : clazz.getAnnotation(KarateOptions.class);
-        if (ko != null) {
-            if (ko.tags().length > 0) {
-                tags = Arrays.asList(ko.tags());
-            }
-            if (ko.features().length > 0) {
-                features = Arrays.asList(ko.features());
-            }
-        }
-        if (clazz != null && (features == null || features.isEmpty())) {
-            String relative = ResourceUtils.toPathFromClassPathRoot(clazz);
-            features = new ArrayList();
-            features.add("classpath:" + relative);
-        }
-        String line = StringUtils.trimToNull(System.getProperty("karate.options"));
-        RunnerOptions options;
-        if (line == null) {
-            options = new RunnerOptions();
-            options.tags = tags;
-            options.features = features;
-        } else {
-            logger.info("found system property 'karate.options': {}", line);
-            options = parseCommandLine(line);
-            if (options.tags == null) {
-                options.tags = tags;
-            }
-            if (options.features == null) {
-                options.features = features;
-            }
-        }
         return options;
     }
 

@@ -61,8 +61,8 @@ class ScenarioRuntimeTest {
 
     @Test
     void testConfigAndEnv() {
-        System.setProperty("karate.env", "");
-        System.setProperty("karate.config.dir", "");
+        System.clearProperty("karate.env");
+        System.clearProperty("karate.config.dir");
         run("def foo = configSource");
         matchVar("foo", "normal");
         System.setProperty("karate.config.dir", "src/test/java/com/intuit/karate/core");
@@ -95,8 +95,8 @@ class ScenarioRuntimeTest {
         matchVar("foo", "hello world");
         matchVar("bar", "hello world");
         Match.that(get("res")).contains("{ calledBar: 'hello world' }").isTrue();
-        System.setProperty("karate.env", "");
-        System.setProperty("karate.config.dir", "");
+        System.clearProperty("karate.env");
+        System.clearProperty("karate.config.dir");
     }
 
     @Test
