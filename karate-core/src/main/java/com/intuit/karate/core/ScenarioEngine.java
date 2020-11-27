@@ -67,7 +67,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -504,8 +503,8 @@ public class ScenarioEngine {
             for (Object o : list) {
                 multiPartInternal(null, o);
             }
-        } else {
-            logger.warn("did not evaluate to string, map or list {}: {}", name, value);
+        } else if (logger.isTraceEnabled()) {
+            logger.trace("did not evaluate to string, map or list {}: {}", name, value);
         }
     }
 
@@ -1888,9 +1887,7 @@ public class ScenarioEngine {
         ScenarioCall.Result result = CACHE.get(cacheKey);
         if (result != null) {
             logger.trace("callonce cache hit for: {}", cacheKey);
-            synchronized (CACHE) {
-                return result(result, sharedScope);
-            }
+            return result(result, sharedScope);
         }
         long startTime = System.currentTimeMillis();
         logger.trace("callonce waiting for lock: {}", cacheKey);

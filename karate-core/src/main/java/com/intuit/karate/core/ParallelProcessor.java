@@ -41,14 +41,16 @@ public abstract class ParallelProcessor<T> {
     private static final Logger logger = LoggerFactory.getLogger(ParallelProcessor.class);
 
     private final ExecutorService executor;
-    private final Semaphore semaphore;
+    private final ExecutorService monitor;
+    private final Semaphore batchLimiter;
     private final Stream<T> publisher;
     private final List<CompletableFuture> futures = new ArrayList();
 
-    public ParallelProcessor(ExecutorService executor, int batchSize, Stream<T> publisher) {
+    public ParallelProcessor(ExecutorService executor, Semaphore batchLimiter, Stream<T> publisher, ExecutorService monitor) {
         this.executor = executor;
-        semaphore = new Semaphore(batchSize);
+        this.batchLimiter = batchLimiter;
         this.publisher = publisher;
+        this.monitor = monitor;
     }
 
     public void execute() {
@@ -63,7 +65,7 @@ public abstract class ParallelProcessor<T> {
                     try {
                         process(in);
                         future.complete(Boolean.TRUE);
-                        semaphore.release();
+                        batchLimiter.release();
                     } catch (Exception e) {
                         logger.error("[parallel] input item failed: {}", e.getMessage());
                     }
@@ -71,13 +73,15 @@ public abstract class ParallelProcessor<T> {
             }
         });
         final CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
-        CompletableFuture.allOf(futuresArray).join();
-        onComplete();
+        monitor.submit(() -> {
+            CompletableFuture.allOf(futuresArray).join();
+            onComplete();
+        });
     }
 
     private void waitForHeadRoom() {
         try {
-            semaphore.acquire();
+            batchLimiter.acquire();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

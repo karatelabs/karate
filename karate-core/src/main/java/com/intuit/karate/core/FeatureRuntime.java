@@ -128,18 +128,24 @@ public class FeatureRuntime implements Runnable {
     }
 
     private ExecutorService executorService;
+    private ExecutorService monitor;
 
     public void setExecutorService(ExecutorService executorService) {
         this.executorService = executorService;
     }
+
+    public void setMonitor(ExecutorService monitor) {
+        this.monitor = monitor;
+    }        
 
     @Override
     public void run() {
         final boolean sequentialScenarios = executorService == null;
         if (sequentialScenarios) {
             executorService = new SyncExecutorService();
+            monitor = executorService;
         }
-        new ParallelProcessor<ScenarioRuntime>(executorService, suite.threadCount, scenarios.stream()) {
+        new ParallelProcessor<ScenarioRuntime>(executorService, suite.batchLimiter, scenarios.stream(), monitor) {
 
             @Override
             public void process(ScenarioRuntime sr) {

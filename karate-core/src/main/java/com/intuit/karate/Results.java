@@ -36,13 +36,13 @@ import java.util.Map;
  */
 public class Results {
 
-    private final int threadCount;
+    private int threadCount;
+    private long startTime = System.currentTimeMillis();
     private int featureCount;
     private int scenarioCount;
     private int failCount;
     private int skipCount;
     private double timeTakenMillis;
-    private final long startTime;
     private long endTime;
     private Map<String, String> failedMap;
     private Throwable failureReason;
@@ -79,14 +79,9 @@ public class Results {
         map.put("passed", getPassCount());
         map.put("elapsedTime", getElapsedTime());
         map.put("totalTime", getTimeTakenMillis());
-        map.put("efficiency", getEfficiency());        
+        map.put("efficiency", getEfficiency());
         map.put("failures", failedMap);
         return map;
-    }
-
-    private Results(long startTime, int threadCount) {
-        this.startTime = startTime;
-        this.threadCount = threadCount;
     }
 
     public void addToFailedList(String name, String errorMessage) {
@@ -96,8 +91,12 @@ public class Results {
         failedMap.put(name, errorMessage);
     }
 
-    public static Results startTimer(int threadCount) {
-        return new Results(System.currentTimeMillis(), threadCount);
+    public void setStartTime(long startTime) {
+        this.startTime = startTime;
+    }
+
+    public void setThreadCount(int threadCount) {
+        this.threadCount = threadCount;
     }
 
     public String getReportDir() {
@@ -119,10 +118,10 @@ public class Results {
     public void addToScenarioCount(int count) {
         scenarioCount += count;
     }
-    
+
     public void incrementFeatureCount() {
         featureCount++;
-    }    
+    }
 
     public void addToFailCount(int count) {
         failCount += count;
@@ -136,9 +135,9 @@ public class Results {
         timeTakenMillis += time;
     }
 
-    public void stopTimer() {
-        endTime = System.currentTimeMillis();
-    }
+    public void setEndTime(long endTime) {
+        this.endTime = endTime;
+    }    
 
     public void addScenarioResults(List<ScenarioResult> list) {
         scenarioResults.addAll(list);

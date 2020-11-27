@@ -33,6 +33,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
 
 /**
  *
@@ -48,6 +49,7 @@ public class Suite {
     public final String reportDir;
     public final ClassLoader classLoader;
     public final int threadCount;
+    public final Semaphore batchLimiter;
     public final List<Feature> features;
     public final Results results;
     public final Collection<RuntimeHook> hooks;
@@ -93,9 +95,11 @@ public class Suite {
         reportDir = rb.reportDir;
         classLoader = rb.classLoader;
         threadCount = rb.threadCount;
+        batchLimiter = new Semaphore(threadCount);
         hooks = rb.resolveHooks(); // ensure that hook factory is processed on the suite thread=
         features = rb.resolveFeatures();
-        results = Results.startTimer(threadCount);
+        results = new Results();
+        results.setThreadCount(threadCount);
         results.setReportDir(reportDir); // TODO unify
         if (rb.clientFactory == null) {
             clientFactory = HttpClientFactory.DEFAULT;

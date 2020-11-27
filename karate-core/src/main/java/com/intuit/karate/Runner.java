@@ -29,7 +29,6 @@ import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.HtmlFeatureReport;
 import com.intuit.karate.core.HtmlReport;
 import com.intuit.karate.core.HtmlSummaryReport;
-import com.intuit.karate.core.ParallelProcessor;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.RuntimeHookFactory;
 import com.intuit.karate.core.SyncExecutorService;
@@ -37,6 +36,7 @@ import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -58,38 +58,30 @@ public class Runner {
         int count = suite.features.size();
         Results results = suite.results;
         final List<FeatureResult> featureResults = new ArrayList(count);
-        ExecutorService executor = suite.threadCount == 1 ? new SyncExecutorService() : Executors.newWorkStealingPool(suite.threadCount * 2);
-        ParallelProcessor<Feature> processor = new ParallelProcessor<Feature>(executor, suite.threadCount, suite.features.stream()) {
-
-            int index = 0;
-
-            @Override
-            public void process(Feature feature) {
-                FeatureRuntime fr = FeatureRuntime.of(suite, feature);
-                fr.setExecutorService(executor);
-                fr.setNext(() -> {
-                    synchronized (featureResults) {
-                        featureResults.add(fr.result);
-                    }
-                    onFeatureDone(fr, ++index, count);
-                });
-                try {
-                    fr.run();
-                } catch (Exception e) {
-                    LOGGER.info("[runner] feature failed: {}", e.getMessage());
-                    results.setFailureReason(e);
-                }
-            }
-
-            @Override
-            public void onComplete() {
-                LOGGER.info("last feature complete");
-            }
-
-        };
+        ExecutorService scenarioExecutor = suite.threadCount == 1 ? new SyncExecutorService() : Executors.newFixedThreadPool(suite.threadCount);
+        ExecutorService featureExecutor = suite.threadCount == 1 ? scenarioExecutor : Executors.newSingleThreadExecutor();
         try {
-            processor.execute(); // will block
-            suite.results.stopTimer();
+            int index = 0;
+            results.setStartTime(System.currentTimeMillis());
+            List<CompletableFuture> futures = new ArrayList(count);
+            for (Feature feature : suite.features) {
+                final CompletableFuture future = new CompletableFuture();
+                futures.add(future);
+                final int featureNum = ++index;
+                FeatureRuntime fr = FeatureRuntime.of(suite, feature);
+                fr.setExecutorService(scenarioExecutor);
+                fr.setMonitor(featureExecutor);
+                featureResults.add(fr.result);
+                fr.setNext(() -> {
+                    onFeatureDone(fr, featureNum, count);
+                    future.complete(Boolean.TRUE);
+                });
+                featureExecutor.submit(fr);
+            }
+            LOGGER.debug("waiting for {} features to complete ...", count);
+            CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
+            CompletableFuture.allOf(futuresArray).join();
+            results.setEndTime(System.currentTimeMillis());
             HtmlSummaryReport summary = new HtmlSummaryReport();
             for (FeatureResult result : featureResults) {
                 int scenarioCount = result.getScenarioCount();
@@ -120,7 +112,8 @@ public class Runner {
             LOGGER.error("runner failed: " + e);
             results.setFailureReason(e);
         } finally {
-            executor.shutdownNow();
+            scenarioExecutor.shutdownNow();
+            featureExecutor.shutdownNow();
         }
         return results;
     }
