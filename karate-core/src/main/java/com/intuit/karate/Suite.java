@@ -85,10 +85,7 @@ public class Suite {
     public Suite(Runner.Builder rb) {
         rb.resolveAll(); // ensure things like the hook factory are on the right thread
         env = rb.env;
-        systemProperties = new HashMap(System.getProperties());
-        if (rb.systemProperties != null) {
-            systemProperties.putAll(rb.systemProperties);
-        }
+        systemProperties = rb.systemProperties;
         tagSelector = Tags.fromKarateOptionsTags(rb.tags);
         logger = rb.logger;
         workingDir = rb.workingDir;

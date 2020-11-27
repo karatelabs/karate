@@ -72,7 +72,7 @@ class KarateHttpMockHandlerTest {
     }
 
     @Test
-    void testThatCookieIsPartOfRequestForApache() {
+    void testThatCookieIsPartOfRequest() {
         background().scenario(
                 "pathMatches('/hello')",
                 "def response = requestHeaders");
@@ -85,6 +85,35 @@ class KarateHttpMockHandlerTest {
         );
         matchVarContains("response", "{ cookie: ['foo=bar'] }");
     }
+    
+    @Test
+    void testSameSiteCookieRequest() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestHeaders");
+        startMockServer();
+        run(
+                urlStep(),
+                "path '/hello'",
+                "cookie foo = { value: 'bar', samesite: 'Strict' }",
+                "method get"
+        );
+        matchVarContains("response", "{ cookie: ['foo=bar; SameSite=Strict'] }");
+    }    
+    
+    @Test
+    void testSameSiteCookieResponse() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def responseHeaders = { 'Set-Cookie': 'foo=bar; samesite=Strict'}");
+        startMockServer();
+        run(
+                urlStep(),
+                "path '/hello'",
+                "method get"
+        );
+        matchVarContains("responseHeaders", "{ set-cookie: ['foo=bar; samesite=Strict'] }");
+    }     
     
     @Test
     void testThatExoticContentTypeIsPreserved() {
