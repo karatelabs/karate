@@ -16,7 +16,7 @@ mvn versions:commit
 mvn clean deploy -P pre-release,release
 
 jar:
-cd karate-netty
+cd karate-core
 mvn install -P fatjar
 https://bintray.com/ptrthomas/karate
 (upload to github release notes)
@@ -34,10 +34,8 @@ docker:
 make sure docker is started and is running !
 cd karate-docker/karate-chrome
 rm -rf target
-./build.sh
+./docker-build.sh
 docker tag karate-chrome ptrthomas/karate-chrome:latest
-
-(run WebDockerJobRunner and Test03DockerRunner to test that docker chrome is ok locally)
 
 docker tag karate-chrome ptrthomas/karate-chrome:@@@
 docker push ptrthomas/karate-chrome
