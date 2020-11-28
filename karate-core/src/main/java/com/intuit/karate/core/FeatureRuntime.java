@@ -108,7 +108,7 @@ public class FeatureRuntime implements Runnable {
         this.feature = feature;
         this.caller = caller;
         this.rootFeature = caller.isNone() ? this : caller.parentRuntime.featureRuntime;
-        result = new FeatureResult(suite.results, feature);
+        result = new FeatureResult(feature);
         scenarios = new ScenarioGenerator(this);
     }
 

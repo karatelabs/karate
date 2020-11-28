@@ -50,19 +50,20 @@ public class Runner {
 
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Runner.class);
 
-    public static Results parallel(Builder options) {
-        Suite suite = new Suite(options);
-        if (options.hooks != null) {
-            options.hooks.forEach(h -> h.beforeSuite(suite));
-        }
+    public static Results parallel(Suite suite) {
         int count = suite.features.size();
+        ExecutorService scenarioExecutor, featureExecutor;
+        if (count == 1 || suite.threadCount == 1) {
+            scenarioExecutor = new SyncExecutorService();
+            featureExecutor = scenarioExecutor;
+        } else {
+            scenarioExecutor = Executors.newFixedThreadPool(suite.threadCount);
+            featureExecutor = Executors.newSingleThreadExecutor();
+        }
         Results results = suite.results;
         final List<FeatureResult> featureResults = new ArrayList(count);
-        ExecutorService scenarioExecutor = suite.threadCount == 1 ? new SyncExecutorService() : Executors.newFixedThreadPool(suite.threadCount);
-        ExecutorService featureExecutor = suite.threadCount == 1 ? scenarioExecutor : Executors.newSingleThreadExecutor();
         try {
             int index = 0;
-            results.setStartTime(System.currentTimeMillis());
             List<CompletableFuture> futures = new ArrayList(count);
             for (Feature feature : suite.features) {
                 final CompletableFuture future = new CompletableFuture();
@@ -73,12 +74,14 @@ public class Runner {
                 fr.setMonitor(featureExecutor);
                 featureResults.add(fr.result);
                 fr.setNext(() -> {
-                    onFeatureDone(fr, featureNum, count);
+                    onFeatureDone(results, fr, featureNum, count);
                     future.complete(Boolean.TRUE);
                 });
                 featureExecutor.submit(fr);
             }
-            LOGGER.debug("waiting for {} features to complete ...", count);
+            if (count > 1) {
+                LOGGER.debug("waiting for {} features to complete ...", count);
+            }
             CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
             CompletableFuture.allOf(futuresArray).join();
             results.setEndTime(System.currentTimeMillis());
@@ -105,8 +108,8 @@ public class Runner {
             results.printStats(suite.threadCount);
             Engine.saveStatsJson(suite.reportDir, results);
             HtmlReport.saveTimeline(suite.reportDir, results, null);
-            if (options.hooks != null) {
-                options.hooks.forEach(h -> h.afterSuite(suite));
+            if (suite.hooks != null) {
+                suite.hooks.forEach(h -> h.afterSuite(suite));
             }
         } catch (Exception e) {
             LOGGER.error("runner failed: " + e);
@@ -118,7 +121,7 @@ public class Runner {
         return results;
     }
 
-    private static void onFeatureDone(FeatureRuntime fr, int index, int count) {
+    private static void onFeatureDone(Results results, FeatureRuntime fr, int index, int count) {
         FeatureResult result = fr.result;
         Feature feature = fr.feature;
         String reportDir = fr.suite.reportDir;
@@ -137,7 +140,7 @@ public class Runner {
                 result.printStats(null);
             }
         } else {
-            fr.suite.results.addToSkipCount(1);
+            results.addToSkipCount(1);
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("<<skip>> feature {} of {}: {}", index, count, feature);
             }
@@ -261,12 +264,12 @@ public class Runner {
             String tempOptions = StringUtils.trimToNull(systemProperties.get(Constants.KARATE_OPTIONS));
             if (tempOptions != null) {
                 logger.info("using system property 'karate.options': {}", tempOptions);
-                RunnerOptions ro = RunnerOptions.parseCommandLine(tempOptions);
+                Main ro = IdeMain.parseCommandLine(tempOptions);
                 if (ro.tags != null) {
                     tags = ro.tags;
                 }
-                if (ro.features != null) {
-                    paths = ro.features;
+                if (ro.paths != null) {
+                    paths = ro.paths;
                 }
             }
             String tempEnv = StringUtils.trimToNull(systemProperties.get(Constants.KARATE_ENV));
@@ -464,9 +467,15 @@ public class Runner {
             return this;
         }
 
+        public Builder threads(int value) {
+            threadCount = value;
+            return this;
+        }
+
         public Results parallel(int threadCount) {
-            this.threadCount = threadCount;
-            return Runner.parallel(this);
+            threads(threadCount);
+            Suite suite = new Suite(this);
+            return Runner.parallel(suite);
         }
 
         @Override

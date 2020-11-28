@@ -168,7 +168,7 @@ public class ScenarioGenerator implements Spliterator<ScenarioRuntime> {
                 action.accept(new ScenarioRuntime(featureRuntime, dynamic, background));
                 return true;
             } else { // assume that this is signal to stop the dynamic scenario outline
-                background.logger.info("*** dynamic expression complete at index: {}, not map-like: {}", rowIndex, rowValue);
+                background.logger.info("dynamic expression complete at index: {}, not map-like: {}", rowIndex, rowValue);
                 currentScenario = null;
                 return tryAdvance(action);
             }

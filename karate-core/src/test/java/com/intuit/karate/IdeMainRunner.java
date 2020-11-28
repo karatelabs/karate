@@ -1,4 +1,4 @@
-package com.intuit.karate.cli;
+package com.intuit.karate;
 
 import org.junit.jupiter.api.Test;
 
@@ -6,13 +6,18 @@ import org.junit.jupiter.api.Test;
  *
  * @author pthomas3
  */
-class MainRunner {
+class IdeMainRunner {        
 
+    @Test
+    void testCli() {
+        IdeMain.main(new String[]{"-t", "~@ignore", "-T", "2", "classpath:com/intuit/karate/core/runner/multi-scenario.feature"});
+    }
+    
     @Test
     void testMain() {
         String command = "--plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome --name ^german xml$ --glue com.intuit.karate classpath:/dummy";
         System.setProperty("sun.java.command", command);
-        Main.main(new String[]{});
-    }
+        IdeMain.main(new String[]{});
+    }    
 
 }

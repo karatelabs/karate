@@ -23,8 +23,9 @@
  */
 package com.intuit.karate.debug;
 
+import com.intuit.karate.IdeMain;
+import com.intuit.karate.Main;
 import com.intuit.karate.Runner;
-import com.intuit.karate.RunnerOptions;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Result;
 import com.intuit.karate.core.Step;
@@ -344,18 +345,18 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
 
     private void start() {
         logger.debug("command line: {}", launchCommand);
-        RunnerOptions options;
+        Main options;
         if (singleFeature) {
-            options = new RunnerOptions();
-            options.addFeature(launchCommand);
+            options = new Main();
+            options.addPath(launchCommand);
         } else {
-            options = RunnerOptions.parseCommandLine(launchCommand);
+            options = IdeMain.parseCommandLine(launchCommand);
         }
         if (runnerThread != null) {
             runnerThread.interrupt();
         }
         runnerThread = new Thread(() -> {
-            Runner.path(options.getFeatures())
+            Runner.path(options.getPaths())
                     .hookFactory(this)
                     .tags(options.getTags())
                     .scenarioName(options.getName())

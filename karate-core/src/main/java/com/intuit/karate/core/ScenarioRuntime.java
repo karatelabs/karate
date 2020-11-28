@@ -289,7 +289,7 @@ public class ScenarioRuntime implements Runnable {
         ScenarioEngine.set(engine);
         engine.init();
         result.setThreadName(Thread.currentThread().getName());
-        result.setStartTime(System.currentTimeMillis() - featureRuntime.suite.results.getStartTime());
+        result.setStartTime(System.currentTimeMillis() - featureRuntime.suite.startTime);
         if (caller.isNone() && !caller.isKarateConfigDisabled()) {
             // evaluate config js, variables above will apply !
             evalConfigJs(featureRuntime.suite.karateBase, "karate-base.js");
@@ -368,7 +368,7 @@ public class ScenarioRuntime implements Runnable {
 
     public void afterRun() {
         try {
-            result.setEndTime(System.currentTimeMillis() - featureRuntime.suite.results.getStartTime());
+            result.setEndTime(System.currentTimeMillis() - featureRuntime.suite.startTime);
             engine.logLastPerfEvent(result.getFailureMessageForDisplay());
             engine.invokeAfterHookIfConfigured(false);
             featureRuntime.suite.hooks.forEach(h -> h.afterScenario(this));

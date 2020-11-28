@@ -36,8 +36,7 @@ import java.util.Map;
  */
 public class Results {
 
-    private int threadCount;
-    private long startTime = System.currentTimeMillis();
+    private final Suite suite;
     private int featureCount;
     private int scenarioCount;
     private int failCount;
@@ -46,8 +45,11 @@ public class Results {
     private long endTime;
     private Map<String, String> failedMap;
     private Throwable failureReason;
-    private String reportDir;
     private final List<ScenarioResult> scenarioResults = new ArrayList();
+    
+    public Results(Suite suite) {
+        this.suite = suite;
+    }
 
     public void printStats(int threadCount) {
         System.out.println("Karate version: " + FileUtils.KARATE_VERSION);
@@ -71,7 +73,7 @@ public class Results {
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap();
         map.put("version", FileUtils.KARATE_VERSION);
-        map.put("threads", threadCount);
+        map.put("threads", suite.threadCount);
         map.put("features", featureCount);
         map.put("ignored", skipCount);
         map.put("scenarios", scenarioCount);
@@ -91,20 +93,8 @@ public class Results {
         failedMap.put(name, errorMessage);
     }
 
-    public void setStartTime(long startTime) {
-        this.startTime = startTime;
-    }
-
-    public void setThreadCount(int threadCount) {
-        this.threadCount = threadCount;
-    }
-
     public String getReportDir() {
-        return reportDir;
-    }
-
-    public void setReportDir(String reportDir) {
-        this.reportDir = reportDir;
+        return suite.reportDir;
     }
 
     public void setFailureReason(Throwable failureReason) {
@@ -159,19 +149,15 @@ public class Results {
     }
 
     public double getElapsedTime() {
-        return endTime - startTime;
+        return endTime - suite.startTime;
     }
 
     public double getEfficiency() {
-        return timeTakenMillis / (getElapsedTime() * threadCount);
+        return timeTakenMillis / (getElapsedTime() * suite.threadCount);
     }
 
     public int getPassCount() {
         return scenarioCount - failCount;
-    }
-
-    public int getThreadCount() {
-        return threadCount;
     }
 
     public int getFeatureCount() {
@@ -191,7 +177,7 @@ public class Results {
     }
 
     public long getStartTime() {
-        return startTime;
+        return suite.startTime;
     }
 
     public long getEndTime() {

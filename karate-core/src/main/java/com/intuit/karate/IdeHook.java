@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.cli;
+package com.intuit.karate;
 
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Engine;
@@ -43,17 +43,15 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * @author pthomas3
  */
-public class CliExecutionHook implements RuntimeHook {
+public class IdeHook implements RuntimeHook {
     
     private final boolean htmlReport;
-    private final String targetDir;
     private final boolean intellij;
     private final ReentrantLock LOCK = new ReentrantLock();
     private final HtmlSummaryReport summary;
     
-    public CliExecutionHook(boolean htmlReport, String targetDir, boolean intellij) {
+    public IdeHook(boolean htmlReport, boolean intellij) {
         this.htmlReport = htmlReport;
-        this.targetDir = targetDir;
         this.intellij = intellij;
         if (intellij) {
             log(String.format(TEMPLATE_ENTER_THE_MATRIX, getCurrentTime()));
@@ -69,7 +67,7 @@ public class CliExecutionHook implements RuntimeHook {
     @Override
     public void afterSuite(Suite suite) {
         if (htmlReport) {
-            summary.save(targetDir);
+            summary.save(suite.buildDir);
         }
     }    
     
@@ -128,11 +126,11 @@ public class CliExecutionHook implements RuntimeHook {
             return;
         }
         if (htmlReport && !fr.result.isEmpty()) {
-            HtmlFeatureReport.saveFeatureResult(targetDir, fr.result);
+            HtmlFeatureReport.saveFeatureResult(fr.suite.buildDir, fr.result);
             summary.addFeatureResult(fr.result);
         }
         if (LOCK.tryLock()) {
-            Engine.saveStatsJson(targetDir, fr.suite.results);
+            Engine.saveStatsJson(fr.suite.buildDir, fr.suite.results);
             LOCK.unlock();
         }
     }

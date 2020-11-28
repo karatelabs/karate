@@ -43,6 +43,7 @@ public class Suite {
 
     public final String env;
     public final String tagSelector;
+    public final long startTime;
     public final Logger logger;
     public final File workingDir;
     public final String buildDir;
@@ -84,6 +85,7 @@ public class Suite {
 
     public Suite(Runner.Builder rb) {
         rb.resolveAll(); // ensure things like the hook factory are on the right thread
+        startTime = System.currentTimeMillis();
         env = rb.env;
         systemProperties = rb.systemProperties;
         tagSelector = Tags.fromKarateOptionsTags(rb.tags);
@@ -96,9 +98,7 @@ public class Suite {
         batchLimiter = new Semaphore(threadCount);
         hooks = rb.hooks;
         features = rb.features;
-        results = new Results();
-        results.setThreadCount(threadCount);
-        results.setReportDir(reportDir);
+        results = new Results(this);
         if (rb.clientFactory == null) {
             clientFactory = HttpClientFactory.DEFAULT;
         } else {

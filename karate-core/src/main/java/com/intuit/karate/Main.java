@@ -23,7 +23,6 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.cli.CliExecutionHook;
 import com.intuit.karate.debug.DapServer;
 import com.intuit.karate.formats.PostmanConverter;
 import com.intuit.karate.job.JobExecutor;
@@ -36,6 +35,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
@@ -60,9 +60,6 @@ public class Main implements Callable<Void> {
     @Option(names = {"-p", "--port"}, description = "mock server port (required for --mock)")
     Integer port;
 
-    @Option(names = {"-w", "--watch"}, description = "watch (and hot-reload) mock server file for changes")
-    boolean watch;
-
     @Option(names = {"-s", "--ssl"}, description = "use ssl / https, will use '"
             + SslContextFactory.DEFAULT_CERT_NAME + "' and '" + SslContextFactory.DEFAULT_KEY_NAME
             + "' if they exist in the working directory, or generate them")
@@ -84,7 +81,7 @@ public class Main implements Callable<Void> {
     String output = DEFAULT_OUTPUT_DIR;
 
     @Parameters(description = "one or more tests (features) or search-paths to run")
-    List<String> tests;
+    List<String> paths;
 
     @Option(names = {"-n", "--name"}, description = "scenario name")
     String name;
@@ -105,6 +102,31 @@ public class Main implements Callable<Void> {
     @Option(names = {"-i", "--import"}, description = "import and convert a file")
     String importFile;
 
+    //==========================================================================
+    //
+    public void addPath(String path) {
+       if (paths == null) {
+           paths = new ArrayList();
+       }
+       paths.add(path);
+    }
+
+    public List<String> getPaths() {
+        return paths;
+    }
+
+    public List<String> getTags() {
+        return tags;
+    }
+
+    public int getThreads() {
+        return threads;
+    }
+
+    public String getName() {
+        return name;
+    }        
+    
     public static void main(String[] args) {
         boolean isClean = false;
         boolean isOutputArg = false;
@@ -136,7 +158,7 @@ public class Main implements Callable<Void> {
             // ensure we init logback before anything else
             String logbackConfig = System.getProperty(LOGBACK_CONFIG);
             if (StringUtils.isBlank(logbackConfig)) {
-                System.setProperty(LOGBACK_CONFIG, "logback-netty.xml");
+                System.setProperty(LOGBACK_CONFIG, "logback-fatjar.xml");
             }
         }
         logger = LoggerFactory.getLogger(Main.class);
@@ -161,7 +183,7 @@ public class Main implements Callable<Void> {
             server.waitSync();
             return null;
         }
-        if (tests != null) {
+        if (paths != null) {
             if (env != null) {
                 System.setProperty(Constants.KARATE_ENV, env);
             }
@@ -170,10 +192,10 @@ public class Main implements Callable<Void> {
             if (configDir == null) {
                 System.setProperty(Constants.KARATE_CONFIG_DIR, new File("").getAbsolutePath());
             }
-            List<String> fixed = tests.stream().map(f -> new File(f).getAbsolutePath()).collect(Collectors.toList());
+            List<String> fixed = paths.stream().map(f -> new File(f).getAbsolutePath()).collect(Collectors.toList());
             // this avoids mixing json created by other means which will break the cucumber report
             String jsonOutputDir = output + File.separator + Constants.SUREFIRE_REPORTS;
-            CliExecutionHook hook = new CliExecutionHook(false, jsonOutputDir, false);
+            IdeHook hook = new IdeHook(true, false);
             Results results = Runner
                     .path(fixed).tags(tags).scenarioName(name)
                     .reportDir(jsonOutputDir).hook(hook).parallel(threads);
@@ -219,10 +241,8 @@ public class Main implements Callable<Void> {
             builder.http(port);
         }
         MockServer server = builder.build();
-        if (watch) {
-            // TODO
-        }
         server.waitSync();
         return null;
     }
+
 }
