@@ -31,7 +31,6 @@ import com.intuit.karate.resource.Resource;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +39,7 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class FeatureRuntime implements Runnable {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(FeatureRuntime.class);
 
     public final Suite suite;
@@ -131,25 +130,13 @@ public class FeatureRuntime implements Runnable {
         return beforeHookResult;
     }
 
-    private ExecutorService executorService;
-    private ExecutorService monitor;
-
-    public void setExecutorService(ExecutorService executorService) {
-        this.executorService = executorService;
-    }
-
-    public void setMonitor(ExecutorService monitor) {
-        this.monitor = monitor;
-    }        
-
-    @Override
-    public void run() {
-        final boolean sequentialScenarios = executorService == null;
-        if (sequentialScenarios) {
-            executorService = new SyncExecutorService();
-            monitor = executorService;
-        }
-        new ParallelProcessor<ScenarioRuntime>(executorService, suite.batchLimiter, scenarios.stream(), monitor) {
+    private ParallelProcessor<ScenarioRuntime> processor() {
+        boolean sync = isPerfMode() || !caller.isNone() || !suite.parallel;
+        return new ParallelProcessor<ScenarioRuntime>(
+                sync ? SyncExecutorService.INSTANCE : suite.scenarioExecutor,
+                suite.batchLimiter,
+                scenarios.stream(),
+                sync ? SyncExecutorService.INSTANCE : suite.pendingTasks) {
 
             @Override
             public void process(ScenarioRuntime sr) {
@@ -166,22 +153,28 @@ public class FeatureRuntime implements Runnable {
             }
 
             @Override
-            public boolean shouldRunSynchronously(ScenarioRuntime sr) {
-                return sequentialScenarios || sr.tags.valuesFor("parallel").isAnyOf("false");
-            }
-
-            @Override
             public void onComplete() {
                 synchronized (FeatureRuntime.this) {
                     FeatureRuntime.this.onComplete();
                 }
             }
 
-        }.execute();
+            @Override
+            public boolean shouldRunSynchronously(ScenarioRuntime sr) {
+                return sync || sr.tags.valuesFor("parallel").isAnyOf("false");
+            }
+
+        };
+    }
+
+    @Override
+    public void run() {
+        processor().execute();
     }
 
     private ScenarioRuntime lastExecutedScenario;
 
+    // extracted for junit5
     public void onComplete() {
         result.sortScenarioResults();
         if (lastExecutedScenario != null) {

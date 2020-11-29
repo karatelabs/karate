@@ -34,6 +34,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @author pthomas3
  */
 public class SyncExecutorService extends AbstractExecutorService {
+    
+    public static final SyncExecutorService INSTANCE = new SyncExecutorService();
 
     private final AtomicBoolean terminated = new AtomicBoolean();
 

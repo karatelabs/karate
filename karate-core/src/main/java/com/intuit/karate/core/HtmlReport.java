@@ -40,6 +40,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -180,11 +182,11 @@ public abstract class HtmlReport {
 
     public static File saveTimeline(String targetDir, Results results, String fileName) {
         Map<String, Integer> groupsMap = new LinkedHashMap();
-        List<ScenarioResult> scenarioResults = results.getScenarioResults();
-        List<Map> items = new ArrayList(scenarioResults.size());
-        int id = 1;
+        Stream<ScenarioResult> scenarioResults = results.getFeatureResults().stream().flatMap(fr -> fr.getScenarioResults().stream());
+        List<Map> items = new ArrayList();
+        AtomicInteger id = new AtomicInteger();
         DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss.SSS");
-        for (ScenarioResult sr : scenarioResults) {
+        scenarioResults.forEach(sr -> {
             String threadName = sr.getThreadName();
             Integer groupId = groupsMap.get(threadName);
             if (groupId == null) {
@@ -193,7 +195,7 @@ public abstract class HtmlReport {
             }
             Map<String, Object> item = new LinkedHashMap(10);
             items.add(item);
-            item.put("id", id++);
+            item.put("id", id.incrementAndGet());
             item.put("group", groupId);
             Scenario s = sr.getScenario();
             String featureName = s.getFeature().getResource().getFileNameWithoutExtension();
@@ -214,7 +216,7 @@ public abstract class HtmlReport {
             if (sr.isFailed()) {
                 item.put("className", "failed");
             }
-        }
+        });
         List<Map> groups = new ArrayList(groupsMap.size());
         groupsMap.forEach((k, v) -> {
             Map<String, Object> group = new LinkedHashMap(2);

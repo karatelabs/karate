@@ -51,101 +51,6 @@ public class Runner {
 
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Runner.class);
 
-    public static Results parallel(Suite suite) {
-        int count = suite.features.size();
-        ExecutorService scenarioExecutor, featureExecutor;
-        if (count == 1 || suite.threadCount == 1) {
-            scenarioExecutor = new SyncExecutorService();
-            featureExecutor = scenarioExecutor;
-        } else {
-            scenarioExecutor = Executors.newFixedThreadPool(suite.threadCount);
-            featureExecutor = Executors.newSingleThreadExecutor();
-        }
-        Results results = suite.results;
-        final List<FeatureResult> featureResults = new ArrayList(count);
-        try {
-            int index = 0;
-            List<CompletableFuture> futures = new ArrayList(count);
-            for (Feature feature : suite.features) {
-                final CompletableFuture future = new CompletableFuture();
-                futures.add(future);
-                final int featureNum = ++index;
-                FeatureRuntime fr = FeatureRuntime.of(suite, feature);
-                fr.setExecutorService(scenarioExecutor);
-                fr.setMonitor(featureExecutor);
-                featureResults.add(fr.result);
-                fr.setNext(() -> {
-                    onFeatureDone(results, fr, featureNum, count);
-                    future.complete(Boolean.TRUE);
-                });
-                featureExecutor.submit(fr);
-            }
-            if (count > 1) {
-                LOGGER.debug("waiting for {} features to complete ...", count);
-            }
-            CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
-            CompletableFuture.allOf(futuresArray).join();
-            results.setEndTime(System.currentTimeMillis());
-            HtmlSummaryReport summary = new HtmlSummaryReport();
-            for (FeatureResult result : featureResults) {
-                int scenarioCount = result.getScenarioCount();
-                results.addToScenarioCount(scenarioCount);
-                if (scenarioCount != 0) {
-                    results.incrementFeatureCount();
-                }
-                results.addToFailCount(result.getFailedCount());
-                results.addToTimeTaken(result.getDurationMillis());
-                if (result.isFailed()) {
-                    results.addToFailedList(result.getPackageQualifiedName(), result.getErrorMessages());
-                }
-                results.addScenarioResults(result.getScenarioResults());
-                if (!result.isEmpty()) {
-                    HtmlFeatureReport.saveFeatureResult(suite.reportDir, result);
-                    summary.addFeatureResult(result);
-                }
-            }
-            // saving reports can in rare cases throw errors, so do all this within try-catch
-            summary.save(suite.reportDir);
-            results.printStats(suite.threadCount);
-            Engine.saveStatsJson(suite.reportDir, results);
-            HtmlReport.saveTimeline(suite.reportDir, results, null);
-            suite.hooks.forEach(h -> h.afterSuite(suite));
-        } catch (Exception e) {
-            LOGGER.error("runner failed: " + e);
-            results.setFailureReason(e);
-        } finally {
-            scenarioExecutor.shutdownNow();
-            featureExecutor.shutdownNow();
-        }
-        return results;
-    }
-
-    private static void onFeatureDone(Results results, FeatureRuntime fr, int index, int count) {
-        FeatureResult result = fr.result;
-        Feature feature = fr.feature;
-        String reportDir = fr.suite.reportDir;
-        if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags
-            try { // edge case that reports are not writable
-                File file = Engine.saveResultJson(reportDir, result, null);
-                if (result.getScenarioCount() < 500) {
-                    // TODO this routine simply cannot handle that size
-                    Engine.saveResultXml(reportDir, result, null);
-                }
-                String status = result.isFailed() ? "fail" : "pass";
-                LOGGER.info("<<{}>> feature {} of {}: {}", status, index, count, feature);
-                result.printStats(file.getPath());
-            } catch (Exception e) {
-                LOGGER.error("<<error>> unable to write report file(s): {} - {}", feature, e + "");
-                result.printStats(null);
-            }
-        } else {
-            results.addToSkipCount(1);
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("<<skip>> feature {} of {}: {}", index, count, feature);
-            }
-        }
-    }
-
     public static Map<String, Object> runFeature(Feature feature, Map<String, Object> vars, boolean evalKarateConfig) {
         Suite suite = new Suite();
         FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, vars);
@@ -232,6 +137,7 @@ public class Runner {
     //
     public static class Builder {
 
+        ClassLoader classLoader;
         Class optionsClass;
         String env;
         File workingDir;
@@ -252,6 +158,12 @@ public class Runner {
         Map<String, String> systemProperties;
 
         public List<Feature> resolveAll() {
+            if (classLoader == null) {
+                classLoader = Thread.currentThread().getContextClassLoader();
+            }
+            if (clientFactory == null) {
+                clientFactory = HttpClientFactory.DEFAULT;
+            }
             if (systemProperties == null) {
                 systemProperties = new HashMap(System.getProperties());
             } else {
@@ -302,7 +214,13 @@ public class Runner {
                 // all good
             } else {
                 configDir = configDir + File.separator;
-            }            
+            }
+            if (buildDir == null) {
+                buildDir = FileUtils.getBuildDir();
+            }
+            if (reportDir == null) {
+                reportDir = buildDir + File.separator + Constants.KARATE_REPORTS;
+            }
             // hooks
             if (hookFactory != null) {
                 hook(hookFactory.create());
@@ -341,7 +259,7 @@ public class Runner {
             return features;
         }
 
-        public Builder forTempUse() {
+        protected Builder forTempUse() {
             forTempUse = true;
             return this;
         }
@@ -377,6 +295,11 @@ public class Runner {
             if (value != null) {
                 this.buildDir = value;
             }
+            return this;
+        }
+
+        public Builder classLoader(ClassLoader value) {
+            classLoader = value;
             return this;
         }
 
@@ -485,7 +408,8 @@ public class Runner {
         public Results parallel(int threadCount) {
             threads(threadCount);
             Suite suite = new Suite(this);
-            return Runner.parallel(suite);
+            suite.run();
+            return suite.results;
         }
 
         @Override

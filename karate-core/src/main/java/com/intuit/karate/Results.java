@@ -23,7 +23,7 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.ScenarioResult;
+import com.intuit.karate.core.FeatureResult;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -45,8 +45,8 @@ public class Results {
     private long endTime;
     private Map<String, String> failedMap;
     private Throwable failureReason;
-    private final List<ScenarioResult> scenarioResults = new ArrayList();
-    
+    private final List<FeatureResult> featureResults = new ArrayList();
+
     public Results(Suite suite) {
         this.suite = suite;
     }
@@ -92,6 +92,10 @@ public class Results {
         }
         failedMap.put(name, errorMessage);
     }
+    
+    public void addFeatureResult(FeatureResult featureResult) {
+        featureResults.add(featureResult);
+    }
 
     public String getReportDir() {
         return suite.reportDir;
@@ -127,14 +131,10 @@ public class Results {
 
     public void setEndTime(long endTime) {
         this.endTime = endTime;
-    }    
-
-    public void addScenarioResults(List<ScenarioResult> list) {
-        scenarioResults.addAll(list);
     }
 
-    public List<ScenarioResult> getScenarioResults() {
-        return scenarioResults;
+    public List<FeatureResult> getFeatureResults() {
+        return featureResults;
     }
 
     public String getErrorMessages() {

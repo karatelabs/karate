@@ -202,7 +202,7 @@ public class MockHandler implements ServerHandler {
     private boolean isMatchingScenario(Scenario scenario, ScenarioEngine engine) {
         String expression = StringUtils.trimToNull(scenario.getName() + scenario.getDescription());
         if (expression == null) {
-            runtime.logger.debug("default scenario matched at line: {}", scenario.getLine());
+            engine.logger.debug("default scenario matched at line: {}", scenario.getLine());
             return true;
         }
         try {
