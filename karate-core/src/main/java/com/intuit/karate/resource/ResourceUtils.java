@@ -57,7 +57,7 @@ public class ResourceUtils {
         // only static methods
     }
 
-    public static List<Feature> findFeatureFiles(List<String> paths) {
+    public static List<Feature> findFeatureFiles(File workingDir, List<String> paths) {
         List<Feature> features = new ArrayList();
         if (paths == null || paths.isEmpty()) {
             return features;
@@ -73,21 +73,21 @@ public class ResourceUtils {
                 line = -1;
             }
             if (path.endsWith(".feature")) {
-                Resource resource = getResource(path);
+                Resource resource = getResource(workingDir, path);
                 Feature feature = Feature.read(resource);
                 feature.setCallLine(line);
                 features.add(feature);
                 return features;
             }
         }
-        Collection<Resource> resources = findResourcesByExtension("feature", paths);
+        Collection<Resource> resources = findResourcesByExtension(workingDir, "feature", paths);
         for (Resource resource : resources) {
             features.add(Feature.read(resource));
         }
         return features;
     }
 
-    public static Resource getResource(String path) {
+    public static Resource getResource(File workingDir, String path) {
         if (path.startsWith("classpath:")) {
             path = removePrefix(path);
             File file = classPathToFile(path);
@@ -116,21 +116,22 @@ public class ResourceUtils {
             if (!file.exists()) {
                 throw new RuntimeException("not found: " + path);
             }
-            return new FileResource(file);
+            Path relativePath = workingDir.toPath().relativize(file.getAbsoluteFile().toPath());
+            return new FileResource(file, false, relativePath.toString());
         }
     }
 
-    public static Collection<Resource> findResourcesByExtension(String extension, String path) {
-        return findResourcesByExtension(extension, Collections.singletonList(path));
+    public static Collection<Resource> findResourcesByExtension(File workingDir, String extension, String path) {
+        return findResourcesByExtension(workingDir, extension, Collections.singletonList(path));
     }
 
-    public static List<Resource> findResourcesByExtension(String extension, List<String> paths) {
+    public static List<Resource> findResourcesByExtension(File workingDir, String extension, List<String> paths) {
         List<Resource> results = new ArrayList();
         List<File> fileRoots = new ArrayList();
         List<String> pathRoots = new ArrayList();
         for (String path : paths) {
             if (path.endsWith("." + extension)) {
-                results.add(getResource(path));
+                results.add(getResource(workingDir, path));
             } else if (path.startsWith("classpath:")) {
                 pathRoots.add(removePrefix(path));
             } else {
@@ -138,7 +139,7 @@ public class ResourceUtils {
             }
         }
         if (!fileRoots.isEmpty()) {
-            results.addAll(findFilesByExtension(extension, fileRoots));
+            results.addAll(findFilesByExtension(workingDir, extension, fileRoots));
         } else if (results.isEmpty() && !pathRoots.isEmpty()) {
             String[] searchPaths = pathRoots.toArray(new String[pathRoots.size()]);
             try (ScanResult scanResult = new ClassGraph().acceptPaths(searchPaths).scan()) {
@@ -157,7 +158,7 @@ public class ResourceUtils {
         return results;
     }
 
-    private static List<Resource> findFilesByExtension(String extension, List<File> files) {
+    private static List<Resource> findFilesByExtension(File workingDir, String extension, List<File> files) {
         List<File> results = new ArrayList();
         for (File base : files) {
             Path searchPath = base.toPath();
@@ -175,7 +176,12 @@ public class ResourceUtils {
                 logger.trace("unable to walk path: {} - {}", searchPath, e.getMessage());
             }
         }
-        return results.stream().map(f -> new FileResource(f)).collect(Collectors.toList());
+        return results.stream()
+                .map(f -> {
+                    Path relativePath = workingDir.toPath().relativize(f.getAbsoluteFile().toPath());
+                    return new FileResource(f, false, relativePath.toString());
+                })
+                .collect(Collectors.toList());
     }
 
     public static File getFileRelativeTo(Class clazz, String path) {
@@ -219,13 +225,6 @@ public class ResourceUtils {
     private static String removePrefix(String text) {
         int pos = text.indexOf(':');
         return pos == -1 ? text : text.substring(pos + 1);
-    }
-
-    public static String toPackageQualifiedName(String path) {
-        if (path.endsWith(".feature")) {
-            path = path.substring(0, path.length() - 8);
-        }
-        return path.replace('/', '.').replaceAll("\\.[.]+", ".");
     }
 
     public static InputStream classPathToStream(String path) {

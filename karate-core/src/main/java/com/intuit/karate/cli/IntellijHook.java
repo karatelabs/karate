@@ -21,69 +21,49 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate;
+package com.intuit.karate.cli;
 
+import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.Engine;
+import com.intuit.karate.Suite;
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.HtmlFeatureReport;
-import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
 import com.intuit.karate.core.FeatureRuntime;
-import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.core.ScenarioRuntime;
-import com.intuit.karate.Suite;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  *
  * @author pthomas3
  */
-public class IdeHook implements RuntimeHook {
-    
-    private final boolean htmlReport;
-    private final boolean intellij;
-    private final ReentrantLock LOCK = new ReentrantLock();
-    private final HtmlSummaryReport summary;
-    
-    public IdeHook(boolean htmlReport, boolean intellij) {
-        this.htmlReport = htmlReport;
-        this.intellij = intellij;
-        if (intellij) {
-            log(String.format(TEMPLATE_ENTER_THE_MATRIX, getCurrentTime()));
-        }
-        summary = htmlReport ? new HtmlSummaryReport() : null;
-    }
-    
+public class IntellijHook implements RuntimeHook {
+
     @Override
     public void beforeSuite(Suite suite) {
-        
-    }    
-    
+        log(String.format(TEMPLATE_ENTER_THE_MATRIX, getCurrentTime()));
+    }
+
     @Override
     public void afterSuite(Suite suite) {
-        if (htmlReport) {
-            summary.save(suite.buildDir);
-        }
-    }    
-    
+
+    }
+
     @Override
     public boolean beforeStep(Step step, ScenarioRuntime sr) {
         return true;
     }
-    
+
     @Override
     public void afterStep(StepResult result, ScenarioRuntime sr) {
-        
-    }    
-    
+
+    }
+
     @Override
     public boolean beforeScenario(ScenarioRuntime sr) {
-        if (intellij && sr.caller.depth == 0) {
+        if (sr.caller.depth == 0) {
             Scenario scenario = sr.scenario;
             String path = scenario.getFeature().getResource().getRelativePath();
             log(String.format(TEMPLATE_TEST_STARTED, getCurrentTime(), path + ":" + scenario.getLine(), escape(scenario.getNameForReport())));
@@ -91,10 +71,10 @@ public class IdeHook implements RuntimeHook {
         }
         return true;
     }
-    
+
     @Override
     public void afterScenario(ScenarioRuntime sr) {
-        if (intellij && sr.caller.depth == 0) {
+        if (sr.caller.depth == 0) {
             Scenario scenario = sr.scenario;
             if (sr.result.isFailed()) {
                 StringUtils.Pair error = details(sr.result.getError());
@@ -103,53 +83,39 @@ public class IdeHook implements RuntimeHook {
             log(String.format(TEMPLATE_TEST_FINISHED, getCurrentTime(), sr.result.getDurationNanos() / 1000000, escape(scenario.getNameForReport())));
         }
     }
-    
+
     @Override
     public boolean beforeFeature(FeatureRuntime fr) {
-        if (intellij && fr.caller.depth == 0) {
+        if (fr.caller.depth == 0) {
             Feature feature = fr.feature;
             String path = feature.getResource().getRelativePath();
             log(String.format(TEMPLATE_TEST_SUITE_STARTED, getCurrentTime(), path + ":" + feature.getLine(), escape(feature.getNameForReport())));
         }
         return true;
     }
-    
+
     @Override
     public void afterFeature(FeatureRuntime fr) {
-        if (fr.caller.depth > 0) {
-            return;
-        }
-        if (intellij) {
+        if (fr.caller.depth == 0) {
             log(String.format(TEMPLATE_TEST_SUITE_FINISHED, getCurrentTime(), escape(fr.feature.getNameForReport())));
         }
-        if (fr.result.getScenarioCount() == 0) {
-            return;
-        }
-        if (htmlReport && !fr.result.isEmpty()) {
-            HtmlFeatureReport.saveFeatureResult(fr.suite.buildDir, fr.result);
-            summary.addFeatureResult(fr.result);
-        }
-        if (LOCK.tryLock()) {
-            Engine.saveStatsJson(fr.suite.buildDir, fr.suite.results);
-            LOCK.unlock();
-        }
     }
-    
+
     private static void log(String s) {
         System.out.println(s);
     }
-    
+
     private static String getCurrentTime() {
         return DATE_FORMAT.format(new Date());
     }
-    
+
     private static String escape(String source) {
         if (source == null) {
             return "";
         }
         return source.replace("|", "||").replace("\n", "|n").replace("\r", "|r").replace("'", "|'").replace("[", "|[").replace("]", "|]");
     }
-    
+
     private static StringUtils.Pair details(Throwable error) {
         String fullMessage = error.getMessage().replace("\r", "").replace("\t", "  ");
         String[] messageInfo = fullMessage.split("\n", 2);
@@ -159,9 +125,9 @@ public class IdeHook implements RuntimeHook {
             return StringUtils.pair(fullMessage, "");
         }
     }
-    
+
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ss.SSSZ");
-    
+
     private static final String TEAMCITY_PREFIX = "##teamcity";
     private static final String TEMPLATE_TEST_STARTED = TEAMCITY_PREFIX + "[testStarted timestamp = '%s' locationHint = '%s' captureStandardOutput = 'true' name = '%s']";
     private static final String TEMPLATE_TEST_FAILED = TEAMCITY_PREFIX + "[testFailed timestamp = '%s' details = '%s' message = '%s' name = '%s' %s]";
@@ -169,5 +135,5 @@ public class IdeHook implements RuntimeHook {
     private static final String TEMPLATE_ENTER_THE_MATRIX = TEAMCITY_PREFIX + "[enteredTheMatrix timestamp = '%s']";
     private static final String TEMPLATE_TEST_SUITE_STARTED = TEAMCITY_PREFIX + "[testSuiteStarted timestamp = '%s' locationHint = 'file://%s' name = '%s']";
     private static final String TEMPLATE_TEST_SUITE_FINISHED = TEAMCITY_PREFIX + "[testSuiteFinished timestamp = '%s' name = '%s']";
-    
+
 }

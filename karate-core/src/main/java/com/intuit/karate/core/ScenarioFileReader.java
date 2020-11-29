@@ -119,9 +119,9 @@ public class ScenarioFileReader {
 
     public Resource toResource(String path) {
         if (isClassPath(path)) {
-            return ResourceUtils.getResource(path);
+            return ResourceUtils.getResource(featureRuntime.suite.workingDir, path);
         } else if (isFilePath(path)) {
-            return ResourceUtils.getResource(removePrefix(path));
+            return ResourceUtils.getResource(featureRuntime.suite.workingDir, removePrefix(path));
         } else if (isThisPath(path)) {
             return featureRuntime.resolveFromThis(removePrefix(path));
         } else {

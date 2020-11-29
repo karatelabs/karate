@@ -80,8 +80,8 @@ class ScenarioRuntimeTest {
         matchVar("foo", "custom-env");
         matchVar("bar", "dev");
         // reset for other tests    
-        System.setProperty("karate.env", "");
-        System.setProperty("karate.config.dir", "");
+        System.clearProperty("karate.env");
+        System.clearProperty("karate.config.dir");
     }
 
     @Test
@@ -133,7 +133,7 @@ class ScenarioRuntimeTest {
     }
 
     @Test
-    void testCallKarateFeature() {
+    void testCallKarateFeature() {        
         run(
                 "def b = 'bar'",
                 "def res = call read('called1.feature')"

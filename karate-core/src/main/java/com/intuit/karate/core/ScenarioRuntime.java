@@ -82,11 +82,13 @@ public class ScenarioRuntime implements Runnable {
         } else {
             result = new ScenarioResult(scenario, background.result.getStepResults());
         }
+        tags = scenario.getTagsEffective();
         if (featureRuntime.isPerfMode()) {
             appender = LogAppender.NO_OP;
+            reportDisabled = true;
+        } else {
+            reportDisabled = tags.valuesFor("report").isAnyOf("false");
         }
-        tags = Tags.merge(featureRuntime.feature.getTags(), scenario.getTags());
-        reportDisabled = tags.valuesFor("report").isAnyOf("false");
     }
 
     public boolean isFailed() {
@@ -437,7 +439,7 @@ public class ScenarioRuntime implements Runnable {
             logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
             return false;
         } else {
-            return true; // when called, all scenarios match by default
+            return true; // when called, tags are ignored, all scenarios will be run
         }
     }
 

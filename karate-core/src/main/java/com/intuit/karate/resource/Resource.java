@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.resource;
 
-import com.intuit.karate.FileUtils;
 import java.io.File;
 import java.io.InputStream;
 
@@ -32,29 +31,42 @@ import java.io.InputStream;
  * @author pthomas3
  */
 public interface Resource {
-    
+
     boolean isFile();
-    
+
     boolean isClassPath();
-    
+
     File getFile();
-    
+
     String getRelativePath();
-    
+
     Resource resolve(String path);
-    
+
     default String getPrefixedPath() {
         return isClassPath() ? "classpath:" + getRelativePath() : getRelativePath();
     }
-    
+
     default String getPackageQualifiedName() {
-        return ResourceUtils.toPackageQualifiedName(getRelativePath());
+        String path = getRelativePath();
+        if (path.endsWith(".feature")) {
+            path = path.substring(0, path.length() - 8);
+        }
+        if (path.charAt(0) == '/') {
+            path = path.substring(1);
+        }
+        return path.replace('/', '.').replaceAll("\\.[.]+", ".");
     }
-    
+
     default String getFileNameWithoutExtension() {
-        return FileUtils.removeFileExtension(getRelativePath());        
+        String path = getRelativePath();
+        int pos = path.lastIndexOf('.');
+        if (pos == -1) {
+            return path;
+        } else {
+            return path.substring(0, pos);
+        }
     }
-    
-    InputStream getStream();     
-    
+
+    InputStream getStream();    
+
 }

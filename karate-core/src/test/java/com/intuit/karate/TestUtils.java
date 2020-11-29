@@ -4,7 +4,7 @@ import com.intuit.karate.core.Config;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.ScenarioEngine;
-import com.intuit.karate.core.ScenarioGenerator;
+import com.intuit.karate.core.ScenarioIterator;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.match.Match;
@@ -53,7 +53,7 @@ public class TestUtils {
     public static ScenarioRuntime runtime() {
         Feature feature = toFeature("* print 'test'");
         FeatureRuntime fr = FeatureRuntime.of(feature);
-        return new ScenarioGenerator(fr).first();
+        return new ScenarioIterator(fr).first();
     }
 
     public static ScenarioRuntime runScenario(HttpClientFactory clientFactory, String... lines) {
@@ -63,8 +63,12 @@ public class TestUtils {
     public static ScenarioRuntime run(HttpClientFactory clientFactory, Feature feature) {
         Runner.Builder builder = Runner.builder();
         builder.clientFactory(clientFactory);
+        String configDir = System.getProperty("karate.config.dir");
+        if (configDir != null) {
+            builder.configDir = configDir;
+        }
         FeatureRuntime fr = FeatureRuntime.of(new Suite(builder), feature);
-        ScenarioRuntime sr = new ScenarioGenerator(fr).first();
+        ScenarioRuntime sr = new ScenarioIterator(fr).first();
         sr.run();
         return sr;
     }

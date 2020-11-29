@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.debug;
 
-import com.intuit.karate.IdeMain;
+import com.intuit.karate.cli.IdeMain;
 import com.intuit.karate.Main;
 import com.intuit.karate.Runner;
 import com.intuit.karate.StringUtils;

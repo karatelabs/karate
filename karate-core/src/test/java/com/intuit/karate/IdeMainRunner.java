@@ -1,5 +1,6 @@
 package com.intuit.karate;
 
+import com.intuit.karate.cli.IdeMain;
 import org.junit.jupiter.api.Test;
 
 /**

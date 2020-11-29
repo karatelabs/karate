@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.cli.IdeMain;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
@@ -108,9 +109,7 @@ public class Runner {
             results.printStats(suite.threadCount);
             Engine.saveStatsJson(suite.reportDir, results);
             HtmlReport.saveTimeline(suite.reportDir, results, null);
-            if (suite.hooks != null) {
-                suite.hooks.forEach(h -> h.afterSuite(suite));
-            }
+            suite.hooks.forEach(h -> h.afterSuite(suite));
         } catch (Exception e) {
             LOGGER.error("runner failed: " + e);
             results.setFailureReason(e);
@@ -304,7 +303,7 @@ public class Runner {
                     paths = new ArrayList();
                     paths.add(relativeTo);
                 }
-                features = ResourceUtils.findFeatureFiles(paths);
+                features = ResourceUtils.findFeatureFiles(workingDir, paths);
             }
             if (scenarioName != null) {
                 for (Feature feature : features) {
@@ -321,7 +320,7 @@ public class Runner {
         public Builder() {
             classLoader = Thread.currentThread().getContextClassLoader();
             logger = new Logger();
-            workingDir = new File("");
+            workingDir = FileUtils.WORKING_DIR;
             buildDir = FileUtils.getBuildDir();
             reportDir = buildDir + File.separator + Constants.SUREFIRE_REPORTS;
         }

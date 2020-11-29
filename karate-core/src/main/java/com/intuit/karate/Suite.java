@@ -66,7 +66,7 @@ public class Suite {
 
     private String read(String name) {
         try {
-            Resource resource = ResourceUtils.getResource(name);
+            Resource resource = ResourceUtils.getResource(workingDir, name);
             logger.debug("[config] {}", resource.getPrefixedPath());
             return FileUtils.toString(resource.getStream());
         } catch (Exception e) {
@@ -114,10 +114,7 @@ public class Suite {
             karateBase = read("classpath:karate-base.js");
             String temp = rb.configDir;
             if (temp == null) {
-                temp = StringUtils.trimToNull(System.getProperty(Constants.KARATE_CONFIG_DIR));
-                if (temp == null) {
-                    temp = "classpath:";
-                }
+                temp = "classpath:";
             }
             if (temp.startsWith("file:") || temp.startsWith("classpath:")) {
                 // all good

@@ -53,7 +53,7 @@ public class Feature {
     private int callLine = -1;
 
     public static Feature read(String path) {
-        return read(ResourceUtils.getResource(path));
+        return read(ResourceUtils.getResource(new File(""), path));
     }
 
     public static Feature read(File file) {

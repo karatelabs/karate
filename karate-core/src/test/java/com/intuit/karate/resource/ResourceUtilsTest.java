@@ -28,7 +28,6 @@ import com.intuit.karate.core.Feature;
 import java.io.File;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
@@ -42,10 +41,12 @@ import org.slf4j.LoggerFactory;
 class ResourceUtilsTest {
 
     static final Logger logger = LoggerFactory.getLogger(ResourceUtilsTest.class);
+    
+    static File wd = FileUtils.WORKING_DIR;
 
     @Test
     void testFindFilesByExtension() {
-        Collection<Resource> list = ResourceUtils.findResourcesByExtension("txt", "src/test/java/com/intuit/karate/resource");
+        Collection<Resource> list = ResourceUtils.findResourcesByExtension(wd, "txt", "src/test/java/com/intuit/karate/resource");
         assertEquals(1, list.size());
         Resource resource = list.iterator().next();
         assertTrue(resource.isFile());
@@ -57,7 +58,7 @@ class ResourceUtilsTest {
 
     @Test
     void testGetFileByPath() {
-        Resource resource = ResourceUtils.getResource("src/test/java/com/intuit/karate/resource/test1.txt");
+        Resource resource = ResourceUtils.getResource(wd, "src/test/java/com/intuit/karate/resource/test1.txt");
         assertTrue(resource.isFile());
         assertFalse(resource.isClassPath());
         assertEquals("src/test/java/com/intuit/karate/resource/test1.txt", resource.getRelativePath());
@@ -67,7 +68,7 @@ class ResourceUtilsTest {
 
     @Test
     void testResolveFile() {
-        Resource temp = ResourceUtils.getResource("src/test/java/com/intuit/karate/resource/test1.txt");
+        Resource temp = ResourceUtils.getResource(wd, "src/test/java/com/intuit/karate/resource/test1.txt");
         Resource resource = temp.resolve("test2.log");
         assertTrue(resource.isFile());
         assertFalse(resource.isClassPath());
@@ -78,7 +79,7 @@ class ResourceUtilsTest {
 
     @Test
     void testResolveRelativeFile() {
-        Resource temp = ResourceUtils.getResource("src/test/java/com/intuit/karate/resource/dir1/dir1.log");
+        Resource temp = ResourceUtils.getResource(wd, "src/test/java/com/intuit/karate/resource/dir1/dir1.log");
         Resource resource = temp.resolve("../dir2/dir2.log");
         assertTrue(resource.isFile());
         assertFalse(resource.isClassPath());
@@ -90,7 +91,7 @@ class ResourceUtilsTest {
 
     @Test
     void testFindJarFilesByExtension() {
-        Collection<Resource> list = ResourceUtils.findResourcesByExtension("properties", "classpath:cucumber");
+        Collection<Resource> list = ResourceUtils.findResourcesByExtension(wd, "properties", "classpath:cucumber");
         Resource resource = null;
         for (Resource temp : list) {
             if ("cucumber/version.properties".equals(temp.getRelativePath())) {
@@ -107,7 +108,7 @@ class ResourceUtilsTest {
 
     @Test
     void testGetJarFileByPath() {
-        Resource resource = ResourceUtils.getResource("classpath:cucumber/version.properties");
+        Resource resource = ResourceUtils.getResource(wd, "classpath:cucumber/version.properties");
         assertFalse(resource.isFile());
         assertTrue(resource.isClassPath());
         assertEquals("cucumber/version.properties", resource.getRelativePath());
@@ -117,7 +118,7 @@ class ResourceUtilsTest {
 
     @Test
     void testResolveJarFile() {
-        Resource temp = ResourceUtils.getResource("classpath:cucumber/version.properties");
+        Resource temp = ResourceUtils.getResource(wd, "classpath:cucumber/version.properties");
         Resource resource = temp.resolve("api/cli/USAGE.txt");
         assertFalse(resource.isFile());
         assertTrue(resource.isClassPath());
@@ -127,7 +128,7 @@ class ResourceUtilsTest {
 
     @Test
     void testFindClassPathFilesByExtension() {
-        Collection<Resource> list = ResourceUtils.findResourcesByExtension("txt", "classpath:com/intuit/karate/resource");
+        Collection<Resource> list = ResourceUtils.findResourcesByExtension(wd, "txt", "classpath:com/intuit/karate/resource");
         assertEquals(1, list.size());
         Resource resource = list.iterator().next();
         assertTrue(resource.isFile());
@@ -139,7 +140,7 @@ class ResourceUtilsTest {
 
     @Test
     void testGetClassPathFileByPath() {
-        Resource resource = ResourceUtils.getResource("classpath:com/intuit/karate/resource/test1.txt");
+        Resource resource = ResourceUtils.getResource(wd, "classpath:com/intuit/karate/resource/test1.txt");
         assertTrue(resource.isFile());
         assertTrue(resource.isClassPath());
         assertEquals("com/intuit/karate/resource/test1.txt", resource.getRelativePath());
@@ -149,7 +150,7 @@ class ResourceUtilsTest {
 
     @Test
     void testResolveClassPathFile() {
-        Resource temp = ResourceUtils.getResource("classpath:com/intuit/karate/resource/test1.txt");
+        Resource temp = ResourceUtils.getResource(wd, "classpath:com/intuit/karate/resource/test1.txt");
         Resource resource = temp.resolve("test2.log");
         assertTrue(resource.isFile());
         assertTrue(resource.isClassPath());
@@ -160,7 +161,7 @@ class ResourceUtilsTest {
 
     @Test
     void testResolveRelativeClassPathFile() {
-        Resource temp = ResourceUtils.getResource("classpath:com/intuit/karate/resource/dir1/dir1.log");
+        Resource temp = ResourceUtils.getResource(new File(""), "classpath:com/intuit/karate/resource/dir1/dir1.log");
         Resource resource = temp.resolve("../dir2/dir2.log");
         assertTrue(resource.isFile());
         assertTrue(resource.isClassPath());
@@ -172,7 +173,7 @@ class ResourceUtilsTest {
     @Test
     void testGetFeatureWithLineNumber() {
         String path = "classpath:com/intuit/karate/resource/test.feature:6";
-        List<Feature> features = ResourceUtils.findFeatureFiles(Collections.singletonList(path));
+        List<Feature> features = ResourceUtils.findFeatureFiles(new File(""), Collections.singletonList(path));
         assertEquals(1, features.size());
         assertEquals(6, features.get(0).getCallLine());
     }

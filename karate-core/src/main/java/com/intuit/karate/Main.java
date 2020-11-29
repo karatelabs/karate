@@ -28,6 +28,7 @@ import com.intuit.karate.formats.PostmanConverter;
 import com.intuit.karate.job.JobExecutor;
 import com.intuit.karate.core.MockServer;
 import com.intuit.karate.http.SslContextFactory;
+import com.intuit.karate.resource.ResourceUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -38,7 +39,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.stream.Collectors;
 
 /**
  *
@@ -46,7 +46,6 @@ import java.util.stream.Collectors;
  */
 public class Main implements Callable<Void> {
 
-    private static final String DEFAULT_OUTPUT_DIR = "target";
     private static final String LOGBACK_CONFIG = "logback.configurationFile";
 
     private static Logger logger;
@@ -78,7 +77,7 @@ public class Main implements Callable<Void> {
     int threads = 1;
 
     @Option(names = {"-o", "--output"}, description = "directory where logs and reports are output (default 'target')")
-    String output = DEFAULT_OUTPUT_DIR;
+    String output = FileUtils.getBuildDir();
 
     @Parameters(description = "one or more tests (features) or search-paths to run")
     List<String> paths;
@@ -88,6 +87,12 @@ public class Main implements Callable<Void> {
 
     @Option(names = {"-e", "--env"}, description = "value of 'karate.env'")
     String env;
+    
+    @Option(names = {"-w", "--workdir"}, description = "working directory, defaults to '.'")
+    File workingDir = FileUtils.WORKING_DIR;    
+
+    @Option(names = {"-g", "--configdir"}, description = "directory where 'karate-config.js' is expected (default 'classpath:' or <workingdir>)")
+    String configDir;
 
     @Option(names = {"-C", "--clean"}, description = "clean output directory")
     boolean clean;
@@ -105,11 +110,15 @@ public class Main implements Callable<Void> {
     //==========================================================================
     //
     public void addPath(String path) {
-       if (paths == null) {
-           paths = new ArrayList();
-       }
-       paths.add(path);
+        if (paths == null) {
+            paths = new ArrayList();
+        }
+        paths.add(path);
     }
+
+    public void setPaths(List<String> paths) {
+        this.paths = paths;
+    }        
 
     public List<String> getPaths() {
         return paths;
@@ -125,12 +134,16 @@ public class Main implements Callable<Void> {
 
     public String getName() {
         return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }        
-    
+
     public static void main(String[] args) {
         boolean isClean = false;
         boolean isOutputArg = false;
-        String outputDir = DEFAULT_OUTPUT_DIR;
+        String outputDir = FileUtils.getBuildDir();
         // hack to manually extract the output dir arg to redirect karate.log if needed
         for (String s : args) {
             if (isOutputArg) {
@@ -184,21 +197,22 @@ public class Main implements Callable<Void> {
             return null;
         }
         if (paths != null) {
-            if (env != null) {
-                System.setProperty(Constants.KARATE_ENV, env);
+            if (configDir == null) { // unify fatjar and maven / gradle execution
+                try {
+                    ResourceUtils.getResource(workingDir, "classpath:karate-config.js");
+                    configDir = null; // default mode
+                } catch (Exception e) {
+                    configDir = workingDir.getPath();
+                    logger.info("classpath:karate-config.js does not exist, config-dir set to: {}", configDir);
+                }
             }
-            String configDir = System.getProperty(Constants.KARATE_CONFIG_DIR);
-            configDir = StringUtils.trimToNull(configDir);
-            if (configDir == null) {
-                System.setProperty(Constants.KARATE_CONFIG_DIR, new File("").getAbsolutePath());
-            }
-            List<String> fixed = paths.stream().map(f -> new File(f).getAbsolutePath()).collect(Collectors.toList());
-            // this avoids mixing json created by other means which will break the cucumber report
-            String jsonOutputDir = output + File.separator + Constants.SUREFIRE_REPORTS;
-            IdeHook hook = new IdeHook(true, false);
             Results results = Runner
-                    .path(fixed).tags(tags).scenarioName(name)
-                    .reportDir(jsonOutputDir).hook(hook).parallel(threads);
+                    .path(paths).tags(tags).scenarioName(name)
+                    .karateEnv(env)
+                    .workingDir(workingDir)
+                    .buildDir(output)
+                    .configDir(configDir)
+                    .parallel(threads);
             if (results.getFailCount() > 0) {
                 Exception ke = new KarateException("there are test failures !");
                 StackTraceElement[] newTrace = new StackTraceElement[]{

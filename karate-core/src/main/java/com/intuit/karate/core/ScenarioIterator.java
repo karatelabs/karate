@@ -37,7 +37,7 @@ import java.util.stream.StreamSupport;
  *
  * @author pthomas3
  */
-public class ScenarioGenerator implements Spliterator<ScenarioRuntime> {
+public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
 
     private final FeatureRuntime featureRuntime;
     private final Iterator<FeatureSection> sections;
@@ -51,7 +51,7 @@ public class ScenarioGenerator implements Spliterator<ScenarioRuntime> {
     private int index;
     private ScenarioRuntime background;
 
-    public ScenarioGenerator(FeatureRuntime featureRuntime) {
+    public ScenarioIterator(FeatureRuntime featureRuntime) {
         this.featureRuntime = featureRuntime;
         this.sections = featureRuntime.feature.getSections().iterator();
     }

@@ -29,7 +29,7 @@ import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.HtmlFeatureReport;
 import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.FeatureRuntime;
-import com.intuit.karate.core.ScenarioGenerator;
+import com.intuit.karate.core.ScenarioIterator;
 import com.intuit.karate.core.ScenarioRuntime;
 
 import java.util.Iterator;
@@ -51,7 +51,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
         this.suite = suite;
         this.summary = summary;
         featureRuntime = FeatureRuntime.of(suite, feature);
-        scenarios = new ScenarioGenerator(featureRuntime).iterator();
+        scenarios = new ScenarioIterator(featureRuntime).iterator();
     }
 
     @Override

@@ -21,9 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate;
+package com.intuit.karate.cli;
 
-import com.intuit.karate.debug.DapServer;
+import com.intuit.karate.Main;
+import com.intuit.karate.Runner;
+import com.intuit.karate.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -45,35 +47,31 @@ public class IdeMain {
         }
         System.out.println("command: " + command);
         Main ro = parseCommandLine(command);
-        if (ro.debugPort != -1) {
-            DapServer server = new DapServer(ro.debugPort);
-            server.waitSync();
-        } else {
-            boolean isIntellij = command.contains("org.jetbrains");
-            IdeHook hook = new IdeHook(true, isIntellij);
-            Runner.path(ro.paths)
-                    .tags(ro.tags)
-                    .scenarioName(ro.name)
-                    .hook(hook)
-                    .parallel(ro.threads);
+        Runner.Builder rb = Runner.builder();
+        if (command.contains("org.jetbrains")) {
+            rb.hook(new IntellijHook());
         }
+        rb.path(ro.getPaths())
+                .tags(ro.getTags())
+                .scenarioName(ro.getName())
+                .parallel(ro.getThreads());
     }
-    
+
     private static final Pattern CLI_PLUGIN = Pattern.compile("--plugin\\s+[^\\s]+\\s");
     private static final Pattern CLI_GLUE = Pattern.compile("--glue\\s+[^\\s]+\\s+");
-    private static final Pattern CLI_NAME = Pattern.compile("--name \"?([^$\"]+[^ \"]+)\"?");    
+    private static final Pattern CLI_NAME = Pattern.compile("--name \"?([^$\"]+[^ \"]+)\"?");
 
     public static Main parseStringArgs(String[] args) {
         Main options = CommandLine.populateCommand(new Main(), args);
         List<String> paths = new ArrayList();
-        if (options.paths != null) {
-            for (String s : options.paths) {
+        if (options.getPaths() != null) {
+            for (String s : options.getPaths()) {
                 if (s.startsWith("com.") || s.startsWith("cucumber.") || s.startsWith("org.")) {
                     continue;
                 }
                 paths.add(s);
             }
-            options.paths = paths.isEmpty() ? null : paths;
+            options.setPaths(paths.isEmpty() ? null : paths);
         }
         return options;
     }
@@ -91,7 +89,7 @@ public class IdeMain {
         Matcher glueMatcher = CLI_GLUE.matcher(line);
         if (glueMatcher.find()) {
             line = glueMatcher.replaceFirst("");
-        }        
+        }
         Matcher nameMatcher = CLI_NAME.matcher(line);
         String nameTemp;
         if (nameMatcher.find()) {
@@ -102,7 +100,7 @@ public class IdeMain {
         }
         String[] args = line.split("\\s+");
         Main options = parseStringArgs(args);
-        options.name = nameTemp;
+        options.setName(nameTemp);
         return options;
     }
 

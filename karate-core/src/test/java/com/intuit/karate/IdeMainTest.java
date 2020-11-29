@@ -1,5 +1,6 @@
 package com.intuit.karate;
 
+import com.intuit.karate.cli.IdeMain;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 
@@ -52,6 +53,14 @@ class IdeMainTest {
     void testParsingCommandLine2() {
         Main options = IdeMain.parseCommandLine(INTELLIJ4);
         assertEquals("^test name$", options.name);
+    }
+    
+    @Test
+    void testAbsolutePath() {
+        String[] args = new String[]{"/Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/resources/com/intuit/karate/junit4/demos/users.feature"};
+        Main options = IdeMain.parseStringArgs(args);
+        assertEquals(1, options.paths.size());
+        
     }
 
 }

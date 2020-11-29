@@ -44,7 +44,7 @@ public class FeatureRuntime implements Runnable {
     public final ScenarioCall caller;
     public final Feature feature;
     public final FeatureResult result;
-    public final ScenarioGenerator scenarios;
+    public final ScenarioIterator scenarios;
 
     public final Map<String, ScenarioCall.Result> FEATURE_CACHE = new HashMap();
 
@@ -109,7 +109,7 @@ public class FeatureRuntime implements Runnable {
         this.caller = caller;
         this.rootFeature = caller.isNone() ? this : caller.parentRuntime.featureRuntime;
         result = new FeatureResult(feature);
-        scenarios = new ScenarioGenerator(this);
+        scenarios = new ScenarioIterator(this);
     }
 
     private boolean beforeHookDone;

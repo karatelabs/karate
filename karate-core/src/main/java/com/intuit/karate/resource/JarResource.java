@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.resource;
 
+import com.intuit.karate.FileUtils;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
@@ -65,7 +66,7 @@ public class JarResource implements Resource {
     public Resource resolve(String path) {
         int pos = relativePath.lastIndexOf('/');
         String parentPath = pos == -1 ? "" : relativePath.substring(0, pos);
-        return ResourceUtils.getResource("classpath:" + parentPath + "/" + path);
+        return ResourceUtils.getResource(FileUtils.WORKING_DIR, "classpath:" + parentPath + "/" + path);
     }    
 
     @Override

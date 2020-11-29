@@ -61,6 +61,7 @@ public class FileUtils {
 
     public static final Charset UTF8 = StandardCharsets.UTF_8;
     public static final byte[] EMPTY_BYTES = new byte[]{};
+    public static final File WORKING_DIR = new File("").getAbsoluteFile();
 
     private static final String CLASSPATH = "classpath";
 
@@ -242,15 +243,6 @@ public class FileUtils {
                     .forEach(File::delete);
         } catch (Exception e) {
             throw new RuntimeException();
-        }
-    }
-
-    public static String removeFileExtension(String path) {
-        int pos = path.lastIndexOf('.');
-        if (pos == -1) {
-            return path;
-        } else {
-            return path.substring(0, pos);
         }
     }
 
