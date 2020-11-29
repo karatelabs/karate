@@ -34,17 +34,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class Suite {
+    
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(Suite.class);
 
     public final String env;
     public final String tagSelector;
     public final long startTime;
-    public final Logger logger;
     public final File workingDir;
     public final String buildDir;
     public final String reportDir;
@@ -57,7 +59,6 @@ public class Suite {
     public final HttpClientFactory clientFactory;
     public final Map<String, String> systemProperties;
 
-    public final String karateConfigDir;
     public final String karateBase;
     public final String karateConfig;
     public final String karateConfigEnv;
@@ -84,56 +85,39 @@ public class Suite {
     }
 
     public Suite(Runner.Builder rb) {
-        rb.resolveAll(); // ensure things like the hook factory are on the right thread
-        startTime = System.currentTimeMillis();
-        env = rb.env;
-        systemProperties = rb.systemProperties;
-        tagSelector = Tags.fromKarateOptionsTags(rb.tags);
-        logger = rb.logger;
-        workingDir = rb.workingDir;
-        buildDir = rb.buildDir;
-        reportDir = rb.reportDir;
-        classLoader = rb.classLoader;
-        threadCount = rb.threadCount;
-        batchLimiter = new Semaphore(threadCount);
-        hooks = rb.hooks;
-        features = rb.features;
-        results = new Results(this);
-        if (rb.clientFactory == null) {
-            clientFactory = HttpClientFactory.DEFAULT;
-        } else {
-            clientFactory = rb.clientFactory;
-        }
-        //======================================================================
-        if (rb.forTempUse) { // don't show logs and confuse people
+        classLoader = Thread.currentThread().getContextClassLoader();
+        workingDir = rb.workingDir == null ? FileUtils.WORKING_DIR : rb.workingDir;
+        buildDir = rb.buildDir == null ? FileUtils.getBuildDir() : rb.buildDir;
+        reportDir = rb.reportDir == null ? buildDir + File.separator + Constants.KARATE_REPORTS : rb.reportDir;
+        clientFactory = rb.clientFactory == null ? HttpClientFactory.DEFAULT : rb.clientFactory;
+        if (rb.forTempUse) {
+            startTime = 0;
+            env = rb.env;
+            systemProperties = null;
+            tagSelector = null;    
+            threadCount = 1;
+            batchLimiter = null;
+            hooks = null;
+            features = null;
+            results = null;
             karateBase = null;
             karateConfig = null;
-            karateConfigDir = null;
             karateConfigEnv = null;
         } else {
+            startTime = System.currentTimeMillis();
+            rb.resolveAll();
+            env = rb.env;
+            systemProperties = rb.systemProperties;
+            tagSelector = Tags.fromKarateOptionsTags(rb.tags);
+            threadCount = rb.threadCount;
+            batchLimiter = new Semaphore(threadCount);
+            hooks = rb.hooks;
+            features = rb.features;
+            results = new Results(this);
             karateBase = read("classpath:karate-base.js");
-            String temp = rb.configDir;
-            if (temp == null) {
-                temp = "classpath:";
-            }
-            if (temp.startsWith("file:") || temp.startsWith("classpath:")) {
-                // all good
-            } else {
-                temp = "file:" + temp;
-            }
-            if (temp.endsWith(":") || temp.endsWith("/") || temp.endsWith("\\")) {
-                // all good
-            } else {
-                temp = temp + File.separator;
-            }
-            karateConfigDir = temp;
-            karateConfig = read(karateConfigDir + "karate-config.js");
-            if (karateConfig != null) {
-            } else {
-                logger.warn("karate-config.js not found [{}]", karateConfigDir);
-            }
+            karateConfig = read(rb.configDir + "karate-config.js");
             if (env != null) {
-                karateConfigEnv = read(karateConfigDir + "karate-config-" + env + ".js");
+                karateConfigEnv = read(rb.configDir + "karate-config-" + env + ".js");
             } else {
                 karateConfigEnv = null;
             }

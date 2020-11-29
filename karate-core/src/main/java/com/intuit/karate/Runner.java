@@ -233,13 +233,11 @@ public class Runner {
     public static class Builder {
 
         Class optionsClass;
-        ClassLoader classLoader;
-        Logger logger;
         String env;
         File workingDir;
         String buildDir;
         String configDir;
-        int threadCount = 1;
+        int threadCount;
         int timeoutMinutes;
         String reportDir;
         String scenarioName;
@@ -253,7 +251,7 @@ public class Runner {
         boolean forTempUse;
         Map<String, String> systemProperties;
 
-        public void resolveAll() {
+        public List<Feature> resolveAll() {
             if (systemProperties == null) {
                 systemProperties = new HashMap(System.getProperties());
             } else {
@@ -262,7 +260,7 @@ public class Runner {
             // env
             String tempOptions = StringUtils.trimToNull(systemProperties.get(Constants.KARATE_OPTIONS));
             if (tempOptions != null) {
-                logger.info("using system property 'karate.options': {}", tempOptions);
+                LOGGER.info("using system property '{}': {}", Constants.KARATE_OPTIONS, tempOptions);
                 Main ro = IdeMain.parseCommandLine(tempOptions);
                 if (ro.tags != null) {
                     tags = ro.tags;
@@ -273,11 +271,38 @@ public class Runner {
             }
             String tempEnv = StringUtils.trimToNull(systemProperties.get(Constants.KARATE_ENV));
             if (tempEnv != null) {
-                logger.info("using system property 'karate.env': {}", tempEnv);
+                LOGGER.info("using system property '{}': {}", Constants.KARATE_ENV, tempEnv);
                 env = tempEnv;
             } else if (env != null) {
-                logger.info("karate.env is: '{}'", env);
+                LOGGER.info("karate.env is: '{}'", env);
             }
+            // config dir
+            String tempConfig = StringUtils.trimToNull(systemProperties.get(Constants.KARATE_CONFIG_DIR));
+            if (tempConfig != null) {
+                LOGGER.info("using system property '{}': {}", Constants.KARATE_CONFIG_DIR, tempConfig);
+                configDir = tempConfig;
+            }
+            if (workingDir == null) {
+                workingDir = FileUtils.WORKING_DIR;
+            }
+            if (configDir == null) {
+                try {
+                    ResourceUtils.getResource(workingDir, "classpath:karate-config.js");
+                    configDir = "classpath:"; // default mode
+                } catch (Exception e) {
+                    configDir = workingDir.getPath();
+                }
+            }
+            if (configDir.startsWith("file:") || configDir.startsWith("classpath:")) {
+                // all good
+            } else {
+                configDir = "file:" + configDir;
+            }
+            if (configDir.endsWith(":") || configDir.endsWith("/") || configDir.endsWith("\\")) {
+                // all good
+            } else {
+                configDir = configDir + File.separator;
+            }            
             // hooks
             if (hookFactory != null) {
                 hook(hookFactory.create());
@@ -310,6 +335,10 @@ public class Runner {
                     feature.setCallName(scenarioName);
                 }
             }
+            if (threadCount < 1) {
+                threadCount = 1;
+            }
+            return features;
         }
 
         public Builder forTempUse() {
@@ -317,21 +346,8 @@ public class Runner {
             return this;
         }
 
-        public Builder() {
-            classLoader = Thread.currentThread().getContextClassLoader();
-            logger = new Logger();
-            workingDir = FileUtils.WORKING_DIR;
-            buildDir = FileUtils.getBuildDir();
-            reportDir = buildDir + File.separator + Constants.SUREFIRE_REPORTS;
-        }
-
         //======================================================================
-        //        
-        public Builder classLoader(ClassLoader cl) {
-            this.classLoader = cl;
-            return this;
-        }
-
+        //
         public Builder configDir(String dir) {
             this.configDir = dir;
             return this;
@@ -347,11 +363,6 @@ public class Runner {
                 systemProperties = new HashMap();
             }
             systemProperties.put(key, value);
-            return this;
-        }
-
-        public Builder logger(Logger logger) {
-            this.logger = logger;
             return this;
         }
 

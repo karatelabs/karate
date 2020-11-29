@@ -167,7 +167,7 @@ public class Main implements Callable<Void> {
             // a graceful delete of "target" especially on windows
             System.setProperty(LOGBACK_CONFIG, "logback-nofile.xml");
         } else {
-            System.setProperty("karate.output.dir", outputDir);
+            System.setProperty(Constants.KARATE_OUTPUT_DIR, outputDir);
             // ensure we init logback before anything else
             String logbackConfig = System.getProperty(LOGBACK_CONFIG);
             if (StringUtils.isBlank(logbackConfig)) {
@@ -197,15 +197,6 @@ public class Main implements Callable<Void> {
             return null;
         }
         if (paths != null) {
-            if (configDir == null) { // unify fatjar and maven / gradle execution
-                try {
-                    ResourceUtils.getResource(workingDir, "classpath:karate-config.js");
-                    configDir = null; // default mode
-                } catch (Exception e) {
-                    configDir = workingDir.getPath();
-                    logger.info("classpath:karate-config.js does not exist, config-dir set to: {}", configDir);
-                }
-            }
             Results results = Runner
                     .path(paths).tags(tags).scenarioName(name)
                     .karateEnv(env)

@@ -59,7 +59,7 @@ class RunnerTest {
                 "classpath:com/intuit/karate/core/runner/stackoverflow-error.feature"
         ).parallel(1);
         assertEquals(3, results.getFailCount());
-        String pathBase = "target/surefire-reports/com.intuit.karate.core.runner.";
+        String pathBase = "target/karate-reports/com.intuit.karate.core.runner.";
         assertTrue(contains(pathBase + "scenario.xml", "Then match b == { foo: 'bar'}"));
         assertTrue(contains(pathBase + "outline.xml", "Then assert a == 55"));
         // a scenario failure should not stop other features from running

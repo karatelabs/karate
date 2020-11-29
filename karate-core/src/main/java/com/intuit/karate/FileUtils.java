@@ -24,8 +24,6 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.resource.Resource;
-import com.intuit.karate.resource.ResourceUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -40,7 +38,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashSet;
@@ -337,7 +334,7 @@ public class FileUtils {
     }
 
     public static String getBuildDir() {
-        String temp = System.getProperty("karate.output.dir");
+        String temp = System.getProperty(Constants.KARATE_OUTPUT_DIR);
         if (temp != null) {
             return temp;
         }

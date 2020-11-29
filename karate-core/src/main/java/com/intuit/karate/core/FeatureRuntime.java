@@ -32,12 +32,16 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class FeatureRuntime implements Runnable {
+    
+    private static final Logger logger = LoggerFactory.getLogger(FeatureRuntime.class);
 
     public final Suite suite;
     public final FeatureRuntime rootFeature;
@@ -151,13 +155,13 @@ public class FeatureRuntime implements Runnable {
             public void process(ScenarioRuntime sr) {
                 if (sr.isSelectedForExecution()) {
                     if (!beforeHook()) {
-                        suite.logger.info("before-feature hook returned [false], aborting: ", this);
+                        logger.info("before-feature hook returned [false], aborting: ", this);
                     } else {
                         lastExecutedScenario = sr;
                         sr.run();
                     }
                 } else {
-                    suite.logger.trace("excluded by tags: {}", sr);
+                    logger.trace("excluded by tags: {}", sr);
                 }
             }
 

@@ -36,7 +36,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.internal.runners.statements.RunBefores;
 import org.junit.runner.Description;
-import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
 import org.junit.runners.model.FrameworkMethod;
@@ -69,9 +68,8 @@ public class Karate extends ParentRunner<Feature> {
         }
         summary = new HtmlSummaryReport();
         hook = new JunitHook();
-        Runner.Builder rb = Runner.builder().fromKarateAnnotation(clazz).forTempUse();
-        Suite tempSuite = new Suite(rb);
-        features = tempSuite.features;
+        Runner.Builder rb = Runner.builder().fromKarateAnnotation(clazz);
+        features = rb.resolveAll();
     }
 
     @Override
