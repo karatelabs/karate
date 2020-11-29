@@ -3,6 +3,7 @@ package com.intuit.karate.junit4.config;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import static org.junit.Assert.*;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
@@ -10,6 +11,11 @@ import org.junit.Test;
  * @author pthomas3
  */
 public class ConfigTest {
+    
+    @BeforeClass
+    public static void beforeClass() {
+        System.clearProperty("karate.env");
+    }
 
     @Test
     public void testOverrideDir() {
