@@ -93,6 +93,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
 
     private void configure(Config config) {
         clientBuilder = HttpClientBuilder.create();
+        clientBuilder.disableCookieManagement();
+        clientBuilder.disableAutomaticRetries();
         if (!config.isFollowRedirects()) {
             clientBuilder.disableRedirectHandling();
         } else { // support redirect on POST by default
@@ -135,7 +137,6 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             }
         }
         RequestConfig.Builder configBuilder = RequestConfig.custom()
-                .setCookieSpec(CookieSpecs.IGNORE_COOKIES)
                 .setConnectTimeout(config.getConnectTimeout())
                 .setSocketTimeout(config.getReadTimeout());
         if (config.getLocalAddress() != null) {
