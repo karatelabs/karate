@@ -111,7 +111,7 @@ public class MockHandler implements ServerHandler {
     private static final Result PASSED = Result.passed(0);
 
     @Override
-    public Response handle(Request req) {
+    public synchronized Response handle(Request req) { // note the [synchronized]
         // important for graal to work properly
         Thread.currentThread().setContextClassLoader(runtime.featureRuntime.suite.classLoader);
         LOCAL_REQUEST.set(req);
@@ -143,28 +143,26 @@ public class MockHandler implements ServerHandler {
                 Variable response, responseStatus, responseHeaders, responseDelay;
                 ScenarioActions actions = new ScenarioActions(engine);
                 Result result = PASSED;
-                synchronized (runtime) { // BEGIN TRANSACTION ==================
-                    for (Step step : scenario.getSteps()) {
-                        result = StepRuntime.execute(step, actions);
-                        if (result.isAborted()) {
-                            runtime.logger.debug("abort at {}:{}", feature, step.getLine());
-                            break;
-                        }
-                        if (result.isFailed()) {
-                            String message = "server-side scenario failed, " + feature + ":" + step.getLine()
-                                    + "\n" + step.toString() + "\n" + result.getError().getMessage();
-                            runtime.logger.error(message);
-                            break;
-                        }
+                for (Step step : scenario.getSteps()) {
+                    result = StepRuntime.execute(step, actions);
+                    if (result.isAborted()) {
+                        runtime.logger.debug("abort at {}:{}", feature, step.getLine());
+                        break;
                     }
-                    engine.mockAfterScenario();
-                    configureHeaders = engine.mockConfigureHeaders();
-                    response = engine.vars.remove(ScenarioEngine.RESPONSE);
-                    responseStatus = engine.vars.remove(ScenarioEngine.RESPONSE_STATUS);
-                    responseHeaders = engine.vars.remove(ScenarioEngine.RESPONSE_HEADERS);
-                    responseDelay = engine.vars.remove(RESPONSE_DELAY);
-                    globals.putAll(engine.detachVariables());
-                } // END TRANSACTION ===========================================
+                    if (result.isFailed()) {
+                        String message = "server-side scenario failed, " + feature + ":" + step.getLine()
+                                + "\n" + step.toString() + "\n" + result.getError().getMessage();
+                        runtime.logger.error(message);
+                        break;
+                    }
+                }
+                engine.mockAfterScenario();
+                configureHeaders = engine.mockConfigureHeaders();
+                response = engine.vars.remove(ScenarioEngine.RESPONSE);
+                responseStatus = engine.vars.remove(ScenarioEngine.RESPONSE_STATUS);
+                responseHeaders = engine.vars.remove(ScenarioEngine.RESPONSE_HEADERS);
+                responseDelay = engine.vars.remove(RESPONSE_DELAY);
+                globals.putAll(engine.detachVariables());
                 ScenarioEngine.set(prevEngine);
                 Response res = new Response(200);
                 if (result.isFailed()) {
