@@ -10,10 +10,11 @@ import org.junit.jupiter.api.Test;
  */
 class IdeMainTest {
 
-    static final String INTELLIJ1 = "com.intellij.rt.execution.application.AppMain cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome --name ^get users and then get first by id$ --glue com.intuit.karate /Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/java/com/intuit/karate/junit4/demos/users.feature";
+    static final String INTELLIJ1 = "cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome --name ^get users and then get first by id$ --glue com.intuit.karate /Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/java/com/intuit/karate/junit4/demos/users.feature";
     static final String INTELLIJ2 = "cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome --glue com.intuit.karate /Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/java/com/intuit/karate/junit4/demos";
     static final String INTELLIJ3 = "cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome --name ^create and retrieve a cat$ --glue com.intuit.karate /Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/java/com/intuit/karate/junit4/demos/users.feature";
     static final String INTELLIJ4 = "cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome --name \"^test name$\"";
+    static final String INTELLIJ5 = "cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome --glue com.intuit.karate /Users/pthomas3/dev/zcode/karate/karate-demo/src/test/java/demo/cats/syntax-demo.feature";
 
     static final String ECLIPSE1 = "com.intuit.karate.ScenarioActions - cucumber.api.cli.Main /Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/resources/com/intuit/karate/junit4/demos/users.feature --glue classpath: --plugin pretty --monochrome";
 
@@ -56,11 +57,17 @@ class IdeMainTest {
     }
     
     @Test
+    void testParsingCommandLine5() {
+        Main options = IdeMain.parseCommandLine(INTELLIJ5);
+        assertEquals(1, options.paths.size());
+        assertEquals("/Users/pthomas3/dev/zcode/karate/karate-demo/src/test/java/demo/cats/syntax-demo.feature", options.paths.get(0));
+    }    
+    
+    @Test
     void testAbsolutePath() {
         String[] args = new String[]{"/Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/resources/com/intuit/karate/junit4/demos/users.feature"};
         Main options = IdeMain.parseStringArgs(args);
-        assertEquals(1, options.paths.size());
-        
+        assertEquals(1, options.paths.size());        
     }
 
 }

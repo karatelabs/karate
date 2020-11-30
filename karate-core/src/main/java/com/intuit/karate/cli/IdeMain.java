@@ -98,7 +98,7 @@ public class IdeMain {
         } else {
             nameTemp = null;
         }
-        String[] args = line.split("\\s+");
+        String[] args = line.trim().split("\\s+");
         Main options = parseStringArgs(args);
         options.setName(nameTemp);
         return options;
