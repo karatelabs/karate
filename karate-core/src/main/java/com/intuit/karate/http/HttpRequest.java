@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -102,6 +103,10 @@ public class HttpRequest {
 
     public byte[] getBody() {
         return body;
+    }
+    
+    public String getBodyAsString() {
+        return FileUtils.toString(body);
     }
 
     public void setBody(byte[] body) {

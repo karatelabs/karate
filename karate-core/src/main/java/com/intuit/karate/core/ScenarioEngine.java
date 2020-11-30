@@ -571,7 +571,12 @@ public class ScenarioEngine {
         if (cookies != null) {
             requestBuilder.cookies(cookies.values());
         }
-        Map<String, Object> headers = getOrEvalAsMap(config.getHeaders());
+        Map<String, Object> headers;
+        if (config.getHeaders().isJsOrJavaFunction()) {
+            headers = getOrEvalAsMap(config.getHeaders(), requestBuilder.build());
+        } else {
+            headers = getOrEvalAsMap(config.getHeaders()); // avoid an extre http request build
+        }
         if (headers != null) {
             requestBuilder.headers(headers);
         }
@@ -1110,9 +1115,9 @@ public class ScenarioEngine {
         return JS.attach(before);
     }
 
-    protected <T> Map<String, T> getOrEvalAsMap(Variable var) {
+    protected <T> Map<String, T> getOrEvalAsMap(Variable var, Object... args) {
         if (var.isJsOrJavaFunction()) {
-            Variable res = executeFunction(var);
+            Variable res = executeFunction(var, args);
             return res.isMap() ? res.getValue() : null;
         } else {
             return var.isMap() ? var.getValue() : null;

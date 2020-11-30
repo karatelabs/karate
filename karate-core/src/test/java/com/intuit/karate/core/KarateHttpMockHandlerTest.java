@@ -85,7 +85,7 @@ class KarateHttpMockHandlerTest {
         );
         matchVarContains("response", "{ cookie: ['foo=bar'] }");
     }
-    
+
     @Test
     void testSameSiteSecureCookieRequest() {
         background().scenario(
@@ -99,8 +99,8 @@ class KarateHttpMockHandlerTest {
                 "method get"
         );
         matchVarContains("response", "{ cookie: ['foo=bar; Secure; SameSite=Strict'] }");
-    }    
-    
+    }
+
     @Test
     void testSameSiteSecureCookieResponse() {
         background().scenario(
@@ -113,8 +113,8 @@ class KarateHttpMockHandlerTest {
                 "method get"
         );
         matchVarContains("responseHeaders", "{ set-cookie: ['foo=bar; expires=Wed, 30-Dec-20 09:25:45 GMT; path=/; domain=.example.com; HttpOnly; SameSite=Lax; Secure'] }");
-    }     
-    
+    }
+
     @Test
     void testThatExoticContentTypeIsPreserved() {
         background().scenario(
@@ -128,6 +128,22 @@ class KarateHttpMockHandlerTest {
                 "method post"
         );
         matchVarContains("response", "{ 'content-type': ['application/xxx.pingixxxxxx.checkUsernamePassword+json'] }");
-    }    
+    }
+    
+    @Test
+    void testInspectRequestInHeadersFunction() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestHeaders");
+        startMockServer();
+        run(
+                urlStep(),
+                "configure headers = function(request){ return { 'api-key': request.bodyAsString } }",
+                "path '/hello'",
+                "request 'some text'",
+                "method post"
+        );        
+        matchVarContains("response", "{ 'api-key': ['some text'] }");        
+    }
 
 }
