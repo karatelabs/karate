@@ -87,7 +87,7 @@ class KarateHttpMockHandlerTest {
     }
     
     @Test
-    void testSameSiteCookieRequest() {
+    void testSameSiteSecureCookieRequest() {
         background().scenario(
                 "pathMatches('/hello')",
                 "def response = requestHeaders");
@@ -95,24 +95,24 @@ class KarateHttpMockHandlerTest {
         run(
                 urlStep(),
                 "path '/hello'",
-                "cookie foo = { value: 'bar', samesite: 'Strict' }",
+                "cookie foo = { value: 'bar', samesite: 'Strict', secure: true }",
                 "method get"
         );
-        matchVarContains("response", "{ cookie: ['foo=bar; SameSite=Strict'] }");
+        matchVarContains("response", "{ cookie: ['foo=bar; Secure; SameSite=Strict'] }");
     }    
     
     @Test
-    void testSameSiteCookieResponse() {
+    void testSameSiteSecureCookieResponse() {
         background().scenario(
                 "pathMatches('/hello')",
-                "def responseHeaders = { 'Set-Cookie': 'foo=bar; samesite=Strict'}");
+                "def responseHeaders = { 'Set-Cookie': 'foo=bar; expires=Wed, 30-Dec-20 09:25:45 GMT; path=/; domain=.example.com; HttpOnly; SameSite=Lax; Secure' }");
         startMockServer();
         run(
                 urlStep(),
                 "path '/hello'",
                 "method get"
         );
-        matchVarContains("responseHeaders", "{ set-cookie: ['foo=bar; samesite=Strict'] }");
+        matchVarContains("responseHeaders", "{ set-cookie: ['foo=bar; expires=Wed, 30-Dec-20 09:25:45 GMT; path=/; domain=.example.com; HttpOnly; SameSite=Lax; Secure'] }");
     }     
     
     @Test

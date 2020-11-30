@@ -51,6 +51,7 @@ import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.config.CookieSpecs;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.RequestBuilder;
@@ -134,6 +135,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             }
         }
         RequestConfig.Builder configBuilder = RequestConfig.custom()
+                .setCookieSpec(CookieSpecs.IGNORE_COOKIES)
                 .setConnectTimeout(config.getConnectTimeout())
                 .setSocketTimeout(config.getReadTimeout());
         if (config.getLocalAddress() != null) {
