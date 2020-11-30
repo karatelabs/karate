@@ -99,7 +99,7 @@ public class Result {
         }
         error = new KarateException(message + "\n" + step.getDebugInfo());
         StackTraceElement[] newTrace = new StackTraceElement[]{
-            new StackTraceElement("✽", step.getPrefix() + ' ' + step.getText() + ' ', step.getDebugInfo(), step.getLine())
+            new StackTraceElement("<feature>", ": " + step.getPrefix() + " " + step.getText() + " ", step.getDebugInfo(), step.getLine())
         };
         error.setStackTrace(newTrace);
         return new Result(FAILED, nanos, error, false);

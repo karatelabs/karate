@@ -149,6 +149,10 @@ public class Scenario {
         }
         return meta + ":" + line + "]";
     }
+    
+    public String getDebugInfo() {
+        return feature + ":" + line;
+    }
 
     public String getUniqueId() {
         int num = section.getIndex() + 1;

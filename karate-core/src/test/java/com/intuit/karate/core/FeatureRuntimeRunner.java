@@ -45,6 +45,21 @@ class FeatureRuntimeRunner {
     }
 
     @Test
+    void testFailJs() {
+        run("fail-js.feature");
+        assertTrue(fr.result.isFailed());
+    }
+
+    @Test
+    void testCallSingleFail() {
+        System.setProperty("karate.config.dir", "classpath:com/intuit/karate/core");
+        System.setProperty("karate.env", "csfail");
+        run("call-single-fail.feature");
+        assertTrue(fr.result.isFailed());
+        report();
+    }
+
+    @Test
     void testFork() {
         run("fork.feature");
     }

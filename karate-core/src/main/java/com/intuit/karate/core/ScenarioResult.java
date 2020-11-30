@@ -128,7 +128,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         step.setPrefix("*");
         step.setText(message);
         Result result = error == null ? Result.passed(0) : Result.failed(0, error, step);
-        StepResult sr = new StepResult(step, result, null, null, null);
+        StepResult sr = new StepResult(step, result, error == null ? null : error.getMessage(), null, null);
         addStepResult(sr);
         return sr;
     }
@@ -314,6 +314,6 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     @Override
     public String toString() {
         return failedStep == null ? scenario.toString() : failedStep + "";
-    }        
+    }
 
 }

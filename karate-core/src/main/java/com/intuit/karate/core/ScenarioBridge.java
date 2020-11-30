@@ -149,16 +149,24 @@ public class ScenarioBridge implements PerfContext {
         return JsValue.fromJava(result.getValue());
     }
 
-    public Object callSingle(String fileName) {
+    public Object callSingle(String fileName) throws Exception {
         return callSingle(fileName, null);
     }
 
-    public Object callSingle(String fileName, Object arg) {
+    private Object fromCache(Object o) throws Exception {
+        if (o instanceof Exception) {
+            getEngine().logger.warn("callSingle() cached result is an exception");
+            throw (Exception) o;
+        }
+        return JsValue.fromJava(o);
+    }
+
+    public Object callSingle(String fileName, Object arg) throws Exception {
         ScenarioEngine engine = getEngine();
         final Map<String, Object> CACHE = engine.runtime.featureRuntime.suite.SUITE_CACHE;
         if (CACHE.containsKey(fileName)) {
             engine.logger.trace("callSingle cache hit: {}", fileName);
-            return JsValue.fromJava(CACHE.get(fileName));
+            return fromCache(CACHE.get(fileName));
         }
         long startTime = System.currentTimeMillis();
         engine.logger.trace("callSingle waiting for lock: {}", fileName);
@@ -166,7 +174,7 @@ public class ScenarioBridge implements PerfContext {
             if (CACHE.containsKey(fileName)) { // retry
                 long endTime = System.currentTimeMillis() - startTime;
                 engine.logger.warn("this thread waited {} milliseconds for callSingle lock: {}", endTime, fileName);
-                return JsValue.fromJava(CACHE.get(fileName));
+                return fromCache(CACHE.get(fileName));
             }
             // this thread is the 'winner'
             engine.logger.info(">> lock acquired, begin callSingle: {}", fileName);
@@ -195,7 +203,14 @@ public class ScenarioBridge implements PerfContext {
             if (result == null) {
                 Variable called = new Variable(read(fileName));
                 Variable argVar = arg == null ? null : new Variable(arg);
-                Variable resultVar = engine.call(called, argVar, false);
+                Variable resultVar;
+                try {
+                    resultVar = engine.call(called, argVar, false);
+                } catch (Exception e) {
+                    // we do this so that an exception is also "cached"
+                    resultVar = new Variable(e); // will be thrown at end
+                    engine.logger.warn("callSingle() will cache an exception");
+                }
                 if (minutes > 0) { // cacheFile will be not null
                     if (resultVar.isMapOrList()) {
                         String json = resultVar.getAsString();
@@ -209,7 +224,7 @@ public class ScenarioBridge implements PerfContext {
             }
             CACHE.put(fileName, result);
             engine.logger.info("<< lock released, cached callSingle: {}", fileName);
-            return JsValue.fromJava(result);
+            return fromCache(result);
         }
     }
 

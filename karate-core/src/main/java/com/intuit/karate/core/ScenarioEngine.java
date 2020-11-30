@@ -1177,7 +1177,7 @@ public class ScenarioEngine {
         for (int i = 0; i < stack.length; i++) {
             String line = stack[i].toString();
             sb.append("- ").append(line).append('\n');
-            if (line.startsWith("<js>")) {
+            if (line.startsWith("<js>") || i > 5) {
                 break;
             }
         }

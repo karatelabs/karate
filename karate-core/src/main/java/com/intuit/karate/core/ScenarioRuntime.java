@@ -135,6 +135,7 @@ public class ScenarioRuntime implements Runnable {
     private StepResult currentStepResult;
     private Step currentStep;
     private Throwable error;
+    private boolean configFailed;
     private boolean stopped;
     private boolean aborted;
     private int stepIndex;
@@ -316,56 +317,61 @@ public class ScenarioRuntime implements Runnable {
             Map<String, Object> map = engine.getOrEvalAsMap(fun);
             engine.setVariables(map);
         } catch (Exception e) {
-            logger.error("{} failed: {}", displayName, e.getMessage());
-            KarateException ke = ScenarioEngine.fromJsEvalException(js, e);
-            throw ke;
+            String message = scenario.getDebugInfo() + "\n" + displayName + " failed";
+            error = ScenarioEngine.fromJsEvalException(js, new RuntimeException(message, e));
+            stopped = true;
+            configFailed = true;
         }
     }
 
     // extracted for debug
     public StepResult execute(Step step) {
-        boolean shouldExecute = true;
-        for (RuntimeHook hook : featureRuntime.suite.hooks) {
-            if (!hook.beforeStep(step, this)) {
-                shouldExecute = false;
+        if (!stopped) {
+            boolean shouldExecute = true;
+            for (RuntimeHook hook : featureRuntime.suite.hooks) {
+                if (!hook.beforeStep(step, this)) {
+                    shouldExecute = false;
+                }
+            }
+            if (!shouldExecute) {
+                return null;
             }
         }
-        if (!shouldExecute) {
-            return null;
-        }
         boolean hidden = reportDisabled || (step.isPrefixStar() && !step.isPrint() && !engine.getConfig().isShowAllSteps());
+        boolean showLog = !reportDisabled && engine.getConfig().isShowLog();
+        Result stepResult;
+        boolean executed = !stopped;
         if (stopped) {
-            Result stepResult;
             if (aborted && engine.getConfig().isAbortedStepsShouldPass()) {
                 stepResult = Result.passed(0);
+            } else if (configFailed) {
+                stepResult = Result.failed(0, error, step);
             } else {
                 stepResult = Result.skipped();
             }
-            currentStepResult = new StepResult(step, stepResult, null, null, null);
-            currentStepResult.setHidden(hidden);
-            featureRuntime.suite.hooks.forEach(h -> h.afterStep(currentStepResult, this));
-            return currentStepResult;
         } else {
-            boolean showLog = !reportDisabled && engine.getConfig().isShowLog();
-            Result stepResult = StepRuntime.execute(step, actions);
-            if (stepResult.isAborted()) { // we log only aborts for visibility
-                aborted = true;
-                stopped = true;
-                logger.debug("abort at {}", step.getDebugInfo());
-            } else if (stepResult.isFailed()) {
-                stopped = true;
-                error = stepResult.getError();
-                logError(error.getMessage());
-            }
-            String stepLog = appender.collect(); // make sure we collect after error logging
-            currentStepResult = new StepResult(step, stepResult, stepLog, embeds, callResults);
-            callResults = null;
-            embeds = null;
-            currentStepResult.setHidden(hidden);
-            currentStepResult.setShowLog(showLog);
-            featureRuntime.suite.hooks.forEach(h -> h.afterStep(currentStepResult, this));
-            return currentStepResult;
+            stepResult = StepRuntime.execute(step, actions);
         }
+        if (stepResult.isAborted()) { // we log only aborts for visibility
+            aborted = true;
+            stopped = true;
+            logger.debug("abort at {}", step.getDebugInfo());
+        } else if (stepResult.isFailed()) {
+            stopped = true;
+            error = stepResult.getError();
+            logError(error.getMessage());
+        }
+        String stepLog = appender.collect(); // make sure we collect after error logging
+        currentStepResult = new StepResult(step, stepResult, stepLog, embeds, callResults);
+        callResults = null;
+        embeds = null;
+        currentStepResult.setHidden(hidden);
+        currentStepResult.setShowLog(showLog);
+        if (executed) {
+            featureRuntime.suite.hooks.forEach(h -> h.afterStep(currentStepResult, this));
+        }
+        return currentStepResult;
+
     }
 
     public void afterRun() {
