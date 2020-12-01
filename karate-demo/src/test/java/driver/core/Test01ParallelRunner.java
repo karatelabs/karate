@@ -47,7 +47,9 @@ public class Test01ParallelRunner {
 
     @Test
     public void testParallel() {
-        Results results = Runner.path("classpath:driver/core/test-01.feature").reportDir("target/driver-demo").parallel(5);
+        Results results = Runner.path("classpath:driver/core/test-01.feature")
+                .outputCucumberJson(true)
+                .reportDir("target/driver-demo").parallel(5);
         DemoTestParallel.generateReport(results.getReportDir());
         assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
     }

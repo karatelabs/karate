@@ -43,8 +43,7 @@
         <nexus.staging.plugin.version>1.6.7</nexus.staging.plugin.version>
         <spring.version>5.2.9.RELEASE</spring.version>
         <spring.boot.version>2.3.4.RELEASE</spring.boot.version>
-        <jacoco.plugin.version>0.7.9</jacoco.plugin.version>        
-        <cucumber.reporting.version>5.3.1</cucumber.reporting.version>
+        <jacoco.plugin.version>0.7.9</jacoco.plugin.version>
     </properties>
 
     <modules>

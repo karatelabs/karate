@@ -27,7 +27,10 @@ public class DemoTestSelected {
         List<String> tags = Arrays.asList("~@ignore");
         List<String> features = Arrays.asList("classpath:demo/cats");
         String karateOutputPath = "target/surefire-reports";
-        Results results = Runner.path(features).tags(tags).reportDir(karateOutputPath).parallel(5);
+        Results results = Runner.path(features)
+                .tags(tags)
+                .outputCucumberJson(true)
+                .reportDir(karateOutputPath).parallel(5);
         DemoTestParallel.generateReport(karateOutputPath);
         assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
     }

@@ -24,22 +24,14 @@
 package com.intuit.karate;
 
 import com.intuit.karate.cli.IdeMain;
-import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.HtmlFeatureReport;
-import com.intuit.karate.core.HtmlReport;
-import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.RuntimeHookFactory;
-import com.intuit.karate.core.SyncExecutorService;
 import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import org.slf4j.LoggerFactory;
 
@@ -155,6 +147,9 @@ public class Runner {
         RuntimeHookFactory hookFactory;
         HttpClientFactory clientFactory;
         boolean forTempUse;
+        boolean outputHtmlReport = true;
+        boolean outputJunitXml;
+        boolean outputCucumberJson;
         Map<String, String> systemProperties;
 
         public List<Feature> resolveAll() {
@@ -262,7 +257,7 @@ public class Runner {
         protected Builder forTempUse() {
             forTempUse = true;
             return this;
-        }
+        }                
 
         //======================================================================
         //
@@ -404,6 +399,21 @@ public class Runner {
             threadCount = value;
             return this;
         }
+        
+        public Builder outputHtmlReport(boolean value) {
+            outputHtmlReport = value;
+            return this;
+        }
+        
+        public Builder outputCucumberJson(boolean value) {
+            outputCucumberJson = value;
+            return this;
+        } 
+        
+        public Builder outputJunitXml(boolean value) {
+            outputJunitXml = value;
+            return this;
+        }        
 
         public Results parallel(int threadCount) {
             threads(threadCount);

@@ -28,7 +28,6 @@ import com.intuit.karate.formats.PostmanConverter;
 import com.intuit.karate.job.JobExecutor;
 import com.intuit.karate.core.MockServer;
 import com.intuit.karate.http.SslContextFactory;
-import com.intuit.karate.resource.ResourceUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -79,6 +78,10 @@ public class Main implements Callable<Void> {
     @Option(names = {"-o", "--output"}, description = "directory where logs and reports are output (default 'target')")
     String output = FileUtils.getBuildDir();
 
+    @Option(names = {"-f", "--format"}, description = "report output formats in addition to html e.g. 'xml,json'"
+            + "json: Cucumber JSON | xml: JUnit XML")
+    List<String> formats;
+
     @Parameters(description = "one or more tests (features) or search-paths to run")
     List<String> paths;
 
@@ -87,9 +90,9 @@ public class Main implements Callable<Void> {
 
     @Option(names = {"-e", "--env"}, description = "value of 'karate.env'")
     String env;
-    
+
     @Option(names = {"-w", "--workdir"}, description = "working directory, defaults to '.'")
-    File workingDir = FileUtils.WORKING_DIR;    
+    File workingDir = FileUtils.WORKING_DIR;
 
     @Option(names = {"-g", "--configdir"}, description = "directory where 'karate-config.js' is expected (default 'classpath:' or <workingdir>)")
     String configDir;
@@ -118,7 +121,7 @@ public class Main implements Callable<Void> {
 
     public void setPaths(List<String> paths) {
         this.paths = paths;
-    }        
+    }
 
     public List<String> getPaths() {
         return paths;
@@ -138,7 +141,7 @@ public class Main implements Callable<Void> {
 
     public void setName(String name) {
         this.name = name;
-    }        
+    }
 
     public static void main(String[] args) {
         boolean isClean = false;
@@ -196,6 +199,12 @@ public class Main implements Callable<Void> {
             server.waitSync();
             return null;
         }
+        boolean outputCucumberJson = false;
+        boolean outputJunitXml = false;
+        if (formats != null) {
+            outputCucumberJson = formats.contains("json");
+            outputJunitXml = formats.contains("xml");
+        }
         if (paths != null) {
             Results results = Runner
                     .path(paths).tags(tags).scenarioName(name)
@@ -203,6 +212,8 @@ public class Main implements Callable<Void> {
                     .workingDir(workingDir)
                     .buildDir(output)
                     .configDir(configDir)
+                    .outputCucumberJson(outputCucumberJson)
+                    .outputJunitXml(outputJunitXml)
                     .parallel(threads);
             if (results.getFailCount() > 0) {
                 Exception ke = new KarateException("there are test failures !");

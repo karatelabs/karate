@@ -57,7 +57,7 @@ class RunnerTest {
                 "classpath:com/intuit/karate/core/runner/scenario.feature",
                 "classpath:com/intuit/karate/core/runner/outline.feature",
                 "classpath:com/intuit/karate/core/runner/stackoverflow-error.feature"
-        ).parallel(1);
+        ).outputJunitXml(true).parallel(1);
         assertEquals(3, results.getFailCount());
         String pathBase = "target/karate-reports/com.intuit.karate.core.runner.";
         assertTrue(contains(pathBase + "scenario.xml", "Then match b == { foo: 'bar'}"));

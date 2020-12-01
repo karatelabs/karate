@@ -70,6 +70,10 @@ public class Suite implements Runnable {
     public final HttpClientFactory clientFactory;
     public final Map<String, String> systemProperties;
 
+    public final boolean outputHtmlReport;
+    public final boolean outputCucumberJson;
+    public final boolean outputJunitXml;
+
     public final boolean parallel;
     public final int featureCount;
     public final ExecutorService scenarioExecutor;
@@ -102,6 +106,9 @@ public class Suite implements Runnable {
 
     public Suite(Runner.Builder rb) {
         if (rb.forTempUse) {
+            outputHtmlReport = false;
+            outputCucumberJson = false;
+            outputJunitXml = false;
             classLoader = Thread.currentThread().getContextClassLoader();
             clientFactory = HttpClientFactory.DEFAULT;
             startTime = -1;
@@ -125,6 +132,9 @@ public class Suite implements Runnable {
             pendingTasks = null;
         } else {
             startTime = System.currentTimeMillis();
+            outputHtmlReport = rb.outputHtmlReport;
+            outputCucumberJson = rb.outputCucumberJson;
+            outputJunitXml = rb.outputJunitXml;
             rb.resolveAll();
             classLoader = rb.classLoader;
             clientFactory = rb.clientFactory;
@@ -170,7 +180,7 @@ public class Suite implements Runnable {
                 FeatureRuntime fr = FeatureRuntime.of(this, feature);
                 results.addFeatureResult(fr.result);
                 fr.setNext(() -> {
-                    onFeatureDone(results, fr, featureNum, featureCount);
+                    onFeatureDone(fr, featureNum);
                     future.complete(Boolean.TRUE);
                 });
                 pendingTasks.submit(fr);
@@ -181,28 +191,30 @@ public class Suite implements Runnable {
             CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
             CompletableFuture.allOf(futuresArray).join();
             results.setEndTime(System.currentTimeMillis());
-            HtmlSummaryReport summary = new HtmlSummaryReport();
-            for (FeatureResult result : results.getFeatureResults()) {
-                int scenarioCount = result.getScenarioCount();
-                results.addToScenarioCount(scenarioCount);
-                if (scenarioCount != 0) {
-                    results.incrementFeatureCount();
+            if (outputHtmlReport) {
+                HtmlSummaryReport summary = new HtmlSummaryReport();
+                for (FeatureResult result : results.getFeatureResults()) {
+                    int scenarioCount = result.getScenarioCount();
+                    results.addToScenarioCount(scenarioCount);
+                    if (scenarioCount != 0) {
+                        results.incrementFeatureCount();
+                    }
+                    results.addToFailCount(result.getFailedCount());
+                    results.addToTimeTaken(result.getDurationMillis());
+                    if (result.isFailed()) {
+                        results.addToFailedList(result.getPackageQualifiedName(), result.getErrorMessages());
+                    }
+                    if (!result.isEmpty()) {
+                        HtmlFeatureReport.saveFeatureResult(reportDir, result);
+                        summary.addFeatureResult(result);
+                    }
                 }
-                results.addToFailCount(result.getFailedCount());
-                results.addToTimeTaken(result.getDurationMillis());
-                if (result.isFailed()) {
-                    results.addToFailedList(result.getPackageQualifiedName(), result.getErrorMessages());
-                }
-                if (!result.isEmpty()) {
-                    HtmlFeatureReport.saveFeatureResult(reportDir, result);
-                    summary.addFeatureResult(result);
-                }
+                // saving reports can in rare cases throw errors, so do all this within try-catch
+                summary.save(reportDir);
+                Engine.saveStatsJson(reportDir, results);
+                HtmlReport.saveTimeline(reportDir, results, null);
             }
-            // saving reports can in rare cases throw errors, so do all this within try-catch
-            summary.save(reportDir);
             results.printStats(threadCount);
-            Engine.saveStatsJson(reportDir, results);
-            HtmlReport.saveTimeline(reportDir, results, null);
             hooks.forEach(h -> h.afterSuite(this));
         } catch (Exception e) {
             logger.error("runner failed: " + e);
@@ -213,17 +225,20 @@ public class Suite implements Runnable {
         }
     }
 
-    private static void onFeatureDone(Results results, FeatureRuntime fr, int index, int count) {
+    private void onFeatureDone(FeatureRuntime fr, int index) {
         FeatureResult result = fr.result;
         Feature feature = fr.feature;
-        String reportDir = fr.suite.reportDir;
         if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags
             try { // edge case that reports are not writable
-                File file = Engine.saveResultJson(reportDir, result, null);
-                Engine.saveResultXml(reportDir, result, null);
+                if (outputCucumberJson) {
+                    Engine.saveResultJson(reportDir, result, null);
+                }
+                if (outputJunitXml) {
+                    Engine.saveResultXml(reportDir, result, null);
+                }
                 String status = result.isFailed() ? "fail" : "pass";
-                logger.info("<<{}>> feature {} of {}: {}", status, index, count, feature);
-                result.printStats(file.getPath());
+                logger.info("<<{}>> feature {} of {}: {}", status, index, featureCount, feature);
+                result.printStats(null);
             } catch (Exception e) {
                 logger.error("<<error>> unable to write report file(s): {} - {}", feature, e + "");
                 result.printStats(null);
@@ -231,7 +246,7 @@ public class Suite implements Runnable {
         } else {
             results.addToSkipCount(1);
             if (logger.isTraceEnabled()) {
-                logger.trace("<<skip>> feature {} of {}: {}", index, count, feature);
+                logger.trace("<<skip>> feature {} of {}: {}", index, featureCount, feature);
             }
         }
     }
