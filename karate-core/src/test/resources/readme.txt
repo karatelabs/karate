@@ -16,14 +16,13 @@ mvn versions:commit
 mvn clean deploy -P pre-release,release
 
 jar:
-cd karate-core
-mvn install -P fatjar
+mvn clean package -P fatjar -f karate-core/pom.xml
 https://bintray.com/ptrthomas/karate
 (upload to github release notes)
 
 robot:
 cd karate-robot
-mvn install -P fatjar
+mvn package -P fatjar -f karate-robot/pom.xml
 https://bintray.com/ptrthomas/karate
 (upload to github release notes)
 

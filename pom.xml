@@ -54,9 +54,9 @@
         <module>karate-demo</module>
         <module>karate-gatling</module>
         <module>karate-mock-servlet</module>
-        <module>karate-robot</module>
-        <module>karate-archetype</module>
+        <module>karate-robot</module>        
         <module>karate-e2e-tests</module>
+        <module>karate-archetype</module>
     </modules>
 
     <dependencies>
