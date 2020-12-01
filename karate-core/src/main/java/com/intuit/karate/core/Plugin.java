@@ -34,6 +34,8 @@ import java.util.Map;
  */
 public interface Plugin {
 
+    void onFailure();
+    
     Map<String, Object> afterScenario();
 
     List<String> methodNames();

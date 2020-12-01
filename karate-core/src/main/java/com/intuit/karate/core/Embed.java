@@ -44,6 +44,13 @@ public class Embed {
         embed.setMimeType("text/html");
         return embed;
     }
+    
+    public static Embed forPngImage(byte[] bytes) {
+        Embed embed = new Embed();
+        embed.setBytes(bytes);
+        embed.setMimeType("image/png");
+        return embed;
+    }
 
     public String getMimeType() {
         return mimeType;

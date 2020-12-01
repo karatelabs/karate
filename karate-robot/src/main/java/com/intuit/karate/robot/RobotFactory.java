@@ -29,7 +29,7 @@ import com.intuit.karate.robot.mac.MacRobot;
 import com.intuit.karate.robot.win.WinRobot;
 import java.util.Map;
 import com.intuit.karate.core.PluginFactory;
-import com.intuit.karate.core.ScenarioEngine;
+import com.intuit.karate.core.ScenarioRuntime;
 import java.util.HashMap;
 
 /**
@@ -41,17 +41,17 @@ public class RobotFactory implements PluginFactory {
     private static final FileUtils.OsType OS_TYPE = FileUtils.getOsType();    
 
     @Override
-    public Robot create(ScenarioEngine engine, Map<String, Object> options) {
+    public Robot create(ScenarioRuntime runtime, Map<String, Object> options) {
         if (options == null) {
             options = new HashMap();
         }
         switch (OS_TYPE) {
             case LINUX:
-                return new LinuxRobot(engine, options);
+                return new LinuxRobot(runtime, options);
             case MACOSX: 
-                return new MacRobot(engine, options);
+                return new MacRobot(runtime, options);
             case WINDOWS: 
-                return new WinRobot(engine, options);
+                return new WinRobot(runtime, options);
             default:
                 throw new RuntimeException("os not supported: " + OS_TYPE);
         }

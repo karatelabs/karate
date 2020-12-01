@@ -30,6 +30,7 @@ import com.intuit.karate.core.Plugin;
 import com.intuit.karate.driver.Keys;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.core.ScenarioEngine;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Variable;
 import com.intuit.karate.shell.Command;
 import java.awt.Dimension;
@@ -61,6 +62,7 @@ public abstract class RobotBase implements Robot, Plugin {
     public final Map<String, Object> options;
 
     public final boolean autoClose;
+    public final boolean screenshotOnFailure;
     public final int autoDelay;
     public final Region screen;
     public final String tessData;
@@ -120,13 +122,13 @@ public abstract class RobotBase implements Robot, Plugin {
         return temp == null ? defaultValue : temp;
     }
 
-    public RobotBase(ScenarioEngine context) {
-        this(context, Collections.EMPTY_MAP);
+    public RobotBase(ScenarioRuntime runtime) {
+        this(runtime, Collections.EMPTY_MAP);
     }
 
-    public RobotBase(ScenarioEngine context, Map<String, Object> options) {
-        this.engine = context;
-        this.logger = context.logger;
+    public RobotBase(ScenarioRuntime runtime, Map<String, Object> options) {
+        this.engine = runtime.engine;
+        this.logger = runtime.logger;
         try {
             this.options = options;
             basePath = get("basePath", null);
@@ -143,6 +145,7 @@ public abstract class RobotBase implements Robot, Plugin {
             robot.setAutoDelay(autoDelay);
             robot.setAutoWaitForIdle(true);
             //==================================================================
+            screenshotOnFailure = get("screenshotOnFailure", true);
             autoClose = get("autoClose", true);
             boolean attach = get("attach", true);
             String window = get("window", null);
@@ -218,6 +221,13 @@ public abstract class RobotBase implements Robot, Plugin {
             path = basePath + slash + path;
         }
         return engine.fileReader.readFileAsBytes(path);
+    }
+
+    @Override
+    public void onFailure() {
+        if (screenshotOnFailure) {
+            screenshot();
+        }
     }
 
     @Override

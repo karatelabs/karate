@@ -28,7 +28,7 @@ import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.ImageElement;
 import com.intuit.karate.robot.RobotBase;
 import com.intuit.karate.robot.Window;
-import com.intuit.karate.core.ScenarioEngine;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.shell.Command;
 import java.util.Collections;
 import java.util.List;
@@ -41,8 +41,8 @@ import java.util.function.Predicate;
  */
 public class LinuxRobot extends RobotBase {
 
-    public LinuxRobot(ScenarioEngine engine, Map<String, Object> options) {
-        super(engine, options);
+    public LinuxRobot(ScenarioRuntime runtime, Map<String, Object> options) {
+        super(runtime, options);
     }
 
     @Override

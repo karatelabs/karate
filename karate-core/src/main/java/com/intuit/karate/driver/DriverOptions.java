@@ -102,6 +102,7 @@ public class DriverOptions {
     public final boolean highlight;
     public final int highlightDuration;
     public final String attach;
+    public final boolean screenshotOnFailure;
     public final String playwrightUrl;
     public final Map<String, Object> playwrightOptions;
 
@@ -198,6 +199,7 @@ public class DriverOptions {
         highlight = get("highlight", false);
         highlightDuration = get("highlightDuration", Config.DEFAULT_HIGHLIGHT_DURATION);
         attach = get("attach", null);
+        screenshotOnFailure = get("screenshotOnFailure", true);
         playwrightUrl = get("playwrightUrl", null);
         playwrightOptions = get("playwrightOptions", null);
         // do this last to ensure things like logger, start-flag, webDriverUrl etc. are set

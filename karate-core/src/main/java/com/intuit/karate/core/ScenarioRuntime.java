@@ -360,6 +360,12 @@ public class ScenarioRuntime implements Runnable {
             stopped = true;
             error = stepResult.getError();
             logError(error.getMessage());
+            if (engine.driver != null) {
+                engine.driver.onFailure();
+            }
+            if (engine.robot != null) {
+                engine.robot.onFailure();
+            }
         }
         String stepLog = appender.collect(); // make sure we collect after error logging
         currentStepResult = new StepResult(step, stepResult, stepLog, embeds, callResults);

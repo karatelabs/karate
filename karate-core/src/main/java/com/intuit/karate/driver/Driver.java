@@ -26,6 +26,8 @@ package com.intuit.karate.driver;
 import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.Config;
+import com.intuit.karate.core.ScenarioRuntime;
+import com.intuit.karate.core.StepResult;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -466,5 +468,12 @@ public interface Driver extends Plugin {
     default Map<String, Object> afterScenario() {
         return Collections.EMPTY_MAP; // TODO
     }
+
+    @Override
+    public default void onFailure() {
+        if (getOptions().screenshotOnFailure) {
+            screenshot();
+        }
+    }        
 
 }
