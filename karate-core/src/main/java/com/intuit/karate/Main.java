@@ -23,21 +23,21 @@
  */
 package com.intuit.karate;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import com.intuit.karate.core.MockServer;
 import com.intuit.karate.debug.DapServer;
 import com.intuit.karate.formats.PostmanConverter;
-import com.intuit.karate.job.JobExecutor;
-import com.intuit.karate.core.MockServer;
 import com.intuit.karate.http.SslContextFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import picocli.CommandLine;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.Parameters;
-
+import com.intuit.karate.job.JobExecutor;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
 /**
  *
@@ -79,7 +79,7 @@ public class Main implements Callable<Void> {
     String output = FileUtils.getBuildDir();
 
     @Option(names = {"-f", "--format"}, description = "report output formats in addition to html e.g. 'xml,json'"
-            + "json: Cucumber JSON | xml: JUnit XML")
+            + " [json: Cucumber JSON, xml: JUnit XML]")
     List<String> formats;
 
     @Parameters(description = "one or more tests (features) or search-paths to run")
@@ -177,11 +177,17 @@ public class Main implements Callable<Void> {
                 System.setProperty(LOGBACK_CONFIG, "logback-fatjar.xml");
             }
         }
-        logger = LoggerFactory.getLogger(Main.class);
+        logger = (Logger) LoggerFactory.getLogger("com.intuit.karate");
+        setLogLevelWarn("org.apache");
+        setLogLevelWarn("io.netty");
         logger.info("Karate version: {}", FileUtils.KARATE_VERSION);
         CommandLine cmd = new CommandLine(new Main());
         int returnCode = cmd.execute(args);
         System.exit(returnCode);
+    }
+    
+    private static void setLogLevelWarn(String name) {
+        ((Logger) LoggerFactory.getLogger(name)).setLevel(Level.WARN);
     }
 
     @Override

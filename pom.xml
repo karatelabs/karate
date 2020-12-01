@@ -58,16 +58,6 @@
         <module>karate-archetype</module>
     </modules>
 
-    <dependencies>
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <!-- if we change this, also update jcl-over-slf4j in karate-apache -->
-            <version>1.2.3</version> 
-            <scope>runtime</scope>
-        </dependency>         		
-    </dependencies>
-
     <build>       
         <plugins>
             <plugin>
