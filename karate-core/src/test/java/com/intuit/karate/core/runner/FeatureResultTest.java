@@ -99,4 +99,10 @@ public class FeatureResultTest {
         assertTrue(result.getScenarioResults().get(0).getError().getMessage().contains("StackOverflowError"));
     }
 
+    @Test
+    void testScenarioOutlineXmlResult() {
+        FeatureResult result = result("outline.feature");
+        Engine.saveResultXml("target", result, "outline.xml");
+    }
+
 }

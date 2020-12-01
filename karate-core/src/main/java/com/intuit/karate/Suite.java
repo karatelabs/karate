@@ -220,10 +220,7 @@ public class Suite implements Runnable {
         if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags
             try { // edge case that reports are not writable
                 File file = Engine.saveResultJson(reportDir, result, null);
-                if (result.getScenarioCount() < 500) {
-                    // TODO this routine simply cannot handle that size
-                    Engine.saveResultXml(reportDir, result, null);
-                }
+                Engine.saveResultXml(reportDir, result, null);
                 String status = result.isFailed() ? "fail" : "pass";
                 logger.info("<<{}>> feature {} of {}: {}", status, index, count, feature);
                 result.printStats(file.getPath());

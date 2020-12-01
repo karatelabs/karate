@@ -25,7 +25,6 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Results;
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.JsonUtils;
 import java.io.File;
@@ -113,33 +112,23 @@ public class Engine {
         Document doc = XmlUtils.newDocument();
         Element root = doc.createElement("testsuite");
         doc.appendChild(root);
+        root.setAttribute("tests", result.getScenarioCount() + "");
+        root.setAttribute("failures", result.getFailedCount() + "");
+        root.setAttribute("time", formatMillis(result.getDurationMillis(), formatter));
         root.setAttribute("name", result.getDisplayUri()); // will be uri
         root.setAttribute("skipped", "0");
+        StringBuilder xmlString = new StringBuilder();
+        xmlString.append(XmlUtils.toString(doc, false).replace("/>", ">"));
         String baseName = result.getPackageQualifiedName();
-        int testCount = 0;
-        int failureCount = 0;
-        long totalDuration = 0;
-        Throwable error;
         Iterator<ScenarioResult> iterator = result.getScenarioResults().iterator();
-        StringBuilder sb = new StringBuilder();
         while (iterator.hasNext()) {
             ScenarioResult sr = iterator.next();
-            totalDuration += sr.getDurationNanos();
-            if (sr.isFailed()) {
-                failureCount++;
-            }
             Element testCase = doc.createElement("testcase");
-            root.appendChild(testCase);
             testCase.setAttribute("classname", baseName);
-            testCount++;
-            long duration = sr.getDurationNanos();
-            error = appendSteps(sr.getStepResults(), sb);
-            String name = sr.getScenario().getName();
-            if (StringUtils.isBlank(name)) {
-                name = testCount + "";
-            }
-            testCase.setAttribute("name", name);
-            testCase.setAttribute("time", formatNanos(duration, formatter));
+            StringBuilder sb = new StringBuilder();
+            Throwable error = appendSteps(sr.getStepResults(), sb);
+            testCase.setAttribute("name", sr.getScenario().getNameForReport());
+            testCase.setAttribute("time", formatMillis(sr.getDurationMillis(), formatter));
             Element stepsHolder;
             if (error != null) {
                 stepsHolder = doc.createElement("failure");
@@ -149,16 +138,14 @@ public class Engine {
             }
             testCase.appendChild(stepsHolder);
             stepsHolder.setTextContent(sb.toString());
+            xmlString.append(XmlUtils.toString(testCase)).append('\n');
         }
-        root.setAttribute("tests", testCount + "");
-        root.setAttribute("failures", failureCount + "");
-        root.setAttribute("time", formatNanos(totalDuration, formatter));
-        String xml = XmlUtils.toString(doc, true);
+        xmlString.append("</testsuite>");
         if (fileName == null) {
             fileName = baseName + ".xml";
         }
         File file = new File(targetDir + File.separator + fileName);
-        FileUtils.writeToFile(file, xml);
+        FileUtils.writeToFile(file, xmlString.toString());
         return file;
     }
 
