@@ -78,7 +78,7 @@ public class Main implements Callable<Void> {
     @Option(names = {"-o", "--output"}, description = "directory where logs and reports are output (default 'target')")
     String output = FileUtils.getBuildDir();
 
-    @Option(names = {"-f", "--format"}, description = "report output formats in addition to html e.g. 'xml,json'"
+    @Option(names = {"-f", "--format"}, description = "report output formats in addition to html e.g. '-f xml -f json'"
             + " [json: Cucumber JSON, xml: JUnit XML]")
     List<String> formats;
 
