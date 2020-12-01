@@ -75,11 +75,13 @@ public class IdeMain {
         }
         return options;
     }
+    
+    private static final String CLI_MAIN = "cucumber.api.cli.Main";
 
     public static Main parseCommandLine(String line) {
-        int pos = line.indexOf("cucumber.api.cli.Main");
-        if (pos > 0) {
-            line = line.substring(pos);
+        int pos = line.indexOf(CLI_MAIN);
+        if (pos != -1) {
+            line = line.substring(pos + CLI_MAIN.length());
         }
         line = line.replace("--monochrome", "");
         Matcher pluginMatcher = CLI_PLUGIN.matcher(line);
@@ -98,8 +100,9 @@ public class IdeMain {
         } else {
             nameTemp = null;
         }
-        String[] args = line.trim().split("\\s+");
-        Main options = parseStringArgs(args);
+        String path = line.trim();
+        Main options = new Main();
+        options.addPath(path);
         options.setName(nameTemp);
         return options;
     }
