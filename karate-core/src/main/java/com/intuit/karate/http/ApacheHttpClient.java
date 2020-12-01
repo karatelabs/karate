@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.Constants;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.Config;
@@ -51,7 +52,6 @@ import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.config.CookieSpecs;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.RequestBuilder;
@@ -215,7 +215,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             httpResponse = client.execute(requestBuilder.build());
             HttpEntity responseEntity = httpResponse.getEntity();
             if (responseEntity == null || responseEntity.getContent() == null) {
-                bytes = HttpConstants.ZERO_BYTES;
+                bytes = Constants.ZERO_BYTES;
             } else {
                 InputStream is = responseEntity.getContent();
                 bytes = FileUtils.toBytes(is);

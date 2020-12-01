@@ -28,16 +28,17 @@ package com.intuit.karate;
  * @author pthomas3
  */
 public class Constants {
-    
+
     private Constants() {
         // only static methods
     }
-    
+
     public static final String KARATE_ENV = "karate.env";
     public static final String KARATE_CONFIG_DIR = "karate.config.dir";
     public static final String KARATE_OUTPUT_DIR = "karate.output.dir";
     public static final String KARATE_OPTIONS = "karate.options";
     public static final String KARATE_REPORTS = "karate-reports";
     
-    
+    public static final byte[] ZERO_BYTES = new byte[0];
+
 }

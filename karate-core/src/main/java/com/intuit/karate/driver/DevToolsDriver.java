@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.driver;
 
+import com.intuit.karate.Constants;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
@@ -204,7 +205,7 @@ public abstract class DevToolsDriver implements Driver {
             if (postData != null) {
                 request.setBody(FileUtils.toBytes(postData));
             } else {
-                request.setBody(FileUtils.EMPTY_BYTES);
+                request.setBody(Constants.ZERO_BYTES);
             }
             Response response = mockHandler.handle(request.toRequest());
             String responseBody = response.getBody() == null ? "" : Base64.getEncoder().encodeToString(response.getBody());

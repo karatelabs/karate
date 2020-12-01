@@ -28,7 +28,6 @@ import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
-import com.intuit.karate.KarateException;
 import com.intuit.karate.shell.FileLogAppender;
 import java.io.File;
 import java.util.ArrayList;

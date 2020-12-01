@@ -29,6 +29,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.util.ByteProcessor;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -57,7 +58,7 @@ public class DapDecoder extends ByteToMessageDecoder {
                 // skip backwards
             }
             in.readerIndex(++pos);
-            CharSequence lengthString = in.readCharSequence(delimiterPos - pos, FileUtils.UTF8);
+            CharSequence lengthString = in.readCharSequence(delimiterPos - pos, StandardCharsets.UTF_8);
             int length = Integer.valueOf(lengthString.toString().trim());
             in.readerIndex(delimiterPos + 4);
             if (in.readableBytes() >= length) {
@@ -83,7 +84,7 @@ public class DapDecoder extends ByteToMessageDecoder {
     }
 
     private static DapMessage encode(ByteBuf in, int length) {
-        String msg = in.readCharSequence(length, FileUtils.UTF8).toString();
+        String msg = in.readCharSequence(length, StandardCharsets.UTF_8).toString();
         if (logger.isTraceEnabled()) {
             logger.trace(">> {}", msg);
         }

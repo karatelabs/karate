@@ -1,8 +1,8 @@
 package com.intuit.karate.core;
 
+import com.intuit.karate.Constants;
 import static com.intuit.karate.TestUtils.*;
 import com.intuit.karate.http.ApacheHttpClient;
-import com.intuit.karate.http.HttpConstants;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpServer;
 import com.intuit.karate.http.Response;
@@ -82,7 +82,7 @@ class HttpMockHandlerTest {
                 "def response = null"
         );
         response = handle().path("/hello").invoke("get");
-        match(response.getBody(), HttpConstants.ZERO_BYTES);
+        match(response.getBody(), Constants.ZERO_BYTES);
     }
 
     @Test

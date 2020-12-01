@@ -7,6 +7,7 @@ import com.intuit.karate.http.LenientTrustManager;
 import com.intuit.karate.http.ProxyServer;
 import com.intuit.karate.core.MockServer;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import org.apache.http.HttpEntity;
@@ -70,7 +71,7 @@ class ProxyServerSslTest {
 
     static HttpUriRequest post(String url, String body) {
         HttpPost post = new HttpPost(url);
-        HttpEntity entity = new StringEntity(body, ContentType.create("application/json", FileUtils.UTF8));
+        HttpEntity entity = new StringEntity(body, ContentType.create("application/json", StandardCharsets.UTF_8));
         post.setEntity(entity);
         return post;
     }

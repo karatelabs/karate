@@ -35,7 +35,7 @@ import com.intuit.karate.core.StepResult;
 public interface RuntimeHook {
 
     // return false if the scenario / item should be excluded from the test-run
-    // throws RuntimeException (any) to abort    
+    // throw RuntimeException (any) to abort    
     boolean beforeScenario(ScenarioRuntime sr);
 
     void afterScenario(ScenarioRuntime sr);

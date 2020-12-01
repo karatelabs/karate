@@ -13,9 +13,9 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-class FeatureRuntimeRunner {
+class FeatureFailRunner {
 
-    static final Logger logger = LoggerFactory.getLogger(FeatureRuntimeRunner.class);
+    static final Logger logger = LoggerFactory.getLogger(FeatureFailRunner.class);
 
     FeatureRuntime fr;
 
@@ -48,6 +48,7 @@ class FeatureRuntimeRunner {
     void testFailJs() {
         run("fail-js.feature");
         assertTrue(fr.result.isFailed());
+        report();
     }
 
     @Test

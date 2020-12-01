@@ -29,6 +29,7 @@ import com.intuit.karate.XmlUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.KarateException;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsMap;
 import com.intuit.karate.graal.JsValue;
@@ -182,8 +183,8 @@ public class ScenarioBridge implements PerfContext {
             Object result = null;
             File cacheFile = null;
             if (minutes > 0) {
-                String qualifiedFileName = FileUtils.toPackageQualifiedName(fileName);
-                String cacheFileName = engine.getConfig().getCallSingleCacheDir() + File.separator + qualifiedFileName + ".txt";
+                String cleanedName = StringUtils.toIdString(fileName);
+                String cacheFileName = engine.getConfig().getCallSingleCacheDir() + File.separator + cleanedName + ".txt";
                 cacheFile = new File(cacheFileName);
                 long since = System.currentTimeMillis() - minutes * 60 * 1000;
                 if (cacheFile.exists()) {

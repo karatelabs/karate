@@ -475,6 +475,9 @@ public class XmlUtils {
         }
         if (s.charAt(0) == ' ') {
             s = s.trim();
+            if (s.isEmpty()) {
+                return false;
+            }
         }
         return s.charAt(0) == '<';
     }

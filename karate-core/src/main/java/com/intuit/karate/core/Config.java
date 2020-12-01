@@ -32,6 +32,7 @@ import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.http.HttpLogModifier;
 import com.intuit.karate.http.Cookies;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import org.graalvm.polyglot.Value;
@@ -63,7 +64,7 @@ public class Config {
     private boolean followRedirects = true;
     private int readTimeout = DEFAULT_TIMEOUT;
     private int connectTimeout = DEFAULT_TIMEOUT;
-    private Charset charset = FileUtils.UTF8;
+    private Charset charset = StandardCharsets.UTF_8;
     private String proxyUri;
     private String proxyUsername;
     private String proxyPassword;

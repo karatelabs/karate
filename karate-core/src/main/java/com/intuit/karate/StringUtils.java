@@ -167,7 +167,7 @@ public class StringUtils {
     }
 
     public static String toIdString(String name) {
-        return name.replaceAll("[\\s_]", "-").toLowerCase();
+        return name.replaceAll("[\\s_\\\\/]", "-").toLowerCase();
     }
 
     public static StringUtils.Pair splitByFirstLineFeed(String text) {

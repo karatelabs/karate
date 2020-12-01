@@ -91,6 +91,10 @@ class StringUtilsTest {
     @Test
     void testToIdString() {
         assertEquals("foo-bar", StringUtils.toIdString("foo_bar"));
+        assertEquals("foo-bar", StringUtils.toIdString("foo_bar"));
+        assertEquals("foo-bar", StringUtils.toIdString("foo bar"));
+        assertEquals("foo--bar", StringUtils.toIdString("foo//bar"));
+        assertEquals("foo-bar", StringUtils.toIdString("foo\\bar"));
         try {
             StringUtils.toIdString(null);
             fail("expected null pointer");

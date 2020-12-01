@@ -6,6 +6,7 @@ import com.intuit.karate.Runner;
 import com.intuit.karate.http.ProxyServer;
 import com.intuit.karate.core.MockServer;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
@@ -67,7 +68,7 @@ class ProxyServerTest {
 
     static HttpUriRequest post(String url, String body) {
         HttpPost post = new HttpPost(url);
-        HttpEntity entity = new StringEntity(body, ContentType.create("application/json", FileUtils.UTF8));
+        HttpEntity entity = new StringEntity(body, ContentType.create("application/json", StandardCharsets.UTF_8));
         post.setEntity(entity);
         return post;
     }

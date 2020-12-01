@@ -33,7 +33,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,66 +53,29 @@ import org.slf4j.LoggerFactory;
  */
 public class FileUtils {
 
-    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(FileUtils.class);
-
-    public static final Charset UTF8 = StandardCharsets.UTF_8;
-    public static final byte[] EMPTY_BYTES = new byte[]{};
-    public static final File WORKING_DIR = new File("").getAbsoluteFile();
-
-    private static final String CLASSPATH = "classpath";
-
-    public static final String CLASSPATH_COLON = CLASSPATH + ":";
-    private static final String DOT_FEATURE = ".feature";
-
-    private static final ClassLoader CLASS_LOADER = FileUtils.class.getClassLoader();
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(FileUtils.class);    
 
     private FileUtils() {
         // only static methods
     }
+    
+    public static final String KARATE_VERSION;
 
-    public static final boolean isClassPath(String text) {
-        return text.startsWith(CLASSPATH_COLON);
-    }
-
-    public static final boolean isJsonFile(String text) {
-        return text.endsWith(".json");
-    }
-
-    public static final boolean isJavaScriptFile(String text) {
-        return text.endsWith(".js");
-    }
-
-    public static final boolean isYamlFile(String text) {
-        return text.endsWith(".yaml") || text.endsWith(".yml");
-    }
-
-    public static final boolean isXmlFile(String text) {
-        return text.endsWith(".xml");
-    }
-
-    public static final boolean isTextFile(String text) {
-        return text.endsWith(".txt");
-    }
-
-    public static final boolean isCsvFile(String text) {
-        return text.endsWith(".csv");
-    }
-
-    public static final boolean isGraphQlFile(String text) {
-        return text.endsWith(".graphql") || text.endsWith(".gql");
-    }
-
-    public static final boolean isFeatureFile(String text) {
-        return text.endsWith(".feature");
-    }
-
-    public static String removePrefix(String text) {
-        if (text == null) {
-            return null;
+    static {
+        Properties props = new Properties();
+        InputStream stream = FileUtils.class.getResourceAsStream("/karate-meta.properties");
+        String value;
+        try {
+            props.load(stream);
+            stream.close();
+            value = (String) props.get("karate.version");
+        } catch (IOException e) {
+            value = "(unknown)";
         }
-        int pos = text.indexOf(':');
-        return pos == -1 ? text : text.substring(pos + 1);
-    }
+        KARATE_VERSION = value;
+    }    
+    
+    public static final File WORKING_DIR = new File("").getAbsoluteFile();
 
     public static StringUtils.Pair parsePathAndTags(String text) {
         int pos = text.indexOf('@');
@@ -134,25 +96,6 @@ public class FileUtils {
         return feature;
     }
 
-    public static String toPackageQualifiedName(String path) {
-        path = removePrefix(path);
-        path = path.replace('/', '.');
-        if (path.contains(":\\")) { // to remove windows drive letter and colon
-            path = removePrefix(path);
-        }
-        if (path.indexOf('\\') != -1) { // for windows paths
-            path = path.replace('\\', '.');
-        }
-        String packagePath = path.replace("..", "");
-        if (packagePath.startsWith(".")) {
-            packagePath = packagePath.substring(1);
-        }
-        if (packagePath.endsWith(DOT_FEATURE)) {
-            packagePath = packagePath.substring(0, packagePath.length() - 8);
-        }
-        return packagePath;
-    }
-
     public static String toString(File file) {
         try {
             return toString(new FileInputStream(file));
@@ -163,7 +106,7 @@ public class FileUtils {
 
     public static String toString(InputStream is) {
         try {
-            return toByteStream(is).toString(UTF8.name());
+            return toByteStream(is).toString(StandardCharsets.UTF_8.name());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -191,14 +134,14 @@ public class FileUtils {
         if (bytes == null) {
             return null;
         }
-        return new String(bytes, UTF8);
+        return new String(bytes, StandardCharsets.UTF_8);
     }
 
     public static byte[] toBytes(String string) {
         if (string == null) {
             return null;
         }
-        return string.getBytes(UTF8);
+        return string.getBytes(StandardCharsets.UTF_8);
     }
 
     public static void copy(File src, File dest) {
@@ -224,11 +167,11 @@ public class FileUtils {
     }
 
     public static void writeToFile(File file, String data) {
-        writeToFile(file, data.getBytes(UTF8));
+        writeToFile(file, data.getBytes(StandardCharsets.UTF_8));
     }
 
     public static InputStream toInputStream(String text) {
-        return new ByteArrayInputStream(text.getBytes(UTF8));
+        return new ByteArrayInputStream(text.getBytes(StandardCharsets.UTF_8));
     }
 
     public static void deleteDirectory(File file) {
@@ -241,31 +184,6 @@ public class FileUtils {
         } catch (Exception e) {
             throw new RuntimeException();
         }
-    }
-
-    public static String replaceFileExtension(String path, String extension) {
-        int pos = path.lastIndexOf('.');
-        if (pos == -1) {
-            return path + '.' + extension;
-        } else {
-            return path.substring(0, pos + 1) + extension;
-        }
-    }
-
-    public static final String KARATE_VERSION;
-
-    static {
-        Properties props = new Properties();
-        InputStream stream = FileUtils.class.getResourceAsStream("/karate-meta.properties");
-        String value;
-        try {
-            props.load(stream);
-            stream.close();
-            value = (String) props.get("karate.version");
-        } catch (IOException e) {
-            value = "(unknown)";
-        }
-        KARATE_VERSION = value;
     }
 
     public static void renameFileIfZeroBytes(String fileName) {
@@ -303,6 +221,8 @@ public class FileUtils {
     }
 
     private static final Predicate<Path> IS_JS_FILE = p -> p != null && p.toString().endsWith(".js");
+    
+    private static final ClassLoader CLASS_LOADER = FileUtils.class.getClassLoader();
 
     public static Set<String> jsFiles(File baseDir) {
         Set<String> results = new HashSet();

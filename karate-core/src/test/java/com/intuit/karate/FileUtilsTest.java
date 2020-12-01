@@ -17,63 +17,6 @@ class FileUtilsTest {
     static final Logger logger = LoggerFactory.getLogger(FileUtilsTest.class);
     
     @Test
-    void testIsJsonFile() {
-        assertFalse(FileUtils.isJsonFile("foo.txt"));
-        assertTrue(FileUtils.isJsonFile("foo.json"));
-    }
-    
-    @Test
-    void testIsJavaScriptFile() {
-        assertFalse(FileUtils.isJavaScriptFile("foo.txt"));
-        assertTrue(FileUtils.isJavaScriptFile("foo.js"));
-    }
-    
-    @Test
-    public void testIsYamlFile() {
-        assertFalse(FileUtils.isYamlFile("foo.txt"));
-        assertTrue(FileUtils.isYamlFile("foo.yaml"));
-        assertTrue(FileUtils.isYamlFile("foo.yml"));
-    }
-    
-    @Test
-    void testIsXmlFile() {
-        assertFalse(FileUtils.isXmlFile("foo.txt"));
-        assertTrue(FileUtils.isXmlFile("foo.xml"));
-    }
-    
-    @Test
-    void testIsTextFile() {
-        assertFalse(FileUtils.isTextFile("foo.xml"));
-        assertTrue(FileUtils.isTextFile("foo.txt"));
-    }
-    
-    @Test
-    void testIsCsvFile() {
-        assertFalse(FileUtils.isCsvFile("foo.txt"));
-        assertTrue(FileUtils.isCsvFile("foo.csv"));
-    }
-    
-    @Test
-    void testIsGraphQlFile() {
-        assertFalse(FileUtils.isGraphQlFile("foo.txt"));
-        assertTrue(FileUtils.isGraphQlFile("foo.graphql"));
-        assertTrue(FileUtils.isGraphQlFile("foo.gql"));
-    }
-    
-    @Test
-    void testIsFeatureFile() {
-        assertFalse(FileUtils.isFeatureFile("foo.txt"));
-        assertTrue(FileUtils.isFeatureFile("foo.feature"));
-    }
-    
-    @Test
-    void testRemovePrefix() {
-        assertEquals("baz", FileUtils.removePrefix("foobar:baz"));
-        assertEquals("foobarbaz", FileUtils.removePrefix("foobarbaz"));
-        assertNull(FileUtils.removePrefix(null));
-    }
-    
-    @Test
     void testToStringBytes() {
         final byte[] bytes = {102, 111, 111, 98, 97, 114};
         assertEquals("foobar", FileUtils.toString(bytes));
@@ -85,12 +28,6 @@ class FileUtilsTest {
         final byte[] bytes = {102, 111, 111, 98, 97, 114};
         assertArrayEquals(bytes, FileUtils.toBytes("foobar"));
         assertNull(FileUtils.toBytes((String) null));
-    }
-    
-    @Test
-    void testReplaceFileExtension() {
-        assertEquals("foo.bar", FileUtils.replaceFileExtension("foo.txt", "bar"));
-        assertEquals("foo.baz", FileUtils.replaceFileExtension("foo", "baz"));
     }
     
     @Test

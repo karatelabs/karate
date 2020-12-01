@@ -36,6 +36,7 @@ import de.siegmar.fastcsv.reader.CsvRow;
 import de.siegmar.fastcsv.writer.CsvWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -94,6 +95,9 @@ public class JsonUtils {
         }
         if (s.charAt(0) == ' ') {
             s = s.trim();
+            if (s.isEmpty()) {
+                return false;
+            }            
         }
         return s.charAt(0) == '{' || s.charAt(0) == '[';
     }
@@ -113,7 +117,7 @@ public class JsonUtils {
     }
 
     public static byte[] toJsonBytes(Object o) {
-        return toJson(o).getBytes(FileUtils.UTF8);
+        return toJson(o).getBytes(StandardCharsets.UTF_8);
     }
 
     public static Object fromJson(String json) {

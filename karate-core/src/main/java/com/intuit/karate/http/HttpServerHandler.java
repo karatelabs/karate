@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.Constants;
 import com.linecorp.armeria.common.AggregatedHttpRequest;
 import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpRequest;
@@ -89,7 +90,7 @@ public class HttpServerHandler implements HttpService {
     private HttpResponse toResponse(ServiceRequestContext ctx, Response response) {
         byte[] body = response.getBody();
         if (body == null) {
-            body = HttpConstants.ZERO_BYTES;
+            body = Constants.ZERO_BYTES;
         }
         ResponseHeadersBuilder rhb = ResponseHeaders.builder(response.getStatus());
         Map<String, List<String>> headers = response.getHeaders();

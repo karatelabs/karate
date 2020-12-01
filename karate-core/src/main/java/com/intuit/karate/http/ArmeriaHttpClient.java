@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.Constants;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Config;
@@ -79,7 +80,7 @@ public class ArmeriaHttpClient implements HttpClient, DecoratingHttpClientFuncti
         if (headers != null) {
             headers.forEach((k, v) -> rhb.add(k, v));
         }
-        final byte[] body = request.getBody() == null ? HttpConstants.ZERO_BYTES : request.getBody();
+        final byte[] body = request.getBody() == null ? Constants.ZERO_BYTES : request.getBody();
         AggregatedHttpResponse ahr;
         Callable<AggregatedHttpResponse> callable = () -> webClient.execute(rhb.build(), body).aggregate().join();
         ServiceRequestContext src = requestContext == null ? null : requestContext.root();
@@ -100,7 +101,7 @@ public class ArmeriaHttpClient implements HttpClient, DecoratingHttpClientFuncti
                 responseHeaders.put(name.toString(), rh.getAll(name));
             }
         }
-        byte[] responseBody = ahr.content().isEmpty() ? HttpConstants.ZERO_BYTES : ahr.content().array();
+        byte[] responseBody = ahr.content().isEmpty() ? Constants.ZERO_BYTES : ahr.content().array();
         Response response = new Response(ahr.status().code(), responseHeaders, responseBody);
         httpLogger.logResponse(config, request, response);
         return response;

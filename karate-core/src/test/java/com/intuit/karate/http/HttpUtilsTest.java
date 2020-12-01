@@ -1,9 +1,9 @@
 package com.intuit.karate.http;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
@@ -21,10 +21,10 @@ class HttpUtilsTest {
 
     @Test
     void testParseContentTypeCharset() {
-        assertEquals(FileUtils.UTF8, HttpUtils.parseContentTypeCharset("application/json; charset=UTF-8"));
-        assertEquals(FileUtils.UTF8, HttpUtils.parseContentTypeCharset("application/json; charset = UTF-8 "));
-        assertEquals(FileUtils.UTF8, HttpUtils.parseContentTypeCharset("application/json; charset=UTF-8; version=1.2.3"));
-        assertEquals(FileUtils.UTF8, HttpUtils.parseContentTypeCharset("application/json; charset = UTF-8 ; version=1.2.3"));
+        assertEquals(StandardCharsets.UTF_8, HttpUtils.parseContentTypeCharset("application/json; charset=UTF-8"));
+        assertEquals(StandardCharsets.UTF_8, HttpUtils.parseContentTypeCharset("application/json; charset = UTF-8 "));
+        assertEquals(StandardCharsets.UTF_8, HttpUtils.parseContentTypeCharset("application/json; charset=UTF-8; version=1.2.3"));
+        assertEquals(StandardCharsets.UTF_8, HttpUtils.parseContentTypeCharset("application/json; charset = UTF-8 ; version=1.2.3"));
     }
 
     @Test
