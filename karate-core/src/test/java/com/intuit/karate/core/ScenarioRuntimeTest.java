@@ -108,7 +108,8 @@ class ScenarioRuntimeTest {
         matchVar("foo", "{ hello: 'world' }");
         Variable bar = sr.engine.vars.get("bar");
         Match.that(bar.getValue()).isString();
-        assertEquals(bar.getValue(), "{ \"hello\": \"world\" }\n");
+        // fixed for windows
+        assertEquals(((String) bar.getValue()).trim(), "{ \"hello\": \"world\" }");
     }
 
     @Test
@@ -133,7 +134,7 @@ class ScenarioRuntimeTest {
     }
 
     @Test
-    void testCallKarateFeature() {        
+    void testCallKarateFeature() {
         run(
                 "def b = 'bar'",
                 "def res = call read('called1.feature')"
@@ -191,22 +192,22 @@ class ScenarioRuntimeTest {
         );
         matchVar("res", "{ varA: '2', varB: '3' }");
     }
-    
+
     @Test
     void testCallSingleWithinJs() {
         run(
                 "def res = karate.call('called3-caller1.js')"
         );
         matchVar("res", "2");
-    } 
-    
+    }
+
     @Test
     void testKarateCallWithinJs() {
         run(
                 "def res = karate.call('called3-caller2.js')"
         );
         matchVar("res", "2");
-    }     
+    }
 
     @Test
     void testCallFromJs() {
@@ -477,7 +478,8 @@ class ScenarioRuntimeTest {
                 "def foo = [{a: 1, b: 2}, { a: 3, b: 4 }]",
                 "def res = karate.toCsv(foo)"
         );
-        matchVar("res", "a,b\n1,2\n3,4\n");
+        // fixed for windows
+        match(((String) get("res")).replaceAll("[\r\n]+", "@"), "a,b@1,2@3,4@");
     }
 
     @Test
