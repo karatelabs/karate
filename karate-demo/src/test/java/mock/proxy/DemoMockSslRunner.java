@@ -38,7 +38,6 @@ public class DemoMockSslRunner {
         System.setProperty("demo.server.https", "true");
         String karateOutputPath = "target/mock-ssl";
         Results results = Runner.parallel(getClass(), 1, karateOutputPath);
-        DemoMockUtils.generateReport(karateOutputPath);
         assertTrue("there are scenario failures", results.getFailCount() == 0);
     }
 

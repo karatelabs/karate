@@ -38,7 +38,6 @@ public class DemoMockRunner {
         System.setProperty("demo.server.https", "false");
         String karateOutputPath = "target/mock";
         Results results = Runner.parallel(getClass(), 1, karateOutputPath);
-        DemoMockUtils.generateReport(karateOutputPath);
         assertTrue("there are scenario failures", results.getFailCount() == 0);
     }
 

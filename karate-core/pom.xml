@@ -172,6 +172,24 @@
                 <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <version>3.1.2</version>
+                        <executions>
+                            <execution>
+                                <id>unpack-dependencies</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includes>/META-INF/native/*</includes>
+                                    <outputDirectory>target/shade</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>                                        
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-shade-plugin</artifactId>
                         <version>${maven.shade.version}</version>
                         <executions>
@@ -183,6 +201,7 @@
                                 <configuration>
                                     <artifactSet>
                                         <includes>
+                                            <include>com.linecorp.armeria:*</include>
                                             <include>io.netty:*</include>
                                             <include>org.apache.httpcomponents:*</include>
                                             <include>org.antlr:*</include>
@@ -190,8 +209,12 @@
                                     </artifactSet>                 
                                     <relocations>
                                         <relocation>
+                                            <pattern>com.linecorp</pattern>
+                                            <shadedPattern>com.linecorp.karate</shadedPattern>
+                                        </relocation>                                        
+                                        <relocation>
                                             <pattern>io.netty</pattern>
-                                            <shadedPattern>io.netty.karate</shadedPattern>
+                                            <shadedPattern>karate.io.netty</shadedPattern>
                                         </relocation>
                                         <relocation>
                                             <pattern>org.apache.httpcomponents</pattern>
@@ -201,11 +224,54 @@
                                             <pattern>org.antlr.v4</pattern>
                                             <shadedPattern>org.antlr.karate</shadedPattern>
                                         </relocation>
+                                        <relocation>
+                                            <pattern>org.antlr.v4</pattern>
+                                            <shadedPattern>org.antlr.karate</shadedPattern>
+                                        </relocation>                                        
                                     </relocations>
+                                    <filters>
+                                        <filter>
+                                            <artifact>io.netty:netty-transport-native-epoll</artifact>
+                                            <excludes>
+                                                <exclude>META-INF/native/libnetty_transport_native_epoll_x86_64.so</exclude>                                                                                                                                           
+                                            </excludes>
+                                        </filter>
+                                        <filter>
+                                            <artifact>io.netty:netty-tcnative-boringssl-static</artifact>
+                                            <excludes>
+                                                <exclude>META-INF/native/libnetty_tcnative_linux_x86_64.so</exclude>
+                                                <exclude>META-INF/native/libnetty_tcnative_linux_aarch64.so</exclude>                                               
+                                                <exclude>META-INF/native/libnetty_tcnative_osx_x86_64.jnilib</exclude>
+                                                <exclude>META-INF/native/netty_tcnative_windows_x86_64.dll</exclude>                                                                                                                                               
+                                            </excludes>
+                                        </filter>
+                                    </filters>                                                                                                       
+                                    <transformers>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+                                            <resource>META-INF/native/libkarate_netty_transport_native_epoll_x86_64.so</resource>
+                                            <file>target/shade/META-INF/native/libnetty_transport_native_epoll_x86_64.so</file>
+                                        </transformer>                                        
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+                                            <resource>META-INF/native/libkarate_netty_tcnative_linux_x86_64.so</resource>
+                                            <file>target/shade/META-INF/native/libnetty_tcnative_linux_x86_64.so</file>
+                                        </transformer>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+                                            <resource>META-INF/native/libkarate_netty_tcnative_linux_aarch64.so</resource>
+                                            <file>target/shade/META-INF/native/libnetty_tcnative_linux_aarch64.so</file>
+                                        </transformer>                                                                                                                       
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+                                            <resource>META-INF/native/libkarate_netty_tcnative_osx_x86_64.jnilib</resource>
+                                            <file>target/shade/META-INF/native/libnetty_tcnative_osx_x86_64.jnilib</file>
+                                        </transformer>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+                                            <resource>META-INF/native/karate_netty_tcnative_windows_x86_64.dll</resource>
+                                            <file>target/shade/META-INF/native/netty_tcnative_windows_x86_64.dll</file>
+                                        </transformer>                                                                               
+                                    </transformers>
                                 </configuration>
                             </execution>
                         </executions>
-                    </plugin>                    
+                    </plugin>                                       
                 </plugins>
             </build>
         </profile>
