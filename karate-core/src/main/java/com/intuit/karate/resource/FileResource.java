@@ -42,13 +42,13 @@ public class FileResource implements Resource {
     }
 
     private FileResource(File file, boolean classpath) {
-        this(file, classpath, file.getPath().replace('\\', '/'));
+        this(file, classpath, file.getPath());
     }
 
     public FileResource(File file, boolean classPath, String relativePath) {
         this.file = file;
         this.classPath = classPath;
-        this.relativePath = relativePath;
+        this.relativePath = relativePath.replace('\\', '/');
     }
 
     @Override
@@ -75,7 +75,7 @@ public class FileResource implements Resource {
     public Resource resolve(String path) {
         int pos = relativePath.lastIndexOf('/');
         String parentPath = pos == -1 ? "" : relativePath.substring(0, pos);
-        String childPath = parentPath + "/" + path.replace('\\', '/');
+        String childPath = parentPath + File.separator + path;
         File child = new File(file.getParent() + File.separator + path);
         return new FileResource(child, classPath, childPath);
     }
