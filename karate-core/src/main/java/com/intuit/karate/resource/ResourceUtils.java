@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.resource;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Feature;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ResourceList;
@@ -38,8 +39,10 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -227,12 +230,14 @@ public class ResourceUtils {
         return pos == -1 ? text : text.substring(pos + 1);
     }
 
+    private static final ClassLoader CLASS_LOADER = ResourceUtils.class.getClassLoader();
+
     public static InputStream classPathToStream(String path) {
-        return ResourceUtils.class.getClassLoader().getResourceAsStream(path);
+        return CLASS_LOADER.getResourceAsStream(path);
     }
 
     public static File classPathToFile(String path) {
-        URL url = ResourceUtils.class.getClassLoader().getResource(path);
+        URL url = CLASS_LOADER.getResource(path);
         if (url == null || !"file".equals(url.getProtocol())) {
             return null;
         }
@@ -241,6 +246,34 @@ public class ResourceUtils {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static Set<String> findJsFilesInDirectory(File dir) {
+        List<Resource> resources = findFilesByExtension(dir, "js", Collections.singletonList(dir));
+        Set<String> set = new HashSet(resources.size());
+        for (Resource res : resources) {
+            set.add(res.getRelativePath());
+        }
+        return set;
+    }
+
+    public static Set<String> findJsFilesInClassPath(String path) {
+        String searchPath;
+        if (path.startsWith("classpath:")) {
+            searchPath = path;
+            path = removePrefix(path);
+        } else {
+            searchPath = "classpath:" + path;
+        }
+        Resource root = getResource(FileUtils.WORKING_DIR, searchPath);
+        File rootFile = root.isFile() ? root.getFile() : FileUtils.WORKING_DIR;
+        Collection<Resource> resources = findResourcesByExtension(rootFile, "js", searchPath);
+        Set<String> set = new HashSet(resources.size());
+        int pos = path.length();
+        for (Resource res : resources) {
+            set.add(res.getRelativePath().substring(pos));
+        }
+        return set;
     }
 
 }

@@ -235,7 +235,8 @@ class ScenarioRuntimeTest {
         );
         assertEquals(get("fooStr"), "{\"hello\":\"world\"}");
         assertEquals(get("fooPretty"), "{\n  \"hello\": \"world\"\n}\n");
-        assertEquals(get("fooXml"), "<hello>world</hello>\n");
+        // fixed for windows
+        assertEquals(((String) get("fooXml")).trim(), "<hello>world</hello>");
     }
 
     @Test

@@ -24,6 +24,7 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -54,7 +55,7 @@ public interface ResourceResolver {
                 value = value + "/";
             }
             root = value;
-            jsFiles = FileUtils.jsFiles(root);
+            jsFiles = ResourceUtils.findJsFilesInClassPath(root);
         }
 
         @Override
@@ -64,7 +65,7 @@ public interface ResourceResolver {
 
         @Override
         public InputStream read(String path) {
-            return FileUtils.resourceAsStream(root + path);
+            return ResourceUtils.classPathToStream(root + path);
         }
 
         @Override
@@ -89,7 +90,7 @@ public interface ResourceResolver {
             }
             root = value;
             baseDir = new File(root);
-            jsFiles = FileUtils.jsFiles(baseDir);
+            jsFiles = ResourceUtils.findJsFilesInDirectory(baseDir);
         }
 
         @Override

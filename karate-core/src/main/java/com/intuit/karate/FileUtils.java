@@ -32,14 +32,10 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Comparator;
-import java.util.Enumeration;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Properties;
 import java.util.Set;
@@ -218,39 +214,6 @@ public class FileUtils {
         } catch (IOException e) { // NoSuchFileException  
             LOGGER.trace("unable to walk path: {} - {}", root, e.getMessage());
         }
-    }
-
-    private static final Predicate<Path> IS_JS_FILE = p -> p != null && p.toString().endsWith(".js");
-    
-    private static final ClassLoader CLASS_LOADER = FileUtils.class.getClassLoader();
-
-    public static Set<String> jsFiles(File baseDir) {
-        Set<String> results = new HashSet();
-        walkPath(baseDir.toPath().toAbsolutePath(), results, IS_JS_FILE);
-        return results;
-    }
-
-    public static Set<String> jsFiles(String basePath) {
-        Set<String> results = new HashSet();
-        try {
-            Enumeration<URL> urls = CLASS_LOADER.getResources(basePath);
-            while (urls.hasMoreElements()) {
-                URL url = urls.nextElement();
-                Path path = Paths.get(url.toURI());
-                walkPath(path, results, IS_JS_FILE);
-            }
-        } catch (Exception e) {
-            LOGGER.warn("unable to scan for js files at: {}", basePath);
-        }
-        return results;
-    }
-
-    public static InputStream resourceAsStream(String resourcePath) {
-        InputStream is = CLASS_LOADER.getResourceAsStream(resourcePath);
-        if (is == null) {
-            throw new RuntimeException("failed to read: " + resourcePath);
-        }
-        return is;
     }
 
     public static String getBuildDir() {
