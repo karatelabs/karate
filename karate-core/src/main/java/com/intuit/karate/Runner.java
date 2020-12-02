@@ -257,7 +257,7 @@ public class Runner {
         protected Builder forTempUse() {
             forTempUse = true;
             return this;
-        }                
+        }
 
         //======================================================================
         //
@@ -303,9 +303,15 @@ public class Runner {
             return this;
         }
 
-        public Builder fromKarateAnnotation(Class<?> clazz) { // TODO deprecate            
+        /**
+         * @see com.intuit.karate.Runner#builder()        
+         * @deprecated
+         */
+        @Deprecated
+        public Builder fromKarateAnnotation(Class<?> clazz) {
             KarateOptions ko = clazz.getAnnotation(KarateOptions.class);
             if (ko != null) {
+                LOGGER.warn("the @KarateOptions annotation is deprecated, please use Runner.builder()");
                 if (ko.tags().length > 0) {
                     tags = Arrays.asList(ko.tags());
                 }
@@ -399,21 +405,21 @@ public class Runner {
             threadCount = value;
             return this;
         }
-        
+
         public Builder outputHtmlReport(boolean value) {
             outputHtmlReport = value;
             return this;
         }
-        
+
         public Builder outputCucumberJson(boolean value) {
             outputCucumberJson = value;
             return this;
-        } 
-        
+        }
+
         public Builder outputJunitXml(boolean value) {
             outputJunitXml = value;
             return this;
-        }        
+        }
 
         public Results parallel(int threadCount) {
             threads(threadCount);
