@@ -249,7 +249,7 @@ public class ResourceUtils {
     }
 
     public static Set<String> findJsFilesInDirectory(File dir) {
-        List<Resource> resources = findFilesByExtension(dir, "js", Collections.singletonList(dir));
+        List<Resource> resources = findFilesByExtension(dir.getAbsoluteFile(), "js", Collections.singletonList(dir));
         Set<String> set = new HashSet(resources.size());
         for (Resource res : resources) {
             set.add(res.getRelativePath());
