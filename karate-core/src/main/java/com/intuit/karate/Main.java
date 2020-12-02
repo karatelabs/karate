@@ -30,6 +30,7 @@ import com.intuit.karate.debug.DapServer;
 import com.intuit.karate.formats.PostmanConverter;
 import com.intuit.karate.http.SslContextFactory;
 import com.intuit.karate.job.JobExecutor;
+import com.intuit.karate.shell.Command;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -141,6 +142,11 @@ public class Main implements Callable<Void> {
 
     public void setName(String name) {
         this.name = name;
+    }
+    
+    public static Main parseKarateOptions(String line) {
+        String[] args = Command.tokenize(line);
+        return CommandLine.populateCommand(new Main(), args);
     }
 
     public static void main(String[] args) {

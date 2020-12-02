@@ -46,7 +46,7 @@ public class IdeMain {
             command = System.getProperty("sun.java.command");
         }
         System.out.println("command: " + command);
-        Main ro = parseCommandLine(command);
+        Main ro = parseIdeCommandLine(command);
         Runner.Builder rb = Runner.builder();
         if (command.contains("org.jetbrains")) {
             rb.hook(new IntellijHook());
@@ -78,7 +78,7 @@ public class IdeMain {
     
     private static final String CLI_MAIN = "cucumber.api.cli.Main";
 
-    public static Main parseCommandLine(String line) {
+    public static Main parseIdeCommandLine(String line) {
         int pos = line.indexOf(CLI_MAIN);
         if (pos != -1) {
             line = line.substring(pos + CLI_MAIN.length());

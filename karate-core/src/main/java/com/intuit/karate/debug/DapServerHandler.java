@@ -350,7 +350,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             options = new Main();
             options.addPath(launchCommand);
         } else {
-            options = IdeMain.parseCommandLine(launchCommand);
+            options = IdeMain.parseIdeCommandLine(launchCommand);
         }
         if (runnerThread != null) {
             runnerThread.interrupt();

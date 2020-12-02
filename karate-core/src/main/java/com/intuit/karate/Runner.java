@@ -168,7 +168,7 @@ public class Runner {
             String tempOptions = StringUtils.trimToNull(systemProperties.get(Constants.KARATE_OPTIONS));
             if (tempOptions != null) {
                 LOGGER.info("using system property '{}': {}", Constants.KARATE_OPTIONS, tempOptions);
-                Main ro = IdeMain.parseCommandLine(tempOptions);
+                Main ro = Main.parseKarateOptions(tempOptions);
                 if (ro.tags != null) {
                     tags = ro.tags;
                 }
