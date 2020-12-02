@@ -201,7 +201,9 @@
                                 <configuration>
                                     <artifactSet>
                                         <includes>
-                                            <include>com.linecorp.armeria:*</include>
+                                            <include>com.linecorp.armeria:*</include> 
+                                            <include>io.micrometer:*</include>
+                                            <include>org.reactivestreams:*</include>                                           
                                             <include>io.netty:*</include>
                                             <include>org.apache.httpcomponents:*</include>
                                             <include>org.antlr:*</include>
@@ -210,24 +212,20 @@
                                     <relocations>
                                         <relocation>
                                             <pattern>com.linecorp</pattern>
-                                            <shadedPattern>com.linecorp.karate</shadedPattern>
+                                            <shadedPattern>karate.com.linecorp</shadedPattern>
                                         </relocation>                                        
                                         <relocation>
                                             <pattern>io.netty</pattern>
                                             <shadedPattern>karate.io.netty</shadedPattern>
                                         </relocation>
                                         <relocation>
-                                            <pattern>org.apache.httpcomponents</pattern>
-                                            <shadedPattern>org.apache.httpkarate</shadedPattern>
+                                            <pattern>org.apache.http</pattern>
+                                            <shadedPattern>karate.org.apache.http</shadedPattern>
                                         </relocation>                                        
                                         <relocation>
                                             <pattern>org.antlr.v4</pattern>
-                                            <shadedPattern>org.antlr.karate</shadedPattern>
-                                        </relocation>
-                                        <relocation>
-                                            <pattern>org.antlr.v4</pattern>
-                                            <shadedPattern>org.antlr.karate</shadedPattern>
-                                        </relocation>                                        
+                                            <shadedPattern>karate.org.antlr.v4</shadedPattern>
+                                        </relocation>                                       
                                     </relocations>
                                     <filters>
                                         <filter>
