@@ -54,9 +54,13 @@ public class ResponseBuilder {
     private final ServerConfig config;
     private final ResourceResolver resourceResolver;
 
-    public ResponseBuilder(ServerConfig config) {
+    public ResponseBuilder(ServerConfig config, RequestCycle rc) {
         this.config = config;
         resourceResolver = config.getResourceResolver();
+        if (rc != null) {
+            Response response = rc.getResponse();
+            headers = response.getHeaders();
+        }
     }
 
     public ResponseBuilder body(String body) {

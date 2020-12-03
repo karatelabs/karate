@@ -9,3 +9,9 @@ Scenario:
 
 # script() | waitUntil()
 * call read('03.feature')
+
+# cookies
+* call read('04.feature')
+
+# driver.intercept
+* call read('05.feature')

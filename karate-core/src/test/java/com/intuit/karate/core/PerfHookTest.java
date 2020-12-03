@@ -2,18 +2,15 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.PerfHook;
 import com.intuit.karate.Runner;
+import static com.intuit.karate.TestUtils.*;
 import com.intuit.karate.http.HttpRequest;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
-import com.intuit.karate.match.Match;
-import com.intuit.karate.match.MatchResult;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import static org.junit.jupiter.api.Assertions.*;
-
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -62,7 +59,7 @@ class PerfHookTest {
         assertEquals(featureResult.getScenarioCount(), 1);
         assertEquals(featureResult.getPassedCount(), 1);
         assertEquals(featureResult.getFailedCount(), 0);
-        match(featureResult.getVariables(), "{ bar: '" + bar + "', responseHeaders: { content-type: ['application/json'], content-length: [#string], server: [#string], date: [#string] }, configSource: 'normal', responseStatus: 200, response: { foo: ['" + bar + "'] } }");
+        matchContains(featureResult.getVariables(), "{ bar: '" + bar + "', configSource: 'normal', responseStatus: 200, response: { foo: ['" + bar + "'] } }");
     }
 
     @Test
@@ -79,7 +76,7 @@ class PerfHookTest {
         assertEquals(featureResult.getScenarioCount(), 1);
         assertEquals(featureResult.getPassedCount(), 0);
         assertEquals(featureResult.getFailedCount(), 1);
-        match(featureResult.getVariables(), "{ bar: '" + bar + "', responseHeaders: { content-type: ['application/json'], content-length: [#string], server: [#string], date: [#string] }, configSource: 'normal', responseStatus: 200, response: { foo: ['" + bar + "'] } }");
+        matchContains(featureResult.getVariables(), "{ bar: '" + bar + "', configSource: 'normal', responseStatus: 200, response: { foo: ['" + bar + "'] } }");
     }
 
     @Test
@@ -96,7 +93,7 @@ class PerfHookTest {
         assertEquals(featureResult.getScenarioCount(), 1);
         assertEquals(featureResult.getPassedCount(), 0);
         assertEquals(featureResult.getFailedCount(), 1);
-        match(featureResult.getVariables(), "{ bar: '" + bar + "', responseHeaders: { content-type: ['application/json'], content-length: [#string], server: [#string], date: [#string] }, configSource: 'normal', responseStatus: 200, response: { foo: ['" + bar + "'] } }");
+        matchContains(featureResult.getVariables(), "{ bar: '" + bar + "', configSource: 'normal', responseStatus: 200, response: { foo: ['" + bar + "'] } }");
     }
 
     @Test
@@ -145,12 +142,7 @@ class PerfHookTest {
         }
         assertNull(eventName);
         assertNull(featureResult);
-    }
-
-    private void match(Object actual, Object expected) {
-        MatchResult mr = Match.that(actual).isEqualTo(expected);
-        assertTrue(mr.pass, mr.message);
-    }
+    }  
 
     String eventName;
     FeatureResult featureResult;

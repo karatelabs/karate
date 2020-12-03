@@ -109,9 +109,21 @@ public class MockHandler implements ServerHandler {
     }
 
     private static final Result PASSED = Result.passed(0);
+    private static final String ALLOWED_METHODS = "GET, HEAD, POST, PUT, DELETE, PATCH";
 
     @Override
     public synchronized Response handle(Request req) { // note the [synchronized]
+        if (req.getMethod().equals("OPTIONS")) { // TODO configure
+            Response response = new Response(200);
+            response.setHeader("Allow", ALLOWED_METHODS);
+            response.setHeader("Access-Control-Allow-Origin", "*");
+            response.setHeader("Access-Control-Allow-Methods", ALLOWED_METHODS);
+            List<String> requestHeaders = req.getHeaderValues("Access-Control-Request-Headers");
+            if (requestHeaders != null) {
+                response.setHeader("Access-Control-Allow-Headers", requestHeaders);
+            }
+            return response;
+        }
         // important for graal to work properly
         Thread.currentThread().setContextClassLoader(runtime.featureRuntime.suite.classLoader);
         LOCAL_REQUEST.set(req);
@@ -169,10 +181,11 @@ public class MockHandler implements ServerHandler {
                     response = new Variable(result.getError().getMessage());
                     responseStatus = new Variable(500);
                 } else {
+                    res.setHeader("Access-Control-Allow-Origin", "*"); // TODO configure
                     res.setHeaders(configureHeaders);
                     if (responseHeaders != null && responseHeaders.isMap()) {
                         res.setHeaders(responseHeaders.getValue());
-                    }
+                    }                    
                     if (responseDelay != null) {
                         res.setDelay(responseDelay.getAsInt());
                     }
@@ -287,5 +300,4 @@ public class MockHandler implements ServerHandler {
             return JsValue.fromJava(result);
         }
     }
-
 }

@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Page 05</title>
+    <script src="00.js"></script>
+    <link rel="stylesheet" href="00.css" type="text/css"/>  
+    <link rel="icon" href="00.ico">
+    <script>
+      var makeApiCall = function() {
+        fetch('/api/05')
+            .then(response => response.json())
+            .then(data => karate.setHtml('containerDiv', data.message));
+      }
+    </script>  
+  </head>
+  <body>
+    <p>driver.intercept</p>
+    <button onclick="makeApiCall()">Click Me</button>
+    <div id="containerDiv"></div>
+  </body>
+</html>

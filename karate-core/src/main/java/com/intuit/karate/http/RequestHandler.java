@@ -117,7 +117,7 @@ public class RequestHandler implements ServerHandler {
         try {
             if (context.isApi()) {
                 InputStream is = resourceResolver.read(request.getResourcePath());
-                ResponseBuilder rb = response(session, newSession);
+                ResponseBuilder rb = response(rc, session, newSession);
                 if (context.isLockNeeded()) {
                     synchronized (this) {
                         return apiResponse(is, rb, rc);
@@ -127,7 +127,7 @@ public class RequestHandler implements ServerHandler {
                 }
             } else {
                 String html = htmlResponse(request);
-                return response(session, newSession).html(html).build(rc);
+                return response(rc, session, newSession).html(html).build(rc);
             }
         } catch (Exception e) {
             logger.error("handle failed: {}", e.getMessage());
@@ -180,11 +180,11 @@ public class RequestHandler implements ServerHandler {
     }
 
     private ResponseBuilder response() {
-        return new ResponseBuilder(config);
+        return new ResponseBuilder(config, null);
     }
 
-    private ResponseBuilder response(Session session, boolean newSession) {
-        return new ResponseBuilder(config).session(session, newSession);
+    private ResponseBuilder response(RequestCycle rc, Session session, boolean newSession) {
+        return new ResponseBuilder(config, rc).session(session, newSession);
     }
 
 }

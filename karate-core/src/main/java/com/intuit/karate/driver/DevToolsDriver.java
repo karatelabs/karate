@@ -30,6 +30,7 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.WebSocketClient;
 import com.intuit.karate.http.WebSocketOptions;
 import com.intuit.karate.core.MockHandler;
@@ -38,6 +39,7 @@ import com.intuit.karate.core.Variable;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.Response;
 import com.intuit.karate.shell.Command;
+import org.graalvm.polyglot.Value;
 
 import java.util.ArrayList;
 import java.util.Base64;
@@ -928,7 +930,8 @@ public abstract class DevToolsDriver implements Driver {
                 .param("flatten", true).send();
     }
     
-    public void intercept(Map<String, Object> config) {
+    public void intercept(Value value) {
+        Map<String, Object> config = (Map) JsValue.toJava(value);
         config = new Variable(config).getValue(); // ensure js is pre-processed, TODO graal
         List<String> patterns = (List) config.get("patterns");
         if (patterns == null) {
