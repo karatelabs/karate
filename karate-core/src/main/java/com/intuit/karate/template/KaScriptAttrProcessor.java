@@ -24,10 +24,8 @@
 package com.intuit.karate.template;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.http.RequestCycle;
 import com.intuit.karate.http.ResourceResolver;
 import java.io.InputStream;
 import org.slf4j.Logger;
@@ -55,25 +53,10 @@ public class KaScriptAttrProcessor extends AbstractAttributeTagProcessor {
 
     @Override
     protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag, AttributeName an, String av, IElementTagStructureHandler sh) {
-        String src;
-        if (StringUtils.isBlank(av)) {
-            // allow users to switch on the generated <script> header e.g. <script ka:src=""></script>
-            src = null;
-        } else {
-            InputStream is = resourceResolver.read(av);
-            src = StringUtils.trimToNull(FileUtils.toString(is));
-        }
-        if (TemplateUtils.hasAncestorElement(ctx, "head")) {
-            if (src != null) {
-                JsEngine.evalGlobal(src);
-            }
-            sh.replaceWith(TemplateUtils.generateScriptTags(ctx), false);
-        } else {
-            if (src != null) {
-                RequestCycle.get().evalAndQueue(src);
-            }
-            sh.removeElement();
-        }
+        InputStream is = resourceResolver.read(av);
+        String src = FileUtils.toString(is);
+        JsEngine.evalGlobal(src);
+        sh.removeElement();
     }
 
 }

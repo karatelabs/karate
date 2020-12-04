@@ -83,13 +83,14 @@ public interface ResourceResolver {
 
         public FileSystemResourceResolver(String value) {
             if (value == null) {
-                value = "/";
+                value = "";
             }
-            if (!value.endsWith("/")) {
-                value = value + "/";
+            if (value.endsWith("/")) {
+                root = value;
+            } else {
+                root = value + "/";
             }
-            root = value;
-            baseDir = new File(root);
+            baseDir = new File(value);
             jsFiles = ResourceUtils.findJsFilesInDirectory(baseDir);
         }
 

@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.template;
 
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.http.RequestCycle;
 import org.slf4j.Logger;
@@ -51,18 +52,27 @@ public class KaScriptElemProcessor extends AbstractElementModelProcessor {
     protected void doProcess(ITemplateContext ctx, IModel model, IElementModelStructureHandler sh) {
         int n = model.size();
         boolean isHead = TemplateUtils.hasAncestorElement(ctx, "head");
+        IModel headModel = null;
         while (n-- != 0) {
             final ITemplateEvent event = model.get(n);
             if (event instanceof IText) {
-                String text = ((IText) event).getText();
+                String text = StringUtils.trimToNull(((IText) event).getText());
                 if (isHead) {
-                    JsEngine.evalGlobal(text);
-                } else {
+                    if (text != null) {
+                        JsEngine.evalGlobal(text);
+                    }
+                    if (headModel == null) {
+                        headModel = TemplateUtils.generateScriptTags(ctx);
+                    }
+                } else if (text != null) {
                     RequestCycle.get().evalAndQueue(text);
                 }
             }
         }
         model.reset();
+        if (headModel != null) {
+            model.addModel(headModel);
+        }
     }
 
 }

@@ -44,7 +44,7 @@ public class ServerConfig {
     private boolean useGlobalSession;
     private SessionStore sessionStore = JvmSessionStore.INSTANCE;
     private int sessionExpirySeconds = 60 * 10;
-    private ResourceResolver resourceResolver = new ClassPathResourceResolver(null);
+    private ResourceResolver resourceResolver = new FileSystemResourceResolver(null);
     private Map<String, String> resourceMounts;
 
     private static final Session GLOBAL_SESSION = new Session("-1", new HashMap(), -1, -1, -1);

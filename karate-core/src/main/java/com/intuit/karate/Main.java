@@ -28,6 +28,9 @@ import ch.qos.logback.classic.Logger;
 import com.intuit.karate.core.MockServer;
 import com.intuit.karate.debug.DapServer;
 import com.intuit.karate.formats.PostmanConverter;
+import com.intuit.karate.http.HttpServer;
+import com.intuit.karate.http.RequestHandler;
+import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.http.SslContextFactory;
 import com.intuit.karate.job.JobExecutor;
 import com.intuit.karate.shell.Command;
@@ -53,11 +56,17 @@ public class Main implements Callable<Void> {
     @Option(names = {"-h", "--help"}, usageHelp = true, description = "display this help message")
     boolean help;
 
+    @Parameters(description = "one or more tests (features) or search-paths to run")
+    List<String> paths;
+
     @Option(names = {"-m", "--mock"}, description = "mock server file")
     File mock;
 
-    @Option(names = {"-p", "--port"}, description = "mock server port (required for --mock)")
-    Integer port;
+    @Option(names = {"-p", "--port"}, description = "server port (default 8080)")
+    int port = 8080;
+
+    @Option(names = {"-S", "--serve"}, description = "app server using --workdir (experimental)")
+    boolean serve;
 
     @Option(names = {"-s", "--ssl"}, description = "use ssl / https, will use '"
             + SslContextFactory.DEFAULT_CERT_NAME + "' and '" + SslContextFactory.DEFAULT_KEY_NAME
@@ -82,9 +91,6 @@ public class Main implements Callable<Void> {
     @Option(names = {"-f", "--format"}, description = "report output formats in addition to html e.g. '-f xml -f json'"
             + " [json: Cucumber JSON, xml: JUnit XML]")
     List<String> formats;
-
-    @Parameters(description = "one or more tests (features) or search-paths to run")
-    List<String> paths;
 
     @Option(names = {"-n", "--name"}, description = "scenario name")
     String name;
@@ -143,7 +149,7 @@ public class Main implements Callable<Void> {
     public void setName(String name) {
         this.name = name;
     }
-    
+
     public static Main parseKarateOptions(String line) {
         String[] args = Command.tokenize(line);
         return CommandLine.populateCommand(new Main(), args);
@@ -184,16 +190,17 @@ public class Main implements Callable<Void> {
             }
         }
         logger = (Logger) LoggerFactory.getLogger("com.intuit.karate");
-        setLogLevelWarn("org.apache");
-        setLogLevelWarn("io.netty");
+        setLogLevelWarn("org.apache", "io.netty", "com.linecorp", "org.thymeleaf");
         logger.info("Karate version: {}", FileUtils.KARATE_VERSION);
         CommandLine cmd = new CommandLine(new Main());
         int returnCode = cmd.execute(args);
         System.exit(returnCode);
     }
-    
-    private static void setLogLevelWarn(String name) {
-        ((Logger) LoggerFactory.getLogger(name)).setLevel(Level.WARN);
+
+    private static void setLogLevelWarn(String ... names) {
+        for (String name : names) {
+            ((Logger) LoggerFactory.getLogger(name)).setLevel(Level.WARN);
+        }
     }
 
     @Override
@@ -244,12 +251,14 @@ public class Main implements Callable<Void> {
         if (clean) {
             return null;
         }
-        if (mock == null) {
-            CommandLine.usage(this, System.err);
+        if (serve) {
+            ServerConfig config = new ServerConfig().fileSystemRoot(workingDir.getAbsolutePath());
+            RequestHandler handler = new RequestHandler(config);
+            HttpServer server = new HttpServer(port, handler);
+            server.waitSync();
             return null;
         }
-        if (port == null) {
-            System.err.println("--port required for --mock option");
+        if (mock == null) {
             CommandLine.usage(this, System.err);
             return null;
         }
