@@ -35,7 +35,7 @@ public class SimpleLocalJobRunner {
         };
         // export KARATE_TEST="foo"
         config.addEnvPropKey("KARATE_TEST");
-        Results results = Runner.path("classpath:jobtest/simple").startServerAndWait(config);
+        Results results = Runner.path("classpath:jobtest/simple").parallel(1);
         ReportUtils.generateReport(results.getReportDir());
     }
 

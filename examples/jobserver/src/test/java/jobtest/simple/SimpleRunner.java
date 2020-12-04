@@ -14,7 +14,8 @@ public class SimpleRunner {
     
     @Test
     void test() {
-        Results results = Runner.path("classpath:jobtest/simple").tags("~@ignore").parallel(1);
+        Results results = Runner.path("classpath:jobtest/simple")
+                .outputCucumberJson(true).tags("~@ignore").parallel(1);
         ReportUtils.generateReport(results.getReportDir());
         assertEquals(0, results.getFailCount(), results.getErrorMessages());
     }      

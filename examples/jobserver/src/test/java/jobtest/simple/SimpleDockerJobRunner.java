@@ -15,7 +15,7 @@ public class SimpleDockerJobRunner {
     @Test
     void testJobManager() {
         MavenJobConfig config = new MavenJobConfig(2, "host.docker.internal", 0);
-        Results results = Runner.path("classpath:jobtest/simple").startServerAndWait(config);
+        Results results = Runner.path("classpath:jobtest/simple").parallel(1); //.startServerAndWait(config);
         ReportUtils.generateReport(results.getReportDir());
     }
 

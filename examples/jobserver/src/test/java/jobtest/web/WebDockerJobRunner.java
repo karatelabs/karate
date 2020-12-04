@@ -16,7 +16,7 @@ public class WebDockerJobRunner {
     void test() {        
         MavenChromeJobConfig config = new MavenChromeJobConfig(2, "host.docker.internal", 0);
         System.setProperty("karate.env", "jobserver");
-        Results results = Runner.path("classpath:jobtest/web").startServerAndWait(config);
+        Results results = Runner.path("classpath:jobtest/web").parallel(1);
         ReportUtils.generateReport(results.getReportDir());
     }
 
