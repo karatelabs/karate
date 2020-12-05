@@ -72,7 +72,7 @@ public class Config {
     private String localAddress;
     private int responseDelay;
     private boolean lowerCaseResponseHeaders = false;
-    private boolean corsEnabled = false; // TODO deprecate
+    private boolean corsEnabled = false;
     private boolean logPrettyRequest;
     private boolean logPrettyResponse;
     private boolean printEnabled = true;
@@ -164,7 +164,6 @@ public class Config {
                 lowerCaseResponseHeaders = value.isTrue();
                 return false;
             case "cors":
-                logger.warn("'cors' is deprecated, use server start api instead");
                 corsEnabled = value.isTrue();
                 return false;
             case "logPrettyResponse":

@@ -36,11 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.Properties;
-import java.util.Set;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -195,24 +191,6 @@ public class FileUtils {
             } catch (Exception e) {
                 LOGGER.warn("failed to rename zero length file: {}", e.getMessage());
             }
-        }
-    }
-
-    // TODO use this <Set> based and tighter routine for feature files above
-    private static void walkPath(Path root, Set<String> results, Predicate<Path> predicate) {
-        Stream<Path> stream;
-        try {
-            stream = Files.walk(root);
-            for (Iterator<Path> paths = stream.iterator(); paths.hasNext();) {
-                Path path = paths.next();
-                Path fileName = path.getFileName();
-                if (predicate.test(fileName)) {
-                    String relativePath = root.relativize(path.toAbsolutePath()).toString();
-                    results.add(relativePath);
-                }
-            }
-        } catch (IOException e) { // NoSuchFileException  
-            LOGGER.trace("unable to walk path: {} - {}", root, e.getMessage());
         }
     }
 

@@ -271,7 +271,7 @@ public class Main implements Callable<Void> {
         if (env != null) { // some advanced mocks may want karate.env
             System.setProperty(Constants.KARATE_ENV, env);
         }
-        MockServer.Builder builder = MockServer.feature(mock).certFile(cert).keyFile(key).corsEnabled();
+        MockServer.Builder builder = MockServer.feature(mock).certFile(cert).keyFile(key);
         if (ssl) {
             builder.https(port);
         } else {

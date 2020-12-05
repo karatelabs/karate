@@ -92,11 +92,6 @@ public class MockServer extends HttpServer {
             return this;
         }
 
-        public Builder corsEnabled() {
-            corsEnabled = true;
-            return this;
-        }
-
         public MockServer build() {
             ServerBuilder sb = Server.builder();
             if (ssl) {

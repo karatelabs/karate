@@ -194,7 +194,7 @@ class KarateMockHandlerTest {
                 URL_STEP,
                 "path '/hello'",
                 "method get",
-                "match responseHeaders == { 'Content-Type': ['application/json'], 'Access-Control-Allow-Origin': ['*'] }",
+                "match responseHeaders == { 'Content-Type': ['application/json'] }",
                 "match header content-type == 'application/json'",
                 "match header content-type contains 'json'"
         );
@@ -329,7 +329,7 @@ class KarateMockHandlerTest {
                 "path '/hello'",
                 "method get"
         );
-        matchVar("responseHeaders", "{ 'Content-Type': ['text/html'], 'Access-Control-Allow-Origin': ['*'] }");
+        matchVar("responseHeaders", "{ 'Content-Type': ['text/html'] }");
     }
 
 }

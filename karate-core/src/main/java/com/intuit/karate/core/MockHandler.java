@@ -69,6 +69,7 @@ public class MockHandler implements ServerHandler {
     private final Feature feature;
     private final ScenarioRuntime runtime; // holds global config and vars
     private final Map<String, Variable> globals;
+    private final boolean corsEnabled;
 
     protected static final ThreadLocal<Request> LOCAL_REQUEST = new ThreadLocal<Request>();
 
@@ -104,6 +105,7 @@ public class MockHandler implements ServerHandler {
                 }
             }
         }
+        corsEnabled = runtime.engine.getConfig().isCorsEnabled();
         globals = runtime.engine.detachVariables();
         runtime.logger.info("mock server initialized: {}", feature);
     }
@@ -113,7 +115,7 @@ public class MockHandler implements ServerHandler {
 
     @Override
     public synchronized Response handle(Request req) { // note the [synchronized]
-        if (req.getMethod().equals("OPTIONS")) { // TODO configure
+        if (corsEnabled && "OPTIONS".equals(req.getMethod())) {
             Response response = new Response(200);
             response.setHeader("Allow", ALLOWED_METHODS);
             response.setHeader("Access-Control-Allow-Origin", "*");
@@ -181,11 +183,13 @@ public class MockHandler implements ServerHandler {
                     response = new Variable(result.getError().getMessage());
                     responseStatus = new Variable(500);
                 } else {
-                    res.setHeader("Access-Control-Allow-Origin", "*"); // TODO configure
+                    if (corsEnabled) {
+                        res.setHeader("Access-Control-Allow-Origin", "*");
+                    }
                     res.setHeaders(configureHeaders);
                     if (responseHeaders != null && responseHeaders.isMap()) {
                         res.setHeaders(responseHeaders.getValue());
-                    }                    
+                    }
                     if (responseDelay != null) {
                         res.setDelay(responseDelay.getAsInt());
                     }
@@ -300,4 +304,5 @@ public class MockHandler implements ServerHandler {
             return JsValue.fromJava(result);
         }
     }
+
 }
