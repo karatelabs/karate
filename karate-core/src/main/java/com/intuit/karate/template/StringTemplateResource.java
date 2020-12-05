@@ -23,35 +23,46 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.http.ServerConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.thymeleaf.context.ITemplateContext;
-import org.thymeleaf.engine.AttributeName;
-import org.thymeleaf.model.IProcessableElementTag;
-import org.thymeleaf.processor.element.AbstractAttributeTagProcessor;
-import org.thymeleaf.processor.element.IElementTagStructureHandler;
-import org.thymeleaf.templatemode.TemplateMode;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
+import org.thymeleaf.templateresource.ITemplateResource;
 
 /**
  *
  * @author pthomas3
  */
-public class KaLinkHrefProcessor extends AbstractAttributeTagProcessor {
-
-    private static final Logger logger = LoggerFactory.getLogger(KaLinkHrefProcessor.class);
-
-    private final String hostContextPath;
-
-    public KaLinkHrefProcessor(String dialectPrefix, ServerConfig config) {
-        super(TemplateMode.HTML, dialectPrefix, "link", false, "href", false, 1000, false);
-        hostContextPath = config.getHostContextPath();
+public class StringTemplateResource implements ITemplateResource {    
+    
+    private final String text;
+    
+    public StringTemplateResource(String text) {
+        this.text = text;
     }
 
     @Override
-    protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag, AttributeName an, String av, IElementTagStructureHandler sh) {
-        String href = hostContextPath == null ? av : hostContextPath + av;
-        sh.setAttribute("href", href);
+    public String getDescription() {
+        return getBaseName();
     }
 
+    @Override
+    public String getBaseName() {
+        return getClass().getName();
+    }
+
+    @Override
+    public boolean exists() {
+        return true;
+    }
+
+    @Override
+    public Reader reader() throws IOException {
+        return new StringReader(text);
+    }
+
+    @Override
+    public ITemplateResource relative(String relativeLocation) {
+        throw new UnsupportedOperationException("relative: " + relativeLocation + " - not implemented");
+    }
+    
 }

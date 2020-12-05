@@ -23,44 +23,59 @@
  */
 package com.intuit.karate.template;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.http.ServerConfig;
-import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.thymeleaf.IEngineConfiguration;
-import org.thymeleaf.cache.NonCacheableCacheEntryValidity;
-import org.thymeleaf.templatemode.TemplateMode;
-import org.thymeleaf.templateresolver.ITemplateResolver;
-import org.thymeleaf.templateresolver.TemplateResolution;
+import com.intuit.karate.http.ResourceResolver;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
+import java.io.StringReader;
+import org.thymeleaf.templateresource.ITemplateResource;
 
 /**
  *
  * @author pthomas3
  */
-public class TemplateResolver implements ITemplateResolver {
-
-    private static final Logger logger = LoggerFactory.getLogger(TemplateResolver.class);
+public class ServerTemplateResource implements ITemplateResource {
 
     private final ServerConfig config;
+    private final ResourceResolver resourceResolver;
+    private final String name;
 
-    public TemplateResolver(ServerConfig config) {
+    public ServerTemplateResource(String name, ServerConfig config) {
+        this.name = name;
         this.config = config;
+        resourceResolver = config.getResourceResolver();
     }
 
     @Override
-    public String getName() {
-        return "karatejs-template-resolver";
+    public String getDescription() {
+        return name;
     }
 
     @Override
-    public Integer getOrder() {
-        return 0;
+    public String getBaseName() {
+        return name;
     }
 
     @Override
-    public TemplateResolution resolveTemplate(IEngineConfiguration ec, String ownerTemplate, String template, Map<String, Object> templateResolutionAttributes) {
-        TemplateResource resource = new TemplateResource(template, config);
-        return new TemplateResolution(resource, TemplateMode.HTML, NonCacheableCacheEntryValidity.INSTANCE);
+    public boolean exists() {
+        return true;
+    }
+
+    private static final String DOT_HTML = ".html";
+    
+    @Override
+    public Reader reader() throws IOException {
+        String mount = config.getMountPath(name);
+        String resource = mount == null ? name : mount;
+        InputStream is = resourceResolver.read(resource + DOT_HTML);
+        return new StringReader(FileUtils.toString(is));
+    }
+
+    @Override
+    public ITemplateResource relative(String relativeLocation) {
+        throw new UnsupportedOperationException("relative: " + relativeLocation + " - not implemented");
     }
 
 }

@@ -60,12 +60,13 @@ public class TemplateEngineContext implements IEngineContext {
     public TemplateEngineContext(IEngineContext wrapped, RequestCycle requestCycle) {
         this.wrapped = wrapped;
         this.requestCycle = requestCycle;
+        requestCycle.setEngineContext(this);
     }
 
     private JsEngine LOCAL_ENGINE;
 
     public JsValue eval(boolean queue, String exp) {
-        JsEngine je = JsEngine.localWithGlobalBindings();
+        JsEngine je = JsEngine.local(requestCycle.getEngine());
         requestCycle.setLocalEngine(je);
         Set<String> variableNames = getVariableNames();
         if (variableNames.contains(ENGINE)) {

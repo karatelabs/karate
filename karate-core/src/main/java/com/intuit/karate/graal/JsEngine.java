@@ -86,9 +86,9 @@ public class JsEngine {
         return new JsEngine(createContext(engine));
     }
 
-    public static JsEngine localWithGlobalBindings() {
+    public static JsEngine local(JsEngine parent) {
         JsEngine je = local();
-        Value bindings = global().bindings;
+        Value bindings = parent.bindings;
         for (String key : bindings.getMemberKeys()) {
             je.putValue(key, bindings.getMember(key));
         }

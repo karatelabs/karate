@@ -23,35 +23,35 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.http.ServerConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.thymeleaf.context.ITemplateContext;
-import org.thymeleaf.engine.AttributeName;
-import org.thymeleaf.model.IProcessableElementTag;
-import org.thymeleaf.processor.element.AbstractAttributeTagProcessor;
-import org.thymeleaf.processor.element.IElementTagStructureHandler;
+import java.util.Map;
+import org.thymeleaf.IEngineConfiguration;
+import org.thymeleaf.cache.NonCacheableCacheEntryValidity;
 import org.thymeleaf.templatemode.TemplateMode;
+import org.thymeleaf.templateresolver.ITemplateResolver;
+import org.thymeleaf.templateresolver.TemplateResolution;
 
 /**
  *
  * @author pthomas3
  */
-public class KaLinkHrefProcessor extends AbstractAttributeTagProcessor {
+public class StringHtmlTemplateResolver implements ITemplateResolver {
+    
+    public static final StringHtmlTemplateResolver INSTANCE = new StringHtmlTemplateResolver();
 
-    private static final Logger logger = LoggerFactory.getLogger(KaLinkHrefProcessor.class);
-
-    private final String hostContextPath;
-
-    public KaLinkHrefProcessor(String dialectPrefix, ServerConfig config) {
-        super(TemplateMode.HTML, dialectPrefix, "link", false, "href", false, 1000, false);
-        hostContextPath = config.getHostContextPath();
+    @Override
+    public String getName() {
+        return getClass().getName();
     }
 
     @Override
-    protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag, AttributeName an, String av, IElementTagStructureHandler sh) {
-        String href = hostContextPath == null ? av : hostContextPath + av;
-        sh.setAttribute("href", href);
+    public Integer getOrder() {
+        return 0;
     }
 
+    @Override
+    public TemplateResolution resolveTemplate(IEngineConfiguration configuration, String ownerTemplate, String template, Map<String, Object> templateResolutionAttributes) {
+        StringTemplateResource resource = new StringTemplateResource(template);
+        return new TemplateResolution(resource, TemplateMode.HTML, NonCacheableCacheEntryValidity.INSTANCE);
+    }
+    
 }

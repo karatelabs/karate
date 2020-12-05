@@ -37,6 +37,8 @@ import org.thymeleaf.context.IContext;
 public class TemplateContext implements IContext {
 
     private static final Logger logger = LoggerFactory.getLogger(TemplateContext.class);
+    
+    public static final TemplateContext LOCALE_US = new TemplateContext(Locale.US);
 
     private final Locale locale;
 

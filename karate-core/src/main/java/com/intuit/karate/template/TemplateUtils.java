@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.template;
 
+import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.http.RequestCycle;
 import java.util.Map;
@@ -43,11 +44,11 @@ import org.thymeleaf.model.IProcessableElementTag;
  * @author pthomas3
  */
 public class TemplateUtils {
-    
+
     private TemplateUtils() {
         // only static methods
     }
-    
+
     private static final String SCRIPT_TAGS = "<script src=\"https://unpkg.com/htmx.org@0.0.8\"></script>\n"
             + "<script>\n"
             + "document.addEventListener(\"DOMContentLoaded\", function (evt) {\n"
@@ -65,12 +66,12 @@ public class TemplateUtils {
             + "  }\n"
             + "});"
             + "</script>";
-    
+
     public static IModel generateScriptTags(ITemplateContext ctx) {
         IModelFactory modelFactory = ctx.getModelFactory();
         return modelFactory.parse(ctx.getTemplateData(), SCRIPT_TAGS);
     }
-    
+
     public static boolean hasAncestorElement(ITemplateContext ctx, String name) {
         for (IProcessableElementTag tag : ctx.getElementStack()) {
             if (tag.getElementCompleteName().equalsIgnoreCase(name)) {
@@ -79,22 +80,32 @@ public class TemplateUtils {
         }
         return false;
     }
-    
-    public static ITemplateEngine createEngine(ServerConfig config) {
+
+    public static ITemplateEngine createServerEngine(ServerConfig config) {
         TemplateEngine engine = new TemplateEngine();
         StandardEngineContextFactory standardFactory = new StandardEngineContextFactory();
         engine.setEngineContextFactory((IEngineConfiguration ec, TemplateData data, Map<String, Object> attrs, IContext context) -> {
             IEngineContext engineContext = standardFactory.createEngineContext(ec, data, attrs, context);
-            RequestCycle rc = RequestCycle.get();
-            TemplateEngineContext tec = new TemplateEngineContext(engineContext, rc);
-            rc.setEngineContext(tec);
-            return tec;
+            return new TemplateEngineContext(engineContext, RequestCycle.get());
         });
-        engine.setTemplateResolver(new TemplateResolver(config));
+        engine.setTemplateResolver(new ServerHtmlTemplateResolver(config));
         // the next line is a set which clears and replaces all existing / default
         engine.setDialect(new KarateStandardDialect());
         engine.addDialect(new KarateDialect(config));
         return new KarateTemplateEngine(engine);
     }
     
+    public static ITemplateEngine createEngine(JsEngine je) {
+        TemplateEngine engine = new TemplateEngine();
+        StandardEngineContextFactory standardFactory = new StandardEngineContextFactory();
+        engine.setEngineContextFactory((IEngineConfiguration ec, TemplateData data, Map<String, Object> attrs, IContext context) -> {
+            IEngineContext engineContext = standardFactory.createEngineContext(ec, data, attrs, context);
+            return new TemplateEngineContext(engineContext, RequestCycle.init(je));
+        });
+        engine.setTemplateResolver(StringHtmlTemplateResolver.INSTANCE);
+        // the next line is a set which clears and replaces all existing / default
+        engine.setDialect(new KarateStandardDialect());
+        return new KarateTemplateEngine(engine);
+    }
+
 }

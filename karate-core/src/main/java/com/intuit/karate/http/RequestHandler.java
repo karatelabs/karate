@@ -28,7 +28,6 @@ import com.intuit.karate.template.TemplateContext;
 import com.intuit.karate.template.TemplateUtils;
 import java.io.InputStream;
 import java.time.Instant;
-import java.util.Locale;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +53,7 @@ public class RequestHandler implements ServerHandler {
         this.config = config;
         contextFactory = config.getContextFactory();
         resourceResolver = config.getResourceResolver();
-        engine = TemplateUtils.createEngine(config);
+        engine = TemplateUtils.createServerEngine(config);
         homePagePath = config.getHomePagePath();
         sessionStore = config.getSessionStore();
         stripHostContextPath = config.isStripContextPathFromRequest() ? config.getHostContextPath() : null;
@@ -112,7 +111,7 @@ public class RequestHandler implements ServerHandler {
                 }
             }
         }
-        RequestCycle rc = RequestCycle.get();
+        RequestCycle rc = RequestCycle.init(JsEngine.global());
         rc.init(context, session);
         try {
             if (context.isApi()) {
@@ -147,13 +146,12 @@ public class RequestHandler implements ServerHandler {
     }
 
     private String htmlResponse(Request request) {
-        TemplateContext ctx = new TemplateContext(Locale.US);
         try {
-            return engine.process(request.getPath(), ctx);
+            return engine.process(request.getPath(), TemplateContext.LOCALE_US);
         } catch (RedirectException re) {
             String template = re.getTemplate();
             logger.debug("redirect requested to: {}", template);
-            return engine.process(template, ctx);
+            return engine.process(template, TemplateContext.LOCALE_US);
         }
     }
 

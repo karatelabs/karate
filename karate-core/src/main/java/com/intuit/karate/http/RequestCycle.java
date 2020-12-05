@@ -43,22 +43,24 @@ public class RequestCycle {
     private static final String REQUEST = "request";
     private static final String SESSION = "session";
     private static final String RESPONSE = "response";
-    private static final String CONTEXT = "context";    
+    private static final String CONTEXT = "context";
 
     public static final Set<String> GLOBALS = new HashSet(Arrays.asList(REQUEST, SESSION, RESPONSE, CONTEXT));
 
-    private static final ThreadLocal<RequestCycle> THREAD_LOCAL = new ThreadLocal<RequestCycle>() {
-        @Override
-        protected RequestCycle initialValue() {
-            return new RequestCycle();
-        }
-    };
+    private static final ThreadLocal<RequestCycle> THREAD_LOCAL = new ThreadLocal<RequestCycle>();
 
     public static RequestCycle get() {
         return THREAD_LOCAL.get();
     }
+    
+    public static RequestCycle init(JsEngine je) {
+        RequestCycle rc = new RequestCycle(je);
+        THREAD_LOCAL.set(rc);
+        return rc;
+    }
 
-    private final JsEngine jsEngine;
+    private final JsEngine engine;
+    
     private JsEngine localEngine;
     private TemplateEngineContext engineContext;
     private Session session;
@@ -66,13 +68,17 @@ public class RequestCycle {
     private ServerContext context;
     private String switchTemplate;
 
-    private RequestCycle() {
-        jsEngine = JsEngine.global();
+    public RequestCycle(JsEngine engine) {
+        this.engine = engine;
     }
+
+    public JsEngine getEngine() {
+        return engine;
+    }        
 
     public void close() {
         if (session != null) {
-            JsValue sessionValue = jsEngine.get(SESSION);
+            JsValue sessionValue = engine.get(SESSION);
             if (sessionValue.isObject()) {
                 session.getData().putAll(sessionValue.getAsMap());
                 context.getConfig().getSessionStore().save(session);
@@ -135,16 +141,16 @@ public class RequestCycle {
     public void init(ServerContext context, Session session) {
         this.context = context;
         if (session != null) {
-            jsEngine.put(SESSION, session.getData());
+            engine.put(SESSION, session.getData());
             this.session = session;
         }
         // this has to be after the session init
         Request request = context.getRequest();
         request.processBody();
-        jsEngine.put(REQUEST, request);
+        engine.put(REQUEST, request);
         response = new Response(200);
-        jsEngine.put(RESPONSE, response);
-        jsEngine.put(CONTEXT, context);
+        engine.put(RESPONSE, response);
+        engine.put(CONTEXT, context);
     }
 
 }
