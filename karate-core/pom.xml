@@ -321,7 +321,9 @@
                         <artifactId>maven-assembly-plugin</artifactId>
                         <version>3.3.0</version>
                         <configuration>
-                            <descriptor>src/assembly/bin.xml</descriptor>
+                            <descriptors>
+                                <descriptor>src/assembly/bin.xml</descriptor>
+                            </descriptors>                            
                             <finalName>karate-${project.version}</finalName>
                             <appendAssemblyId>false</appendAssemblyId>                    
                         </configuration>
