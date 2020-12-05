@@ -160,6 +160,14 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                     map.put("value", "(unknown)");
                 }
                 map.put("type", v.type.name());
+                switch (v.type) {
+                    case LIST:
+                    case MAP:
+                        map.put("presentationHint", "data");
+                        break;
+                    default:
+                        // do nothing
+                }
                 map.put("evaluateName", k);
                 // if > 0 , this can be used  by client to request more info
                 map.put("variablesReference", 0);
@@ -196,6 +204,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                         .body("supportsRestartRequest", true)
                         .body("supportsStepBack", true)
                         .body("supportsVariableType", true)
+                        .body("supportsValueFormattingOptions", true)
                         .body("supportsClipboardContext", true));
                 ctx.write(event("initialized"));
                 ctx.write(event("output").body("output", "debug server listening on port: " + server.getPort() + "\n"));
@@ -281,7 +290,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 String reqContext = req.getArgument("context", String.class);
                 ScenarioRuntime evalContext = FRAMES.get(evalFrameId.longValue());
                 String result;
-                if ("clipboard".equals(reqContext)) {
+                if ("clipboard".equals(reqContext) || "hover".equals(reqContext)) {
                     try {
                         Variable v = evalContext.engine.vars.get(expression);
                         result = v.getAsPrettyString();
