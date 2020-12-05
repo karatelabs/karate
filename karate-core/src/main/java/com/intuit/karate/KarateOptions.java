@@ -29,6 +29,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
+ * deprecated. if you are on JUnit 4, please switch to JUnit 5
  * @see com.intuit.karate.Runner#builder()
  */
 @Deprecated

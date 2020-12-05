@@ -66,17 +66,24 @@ public class FeatureResult {
         System.out.println(sb);
     }
 
-    public Map<String, Object> toMap() {
-        Map<String, Object> map = new HashMap(8);
-        List<Map> list = new ArrayList(scenarioResults.size());
-        map.put("elements", list);
-        for (ScenarioResult re : scenarioResults) {
-            Map<String, Object> backgroundMap = re.backgroundToMap();
+    public String toCucumberJson() {
+        StringBuilder sb = new StringBuilder();
+        sb.append('[');
+        Iterator<ScenarioResult> iterator = scenarioResults.iterator();
+        while (iterator.hasNext()) {
+            ScenarioResult sr = iterator.next();
+            Map<String, Object> backgroundMap = sr.backgroundToMap();
             if (backgroundMap != null) {
-                list.add(backgroundMap);
+                sb.append(JsonUtils.toJson(backgroundMap)).append(',');
             }
-            list.add(re.toMap());
+            sb.append(JsonUtils.toJson(sr.toMap()));
+            if (iterator.hasNext()) {
+                sb.append(',');
+            }
         }
+        sb.append(']');
+        Map<String, Object> map = new HashMap();
+        map.put("elements", "@@replace@@");
         map.put("keyword", Feature.KEYWORD);
         map.put("line", feature.getLine());
         map.put("uri", displayName);
@@ -90,7 +97,7 @@ public class FeatureResult {
         if (feature.getTags() != null) {
             map.put("tags", Tags.toResultList(feature.getTags()));
         }
-        return map;
+        return JsonUtils.toJson(map).replace("\"@@replace@@\"", sb);
     }
 
     public List<StepResult> getAllScenarioStepResultsNotHidden() {
@@ -249,6 +256,6 @@ public class FeatureResult {
     @Override
     public String toString() {
         return displayName;
-    }        
+    }
 
 }

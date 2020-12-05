@@ -62,13 +62,11 @@ public class Engine {
     }
 
     public static File saveResultJson(String targetDir, FeatureResult result, String fileName) {
-        List<Map> single = Collections.singletonList(result.toMap());
-        String json = JsonUtils.toJson(single);
         if (fileName == null) {
             fileName = result.getPackageQualifiedName() + ".json";
         }
         File file = new File(targetDir + File.separator + fileName);
-        FileUtils.writeToFile(file, json);
+        FileUtils.writeToFile(file, "[" + result.toCucumberJson() + "]");
         return file;
     }
 
