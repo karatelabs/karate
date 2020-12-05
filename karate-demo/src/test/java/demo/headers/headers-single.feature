@@ -1,3 +1,4 @@
+@mock-servlet-todo
 Feature: the karate-config.js can perform 'singleton' style one-time init of auth
     instead of re-doing it for every feature in a test-suite, even for multi-threaded / parallel runs
 
