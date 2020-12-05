@@ -52,6 +52,7 @@ public class ScenarioRuntime implements Runnable {
     public final ScenarioEngine engine;
     public final boolean reportDisabled;
     public final Map<String, Object> magicVariables;
+    public final boolean dryRun;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
         this(featureRuntime, scenario, null);
@@ -88,6 +89,7 @@ public class ScenarioRuntime implements Runnable {
         } else {
             reportDisabled = tags.valuesFor("report").isAnyOf("false");
         }
+        dryRun = featureRuntime.suite.dryRun;
     }
 
     public boolean isFailed() {
@@ -292,14 +294,16 @@ public class ScenarioRuntime implements Runnable {
         engine.init();
         result.setThreadName(Thread.currentThread().getName());
         result.setStartTime(System.currentTimeMillis() - featureRuntime.suite.startTime);
-        if (caller.isNone() && !caller.isKarateConfigDisabled()) {
-            // evaluate config js, variables above will apply !
-            evalConfigJs(featureRuntime.suite.karateBase, "karate-base.js");
-            evalConfigJs(featureRuntime.suite.karateConfig, "karate-config.js");
-            evalConfigJs(featureRuntime.suite.karateConfigEnv, "karate-config-" + featureRuntime.suite.env + ".js");
-        }
-        if (background == null) {
-            featureRuntime.suite.hooks.forEach(h -> h.beforeScenario(this));
+        if (!dryRun) {
+            if (caller.isNone() && !caller.isKarateConfigDisabled()) {
+                // evaluate config js, variables above will apply !
+                evalConfigJs(featureRuntime.suite.karateBase, "karate-base.js");
+                evalConfigJs(featureRuntime.suite.karateConfig, "karate-config.js");
+                evalConfigJs(featureRuntime.suite.karateConfigEnv, "karate-config-" + featureRuntime.suite.env + ".js");
+            }
+            if (background == null) {
+                featureRuntime.suite.hooks.forEach(h -> h.beforeScenario(this));
+            }
         }
     }
 
@@ -325,7 +329,7 @@ public class ScenarioRuntime implements Runnable {
 
     // extracted for debug
     public StepResult execute(Step step) {
-        if (!stopped) {
+        if (!stopped && !dryRun) {
             boolean shouldExecute = true;
             for (RuntimeHook hook : featureRuntime.suite.hooks) {
                 if (!hook.beforeStep(step, this)) {
@@ -339,7 +343,7 @@ public class ScenarioRuntime implements Runnable {
         boolean hidden = reportDisabled || (step.isPrefixStar() && !step.isPrint() && !engine.getConfig().isShowAllSteps());
         boolean showLog = !reportDisabled && engine.getConfig().isShowLog();
         Result stepResult;
-        boolean executed = !stopped;
+        final boolean executed = !stopped;
         if (stopped) {
             if (aborted && engine.getConfig().isAbortedStepsShouldPass()) {
                 stepResult = Result.passed(0);
@@ -348,6 +352,8 @@ public class ScenarioRuntime implements Runnable {
             } else {
                 stepResult = Result.skipped();
             }
+        } else if (dryRun) {
+            stepResult = Result.passed(0);
         } else {
             stepResult = StepRuntime.execute(step, actions);
         }
@@ -372,7 +378,7 @@ public class ScenarioRuntime implements Runnable {
         embeds = null;
         currentStepResult.setHidden(hidden);
         currentStepResult.setShowLog(showLog);
-        if (executed) {
+        if (executed && !dryRun) {
             featureRuntime.suite.hooks.forEach(h -> h.afterStep(currentStepResult, this));
         }
         return currentStepResult;
@@ -383,12 +389,14 @@ public class ScenarioRuntime implements Runnable {
         try {
             result.setEndTime(System.currentTimeMillis() - featureRuntime.suite.startTime);
             engine.logLastPerfEvent(result.getFailureMessageForDisplay());
-            engine.invokeAfterHookIfConfigured(false);
-            featureRuntime.suite.hooks.forEach(h -> h.afterScenario(this));
             if (currentStepResult == null) {
                 currentStepResult = result.addFakeStepResult("no steps executed", null);
-            }
-            engine.stop(currentStepResult);
+            }            
+            if (!dryRun) {
+                engine.invokeAfterHookIfConfigured(false);
+                featureRuntime.suite.hooks.forEach(h -> h.afterScenario(this));
+                engine.stop(currentStepResult);
+            }            
             if (embeds != null) {
                 embeds.forEach(embed -> currentStepResult.addEmbed(embed));
                 embeds = null;

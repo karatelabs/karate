@@ -57,6 +57,7 @@ public class Suite implements Runnable {
 
     public final String env;
     public final String tagSelector;
+    public final boolean dryRun;
     public final long startTime;
     public final File workingDir;
     public final String buildDir;
@@ -106,6 +107,7 @@ public class Suite implements Runnable {
 
     public Suite(Runner.Builder rb) {
         if (rb.forTempUse) {
+            dryRun = false;
             outputHtmlReport = false;
             outputCucumberJson = false;
             outputJunitXml = false;
@@ -134,8 +136,9 @@ public class Suite implements Runnable {
             startTime = System.currentTimeMillis();
             outputHtmlReport = rb.outputHtmlReport;
             outputCucumberJson = rb.outputCucumberJson;
-            outputJunitXml = rb.outputJunitXml;
+            outputJunitXml = rb.outputJunitXml;            
             rb.resolveAll();
+            dryRun = rb.dryRun;
             classLoader = rb.classLoader;
             clientFactory = rb.clientFactory;
             env = rb.env;

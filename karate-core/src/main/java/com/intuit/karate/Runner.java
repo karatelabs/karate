@@ -23,7 +23,6 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.cli.IdeMain;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
@@ -84,22 +83,47 @@ public class Runner {
 
     //==========================================================================
     //
+    /**
+     * @see com.intuit.karate.Runner#builder()
+     * @deprecated
+     */
+    @Deprecated    
     public static Results parallel(Class<?> clazz, int threadCount) {
         return parallel(clazz, threadCount, null);
     }
 
+    /**
+     * @see com.intuit.karate.Runner#builder()
+     * @deprecated
+     */
+    @Deprecated    
     public static Results parallel(Class<?> clazz, int threadCount, String reportDir) {
         return builder().fromKarateAnnotation(clazz).reportDir(reportDir).parallel(threadCount);
     }
 
+    /**
+     * @see com.intuit.karate.Runner#builder()
+     * @deprecated
+     */
+    @Deprecated    
     public static Results parallel(List<String> tags, List<String> paths, int threadCount, String reportDir) {
         return parallel(tags, paths, null, null, threadCount, reportDir);
     }
-
+    
+    /**
+     * @see com.intuit.karate.Runner#builder()
+     * @deprecated
+     */
+    @Deprecated
     public static Results parallel(int threadCount, String... tagsOrPaths) {
         return parallel(null, threadCount, tagsOrPaths);
     }
 
+    /**
+     * @see com.intuit.karate.Runner#builder()
+     * @deprecated
+     */
+    @Deprecated
     public static Results parallel(String reportDir, int threadCount, String... tagsOrPaths) {
         List<String> tags = new ArrayList();
         List<String> paths = new ArrayList();
@@ -114,6 +138,11 @@ public class Runner {
         return parallel(tags, paths, threadCount, reportDir);
     }
 
+    /**
+     * @see com.intuit.karate.Runner#builder()
+     * @deprecated
+     */
+    @Deprecated
     public static Results parallel(List<String> tags, List<String> paths, String scenarioName,
             List<RuntimeHook> hooks, int threadCount, String reportDir) {
         Builder options = new Builder();
@@ -150,6 +179,7 @@ public class Runner {
         boolean outputHtmlReport = true;
         boolean outputJunitXml;
         boolean outputCucumberJson;
+        boolean dryRun;
         Map<String, String> systemProperties;
 
         public List<Feature> resolveAll() {
@@ -175,6 +205,7 @@ public class Runner {
                 if (ro.paths != null) {
                     paths = ro.paths;
                 }
+                dryRun = dryRun || ro.dryRun;
             }
             String tempEnv = StringUtils.trimToNull(systemProperties.get(Constants.KARATE_ENV));
             if (tempEnv != null) {
@@ -304,7 +335,7 @@ public class Runner {
         }
 
         /**
-         * @see com.intuit.karate.Runner#builder()        
+         * @see com.intuit.karate.Runner#builder()
          * @deprecated
          */
         @Deprecated
@@ -418,6 +449,11 @@ public class Runner {
 
         public Builder outputJunitXml(boolean value) {
             outputJunitXml = value;
+            return this;
+        }
+        
+        public Builder dryRun(boolean value) {
+            dryRun = value;
             return this;
         }
 

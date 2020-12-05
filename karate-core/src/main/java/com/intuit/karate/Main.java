@@ -110,6 +110,9 @@ public class Main implements Callable<Void> {
     @Option(names = {"-d", "--debug"}, arity = "0..1", defaultValue = "-1", fallbackValue = "0",
             description = "debug mode (optional port else dynamically chosen)")
     int debugPort;
+    
+    @Option(names = {"-D", "--dryrun"}, description = "dry run, generate html reports only")
+    boolean dryRun;    
 
     @Option(names = {"-j", "--jobserver"}, description = "job server url")
     String jobServerUrl;
@@ -233,6 +236,7 @@ public class Main implements Callable<Void> {
                     .configDir(configDir)
                     .outputCucumberJson(outputCucumberJson)
                     .outputJunitXml(outputJunitXml)
+                    .dryRun(dryRun)
                     .parallel(threads);
             if (results.getFailCount() > 0) {
                 Exception ke = new KarateException("there are test failures !");
