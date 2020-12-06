@@ -51,5 +51,6 @@ public class HttpConstants {
 
     public static final String HDR_HX_TRIGGER = "HX-Trigger";
     public static final String HDR_HX_REQUEST = "HX-Request";
+    public static final String HDR_HX_REDIRECT = "HX-Redirect";
 
 }

@@ -62,7 +62,7 @@ public class KaScriptElemProcessor extends AbstractElementModelProcessor {
                         JsEngine.evalGlobal(text);
                     }
                     if (headModel == null) {
-                        headModel = TemplateUtils.generateScriptTags(ctx);
+                        headModel = TemplateUtils.generateHeadScriptTag(ctx);
                     }
                 } else if (text != null) {
                     RequestCycle.get().evalAndQueue(text);

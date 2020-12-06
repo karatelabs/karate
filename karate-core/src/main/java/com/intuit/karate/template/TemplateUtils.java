@@ -49,27 +49,11 @@ public class TemplateUtils {
         // only static methods
     }
 
-    private static final String SCRIPT_TAGS = "<script src=\"https://unpkg.com/htmx.org@0.0.8\"></script>\n"
-            + "<script>\n"
-            + "document.addEventListener(\"DOMContentLoaded\", function (evt) {\n"
-            + "  document.body.addEventListener('redirect', function (e) {\n"
-            + "    var url = e.detail.url;\n"
-            + "    alert('session expired, will redirect to: ' + url);\n"
-            + "    window.location = url;\n"
-            + "  });\n"
-            + "});\n"
-            + "htmx.on(\"htmx:afterSettle\", function (evt) {\n"
-            + "  var el = document.getElementById('kjs_afterSettle');\n"
-            + "  if (el) {\n"
-            + "    Function('\"use strict\";' + el.innerHTML)();\n"
-            + "    el.removeAttribute('id');\n"
-            + "  }\n"
-            + "});"
-            + "</script>";
+    private static final String HTMX_SCRIPT_TAG = "<script src=\"https://unpkg.com/htmx.org@1.0.1\"></script>";
 
-    public static IModel generateScriptTags(ITemplateContext ctx) {
+    public static IModel generateHeadScriptTag(ITemplateContext ctx) {
         IModelFactory modelFactory = ctx.getModelFactory();
-        return modelFactory.parse(ctx.getTemplateData(), SCRIPT_TAGS);
+        return modelFactory.parse(ctx.getTemplateData(), HTMX_SCRIPT_TAG);
     }
 
     public static boolean hasAncestorElement(ITemplateContext ctx, String name) {

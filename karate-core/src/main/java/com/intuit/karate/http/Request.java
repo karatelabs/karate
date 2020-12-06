@@ -334,7 +334,7 @@ public class Request implements ProxyObject {
         } else {
             return;
         }
-        logger.debug("decoding content-type: {}", contentType);
+        logger.trace("decoding content-type: {}", contentType);
         params = (params == null || params.isEmpty()) ? new HashMap() : new HashMap(params); // since it may be immutable
         DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.valueOf(method), path, Unpooled.wrappedBuffer(body));
         request.headers().add(HttpConstants.HDR_CONTENT_TYPE, contentType);

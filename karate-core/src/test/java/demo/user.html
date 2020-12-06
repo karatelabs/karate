@@ -6,7 +6,7 @@
     // console.log('user', user);
   }
 </script>
-<a th:unless="userId" ka:get="this" ka:vars="id:user.id" href="#">(more)</a>
+<a th:unless="userId" ka:get="this" ka:vals="id:user.id" href="#">(more)</a>
 <ul th:if="userId">
   <li th:text="user.phone"></li>
   <li th:text="user.website"></li>

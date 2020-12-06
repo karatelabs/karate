@@ -247,7 +247,7 @@ public class Response implements ProxyObject {
             case HEADERS:
                 return JsValue.fromJava(headers);
             case BODY:
-                return getBodyConverted();
+                return JsValue.fromJava(getBodyConverted());
             case DATA_TYPE:
                 ResourceType rt = getResourceType();
                 if (rt == null || rt == ResourceType.BINARY) {

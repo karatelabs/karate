@@ -103,7 +103,7 @@ public class RequestHandler implements ServerHandler {
                     logger.warn("session not found: {}", request);
                     ResponseBuilder rb = response().deleteSessionCookie(sessionId);
                     if (request.isAjax()) {
-                        rb.trigger("{redirect:{url:'" + redirectPath() + "'}}");
+                        rb.ajaxRedirect(redirectPath());
                     } else {
                         rb.locationHeader(redirectPath());
                     }

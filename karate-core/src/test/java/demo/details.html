@@ -5,7 +5,7 @@
     var found = session.suppliers.filter(x => x.products.includes(productId));
   }
 </script>
-<a th:unless="productId" ka:get="this" ka:vars="id:prod.id" href="#">(more)</a>
+<a th:unless="productId" ka:get="this" ka:vals="id:prod.id" href="#">(more)</a>
 <p th:if="productId" th:each="supplier: found">
   <span th:text="supplier.name">Acme Novelties</span>
 </p>

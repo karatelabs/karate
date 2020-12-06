@@ -57,6 +57,7 @@ public class KarateDialect extends AbstractProcessorDialect {
         ps.add(new KaHxPathAttrProcessor(dialectPrefix, "patch", config));
         ps.add(new KaHxPathAttrProcessor(dialectPrefix, "delete", config));
         ps.add(new KaHxVarsAttrProcessor(dialectPrefix));
+        ps.add(new KaHxValsAttrProcessor(dialectPrefix));
         return ps;
     }
 

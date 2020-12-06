@@ -127,6 +127,11 @@ public class ResponseBuilder {
         headers.put(name, Collections.singletonList(value));
         return this;
     }
+    
+    public ResponseBuilder ajaxRedirect(String url) {
+        header(HttpConstants.HDR_HX_REDIRECT, url);
+        return this;        
+    }
 
     public ResponseBuilder trigger(String json) {
         header(HttpConstants.HDR_HX_TRIGGER, JsonUtils.toStrictJson(json));
@@ -157,7 +162,8 @@ public class ResponseBuilder {
             String json = JsonUtils.toJson(merged);
             header(HttpConstants.HDR_HX_TRIGGER, json);
         }
-        if (resourceType != null && resourceType.isHtml() && context.isAjax() && context.getAfterSettleScripts() != null) {
+        if (resourceType != null && resourceType.isHtml() 
+                && context.isAjax() && context.getAfterSettleScripts() != null) {
             StringBuilder sb = new StringBuilder();
             for (String js : context.getAfterSettleScripts()) {
                 if (sb.length() > 0) {
@@ -165,7 +171,7 @@ public class ResponseBuilder {
                 }
                 sb.append(js);
             }
-            byte[] scriptBytes = FileUtils.toBytes("<script id=\"kjs_afterSettle\">" + sb.toString() + "</script>");
+            byte[] scriptBytes = FileUtils.toBytes("<script>" + sb.toString() + "</script>");
             if (body == null) {
                 body = scriptBytes;
             } else {
