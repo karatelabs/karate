@@ -39,10 +39,14 @@ public class Embed {
 
     public static Embed forVideoFile(String fileName) {
         String html = "<video controls=\"true\" width=\"100%\"><source src=\"" + fileName + "\" type=\"video/mp4\"/></video>";
+        return forHtml(html);
+    }
+    
+    public static Embed forHtml(String html) {
         Embed embed = new Embed();
-        embed.setBytes(html.getBytes());
+        embed.setBytes(FileUtils.toBytes(html));
         embed.setMimeType("text/html");
-        return embed;
+        return embed;        
     }
     
     public static Embed forPngImage(byte[] bytes) {

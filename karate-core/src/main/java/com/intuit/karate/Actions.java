@@ -31,11 +31,11 @@ import java.util.Map;
  * @author pthomas3
  */
 public interface Actions {
-    
+
     boolean isFailed();
-    
+
     Throwable getFailedReason();
-    
+
     boolean isAborted();
 
     void assertTrue(String exp);
@@ -43,7 +43,7 @@ public interface Actions {
     void call(String line);
 
     void callonce(String line);
-    
+
     void csv(String name, String exp);
 
     void json(String name, String exp);
@@ -53,7 +53,7 @@ public interface Actions {
     void xml(String name, String exp);
 
     void xmlstring(String name, String exp);
-    
+
     void bytes(String name, String exp);
 
     void configure(String key, String exp);
@@ -73,11 +73,11 @@ public interface Actions {
     void eval(String exp);
 
     void evalDocstring(String exp);
-    
+
     void eval(String name, String dotOrParen, String exp);
-    
+
     void evalIf(String exp);
-    
+
     void formField(String name, String exp);
 
     void formFields(String exp);
@@ -85,13 +85,13 @@ public interface Actions {
     void header(String name, String exp);
 
     void headers(String exp);
-    
+
     void listen(String exp);
 
-    void match(String exp, String op1, String op2, String rhs);        
+    void match(String exp, String op1, String op2, String rhs);
 
     void method(String method);
-    
+
     void retry(String until);
 
     void multipartEntity(String value);
@@ -137,13 +137,17 @@ public interface Actions {
     void text(String name, String exp);
 
     void url(String exp);
-    
-    void yaml(String name, String exp);        
-    
+
+    void yaml(String name, String exp);
+
+    void doc(String exp);
+
+    void docDocstring(String exp);
+
     //==========================================================================
     //
     void driver(String exp);
-    
+
     void robot(String exp);
 
 }
