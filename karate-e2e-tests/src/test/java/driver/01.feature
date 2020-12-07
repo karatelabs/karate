@@ -47,4 +47,4 @@ Scenario:
 * match driver.title == 'Page 02'
 
 # driver.dimensions
-* match driver.dimensions == { x: '#number', y: '#number', width: '#number', height: '#number', windowState: 'normal' }
+# * match driver.dimensions contains { x: '#number', y: '#number', width: '#number', height: '#number' }

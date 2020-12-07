@@ -26,6 +26,7 @@ package com.intuit.karate.core;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.KarateException;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.shell.FileLogAppender;
@@ -320,8 +321,8 @@ public class ScenarioRuntime implements Runnable {
             Map<String, Object> map = engine.getOrEvalAsMap(fun);
             engine.setVariables(map);
         } catch (Exception e) {
-            String message = scenario.getDebugInfo() + "\n" + displayName + " failed";
-            error = ScenarioEngine.fromJsEvalException(js, new RuntimeException(message, e));
+            String message = scenario.getDebugInfo() + "\n" + displayName + "\n" + e.getMessage();            
+            error = new KarateException(message, e);
             stopped = true;
             configFailed = true;
         }
