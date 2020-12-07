@@ -42,6 +42,7 @@ public class ServerConfig {
     private String sessionCookieName = "karate.sid";
     private boolean stripContextPathFromRequest;
     private boolean useGlobalSession;
+    private boolean autoCreateSession;
     private SessionStore sessionStore = JvmSessionStore.INSTANCE;
     private int sessionExpirySeconds = 60 * 10;
     private ResourceResolver resourceResolver = new FileSystemResourceResolver(null);
@@ -94,7 +95,11 @@ public class ServerConfig {
 
     public boolean isUseGlobalSession() {
         return useGlobalSession;
-    }        
+    }
+
+    public boolean isAutoCreateSession() {
+        return autoCreateSession;
+    }
 
     public int getSessionExpirySeconds() {
         return sessionExpirySeconds;
@@ -162,11 +167,16 @@ public class ServerConfig {
         stripContextPathFromRequest = value;
         return this;
     }
-    
+
     public ServerConfig useGlobalSession(boolean value) {
         useGlobalSession = value;
         return this;
-    }    
+    }
+
+    public ServerConfig autoCreateSession(boolean value) {
+        autoCreateSession = value;
+        return this;
+    }
 
     public ServerConfig sessionStore(SessionStore value) {
         sessionStore = value;

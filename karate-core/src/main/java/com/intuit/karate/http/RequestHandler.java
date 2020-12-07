@@ -95,10 +95,10 @@ public class RequestHandler implements ServerHandler {
                 }
             }
             if (session == null) {
-                if (homePagePath.equals(request.getPath())) {
+                if (config.isAutoCreateSession() || homePagePath.equals(request.getPath())) {
                     session = createSession();
                     newSession = true;
-                    logger.debug("creating new session for '{}': {}", homePagePath, session);
+                    logger.debug("creating new session for '{}': {}", request.getPath(), session);
                 } else {
                     logger.warn("session not found: {}", request);
                     ResponseBuilder rb = response().deleteSessionCookie(sessionId);

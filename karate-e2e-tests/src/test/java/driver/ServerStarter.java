@@ -20,6 +20,7 @@ public class ServerStarter {
     public static HttpServer start(int port) {
         ServerConfig config = new ServerConfig()
                 .fileSystemRoot("src/test/java/driver/html")
+                .autoCreateSession(true)
                 .homePagePath("00");
         RequestHandler handler = new RequestHandler(config);
         return new HttpServer(port, handler);

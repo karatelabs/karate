@@ -1,4 +1,4 @@
 function fn() {
-  karate.log('using driver:', driver);
-  karate.configure('driver', {type: driver, showDriverLog: true});
+  karate.log('using driver:', driverType);
+  karate.configure('driver', {type: driverType, showDriverLog: true});
 }
