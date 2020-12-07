@@ -96,7 +96,7 @@ public class Http {
     }
 
     public Response post(Object body) {
-        return method("post", body);
+        return method("post", body instanceof Json ? ((Json) body).value() : body);
     }
 
     public Response delete() {

@@ -68,9 +68,7 @@ public abstract class WebDriver implements Driver {
         }
         sessionId = response.json().getFirst("$..sessionId");
         logger.debug("init session id: {}", sessionId);
-        http.url("/session/" + sessionId);
-        //windowId = http.path("window").get().jsonPath("$.value").asString();
-        //logger.debug("init window id: {}", windowId);
+        http.url(http.urlBase + "/session/" + sessionId);
         if (options.start) {
             activate();
         }

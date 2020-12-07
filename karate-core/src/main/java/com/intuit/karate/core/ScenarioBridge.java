@@ -761,7 +761,7 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public boolean waitForPort(String host, int port) {
-        return Command.waitForPort(host, port);
+        return new Command().waitForPort(host, port);
     }
 
     public WebSocketClient webSocket(String url) {

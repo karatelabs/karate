@@ -30,7 +30,6 @@ import com.intuit.karate.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.SocketAddress;
@@ -45,7 +44,7 @@ import java.util.function.Consumer;
 
 public class Command extends Thread {
 
-    protected static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Command.class);
+    protected static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Command.class);    
 
     private final boolean useLineFeed;
     private final File workingDir;
@@ -65,8 +64,19 @@ public class Command extends Thread {
     private Process process;
     private int exitCode = -1;
     private Exception failureReason;
+    
+    private int pollAttempts = 30;
+    private int pollInterval = 250;
 
-    public boolean isFailed() {
+    public void setPollAttempts(int pollAttempts) {
+        this.pollAttempts = pollAttempts;
+    }
+
+    public void setPollInterval(int pollInterval) {
+        this.pollInterval = pollInterval;
+    }        
+
+    public synchronized boolean isFailed() {
         return failureReason != null;
     }
 
@@ -94,7 +104,7 @@ public class Command extends Thread {
         return sysOut == null ? null : sysOut.getBuffer();
     }
 
-    public String getSysErr() {        
+    public String getSysErr() {
         return sysErr == null ? null : sysErr.getBuffer();
     }
 
@@ -121,7 +131,7 @@ public class Command extends Thread {
     public static String getBuildDir() {
         return FileUtils.getBuildDir();
     }
-    
+
     public static String[] prefixShellArgs(String line) {
         switch (FileUtils.getOsType()) {
             case WINDOWS:
@@ -129,7 +139,7 @@ public class Command extends Thread {
             default:
                 return new String[]{"sh", "-c", line};
         }
-    }    
+    }
 
     private static final Set<Integer> PORTS_IN_USE = ConcurrentHashMap.newKeySet();
 
@@ -165,24 +175,27 @@ public class Command extends Thread {
         }
     }
 
-    private static final int SLEEP_TIME = 2000;
-    private static final int POLL_ATTEMPTS_MAX = 30;
-
-    public static boolean waitForPort(String host, int port) {
+    public boolean waitForPort(String host, int port) {
         int attempts = 0;
         do {
             SocketAddress address = new InetSocketAddress(host, port);
             try {
-                LOGGER.debug("poll attempt #{} for port to be ready - {}:{}", attempts, host, port);
+                if (isFailed()) {
+                    throw failureReason;
+                }
+                logger.debug("poll attempt #{} for port to be ready - {}:{}", attempts, host, port);
                 SocketChannel sock = SocketChannel.open(address);
                 sock.close();
                 return true;
-            } catch (IOException e) {
-                sleep(SLEEP_TIME);
+            } catch (Exception e) {
+                sleep(pollInterval);
             }
-        } while (attempts++ < POLL_ATTEMPTS_MAX);
+        } while (attempts++ < pollAttempts);
         return false;
     }
+    
+    private static final int SLEEP_TIME = 2000;
+    private static final int POLL_ATTEMPTS_MAX = 30;        
 
     public static boolean waitForHttp(String url) {
         int attempts = 0;
@@ -223,7 +236,7 @@ public class Command extends Thread {
             LOGGER.warn("*** wait thread failed: {}", e.getMessage());
             return false;
         }
-    }
+    }        
 
     public Command(String... args) {
         this(false, null, null, null, null, args);
