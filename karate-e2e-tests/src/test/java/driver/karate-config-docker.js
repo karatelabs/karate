@@ -1,3 +1,5 @@
 function fn() {
-  karate.configure('driver', {type: 'chrome', showDriverLog: true, start: false});
+  var driverType = 'chrome';
+  karate.configure('driver', {type: driverType, showDriverLog: true, start: false});
+  return { driverType: driverType };
 }
