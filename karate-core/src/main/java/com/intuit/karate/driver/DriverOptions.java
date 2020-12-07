@@ -271,9 +271,9 @@ public class DriverOptions {
         }
         if (command != null) { // wait for a slow booting browser / driver process
             command.waitForPort(host, port);
-        }
-        if (command.isFailed()) {
-            throw new KarateException("start failed", command.getFailureReason());
+            if (command.isFailed()) {
+                throw new KarateException("start failed", command.getFailureReason());
+            }
         }
         return command;
     }
