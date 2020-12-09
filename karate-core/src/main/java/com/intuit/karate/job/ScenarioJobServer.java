@@ -99,7 +99,7 @@ public class ScenarioJobServer extends JobServer {
             if (videoFile != null) {
                 File dest = new File(FileUtils.getBuildDir() + File.separator + chunkId + ".mp4");
                 FileUtils.copy(videoFile, dest);
-                sr.appendEmbed(Embed.forVideoFile("../" + dest.getName()));
+                sr.appendEmbed(Embed.videoFile("../" + dest.getName()));
             }
             if (cr.parent.isComplete()) {
                 LOGGER.info("feature complete, calling onComplete(): {}", cr.parent);

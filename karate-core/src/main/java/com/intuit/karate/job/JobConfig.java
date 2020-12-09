@@ -59,7 +59,7 @@ public interface JobConfig {
 
     default void startExecutors(String jobId, String jobUrl) throws Exception {
         int count = getExecutorCount();
-        if (count <= 0) {
+        if (count < 1) {
             return;
         }
         ExecutorService executor = Executors.newFixedThreadPool(count);

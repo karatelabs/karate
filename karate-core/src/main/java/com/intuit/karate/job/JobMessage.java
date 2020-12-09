@@ -107,7 +107,7 @@ public class JobMessage {
         for (JobCommand jc : commands) {
             list.add(jc.toMap());
         }
-        return JobMessage.this.put(key, list);
+        return put(key, list);
     }
 
     public List<JobCommand> getCommands(String key) {
@@ -129,7 +129,7 @@ public class JobMessage {
 
     public JobMessage putBase64(String key, byte[] bytes) {
         String encoded = Base64.getEncoder().encodeToString(bytes);
-        return JobMessage.this.put(key, encoded);
+        return put(key, encoded);
     }
 
     public byte[] getBase64(String key) {

@@ -89,7 +89,7 @@ public class MavenJobConfig implements JobConfig {
         Scenario scenario = chunk.getScenario();
         String path = scenario.getFeature().getResource().getRelativePath();
         int line = scenario.getLine();
-        String temp = "mvn exec:java -Dexec.mainClass=com.intuit.karate.cli.Main -Dexec.classpathScope=test"
+        String temp = "mvn exec:java -Dexec.mainClass=com.intuit.karate.Main -Dexec.classpathScope=test"
                 + " -Dexec.args=" + path + ":" + line;
         for (String k : sysPropKeys) {
             String v = StringUtils.trimToEmpty(System.getProperty(k));
