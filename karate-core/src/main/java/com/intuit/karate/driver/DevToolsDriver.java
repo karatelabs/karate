@@ -30,11 +30,13 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.core.Embed;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.WebSocketClient;
 import com.intuit.karate.http.WebSocketOptions;
 import com.intuit.karate.core.MockHandler;
 import com.intuit.karate.core.ScenarioEngine;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Variable;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.Response;
@@ -110,7 +112,7 @@ public abstract class DevToolsDriver implements Driver {
             receive(dtm);
         });
         client = new WebSocketClient(wsOptions, logger);
-    }
+    }      
     
     @Override
     public Driver timeout(Integer millis) {
@@ -790,7 +792,7 @@ public abstract class DevToolsDriver implements Driver {
         String temp = dtm.getResult("data").getAsString();
         byte[] bytes = Base64.getDecoder().decode(temp);
         if (embed) {
-            options.embedPngImage(bytes);
+            getRuntime().embed(Embed.pngImage(bytes));
         }
         return bytes;
     }
@@ -940,12 +942,11 @@ public abstract class DevToolsDriver implements Driver {
         if (mockHandler != null) {
             throw new RuntimeException("'intercept()' can be called only once");
         }
-        ScenarioEngine engine = ScenarioEngine.get();
         String mock = (String) config.get("mock");
         if (mock == null) {
             throw new RuntimeException("missing argument 'mock': " + config);
         }
-        Object o = engine.fileReader.readFile(mock);
+        Object o = getRuntime().engine.fileReader.readFile(mock);
         if (!(o instanceof Feature)) {
             throw new RuntimeException("'mock' is not a feature file: " + config + ", " + mock);
         }

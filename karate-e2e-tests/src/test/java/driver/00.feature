@@ -18,3 +18,6 @@ Scenario:
 
 # driver.intercept
 * if (driverType == 'chrome') karate.call('05.feature')
+
+# position()
+* call read('06.feature')

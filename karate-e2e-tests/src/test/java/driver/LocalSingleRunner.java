@@ -29,7 +29,7 @@ class LocalSingleRunner {
     
     @Test
     void testSingle() {
-        run("05");
+        run("06");
     }    
     
 }

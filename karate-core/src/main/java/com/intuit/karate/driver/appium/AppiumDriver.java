@@ -135,7 +135,7 @@ public abstract class AppiumDriver extends WebDriver {
                 String path = FileUtils.getBuildDir() + File.separator + System.currentTimeMillis() + ".mp4";
                 File dest = new File(path);
                 FileUtils.copy(src, dest);
-                options.embedContent(Embed.forVideoFile("../" + dest.getName()));
+                getRuntime().embed(Embed.videoFile("../" + dest.getName()));
             }
         }
     }

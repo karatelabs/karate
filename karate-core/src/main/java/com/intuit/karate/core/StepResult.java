@@ -149,6 +149,10 @@ public class StepResult {
     public boolean isShowLog() {
         return showLog;
     }
+    
+    public boolean isWithCallResults() {
+        return callResults != null && !callResults.isEmpty();
+    }
 
     public void setShowLog(boolean showLog) {
         this.showLog = showLog;

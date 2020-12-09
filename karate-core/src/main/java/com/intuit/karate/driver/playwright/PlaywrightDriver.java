@@ -28,6 +28,7 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.core.Embed;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverElement;
 
@@ -827,7 +828,7 @@ public class PlaywrightDriver implements Driver {
         String data = pwm.getResult("binary");
         byte[] bytes = Base64.getDecoder().decode(data);
         if (embed) {
-            options.embedPngImage(bytes);
+            getRuntime().embed(Embed.pngImage(bytes));
         }
         return bytes;
     }

@@ -26,6 +26,7 @@ package com.intuit.karate.driver;
 import com.intuit.karate.Http;
 import com.intuit.karate.Logger;
 import com.intuit.karate.Json;
+import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.Variable;
 import com.intuit.karate.http.Response;
 import com.intuit.karate.shell.Command;
@@ -511,7 +512,7 @@ public abstract class WebDriver implements Driver {
         }
         byte[] bytes = getDecoder().decode(temp);
         if (embed) {
-            options.embedPngImage(bytes);
+            getRuntime().embed(Embed.pngImage(bytes));
         }
         return bytes;
     }

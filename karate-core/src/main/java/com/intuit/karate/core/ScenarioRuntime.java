@@ -29,7 +29,6 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.shell.FileLogAppender;
 import java.io.File;
 import java.util.ArrayList;
@@ -364,19 +363,21 @@ public class ScenarioRuntime implements Runnable {
             stopped = true;
             logger.debug("abort at {}", step.getDebugInfo());
         } else if (stepResult.isFailed()) {
-            hidden = false;            
+            hidden = false;
             stopped = true;
             error = stepResult.getError();
             logError(error.getMessage());
-            if (engine.driver != null) {
-                engine.driver.onFailure();
-            }
-            if (engine.robot != null) {
-                engine.robot.onFailure();
-            }
         }
         String stepLog = appender.collect(); // make sure we collect after error logging
         currentStepResult = new StepResult(step, stepResult, stepLog, embeds, callResults);
+        if (stepResult.isFailed()) {
+            if (engine.driver != null) {
+                engine.driver.onFailure(currentStepResult);
+            }
+            if (engine.robot != null) {
+                engine.robot.onFailure(currentStepResult);
+            }
+        }
         callResults = null;
         embeds = null;
         currentStepResult.setHidden(hidden);

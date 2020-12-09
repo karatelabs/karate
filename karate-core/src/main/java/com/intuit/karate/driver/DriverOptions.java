@@ -28,7 +28,6 @@ import com.intuit.karate.Http;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
-import com.intuit.karate.core.Embed;
 import com.intuit.karate.driver.appium.AndroidDriver;
 import com.intuit.karate.driver.chrome.Chrome;
 import com.intuit.karate.driver.chrome.ChromeWebDriver;
@@ -46,10 +45,6 @@ import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.shell.Command;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -610,8 +605,9 @@ public class DriverOptions {
     }
 
     public static String getPositionJs(String locator) {
-        String temp = "var r = " + selector(locator, DOCUMENT)
-                + ".getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }";
+        String temp = "var r = " + selector(locator, DOCUMENT) + ".getBoundingClientRect();"
+                + " var dx = window.scrollX; var dy = window.scrollY;"
+                + " return { x: r.x + dx, y: r.y + dy, width: r.width + dx, height: r.height + dy }";
         return wrapInFunctionInvoke(temp);
     }
 
@@ -624,20 +620,6 @@ public class DriverOptions {
             }
         }
         return out;
-    }
-
-    public void embedPngImage(byte[] bytes) {
-        ScenarioEngine engine = ScenarioEngine.get();
-        if (engine != null) { // can be null for chrome java api
-            engine.runtime.embed(bytes, "image/png");
-        }
-    }
-
-    public void embedContent(Embed embed) {
-        ScenarioEngine engine = ScenarioEngine.get();
-        if (engine != null) { // can be null for chrome java api
-            engine.runtime.embed(embed);
-        }
     }
 
     public void disableRetry() {

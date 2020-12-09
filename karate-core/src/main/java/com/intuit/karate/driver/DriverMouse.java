@@ -81,6 +81,25 @@ public class DriverMouse implements Mouse {
         actions.add(action);
         return this;
     }
+    
+    @Override
+    public DriverMouse offset(Number x, Number y) {
+       if (x == null) {
+           x = 0;
+       }
+       if (y == null) {
+           y = 0;           
+       }
+       if (this.x == null) {
+           this.x = 0;
+       }
+       if (this.y == null) {
+           this.y = 0;
+       }
+        Map<String, Object> action = moveAction(this.x.intValue() + x.intValue(), this.y.intValue() + y.intValue());
+        actions.add(action);
+        return this;
+    }    
 
     @Override
     public DriverMouse down() {
