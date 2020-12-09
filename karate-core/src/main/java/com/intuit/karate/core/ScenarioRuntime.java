@@ -364,6 +364,7 @@ public class ScenarioRuntime implements Runnable {
             stopped = true;
             logger.debug("abort at {}", step.getDebugInfo());
         } else if (stepResult.isFailed()) {
+            hidden = false;            
             stopped = true;
             error = stepResult.getError();
             logError(error.getMessage());
