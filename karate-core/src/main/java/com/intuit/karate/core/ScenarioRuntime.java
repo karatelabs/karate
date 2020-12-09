@@ -29,6 +29,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.shell.FileLogAppender;
 import java.io.File;
 import java.util.ArrayList;
@@ -321,7 +322,7 @@ public class ScenarioRuntime implements Runnable {
             Map<String, Object> map = engine.getOrEvalAsMap(fun);
             engine.setVariables(map);
         } catch (Exception e) {
-            String message = scenario.getDebugInfo() + "\n" + displayName + "\n" + e.getMessage();            
+            String message = scenario.getDebugInfo() + "\n" + displayName + "\n" + e.getMessage();
             error = new KarateException(message, e);
             stopped = true;
             configFailed = true;
@@ -392,12 +393,12 @@ public class ScenarioRuntime implements Runnable {
             engine.logLastPerfEvent(result.getFailureMessageForDisplay());
             if (currentStepResult == null) {
                 currentStepResult = result.addFakeStepResult("no steps executed", null);
-            }            
+            }
             if (!dryRun) {
                 engine.invokeAfterHookIfConfigured(false);
                 featureRuntime.suite.hooks.forEach(h -> h.afterScenario(this));
                 engine.stop(currentStepResult);
-            }            
+            }
             if (embeds != null) {
                 embeds.forEach(embed -> currentStepResult.addEmbed(embed));
                 embeds = null;

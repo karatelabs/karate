@@ -49,7 +49,7 @@ public class Result {
         map.put("status", status);
         map.put("duration", durationNanos);
         if (error != null) {
-            map.put("error_message", error.getClass().getName() + ": " + error.getMessage());
+            map.put("error_message", error.getMessage());
         }
         return map;
     }

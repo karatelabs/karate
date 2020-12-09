@@ -120,9 +120,6 @@ public class StepResult {
             sb.append(step.getDocString());
         }
         if (stepLog != null && showLog) {
-            if (sb.length() > 0) {
-                sb.append('\n');
-            }
             sb.append(stepLog);
         }
         if (sb.length() > 0) {

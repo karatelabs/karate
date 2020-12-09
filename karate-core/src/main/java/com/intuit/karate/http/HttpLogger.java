@@ -25,7 +25,6 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.Logger;
 import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.http.HttpLogModifier;
 import com.intuit.karate.core.Config;
 import com.intuit.karate.core.Variable;
 import java.util.Iterator;
@@ -102,12 +101,6 @@ public class HttpLogger {
         return logModifier == null ? null : logModifier.enableForUri(uri) ? logModifier : null;
     }
 
-    private static void appendLineFeedIfNeeded(StringBuilder sb) {
-        if (!Character.isSpaceChar(sb.charAt(sb.length() - 1))) {
-            sb.append('\n');
-        }
-    }
-
     public static String getStatusFailureMessage(int expected, Config config, HttpRequest request, Response response) {
         String url = request.getUrl();
         HttpLogModifier logModifier = logModifier(config, url);
@@ -141,7 +134,7 @@ public class HttpLogger {
             }
             logBody(config, requestModifier, sb, uri, converted, true);
         }
-        appendLineFeedIfNeeded(sb);
+        sb.append('\n');
         logger.debug("{}", sb);
     }
 
@@ -160,7 +153,6 @@ public class HttpLogger {
         } else {
             logBody(config, responseModifier, sb, uri, response.getBodyConverted(), false);
         }
-        appendLineFeedIfNeeded(sb);
         logger.debug("{}", sb);
     }
 

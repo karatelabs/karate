@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.debug;
 
-import com.intuit.karate.FileUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageEncoder;
