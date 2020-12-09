@@ -68,7 +68,9 @@ public class DriverMouse implements Mouse {
         Map<String, Object> map = driver.position(locator);
         Number x = (Number) map.get("x");
         Number y = (Number) map.get("y");
-        return move(x, y);
+        Number width = (Number) map.get("width");
+        Number height = (Number) map.get("height");
+        return move(x.intValue() + width.intValue() / 2, y.intValue() + height.intValue() / 2);
     }
 
     @Override
