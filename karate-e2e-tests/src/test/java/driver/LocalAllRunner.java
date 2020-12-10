@@ -25,7 +25,7 @@ class LocalAllRunner {
         Results results = Runner.path("src/test/java/driver/00_outline.feature")
                 .systemProperty("server.port", server.getPort() + "")
                 .karateEnv("xbrowser")
-                .configDir("src/test/java/driver").parallel(1);
+                .configDir("src/test/java/driver").parallel(5);
         assertEquals(0, results.getFailCount(), results.getErrorMessages());
     }    
     

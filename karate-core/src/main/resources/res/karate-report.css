@@ -24,31 +24,30 @@
 
 .scenario { border: 1px solid gray; margin-bottom: 1em;  }
 .scenario-heading { border-bottom: 1px solid gray; margin-bottom: 2px; display: flex; }
-.heading-container { padding: 0.2em 0.5em; background-color: #F5F28F; width: 90%; }
+.heading-container { padding: 0.2em 0.5em; background-color: #F5F28F; width: 100%; margin: 0 0 0 2px; }
 .scenario-tags .badge { margin-right: 0.5em; }
 .scenario-name { font-weight: bold; padding-left: 0.2em; }
-.scenario-time { margin-left: 2px; padding: 0.2em 0.6em; text-align: right; width: 10%; }
+.scenario-time { width: 90px; padding: 0.2em 0.6em; text-align: right; margin: 0 2px 0 2px }
 
 .step-row { display: flex; margin: 0 2px 2px 2px; }
-.step-container { width: 90%; display: flex; }
-.step-row a { width: 90%; }
+.step-container { width: 100%; display: flex; }
+.step-row a { width: 100%; }
 a .step-container { width: 100%; color: #000; }
 .callarg-container { display: flex; }
-.step-indent { display: inline-block; width: 1em; }
-.step-container .step-indent { background-color: lightgray; margin-right: 2px; }
-.step-ref { width: 2.2em; text-align: right; padding: 0 0.2em 0 0.2em; margin-right: 2px; }
-.bg-step { background-color: lightgray; }
-.comment { background-color: lightgray; }
+.step-indent { display: inline-block; width: 15px; background-color: #d9d9d9; margin-left: 2px; }
+.step-ref { width: 50px; text-align: right; padding: 0 0.2em 0 0.2em; }
+.bg-step { background-color: #d9d9d9; }
+.comment { background-color: #d9d9d9; }
 a .step-ref { font-weight: bold; color: blue; }
-.step-cell { display: flex; width: 100%; padding: 0 0.2em 0 0.2em; } 
-.time-cell { width: 10%; margin-left: 2px; padding-right: 0.5em; text-align: right; } 
+.step-cell { display: flex; width: 100%; padding: 0 0.2em 0 0.2em; margin-left: 2px; } 
+.time-cell { width: 90px; margin-left: 2px; padding-right: 0.5em; text-align: right; } 
 
 .scenario table { margin: 0.5em; }
 .scenario table td { border: 1px solid gray; padding: 0.1em 0.2em; } 
 .preformatted { white-space: pre-wrap; font-family: monospace; padding: 0 0.3em 0.2em 0.3em; overflow: auto; } 
 .embed img { width: 100%; }
 
-.passed { background-color: #92DD96; } 
+.passed { background-color: #98e6ab; } 
 .failed { background-color: #F2928C; } 
 .skipped { background-color: #f5f28f; }
 
@@ -57,4 +56,3 @@ a .step-ref { font-weight: bold; color: blue; }
 .passed-lt td { background-color: #CCffCC; } 
 .failed-lt td { background-color: #FFCCCC; } 
 .skipped-lt td { background-color: #FFFFCC; }
-

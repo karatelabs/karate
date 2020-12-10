@@ -984,6 +984,9 @@ public class ScenarioEngine {
     private ITemplateEngine templateEngine;
 
     public void doc(String exp, boolean docString) {
+        if (runtime.reportDisabled) {
+            return;
+        }
         String text;
         if (docString) {
             text = exp;
