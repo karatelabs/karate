@@ -2,7 +2,8 @@ Feature:
 
 Background:
 * driver serverUrl + '/00'
-* driver.dimensions = dimensions
+* def dimensions = karate.get('dimensions')
+* if (dimensions) driver.dimensions = dimensions
 
 Scenario:
 # driver.url | driver.title | waitForUrl() | refresh() | back() | forward() | driver.dimensions
