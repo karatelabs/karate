@@ -70,15 +70,14 @@ public class Runner {
     }
 
     // this is called by karate-gatling !
-    public static void callAsync(String path, List<String> tags, Map<String, Object> arg, PerfHook perf) {
+    public static void callAsync(String path, List<String> tags, Map<String, Object> arg, PerfHook perfHook) {
         Builder builder = new Builder();
         builder.tags = tags;
         Suite suite = new Suite(builder); // sets tag selector
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
-        FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, arg);
-        featureRuntime.setPerfRuntime(perf);
-        featureRuntime.setNext(() -> perf.afterFeature(featureRuntime.result));
-        perf.submit(featureRuntime);
+        FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, arg, perfHook);
+        featureRuntime.setNext(() -> perfHook.afterFeature(featureRuntime.result));
+        perfHook.submit(featureRuntime);
     }
 
     //==========================================================================
@@ -87,7 +86,7 @@ public class Runner {
      * @see com.intuit.karate.Runner#builder()
      * @deprecated
      */
-    @Deprecated    
+    @Deprecated
     public static Results parallel(Class<?> clazz, int threadCount) {
         return parallel(clazz, threadCount, null);
     }
@@ -96,7 +95,7 @@ public class Runner {
      * @see com.intuit.karate.Runner#builder()
      * @deprecated
      */
-    @Deprecated    
+    @Deprecated
     public static Results parallel(Class<?> clazz, int threadCount, String reportDir) {
         return builder().fromKarateAnnotation(clazz).reportDir(reportDir).parallel(threadCount);
     }
@@ -105,11 +104,11 @@ public class Runner {
      * @see com.intuit.karate.Runner#builder()
      * @deprecated
      */
-    @Deprecated    
+    @Deprecated
     public static Results parallel(List<String> tags, List<String> paths, int threadCount, String reportDir) {
         return parallel(tags, paths, null, null, threadCount, reportDir);
     }
-    
+
     /**
      * @see com.intuit.karate.Runner#builder()
      * @deprecated
@@ -451,7 +450,7 @@ public class Runner {
             outputJunitXml = value;
             return this;
         }
-        
+
         public Builder dryRun(boolean value) {
             dryRun = value;
             return this;

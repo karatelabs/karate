@@ -84,7 +84,7 @@ public class ScenarioRuntime implements Runnable {
             result = new ScenarioResult(scenario, background.result.getStepResults());
         }
         tags = scenario.getTagsEffective();
-        if (featureRuntime.isPerfMode()) {
+        if (featureRuntime.perfHook != null) {
             appender = LogAppender.NO_OP;
             reportDisabled = true;
         } else {

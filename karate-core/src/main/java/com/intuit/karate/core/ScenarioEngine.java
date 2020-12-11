@@ -294,12 +294,12 @@ public class ScenarioEngine {
     private PerfEvent prevPerfEvent;
 
     public void logLastPerfEvent(String failureMessage) {
-        if (prevPerfEvent != null && runtime.featureRuntime.isPerfMode()) {
+        if (prevPerfEvent != null && runtime.featureRuntime.perfHook != null) {
             if (failureMessage != null) {
                 prevPerfEvent.setFailed(true);
                 prevPerfEvent.setMessage(failureMessage);
             }
-            runtime.featureRuntime.getPerfRuntime().reportPerfEvent(prevPerfEvent);
+            runtime.featureRuntime.perfHook.reportPerfEvent(prevPerfEvent);
         }
         prevPerfEvent = null;
     }
@@ -585,8 +585,8 @@ public class ScenarioEngine {
         }
         request = requestBuilder.build();
         String perfEventName = null; // acts as a flag to report perf if not null
-        if (runtime.featureRuntime.isPerfMode()) {
-            perfEventName = runtime.featureRuntime.getPerfRuntime().getPerfEventName(request, runtime);
+        if (runtime.featureRuntime.perfHook != null) {
+            perfEventName = runtime.featureRuntime.perfHook.getPerfEventName(request, runtime);
         }
         long startTime = System.currentTimeMillis();
         request.setStartTimeMillis(startTime);
@@ -1964,7 +1964,6 @@ public class ScenarioEngine {
             call.setLoopIndex(index);
             call.setSharedScope(sharedScope);
             FeatureRuntime fr = new FeatureRuntime(call);
-            fr.setPerfRuntime(runtime.featureRuntime.getPerfRuntime());
             fr.run();
             // VERY IMPORTANT ! switch back from called feature js context
             THREAD_LOCAL.set(this);

@@ -47,11 +47,13 @@ public class FeatureRuntime implements Runnable {
     public final ScenarioCall caller;
     public final Feature feature;
     public final FeatureResult result;
-    public final ScenarioIterator scenarios;
+    public final ScenarioIterator scenarios;    
+    public final PerfHook perfHook;
+    
+    private final ParallelProcessor<ScenarioRuntime> processor;
 
     public final Map<String, ScenarioCall.Result> FEATURE_CACHE = new HashMap();
 
-    private PerfHook perfRuntime;
     private Runnable next;
 
     public Resource resolveFromThis(String path) {
@@ -60,18 +62,6 @@ public class FeatureRuntime implements Runnable {
 
     public Resource resolveFromRoot(String path) {
         return rootFeature.feature.getResource().resolve(path);
-    }
-
-    public void setPerfRuntime(PerfHook perfRuntime) {
-        this.perfRuntime = perfRuntime;
-    }
-
-    public boolean isPerfMode() {
-        return perfRuntime != null;
-    }
-
-    public PerfHook getPerfRuntime() {
-        return perfRuntime;
     }
 
     public void setNext(Runnable next) {
@@ -95,24 +85,57 @@ public class FeatureRuntime implements Runnable {
     }
 
     public static FeatureRuntime of(Suite sr, Feature feature, Map<String, Object> arg) {
-        return new FeatureRuntime(sr, feature, ScenarioCall.none(arg));
+        return new FeatureRuntime(sr, feature, ScenarioCall.none(arg), null);
     }
+    
+    public static FeatureRuntime of(Suite sr, Feature feature, Map<String, Object> arg, PerfHook perfHook) {
+        return new FeatureRuntime(sr, feature, ScenarioCall.none(arg), perfHook);
+    }    
 
     public FeatureRuntime(ScenarioCall call) {
-        this(call.parentRuntime.featureRuntime.suite, call.feature, call);
+        this(call.parentRuntime.featureRuntime.suite, call.feature, call, call.parentRuntime.featureRuntime.perfHook);
         result.setLoopIndex(call.getLoopIndex());
         if (call.arg != null && !call.arg.isNull()) {
             result.setCallArg(call.arg.getValue());
         }
     }
 
-    private FeatureRuntime(Suite suite, Feature feature, ScenarioCall caller) {
+    private FeatureRuntime(Suite suite, Feature feature, ScenarioCall caller, PerfHook perfHook) {
         this.suite = suite;
         this.feature = feature;
         this.caller = caller;
         this.rootFeature = caller.isNone() ? this : caller.parentRuntime.featureRuntime;
         result = new FeatureResult(feature);
         scenarios = new ScenarioIterator(this);
+        this.perfHook = perfHook;
+        if (caller.isNone() && suite.parallel && perfHook == null) {
+            processor = new ParallelProcessor<ScenarioRuntime>(
+                    suite.scenarioExecutor,
+                    suite.batchLimiter,
+                    scenarios.stream(),
+                    suite.pendingTasks) {
+
+                @Override
+                public void process(ScenarioRuntime sr) {
+                    processScenario(sr);
+                }
+
+                @Override
+                public void onComplete() {
+                    synchronized (FeatureRuntime.this) {
+                        FeatureRuntime.this.onComplete();
+                    }
+                }
+
+                @Override
+                public boolean shouldRunSynchronously(ScenarioRuntime sr) {
+                    return sr.tags.valuesFor("parallel").isAnyOf("false");
+                }
+
+            };
+        } else {
+            processor = null;
+        }
     }
 
     private boolean beforeHookDone;
@@ -130,49 +153,30 @@ public class FeatureRuntime implements Runnable {
         return beforeHookResult;
     }
 
-    private ParallelProcessor<ScenarioRuntime> processor() {
-        boolean sync = isPerfMode() || !caller.isNone() || !suite.parallel;
-        return new ParallelProcessor<ScenarioRuntime>(
-                sync ? SyncExecutorService.INSTANCE : suite.scenarioExecutor,
-                suite.batchLimiter,
-                scenarios.stream(),
-                sync ? SyncExecutorService.INSTANCE : suite.pendingTasks) {
-
-            @Override
-            public void process(ScenarioRuntime sr) {
-                if (sr.isSelectedForExecution()) {
-                    if (!beforeHook()) {
-                        logger.info("before-feature hook returned [false], aborting: ", this);
-                    } else {
-                        lastExecutedScenario = sr;
-                        sr.run();
-                    }
-                } else {
-                    logger.trace("excluded by tags: {}", sr);
-                }
-            }
-
-            @Override
-            public void onComplete() {
-                synchronized (FeatureRuntime.this) {
-                    FeatureRuntime.this.onComplete();
-                }
-            }
-
-            @Override
-            public boolean shouldRunSynchronously(ScenarioRuntime sr) {
-                return sync || sr.tags.valuesFor("parallel").isAnyOf("false");
-            }
-
-        };
-    }
-
     @Override
     public void run() {
-        processor().execute();
+        if (processor != null) {
+            processor.execute();
+        } else {
+            scenarios.forEachRemaining(this::processScenario);
+            onComplete();
+        }
     }
 
     private ScenarioRuntime lastExecutedScenario;
+
+    private void processScenario(ScenarioRuntime sr) {
+        if (sr.isSelectedForExecution()) {
+            if (!beforeHook()) {
+                logger.info("before-feature hook returned [false], aborting: ", this);
+            } else {
+                lastExecutedScenario = sr;
+                sr.run();
+            }
+        } else {
+            logger.trace("excluded by tags: {}", sr);
+        }
+    }
 
     // extracted for junit5
     public void onComplete() {
