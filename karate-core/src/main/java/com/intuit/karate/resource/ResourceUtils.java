@@ -226,8 +226,7 @@ public class ResourceUtils {
     }
 
     private static String removePrefix(String text) {
-        int pos = text.indexOf(':');
-        return pos == -1 ? text : text.substring(pos + 1);
+        return text.replaceFirst("(^classpath\\:|^file\\:)", "");
     }
 
     private static final ClassLoader CLASS_LOADER = ResourceUtils.class.getClassLoader();
