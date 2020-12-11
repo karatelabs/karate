@@ -75,7 +75,9 @@ public abstract class ParallelProcessor<T> {
         final CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
         monitor.submit(() -> {
             CompletableFuture.allOf(futuresArray).join();
-            onComplete();
+            synchronized (ParallelProcessor.this) {
+                onComplete();
+            }
         });
     }
 

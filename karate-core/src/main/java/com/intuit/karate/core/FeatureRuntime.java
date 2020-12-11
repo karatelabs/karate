@@ -47,9 +47,9 @@ public class FeatureRuntime implements Runnable {
     public final ScenarioCall caller;
     public final Feature feature;
     public final FeatureResult result;
-    public final ScenarioIterator scenarios;    
+    public final ScenarioIterator scenarios;
     public final PerfHook perfHook;
-    
+
     private final ParallelProcessor<ScenarioRuntime> processor;
 
     public final Map<String, ScenarioCall.Result> FEATURE_CACHE = new HashMap();
@@ -87,10 +87,10 @@ public class FeatureRuntime implements Runnable {
     public static FeatureRuntime of(Suite sr, Feature feature, Map<String, Object> arg) {
         return new FeatureRuntime(sr, feature, ScenarioCall.none(arg), null);
     }
-    
+
     public static FeatureRuntime of(Suite sr, Feature feature, Map<String, Object> arg, PerfHook perfHook) {
         return new FeatureRuntime(sr, feature, ScenarioCall.none(arg), perfHook);
-    }    
+    }
 
     public FeatureRuntime(ScenarioCall call) {
         this(call.parentRuntime.featureRuntime.suite, call.feature, call, call.parentRuntime.featureRuntime.perfHook);
@@ -122,9 +122,7 @@ public class FeatureRuntime implements Runnable {
 
                 @Override
                 public void onComplete() {
-                    synchronized (FeatureRuntime.this) {
-                        FeatureRuntime.this.onComplete();
-                    }
+                    afterFeature();
                 }
 
                 @Override
@@ -159,7 +157,7 @@ public class FeatureRuntime implements Runnable {
             processor.execute();
         } else {
             scenarios.forEachRemaining(this::processScenario);
-            onComplete();
+            afterFeature();
         }
     }
 
@@ -179,7 +177,7 @@ public class FeatureRuntime implements Runnable {
     }
 
     // extracted for junit5
-    public void onComplete() {
+    public void afterFeature() {
         result.sortScenarioResults();
         if (lastExecutedScenario != null) {
             lastExecutedScenario.engine.invokeAfterHookIfConfigured(true);

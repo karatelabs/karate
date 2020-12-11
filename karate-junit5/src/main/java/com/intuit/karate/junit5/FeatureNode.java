@@ -72,7 +72,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
             }
             boolean failed = runtime.result.isFailed();
             if (!scenarios.hasNext()) {
-                featureRuntime.onComplete();
+                featureRuntime.afterFeature();
                 FeatureResult result = featureRuntime.result;
                 if (!result.isEmpty()) {
                     result.printStats(null);
