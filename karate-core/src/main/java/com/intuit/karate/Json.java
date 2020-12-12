@@ -92,6 +92,14 @@ public class Json {
     public <T> T get(String path) {
         return (T) doc.read(prefix(path));
     }
+    
+    public <T> T getOptional(String path) {
+        try {
+            return get(path);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     public <T> T getFirst(String path) {
         List<T> list = get(path);

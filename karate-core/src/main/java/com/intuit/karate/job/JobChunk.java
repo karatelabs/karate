@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2019 Intuit Inc.
+ * Copyright 2020 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,48 +23,14 @@
  */
 package com.intuit.karate.job;
 
-import com.intuit.karate.core.Scenario;
-import com.intuit.karate.core.ScenarioResult;
-
 /**
  *
  * @author pthomas3
  */
-public class ChunkResult {
+public interface JobChunk<T> {
 
-    public final FeatureScenarios parent;
-    public final Scenario scenario;
-    private String chunkId;
-    protected ScenarioResult result;
-    private long startTime;
+    String getChunkId();
 
-    public ChunkResult(FeatureScenarios parent, Scenario scenario) {
-        this.parent = parent;
-        this.scenario = scenario;
-    }
-
-    public String getChunkId() {
-        return chunkId;
-    }
-
-    public void setStartTime(long startTime) {
-        this.startTime = startTime;
-    }
-
-    public long getStartTime() {
-        return startTime;
-    }
-
-    public void setChunkId(String chunkId) {
-        this.chunkId = chunkId;
-    }
-
-    public ScenarioResult getResult() {
-        return result;
-    }
-
-    public void setResult(ScenarioResult result) {
-        this.result = result;
-    }
+    T getChunk();    
 
 }

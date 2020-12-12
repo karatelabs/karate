@@ -127,6 +127,10 @@ public class Response implements ProxyObject {
         this.body = body;
     }
 
+    public void setBody(String value) {
+        body = FileUtils.toBytes(value);
+    }
+
     public String getBodyAsString() {
         return body == null ? null : FileUtils.toString(body);
     }

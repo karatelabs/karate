@@ -24,42 +24,23 @@
 package com.intuit.karate.gatling;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.job.ChunkResult;
 import com.intuit.karate.job.JobConfig;
-import com.intuit.karate.job.JobServer;
+import com.intuit.karate.job.JobManager;
 import java.io.File;
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  *
  * @author pthomas3
  */
-public class GatlingJobServer extends JobServer {
-
-    private final Set<String> executors = new HashSet();
-    private final Set<String> completed = new HashSet();
+public class GatlingJobServer extends JobManager {
 
     public GatlingJobServer(JobConfig config) {
         super(config, "target/gatling");
+        // TODO
     }
 
     @Override
-    public synchronized ChunkResult getNextChunk(String executorId) {
-        if (executors.contains(executorId)) {
-            if (completed.size() >= executors.size()) {
-                stop();
-            }
-            return null;
-        }
-        executors.add(executorId);
-        ChunkResult chunk = new ChunkResult(null, null);
-        chunk.setChunkId(executorId);
-        return chunk;
-    }
-
-    @Override
-    public synchronized void handleUpload(File upload, String executorId, String chunkId) {
+    public void handleUpload(File upload, String executorId, String chunkId) {
         String karateLog = upload.getPath() + File.separator + "karate.log";
         File karateLogFile = new File(karateLog);
         if (karateLogFile.exists()) {
@@ -75,7 +56,6 @@ public class GatlingJobServer extends JobServer {
                 }
             }
         }
-        completed.add(executorId);
     }
 
 }

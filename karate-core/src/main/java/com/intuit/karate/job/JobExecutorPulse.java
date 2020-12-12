@@ -49,12 +49,9 @@ public class JobExecutorPulse extends TimerTask {
 
     @Override
     public void run() {
-        String chunkId = executor.chunkId;
         JobMessage jm = new JobMessage("heartbeat");
-        jm.setChunkId(chunkId);
-        String jobId = executor.jobId;
-        String executorId = executor.executorId;        
-        JobExecutor.invokeServer(http, jobId, executorId, jm);
+        jm.setChunkId(executor.chunkId.get());
+        JobExecutor.invokeServer(http, executor.jobId, executor.executorId, jm);
     }
 
 }

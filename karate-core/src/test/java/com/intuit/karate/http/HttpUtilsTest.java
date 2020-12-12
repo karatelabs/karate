@@ -1,8 +1,7 @@
 package com.intuit.karate.http;
 
+import static com.intuit.karate.TestUtils.*;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.match.Match;
-import com.intuit.karate.match.MatchResult;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
@@ -12,12 +11,7 @@ import org.junit.jupiter.api.Test;
  *
  * @author pthomas3
  */
-class HttpUtilsTest {
-    
-    private void match(Object actual, Object expected) {
-        MatchResult mr = Match.that(actual).isEqualTo(expected);
-        assertTrue(mr.pass, mr.message);
-    }     
+class HttpUtilsTest {    
 
     @Test
     void testParseContentTypeCharset() {

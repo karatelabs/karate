@@ -36,22 +36,31 @@ import java.util.Map;
  */
 public class JobMessage {
 
+    public static final String KARATE_JOB = "karate-job";
     public static final String KARATE_METHOD = "karate-method";
     public static final String KARATE_JOB_ID = "karate-job-id";    
     public static final String KARATE_EXECUTOR_ID = "karate-executor-id";
     public static final String KARATE_CHUNK_ID = "karate-chunk-id";
 
     public final String method;
-    public final Map<String, Object> body;
-
+    
     private String jobId;
     private String executorId;
-    private String chunkId;
+    private String chunkId;    
+    private Map<String, Object> body = new HashMap();
     private byte[] bytes;
 
     public JobMessage(String method) {
-        this(method, new HashMap());
+        this.method = method;
     }
+
+    public Map<String, Object> getBody() {
+        return body;
+    }
+
+    public void setBody(Map<String, Object> body) {
+        this.body = body;
+    }        
 
     public void setBytes(byte[] bytes) {
         this.bytes = bytes;
@@ -87,11 +96,6 @@ public class JobMessage {
 
     public boolean is(String method) {
         return this.method.equals(method);
-    }
-
-    public JobMessage(String method, Map<String, Object> body) {
-        this.method = method;
-        this.body = body;
     }
 
     public <T> T get(String key, Class<T> clazz) {

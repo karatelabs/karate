@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2019 Intuit Inc.
+ * Copyright 2020 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,50 +23,30 @@
  */
 package com.intuit.karate.job;
 
-import com.intuit.karate.core.Scenario;
-import java.util.ArrayList;
-import java.util.List;
+import com.intuit.karate.core.ScenarioRuntime;
 
 /**
  *
  * @author pthomas3
  */
-public class FeatureScenarios {
+public class ScenarioJobChunk implements JobChunk<ScenarioRuntime> {
 
-    public final List<Scenario> scenarios;   
-    public final List<ChunkResult> chunks;    
-    private final Runnable onComplete;
+    private final String id;
+    private final ScenarioRuntime scenarioRuntime;
 
-    public FeatureScenarios(List<Scenario> scenarios, Runnable onComplete) {
-        this.scenarios = scenarios;
-        chunks = new ArrayList(scenarios.size());
-        this.onComplete = onComplete;
-    }
-    
-    public boolean isComplete() {
-        if (!scenarios.isEmpty()) {
-            return false;
-        }
-        for (ChunkResult cr : chunks) {
-            if (cr.getResult() == null) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    public void onComplete() {
-        for (ChunkResult chunk : chunks) {
-            // exec.result.addResult(chunk.getResult());
-        }
-        onComplete.run();
+    public ScenarioJobChunk(String id, ScenarioRuntime scenarioRuntime) {
+        this.id = id;
+        this.scenarioRuntime = scenarioRuntime;
     }
 
     @Override
-    public String toString() {
-        return "TODO"; // TODO
-//        return exec.featureContext.feature.toString()
-//                + " (" + chunks.size() + "/" + (scenarios.size() + chunks.size()) + ")";
+    public String getChunkId() {
+        return id;
+    }
+
+    @Override
+    public ScenarioRuntime getChunk() {
+        return scenarioRuntime;
     }
 
 }

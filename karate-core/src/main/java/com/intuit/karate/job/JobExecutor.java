@@ -25,10 +25,11 @@ package com.intuit.karate.job;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
+import com.intuit.karate.Json;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Variable;
+import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.Response;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.shell.FileLogAppender;
@@ -40,6 +41,7 @@ import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  *
@@ -54,10 +56,11 @@ public class JobExecutor {
     private final String workingDir;
     protected final String jobId;
     protected final String executorId;
-    protected String chunkId = null; // mutable
     private final String uploadDir;
     private final Map<String, String> environment;
     private final List<JobCommand> shutdownCommands;
+
+    protected AtomicReference<String> chunkId = new AtomicReference();
 
     private JobExecutor(String serverUrl) {
         this.serverUrl = serverUrl;
@@ -143,13 +146,13 @@ public class JobExecutor {
             uploadDirFile.mkdirs();
             JobMessage req = new JobMessage("next")
                     .put(JobContext.UPLOAD_DIR, uploadDirFile.getAbsolutePath());
-            req.setChunkId(chunkId);
+            req.setChunkId(chunkId.get());
             JobMessage res = invokeServer(req);
             if (res.is("stop")) {
                 logger.info("stop received, shutting down");
                 break;
             }
-            chunkId = res.getChunkId();
+            chunkId.set(res.getChunkId());
             executeCommands(res.getCommands("preCommands"), environment);
             executeCommands(res.getCommands("mainCommands"), environment);
             stopBackgroundCommands();
@@ -164,7 +167,7 @@ public class JobExecutor {
             JobUtils.zip(toZip, toUpload);
             byte[] upload = toBytes(toUpload);
             req = new JobMessage("upload");
-            req.setChunkId(chunkId);
+            req.setChunkId(chunkId.get());
             req.setBytes(upload);
             invokeServer(req);
         } while (true);
@@ -209,29 +212,29 @@ public class JobExecutor {
         Variable body;
         String contentType;
         if (bytes != null) {
-            contentType = "application/octet-stream";
+            contentType = ResourceType.BINARY.contentType;
             body = new Variable(bytes);
         } else {
-            contentType = "application/json";
-            body = new Variable(req.body);
+            contentType = ResourceType.JSON.contentType;
+            body = new Variable(req.getBody());
         }
-        Response res = http.header(JobMessage.KARATE_METHOD, req.method)
-                .header(JobMessage.KARATE_JOB_ID, jobId)
-                .header(JobMessage.KARATE_EXECUTOR_ID, executorId)
-                .header(JobMessage.KARATE_CHUNK_ID, req.getChunkId())
+        Json json = Json.object();
+        json.set("method", req.method);
+        json.set("jobId", jobId);
+        json.set("executorId", req.getExecutorId());
+        if (req.getChunkId() != null) {
+            json.set("chunkId", req.getChunkId());
+        }
+        Response res = http.header(JobMessage.KARATE_JOB, json.toString())
                 .header("content-type", contentType).post(body);
-        String method = StringUtils.trimToNull(res.getHeader(JobMessage.KARATE_METHOD));
-        contentType = StringUtils.trimToNull(res.getHeader("content-type"));
-        JobMessage jm;
-        if (contentType != null && contentType.contains("octet-stream")) {
-            jm = new JobMessage(method);
+        String jobHeader = res.getHeader(JobMessage.KARATE_JOB);
+        JobMessage jm = JobManager.toJobMessage(jobHeader);
+        ResourceType rt = res.getResourceType();
+        if (rt != null && rt.isBinary()) {
             jm.setBytes(res.getBody());
         } else {
-            jm = new JobMessage(method, res.json().asMap());
+            jm.setBody(res.json().asMap());
         }
-        jm.setJobId(StringUtils.trimToNull(res.getHeader(JobMessage.KARATE_JOB_ID)));
-        jm.setExecutorId(StringUtils.trimToNull(res.getHeader(JobMessage.KARATE_EXECUTOR_ID)));
-        jm.setChunkId(StringUtils.trimToNull(res.getHeader(JobMessage.KARATE_CHUNK_ID)));
         return jm;
     }
 
