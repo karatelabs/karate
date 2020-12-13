@@ -33,6 +33,7 @@ import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.SyncExecutorService;
 import com.intuit.karate.core.Tags;
 import com.intuit.karate.http.HttpClientFactory;
+import com.intuit.karate.job.JobManager;
 import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
@@ -45,6 +46,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -65,6 +67,7 @@ public class Suite implements Runnable {
     public final ClassLoader classLoader;
     public final int threadCount;
     public final Semaphore batchLimiter;
+    public final int timeoutMinutes;
     public final List<Feature> features;
     public final Results results;
     public final Collection<RuntimeHook> hooks;
@@ -79,6 +82,8 @@ public class Suite implements Runnable {
     public final int featureCount;
     public final ExecutorService scenarioExecutor;
     public final ExecutorService pendingTasks;
+
+    public final JobManager jobManager;
 
     public final String karateBase;
     public final String karateConfig;
@@ -119,6 +124,7 @@ public class Suite implements Runnable {
             tagSelector = null;
             threadCount = -1;
             batchLimiter = null;
+            timeoutMinutes = -1;
             hooks = null;
             features = null;
             results = null;
@@ -132,20 +138,19 @@ public class Suite implements Runnable {
             featureCount = -1;
             scenarioExecutor = null;
             pendingTasks = null;
+            jobManager = null;
         } else {
             startTime = System.currentTimeMillis();
+            rb.resolveAll();
             outputHtmlReport = rb.outputHtmlReport;
             outputCucumberJson = rb.outputCucumberJson;
-            outputJunitXml = rb.outputJunitXml;            
-            rb.resolveAll();
+            outputJunitXml = rb.outputJunitXml;
             dryRun = rb.dryRun;
             classLoader = rb.classLoader;
             clientFactory = rb.clientFactory;
             env = rb.env;
             systemProperties = rb.systemProperties;
             tagSelector = Tags.fromKarateOptionsTags(rb.tags);
-            threadCount = rb.threadCount;
-            batchLimiter = new Semaphore(threadCount);
             hooks = rb.hooks;
             features = rb.features;
             results = new Results(this);
@@ -160,6 +165,14 @@ public class Suite implements Runnable {
                 karateConfigEnv = null;
             }
             featureCount = features.size();
+            if (rb.jobConfig != null) {
+                jobManager = new JobManager(rb.jobConfig);
+            } else {
+                jobManager = null;
+            }
+            threadCount = rb.threadCount;
+            batchLimiter = new Semaphore(threadCount);
+            timeoutMinutes = rb.timeoutMinutes;
             parallel = threadCount > 1;
             if (parallel) {
                 scenarioExecutor = Executors.newFixedThreadPool(threadCount);
@@ -191,8 +204,15 @@ public class Suite implements Runnable {
             if (featureCount > 1) {
                 logger.debug("waiting for {} features to complete ...", featureCount);
             }
+            if (jobManager != null) {
+                jobManager.startExecutors();
+            }
             CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
-            CompletableFuture.allOf(futuresArray).join();
+            if (timeoutMinutes > 0) {
+                CompletableFuture.allOf(futuresArray).get(timeoutMinutes, TimeUnit.MINUTES);
+            } else {
+                CompletableFuture.allOf(futuresArray).join();
+            }
             results.setEndTime(System.currentTimeMillis());
             if (outputHtmlReport) {
                 HtmlSummaryReport summary = new HtmlSummaryReport();
@@ -217,7 +237,7 @@ public class Suite implements Runnable {
                 Engine.saveStatsJson(reportDir, results);
                 HtmlReport.saveTimeline(reportDir, results, null);
             }
-            results.printStats(threadCount);
+            results.printStats();
             hooks.forEach(h -> h.afterSuite(this));
         } catch (Exception e) {
             logger.error("runner failed: " + e);

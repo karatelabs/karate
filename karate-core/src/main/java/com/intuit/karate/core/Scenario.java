@@ -52,7 +52,6 @@ public class Scenario {
     private Map<String, Object> exampleData;
     private int exampleIndex = -1;
     private String dynamicExpression;
-    private boolean backgroundDone;
     
     protected Scenario() {
         this(null, null, -1);
@@ -261,14 +260,6 @@ public class Scenario {
 
     public void setDynamicExpression(String dynamicExpression) {
         this.dynamicExpression = dynamicExpression;
-    }
-
-    public boolean isBackgroundDone() {
-        return backgroundDone;
-    }
-
-    public void setBackgroundDone(boolean backgroundDone) {
-        this.backgroundDone = backgroundDone; // TODO remove this
     }
 
     public Map<String, Object> getExampleData() {

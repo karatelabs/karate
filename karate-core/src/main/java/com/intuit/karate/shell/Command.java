@@ -34,6 +34,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -41,10 +42,12 @@ import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Command extends Thread {
 
-    protected static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Command.class);    
+    protected static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Command.class);
 
     private final boolean useLineFeed;
     private final File workingDir;
@@ -64,7 +67,7 @@ public class Command extends Thread {
     private Process process;
     private int exitCode = -1;
     private Exception failureReason;
-    
+
     private int pollAttempts = 30;
     private int pollInterval = 250;
 
@@ -74,7 +77,7 @@ public class Command extends Thread {
 
     public void setPollInterval(int pollInterval) {
         this.pollInterval = pollInterval;
-    }        
+    }
 
     public synchronized boolean isFailed() {
         return failureReason != null;
@@ -115,13 +118,19 @@ public class Command extends Thread {
         return command.getSysOut();
     }
 
+    private static final Pattern CLI_ARG = Pattern.compile("\"([^\"]*)\"|(\\S+)");
+
     public static String[] tokenize(String command) {
-        StringTokenizer st = new StringTokenizer(command);
-        String[] args = new String[st.countTokens()];
-        for (int i = 0; st.hasMoreTokens(); i++) {
-            args[i] = st.nextToken();
+        List<String> args = new ArrayList();
+        Matcher m = CLI_ARG.matcher(command);
+        while (m.find()) {
+            if (m.group(1) != null) {
+                args.add(m.group(1));
+            } else {
+                args.add(m.group(2));
+            }
         }
-        return args;
+        return args.toArray(new String[args.size()]);
     }
 
     public static String execLine(File workingDir, String command) {
@@ -193,9 +202,9 @@ public class Command extends Thread {
         } while (attempts++ < pollAttempts);
         return false;
     }
-    
+
     private static final int SLEEP_TIME = 2000;
-    private static final int POLL_ATTEMPTS_MAX = 30;        
+    private static final int POLL_ATTEMPTS_MAX = 30;
 
     public static boolean waitForHttp(String url) {
         int attempts = 0;
@@ -236,7 +245,7 @@ public class Command extends Thread {
             LOGGER.warn("*** wait thread failed: {}", e.getMessage());
             return false;
         }
-    }        
+    }
 
     public Command(String... args) {
         this(false, null, null, null, null, args);

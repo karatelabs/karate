@@ -23,19 +23,29 @@
  */
 package com.intuit.karate.job;
 
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.Json;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.Scenario;
+import com.intuit.karate.core.ScenarioResult;
+import com.intuit.karate.core.ScenarioRuntime;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public class MavenJobConfig implements JobConfig {
+public class MavenJobConfig implements JobConfig<ScenarioRuntime> {
+    
+    protected static final Logger logger = LoggerFactory.getLogger(MavenJobConfig.class);
 
     private final int executorCount;
     private final String host;
@@ -85,12 +95,12 @@ public class MavenJobConfig implements JobConfig {
     }
 
     @Override
-    public List<JobCommand> getMainCommands(JobContext chunk) {
-        Scenario scenario = chunk.getScenario();
-        String path = scenario.getFeature().getResource().getRelativePath();
+    public List<JobCommand> getMainCommands(JobChunk<ScenarioRuntime> chunk) {
+        Scenario scenario = chunk.getValue().scenario;
+        String path = scenario.getFeature().getResource().getPrefixedPath();
         int line = scenario.getLine();
         String temp = "mvn exec:java -Dexec.mainClass=com.intuit.karate.Main -Dexec.classpathScope=test"
-                + " -Dexec.args=" + path + ":" + line;
+                + " \"-Dexec.args=-f json " + path + ":" + line + "\"";
         for (String k : sysPropKeys) {
             String v = StringUtils.trimToEmpty(System.getProperty(k));
             if (!v.isEmpty()) {
@@ -120,6 +130,32 @@ public class MavenJobConfig implements JobConfig {
             }
         }
         return map;
+    }
+
+    @Override
+    public ScenarioRuntime handleUpload(JobChunk<ScenarioRuntime> chunk, File upload) {
+        File jsonFile = JobUtils.getFirstFileWithExtension(upload, "json");
+        if (jsonFile == null) {
+            logger.warn("no cucumber json found in job executor result");
+            return chunk.getValue();
+        }
+        String json = FileUtils.toString(jsonFile);
+        List<Map<String, Object>> list = Json.of(json).get("$[0].elements");
+        ScenarioRuntime runtime = chunk.getValue();
+        ScenarioResult sr = new ScenarioResult(runtime.scenario, list, true);
+        sr.setThreadName(chunk.getExecutorId());
+        sr.setStartTime(chunk.getStartTime());
+        sr.setEndTime(System.currentTimeMillis());
+        synchronized (runtime.featureRuntime) {
+            runtime.featureRuntime.result.addResult(sr);
+        }
+        File videoFile = JobUtils.getFirstFileWithExtension(upload, "mp4");
+        if (videoFile != null) {
+            File dest = new File(FileUtils.getBuildDir() + File.separator + chunk.getId() + ".mp4");
+            FileUtils.copy(videoFile, dest);
+            sr.appendEmbed(Embed.videoFile("../" + dest.getName()));
+        }
+        return runtime;
     }
 
 }

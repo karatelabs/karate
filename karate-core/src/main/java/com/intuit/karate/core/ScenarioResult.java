@@ -229,7 +229,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             return;
         }
         for (Map<String, Object> stepMap : list) {
-            ScenarioResult.this.addStepResult(new StepResult(stepMap));
+            addStepResult(new StepResult(stepMap));
         }
     }
 

@@ -32,4 +32,17 @@ class CommandTest {
         assertTrue(result.contains("karate"));
     }
 
+    @Test
+    void testTokenize() {
+        String[] args = Command.tokenize("hello \"foo bar\" world");
+        assertEquals(3, args.length);
+        assertEquals("hello", args[0]);
+        assertEquals("foo bar", args[1]);
+        assertEquals("world", args[2]);
+        args = Command.tokenize("-Dexec.classpathScope=test \"-Dexec.args=-f json test\"");
+        assertEquals(2, args.length);
+        assertEquals("-Dexec.classpathScope=test", args[0]);
+        assertEquals("-Dexec.args=-f json test", args[1]);
+    }
+
 }

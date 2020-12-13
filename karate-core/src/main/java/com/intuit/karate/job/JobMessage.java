@@ -36,17 +36,11 @@ import java.util.Map;
  */
 public class JobMessage {
 
-    public static final String KARATE_JOB = "karate-job";
-    public static final String KARATE_METHOD = "karate-method";
-    public static final String KARATE_JOB_ID = "karate-job-id";    
-    public static final String KARATE_EXECUTOR_ID = "karate-executor-id";
-    public static final String KARATE_CHUNK_ID = "karate-chunk-id";
-
     public final String method;
-    
+
     private String jobId;
     private String executorId;
-    private String chunkId;    
+    private String chunkId;
     private Map<String, Object> body = new HashMap();
     private byte[] bytes;
 
@@ -60,7 +54,7 @@ public class JobMessage {
 
     public void setBody(Map<String, Object> body) {
         this.body = body;
-    }        
+    }
 
     public void setBytes(byte[] bytes) {
         this.bytes = bytes;
@@ -76,7 +70,7 @@ public class JobMessage {
 
     public void setJobId(String jobId) {
         this.jobId = jobId;
-    }        
+    }
 
     public String getChunkId() {
         return chunkId;
@@ -92,13 +86,13 @@ public class JobMessage {
 
     public String getExecutorId() {
         return executorId;
-    }        
+    }
 
     public boolean is(String method) {
         return this.method.equals(method);
     }
 
-    public <T> T get(String key, Class<T> clazz) {
+    public <T> T get(String key) {
         return (T) body.get(key);
     }
 
@@ -115,7 +109,7 @@ public class JobMessage {
     }
 
     public List<JobCommand> getCommands(String key) {
-        List<Map<String, Object>> maps = get(key, List.class);
+        List<Map<String, Object>> maps = get(key);
         if (maps == null) {
             return Collections.EMPTY_LIST;
         }
@@ -137,7 +131,7 @@ public class JobMessage {
     }
 
     public byte[] getBase64(String key) {
-        String encoded = get(key, String.class);
+        String encoded = get(key);
         return Base64.getDecoder().decode(encoded);
     }
 
@@ -150,7 +144,7 @@ public class JobMessage {
         }
         if (executorId != null) {
             sb.append(", executorId: ").append(executorId);
-        }        
+        }
         if (chunkId != null) {
             sb.append(", chunkId: ").append(chunkId);
         }

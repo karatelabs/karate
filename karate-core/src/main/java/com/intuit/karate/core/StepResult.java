@@ -99,7 +99,7 @@ public class StepResult {
         json = map;
         step = new Step();
         step.setLine((Integer) map.get("line"));
-        step.setPrefix((String) map.get("prefix"));
+        step.setPrefix((String) map.get("keyword"));
         step.setText((String) map.get("name"));
         result = new Result((Map) map.get("result"));
         callResults = null;

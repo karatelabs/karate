@@ -51,11 +51,11 @@ public class Results {
         this.suite = suite;
     }
 
-    public void printStats(int threadCount) {
+    public void printStats() {
         System.out.println("Karate version: " + FileUtils.KARATE_VERSION);
         System.out.println("======================================================");
         System.out.println(String.format("elapsed: %6.2f | threads: %4d | thread time: %.2f ",
-                getElapsedTime() / 1000, threadCount, timeTakenMillis / 1000));
+                getElapsedTime() / 1000, suite.threadCount, timeTakenMillis / 1000));
         System.out.println(String.format("features: %5d | ignored: %4d | efficiency: %.2f", featureCount, skipCount, getEfficiency()));
         System.out.println(String.format("scenarios: %4d | passed: %5d | failed: %d",
                 scenarioCount, getPassCount(), failCount));

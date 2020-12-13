@@ -52,6 +52,8 @@ import org.slf4j.LoggerFactory;
 public class Response implements ProxyObject {
 
     private static final Logger logger = LoggerFactory.getLogger(Response.class);
+    
+    public static final Response OK = new Response(200);
 
     private static final String BODY = "body";
     private static final String STATUS = "status";

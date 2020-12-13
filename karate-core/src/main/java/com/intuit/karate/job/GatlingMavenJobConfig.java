@@ -21,12 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.gatling;
+package com.intuit.karate.job;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.job.JobCommand;
-import com.intuit.karate.job.JobContext;
-import com.intuit.karate.job.MavenJobConfig;
+import com.intuit.karate.core.ScenarioRuntime;
+import java.io.File;
 import java.util.Collections;
 import java.util.List;
 
@@ -35,19 +35,29 @@ import java.util.List;
  * @author pthomas3
  */
 public class GatlingMavenJobConfig extends MavenJobConfig {
-    
+
     private String mainCommand = "mvn gatling:test";
-    
+    private String executorDir = "target/gatling";
+
     public GatlingMavenJobConfig(int executorCount, String host, int port) {
         super(executorCount, host, port);
-    }    
+    }
 
     public void setMainCommand(String mainCommand) {
         this.mainCommand = mainCommand;
+    }
+
+    @Override
+    public String getExecutorDir() {
+        return executorDir;
+    }        
+
+    public void setExecutorDir(String executorDir) {
+        this.executorDir = executorDir;
     }        
 
     @Override
-    public List<JobCommand> getMainCommands(JobContext chunk) {
+    public List<JobCommand> getMainCommands(JobChunk jc) {
         String temp = mainCommand;
         for (String k : sysPropKeys) {
             String v = StringUtils.trimToEmpty(System.getProperty(k));
@@ -55,7 +65,27 @@ public class GatlingMavenJobConfig extends MavenJobConfig {
                 temp = temp + " -D" + k + "=" + v;
             }
         }
-        return Collections.singletonList(new JobCommand(temp));        
-    }        
-    
+        return Collections.singletonList(new JobCommand(temp));
+    }
+
+    @Override
+    public ScenarioRuntime handleUpload(JobChunk<ScenarioRuntime> jc, File upload) {
+        String karateLog = upload.getPath() + File.separator + "karate.log";
+        File karateLogFile = new File(karateLog);
+        if (karateLogFile.exists()) {
+            karateLogFile.renameTo(new File(karateLog + ".txt"));
+        }
+        String gatlingReportDir = "target" + File.separator + "reports" + File.separator;
+        File[] dirs = upload.listFiles();
+        for (File dir : dirs) {
+            if (dir.isDirectory()) {
+                File file = JobUtils.getFirstFileWithExtension(dir, "log");
+                if (file != null) {
+                    FileUtils.copy(file, new File(gatlingReportDir + "simulation_" + jc.getId() + ".log"));
+                }
+            }
+        }
+        return jc.getValue();
+    }
+
 }

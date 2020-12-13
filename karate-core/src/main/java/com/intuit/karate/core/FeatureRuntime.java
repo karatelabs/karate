@@ -31,6 +31,7 @@ import com.intuit.karate.resource.Resource;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -169,7 +170,14 @@ public class FeatureRuntime implements Runnable {
                 logger.info("before-feature hook returned [false], aborting: ", this);
             } else {
                 lastExecutedScenario = sr;
-                sr.run();
+                if (suite.jobManager != null) {
+                    CompletableFuture future = suite.jobManager.addChunk(sr);
+                    logger.info("waiting for job executor to process: {}", sr);
+                    future.join();
+                    logger.info("job executor completed processing: {}", sr);
+                } else {
+                    sr.run();
+                }
             }
         } else {
             logger.trace("excluded by tags: {}", sr);

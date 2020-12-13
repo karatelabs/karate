@@ -28,6 +28,7 @@ import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.RuntimeHookFactory;
 import com.intuit.karate.http.HttpClientFactory;
+import com.intuit.karate.job.JobConfig;
 import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
 import java.util.*;
@@ -180,6 +181,7 @@ public class Runner {
         boolean outputCucumberJson;
         boolean dryRun;
         Map<String, String> systemProperties;
+        JobConfig jobConfig;
 
         public List<Feature> resolveAll() {
             if (classLoader == null) {
@@ -277,6 +279,12 @@ public class Runner {
                 for (Feature feature : features) {
                     feature.setCallName(scenarioName);
                 }
+            }
+            if (jobConfig != null) {
+                outputCucumberJson = true;
+                reportDir = jobConfig.getExecutorDir();
+                threadCount = jobConfig.getExecutorCount();
+                timeoutMinutes = jobConfig.getTimeoutMinutes();                
             }
             if (threadCount < 1) {
                 threadCount = 1;
@@ -454,6 +462,13 @@ public class Runner {
         public Builder dryRun(boolean value) {
             dryRun = value;
             return this;
+        }
+        
+        public Results jobManager(JobConfig value) {
+            jobConfig = value;
+            Suite suite = new Suite(this);
+            suite.run();
+            return suite.results;
         }
 
         public Results parallel(int threadCount) {

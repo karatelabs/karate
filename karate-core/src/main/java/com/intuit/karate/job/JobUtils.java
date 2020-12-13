@@ -124,4 +124,9 @@ public class JobUtils {
         return destFile;
     }
 
+    public static File getFirstFileWithExtension(File parent, String extension) {
+        File[] files = parent.listFiles((f, n) -> n.endsWith("." + extension));
+        return files == null || files.length == 0 ? null : files[0];
+    }
+
 }

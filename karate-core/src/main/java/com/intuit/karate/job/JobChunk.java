@@ -23,14 +23,76 @@
  */
 package com.intuit.karate.job;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  *
  * @author pthomas3
  */
-public interface JobChunk<T> {
+public class JobChunk<T> {
 
-    String getChunkId();
+    private final String id;
+    private final T value;
+    private final CompletableFuture<T> future;
 
-    T getChunk();    
+    private String jobId;
+    private String executorId;
+    private long startTime;
+    private String executorDir;
+
+    public JobChunk(String id, T value) {
+        this.id = id;
+        this.value = value;
+        future = new CompletableFuture();
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public T getValue() {
+        return value;
+    }
+
+    public CompletableFuture<T> getFuture() {
+        return future;
+    }
+
+    public String getJobId() {
+        return jobId;
+    }
+
+    public void setJobId(String jobId) {
+        this.jobId = jobId;
+    }
+
+    public String getExecutorId() {
+        return executorId;
+    }
+
+    public void setExecutorId(String executorId) {
+        this.executorId = executorId;
+    }
+
+    public long getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(long startTime) {
+        this.startTime = startTime;
+    }
+
+    public String getExecutorDir() {
+        return executorDir;
+    }
+
+    public void setExecutorDir(String executorDir) {
+        this.executorDir = executorDir;
+    }
+
+    @Override
+    public String toString() {
+        return id;
+    }
 
 }

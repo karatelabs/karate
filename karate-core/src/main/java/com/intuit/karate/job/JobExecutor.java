@@ -26,6 +26,7 @@ package com.intuit.karate.job;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.Json;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.Variable;
@@ -56,7 +57,7 @@ public class JobExecutor {
     private final String workingDir;
     protected final String jobId;
     protected final String executorId;
-    private final String uploadDir;
+    private final String executorDir;
     private final Map<String, String> environment;
     private final List<JobCommand> shutdownCommands;
 
@@ -68,7 +69,7 @@ public class JobExecutor {
         appender = new FileLogAppender(new File(targetDir + File.separator + "karate-executor.log"));
         logger = new Logger();
         logger.setAppender(appender);
-        if (!Command.waitForHttp(serverUrl)) {
+        if (!Command.waitForHttp(serverUrl + "/healthcheck")) {
             logger.error("unable to connect to server, aborting");
             System.exit(1);
         }
@@ -88,9 +89,9 @@ public class JobExecutor {
         // init ================================================================
         JobMessage init = invokeServer(new JobMessage("init").put("log", appender.collect()));
         logger.info("init response: {}", init);
-        uploadDir = workingDir + File.separator + init.get(JobContext.UPLOAD_DIR, String.class);
+        executorDir = workingDir + File.separator + init.get(JobManager.EXECUTOR_DIR);
         List<JobCommand> startupCommands = init.getCommands("startupCommands");
-        environment = init.get("environment", Map.class);
+        environment = init.get("environment");
         executeCommands(startupCommands, environment);
         shutdownCommands = init.getCommands("shutdownCommands");
         logger.info("init done");
@@ -142,11 +143,9 @@ public class JobExecutor {
 
     private void loopNext() {
         do {
-            File uploadDirFile = new File(uploadDir);
-            uploadDirFile.mkdirs();
-            JobMessage req = new JobMessage("next")
-                    .put(JobContext.UPLOAD_DIR, uploadDirFile.getAbsolutePath());
-            req.setChunkId(chunkId.get());
+            File executorDirFile = new File(executorDir);
+            executorDirFile.mkdirs();
+            JobMessage req = new JobMessage("next").put(JobManager.EXECUTOR_DIR, executorDirFile.getAbsolutePath());
             JobMessage res = invokeServer(req);
             if (res.is("stop")) {
                 logger.info("stop received, shutting down");
@@ -158,16 +157,15 @@ public class JobExecutor {
             stopBackgroundCommands();
             executeCommands(res.getCommands("postCommands"), environment);
             String log = appender.collect();
-            File logFile = new File(uploadDir + File.separator + "karate.log");
+            File logFile = new File(executorDir + File.separator + "karate.log");
             FileUtils.writeToFile(logFile, log);
-            String zipBase = uploadDir + "_" + chunkId;
+            String zipBase = executorDir + "_" + chunkId;
             File toZip = new File(zipBase);
-            uploadDirFile.renameTo(toZip);
+            executorDirFile.renameTo(toZip);
             File toUpload = new File(zipBase + ".zip");
             JobUtils.zip(toZip, toUpload);
             byte[] upload = toBytes(toUpload);
             req = new JobMessage("upload");
-            req.setChunkId(chunkId.get());
             req.setBytes(upload);
             invokeServer(req);
         } while (true);
@@ -204,30 +202,35 @@ public class JobExecutor {
     }
 
     private JobMessage invokeServer(JobMessage req) {
-        return invokeServer(http, jobId, executorId, req);
+        req.setJobId(jobId);
+        req.setExecutorId(executorId);
+        req.setChunkId(chunkId.get());
+        return invokeServer(http, req);
     }
 
-    protected static JobMessage invokeServer(Http http, String jobId, String executorId, JobMessage req) {
+    protected static JobMessage invokeServer(Http http, JobMessage req) {
         byte[] bytes = req.getBytes();
-        Variable body;
         String contentType;
         if (bytes != null) {
             contentType = ResourceType.BINARY.contentType;
-            body = new Variable(bytes);
         } else {
             contentType = ResourceType.JSON.contentType;
-            body = new Variable(req.getBody());
+            bytes = JsonUtils.toJsonBytes(req.getBody());
         }
         Json json = Json.object();
         json.set("method", req.method);
-        json.set("jobId", jobId);
-        json.set("executorId", req.getExecutorId());
+        if (req.getJobId() != null) {
+            json.set("jobId", req.getJobId());
+        }
+        if (req.getExecutorId() != null) {
+            json.set("executorId", req.getExecutorId());
+        }
         if (req.getChunkId() != null) {
             json.set("chunkId", req.getChunkId());
         }
-        Response res = http.header(JobMessage.KARATE_JOB, json.toString())
-                .header("content-type", contentType).post(body);
-        String jobHeader = res.getHeader(JobMessage.KARATE_JOB);
+        Response res = http.header(JobManager.KARATE_JOB_HEADER, json.toString())
+                .header("content-type", contentType).post(bytes);
+        String jobHeader = res.getHeader(JobManager.KARATE_JOB_HEADER);
         JobMessage jm = JobManager.toJobMessage(jobHeader);
         ResourceType rt = res.getResourceType();
         if (rt != null && rt.isBinary()) {

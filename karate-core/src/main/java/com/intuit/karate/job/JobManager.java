@@ -26,10 +26,6 @@ package com.intuit.karate.job;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.core.Embed;
-import com.intuit.karate.core.Scenario;
-import com.intuit.karate.core.ScenarioResult;
-import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.http.HttpServer;
 import com.intuit.karate.http.Request;
 import com.intuit.karate.http.ResourceType;
@@ -39,7 +35,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -51,23 +46,27 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class JobManager implements ServerHandler {
+public class JobManager<T> implements ServerHandler {
 
     protected static final Logger logger = LoggerFactory.getLogger(JobManager.class);
 
-    private final JobConfig config;
+    public static final String KARATE_JOB_HEADER = "karate-job";
+    public static final String EXECUTOR_DIR = "executorDir";
+
+    public final JobConfig<T> config;
     private final String basePath;
     private final File ZIP_FILE;
     public final String jobId;
-    private final String reportDir;
+    public final String jobUrl;
+    public final HttpServer server;
+
+    private final Map<String, JobChunk<T>> chunks = new HashMap();
+    private final ArrayBlockingQueue<JobChunk> queue;
+    private final AtomicInteger chunkCounter = new AtomicInteger();
     private final AtomicInteger executorCounter = new AtomicInteger(1);
 
-    public final HttpServer server;
-    public final String jobUrl;
-
-    public JobManager(JobConfig config, String reportDir) {
+    public JobManager(JobConfig config) {
         this.config = config;
-        this.reportDir = reportDir;
         jobId = System.currentTimeMillis() + "";
         basePath = FileUtils.getBuildDir() + File.separator + jobId;
         ZIP_FILE = new File(basePath + ".zip");
@@ -75,67 +74,46 @@ public class JobManager implements ServerHandler {
         logger.info("created zip archive: {}", ZIP_FILE);
         server = new HttpServer(config.getPort(), this);
         jobUrl = "http://" + config.getHost() + ":" + server.getPort();
+        queue = new ArrayBlockingQueue(config.getExecutorCount());
     }
 
-    public void handleUpload(File upload, String executorId, String chunkId) {
-        synchronized (chunks) {
-            JobChunk chunk = chunks.get(chunkId);
-            CompletableFuture<JobChunk> future = futures.get(chunkId);
-            future.complete(chunk);
-            logger.debug("completed: {}", chunkId);
-        }
-        File jsonFile = getFirstFileWithExtension(upload, "json");
-        if (jsonFile == null) {
-            return;
-        }
-        String json = FileUtils.toString(jsonFile);
-        File videoFile = getFirstFileWithExtension(upload, "mp4");
-        List<Map<String, Object>> list = Json.of(json).get("$[0].elements");
-        Scenario scenario = null; // TODO
-        ScenarioResult sr = new ScenarioResult(scenario, list, true);
-        // sr.setStartTime(cr.getStartTime());
-        sr.setEndTime(System.currentTimeMillis());
-        sr.setThreadName(executorId);
-        if (videoFile != null) {
-            File dest = new File(FileUtils.getBuildDir() + File.separator + chunkId + ".mp4");
-            FileUtils.copy(videoFile, dest);
-            sr.appendEmbed(Embed.videoFile("../" + dest.getName()));
-        }
-    }
-
-    public JobChunk getNextChunk(String executorId) {
-        return queue.poll();
-    }
-
-    private final Map<String, JobChunk> chunks = new HashMap();
-    private final Map<String, CompletableFuture<JobChunk>> futures = new HashMap();
-    private final ArrayBlockingQueue<JobChunk> queue = new ArrayBlockingQueue(1);
-
-    public CompletableFuture<JobChunk> addChunk(JobChunk chunk) {
+    public <T> CompletableFuture<T> addChunk(T value) {
         try {
-            logger.debug("waiting for queue: {}", chunk.getChunkId());
-            queue.put(chunk);
-            logger.debug("queue put: {}", chunk.getChunkId());
+            String chunkId = chunkCounter.incrementAndGet() + "";
+            JobChunk jc = new JobChunk(chunkId, value);
             synchronized (chunks) {
-                chunks.put(chunk.getChunkId(), chunk);
-                CompletableFuture<JobChunk> future = new CompletableFuture();
-                futures.put(chunk.getChunkId(), future);
-                return future;
+                chunks.put(jc.getId(), jc);
             }
+            logger.debug("waiting for queue: {}", jc);
+            queue.put(jc);
+            logger.debug("queue put: {}", jc);
+            return jc.getFuture();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
+    
+    public void startExecutors() {
+        try {
+            config.startExecutors(jobId, jobUrl);
+        } catch (Exception e) {
+            logger.error("failed to start executors: {}", e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }    
 
     @Override
     public Response handle(Request request) {
         if (!request.getMethod().equals("POST")) {
+            if (request.getPath().equals("healthcheck")) {
+                return Response.OK;
+            }
             return errorResponse(request + " not supported");
         }
-        String jobHeader = request.getHeader(JobMessage.KARATE_JOB);
+        String jobHeader = request.getHeader(KARATE_JOB_HEADER);
         JobMessage req = toJobMessage(jobHeader);
         if (req.method == null) {
-            return errorResponse(JobMessage.KARATE_METHOD + " param required");
+            return errorResponse("'method' required in 'karate-job' header (json)");
         }
         ResourceType rt = request.getResourceType();
         if (rt != null && rt.isBinary()) {
@@ -148,13 +126,13 @@ public class JobManager implements ServerHandler {
         Json json = Json.object();
         json.set("method", res.method);
         json.set("jobId", jobId);
-        if (req.getExecutorId() != null) {
-            json.set("executorId", req.getExecutorId());
+        if (res.getExecutorId() != null) {
+            json.set("executorId", res.getExecutorId());
         }
         if (res.getChunkId() != null) {
             json.set("chunkId", res.getChunkId());
         }
-        response.setHeader(JobMessage.KARATE_JOB, json.toString());
+        response.setHeader(KARATE_JOB_HEADER, json.toString());
         if (res.getBytes() != null) {
             response.setBody(res.getBytes());
             response.setContentType(ResourceType.BINARY.contentType);
@@ -204,27 +182,29 @@ public class JobManager implements ServerHandler {
                 init.put("startupCommands", config.getStartupCommands());
                 init.put("shutdownCommands", config.getShutdownCommands());
                 init.put("environment", config.getEnvironment());
-                init.put(JobContext.UPLOAD_DIR, resolveUploadDir());
+                init.put(EXECUTOR_DIR, config.getExecutorDir());
                 return init;
             case "next":
                 logger.info("next: {}", jm);
-                JobChunk chunk = getNextChunk(jm.getExecutorId());
-                if (chunk == null) {
+                JobChunk<T> jc = queue.poll();
+                if (jc == null) {
                     logger.info("no more chunks, server responding with 'stop' message");
                     return new JobMessage("stop");
                 }
-                String uploadDir = jm.get(JobContext.UPLOAD_DIR, String.class);
-                ScenarioRuntime sr = (ScenarioRuntime) chunk.getChunk();
-                JobContext jc = new JobContext(sr.scenario, jobId, jm.getExecutorId(), chunk.getChunkId(), uploadDir);
+                jc.setStartTime(System.currentTimeMillis());
+                jc.setJobId(jobId);
+                jc.setExecutorId(jm.getExecutorId());
+                String executorDir = jm.get(EXECUTOR_DIR);
+                jc.setExecutorDir(executorDir);
                 JobMessage next = new JobMessage("next")
                         .put("preCommands", config.getPreCommands(jc))
                         .put("mainCommands", config.getMainCommands(jc))
                         .put("postCommands", config.getPostCommands(jc));
-                next.setChunkId(chunk.getChunkId());
+                next.setChunkId(jc.getId());
                 return next;
             case "upload":
                 logger.info("upload: {}", jm);
-                handleUpload(jm.getBytes(), jm.getExecutorId(), jm.getChunkId());
+                handleUpload(jm.getBytes(), jm.getChunkId());
                 JobMessage upload = new JobMessage("upload");
                 upload.setChunkId(jm.getChunkId());
                 return upload;
@@ -232,28 +212,6 @@ public class JobManager implements ServerHandler {
                 logger.warn("unknown request method: {}", method);
                 return null;
         }
-    }
-
-    public static File getFirstFileWithExtension(File parent, String extension) {
-        File[] files = parent.listFiles((f, n) -> n.endsWith("." + extension));
-        return files == null || files.length == 0 ? null : files[0];
-    }
-
-    public void startExecutors() {
-        try {
-            config.startExecutors(jobId, jobUrl);
-        } catch (Exception e) {
-            logger.error("failed to start executors: {}", e.getMessage());
-            throw new RuntimeException(e);
-        }
-    }
-
-    private String resolveUploadDir() {
-        String temp = config.getUploadDir();
-        if (temp != null) {
-            return temp;
-        }
-        return reportDir;
     }
 
     private byte[] getDownload() {
@@ -265,18 +223,26 @@ public class JobManager implements ServerHandler {
         }
     }
 
-    private void handleUpload(byte[] bytes, String executorId, String chunkId) {
-//        String chunkBasePath = basePath + File.separator + executorId + File.separator + chunkId;
-//        File zipFile = new File(chunkBasePath + ".zip");
-//        FileUtils.writeToFile(zipFile, bytes);
-//        File upload = new File(chunkBasePath);
-//        JobUtils.unzip(zipFile, upload);
-        File upload = new File("");
-        handleUpload(upload, executorId, chunkId);
+    private void handleUpload(byte[] bytes, String chunkId) {
+        JobChunk<T> jc;
+        synchronized (chunks) {
+            jc = chunks.get(chunkId);
+        }        
+        String chunkBasePath = basePath + File.separator + jc.getExecutorId() + File.separator + chunkId;
+        File upload = new File(chunkBasePath);
+        File zipFile = new File(chunkBasePath + ".zip");
+        if (bytes != null) {
+            FileUtils.writeToFile(zipFile, bytes);
+            JobUtils.unzip(zipFile, upload);
+        }
+        T value = config.handleUpload(jc, upload);
+        CompletableFuture<T> future = jc.getFuture();
+        future.complete(value);
+        logger.debug("completed: {}", chunkId);
     }
 
     protected void dumpLog(JobMessage jm) {
-        logger.debug("\n>>>>>>>>>>>>>>>>>>>>> {}\n{}<<<<<<<<<<<<<<<<<<<< {}", jm, jm.get("log", String.class), jm);
+        logger.debug("\n>>>>>>>>>>>>>>>>>>>>> {}\n{}<<<<<<<<<<<<<<<<<<<< {}", jm, jm.get("log"), jm);
     }
 
 }
