@@ -23,8 +23,10 @@
  */
 package com.intuit.karate.graal;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
 
@@ -32,7 +34,7 @@ import org.graalvm.polyglot.proxy.ProxyObject;
  *
  * @author pthomas3
  */
-public class JsMap implements ProxyObject {
+public class JsMap implements ProxyObject, Map {
 
     public static final JsMap EMPTY = new JsMap(Collections.EMPTY_MAP);
 
@@ -74,6 +76,68 @@ public class JsMap implements ProxyObject {
     @Override
     public String toString() {
         return map.toString();
+    }
+
+    //==========================================================================
+    //
+    @Override
+    public int size() {
+        return map.size();
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return map.isEmpty();
+    }
+
+    @Override
+    public boolean containsKey(Object key) {
+        return map.containsKey(key);
+    }
+
+    @Override
+    public boolean containsValue(Object value) {
+        return map.containsValue(value);
+    }
+
+    @Override
+    public Object get(Object key) {
+        return map.get(key);
+    }
+
+    @Override
+    public Object put(Object key, Object value) {
+        return map.put(key, value);
+    }
+
+    @Override
+    public Object remove(Object key) {
+        return map.remove(key);
+    }
+
+    @Override
+    public void putAll(Map m) {
+        map.putAll(m);
+    }
+
+    @Override
+    public void clear() {
+        map.clear();
+    }
+
+    @Override
+    public Set keySet() {
+        return map.keySet();
+    }
+
+    @Override
+    public Collection values() {
+        return map.values();
+    }
+
+    @Override
+    public Set entrySet() {
+        return map.entrySet();
     }
 
 }
