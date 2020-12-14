@@ -357,10 +357,6 @@ public class ScenarioEngine {
         }
     }
 
-    private String evalAsString(String exp) {
-        return evalJs(exp).getAsString();
-    }
-
     private void evalAsMap(String exp, BiConsumer<String, List<String>> fun) {
         Variable var = evalKarateExpression(exp);
         if (!var.isMap()) {
