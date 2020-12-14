@@ -229,16 +229,15 @@ public class ScenarioBridge implements PerfContext {
         }
     }
 
-    public Object callonce(String filePath) {
-        return this.callonce(filePath, false);
+    public Object callonce(String path) {
+        return callonce(false, path);
     }
 
-    public Object callonce(String filePath, boolean sharedScope) {
-        String karateReadExp = "read('" + filePath + "')";
-        Variable variable = this.getEngine().call(true, karateReadExp, sharedScope);
-        return JsValue.fromJava(variable);
+    public Object callonce(boolean sharedScope, String path) {
+        String exp = "read('" + path + "')";
+        Variable v = getEngine().call(true, exp, sharedScope);
+        return JsValue.fromJava(v.getValue());
     }
-
 
     @Override
     public void capturePerfEvent(String name, long startTime, long endTime) {

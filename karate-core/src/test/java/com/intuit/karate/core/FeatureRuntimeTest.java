@@ -112,6 +112,14 @@ class FeatureRuntimeTest {
         run("karate-config-fn.feature", "classpath:com/intuit/karate/core/");
         matchContains(fr.result.getVariables(), "{ helloVar: 'hello world' }");
     }
+    
+    @Test
+    void testCallOnceJsFromFeatureUtilsDefinedInKarateConfig() {
+        System.setProperty("karate.env", "callonce");
+        run("callonce-config.feature", "classpath:com/intuit/karate/core/");
+        matchContains(fr.result.getVariables(), "{ foo: 'hello foo' }");
+        System.clearProperty("karate.env");
+    }    
 
     @Test
     void testCallByTag() {
