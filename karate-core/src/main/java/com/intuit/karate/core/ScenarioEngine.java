@@ -385,7 +385,8 @@ public class ScenarioEngine {
     }
 
     public void url(String exp) {
-        requestBuilder.url(evalAsString(exp));
+        Variable urlVar = evalKarateExpression(exp);
+        requestBuilder.url(urlVar != null ? urlVar.getAsString() : "undefined");
     }
 
     public void path(String exp) {
