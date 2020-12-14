@@ -23,13 +23,10 @@
  */
 package com.intuit.karate.debug;
 
+import com.intuit.karate.*;
 import com.intuit.karate.cli.IdeMain;
-import com.intuit.karate.Main;
-import com.intuit.karate.Runner;
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Result;
 import com.intuit.karate.core.Step;
-import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.core.RuntimeHookFactory;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Variable;
@@ -162,7 +159,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             if(var.type == LIST) {
                 List<Object> list = ((List) var.getValue());
                 for (int i = 0; i < list.size(); i++) {
-                    vars.put(String.valueOf(i), new Variable(list.get(i)));
+                    vars.put(String.format("[%s]", i), new Variable(list.get(i)));
                 }
             } else if(var.type == MAP) {
                 Map<String, Object> map = ((Map) var.getValue());
@@ -356,15 +353,18 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
 
     protected String evaluateVarExpression(Map<String, Variable> vars, String expression) {
         String result = "";
-        if(expression.contains(".")) {
-            // TODO get nested variables
-        } else {
-            try {
+        try {
+            if(expression.contains(".")) {
+                String varName = expression.substring(0, expression.indexOf('.'));
+                String path = expression.substring(expression.indexOf('.') + 1);
+                Object nested = Json.of(vars.get(varName).getValue()).get(path);
+                result = JsonUtils.toJson(nested);
+            } else {
                 Variable v = vars.get(expression);
                 result = v.getAsPrettyString();
-            } catch (Exception e) {
-                result = "[error] " + e.getMessage();
             }
+        } catch (Exception e) {
+            result = "[error] " + e.getMessage();
         }
         return result;
     }
