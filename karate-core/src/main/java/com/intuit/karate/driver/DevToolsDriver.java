@@ -968,12 +968,10 @@ public abstract class DevToolsDriver implements Driver {
         method("DOM.setFileInputFiles").param("files", files).param("nodeId", nodeId).send();
     }
 
-    public Object scriptAwaitPromise(String expression) throws JsonProcessingException {
-        String axeResponse = method("Runtime.evaluate")
+    public Object scriptAwaitPromise(String expression) {
+        return method("Runtime.evaluate")
                 .param("expression", expression)
                 .param("awaitPromise", true) // awaiting promise.
-                .send().getResult().getValue();
-
-        return new ObjectMapper().readValue(axeResponse, Map.class);
+                .send().getResult().getValueAndForceParsingAsJson();
     }
 }
