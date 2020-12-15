@@ -1,7 +1,7 @@
 Feature: axe accessibility native
 
   Background:
-    * configure driver = { type: 'chrome', showDriverLog: true }
+    * configure driver = { type: 'chrome' }
 
   Scenario:
     # get axe script
@@ -11,5 +11,4 @@ Feature: axe accessibility native
     * driver.script(axeJs);
     # execute axe
     * def axeResponse = driver.scriptAwaitPromise('axe.run().then(results => JSON.stringify(results))');
-    # do as you please with the response
-    * print axeResponse.violations
+    * doc { read: 'axe-report.html' }    
