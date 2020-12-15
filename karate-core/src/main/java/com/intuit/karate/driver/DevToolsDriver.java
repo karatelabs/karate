@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.driver;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intuit.karate.Constants;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
@@ -36,12 +38,13 @@ import com.intuit.karate.http.WebSocketClient;
 import com.intuit.karate.http.WebSocketOptions;
 import com.intuit.karate.core.MockHandler;
 import com.intuit.karate.core.ScenarioEngine;
-import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Variable;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.Response;
 import com.intuit.karate.shell.Command;
+
 import org.graalvm.polyglot.Value;
+
 
 import java.util.ArrayList;
 import java.util.Base64;
@@ -964,5 +967,13 @@ public abstract class DevToolsDriver implements Driver {
         Integer nodeId = elementId(locator);
         method("DOM.setFileInputFiles").param("files", files).param("nodeId", nodeId).send();
     }
-    
+
+    public Object scriptAwaitPromise(String expression) throws JsonProcessingException {
+        String axeResponse = method("Runtime.evaluate")
+                .param("expression", expression)
+                .param("awaitPromise", true) // awaiting promise.
+                .send().getResult().getValue();
+
+        return new ObjectMapper().readValue(axeResponse, Map.class);
+    }
 }
