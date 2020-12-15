@@ -2,7 +2,7 @@
   session.todos = session.todos || [];
   var todos = session.todos;
   var action = request.param('action');
-  if (request.method === 'POST') {
+  if (request.post) {
     var id = ~~request.param('id');
     switch (action) {
       case 'add':
