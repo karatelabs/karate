@@ -21,7 +21,6 @@ https://bintray.com/ptrthomas/karate
 (upload to github release notes)
 
 robot:
-cd karate-robot
 mvn package -P fatjar -f karate-robot/pom.xml
 https://bintray.com/ptrthomas/karate
 (upload to github release notes)
