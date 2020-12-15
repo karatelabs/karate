@@ -25,14 +25,14 @@ package com.intuit.karate.debug;
 
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Suite;
-import com.intuit.karate.core.Step;
-import com.intuit.karate.core.StepResult;
-import com.intuit.karate.core.FeatureRuntime;
+import com.intuit.karate.core.*;
 import com.intuit.karate.RuntimeHook;
-import com.intuit.karate.core.ScenarioRuntime;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Stack;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -118,6 +118,7 @@ public class DebugThread implements RuntimeHook, LogAppender {
         long frameId = handler.nextFrameId();
         stack.push(frameId);
         handler.FRAMES.put(frameId, context);
+        handler.FRAME_VARS.put(frameId, new Stack<>());
         if (context.caller.depth == 0) {
             handler.THREADS.put(id, this);
         }
@@ -181,9 +182,20 @@ public class DebugThread implements RuntimeHook, LogAppender {
             stop("exception", errorMessage);
             errored = true;
         }
+        pushDebugFrameVariables(context);
     }
 
-    protected ScenarioRuntime getContext() {
+    private void pushDebugFrameVariables(ScenarioRuntime context) {
+        Map<String, Variable> vars = context.engine.vars.entrySet().stream()
+                .collect(Collectors.toMap(v -> v.getKey(), v -> v.getValue().copy(true)));
+        handler.FRAME_VARS.get(stack.peek()).push(vars);
+    }
+
+    private void popDebugFrameVariables() {
+        handler.FRAME_VARS.get(stack.peek()).pop();
+    }
+
+    private ScenarioRuntime getContext() {
         return handler.FRAMES.get(stack.peek());
     }
 
@@ -217,6 +229,7 @@ public class DebugThread implements RuntimeHook, LogAppender {
     }
 
     protected DebugThread stepBack() {
+        popDebugFrameVariables();
         stepBack = true;
         return this;
     }

@@ -23,30 +23,28 @@
  */
 package com.intuit.karate.debug;
 
-import com.intuit.karate.Json;
-import com.intuit.karate.JsonUtils;
-import com.intuit.karate.Main;
-import com.intuit.karate.Runner;
-import com.intuit.karate.RuntimeHook;
-import com.intuit.karate.StringUtils;
+import com.intuit.karate.*;
 import com.intuit.karate.cli.IdeMain;
 import com.intuit.karate.core.Result;
+import com.intuit.karate.core.Step;
 import com.intuit.karate.core.RuntimeHookFactory;
 import com.intuit.karate.core.ScenarioRuntime;
-import com.intuit.karate.core.Step;
 import com.intuit.karate.core.Variable;
-import static com.intuit.karate.core.Variable.Type.LIST;
-import static com.intuit.karate.core.Variable.Type.MAP;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+
 import java.util.*;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static com.intuit.karate.core.Variable.Type.LIST;
+import static com.intuit.karate.core.Variable.Type.MAP;
 
 /**
  *
@@ -61,13 +59,14 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     private Channel channel;
     private int nextSeq;
     private long nextFrameId;
-    private long nextVariablesReference = 1000; // setting to 100 to avoid conflict with nextFrameId
+    private long nextVariablesReference = 1000; // setting to 1000 to avoid collisions with nextFrameId
     private long focusedFrameId;
     private Thread runnerThread;
 
     private final Map<String, SourceBreakpoints> BREAKPOINTS = new ConcurrentHashMap();
     protected final Map<Long, DebugThread> THREADS = new ConcurrentHashMap();
     protected final Map<Long, ScenarioRuntime> FRAMES = new ConcurrentHashMap();
+    protected final Map<Long, Stack<Map<String, Variable>>> FRAME_VARS = new ConcurrentHashMap();
     protected final Map<Long, Entry<String, Variable>> VARIABLES = new ConcurrentHashMap();
 
     private boolean singleFeature;
@@ -147,11 +146,12 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         if (frameId == null) {
             return Collections.EMPTY_LIST;
         }
+
         String parentExpression = "";
         Map<String, Variable> vars = null;
-        if (FRAMES.containsKey(frameId)) {
+        if (FRAME_VARS.containsKey(frameId)) {
             focusedFrameId = frameId;
-            vars = FRAMES.get(frameId).engine.vars;
+            vars = FRAME_VARS.get(frameId).peek();
         } else if (VARIABLES.containsKey(frameId)) {
             vars = new HashMap<>();
             Entry<String, Variable> varEntry = VARIABLES.get(frameId);
@@ -184,7 +184,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                     map.put("value", "(unknown)");
                 }
                 map.put("type", v.type.name());
-                if (v.type == LIST || v.type == MAP) {
+                if(v.type == LIST || v.type == MAP) {
                     VARIABLES.put(++nextVariablesReference, new SimpleEntry(finalParentExpression + k + ".", v));
                     map.put("presentationHint", "data");
                     map.put("variablesReference", nextVariablesReference);
@@ -354,7 +354,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     protected String evaluateVarExpression(Map<String, Variable> vars, String expression) {
         String result = "";
         try {
-            if (expression.contains(".")) {
+            if(expression.contains(".")) {
                 String varName = expression.substring(0, expression.indexOf('.'));
                 String path = expression.substring(expression.indexOf('.') + 1);
                 Object nested = Json.of(vars.get(varName).getValue()).get(path);
