@@ -23,8 +23,7 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.StringUtils;
-import com.intuit.karate.exception.KarateException;
+import com.intuit.karate.KarateException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -44,17 +43,17 @@ public class Result {
     private final boolean aborted;
     private final Throwable error;
     private final boolean skipped;
-    
+
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap(error == null ? 2 : 3);
         map.put("status", status);
         map.put("duration", durationNanos);
         if (error != null) {
-            map.put("error_message", error.getClass().getName() + ": " + error.getMessage());
+            map.put("error_message", error.getMessage());
         }
         return map;
     }
-    
+
     public Result(Map<String, Object> map) {
         status = (String) map.get("status");
         Number num = (Number) map.get("duration");
@@ -71,8 +70,8 @@ public class Result {
         this.error = error;
         this.aborted = aborted;
         skipped = SKIPPED.equals(status);
-    }    
-    
+    }
+
     public boolean isSkipped() {
         return skipped;
     }
@@ -94,12 +93,15 @@ public class Result {
     }
 
     public static Result failed(long nanos, Throwable error, Step step) {
-        String featureName = Engine.getFeatureName(step);
-        error = new KarateException(featureName + ":" + step.getLine() + " - " + (StringUtils.isBlank(error.getMessage()) ? error : error.getMessage()));          
+        String message = error.getMessage();
+        if (message == null) {
+            message = error + ""; // make sure we show something meaningful
+        }
+        error = new KarateException(message + "\n" + step.getDebugInfo());
         StackTraceElement[] newTrace = new StackTraceElement[]{
-            new StackTraceElement("✽", step.getPrefix() + ' ' + step.getText() + ' ', featureName, step.getLine())
+            new StackTraceElement("<feature>", ": " + step.getPrefix() + " " + step.getText() + " ", step.getDebugInfo(), step.getLine())
         };
-        error.setStackTrace(newTrace);        
+        error.setStackTrace(newTrace);
         return new Result(FAILED, nanos, error, false);
     }
 
@@ -118,10 +120,10 @@ public class Result {
     public long getDurationNanos() {
         return durationNanos;
     }
-    
+
     public double getDurationMillis() {
         return Engine.nanosToMillis(durationNanos);
-    }    
+    }
 
     @Override
     public String toString() {

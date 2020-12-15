@@ -25,7 +25,6 @@ package demo;
 
 import com.intuit.karate.Runner;
 import com.intuit.karate.Results;
-import com.intuit.karate.KarateOptions;
 import java.io.File;
 import org.apache.commons.io.FileUtils;
 import static org.junit.Assert.assertTrue;
@@ -35,18 +34,21 @@ import org.junit.Test;
  *
  * @author pthomas3
  */
-@KarateOptions(tags = {"~@ignore", "~@mock-servlet-todo"})
 public class MockSpringMvcServletTest {
-    
+
     @Test
-    public void testSpringBootDemo() throws Exception {        
+    public void testSpringBootDemo() throws Exception {
         File srcDir = new File("../karate-demo/src/test/java");
         File destDir = new File("target/test-classes");
-        FileUtils.copyDirectory(srcDir, destDir, 
+        FileUtils.copyDirectory(srcDir, destDir,
                 f -> !f.getName().equals("karate-config.js"), false); // don't over-write karate-config.js
-        System.setProperty("karate.env", "dev-mock-springmvc");
-        Results results = Runner.parallel(getClass(), 5);
-        assertTrue("there are scenario failures", results.getFailCount() == 0);
+        MockSpringMvcServlet factory = new MockSpringMvcServlet();
+        Results results = Runner.path("classpath:demo")
+                .tags("~@ignore", "~@mock-servlet-todo")
+                .karateEnv("dev-mock-springmvc")
+                .clientFactory(factory)
+                .parallel(1);
+        assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
     }
-    
+
 }

@@ -119,7 +119,7 @@ Scenario: params json with embedded expressions
 Scenario: test that multi-params work as expected
     
     Given path 'search'
-    And param foo = 'bar', 'baz'
+    And param foo = ['bar', 'baz']
     When method get
     Then status 200
     And match response == { foo: ['bar', 'baz'] }

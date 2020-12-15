@@ -21,7 +21,7 @@ public class SimpleLocalJobRunner {
 
     @Test
     void testJobManager() {
-        MavenJobConfig config = new MavenJobConfig(-1, "127.0.0.1", 0) {
+        MavenJobConfig config = new MavenJobConfig(2, "127.0.0.1", 0) {
             @Override
             public void startExecutors(String uniqueId, String serverUrl) throws Exception {
                 int executorCount = 2;
@@ -35,7 +35,7 @@ public class SimpleLocalJobRunner {
         };
         // export KARATE_TEST="foo"
         config.addEnvPropKey("KARATE_TEST");
-        Results results = Runner.path("classpath:jobtest/simple").startServerAndWait(config);
+        Results results = Runner.path("classpath:jobtest/simple").jobManager(config);
         ReportUtils.generateReport(results.getReportDir());
     }
 

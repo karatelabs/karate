@@ -23,13 +23,11 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
+import com.intuit.karate.KarateException;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
-import com.intuit.karate.core.Embed;
-import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.appium.AndroidDriver;
 import com.intuit.karate.driver.chrome.Chrome;
 import com.intuit.karate.driver.chrome.ChromeWebDriver;
@@ -42,13 +40,11 @@ import com.intuit.karate.driver.microsoft.MsEdgeDriver;
 import com.intuit.karate.driver.safari.SafariWebDriver;
 import com.intuit.karate.driver.microsoft.WinAppDriver;
 import com.intuit.karate.driver.playwright.PlaywrightDriver;
+import com.intuit.karate.core.Config;
+import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.shell.Command;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -102,6 +98,7 @@ public class DriverOptions {
     public final boolean highlight;
     public final int highlightDuration;
     public final String attach;
+    public final boolean screenshotOnFailure;
     public final String playwrightUrl;
     public final Map<String, Object> playwrightOptions;
 
@@ -113,10 +110,6 @@ public class DriverOptions {
 
     private Integer timeoutOverride;
 
-    // mutable when we return from called features
-    // TODO consider using Engine.THREAD_CONTEXT.get()
-    private ScenarioContext context;
-
     public static final String SCROLL_JS_FUNCTION = "function(e){ var d = window.getComputedStyle(e).display;"
             + " while(d == 'none'){ e = e.parentElement; d = window.getComputedStyle(e).display }"
             + " e.scrollIntoView({block: 'center'}) }";
@@ -124,14 +117,6 @@ public class DriverOptions {
     public static final String KARATE_REF_GENERATOR = "function(e){"
             + " if (!document._karate) document._karate = { seq: (new Date()).getTime() };"
             + " var ref = 'ref' + document._karate.seq++; document._karate[ref] = e; return ref }";
-
-    public void setContext(ScenarioContext context) {
-        this.context = context;
-    }
-
-    public ScenarioContext getContext() {
-        return context;
-    }
 
     public boolean isRetryEnabled() {
         return retryEnabled;
@@ -150,8 +135,7 @@ public class DriverOptions {
         return temp == null ? defaultValue : temp;
     }
 
-    public DriverOptions(ScenarioContext context, Map<String, Object> options, LogAppender appender, int defaultPort, String defaultExecutable) {
-        this.context = context;
+    public DriverOptions(Map<String, Object> options, LogAppender appender, int defaultPort, String defaultExecutable) {
         this.options = options;
         this.appender = appender;
         logger = new Logger(getClass());
@@ -211,6 +195,7 @@ public class DriverOptions {
         highlight = get("highlight", false);
         highlightDuration = get("highlightDuration", Config.DEFAULT_HIGHLIGHT_DURATION);
         attach = get("attach", null);
+        screenshotOnFailure = get("screenshotOnFailure", true);
         playwrightUrl = get("playwrightUrl", null);
         playwrightOptions = get("playwrightOptions", null);
         // do this last to ensure things like logger, start-flag, webDriverUrl etc. are set
@@ -233,9 +218,10 @@ public class DriverOptions {
     }
 
     public Http getHttp() {
-        Http http = Http.forUrl(driverLogger.getAppender(), getUrlBase());
+        Http http = Http.forUrl(getUrlBase());
+        http.setAppender(driverLogger.getAppender());
         if (httpConfig != null) {
-            http.config(httpConfig);
+            http.configure(httpConfig);
         }
         return http;
     }
@@ -254,7 +240,7 @@ public class DriverOptions {
     public void arg(String arg) {
         args.add(arg);
     }
-    
+
     public Command startProcess() {
         return startProcess(null);
     }
@@ -270,21 +256,25 @@ public class DriverOptions {
             if (addOptions != null) {
                 args.addAll(addOptions);
             }
-            command = new Command(false, processLogger, uniqueName, processLogFile, workingDir, args.toArray(new String[]{}));
+            command = new Command(false, processLogger, uniqueName, processLogFile, workingDir, args.toArray(new String[args.size()]));
             if (listener != null) {
                 command.setListener(listener);
             }
+            command.setPollAttempts(pollAttempts);
+            command.setPollInterval(pollInterval);
             command.start();
         }
-        if (start) { // wait for a slow booting browser / driver process
-            waitForPort(host, port);
+        if (command != null) { // wait for a slow booting browser / driver process
+            command.waitForPort(host, port);
+            if (command.isFailed()) {
+                throw new KarateException("start failed", command.getFailureReason());
+            }
         }
         return command;
     }
 
-    public static Driver start(ScenarioContext context, Map<String, Object> options, LogAppender appender) {
+    public static Driver start(Map<String, Object> options, Logger logger, LogAppender appender) { // TODO unify logger
         Target target = (Target) options.get("target");
-        Logger logger = context.logger;
         if (target != null) {
             logger.debug("custom target configured, calling start()");
             Map<String, Object> map = target.start(logger);
@@ -300,33 +290,33 @@ public class DriverOptions {
         try { // to make troubleshooting errors easier
             switch (type) {
                 case "chrome":
-                    return Chrome.start(context, options, appender);
+                    return Chrome.start(options, appender);
                 case "msedge":
-                    return EdgeChromium.start(context, options, appender);
+                    return EdgeChromium.start(options, appender);
                 case "chromedriver":
-                    return ChromeWebDriver.start(context, options, appender);
+                    return ChromeWebDriver.start(options, appender);
                 case "geckodriver":
-                    return GeckoWebDriver.start(context, options, appender);
+                    return GeckoWebDriver.start(options, appender);
                 case "safaridriver":
-                    return SafariWebDriver.start(context, options, appender);
+                    return SafariWebDriver.start(options, appender);
                 case "msedgedriver":
-                    return MsEdgeDriver.start(context, options, appender);
+                    return MsEdgeDriver.start(options, appender);
                 case "mswebdriver":
-                    return MsWebDriver.start(context, options, appender);
+                    return MsWebDriver.start(options, appender);
                 case "iedriver":
-                    return IeWebDriver.start(context, options, appender);
+                    return IeWebDriver.start(options, appender);
                 case "winappdriver":
-                    return WinAppDriver.start(context, options, appender);
+                    return WinAppDriver.start(options, appender);
                 case "android":
-                    return AndroidDriver.start(context, options, appender);
+                    return AndroidDriver.start(options, appender);
                 case "ios":
-                    return IosDriver.start(context, options, appender);
+                    return IosDriver.start(options, appender);
                 case "playwright":
-                    return PlaywrightDriver.start(context, options, appender);
+                    return PlaywrightDriver.start(options, appender);
                 default:
                     logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
                     options.put("type", "chrome");
-                    return Chrome.start(context, options, appender);
+                    return Chrome.start(options, appender);
             }
         } catch (Exception e) {
             String message = "driver config / start failed: " + e.getMessage() + ", options: " + options;
@@ -467,10 +457,11 @@ public class DriverOptions {
         if (retryInterval != null) {
             return retryInterval;
         }
-        if (context == null) {
+        ScenarioEngine engine = ScenarioEngine.get();
+        if (engine == null) {
             return Config.DEFAULT_RETRY_INTERVAL;
         } else {
-            return context.getConfig().getRetryInterval();
+            return engine.getConfig().getRetryInterval();
         }
     }
 
@@ -478,10 +469,11 @@ public class DriverOptions {
         if (retryCount != null) {
             return retryCount;
         }
-        if (context == null) {
+        ScenarioEngine engine = ScenarioEngine.get();
+        if (engine == null) {
             return Config.DEFAULT_RETRY_COUNT;
         } else {
-            return context.getConfig().getRetryCount();
+            return ScenarioEngine.get().getConfig().getRetryCount();
         }
     }
 
@@ -612,26 +604,11 @@ public class DriverOptions {
         }
     }
 
-    private boolean waitForPort(String host, int port) {
-        int attempts = 0;
-        do {
-            SocketAddress address = new InetSocketAddress(host, port);
-            try {
-                processLogger.debug("poll attempt #{} for port to be ready - {}:{}", attempts, host, port);
-                SocketChannel sock = SocketChannel.open(address);
-                sock.close();
-                return true;
-            } catch (IOException e) {
-                sleep(pollInterval);
-            }
-        } while (attempts++ < pollAttempts);
-        return false;
-    }
-    
     public static String getPositionJs(String locator) {
-        String temp = "var r = " + selector(locator, DOCUMENT) 
-                + ".getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }";
-        return wrapInFunctionInvoke(temp);        
+        String temp = "var r = " + selector(locator, DOCUMENT) + ".getBoundingClientRect();"
+                + " var dx = window.scrollX; var dy = window.scrollY;"
+                + " return { x: r.x + dx, y: r.y + dy, width: r.width + dx, height: r.height + dy }";
+        return wrapInFunctionInvoke(temp);
     }
 
     public Map<String, Object> newMapWithSelectedKeys(Map<String, Object> map, String... keys) {
@@ -643,18 +620,6 @@ public class DriverOptions {
             }
         }
         return out;
-    }
-
-    public void embedPngImage(byte[] bytes) {
-        if (context != null) { // can be null if chrome java api
-            context.embed(bytes, "image/png");
-        }
-    }
-
-    public void embedContent(Embed embed) {
-        if (context != null) {
-            context.embed(embed);
-        }
     }
 
     public void disableRetry() {

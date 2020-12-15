@@ -31,7 +31,7 @@ package cucumber.api.cli;
 public class Main {
 
     public static void main(String[] args) {
-        com.intuit.karate.cli.Main.main(args);
+        com.intuit.karate.cli.IdeMain.main(args);
         System.exit(0);
     }
 

@@ -3,8 +3,8 @@ package com.intuit.karate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -14,14 +14,14 @@ import org.w3c.dom.Node;
  *
  * @author pthomas3
  */
-public class XmlUtilsTest {
+class XmlUtilsTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(XmlUtilsTest.class);
+    static final Logger logger = LoggerFactory.getLogger(XmlUtilsTest.class);
 
-    private final String ACTUAL = "<env:Envelope xmlns:env=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:S=\"http://schemas.xmlsoap.org/soap/envelope/\"><env:Header/><env:Body xmlns=\"http://www.intuit.com/iep/ServiceUsage/IntuitServiceUsageABO/V1\"><QueryUsageBalanceResponse xmlns=\"http://www.intuit.com/iep/ServiceUsage/IntuitServiceUsageABO/V1\"><Balance/><Result><Success/><Error><Category>DAT</Category><Code>DAT_USAGE_1003</Code><Description>Invalid Request: Invalid Input criteria: No asset found for license/eoc (630289335971198/855939).</Description><Source>SIEBEL</Source></Error></Result></QueryUsageBalanceResponse></env:Body></env:Envelope>";
+    final String ACTUAL = "<env:Envelope xmlns:env=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:S=\"http://schemas.xmlsoap.org/soap/envelope/\"><env:Header/><env:Body xmlns=\"http://www.intuit.com/iep/ServiceUsage/IntuitServiceUsageABO/V1\"><QueryUsageBalanceResponse xmlns=\"http://www.intuit.com/iep/ServiceUsage/IntuitServiceUsageABO/V1\"><Balance/><Result><Success/><Error><Category>DAT</Category><Code>DAT_USAGE_1003</Code><Description>Invalid Request: Invalid Input criteria: No asset found for license/eoc (630289335971198/855939).</Description><Source>SIEBEL</Source></Error></Result></QueryUsageBalanceResponse></env:Body></env:Envelope>";
 
     @Test
-    public void testParsing() {
+    void testParsing() {
         String xml = "<foo></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
         String rootName = doc.getDocumentElement().getNodeName();
@@ -29,7 +29,7 @@ public class XmlUtilsTest {
     }
 
     @Test
-    public void testXpath() {
+    void testXpath() {
         String xml = "<foo><bar>baz</bar></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
         Node node = XmlUtils.getNodeByPath(doc, "/foo", false);
@@ -39,7 +39,7 @@ public class XmlUtilsTest {
     }
 
     @Test
-    public void testConvertingToMap() {
+    void testConvertingToMap() {
         String xml = "<foo><bar>baz</bar></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
         Map<String, Object> map = (Map) XmlUtils.toObject(doc);
@@ -49,7 +49,7 @@ public class XmlUtilsTest {
     }
 
     @Test
-    public void testConvertingToMapWithoutNamespace() {
+    void testConvertingToMapWithoutNamespace() {
         String xml = "<foo xmlns=\"foobar\"><a:bar xmlns:a=\"test\">baz</a:bar></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
         Map<String, Object> map = (Map) XmlUtils.toObject(doc, true);
@@ -59,7 +59,7 @@ public class XmlUtilsTest {
     }
 
     @Test
-    public void testComplexConversionToMap() {
+    void testComplexConversionToMap() {
         Document doc = XmlUtils.toXmlDoc(ACTUAL);
         Map<String, Object> map = (Map) XmlUtils.toObject(doc);
         logger.debug("map: {}", map);
@@ -75,7 +75,7 @@ public class XmlUtilsTest {
     }
 
     @Test
-    public void testRepeatedXmlElementsToMap() {
+    void testRepeatedXmlElementsToMap() {
         String xml = "<foo><bar>baz1</bar><bar>baz2</bar></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
         Map<String, Object> map = (Map) XmlUtils.toObject(doc);
@@ -88,7 +88,7 @@ public class XmlUtilsTest {
     }
 
     @Test
-    public void testAnotherXpath() {
+    void testAnotherXpath() {
         String xml = "<com.intuit.services.acs.domain.api.ACSDocumentDTO>\n"
                 + "  <EntityId>b14712d1-df91-4111-a77f-ce48f066b4ab</EntityId>\n"
                 + "  <Name>test.pdf</Name>\n"
@@ -103,7 +103,7 @@ public class XmlUtilsTest {
     }
 
     @Test
-    public void testSetStringValueByPath() {
+    void testSetStringValueByPath() {
         String xml = "<foo><bar>baz</bar></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
         XmlUtils.setByPath(doc, "/foo/bar", "hello");
@@ -112,7 +112,7 @@ public class XmlUtilsTest {
     }
 
     @Test
-    public void testReplaceDomNodeByPath() {
+    void testReplaceDomNodeByPath() {
         String xml = "<foo><bar>baz</bar></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
         Node temp = XmlUtils.toXmlDoc("<hello>world</hello>");
@@ -122,7 +122,7 @@ public class XmlUtilsTest {
     }
 
     @Test
-    public void testAppendDomNodeByPath() {
+    void testAppendDomNodeByPath() {
         String xml = "<foo><bar/></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
         Node temp = XmlUtils.toXmlDoc("<hello>world</hello>");
@@ -132,7 +132,7 @@ public class XmlUtilsTest {
     }
 
     @Test
-    public void testSetDomNodeWithAttributeByPath() {
+    void testSetDomNodeWithAttributeByPath() {
         String xml = "<foo><bar>baz</bar></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
         Node temp = XmlUtils.toXmlDoc("<baz hello=\"world\">ban</baz>");
@@ -140,17 +140,17 @@ public class XmlUtilsTest {
         String result = XmlUtils.toString(doc);
         assertEquals(result, "<foo><bar><baz hello=\"world\">ban</baz></bar></foo>");
     }
-    
+
     @Test
-    public void testCreateElementByPath() {
+    void testCreateElementByPath() {
         Document doc = XmlUtils.newDocument();
         XmlUtils.createNodeByPath(doc, "/foo/bar");
         String result = XmlUtils.toString(doc);
         assertEquals(result, "<foo><bar/></foo>");
     }
-    
-   @Test
-    public void testSetElementCreatingNonExistentParents() {
+
+    @Test
+    void testSetElementCreatingNonExistentParents() {
         String xml = "<foo></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
         Node temp = XmlUtils.toXmlDoc("<hello>world</hello>");
@@ -159,28 +159,28 @@ public class XmlUtilsTest {
         assertEquals(result, "<foo><bar><hello>world</hello></bar></foo>");
     }
 
-   @Test
-    public void testSetAttributeCreatingNonExistentParents() {
+    @Test
+    void testSetAttributeCreatingNonExistentParents() {
         String xml = "<foo></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
         XmlUtils.setByPath(doc, "/foo/bar/@baz", "ban");
         String result = XmlUtils.toString(doc);
         assertEquals(result, "<foo><bar baz=\"ban\"/></foo>");
-    }      
-    
+    }
+
     private Document getDocument() {
         return XmlUtils.newDocument();
     }
 
     @Test
-    public void testCreateElement() {
+    void testCreateElement() {
         Node node = XmlUtils.createElement(getDocument(), "foo", "bar", null);
         String result = XmlUtils.toString(node);
         assertEquals(result, "<foo>bar</foo>");
     }
 
     @Test
-    public void testCreateElementWithAttributes() {
+    void testCreateElementWithAttributes() {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("hello", "world");
         Node node = XmlUtils.createElement(getDocument(), "foo", "bar", map);
@@ -189,7 +189,7 @@ public class XmlUtilsTest {
     }
 
     @Test
-    public void testXmlFromMap() {
+    void testXmlFromMap() {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("hello", "world");
         Node node = XmlUtils.fromObject("foo", map);
@@ -198,7 +198,7 @@ public class XmlUtilsTest {
     }
 
     @Test
-    public void testXmlWithAttributesFromMap() {
+    void testXmlWithAttributesFromMap() {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("_", "world");
         Map<String, Object> attribs = new LinkedHashMap<>();
@@ -210,7 +210,7 @@ public class XmlUtilsTest {
     }
 
     @Test
-    public void testPrettyPrint() {
+    void testPrettyPrint() {
         String xml = "<foo><bar>baz</bar><ban><goo>moo</goo></ban></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
         String temp = XmlUtils.toString(doc, true);
@@ -221,13 +221,13 @@ public class XmlUtilsTest {
                 + "    <goo>moo</goo>\n"
                 + "  </ban>\n"
                 + "</foo>\n";
-        
+
         expected = expected.replace("\n", System.lineSeparator());
         assertEquals(temp, expected);
     }
-    
+
     @Test
-    public void testCreatingNewDocumentFromSomeChildNode() {
+    void testCreatingNewDocumentFromSomeChildNode() {
         String xml = "<root><foo><bar>baz</bar></foo></root>";
         Document doc = XmlUtils.toXmlDoc(xml);
         Node node = XmlUtils.getNodeByPath(doc, "/root/foo", false);
@@ -237,35 +237,9 @@ public class XmlUtilsTest {
         Node tempNode = XmlUtils.getNodeByPath(tempDoc, "/", false);
         assertEquals(XmlUtils.toString(tempNode), "<foo><bar>baz</bar></foo>");
     }
-    
-    public final static String TEACHERS_XML = "<teachers>\n"
-            + "	<teacher department=\"science\" id=\"309\">\n"
-            + "		<subject>math</subject>\n"
-            + "		<subject>physics</subject>\n"
-            + "	</teacher>\n"
-            + "	<teacher department=\"arts\" id=\"310\">\n"
-            + "		<subject>political education</subject>\n"
-            + "		<subject>english</subject>\n"
-            + "	</teacher>\n"
-            + "</teachers>";    
-    
+
     @Test
-    public void testConversionToMapRoundTrip() {
-        String xpath = "//teacher[@department='science']/subject";
-        Node node = XmlUtils.toXmlDoc(TEACHERS_XML.replaceAll("\n\\s*", ""));
-        ScriptValue sv1 = Script.evalXmlPathOnXmlNode(node, xpath);
-        assertTrue(sv1.getType() == ScriptValue.Type.LIST);
-        String before = XmlUtils.toString(node);
-        Map map = (Map) XmlUtils.toObject(node);
-        Node temp = XmlUtils.fromMap(map);
-        ScriptValue sv2 = Script.evalXmlPathOnXmlNode(temp, xpath);
-        assertTrue(sv2.getType() == ScriptValue.Type.LIST);
-        String after = XmlUtils.toString(temp);
-        assertEquals(after, before);
-    }
-    
-    @Test
-    public void testStripNameSpacePrefixes() {
+    void testStripNameSpacePrefixes() {
         assertEquals("/", XmlUtils.stripNameSpacePrefixes("/"));
         assertEquals("/foo", XmlUtils.stripNameSpacePrefixes("/foo"));
         assertEquals("/bar", XmlUtils.stripNameSpacePrefixes("/foo:bar"));

@@ -1,3 +1,3 @@
 function fn() {   
-  return { someConfig: 'someValue' }
+  return { configSource: 'normal' }
 }

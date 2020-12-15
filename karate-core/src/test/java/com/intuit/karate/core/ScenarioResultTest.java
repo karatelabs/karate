@@ -1,11 +1,14 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.Match;
+import org.junit.jupiter.api.Test;
+import static com.intuit.karate.TestUtils.*;
+import java.io.File;
 import java.util.List;
 import java.util.Map;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,19 +16,24 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class ScenarioResultTest {
-    
-    private static final Logger logger = LoggerFactory.getLogger(ScenarioResultTest.class);
-    
+class ScenarioResultTest {
+
+    static final Logger logger = LoggerFactory.getLogger(ScenarioResultTest.class);
+
     @Test
-    public void testJsonToScenarioResult() {
-        String json = FileUtils.toString(getClass().getResourceAsStream("simple1.json"));
-        List<Map<String, Object>> list = JsonUtils.toJsonDoc(json).read("$[0].elements");
-        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/simple1.feature");
-        Scenario scenario = feature.getSections().get(0).getScenario();
+    void testFromJson() {
+        File file = new File("src/test/java/com/intuit/karate/core/executor-result.json");
+        String json = FileUtils.toString(file);
+        List<Map<String, Object>> list = Json.of(json).get("$[0].elements");
+        Feature feature = Feature.read("classpath:com/intuit/karate/core/executor-result.feature");
+        Scenario scenario = feature.getScenario(0, -1);
+        logger.debug("scenario: {}", scenario);
         ScenarioResult sr = new ScenarioResult(scenario, list, true);
-        Match.init(list.get(0)).equalsObject(sr.backgroundToMap());
-        Match.init(list.get(1)).equalsObject(sr.toMap());
+        Map<String, Object> map = sr.toMap();
+        logger.debug("json: {}", JsonUtils.toJson(map));
+        FeatureRuntime fr = FeatureRuntime.of(feature);
+        fr.result.addResult(sr);
+        HtmlFeatureReport.saveFeatureResult("target", fr.result);
     }
-    
+
 }

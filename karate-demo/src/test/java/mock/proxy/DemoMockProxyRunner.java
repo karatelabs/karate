@@ -1,14 +1,10 @@
 package mock.proxy;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.Match;
 import com.intuit.karate.Runner;
 import com.intuit.karate.Results;
-import com.intuit.karate.netty.FeatureServer;
 import com.intuit.karate.KarateOptions;
+import com.intuit.karate.core.MockServer;
 import demo.TestBase;
-import java.io.File;
-import java.util.Map;
 import org.junit.AfterClass;
 import static org.junit.Assert.assertTrue;
 import org.junit.BeforeClass;
@@ -19,25 +15,26 @@ import org.junit.Test;
  * @author pthomas3
  */
 @KarateOptions(tags = "~@ignore", features = {
-    "classpath:demo/cats", 
+    "classpath:demo/cats",
     "classpath:demo/greeting"})
 public class DemoMockProxyRunner {
 
-    private static FeatureServer server;
+    private static MockServer server;
     private static int demoServerPort;
 
     @BeforeClass
     public static void beforeClass() throws Exception {
         demoServerPort = TestBase.startServer();
-        Map map = new Match().def("demoServerPort", null).allAsMap(); // don't rewrite url
-        File file = FileUtils.getFileRelativeTo(DemoMockProxyRunner.class, "demo-mock-proceed.feature");
-        server = FeatureServer.start(file, 0, false, map);
+        server = MockServer
+                .feature("classpath:mock/proxy/demo-mock-proceed.feature")
+                .arg("demoServerPort", null) // don't rewrite url
+                .http(0).build();        
     }
-    
+
     @AfterClass
     public static void afterClass() {
         server.stop();
-    }     
+    }
 
     @Test
     public void testParallel() {

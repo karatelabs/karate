@@ -24,7 +24,7 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.Json;
-import com.intuit.karate.ScriptValue;
+import com.intuit.karate.core.Variable;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -48,7 +48,7 @@ public class DevToolsMessage {
     private final String method;
     private Json params;
     private Map<String, Object> error;
-    private ScriptValue result;
+    private Variable result;
     private Integer timeout;
 
     public Integer getId() {
@@ -82,17 +82,13 @@ public class DevToolsMessage {
     public boolean methodIs(String method) {
         return method.equals(this.method);
     }
-    
-    public String getParam(String path) {
-        return getParam(path, String.class);
-    }
 
-    public <T> T getParam(String path, Class<T> clazz) {
+    public <T> T getParam(String path) {
         if (params == null) {
             return null;
         }
         try {
-            return params.get(path, clazz);
+            return params.get(path);
         } catch (Exception e) {
             if (logger.isTraceEnabled()) {
                 logger.trace("get param - json path failed: {} - {}", path, params);
@@ -101,7 +97,7 @@ public class DevToolsMessage {
         }
     }
 
-    public ScriptValue getResult() {
+    public Variable getResult() {
         return result;
     }
 
@@ -109,11 +105,11 @@ public class DevToolsMessage {
         if (result == null) {
             return null;
         }
-        Json json = new Json(result.getValue());
+        Json json = Json.of(result.getValue());
         return json.get(path, clazz);
     }
 
-    public void setResult(ScriptValue result) {
+    public void setResult(Variable result) {
         this.result = result;
     }
 
@@ -131,18 +127,18 @@ public class DevToolsMessage {
         if (error != null) {
             return true;
         }
-        if (result == null || !result.isMapLike()) {
+        if (result == null || !result.isMap()) {
             return false;
         }
-        String resultError = (String) result.getAsMap().get("subtype");
+        String resultError = (String) result.<Map>getValue().get("subtype");
         return "error".equals(resultError);
     }
 
-    public ScriptValue getResult(String key) {
-        if (result == null || !result.isMapLike()) {
+    public Variable getResult(String key) {
+        if (result == null || !result.isMap()) {
             return null;
         }
-        return new ScriptValue(result.getAsMap().get(key));
+        return new Variable(result.<Map>getValue().get(key));
     }
 
     public DevToolsMessage(DevToolsDriver driver, String method) {
@@ -158,25 +154,25 @@ public class DevToolsMessage {
         method = (String) map.get("method");
         Map temp = (Map) map.get("params");
         if (temp != null) {
-            params = new Json(temp);
+            params = Json.of(temp);
         }
         temp = (Map) map.get("result");
         if (temp != null) {
             if (temp.containsKey("result")) {
                 Object inner = temp.get("result");
                 if (inner instanceof List) {
-                    result = new ScriptValue(toMap((List) inner));
+                    result = new Variable(toMap((List) inner));
                 } else {
                     Map innerMap = (Map) inner;
                     String subtype = (String) innerMap.get("subtype");
                     if ("error".equals(subtype) || innerMap.containsKey("objectId")) {
-                        result = new ScriptValue(innerMap);
+                        result = new Variable(innerMap);
                     } else { // Runtime.evaluate "returnByValue" is true
-                        result = new ScriptValue(innerMap.get("value"));
+                        result = new Variable(innerMap.get("value"));
                     }
                 }
             } else {
-                result = new ScriptValue(temp);
+                result = new Variable(temp);
             }
         }
         error = (Map) map.get("error");
@@ -184,14 +180,14 @@ public class DevToolsMessage {
 
     public DevToolsMessage param(String path, Object value) {
         if (params == null) {
-            params = new Json();
+            params = Json.object();
         }
         params.set(path, value);
         return this;
     }
 
     public DevToolsMessage params(Map<String, Object> map) {
-        this.params = new Json(map);
+        this.params = Json.of(map);
         return this;
     }
 
@@ -203,7 +199,7 @@ public class DevToolsMessage {
         }
         map.put("method", method);
         if (params != null) {
-            map.put("params", params.asMap());
+            map.put("params", params.value());
         }
         return map;
     }

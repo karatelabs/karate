@@ -23,20 +23,30 @@
  */
 package mock.jersey;
 
-import com.intuit.karate.junit4.Karate;
+import com.intuit.karate.Results;
+import com.intuit.karate.Runner;
+import static org.junit.Assert.*;
 import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
+import org.junit.Test;
 
 /**
  *
  * @author pthomas3
  */
-@RunWith(Karate.class)
 public class MockJerseyServletTest {
-    
+
     @BeforeClass
     public static void beforeClass() {
         System.setProperty("karate.env", "dev-mock");
+    }
+
+    @Test
+    public void tesMockJerseyServlet() throws Exception {
+        MockJerseyServlet factory = new MockJerseyServlet();
+        Results results = Runner.path("classpath:mock/jersey")
+                .clientFactory(factory)
+                .parallel(1);
+        assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
     }
 
 }

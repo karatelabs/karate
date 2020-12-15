@@ -63,7 +63,7 @@ Scenario: json post with with unusual content-type and configure-headers
     And match temp contains 'charset=utf-8'
     And match temp contains 'ton-version=1'
 
-@apache @mock-servlet-todo
+@mock-servlet-todo
 Scenario: empty string as content-type
     Given path 'search', 'headers'
     And header Content-Type = ''

@@ -37,11 +37,22 @@ public class Embed {
     private String mimeType;
     private byte[] bytes;
 
-    public static Embed forVideoFile(String fileName) {
+    public static Embed videoFile(String fileName) {
         String html = "<video controls=\"true\" width=\"100%\"><source src=\"" + fileName + "\" type=\"video/mp4\"/></video>";
+        return html(html);
+    }
+    
+    public static Embed html(String html) {
         Embed embed = new Embed();
-        embed.setBytes(html.getBytes());
+        embed.setBytes(FileUtils.toBytes(html));
         embed.setMimeType("text/html");
+        return embed;        
+    }
+    
+    public static Embed pngImage(byte[] bytes) {
+        Embed embed = new Embed();
+        embed.setBytes(bytes);
+        embed.setMimeType("image/png");
         return embed;
     }
 

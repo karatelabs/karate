@@ -10,17 +10,11 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.8</java.version>
-        <maven.compiler.version>3.6.0</maven.compiler.version>
-        <karate.version>0.9.6</karate.version>
+        <maven.compiler.version>3.8.1</maven.compiler.version>
+        <karate.version>2.0.0</karate.version>
     </properties>    
 
-    <dependencies>
-        <dependency>
-            <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-apache</artifactId>
-            <version>${karate.version}</version>
-            <scope>test</scope>
-        </dependency>            
+    <dependencies>           
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-junit5</artifactId>
@@ -30,7 +24,7 @@
         <dependency>
             <groupId>net.masterthought</groupId>
             <artifactId>cucumber-reporting</artifactId>
-            <version>3.8.0</version>
+            <version>5.3.1</version>
             <scope>test</scope>
         </dependency>        		
     </dependencies>

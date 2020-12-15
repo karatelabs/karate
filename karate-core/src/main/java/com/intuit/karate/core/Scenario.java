@@ -52,7 +52,6 @@ public class Scenario {
     private Map<String, Object> exampleData;
     private int exampleIndex = -1;
     private String dynamicExpression;
-    private boolean backgroundDone;
     
     protected Scenario() {
         this(null, null, -1);
@@ -148,6 +147,10 @@ public class Scenario {
             meta = meta + "." + (index + 1);
         }
         return meta + ":" + line + "]";
+    }
+    
+    public String getDebugInfo() {
+        return feature + ":" + line;
     }
 
     public String getUniqueId() {
@@ -259,14 +262,6 @@ public class Scenario {
         this.dynamicExpression = dynamicExpression;
     }
 
-    public boolean isBackgroundDone() {
-        return backgroundDone;
-    }
-
-    public void setBackgroundDone(boolean backgroundDone) {
-        this.backgroundDone = backgroundDone;
-    }
-
     public Map<String, Object> getExampleData() {
         return exampleData;
     }
@@ -293,7 +288,7 @@ public class Scenario {
         // this could be made conditional based on config - if navigating to feature file needed, then use below else return null.
         String workingDir = System.getProperty("user.dir");
         // we can use getPath as well - though that will point to feature file from compiled location i.e. target
-        String featurePath = this.feature.getRelativePath().replace("classpath:", "");
+        String featurePath = this.feature.getResource().getRelativePath().replace("classpath:", "");
         return URI.create(new File(workingDir + "/src/test/java/" + featurePath).toURI().toString() + "?line="
                 + this.line);
     }

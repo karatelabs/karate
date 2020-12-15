@@ -23,23 +23,17 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.Resource;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.exception.KarateException;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -52,65 +46,7 @@ public class FeatureParser extends KarateParserBaseListener {
     private static final Logger logger = LoggerFactory.getLogger(FeatureParser.class);
 
     private final ParserErrorListener errorListener = new ParserErrorListener();
-
     private final Feature feature;
-
-    private static final List<String> PREFIXES = Arrays.asList("*", "Given", "When", "Then", "And", "But");
-
-    public static Feature parse(String relativePath) {
-        return parse(new Resource(relativePath));
-    }
-
-    public static Feature parse(File file) {
-        return parse(file, Thread.currentThread().getContextClassLoader());
-    }
-
-    public static Feature parse(File file, ClassLoader cl) {
-        return parse(new Resource(file.toPath(), cl));
-    }
-
-    public static Feature parse(Resource resource) {
-        return new FeatureParser(resource).feature;
-    }
-
-    public static Feature parseText(Feature old, String text) {
-        Feature feature = old == null ? new Feature(null) : new Feature(old.getResource());
-        feature = new FeatureParser(feature, FileUtils.toInputStream(text)).feature;
-        if (old != null) {
-            feature.setCallTag(old.getCallTag());
-        }
-        feature.setLines(StringUtils.toStringLines(text));
-        return feature;
-    }
-
-    public static void updateStepFromText(Step step, String text) throws Exception {
-        Feature feature = new Feature(step.getFeature().getResource());
-        final String stepText = text.trim();
-        boolean hasPrefix = PREFIXES.stream().anyMatch(prefixValue -> stepText.startsWith(prefixValue));
-        // to avoid parser considering text without prefix as Scenario comments/Doc-string
-        if (!hasPrefix) {
-            text = "* " + stepText;
-        }
-        text = "Feature:\nScenario:\n" + text;
-        FeatureParser fp = new FeatureParser(feature, FileUtils.toInputStream(text));
-        if (fp.errorListener.isFail()) {
-            throw new KarateException(fp.errorListener.getMessage());
-        }
-        feature = fp.feature;
-        Step temp = feature.getStep(0, -1, 0);
-        if (temp == null) {
-            throw new KarateException("invalid expression: " + text);
-        }
-        step.setPrefix(temp.getPrefix());
-        step.setText(temp.getText());
-        step.setDocString(temp.getDocString());
-        step.setTable(temp.getTable());
-    }
-
-    private FeatureParser(Resource resource) {
-        this(new Feature(resource), resource.getStream());
-    }
-
     private final CommonTokenStream tokenStream;
 
     private FeatureParser(Feature feature, InputStream is) {
@@ -131,8 +67,12 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         ParseTreeWalker walker = new ParseTreeWalker();
         walker.walk(this, tree);
-        if (errorListener.isFail()) {
-            String errorMessage = errorListener.getMessage();
+    }
+
+    protected static void parse(Feature feature) {
+        FeatureParser fp = new FeatureParser(feature, feature.getResource().getStream());
+        if (fp.errorListener.isFail()) {
+            String errorMessage = fp.errorListener.getMessage();
             logger.error("not a valid feature file: {} - {}", feature.getResource().getRelativePath(), errorMessage);
             throw new RuntimeException(errorMessage);
         }

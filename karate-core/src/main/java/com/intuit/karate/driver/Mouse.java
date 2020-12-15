@@ -33,6 +33,8 @@ public interface Mouse {
     
     Mouse move(Number x, Number y);
     
+    Mouse offset(Number x, Number y);
+    
     Mouse down();
     
     Mouse up();

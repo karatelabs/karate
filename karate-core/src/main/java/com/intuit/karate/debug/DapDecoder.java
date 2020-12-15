@@ -23,12 +23,12 @@
  */
 package com.intuit.karate.debug;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.JsonUtils;
+import com.intuit.karate.Json;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.util.ByteProcessor;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
 public class DapDecoder extends ByteToMessageDecoder {
 
     private static final Logger logger = LoggerFactory.getLogger(DapDecoder.class);
-    
+
     private int remaining;
 
     @Override
@@ -57,7 +57,7 @@ public class DapDecoder extends ByteToMessageDecoder {
                 // skip backwards
             }
             in.readerIndex(++pos);
-            CharSequence lengthString = in.readCharSequence(delimiterPos - pos, FileUtils.UTF8);
+            CharSequence lengthString = in.readCharSequence(delimiterPos - pos, StandardCharsets.UTF_8);
             int length = Integer.valueOf(lengthString.toString().trim());
             in.readerIndex(delimiterPos + 4);
             if (in.readableBytes() >= length) {
@@ -68,7 +68,7 @@ public class DapDecoder extends ByteToMessageDecoder {
             }
         }
     }
-    
+
     private static int findCrLfCrLf(ByteBuf buffer) {
         int totalLength = buffer.readableBytes();
         int readerIndex = buffer.readerIndex();
@@ -80,14 +80,14 @@ public class DapDecoder extends ByteToMessageDecoder {
             }
         }
         return -1;
-    }    
+    }
 
     private static DapMessage encode(ByteBuf in, int length) {
-        String msg = in.readCharSequence(length, FileUtils.UTF8).toString();
+        String msg = in.readCharSequence(length, StandardCharsets.UTF_8).toString();
         if (logger.isTraceEnabled()) {
             logger.trace(">> {}", msg);
         }
-        Map<String, Object> map = JsonUtils.toJsonDoc(msg).read("$");
+        Map<String, Object> map = Json.of(msg).value();
         return new DapMessage(map);
     }
 

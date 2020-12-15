@@ -24,10 +24,11 @@
 package com.intuit.karate.core;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Semaphore;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,69 +36,67 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public abstract class ParallelProcessor<I, O> implements Processor<I, O> {
+public abstract class ParallelProcessor<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(ParallelProcessor.class);
 
     private final ExecutorService executor;
-    private final Iterator<I> publisher;
-    private final List<CompletableFuture<Boolean>> futures = new ArrayList();
+    private final ExecutorService monitor;
+    private final Semaphore batchLimiter;
+    private final Stream<T> publisher;
+    private final List<CompletableFuture> futures = new ArrayList();
 
-    private Subscriber<O> subscriber;
-
-    public ParallelProcessor(ExecutorService executor, Iterator<I> publisher) {
+    public ParallelProcessor(ExecutorService executor, Semaphore batchLimiter, Stream<T> publisher, ExecutorService monitor) {
         this.executor = executor;
+        this.batchLimiter = batchLimiter;
         this.publisher = publisher;
+        this.monitor = monitor;
     }
 
-    private void execute(final boolean sync, final I in, final Subscriber<O> s) {
-        Iterator<O> out = process(in);
-        if (sync) {
-            out.forEachRemaining(s::onNext);
-        } else {
-            out.forEachRemaining(o -> {
-                synchronized (s) { // synchronized is important if multiple threads
-                    s.onNext(o);
-                }
-            });
+    public void execute() {
+        publisher.forEach(in -> {
+            if (shouldRunSynchronously(in)) {
+                process(in);
+            } else {
+                final CompletableFuture future = new CompletableFuture();
+                futures.add(future);
+                waitForHeadRoom();
+                executor.submit(() -> {
+                    try {
+                        process(in);
+                        future.complete(Boolean.TRUE);
+                        batchLimiter.release();
+                    } catch (Exception e) {
+                        logger.error("[parallel] input item failed: {}", e.getMessage());
+                    }
+                });
+            }
+        });
+        final CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
+        monitor.submit(() -> {
+            CompletableFuture.allOf(futuresArray).join();
+            synchronized (ParallelProcessor.this) {
+                onComplete();
+            }
+        });
+    }
+
+    private void waitForHeadRoom() {
+        try {
+            batchLimiter.acquire();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
-    @Override
-    public void onNext(final I in) {
-        boolean sync = shouldRunSynchronously(in);
-        if (sync) {
-            execute(sync, in, subscriber);
-        } else {
-            CompletableFuture<Boolean> cf = new CompletableFuture();
-            futures.add(cf);
-            executor.submit(() -> {
-                execute(sync, in, subscriber);
-                cf.complete(Boolean.TRUE);
-            });
-        }
-    }
-
-    @Override
-    public void subscribe(final Subscriber<O> subscriber) {
-        this.subscriber = subscriber;
-        publisher.forEachRemaining(this::onNext);
-        CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
-        if (futuresArray.length > 0) {
-            executor.submit(() -> { // will not block caller even when waiting for completion
-                CompletableFuture.allOf(futuresArray).join();
-                subscriber.onComplete();
-            });
-        } else {
-            subscriber.onComplete();
-        }
-    }
-
-    @Override
-    public abstract Iterator<O> process(I in);
-
-    public boolean shouldRunSynchronously(I in) {
+    public boolean shouldRunSynchronously(T in) {
+        // parallel by default
+        // but allow a per work-item strategy
         return false;
     }
+
+    public abstract void process(T in);
+
+    public abstract void onComplete();
 
 }

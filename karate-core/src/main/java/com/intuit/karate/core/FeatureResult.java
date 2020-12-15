@@ -23,13 +23,9 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.JsonUtils;
-import com.intuit.karate.Results;
-import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.exception.KarateException;
-import com.jayway.jsonpath.JsonPath;
+import com.intuit.karate.JsonUtils;
+import com.intuit.karate.KarateException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -43,22 +39,19 @@ import java.util.Map;
  */
 public class FeatureResult {
 
-    private final Results results;
     private final Feature feature;
-    private final List<ScenarioResult> scenarioResults = new ArrayList();
+    private final List<ScenarioResult> scenarioResults = new ArrayList<>();
 
     private String displayName; // mutable for users who want to customize
-    private int scenarioCount;
-    private int failedCount;
-    private List<Throwable> errors;
+    private List<Throwable> errors = new ArrayList<>();
     private double durationMillis;
 
-    private ScriptValueMap resultVars;
+    private Map<String, Object> resultVariables;
     private Map<String, Object> callArg;
     private int loopIndex;
 
     public void printStats(String reportPath) {
-        String featureName = feature.getRelativePath();
+        String featureName = feature.getResource().getPrefixedPath();
         if (feature.getCallLine() != -1) {
             featureName = featureName + ":" + feature.getCallLine();
         }
@@ -68,22 +61,29 @@ public class FeatureResult {
         if (reportPath != null) {
             sb.append("report: ").append(reportPath).append('\n');
         }
-        sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", scenarioCount, getPassedCount(), failedCount, durationMillis / 1000));
-        sb.append("---------------------------------------------------------");
+        sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", getScenarioCount(), getPassedCount(), getFailedCount(), durationMillis / 1000));
+        sb.append("---------------------------------------------------------\n");
         System.out.println(sb);
     }
 
-    public Map<String, Object> toMap() {
-        Map<String, Object> map = new HashMap(8);
-        List<Map> list = new ArrayList(scenarioResults.size());
-        map.put("elements", list);
-        for (ScenarioResult re : scenarioResults) {
-            Map<String, Object> backgroundMap = re.backgroundToMap();
+    public String toCucumberJson() {
+        StringBuilder sb = new StringBuilder();
+        sb.append('[');
+        Iterator<ScenarioResult> iterator = scenarioResults.iterator();
+        while (iterator.hasNext()) {
+            ScenarioResult sr = iterator.next();
+            Map<String, Object> backgroundMap = sr.backgroundToMap();
             if (backgroundMap != null) {
-                list.add(backgroundMap);
+                sb.append(JsonUtils.toJson(backgroundMap)).append(',');
             }
-            list.add(re.toMap());
+            sb.append(JsonUtils.toJson(sr.toMap()));
+            if (iterator.hasNext()) {
+                sb.append(',');
+            }
         }
+        sb.append(']');
+        Map<String, Object> map = new HashMap();
+        map.put("elements", "@@replace@@");
         map.put("keyword", Feature.KEYWORD);
         map.put("line", feature.getLine());
         map.put("uri", displayName);
@@ -97,7 +97,7 @@ public class FeatureResult {
         if (feature.getTags() != null) {
             map.put("tags", Tags.toResultList(feature.getTags()));
         }
-        return map;
+        return JsonUtils.toJson(map).replace("\"@@replace@@\"", sb);
     }
 
     public List<StepResult> getAllScenarioStepResultsNotHidden() {
@@ -108,14 +108,9 @@ public class FeatureResult {
         return list;
     }
 
-    public Results getResults() {
-        return results;
-    }
-
-    public FeatureResult(Results results, Feature feature) {
-        this.results = results;
+    public FeatureResult(Feature feature) {
         this.feature = feature;
-        displayName = FileUtils.removePrefix(feature.getRelativePath());
+        displayName = feature.getResource().getRelativePath();
     }
 
     public void setDisplayName(String displayName) {
@@ -172,8 +167,7 @@ public class FeatureResult {
             return null;
         }
         try {
-            Map temp = JsonUtils.removeCyclicReferences(callArg);
-            return JsonUtils.toPrettyJsonString(JsonPath.parse(temp));
+            return JsonUtils.toJsonSafe(callArg, true);
         } catch (Throwable t) {
             return "#error: " + t.getMessage();
         }
@@ -200,52 +194,36 @@ public class FeatureResult {
     }
 
     public int getFailedCount() {
-        return failedCount;
+        return getErrors().size();
     }
 
     public boolean isEmpty() {
-        return scenarioCount == 0;
+        return getScenarioCount() == 0;
     }
 
     public int getScenarioCount() {
-        return scenarioCount;
+        return getScenarioResults().size();
     }
 
     public int getPassedCount() {
-        return scenarioCount - failedCount;
+        return getScenarioCount() - getFailedCount();
     }
 
     public boolean isFailed() {
-        return errors != null && !errors.isEmpty();
+        return getFailedCount() > 0;
     }
 
     public List<Throwable> getErrors() {
         return errors;
     }
 
-    public Map<String, Object> getResultAsPrimitiveMap() {
-        if (resultVars == null) {
-            return Collections.EMPTY_MAP;
-        }
-        return resultVars.toPrimitiveMap();
-    }
-
-    public void setResultVars(ScriptValueMap resultVars) {
-        this.resultVars = resultVars;
-    }
-
     private void addError(Throwable error) {
-        failedCount++;
-        if (errors == null) {
-            errors = new ArrayList();
-        }
         errors.add(error);
     }
 
     public void addResult(ScenarioResult result) {
         scenarioResults.add(result);
         durationMillis += Engine.nanosToMillis(result.getDurationNanos());
-        scenarioCount++;
         if (result.isFailed()) {
             Scenario scenario = result.getScenario();
             if (scenario.isOutline()) {
@@ -258,13 +236,26 @@ public class FeatureResult {
             }
         }
     }
-    
+
+    public void setVariables(Map<String, Object> resultVariables) {
+        this.resultVariables = resultVariables;
+    }
+
+    public Map<String, Object> getVariables() {
+        return resultVariables;
+    }
+
     public void sortScenarioResults() {
         Collections.sort(scenarioResults);
     }
 
-    public List<ScenarioResult> getScenarioResults() {        
+    public List<ScenarioResult> getScenarioResults() {
         return scenarioResults;
+    }
+
+    @Override
+    public String toString() {
+        return displayName;
     }
 
 }

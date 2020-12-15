@@ -10,10 +10,6 @@
     <artifactId>karate-junit5</artifactId>
     <packaging>jar</packaging>
 
-    <properties>
-        <junit5.version>5.5.0</junit5.version>
-    </properties>
-
     <dependencies>        
         <dependency>
             <groupId>com.intuit.karate</groupId>
@@ -30,12 +26,6 @@
             <artifactId>junit-jupiter-engine</artifactId>
             <version>${junit5.version}</version>
             <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-apache</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 

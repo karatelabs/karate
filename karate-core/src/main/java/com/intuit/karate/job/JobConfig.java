@@ -23,7 +23,10 @@
  */
 package com.intuit.karate.job;
 
+import com.intuit.karate.Constants;
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.shell.Command;
+import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -35,14 +38,16 @@ import java.util.concurrent.TimeUnit;
  *
  * @author pthomas3
  */
-public interface JobConfig {
+public interface JobConfig<T> {
 
     String getHost();
 
     int getPort();
-    
+
     int getExecutorCount();
-    
+
+    T handleUpload(JobChunk<T> chunk, File file);
+
     default int getTimeoutMinutes() {
         return -1;
     }
@@ -51,15 +56,15 @@ public interface JobConfig {
         return "";
     }
 
-    default String getUploadDir() {
-        return null;
+    default String getExecutorDir() {
+        return FileUtils.getBuildDir() + File.separator + Constants.KARATE_REPORTS;
     }
 
     String getExecutorCommand(String jobId, String jobUrl, int index);
 
     default void startExecutors(String jobId, String jobUrl) throws Exception {
         int count = getExecutorCount();
-        if (count <= 0) {
+        if (count < 1) {
             return;
         }
         ExecutorService executor = Executors.newFixedThreadPool(count);
@@ -82,13 +87,13 @@ public interface JobConfig {
         return Collections.EMPTY_LIST;
     }
 
-    List<JobCommand> getMainCommands(JobContext jc);
+    List<JobCommand> getMainCommands(JobChunk<T> jc);
 
-    default List<JobCommand> getPreCommands(JobContext jc) {
+    default List<JobCommand> getPreCommands(JobChunk<T> jc) {
         return Collections.EMPTY_LIST;
     }
 
-    default List<JobCommand> getPostCommands(JobContext jc) {
+    default List<JobCommand> getPostCommands(JobChunk<T> jc) {
         return Collections.EMPTY_LIST;
     }
 

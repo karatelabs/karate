@@ -35,7 +35,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
@@ -342,14 +341,17 @@ public class XmlUtils {
     }
 
     public static Object toObject(Node node, boolean removeNamespace) {
-        if (node.getNodeType() == Node.DOCUMENT_NODE) {            
+        if (node.getNodeType() == Node.DOCUMENT_NODE) {
+            Map<String, Object> map = new LinkedHashMap<>(1);
             node = node.getFirstChild();
+            if (node == null) {
+                return map;
+            }
             while (node.getNodeType() != Node.ELEMENT_NODE) { // ignore comments etc
                 node = node.getNextSibling();
             }
             String name = removeNamespace
                     ? node.getNodeName().replaceFirst("(^.*:)", "") : node.getNodeName();
-            Map<String, Object> map = new LinkedHashMap<>(1);
             map.put(name, toObject(node, removeNamespace));
             return map;
         }
@@ -460,13 +462,24 @@ public class XmlUtils {
     }
 
     public static Document toXmlDoc(Object o) {
-        DocumentContext json = JsonUtils.toJsonDoc(o);
-        Object mapOrArray = json.read("$"); // for pojos will always be a map
-        return fromObject("root", mapOrArray); // keep it simple for people to write generic xpath starting with /root
+        return fromObject("root", Json.of(o).value()); // keep it simple for people to write generic xpath starting with /root
     }
 
     public static String toXml(Object o) {
         return toString(toXmlDoc(o));
+    }
+
+    public static boolean isXml(String s) {
+        if (s == null || s.isEmpty()) {
+            return false;
+        }
+        if (s.charAt(0) == ' ') {
+            s = s.trim();
+            if (s.isEmpty()) {
+                return false;
+            }
+        }
+        return s.charAt(0) == '<';
     }
 
 }

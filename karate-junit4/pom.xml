@@ -22,18 +22,6 @@
             <version>${junit.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-apache</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>       
-        <dependency>
-            <groupId>net.masterthought</groupId>
-            <artifactId>cucumber-reporting</artifactId>
-            <version>${cucumber.reporting.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-loader</artifactId>
             <version>${spring.boot.version}</version>

@@ -1,11 +1,9 @@
 package mock.proxy;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.Runner;
 import com.intuit.karate.Results;
-import com.intuit.karate.netty.FeatureServer;
 import com.intuit.karate.KarateOptions;
-import java.io.File;
+import com.intuit.karate.core.MockServer;
 import org.junit.AfterClass;
 import static org.junit.Assert.assertTrue;
 import org.junit.BeforeClass;
@@ -20,12 +18,11 @@ import org.junit.Test;
     "classpath:demo/greeting"})
 public class DemoMockSslRunner {
 
-    private static FeatureServer server;
+    private static MockServer server;
 
     @BeforeClass
     public static void beforeClass() {
-        File file = FileUtils.getFileRelativeTo(DemoMockSslRunner.class, "demo-mock.feature");
-        server = FeatureServer.start(file, 0, true, null);
+        server = MockServer.feature("classpath:mock/proxy/demo-mock.feature").https(0).build();
     }
 
     @AfterClass
@@ -41,7 +38,6 @@ public class DemoMockSslRunner {
         System.setProperty("demo.server.https", "true");
         String karateOutputPath = "target/mock-ssl";
         Results results = Runner.parallel(getClass(), 1, karateOutputPath);
-        DemoMockUtils.generateReport(karateOutputPath);
         assertTrue("there are scenario failures", results.getFailCount() == 0);
     }
 

@@ -23,12 +23,12 @@
  */
 package com.intuit.karate.driver.playwright;
 
-import com.intuit.karate.Json;
-import com.intuit.karate.JsonUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.Json;
+import com.intuit.karate.JsonUtils;
+import com.intuit.karate.core.Embed;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverElement;
 
@@ -36,8 +36,8 @@ import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Element;
 import com.intuit.karate.driver.Input;
 import com.intuit.karate.driver.Keys;
-import com.intuit.karate.netty.WebSocketClient;
-import com.intuit.karate.netty.WebSocketOptions;
+import com.intuit.karate.http.WebSocketClient;
+import com.intuit.karate.http.WebSocketOptions;
 import com.intuit.karate.shell.Command;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -101,8 +101,8 @@ public class PlaywrightDriver implements Driver {
         client.waitSync();
     }
 
-    public static PlaywrightDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(context, map, appender, 4444, "playwright");
+    public static PlaywrightDriver start(Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(map, appender, 4444, "playwright");
         String playwrightUrl;
         Command command;
         if (options.start) {
@@ -158,7 +158,7 @@ public class PlaywrightDriver implements Driver {
                 // to avoid swamping the console when large base64 encoded binary responses happen
                 logger.debug("<< {}", StringUtils.truncate(text, 1024, true));
             }
-            Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
+            Map<String, Object> map = Json.of(text).value();
             PlaywrightMessage pwm = new PlaywrightMessage(this, map);
             receive(pwm);
         });
@@ -314,7 +314,7 @@ public class PlaywrightDriver implements Driver {
         return timeout(null);
     }
 
-    private static final Map<String, Object> NO_ARGS = new Json("{ value: { v: 'undefined' }, handles: [] }").asMap();
+    private static final Map<String, Object> NO_ARGS = Json.of("{ value: { v: 'undefined' }, handles: [] }").value();
 
     private PlaywrightMessage evalOnce(String expression, boolean quickly, boolean fireAndForget) {
         PlaywrightMessage toSend = frame("evaluateExpression")
@@ -648,7 +648,7 @@ public class PlaywrightDriver implements Driver {
     }
 
     @Override
-    public String getDialog() {
+    public String getDialogText() {
         return currentDialogText;
     }
 
@@ -828,7 +828,7 @@ public class PlaywrightDriver implements Driver {
         String data = pwm.getResult("binary");
         byte[] bytes = Base64.getDecoder().decode(data);
         if (embed) {
-            options.embedPngImage(bytes);
+            getRuntime().embed(Embed.pngImage(bytes));
         }
         return bytes;
     }

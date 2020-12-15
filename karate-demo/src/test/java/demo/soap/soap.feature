@@ -20,7 +20,7 @@ Scenario: soap 1.1
     """
     When soap action 'http://tempuri.org/Add'
     Then status 200
-    And match /Envelope/Body/AddResponse/AddResult == 5
+    And match /Envelope/Body/AddResponse/AddResult == '5'
     And print 'response: ', response
 
 Scenario: soap 1.2

@@ -23,24 +23,27 @@
  */
 package com.intuit.karate.debug;
 
+import com.intuit.karate.Json;
+import com.intuit.karate.JsonUtils;
+import com.intuit.karate.Main;
 import com.intuit.karate.Runner;
-import com.intuit.karate.RunnerOptions;
-import com.intuit.karate.ScriptValue;
+import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.ExecutionHook;
-import com.intuit.karate.core.ExecutionHookFactory;
+import com.intuit.karate.cli.IdeMain;
 import com.intuit.karate.core.Result;
-import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.core.RuntimeHookFactory;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Step;
+import com.intuit.karate.core.Variable;
+import static com.intuit.karate.core.Variable.Type.LIST;
+import static com.intuit.karate.core.Variable.Type.MAP;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.AbstractMap.SimpleEntry;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +52,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> implements ExecutionHookFactory {
+public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> implements RuntimeHookFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(DapServerHandler.class);
 
@@ -58,12 +61,14 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     private Channel channel;
     private int nextSeq;
     private long nextFrameId;
+    private long nextVariablesReference = 1000; // setting to 100 to avoid conflict with nextFrameId
     private long focusedFrameId;
     private Thread runnerThread;
 
     private final Map<String, SourceBreakpoints> BREAKPOINTS = new ConcurrentHashMap();
     protected final Map<Long, DebugThread> THREADS = new ConcurrentHashMap();
-    protected final Map<Long, ScenarioContext> FRAMES = new ConcurrentHashMap();
+    protected final Map<Long, ScenarioRuntime> FRAMES = new ConcurrentHashMap();
+    protected final Map<Long, Entry<String, Variable>> VARIABLES = new ConcurrentHashMap();
 
     private boolean singleFeature;
     private String launchCommand;
@@ -89,7 +94,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     }
 
     private SourceBreakpoints lookup(String pathEnd) {
-        for (Map.Entry<String, SourceBreakpoints> entry : BREAKPOINTS.entrySet()) {
+        for (Entry<String, SourceBreakpoints> entry : BREAKPOINTS.entrySet()) {
             if (entry.getKey().endsWith(pathEnd)) {
                 return entry.getValue();
             }
@@ -98,7 +103,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     }
 
     protected boolean isBreakpoint(Step step, int line) {
-        String path = step.getFeature().getPath().toString();
+        String path = step.getFeature().getResource().getFile().getPath();
         int pos = findPos(path);
         SourceBreakpoints sb;
         if (pos != -1) {
@@ -132,36 +137,61 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         Collections.reverse(frameIds);
         List<Map<String, Object>> list = new ArrayList(frameIds.size());
         for (Long frameId : frameIds) {
-            ScenarioContext context = FRAMES.get(frameId);
+            ScenarioRuntime context = FRAMES.get(frameId);
             list.add(new StackFrame(frameId, context).toMap());
         }
         return list;
     }
 
-    private List<Map<String, Object>> variables(Number frameId) {
+    private List<Map<String, Object>> variables(Long frameId) {
         if (frameId == null) {
             return Collections.EMPTY_LIST;
         }
-        focusedFrameId = frameId.longValue();
-        ScenarioContext context = FRAMES.get(frameId.longValue());
-        if (context == null) {
+        String parentExpression = "";
+        Map<String, Variable> vars = null;
+        if (FRAMES.containsKey(frameId)) {
+            focusedFrameId = frameId;
+            vars = FRAMES.get(frameId).engine.vars;
+        } else if (VARIABLES.containsKey(frameId)) {
+            vars = new HashMap<>();
+            Entry<String, Variable> varEntry = VARIABLES.get(frameId);
+            parentExpression = varEntry.getKey();
+            Variable var = varEntry.getValue();
+            if (var.type == LIST) {
+                List<Object> list = ((List) var.getValue());
+                for (int i = 0; i < list.size(); i++) {
+                    vars.put(String.format("[%s]", i), new Variable(list.get(i)));
+                }
+            } else if (var.type == MAP) {
+                Map<String, Object> map = ((Map) var.getValue());
+                for (Entry<String, Object> entry : map.entrySet()) {
+                    vars.put(entry.getKey(), new Variable(entry.getValue()));
+                }
+            }
+        } else {
             return Collections.EMPTY_LIST;
         }
+        String finalParentExpression = parentExpression;
         List<Map<String, Object>> list = new ArrayList();
-        context.vars.forEach((k, v) -> {
+        vars.forEach((k, v) -> {
             if (v != null) {
                 Map<String, Object> map = new HashMap();
                 map.put("name", k);
                 try {
-                    map.put("value", v.getAsStringRemovingCyclicReferences());
+                    map.put("value", v.getAsString());
                 } catch (Exception e) {
                     logger.warn("unable to convert to string: {} - {}", k, v);
                     map.put("value", "(unknown)");
                 }
-                map.put("type", v.getTypeAsShortString());
-                map.put("evaluateName", k);
-                // if > 0 , this can be used  by client to request more info
-                map.put("variablesReference", 0);
+                map.put("type", v.type.name());
+                if (v.type == LIST || v.type == MAP) {
+                    VARIABLES.put(++nextVariablesReference, new SimpleEntry(finalParentExpression + k + ".", v));
+                    map.put("presentationHint", "data");
+                    map.put("variablesReference", nextVariablesReference);
+                } else {
+                    map.put("variablesReference", 0);
+                }
+                map.put("evaluateName", finalParentExpression + k);
                 list.add(map);
             }
         });
@@ -195,6 +225,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                         .body("supportsRestartRequest", true)
                         .body("supportsStepBack", true)
                         .body("supportsVariableType", true)
+                        .body("supportsValueFormattingOptions", true)
                         .body("supportsClipboardContext", true));
                 ctx.write(event("initialized"));
                 ctx.write(event("output").body("output", "debug server listening on port: " + server.getPort() + "\n"));
@@ -246,8 +277,8 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 ctx.write(response(req).body("scopes", Collections.singletonList(scope)));
                 break;
             case "variables":
-                Number variablesReference = req.getArgument("variablesReference", Number.class);
-                ctx.write(response(req).body("variables", variables(variablesReference)));
+                Integer variablesReference = req.getArgument("variablesReference", Integer.class);
+                ctx.write(response(req).body("variables", variables(variablesReference.longValue())));
                 break;
             case "next":
                 thread(req).next().resume();
@@ -278,15 +309,10 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 String expression = req.getArgument("expression", String.class);
                 Number evalFrameId = req.getArgument("frameId", Number.class);
                 String reqContext = req.getArgument("context", String.class);
-                ScenarioContext evalContext = FRAMES.get(evalFrameId.longValue());
+                ScenarioRuntime evalContext = FRAMES.get(evalFrameId.longValue());
                 String result;
-                if ("clipboard".equals(reqContext)) {
-                    try {
-                        ScriptValue sv = evalContext.vars.get(expression);
-                        result = sv.getAsPrettyString();
-                    } catch (Exception e) {
-                        result = "[error] " + e.getMessage();
-                    }
+                if ("clipboard".equals(reqContext) || "hover".equals(reqContext)) {
+                    result = evaluateVarExpression(evalContext.engine.vars, expression);
                 } else {
                     evaluatePreStep(evalContext);
                     Result evalResult = evalContext.evalAsStep(expression);
@@ -301,7 +327,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                         .body("variablesReference", 0)); // non-zero means can be requested by client                 
                 break;
             case "restart":
-                ScenarioContext context = FRAMES.get(focusedFrameId);
+                ScenarioRuntime context = FRAMES.get(focusedFrameId);
                 if (context != null && context.hotReload()) {
                     output("[debug] hot reload successful");
                 } else {
@@ -325,7 +351,25 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         ctx.writeAndFlush(Unpooled.EMPTY_BUFFER);
     }
 
-    protected void evaluatePreStep(ScenarioContext context) {
+    protected String evaluateVarExpression(Map<String, Variable> vars, String expression) {
+        String result = "";
+        try {
+            if (expression.contains(".")) {
+                String varName = expression.substring(0, expression.indexOf('.'));
+                String path = expression.substring(expression.indexOf('.') + 1);
+                Object nested = Json.of(vars.get(varName).getValue()).get(path);
+                result = JsonUtils.toJson(nested);
+            } else {
+                Variable v = vars.get(expression);
+                result = v.getAsPrettyString();
+            }
+        } catch (Exception e) {
+            result = "[error] " + e.getMessage();
+        }
+        return result;
+    }
+
+    protected void evaluatePreStep(ScenarioRuntime context) {
         if (preStep == null) {
             return;
         }
@@ -338,24 +382,24 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     }
 
     @Override
-    public ExecutionHook create() {
+    public RuntimeHook create() {
         return new DebugThread(Thread.currentThread(), this);
     }
 
     private void start() {
         logger.debug("command line: {}", launchCommand);
-        RunnerOptions options;
+        Main options;
         if (singleFeature) {
-            options = new RunnerOptions();
-            options.addFeature(launchCommand);
+            options = new Main();
+            options.addPath(launchCommand);
         } else {
-            options = RunnerOptions.parseCommandLine(launchCommand);
+            options = IdeMain.parseIdeCommandLine(launchCommand);
         }
         if (runnerThread != null) {
             runnerThread.interrupt();
         }
         runnerThread = new Thread(() -> {
-            Runner.path(options.getFeatures())
+            Runner.path(options.getPaths())
                     .hookFactory(this)
                     .tags(options.getTags())
                     .scenarioName(options.getName())

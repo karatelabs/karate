@@ -15,7 +15,7 @@ Scenario: only listening to websocket messages
     And def id = response.id
 
     # this line will wait until the handler returns true
-    * def result = socket.listen(5000)
+    * json result = socket.listen(5000)
     * match result == { id: '#(id)', content: 'hello Rudy !' }
 
 Scenario: using the websocket instance to send as well as receive messages

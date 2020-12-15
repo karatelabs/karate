@@ -109,12 +109,6 @@ public class HtmlFeatureReport extends HtmlReport {
             }
             sb.append(stepResult.getStepLog());
         }
-        if (result.isFailed()) {
-            if (sb.length() > 0) {
-                sb.append('\n');
-            }
-            sb.append(result.getError().getMessage());
-        }
         if (sb.length() > 0) {
             Element docStringNode = node("div", "preformatted", sb.toString());
             docStringNode.setAttribute("data-parent", refNum);

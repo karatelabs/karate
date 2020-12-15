@@ -50,6 +50,9 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
 
     @Override
     public int compareTo(ScenarioResult sr) {
+        if (sr == null) {
+            return 1;
+        }
         int delta = scenario.getLine() - sr.scenario.getLine();
         if (delta != 0) {
             return delta;
@@ -119,13 +122,15 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         return featureName + ":" + step.getLine() + " " + step.getText();
     }
 
-    public void addError(String message, Throwable error) {
+    public StepResult addFakeStepResult(String message, Throwable error) {
         Step step = new Step(scenario.getFeature(), scenario, -1);
         step.setLine(scenario.getLine());
         step.setPrefix("*");
         step.setText(message);
-        StepResult sr = new StepResult(step, Result.failed(0, error, step), null, null, null);
+        Result result = error == null ? Result.passed(0) : Result.failed(0, error, step);
+        StepResult sr = new StepResult(step, result, error == null ? null : error.getMessage(), null, null);
         addStepResult(sr);
+        return sr;
     }
 
     public void addStepResult(StepResult stepResult) {
@@ -304,6 +309,11 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
 
     public void setEndTime(long endTime) {
         this.endTime = endTime;
+    }
+
+    @Override
+    public String toString() {
+        return failedStep == null ? scenario.toString() : failedStep + "";
     }
 
 }

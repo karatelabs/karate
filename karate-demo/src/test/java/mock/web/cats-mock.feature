@@ -1,9 +1,9 @@
 Feature: stateful mock server
 
 Background:
-* configure cors = true
 * def uuid = function(){ return java.util.UUID.randomUUID() + '' }
 * def cats = {}
+* configure cors = true
 
 Scenario: pathMatches('/cats') && methodIs('post')
     * def cat = request

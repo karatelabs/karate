@@ -20,7 +20,6 @@ Scenario: upload image - multipart
     And match header Content-Disposition contains 'karate-logo.jpg'
     And match header Content-Type == 'image/jpg'
 
-@mock-servlet-todo
 Scenario: upload image - binary request body
     Given path 'files', 'binary'
     And param name = 'karate-logo.jpg'
@@ -36,12 +35,12 @@ Scenario: upload image - binary request body
     And match responseBytes == read('karate-logo.jpg')
     And match header Content-Disposition contains 'karate-logo.jpg'
 
-@mock-servlet-todo
 Scenario: upload stream - content-length should be sent correctly
     Given path 'search', 'headers'
     And param name = 'karate-logo.jpg'
     And request read('karate-logo.jpg')
     When method post
     Then status 200
+    And def response = karate.lowerCase(response)
     And match response['content-length'][0] == '13575'
 

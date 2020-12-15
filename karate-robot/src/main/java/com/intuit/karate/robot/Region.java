@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.robot;
 
-import com.intuit.karate.Config;
+import com.intuit.karate.core.Config;
 import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.Rectangle;

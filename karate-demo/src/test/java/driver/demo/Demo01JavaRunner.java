@@ -15,13 +15,12 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class Demo01JavaRunner {
-    
-    private static final Logger logger = LoggerFactory.getLogger(Demo01JavaRunner.class);  
-    
+
+    private static final Logger logger = LoggerFactory.getLogger(Demo01JavaRunner.class);
+
     @Test
     public void testChrome() throws Exception {
-        
-        Chrome driver = Chrome.start();        
+        Chrome driver = Chrome.start();
         driver.setUrl("https://github.com/login");
         driver.input("#login_field", "dummy");
         driver.input("#password", "world");
@@ -34,13 +33,12 @@ public class Demo01JavaRunner {
         assertEquals("https://github.com/intuit/karate", driver.getUrl());
         byte[] bytes = driver.screenshot();
         // byte[] bytes = driver.screenshotFull();
-        FileUtils.writeToFile(new File("target/screenshot.png"), bytes);        
+        FileUtils.writeToFile(new File("target/screenshot.png"), bytes);
         driver.quit();
     }
 
     @Test
     public void testEdge() throws Exception {
-
         EdgeChromium driver = EdgeChromium.start();
         driver.setUrl("https://github.com/login");
         driver.input("#login_field", "dummy");

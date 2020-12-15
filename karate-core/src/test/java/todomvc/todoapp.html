@@ -1,0 +1,87 @@
+<script ka:lang="js">
+  session.todos = session.todos || [];
+  var todos = session.todos;
+  var action = request.param('action');
+  if (request.method === 'POST') {
+    var id = ~~request.param('id');
+    switch (action) {
+      case 'add':
+        var title = request.param('title');
+        todos.push({id: todos.length + 1, title: title, completed: false});
+        break;
+      case 'remove':
+        var index = todos.findIndex(x => x.id === id);
+        todos.splice(index, 1);
+        break;
+      case 'toggle':
+        var found = todos.find(x => x.id === id);
+        found.complete = !found.complete;
+        break;
+      case 'removeCompleted':
+        todos = todos.filter(x => !x.complete);
+        session.todos = todos;
+        break;
+      case 'update':
+        var title = request.param('title');
+        if (title !== '') { // escape key
+          var found = todos.find(x => x.id === id);
+          found.title = title;
+        }
+        break;
+      case 'edit':
+        context.afterSettle(`kjs.focus('#todo${id}')`);
+        break;
+      case 'toggleAll':
+        var anyActive = !!todos.find(x => !x.complete);
+        todos.forEach(x => x.complete = anyActive);
+        break;
+    }
+    filtered = todos;
+    showing = 'all';
+  } else { // GET
+    showing = action;
+    switch (action) {
+      case 'active':
+        filtered = todos.filter(x => !x.complete);
+        break;
+      case 'completed':
+        filtered = todos.filter(x => x.complete);
+        break;
+      default:
+        filtered = todos;
+        showing = 'all';
+    }
+  }
+  var remaining = todos.filter(x => !x.complete).length;
+  var selectIf = a => showing === a ? 'selected': null;
+  var isEditing = t => action === 'edit' && t.id === id ? 'editing' : (t.complete ? 'completed' : null);  
+</script>
+
+<header class="header">
+  <h1>todos</h1>
+  <input class="new-todo" placeholder="What needs to be done?" name="title" ka:post="this" ka:vals="action:'add'" autofocus>  
+</header>
+<section class="main" th:if="todos.length">
+  <input id="toggle-all" class="toggle-all" type="checkbox" th:checked="remaining == 0" ka:post="this" ka:vals="action:'toggleAll'">
+  <label for="toggle-all">Mark all as complete</label>
+  <ul class="todo-list">         
+    <li class="todo" th:each="todo: filtered" ka:vals="id:todo.id" th:classappend="isEditing(todo)">
+      <div class="view">
+        <input class="toggle" type="checkbox" th:checked="todo.complete" ka:post="this" ka:vals="action:'toggle'">
+        <label th:text="todo.title" ka:trigger="dblclick" ka:post="this" ka:vals="action:'edit'">replace title</label>        
+        <button class="destroy" ka:post="this" ka:vals="action:'remove'"></button>
+      </div>
+      <input class="edit" type="text" name="title" th:value="todo.title" onkeyup="kjs.edit(event, this)" th:id="'todo' + todo.id"
+             ka:trigger="blur,keyup-enter,keyup-escape" ka:post="this" ka:vals="action:'update'">
+    </li> 
+  </ul>
+</section>
+<footer class="footer" th:if="todos.length">
+  <div class="todo-count"><span th:text="remaining"></span> <span th:text="remaining == 1 ? 'item' : 'items'"></span> left</div>
+  <ul class="filters">
+    <li><a href="#" th:classappend="selectIf('all')" ka:get="this" ka:vals="action:'all'">All</a></li>
+    <li><a href="#" th:classappend="selectIf('active')" ka:get="this" ka:vals="action:'active'">Active</a></li>
+    <li><a href="#" th:classappend="selectIf('completed')" ka:get="this" ka:vals="action:'completed'">Completed</a></li>
+  </ul>
+  <button class="clear-completed" th:if="todos.length > remaining" ka:post="this" ka:vals="action:'removeCompleted'">Clear completed</button>
+</footer>

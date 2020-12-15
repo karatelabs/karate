@@ -39,7 +39,9 @@ public class Test03ParallelRunner {
     @Test
     public void testParallel() {
         System.setProperty("karate.env", "mock");
-        Results results = Runner.path("classpath:driver/core/test-03.feature").reportDir("target/driver-demo-03").parallel(5);
+        Results results = Runner.path("classpath:driver/core/test-03.feature")
+                .outputCucumberJson(true)
+                .reportDir("target/driver-demo-03").parallel(5);
         DemoTestParallel.generateReport(results.getReportDir());
         assertTrue(results.getErrorMessages(), results.getFailCount() == 0);        
     }

@@ -23,7 +23,7 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.ScenarioResult;
+import com.intuit.karate.core.FeatureResult;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -36,24 +36,26 @@ import java.util.Map;
  */
 public class Results {
 
-    private final int threadCount;
+    private final Suite suite;
     private int featureCount;
     private int scenarioCount;
     private int failCount;
     private int skipCount;
     private double timeTakenMillis;
-    private final long startTime;
     private long endTime;
     private Map<String, String> failedMap;
     private Throwable failureReason;
-    private String reportDir;
-    private final List<ScenarioResult> scenarioResults = new ArrayList();
+    private final List<FeatureResult> featureResults = new ArrayList();
 
-    public void printStats(int threadCount) {
-        System.out.println("Karate version: " + FileUtils.getKarateVersion());
+    public Results(Suite suite) {
+        this.suite = suite;
+    }
+
+    public void printStats() {
+        System.out.println("Karate version: " + FileUtils.KARATE_VERSION);
         System.out.println("======================================================");
         System.out.println(String.format("elapsed: %6.2f | threads: %4d | thread time: %.2f ",
-                getElapsedTime() / 1000, threadCount, timeTakenMillis / 1000));
+                getElapsedTime() / 1000, suite.threadCount, timeTakenMillis / 1000));
         System.out.println(String.format("features: %5d | ignored: %4d | efficiency: %.2f", featureCount, skipCount, getEfficiency()));
         System.out.println(String.format("scenarios: %4d | passed: %5d | failed: %d",
                 scenarioCount, getPassCount(), failCount));
@@ -70,8 +72,8 @@ public class Results {
 
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap();
-        map.put("version", FileUtils.getKarateVersion());
-        map.put("threads", threadCount);
+        map.put("version", FileUtils.KARATE_VERSION);
+        map.put("threads", suite.threadCount);
         map.put("features", featureCount);
         map.put("ignored", skipCount);
         map.put("scenarios", scenarioCount);
@@ -79,14 +81,9 @@ public class Results {
         map.put("passed", getPassCount());
         map.put("elapsedTime", getElapsedTime());
         map.put("totalTime", getTimeTakenMillis());
-        map.put("efficiency", getEfficiency());        
+        map.put("efficiency", getEfficiency());
         map.put("failures", failedMap);
         return map;
-    }
-
-    private Results(long startTime, int threadCount) {
-        this.startTime = startTime;
-        this.threadCount = threadCount;
     }
 
     public void addToFailedList(String name, String errorMessage) {
@@ -95,17 +92,13 @@ public class Results {
         }
         failedMap.put(name, errorMessage);
     }
-
-    public static Results startTimer(int threadCount) {
-        return new Results(System.currentTimeMillis(), threadCount);
+    
+    public void addFeatureResult(FeatureResult featureResult) {
+        featureResults.add(featureResult);
     }
 
     public String getReportDir() {
-        return reportDir;
-    }
-
-    public void setReportDir(String reportDir) {
-        this.reportDir = reportDir;
+        return suite.reportDir;
     }
 
     public void setFailureReason(Throwable failureReason) {
@@ -119,10 +112,10 @@ public class Results {
     public void addToScenarioCount(int count) {
         scenarioCount += count;
     }
-    
+
     public void incrementFeatureCount() {
         featureCount++;
-    }    
+    }
 
     public void addToFailCount(int count) {
         failCount += count;
@@ -136,16 +129,12 @@ public class Results {
         timeTakenMillis += time;
     }
 
-    public void stopTimer() {
-        endTime = System.currentTimeMillis();
+    public void setEndTime(long endTime) {
+        this.endTime = endTime;
     }
 
-    public void addScenarioResults(List<ScenarioResult> list) {
-        scenarioResults.addAll(list);
-    }
-
-    public List<ScenarioResult> getScenarioResults() {
-        return scenarioResults;
+    public List<FeatureResult> getFeatureResults() {
+        return featureResults;
     }
 
     public String getErrorMessages() {
@@ -160,19 +149,15 @@ public class Results {
     }
 
     public double getElapsedTime() {
-        return endTime - startTime;
+        return endTime - suite.startTime;
     }
 
     public double getEfficiency() {
-        return timeTakenMillis / (getElapsedTime() * threadCount);
+        return timeTakenMillis / (getElapsedTime() * suite.threadCount);
     }
 
     public int getPassCount() {
         return scenarioCount - failCount;
-    }
-
-    public int getThreadCount() {
-        return threadCount;
     }
 
     public int getFeatureCount() {
@@ -192,7 +177,7 @@ public class Results {
     }
 
     public long getStartTime() {
-        return startTime;
+        return suite.startTime;
     }
 
     public long getEndTime() {

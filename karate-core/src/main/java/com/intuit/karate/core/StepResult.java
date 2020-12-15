@@ -38,12 +38,12 @@ public class StepResult {
     private static final Map<String, Object> DUMMY_MATCH;
 
     private final Step step;
-    private final Result result;
-    private final List<FeatureResult> callResults;
-    
+    private final Result result;    
+
     private boolean hidden;
     private boolean showLog = true;
     private List<Embed> embeds;
+    private List<FeatureResult> callResults;
     private String stepLog;
 
     // short cut to re-use when converting from json
@@ -80,7 +80,7 @@ public class StepResult {
         map.put("value", text);
         return map;
     }
-    
+
     private static List<Map> tableToMap(Table table) {
         List<List<String>> rows = table.getRows();
         List<Map> list = new ArrayList(rows.size());
@@ -99,7 +99,7 @@ public class StepResult {
         json = map;
         step = new Step();
         step.setLine((Integer) map.get("line"));
-        step.setPrefix((String) map.get("prefix"));
+        step.setPrefix((String) map.get("keyword"));
         step.setText((String) map.get("name"));
         result = new Result((Map) map.get("result"));
         callResults = null;
@@ -120,9 +120,6 @@ public class StepResult {
             sb.append(step.getDocString());
         }
         if (stepLog != null && showLog) {
-            if (sb.length() > 0) {
-                sb.append('\n');
-            }
             sb.append(stepLog);
         }
         if (sb.length() > 0) {
@@ -143,7 +140,7 @@ public class StepResult {
 
     public void setHidden(boolean hidden) {
         this.hidden = hidden;
-    }        
+    }
 
     public boolean isHidden() {
         return hidden;
@@ -152,10 +149,14 @@ public class StepResult {
     public boolean isShowLog() {
         return showLog;
     }
+    
+    public boolean isWithCallResults() {
+        return callResults != null && !callResults.isEmpty();
+    }
 
     public void setShowLog(boolean showLog) {
         this.showLog = showLog;
-    }        
+    }
 
     public boolean isStopped() {
         return result.isFailed() || result.isAborted();
@@ -191,9 +192,21 @@ public class StepResult {
         }
         embeds.add(embed);
     }
+    
+    public void addCallResults(List<FeatureResult> values) {
+        if (callResults == null) {
+            callResults = new ArrayList();
+        }
+        callResults.addAll(values);
+    }
 
     public List<FeatureResult> getCallResults() {
         return callResults;
+    }
+
+    @Override
+    public String toString() {
+        return "[" + result + "] " + step;
     }
 
 }

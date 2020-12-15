@@ -11,7 +11,7 @@ Given path 'cats'
 And request { name: '<name>' }
 When method post
 Then status 200
-And kittens.add(response)
+And kittens.push(response)
 
 Examples:
 | name |

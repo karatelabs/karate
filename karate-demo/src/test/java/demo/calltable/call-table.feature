@@ -35,13 +35,14 @@ Then status 200
 And match response == { id: '#number', name: 'Billie', kittens: '#(^^created)' }
 
 # get kittens for billie using the id from the previous response
-Given path 'cats', $.id, 'kittens'
+Given path 'cats', response.id, 'kittens'
 When method get
 Then status 200
 
 # some demo match examples
 * match each response == { id: '#number', name: '#string' }
-* match response == "#[6] { id: '#number', name: '#string' }"
+* def schema = { id: '#number', name: '#string' }
+* match response == "#[6] schema"
 
 # pure data-driven assertion, compare with the original data
 * match response[*].name contains only $kittens[*].name

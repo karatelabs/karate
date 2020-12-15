@@ -21,7 +21,9 @@ public class DynamicGeneratorParallelRunner {
 
     @Test
     public void testParallel() {
-        Results results = Runner.path("classpath:demo/outline/dynamic-generator.feature").reportDir("target/dynamic-generator").parallel(5);
+        Results results = Runner.path("classpath:demo/outline/dynamic-generator.feature")
+                .outputCucumberJson(true)
+                .reportDir("target/dynamic-generator").parallel(5);
         DemoTestParallel.generateReport(results.getReportDir());
         assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
     }
