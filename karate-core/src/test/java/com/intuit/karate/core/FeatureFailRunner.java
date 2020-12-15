@@ -71,4 +71,11 @@ class FeatureFailRunner {
         assertFalse(fr.result.isFailed());
     }
 
+    @Test
+    void testUsersDoc() {
+        run("users-doc.feature");
+        assertFalse(fr.result.isFailed());
+        report();
+    }
+
 }

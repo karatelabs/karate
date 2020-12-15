@@ -1,0 +1,16 @@
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>E-Mail</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr th:each="user: response">
+      <td th:text="user.id"></td>
+      <td th:text="user.name"></td>
+      <td th:text="user.email"></td>
+    </tr>
+  </tbody>
+</table>

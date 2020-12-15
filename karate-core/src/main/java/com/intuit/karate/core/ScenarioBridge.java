@@ -253,7 +253,10 @@ public class ScenarioBridge implements PerfContext {
         if (contentType == null) {
             contentType = ResourceType.fromObject(o, ResourceType.BINARY).contentType;
         }
-        getEngine().runtime.embed(JsValue.toBytes(o), contentType);
+        Embed embed = new Embed();
+        embed.setBytes(JsValue.toBytes(o));
+        embed.setMimeType(contentType);
+        getEngine().runtime.embed(embed);
     }
 
     public Object eval(String exp) {
@@ -481,9 +484,9 @@ public class ScenarioBridge implements PerfContext {
 
     //==========================================================================
     //
-    public HttpRequestBuilder http(String url) { // TODO breaking change
+    public HttpRequestBuilder http(String url) {
         ScenarioEngine engine = getEngine();
-        HttpClient client = getEngine().runtime.featureRuntime.suite.clientFactory.create(engine);
+        HttpClient client = engine.runtime.featureRuntime.suite.clientFactory.create(engine);
         return new HttpRequestBuilder(client).url(url);
     }
 

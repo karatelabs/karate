@@ -109,13 +109,6 @@ public class ScenarioRuntime implements Runnable {
         return appender;
     }
 
-    public void embed(byte[] bytes, String contentType) {
-        Embed embed = new Embed();
-        embed.setBytes(bytes);
-        embed.setMimeType(contentType);
-        embed(embed);
-    }
-
     public void embed(Embed embed) {
         if (embeds == null) {
             embeds = new ArrayList();
