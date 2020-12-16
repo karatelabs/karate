@@ -166,7 +166,7 @@ public class ScenarioEngine {
         return THREAD_LOCAL.get();
     }
 
-    protected static void set(ScenarioEngine se) {
+    public static void set(ScenarioEngine se) {
         THREAD_LOCAL.set(se);
     }
 

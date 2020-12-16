@@ -26,6 +26,7 @@ package com.intuit.karate.debug;
 import com.intuit.karate.*;
 import com.intuit.karate.cli.IdeMain;
 import com.intuit.karate.core.Result;
+import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.RuntimeHookFactory;
 import com.intuit.karate.core.ScenarioRuntime;
@@ -314,6 +315,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 if ("clipboard".equals(reqContext) || "hover".equals(reqContext)) {
                     result = evaluateVarExpression(evalContext.engine.vars, expression);
                 } else {
+                    ScenarioEngine.set(evalContext.engine);
                     evaluatePreStep(evalContext);
                     Result evalResult = evalContext.evalAsStep(expression);
                     if (evalResult.isFailed()) {
