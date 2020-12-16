@@ -194,6 +194,9 @@ class MatchTest {
         match("{ a: 1, b: 2, c: 3 }", CONTAINS_DEEP, "{ c: 3, a: 1 }");
         match("{ a: 1, b: 2, c: [1, 2] }", CONTAINS_DEEP, "{ a: 1, c: [2] }");
         match("{ a: 1, b: 2, c: 3 }", CONTAINS, "{ b: 2 }");
+        match("{ a: 1, b: 2, c: 3 }", CONTAINS, "{ }");
+        match("{ a: 1, b: 2, c: 3 }", CONTAINS_ANY, "{ }");
+        match("{ a: 1, b: 2, c: 3 }", CONTAINS_DEEP, "{ }");
         match("{ a: 1, b: 2, c: 3 }", CONTAINS_ANY, "{ z: 9, b: 2 }");
         match("{ a: 1, b: 2, c: 3 }", CONTAINS, "{ z: 9, x: 2 }", FAILS);
         message("$ | actual does not contain expected | actual does not contain key - 'z'");
