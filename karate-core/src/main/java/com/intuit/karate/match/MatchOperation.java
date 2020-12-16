@@ -475,6 +475,9 @@ public class MatchOperation {
         if (type == MatchType.CONTAINS_ANY) {
             return fail("no key-values matched");
         }
+        if (unMatchedKeysExp.isEmpty() && (type == MatchType.CONTAINS || type == MatchType.CONTAINS_DEEP)) {
+            return true; // all expected keys matched, expMap was empty in the first place
+        }
         if (!unMatchedKeysExp.isEmpty()) {
             return fail("all key-values did not match, expected has un-matched keys - " + unMatchedKeysExp);
         }
