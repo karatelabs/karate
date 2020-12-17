@@ -425,7 +425,9 @@ public class Runner {
             if (hooks == null) {
                 hooks = new ArrayList();
             }
-            hooks.add(hook);
+            if (hook != null) {
+                hooks.add(hook);
+            }
             return this;
         }
 

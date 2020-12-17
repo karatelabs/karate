@@ -26,6 +26,7 @@ package com.intuit.karate;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import com.intuit.karate.core.MockServer;
+import com.intuit.karate.core.RuntimeHookFactory;
 import com.intuit.karate.debug.DapServer;
 import com.intuit.karate.formats.PostmanConverter;
 import com.intuit.karate.http.HttpServer;
@@ -110,15 +111,18 @@ public class Main implements Callable<Void> {
     @Option(names = {"-d", "--debug"}, arity = "0..1", defaultValue = "-1", fallbackValue = "0",
             description = "debug mode (optional port else dynamically chosen)")
     int debugPort;
-    
+
     @Option(names = {"-D", "--dryrun"}, description = "dry run, generate html reports only")
-    boolean dryRun;    
+    boolean dryRun;
 
     @Option(names = {"-j", "--jobserver"}, description = "job server url")
     String jobServerUrl;
 
     @Option(names = {"-i", "--import"}, description = "import and convert a file")
     String importFile;
+
+    @Option(names = {"-H", "--hook"}, description = "Class name of a RuntimeHook or RuntimeHookFactory to add")
+    Class<?> hookFactoryClass;
 
     //==========================================================================
     //
@@ -156,6 +160,26 @@ public class Main implements Callable<Void> {
     public static Main parseKarateOptions(String line) {
         String[] args = Command.tokenize(line);
         return CommandLine.populateCommand(new Main(), args);
+    }
+
+    public RuntimeHook createHook() {
+        if (hookFactoryClass != null) {
+            if (RuntimeHookFactory.class.isAssignableFrom(hookFactoryClass)) {
+                try {
+                    return ((RuntimeHookFactory) hookFactoryClass.newInstance()).create();
+                } catch (Exception e) {
+                    logger.error("Error instantiating RuntimeHook for {}", hookFactoryClass, e);
+                }
+            } else if (RuntimeHook.class.isAssignableFrom(hookFactoryClass)) {
+                try {
+                    return (RuntimeHook) hookFactoryClass.newInstance();
+                } catch (Exception e) {
+                    logger.error("Error instantiating RuntimeHook for {}", hookFactoryClass, e);
+                }
+            }
+            logger.error("Provided Hook/FactoryClass({}) is not an RuntimeHook or RuntimeHookFactory");
+        }
+        return null;
     }
 
     public static void main(String[] args) {
@@ -228,6 +252,7 @@ public class Main implements Callable<Void> {
             outputJunitXml = formats.contains("xml");
         }
         if (paths != null) {
+            RuntimeHook runtimeHook = createHook();
             Results results = Runner
                     .path(paths).tags(tags).scenarioName(name)
                     .karateEnv(env)
@@ -237,6 +262,7 @@ public class Main implements Callable<Void> {
                     .outputCucumberJson(outputCucumberJson)
                     .outputJunitXml(outputJunitXml)
                     .dryRun(dryRun)
+                    .hook(runtimeHook)
                     .parallel(threads);
             if (results.getFailCount() > 0) {
                 Exception ke = new KarateException("there are test failures !");

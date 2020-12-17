@@ -100,9 +100,7 @@ public class IdeMain {
         } else {
             nameTemp = null;
         }
-        String path = line.trim();
-        Main options = new Main();
-        options.addPath(path);
+        Main options = CommandLine.populateCommand(new Main(), line.split("\\s+"));
         options.setName(nameTemp);
         return options;
     }

@@ -401,6 +401,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         runnerThread = new Thread(() -> {
             Runner.path(options.getPaths())
                     .hookFactory(this)
+                    .hook(options.createHook())
                     .tags(options.getTags())
                     .scenarioName(options.getName())
                     .parallel(options.getThreads());
