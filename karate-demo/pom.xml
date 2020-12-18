@@ -72,7 +72,7 @@
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-junit4</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
+            <scope>provided</scope>
         </dependency>               
         <dependency>
             <groupId>net.masterthought</groupId>
@@ -164,6 +164,14 @@
     <profiles>
         <profile>
             <id>coverage</id>
+            <dependencies>
+                <dependency>
+                    <groupId>com.intuit.karate</groupId>
+                    <artifactId>karate-junit4</artifactId>
+                    <version>${project.version}</version>
+                    <scope>compile</scope>
+                </dependency>
+            </dependencies>
             <build>
                 <plugins>
                     <plugin>
@@ -200,7 +208,46 @@
                     </plugin>                     
                 </plugins>
             </build>
-        </profile>    
+        </profile>
+        <profile>
+            <!-- certify fat jar with demo test suite -->
+            <id>fatjar</id>
+            <dependencies>
+                <dependency>
+                    <groupId>com.intuit.karate</groupId>
+                    <artifactId>karate-junit4</artifactId>
+                    <version>${project.version}</version>
+                    <scope>compile</scope>
+                    <exclusions>
+                        <exclusion>
+                            <groupId>com.intuit.karate</groupId>
+                            <artifactId>karate-core</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+                <dependency>
+                    <groupId>com.intuit.karate</groupId>
+                    <artifactId>karate-core-fatjar</artifactId>
+                    <version>${project.version}</version>
+                    <scope>system</scope>
+                    <systemPath>${project.basedir}/../karate-core/target/karate-${project.version}.jar</systemPath>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <version>${maven.surefire.version}</version>
+                        <configuration>
+                            <includes>
+                                <include>demo/DemoTestParallel.java</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
     
 </project>
