@@ -34,7 +34,9 @@ import com.intuit.karate.http.ServerHandler;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -75,6 +77,10 @@ public class JobManager<T> implements ServerHandler {
         server = new HttpServer(config.getPort(), this);
         jobUrl = "http://" + config.getHost() + ":" + server.getPort();
         queue = new ArrayBlockingQueue(config.getExecutorCount());
+        List<T> initialChunks = config.getInitialChunks();
+        if (initialChunks != null) {
+            initialChunks.forEach(this::addChunk);
+        }
     }
 
     public <T> CompletableFuture<T> addChunk(T value) {
@@ -91,6 +97,15 @@ public class JobManager<T> implements ServerHandler {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+    
+    public void waitForCompletion() {
+        List<CompletableFuture> futures = new ArrayList(chunks.size());
+        for (JobChunk jc : chunks.values()) {
+            futures.add(jc.getFuture());
+        }
+        CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
+        CompletableFuture.allOf(futuresArray).join();
     }
     
     public void startExecutors() {

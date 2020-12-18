@@ -70,7 +70,10 @@ public interface JobConfig<T> {
         ExecutorService executor = Executors.newFixedThreadPool(count);
         for (int i = 0; i < count; i++) {
             int index = i;
-            executor.submit(() -> Command.execLine(null, getExecutorCommand(jobId, jobUrl, index)));
+            String command = getExecutorCommand(jobId, jobUrl, index);
+            if (command != null) {
+                executor.submit(() -> Command.execLine(null, command));
+            }
         }
         executor.shutdown();
         int timeout = getTimeoutMinutes();
@@ -94,6 +97,10 @@ public interface JobConfig<T> {
     }
 
     default List<JobCommand> getPostCommands(JobChunk<T> jc) {
+        return Collections.EMPTY_LIST;
+    }
+
+    default List<T> getInitialChunks() {
         return Collections.EMPTY_LIST;
     }
 

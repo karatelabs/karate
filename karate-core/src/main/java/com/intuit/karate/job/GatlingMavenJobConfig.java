@@ -27,6 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.ScenarioRuntime;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -34,13 +35,23 @@ import java.util.List;
  *
  * @author pthomas3
  */
-public class GatlingMavenJobConfig extends MavenJobConfig {
+public class GatlingMavenJobConfig extends JobConfigBase<Integer> {
 
     private String mainCommand = "mvn gatling:test";
     private String executorDir = "target/gatling";
 
     public GatlingMavenJobConfig(int executorCount, String host, int port) {
         super(executorCount, host, port);
+    }
+
+    @Override
+    public List<Integer> getInitialChunks() {
+        int count = getExecutorCount();
+        List<Integer> list = new ArrayList(count);
+        for (int i = 0; i < count; i++) {
+            list.add(i);
+        }
+        return list;
     }
 
     public void setMainCommand(String mainCommand) {
@@ -50,11 +61,11 @@ public class GatlingMavenJobConfig extends MavenJobConfig {
     @Override
     public String getExecutorDir() {
         return executorDir;
-    }        
+    }
 
     public void setExecutorDir(String executorDir) {
         this.executorDir = executorDir;
-    }        
+    }
 
     @Override
     public List<JobCommand> getMainCommands(JobChunk jc) {
@@ -69,7 +80,7 @@ public class GatlingMavenJobConfig extends MavenJobConfig {
     }
 
     @Override
-    public ScenarioRuntime handleUpload(JobChunk<ScenarioRuntime> jc, File upload) {
+    public Integer handleUpload(JobChunk<Integer> jc, File upload) {
         String karateLog = upload.getPath() + File.separator + "karate.log";
         File karateLogFile = new File(karateLog);
         if (karateLogFile.exists()) {

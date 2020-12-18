@@ -1,7 +1,7 @@
 package jobtest;
 
-import com.intuit.karate.gatling.GatlingJobServer;
-import com.intuit.karate.gatling.GatlingMavenJobConfig;
+import com.intuit.karate.job.GatlingMavenJobConfig;
+import com.intuit.karate.job.JobManager;
 
 /**
  *
@@ -11,9 +11,9 @@ public class GatlingDockerJobRunner {
 
     public static void main(String[] args) {
         GatlingMavenJobConfig config = new GatlingMavenJobConfig(2, "host.docker.internal", 0);
-        GatlingJobServer server = new GatlingJobServer(config);
-        server.startExecutors();
-        server.waitSync();
+        JobManager manager = new JobManager(config);
+        manager.startExecutors();
+        manager.waitForCompletion();
         io.gatling.app.Gatling.main(new String[]{"-ro", "reports", "-rf", "target"});
     }
 

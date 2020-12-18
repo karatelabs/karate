@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.job;
 
+import com.intuit.karate.core.ScenarioRuntime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -56,12 +57,12 @@ public class MavenChromeJobConfig extends MavenJobConfig {
     }
 
     @Override
-    public List<JobCommand> getPreCommands(JobChunk jc) {
+    public List<JobCommand> getPreCommands(JobChunk<ScenarioRuntime> jc) {
         return Collections.singletonList(new JobCommand("supervisorctl start ffmpeg"));
     }
 
     @Override
-    public List<JobCommand> getPostCommands(JobChunk jc) {
+    public List<JobCommand> getPostCommands(JobChunk<ScenarioRuntime> jc) {
         List<JobCommand> list = new ArrayList();
         list.add(new JobCommand("supervisorctl stop ffmpeg"));
         list.add(new JobCommand("mv /tmp/karate.mp4 " + jc.getExecutorDir()));

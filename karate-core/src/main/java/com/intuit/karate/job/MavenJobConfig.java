@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2019 Intuit Inc.
+ * Copyright 2020 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,70 +30,22 @@ import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.ScenarioRuntime;
+import static com.intuit.karate.job.JobConfigBase.logger;
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public class MavenJobConfig implements JobConfig<ScenarioRuntime> {
+public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
     
-    protected static final Logger logger = LoggerFactory.getLogger(MavenJobConfig.class);
-
-    private final int executorCount;
-    private final String host;
-    private final int port;
-    protected final List<String> sysPropKeys = new ArrayList(1);
-    protected final List<String> envPropKeys = new ArrayList(1);
-
-    protected String dockerImage = "ptrthomas/karate-chrome";
-
     public MavenJobConfig(int executorCount, String host, int port) {
-        this.executorCount = executorCount;
-        this.host = host;
-        this.port = port;
-        sysPropKeys.add("karate.env");
+        super(executorCount, host, port);
     }
-
-    @Override
-    public String getExecutorCommand(String jobId, String jobUrl, int index) {
-        return "docker run --rm --cap-add=SYS_ADMIN -e KARATE_JOBURL=" + jobUrl + " " + dockerImage;
-    }
-
-    public void setDockerImage(String dockerImage) {
-        this.dockerImage = dockerImage;
-    }
-
-    public void addSysPropKey(String key) {
-        sysPropKeys.add(key);
-    }
-
-    public void addEnvPropKey(String key) {
-        envPropKeys.add(key);
-    }
-
-    @Override
-    public int getExecutorCount() {
-        return executorCount;
-    }
-
-    @Override
-    public String getHost() {
-        return host;
-    }
-
-    @Override
-    public int getPort() {
-        return port;
-    }
-
+    
     @Override
     public List<JobCommand> getMainCommands(JobChunk<ScenarioRuntime> chunk) {
         Scenario scenario = chunk.getValue().scenario;
@@ -108,29 +60,7 @@ public class MavenJobConfig implements JobConfig<ScenarioRuntime> {
             }
         }
         return Collections.singletonList(new JobCommand(temp));
-    }
-
-    @Override
-    public List<JobCommand> getStartupCommands() {
-        return Collections.singletonList(new JobCommand("mvn test-compile"));
-    }
-
-    @Override
-    public List<JobCommand> getShutdownCommands() {
-        return Collections.singletonList(new JobCommand("supervisorctl shutdown"));
-    }
-
-    @Override
-    public Map<String, String> getEnvironment() {
-        Map<String, String> map = new HashMap(envPropKeys.size());
-        for (String k : envPropKeys) {
-            String v = StringUtils.trimToEmpty(System.getenv(k));
-            if (!v.isEmpty()) {
-                map.put(k, v);
-            }
-        }
-        return map;
-    }
+    }    
 
     @Override
     public ScenarioRuntime handleUpload(JobChunk<ScenarioRuntime> chunk, File upload) {
@@ -157,5 +87,5 @@ public class MavenJobConfig implements JobConfig<ScenarioRuntime> {
         }
         return runtime;
     }
-
+    
 }
