@@ -216,7 +216,7 @@ public class Main implements Callable<Void> {
             } catch (Exception e) {
                 logger.error("Error instantiating RuntimeHook for {}", hookClassName, e);
             }
-            logger.error("Provided Hook/FactoryClass({}) is not an RuntimeHook or RuntimeHookFactory");
+            logger.error("Provided Hook/FactoryClass({}) is not an RuntimeHook or RuntimeHookFactory", hookClassName);
         }
         return null;
     }
