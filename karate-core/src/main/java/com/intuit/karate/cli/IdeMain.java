@@ -103,7 +103,7 @@ public class IdeMain {
         } else {
             nameTemp = null;
         }
-        Main options = CommandLine.populateCommand(new Main(), Command.tokenize(line));
+        Main options = Main.parseKarateOptionAndQuotePath(line);
         options.setName(nameTemp);
         return options;
     }

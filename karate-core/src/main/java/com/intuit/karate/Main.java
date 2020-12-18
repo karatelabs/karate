@@ -42,6 +42,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.slf4j.LoggerFactory;
@@ -62,7 +64,7 @@ public class Main implements Callable<Void> {
     @Option(names = {"-h", "--help"}, usageHelp = true, description = "display this help message")
     boolean help;
 
-    @Parameters(description = "one or more tests (features) or search-paths to run")
+    @Parameters(split = "$", description = "one or more tests (features) or search-paths to run")
     List<String> paths;
 
     @Option(names = {"-m", "--mock"}, description = "mock server file")
@@ -126,8 +128,8 @@ public class Main implements Callable<Void> {
     @Option(names = {"-i", "--import"}, description = "import and convert a file")
     String importFile;
 
-    @Option(names = {"-H", "--hook"}, description = "Class name of a RuntimeHook or RuntimeHookFactory to add")
-    List<Class<?>> hookFactoryClasses;
+    @Option(names = {"-H", "--hooks"}, split = ",", description = "Class name of a RuntimeHook or RuntimeHookFactory to add")
+    List<String> hookFactoryClassNames;
 
     //==========================================================================
     //
@@ -167,28 +169,52 @@ public class Main implements Callable<Void> {
         return CommandLine.populateCommand(new Main(), args);
     }
 
+    /**
+     * Parses Main options quoting last positional parameter (path) in case it contains whitespaces and it's unquoted.
+     * <p>
+     * It works only if line contains just one positional parameter (path) and it's the last one in line.
+     * It works well for IntelliJ and VSCode generated command lines.
+     *
+     * @param line
+     * @return
+     */
+    public static Main parseKarateOptionAndQuotePath(String line) {
+        // matches ( -X XXX )* (XXX)
+        Pattern pattern = Pattern.compile("(\\s*-{1,2}\\w\\s\\S*\\s*)*(.*)$");
+        Matcher matcher = pattern.matcher(line);
+        if (matcher.find()) {
+            String path = matcher.group(2).trim();
+            if (path.contains(" ")) {
+                // unquote if necessary
+                path = path.replaceAll("^\"|^'|\"$|\'$", "");
+                String options = matcher.group(1);
+                options = options != null ? options : "";
+                line = String.format("%s \"%s\"", options, path);
+            }
+        }
+        return Main.parseKarateOptions(line.trim());
+    }
+
     public Collection<RuntimeHook> createHooks() {
-        if (this.hookFactoryClasses != null) {
-            return this.hookFactoryClasses.stream()
+        if (this.hookFactoryClassNames != null) {
+            return this.hookFactoryClassNames.stream()
                     .map(c -> createHook(c)).collect(Collectors.toList());
         }
         return Collections.emptyList();
     }
 
-    public RuntimeHook createHook(Class hookFactoryClass) {
-        if (hookFactoryClass != null) {
-            if (RuntimeHookFactory.class.isAssignableFrom(hookFactoryClass)) {
-                try {
-                    return ((RuntimeHookFactory) hookFactoryClass.newInstance()).create();
-                } catch (Exception e) {
-                    logger.error("Error instantiating RuntimeHook for {}", hookFactoryClass, e);
+    private RuntimeHook createHook(String hookClassName) {
+        if (hookClassName != null) {
+            try {
+                Class hookClass = Class.forName(hookClassName);
+                if (RuntimeHookFactory.class.isAssignableFrom(hookClass)) {
+                    return ((RuntimeHookFactory) hookClass.newInstance()).create();
+                } else if (RuntimeHook.class.isAssignableFrom(hookClass)) {
+                    return (RuntimeHook) hookClass.newInstance();
+
                 }
-            } else if (RuntimeHook.class.isAssignableFrom(hookFactoryClass)) {
-                try {
-                    return (RuntimeHook) hookFactoryClass.newInstance();
-                } catch (Exception e) {
-                    logger.error("Error instantiating RuntimeHook for {}", hookFactoryClass, e);
-                }
+            } catch (Exception e) {
+                logger.error("Error instantiating RuntimeHook for {}", hookClassName, e);
             }
             logger.error("Provided Hook/FactoryClass({}) is not an RuntimeHook or RuntimeHookFactory");
         }
@@ -218,7 +244,7 @@ public class Main implements Callable<Void> {
             }
         }
         if (isClean) {
-            // ensure karate.log is not held open which will prevent 
+            // ensure karate.log is not held open which will prevent
             // a graceful delete of "target" especially on windows
             System.setProperty(LOGBACK_CONFIG, "logback-nofile.xml");
         } else {
