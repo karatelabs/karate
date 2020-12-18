@@ -35,10 +35,15 @@ import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.http.SslContextFactory;
 import com.intuit.karate.job.JobExecutor;
 import com.intuit.karate.shell.Command;
+
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
+
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
@@ -122,7 +127,7 @@ public class Main implements Callable<Void> {
     String importFile;
 
     @Option(names = {"-H", "--hook"}, description = "Class name of a RuntimeHook or RuntimeHookFactory to add")
-    Class<?> hookFactoryClass;
+    List<Class<?>> hookFactoryClasses;
 
     //==========================================================================
     //
@@ -162,7 +167,15 @@ public class Main implements Callable<Void> {
         return CommandLine.populateCommand(new Main(), args);
     }
 
-    public RuntimeHook createHook() {
+    public Collection<RuntimeHook> createHooks() {
+        if (this.hookFactoryClasses != null) {
+            return this.hookFactoryClasses.stream()
+                    .map(c -> createHook(c)).collect(Collectors.toList());
+        }
+        return Collections.emptyList();
+    }
+
+    public RuntimeHook createHook(Class hookFactoryClass) {
         if (hookFactoryClass != null) {
             if (RuntimeHookFactory.class.isAssignableFrom(hookFactoryClass)) {
                 try {
@@ -252,7 +265,6 @@ public class Main implements Callable<Void> {
             outputJunitXml = formats.contains("xml");
         }
         if (paths != null) {
-            RuntimeHook runtimeHook = createHook();
             Results results = Runner
                     .path(paths).tags(tags).scenarioName(name)
                     .karateEnv(env)
@@ -262,7 +274,7 @@ public class Main implements Callable<Void> {
                     .outputCucumberJson(outputCucumberJson)
                     .outputJunitXml(outputJunitXml)
                     .dryRun(dryRun)
-                    .hook(runtimeHook)
+                    .hooks(createHooks())
                     .parallel(threads);
             if (results.getFailCount() > 0) {
                 Exception ke = new KarateException("there are test failures !");

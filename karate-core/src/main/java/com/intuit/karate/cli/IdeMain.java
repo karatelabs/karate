@@ -26,10 +26,13 @@ package com.intuit.karate.cli;
 import com.intuit.karate.Main;
 import com.intuit.karate.Runner;
 import com.intuit.karate.StringUtils;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import com.intuit.karate.shell.Command;
 import picocli.CommandLine;
 
 /**
@@ -100,7 +103,7 @@ public class IdeMain {
         } else {
             nameTemp = null;
         }
-        Main options = CommandLine.populateCommand(new Main(), line.split("\\s+"));
+        Main options = CommandLine.populateCommand(new Main(), Command.tokenize(line));
         options.setName(nameTemp);
         return options;
     }
