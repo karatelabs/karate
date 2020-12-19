@@ -87,6 +87,7 @@ public class GatlingMavenJobConfig extends JobConfigBase<Integer> {
             karateLogFile.renameTo(new File(karateLog + ".txt"));
         }
         String gatlingReportDir = "target" + File.separator + "reports" + File.separator;
+        new File(gatlingReportDir).mkdirs();
         File[] dirs = upload.listFiles();
         for (File dir : dirs) {
             if (dir.isDirectory()) {

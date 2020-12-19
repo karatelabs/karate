@@ -90,8 +90,7 @@ public class JobUtils {
             ZipEntry zipEntry = zis.getNextEntry();
             while (zipEntry != null) {
                 File newFile = createFile(dest, zipEntry);
-                boolean isDir = zipEntry.getName().endsWith(File.separator);
-                if (isDir) {
+                if (zipEntry.isDirectory()) {
                     newFile.mkdirs();
                 } else {
                     File parentFile = newFile.getParentFile();
