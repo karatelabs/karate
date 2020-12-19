@@ -76,9 +76,9 @@ class IdeMainTest {
     void testAbsolutePath() {
         String[] args = new String[]{"/Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/resources/com/intuit/karate/junit4/demos/users.feature"};
         Main options = IdeMain.parseStringArgs(args);
-        assertEquals(1, options.paths.size());        
+        assertEquals(1, options.paths.size());
     }
-    
+
     @Test
     void testPartialKarateOptionsFromSystemProperties() {
         String line = "--tags @e2e";
@@ -87,4 +87,24 @@ class IdeMainTest {
         assertEquals("@e2e", options.tags.get(0));
     }
 
+    @Test
+    void testParseKarateOptionAndQuotePath() {
+        final String[] lines = new String[]{
+                "/tmp/name with spaces.feature",
+                " /tmp/name with spaces.feature ",
+                "-H com.intuit.karate.RuntimeHook /tmp/name with spaces.feature",
+                " -H com.intuit.karate.RuntimeHook /tmp/name with spaces.feature ",
+                "-H com.intuit.karate.RuntimeHook \"/tmp/name with spaces.feature\"",
+                " -H com.intuit.karate.RuntimeHook \"/tmp/name with spaces.feature\" ",
+                "-H com.intuit.karate.RuntimeHook '/tmp/name with spaces.feature'",
+                "-H com.intuit.karate.RuntimeHook -H com.intuit.karate.RuntimeHook /tmp/name with spaces.feature ",
+                "-H com.intuit.karate.RuntimeHook,com.intuit.karate.RuntimeHook /tmp/name with spaces.feature "
+        };
+
+        for (String line : lines) {
+            Main options = Main.parseKarateOptionAndQuotePath(line);
+            assertEquals(1, options.paths.size());
+            assertEquals("/tmp/name with spaces.feature", options.paths.get(0));
+        }
+    }
 }

@@ -26,6 +26,7 @@ package com.intuit.karate;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import com.intuit.karate.core.MockServer;
+import com.intuit.karate.core.RuntimeHookFactory;
 import com.intuit.karate.debug.DapServer;
 import com.intuit.karate.formats.PostmanConverter;
 import com.intuit.karate.http.HttpServer;
@@ -34,10 +35,17 @@ import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.http.SslContextFactory;
 import com.intuit.karate.job.JobExecutor;
 import com.intuit.karate.shell.Command;
+
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
@@ -56,7 +64,7 @@ public class Main implements Callable<Void> {
     @Option(names = {"-h", "--help"}, usageHelp = true, description = "display this help message")
     boolean help;
 
-    @Parameters(description = "one or more tests (features) or search-paths to run")
+    @Parameters(split = "$", description = "one or more tests (features) or search-paths to run")
     List<String> paths;
 
     @Option(names = {"-m", "--mock"}, description = "mock server file")
@@ -110,15 +118,18 @@ public class Main implements Callable<Void> {
     @Option(names = {"-d", "--debug"}, arity = "0..1", defaultValue = "-1", fallbackValue = "0",
             description = "debug mode (optional port else dynamically chosen)")
     int debugPort;
-    
+
     @Option(names = {"-D", "--dryrun"}, description = "dry run, generate html reports only")
-    boolean dryRun;    
+    boolean dryRun;
 
     @Option(names = {"-j", "--jobserver"}, description = "job server url")
     String jobServerUrl;
 
     @Option(names = {"-i", "--import"}, description = "import and convert a file")
     String importFile;
+
+    @Option(names = {"-H", "--hooks"}, split = ",", description = "Class name of a RuntimeHook or RuntimeHookFactory to add")
+    List<String> hookFactoryClassNames;
 
     //==========================================================================
     //
@@ -158,6 +169,58 @@ public class Main implements Callable<Void> {
         return CommandLine.populateCommand(new Main(), args);
     }
 
+    /**
+     * Parses Main options quoting last positional parameter (path) in case it contains whitespaces and it's unquoted.
+     * <p>
+     * It works only if line contains just one positional parameter (path) and it's the last one in line.
+     * It works well for IntelliJ and VSCode generated command lines.
+     *
+     * @param line
+     * @return
+     */
+    public static Main parseKarateOptionAndQuotePath(String line) {
+        // matches ( -X XXX )* (XXX)
+        Pattern pattern = Pattern.compile("(\\s*-{1,2}\\w\\s\\S*\\s*)*(.*)$");
+        Matcher matcher = pattern.matcher(line);
+        if (matcher.find()) {
+            String path = matcher.group(2).trim();
+            if (path.contains(" ")) {
+                // unquote if necessary
+                path = path.replaceAll("^\"|^'|\"$|\'$", "");
+                String options = matcher.group(1);
+                options = options != null ? options : "";
+                line = String.format("%s \"%s\"", options, path);
+            }
+        }
+        return Main.parseKarateOptions(line.trim());
+    }
+
+    public Collection<RuntimeHook> createHooks() {
+        if (this.hookFactoryClassNames != null) {
+            return this.hookFactoryClassNames.stream()
+                    .map(c -> createHook(c)).collect(Collectors.toList());
+        }
+        return Collections.emptyList();
+    }
+
+    private RuntimeHook createHook(String hookClassName) {
+        if (hookClassName != null) {
+            try {
+                Class hookClass = Class.forName(hookClassName);
+                if (RuntimeHookFactory.class.isAssignableFrom(hookClass)) {
+                    return ((RuntimeHookFactory) hookClass.newInstance()).create();
+                } else if (RuntimeHook.class.isAssignableFrom(hookClass)) {
+                    return (RuntimeHook) hookClass.newInstance();
+
+                }
+            } catch (Exception e) {
+                logger.error("Error instantiating RuntimeHook for {}", hookClassName, e);
+            }
+            logger.error("Provided Hook/FactoryClass({}) is not an RuntimeHook or RuntimeHookFactory", hookClassName);
+        }
+        return null;
+    }
+
     public static void main(String[] args) {
         boolean isClean = false;
         boolean isOutputArg = false;
@@ -181,7 +244,7 @@ public class Main implements Callable<Void> {
             }
         }
         if (isClean) {
-            // ensure karate.log is not held open which will prevent 
+            // ensure karate.log is not held open which will prevent
             // a graceful delete of "target" especially on windows
             System.setProperty(LOGBACK_CONFIG, "logback-nofile.xml");
         } else {
@@ -237,6 +300,7 @@ public class Main implements Callable<Void> {
                     .outputCucumberJson(outputCucumberJson)
                     .outputJunitXml(outputJunitXml)
                     .dryRun(dryRun)
+                    .hooks(createHooks())
                     .parallel(threads);
             if (results.getFailCount() > 0) {
                 Exception ke = new KarateException("there are test failures !");

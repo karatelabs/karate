@@ -149,7 +149,9 @@ public class Runner {
         options.tags = tags;
         options.paths = paths;
         options.scenarioName = scenarioName;
-        options.hooks = hooks;
+        if (hooks != null) {
+            options.hooks.addAll(hooks);
+        }
         options.reportDir = reportDir;
         return options.parallel(threadCount);
     }
@@ -172,7 +174,7 @@ public class Runner {
         List<String> paths;
         List<Feature> features;
         String relativeTo;
-        Collection<RuntimeHook> hooks;
+        final Collection<RuntimeHook> hooks = new ArrayList();
         RuntimeHookFactory hookFactory;
         HttpClientFactory clientFactory;
         boolean forTempUse;
@@ -251,9 +253,6 @@ public class Runner {
             // hooks
             if (hookFactory != null) {
                 hook(hookFactory.create());
-            }
-            if (hooks == null) {
-                hooks = Collections.EMPTY_LIST;
             }
             // features
             if (features == null) {
@@ -422,12 +421,19 @@ public class Runner {
         }
 
         public Builder hook(RuntimeHook hook) {
-            if (hooks == null) {
-                hooks = new ArrayList();
+            if (hook != null) {
+                hooks.add(hook);
             }
-            hooks.add(hook);
             return this;
         }
+
+        public Builder hooks(Collection<RuntimeHook> hooks) {
+            if (hooks != null) {
+                this.hooks.addAll(hooks);
+            }
+            return this;
+        }
+
 
         public Builder hookFactory(RuntimeHookFactory hookFactory) {
             this.hookFactory = hookFactory;
