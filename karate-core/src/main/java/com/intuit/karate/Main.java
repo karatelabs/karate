@@ -169,19 +169,14 @@ public class Main implements Callable<Void> {
         return CommandLine.populateCommand(new Main(), args);
     }
 
-    /**
-     * Parses Main options quoting last positional parameter (path) in case it contains whitespaces and it's unquoted.
-     * <p>
-     * It works only if line contains just one positional parameter (path) and it's the last one in line.
-     * It works well for IntelliJ and VSCode generated command lines.
-     *
-     * @param line
-     * @return
-     */
+    // matches ( -X XXX )* (XXX)
+    private static final Pattern CLI_ARGS = Pattern.compile("(\\s*-{1,2}\\w\\s\\S*\\s*)*(.*)$");
+
+    // adds double-quotes to last positional parameter (path) in case it contains white-spaces and un-quoted
+    // only if line contains just one positional parameter (path) and it is the last one in line.
+    // needed for intelli-j and vs-code generated cli invocations
     public static Main parseKarateOptionAndQuotePath(String line) {
-        // matches ( -X XXX )* (XXX)
-        Pattern pattern = Pattern.compile("(\\s*-{1,2}\\w\\s\\S*\\s*)*(.*)$");
-        Matcher matcher = pattern.matcher(line);
+        Matcher matcher = CLI_ARGS.matcher(line);
         if (matcher.find()) {
             String path = matcher.group(2).trim();
             if (path.contains(" ")) {
@@ -263,7 +258,7 @@ public class Main implements Callable<Void> {
         System.exit(returnCode);
     }
 
-    private static void setLogLevelWarn(String ... names) {
+    private static void setLogLevelWarn(String... names) {
         for (String name : names) {
             ((Logger) LoggerFactory.getLogger(name)).setLevel(Level.WARN);
         }
