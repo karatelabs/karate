@@ -3,7 +3,6 @@ package jobtest.simple;
 import common.ReportUtils;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
-import com.intuit.karate.job.JobConfigBase;
 import com.intuit.karate.job.MavenJobConfig;
 import org.junit.jupiter.api.Test;
 

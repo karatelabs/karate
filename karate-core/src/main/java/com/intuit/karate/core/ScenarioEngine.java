@@ -801,10 +801,12 @@ public class ScenarioEngine {
             if (line == null) {
                 throw new RuntimeException("'line' or 'args' is required");
             }
-            args = useShell ? Command.prefixShellArgs(line) : Command.tokenize(line);
+            args = Command.tokenize(line);
         } else {
-            String joined = StringUtils.join(list, ' ');
-            args = useShell ? Command.prefixShellArgs(joined) : list.toArray(new String[list.size()]);
+            args = list.toArray(new String[list.size()]);
+        }
+        if (useShell) {
+            args = Command.prefixShellArgs(args);
         }
         String workingDir = (String) options.get("workingDir");
         File workingFile = workingDir == null ? null : new File(workingDir);

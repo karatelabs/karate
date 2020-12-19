@@ -65,7 +65,17 @@ class JobManagerRunner {
             public Object handleUpload(JobChunk chunk, File file) {
                 return chunk.getValue();
             }
-            
+
+            @Override
+            public void onStart(String jobId, String jobUrl) {
+
+            }
+
+            @Override
+            public void onStop() {
+
+            }
+
         };
         JobManager jm = new JobManager(jc);
         new Thread(() -> fr.scenarios.forEachRemaining(jm::addChunk)).start();

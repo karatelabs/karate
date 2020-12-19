@@ -141,13 +141,21 @@ public class Command extends Thread {
         return FileUtils.getBuildDir();
     }
 
-    public static String[] prefixShellArgs(String line) {
+    public static String[] prefixShellArgs(String[] args) {
+        List<String> list = new ArrayList();
         switch (FileUtils.getOsType()) {
             case WINDOWS:
-                return new String[]{"cmd", "/c", line};
+                list.add("cmd");
+                list.add("/c");
+                break;
             default:
-                return new String[]{"sh", "-c", line};
+                list.add("sh");
+                list.add("-c");
         }
+        for (String arg : args) {
+            list.add(arg);
+        }
+        return list.toArray(new String[list.size()]);
     }
 
     private static final Set<Integer> PORTS_IN_USE = ConcurrentHashMap.newKeySet();

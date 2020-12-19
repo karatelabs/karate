@@ -29,7 +29,6 @@ import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
-import com.intuit.karate.core.Variable;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.Response;
 import com.intuit.karate.shell.Command;
@@ -195,6 +194,9 @@ public class JobExecutor {
             String commandLine = jc.getCommand();
             File commandWorkingDir = getWorkingDir(jc.getWorkingPath());
             String[] args = Command.tokenize(commandLine);
+            if (FileUtils.isOsWindows()) {
+                args = Command.prefixShellArgs(args);
+            }
             if (jc.isBackground()) {
                 Logger silentLogger = new Logger(executorId);
                 silentLogger.setAppendOnly(true);
