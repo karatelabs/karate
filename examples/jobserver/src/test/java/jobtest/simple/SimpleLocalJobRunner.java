@@ -24,7 +24,7 @@ public class SimpleLocalJobRunner {
     void testJobManager() {
         MavenJobConfig config = new MavenJobConfig(2, "127.0.0.1", 0) {
             @Override
-            public void startExecutors(String uniqueId, String serverUrl) throws Exception {
+            public void onStart(String uniqueId, String serverUrl) throws Exception {
                 int executorCount = 2;
                 ExecutorService executor = Executors.newFixedThreadPool(executorCount);
                 for (int i = 0; i < executorCount; i++) {

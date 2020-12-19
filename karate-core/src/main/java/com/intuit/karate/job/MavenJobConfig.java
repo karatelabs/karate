@@ -41,11 +41,11 @@ import java.util.Map;
  * @author pthomas3
  */
 public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
-    
+
     public MavenJobConfig(int executorCount, String host, int port) {
         super(executorCount, host, port);
-    }
-    
+    }           
+
     @Override
     public List<JobCommand> getMainCommands(JobChunk<ScenarioRuntime> chunk) {
         Scenario scenario = chunk.getValue().scenario;
@@ -60,7 +60,7 @@ public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
             }
         }
         return Collections.singletonList(new JobCommand(temp));
-    }    
+    }
 
     @Override
     public ScenarioRuntime handleUpload(JobChunk<ScenarioRuntime> chunk, File upload) {
@@ -87,5 +87,5 @@ public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
         }
         return runtime;
     }
-    
+
 }

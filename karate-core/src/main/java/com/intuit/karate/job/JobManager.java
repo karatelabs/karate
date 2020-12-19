@@ -98,7 +98,7 @@ public class JobManager<T> implements ServerHandler {
             throw new RuntimeException(e);
         }
     }
-    
+
     public void waitForCompletion() {
         List<CompletableFuture> futures = new ArrayList(chunks.size());
         for (JobChunk jc : chunks.values()) {
@@ -106,16 +106,18 @@ public class JobManager<T> implements ServerHandler {
         }
         CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
         CompletableFuture.allOf(futuresArray).join();
+        config.onStop();
+        server.stop();
     }
-    
-    public void startExecutors() {
+
+    public void start() {
         try {
-            config.startExecutors(jobId, jobUrl);
+            config.onStart(jobId, jobUrl);
         } catch (Exception e) {
             logger.error("failed to start executors: {}", e.getMessage());
             throw new RuntimeException(e);
         }
-    }    
+    }
 
     @Override
     public Response handle(Request request) {
@@ -242,7 +244,7 @@ public class JobManager<T> implements ServerHandler {
         JobChunk<T> jc;
         synchronized (chunks) {
             jc = chunks.get(chunkId);
-        }        
+        }
         String chunkBasePath = basePath + File.separator + jc.getExecutorId() + File.separator + chunkId;
         File upload = new File(chunkBasePath);
         File zipFile = new File(chunkBasePath + ".zip");

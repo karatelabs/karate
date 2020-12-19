@@ -205,7 +205,7 @@ public class Suite implements Runnable {
                 logger.debug("waiting for {} features to complete ...", featureCount);
             }
             if (jobManager != null) {
-                jobManager.startExecutors();
+                jobManager.start();
             }
             CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
             if (timeoutMinutes > 0) {
@@ -245,6 +245,9 @@ public class Suite implements Runnable {
         } finally {
             scenarioExecutor.shutdownNow();
             pendingTasks.shutdownNow();
+            if (jobManager != null) {
+                jobManager.server.stop();
+            }
         }
     }
 

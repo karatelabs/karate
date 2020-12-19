@@ -24,11 +24,15 @@
 package com.intuit.karate.job;
 
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.shell.Command;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +50,7 @@ public abstract class JobConfigBase<T> implements JobConfig<T> {
     protected final List<String> sysPropKeys = new ArrayList(1);
     protected final List<String> envPropKeys = new ArrayList(1);
 
-    protected String dockerImage = "ptrthomas/karate-chrome";
+    protected String dockerImage = "ptrthomas/karate-chrome";       
 
     public JobConfigBase(int executorCount, String host, int port) {
         this.executorCount = executorCount;
@@ -54,6 +58,40 @@ public abstract class JobConfigBase<T> implements JobConfig<T> {
         this.port = port;
         sysPropKeys.add("karate.env");
     }
+    
+    private ExecutorService executor;
+
+    @Override
+    public void onStart(String jobId, String jobUrl) {
+        int count = getExecutorCount();
+        if (count < 1) {
+            return;
+        }
+        executor = Executors.newFixedThreadPool(count);
+        for (int i = 0; i < count; i++) {
+            int index = i;
+            String command = getExecutorCommand(jobId, jobUrl, index);
+            if (command != null) {
+                executor.submit(() -> Command.execLine(null, command));
+            }
+        }
+        executor.shutdown();
+        int timeout = getTimeoutMinutes();
+        if (timeout > 0) {
+            try {
+                executor.awaitTermination(timeout, TimeUnit.MINUTES);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    @Override
+    public void onStop() {
+        if (executor != null) {
+            executor.shutdownNow();
+        }
+    }     
 
     @Override
     public String getExecutorCommand(String jobId, String jobUrl, int index) {

@@ -19,7 +19,7 @@ public class GatlingRunner {
         int executorCount = 2;
         GatlingMavenJobConfig config = new GatlingMavenJobConfig(executorCount, "127.0.0.1", 0) {
             @Override
-            public void startExecutors(String uniqueId, String serverUrl) throws Exception {
+            public void onStart(String uniqueId, String serverUrl) throws Exception {
                 ExecutorService executor = Executors.newFixedThreadPool(executorCount);
                 for (int i = 0; i < executorCount; i++) {
                     executor.submit(() -> JobExecutor.run(serverUrl));
@@ -29,7 +29,7 @@ public class GatlingRunner {
             }
         };
         JobManager<Integer> manager = new JobManager(config);      
-        manager.startExecutors();
+        manager.start();
         manager.waitForCompletion();
         io.gatling.app.Gatling.main(new String[]{"-ro", "reports", "-rf", "target"});
     }

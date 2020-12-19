@@ -62,25 +62,9 @@ public interface JobConfig<T> {
 
     String getExecutorCommand(String jobId, String jobUrl, int index);
 
-    default void startExecutors(String jobId, String jobUrl) throws Exception {
-        int count = getExecutorCount();
-        if (count < 1) {
-            return;
-        }
-        ExecutorService executor = Executors.newFixedThreadPool(count);
-        for (int i = 0; i < count; i++) {
-            int index = i;
-            String command = getExecutorCommand(jobId, jobUrl, index);
-            if (command != null) {
-                executor.submit(() -> Command.execLine(null, command));
-            }
-        }
-        executor.shutdown();
-        int timeout = getTimeoutMinutes();
-        if (timeout > 0) {
-            executor.awaitTermination(timeout, TimeUnit.MINUTES);
-        }
-    }
+    void onStart(String jobId, String jobUrl);
+
+    void onStop();
 
     Map<String, String> getEnvironment();
 
