@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 class IdeMainTest {
-    
+
     static final org.slf4j.Logger logger = LoggerFactory.getLogger(IdeMainTest.class);
 
     static final String INTELLIJ1 = "cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome --name ^get users and then get first by id$ --glue com.intuit.karate /Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/java/com/intuit/karate/junit4/demos/users.feature";
@@ -57,21 +57,21 @@ class IdeMainTest {
         Main options = IdeMain.parseIdeCommandLine(INTELLIJ4);
         assertEquals("^test name$", options.name);
     }
-    
+
     @Test
     void testParsingCommandLine5() {
         Main options = IdeMain.parseIdeCommandLine(INTELLIJ5);
         assertEquals(1, options.paths.size());
         assertEquals("/Users/pthomas3/dev/zcode/karate/karate-demo/src/test/java/demo/cats/syntax-demo.feature", options.paths.get(0));
-    } 
-    
+    }
+
     @Test
     void testParsingCommandLine6() {
         Main options = IdeMain.parseIdeCommandLine(INTELLIJ6);
         assertEquals(1, options.paths.size());
         assertEquals("/Users/pthomas3/dev/zcode/temp/my co test/src/test/java/examples/users/users.feature", options.paths.get(0));
-    }    
-    
+    }
+
     @Test
     void testAbsolutePath() {
         String[] args = new String[]{"/Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/resources/com/intuit/karate/junit4/demos/users.feature"};
@@ -90,15 +90,15 @@ class IdeMainTest {
     @Test
     void testParseKarateOptionAndQuotePath() {
         final String[] lines = new String[]{
-                "/tmp/name with spaces.feature",
-                " /tmp/name with spaces.feature ",
-                "-H com.intuit.karate.RuntimeHook /tmp/name with spaces.feature",
-                " -H com.intuit.karate.RuntimeHook /tmp/name with spaces.feature ",
-                "-H com.intuit.karate.RuntimeHook \"/tmp/name with spaces.feature\"",
-                " -H com.intuit.karate.RuntimeHook \"/tmp/name with spaces.feature\" ",
-                "-H com.intuit.karate.RuntimeHook '/tmp/name with spaces.feature'",
-                "-H com.intuit.karate.RuntimeHook -H com.intuit.karate.RuntimeHook /tmp/name with spaces.feature ",
-                "-H com.intuit.karate.RuntimeHook,com.intuit.karate.RuntimeHook /tmp/name with spaces.feature "
+            "/tmp/name with spaces.feature",
+            " /tmp/name with spaces.feature ",
+            "-H com.intuit.karate.RuntimeHook /tmp/name with spaces.feature",
+            " -H com.intuit.karate.RuntimeHook /tmp/name with spaces.feature ",
+            "-H com.intuit.karate.RuntimeHook \"/tmp/name with spaces.feature\"",
+            " -H com.intuit.karate.RuntimeHook \"/tmp/name with spaces.feature\" ",
+            "-H com.intuit.karate.RuntimeHook '/tmp/name with spaces.feature'",
+            "-H com.intuit.karate.RuntimeHook -H com.intuit.karate.RuntimeHook /tmp/name with spaces.feature ",
+            "-H com.intuit.karate.RuntimeHook,com.intuit.karate.RuntimeHook /tmp/name with spaces.feature "
         };
 
         for (String line : lines) {
@@ -107,4 +107,5 @@ class IdeMainTest {
             assertEquals("/tmp/name with spaces.feature", options.paths.get(0));
         }
     }
+    
 }

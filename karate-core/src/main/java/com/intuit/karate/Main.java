@@ -128,7 +128,7 @@ public class Main implements Callable<Void> {
     @Option(names = {"-i", "--import"}, description = "import and convert a file")
     String importFile;
 
-    @Option(names = {"-H", "--hooks"}, split = ",", description = "Class name of a RuntimeHook or RuntimeHookFactory to add")
+    @Option(names = {"-H", "--hook"}, split = ",", description = "class name of a RuntimeHook (or RuntimeHookFactory) to add")
     List<String> hookFactoryClassNames;
 
     //==========================================================================
