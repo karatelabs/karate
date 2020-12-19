@@ -39,6 +39,7 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -83,6 +84,7 @@ public class JobExecutor {
         byte[] bytes = download.getBytes();
         File file = new File(workingDir + ".zip");
         FileUtils.writeToFile(file, bytes);
+        environment = new HashMap(System.getenv());
         try {
             JobUtils.unzip(file, new File(workingDir));
             logger.info("download done: {}", workingDir);
@@ -91,7 +93,7 @@ public class JobExecutor {
             logger.info("init response: {}", init);
             executorDir = workingDir + File.separator + init.get(JobManager.EXECUTOR_DIR);
             List<JobCommand> startupCommands = init.getCommands("startupCommands");
-            environment = init.get("environment");
+            environment.putAll(init.get("environment"));
             executeCommands(startupCommands, environment);
             shutdownCommands = init.getCommands("shutdownCommands");
             logger.info("init done");
