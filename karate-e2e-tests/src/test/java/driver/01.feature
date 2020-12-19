@@ -15,11 +15,11 @@ Scenario:
 
 # refresh page
 * refresh()
-* match text('#pageLoadCount') == '2'
+* waitForText('#pageLoadCount', '2')
 
 # reload page
 * reload()
-* match text('#pageLoadCount') == '3'
+* waitForText('#pageLoadCount', '3')
 
 # navigate to new page
 * click('a')
