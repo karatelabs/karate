@@ -29,5 +29,9 @@ sleep 5
 
 # run tests against chrome
 docker exec -w /karate karate mvn test -f karate-e2e-tests/pom.xml -Dtest=driver.DockerRunner
+
+# run a test to check a particular jar packaging issue
+docker exec -w /karate karate mvn test -f karate-e2e-tests/pom.xml -Dtest=regex.RegexRunner
+
 docker stop karate
 wait
