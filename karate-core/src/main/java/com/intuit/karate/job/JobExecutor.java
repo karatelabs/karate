@@ -84,17 +84,23 @@ public class JobExecutor {
         byte[] bytes = download.getBytes();
         File file = new File(workingDir + ".zip");
         FileUtils.writeToFile(file, bytes);
-        JobUtils.unzip(file, new File(workingDir));
-        logger.info("download done: {}", workingDir);
-        // init ================================================================
-        JobMessage init = invokeServer(new JobMessage("init").put("log", appender.collect()));
-        logger.info("init response: {}", init);
-        executorDir = workingDir + File.separator + init.get(JobManager.EXECUTOR_DIR);
-        List<JobCommand> startupCommands = init.getCommands("startupCommands");
-        environment = init.get("environment");
-        executeCommands(startupCommands, environment);
-        shutdownCommands = init.getCommands("shutdownCommands");
-        logger.info("init done");
+        try {
+            JobUtils.unzip(file, new File(workingDir));
+            logger.info("download done: {}", workingDir);
+            // init ================================================================
+            JobMessage init = invokeServer(new JobMessage("init").put("log", appender.collect()));
+            logger.info("init response: {}", init);
+            executorDir = workingDir + File.separator + init.get(JobManager.EXECUTOR_DIR);
+            List<JobCommand> startupCommands = init.getCommands("startupCommands");
+            environment = init.get("environment");
+            executeCommands(startupCommands, environment);
+            shutdownCommands = init.getCommands("shutdownCommands");
+            logger.info("init done");
+        } catch (Exception e) {
+            reportErrorAndExit(this, e);
+            // we will never reach here because of a System.exit()
+            throw new RuntimeException(e);
+        }
     }
 
     public static void run(String serverUrl) {
@@ -105,13 +111,17 @@ public class JobExecutor {
             je.loopNext();
             je.shutdown();
         } catch (Exception e) {
-            je.logger.error("{}", e.getMessage());
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
-            e.printStackTrace(pw);
-            je.invokeServer(new JobMessage("error").put("log", sw.toString()));
-            System.exit(1);
+            reportErrorAndExit(je, e);
         }
+    }
+
+    private static void reportErrorAndExit(JobExecutor je, Exception e) {
+        je.logger.error("{}", e.getMessage());
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        e.printStackTrace(pw);
+        je.invokeServer(new JobMessage("error").put("log", sw.toString()));
+        System.exit(1);
     }
 
     private File getWorkingDir(String relativePath) {
