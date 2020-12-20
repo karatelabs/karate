@@ -55,21 +55,23 @@ public class ScenarioListener implements Consumer, Function, Runnable {
             return function;
         }
         ScenarioEngine.set(child);
-        child.init();
-        function = child.attachSource(source);
+        synchronized (child) {
+            child.init();
+            function = child.attachSource(source);
+        }
         return function;
     }
 
     @Override
     public void accept(Object arg) {
-        synchronized (parent.JS.context) {
+        synchronized (parent) {
             get().executeVoid(JsValue.fromJava(arg));
         }
     }
 
     @Override
     public Object apply(Object arg) {
-        synchronized (parent.JS.context) {
+        synchronized (parent) {
             Value result = get().execute(JsValue.fromJava(arg));
             return new JsValue(result).getValue();
         }
@@ -77,7 +79,7 @@ public class ScenarioListener implements Consumer, Function, Runnable {
 
     @Override
     public void run() {
-        synchronized (parent.JS.context) {
+        synchronized (parent) {
             get().executeVoid();
         }
     }
