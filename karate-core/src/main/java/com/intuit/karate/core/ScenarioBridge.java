@@ -641,7 +641,7 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public void signal(Value result) {
-        getEngine().signal(new JsValue(result).getValue());
+        getEngine().signal(JsValue.toJava(result));
     }
 
     public MockServer start(String mock) {
