@@ -13,7 +13,7 @@ import io.gatling.core.action.{Action, ExitableAction}
 import io.gatling.core.session.Session
 import io.gatling.core.stats.StatsEngine
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration, MILLISECONDS}
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 
@@ -48,7 +48,7 @@ class KarateAction(val name: String, val tags: Seq[String], val protocol: Karate
       override def reportPerfEvent(event: PerfEvent): Unit = {
         val okOrNot = if (event.isFailed) KO else OK
         val message = if (event.getMessage == null) None else Option(event.getMessage)
-        statsEngine.logResponse(session.scenario, List.empty, event.getName, event.getStartTime, event.getEndTime, okOrNot, Option(event.getStatusCode + ""), message)
+        statsEngine.logResponse(session.scenario, List.empty, event.getName, event.getStartTime, event.getEndTime, okOrNot, Option(event.getStatusCode.toString), message)
       }
 
       override def submit(r: Runnable): Unit = Future {

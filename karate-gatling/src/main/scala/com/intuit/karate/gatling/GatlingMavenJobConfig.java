@@ -21,10 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.job;
+package com.intuit.karate.gatling;
 
+import com.intuit.karate.Constants;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.job.JobChunk;
+import com.intuit.karate.job.JobCommand;
+import com.intuit.karate.job.JobConfigBase;
+import com.intuit.karate.job.JobUtils;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,7 +42,9 @@ import java.util.List;
 public class GatlingMavenJobConfig extends JobConfigBase<Integer> {
 
     private String mainCommand = "mvn gatling:test";
-    private String executorDir = "target/gatling";
+    private String buildDir = FileUtils.getBuildDir();
+    private String reportDir = Constants.KARATE_REPORTS;
+    private String executorDir = buildDir + File.separator + "gatling";
 
     public GatlingMavenJobConfig(int executorCount, String host, int port) {
         super(executorCount, host, port);
@@ -66,6 +73,14 @@ public class GatlingMavenJobConfig extends JobConfigBase<Integer> {
         this.executorDir = executorDir;
     }
 
+    public void setReportDir(String reportDir) {
+        this.reportDir = reportDir;
+    }
+
+    public void setBuildDir(String buildDir) {
+        this.buildDir = buildDir;
+    }
+
     @Override
     public List<JobCommand> getMainCommands(JobChunk jc) {
         String temp = mainCommand;
@@ -85,18 +100,24 @@ public class GatlingMavenJobConfig extends JobConfigBase<Integer> {
         if (karateLogFile.exists()) {
             karateLogFile.renameTo(new File(karateLog + ".txt"));
         }
-        String gatlingReportDir = "target" + File.separator + "reports" + File.separator;
+        String gatlingReportDir = buildDir + File.separator + reportDir;
         new File(gatlingReportDir).mkdirs();
         File[] dirs = upload.listFiles();
         for (File dir : dirs) {
             if (dir.isDirectory()) {
                 File file = JobUtils.getFirstFileWithExtension(dir, "log");
                 if (file != null) {
-                    FileUtils.copy(file, new File(gatlingReportDir + "simulation_" + jc.getId() + ".log"));
+                    FileUtils.copy(file, new File(gatlingReportDir + File.separator + "simulation_" + jc.getId() + ".log"));
                 }
             }
         }
         return jc.getValue();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        io.gatling.app.Gatling.main(new String[]{"-ro", reportDir, "-rf", buildDir});
     }
 
 }

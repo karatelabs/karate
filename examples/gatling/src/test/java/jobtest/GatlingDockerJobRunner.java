@@ -1,6 +1,6 @@
 package jobtest;
 
-import com.intuit.karate.job.GatlingMavenJobConfig;
+import com.intuit.karate.gatling.GatlingMavenJobConfig;
 import com.intuit.karate.job.JobManager;
 import java.io.File;
 
@@ -18,7 +18,6 @@ public class GatlingDockerJobRunner {
         JobManager manager = new JobManager(config);
         manager.start();
         manager.waitForCompletion();
-        io.gatling.app.Gatling.main(new String[]{"-ro", "reports", "-rf", "target"});
     }
 
 }
