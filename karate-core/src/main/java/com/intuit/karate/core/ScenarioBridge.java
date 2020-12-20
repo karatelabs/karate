@@ -250,13 +250,13 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public void embed(Object o, String contentType) {
+        ResourceType resourceType;
         if (contentType == null) {
-            contentType = ResourceType.fromObject(o, ResourceType.BINARY).contentType;
+            resourceType = ResourceType.fromObject(o, ResourceType.BINARY);
+        } else {
+            resourceType = ResourceType.fromContentType(contentType);
         }
-        Embed embed = new Embed();
-        embed.setBytes(JsValue.toBytes(o));
-        embed.setMimeType(contentType);
-        getEngine().runtime.embed(embed);
+        getEngine().runtime.embed(JsValue.toBytes(o), resourceType);
     }
 
     public Object eval(String exp) {

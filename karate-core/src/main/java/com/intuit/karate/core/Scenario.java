@@ -154,12 +154,8 @@ public class Scenario {
     }
 
     public String getUniqueId() {
-        int num = section.getIndex() + 1;
-        String meta = "-" + num;
-        if (index != -1) {
-            meta = meta + "_" + (index + 1);
-        }
-        return meta;
+        String id = feature.getResource().getPackageQualifiedName() + "_" + (section.getIndex() + 1);
+        return index == -1 ? id : id + "_" + (index + 1);
     }
 
     public List<Step> getBackgroundSteps() {

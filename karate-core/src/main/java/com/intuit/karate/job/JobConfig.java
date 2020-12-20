@@ -25,14 +25,10 @@ package com.intuit.karate.job;
 
 import com.intuit.karate.Constants;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.shell.Command;
 import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
  *
@@ -60,7 +56,7 @@ public interface JobConfig<T> {
         return FileUtils.getBuildDir() + File.separator + Constants.KARATE_REPORTS;
     }
 
-    String getExecutorCommand(String jobId, String jobUrl, int index);
+    String getExecutorCommand(String jobId, String jobUrl, int index);    
 
     void onStart(String jobId, String jobUrl);
 

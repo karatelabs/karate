@@ -43,6 +43,13 @@ class CommandTest {
         assertEquals(2, args.length);
         assertEquals("-Dexec.classpathScope=test", args[0]);
         assertEquals("-Dexec.args=-f json test", args[1]);
+        args = Command.tokenize("-v \"$PWD\":/src -v \"$HOME/.m2\":/root/.m2 ptrthomas/karate-chrome");
+        assertEquals(5, args.length);
+        assertEquals("-v", args[0]);
+        assertEquals("\"$PWD\":/src", args[1]);
+        assertEquals("-v", args[2]);
+        assertEquals("\"$HOME/.m2\":/root/.m2", args[3]);  
+        assertEquals("ptrthomas/karate-chrome", args[4]);
     }
 
 }

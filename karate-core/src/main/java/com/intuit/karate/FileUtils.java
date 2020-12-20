@@ -45,12 +45,12 @@ import org.slf4j.LoggerFactory;
  */
 public class FileUtils {
 
-    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(FileUtils.class);    
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(FileUtils.class);
 
     private FileUtils() {
         // only static methods
     }
-    
+
     public static final String KARATE_VERSION;
 
     static {
@@ -65,8 +65,8 @@ public class FileUtils {
             value = "(unknown)";
         }
         KARATE_VERSION = value;
-    }    
-    
+    }
+
     public static final File WORKING_DIR = new File("").getAbsoluteFile();
 
     public static StringUtils.Pair parsePathAndTags(String text) {
@@ -99,6 +99,14 @@ public class FileUtils {
     public static String toString(InputStream is) {
         try {
             return toByteStream(is).toString(StandardCharsets.UTF_8.name());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static byte[] toBytes(File file) {
+        try {
+            return toBytes(new FileInputStream(file));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

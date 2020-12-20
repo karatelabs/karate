@@ -25,7 +25,6 @@ package com.intuit.karate.job;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.ScenarioRuntime;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;

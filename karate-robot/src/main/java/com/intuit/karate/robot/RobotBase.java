@@ -29,11 +29,11 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Plugin;
 import com.intuit.karate.driver.Keys;
 import com.intuit.karate.KarateException;
-import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.StepResult;
 import com.intuit.karate.core.Variable;
+import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.Command;
 import java.awt.Dimension;
 import java.awt.MouseInfo;
@@ -229,7 +229,7 @@ public abstract class RobotBase implements Robot, Plugin {
     public void onFailure(StepResult stepResult) {
         if (screenshotOnFailure && !stepResult.isWithCallResults()) {
             byte[] bytes = screenshot();
-            stepResult.addEmbed(Embed.pngImage(bytes));
+            
         }
     }
 
@@ -413,7 +413,7 @@ public abstract class RobotBase implements Robot, Plugin {
     public byte[] screenshot(Region region) {
         BufferedImage image = region.capture();
         byte[] bytes = OpenCvUtils.toBytes(image);
-        engine.runtime.embed(Embed.pngImage(bytes));
+        getRuntime().embed(bytes, ResourceType.PNG);
         return bytes;
     }
 

@@ -24,6 +24,8 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.http.ResourceType;
+import java.io.File;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -34,60 +36,55 @@ import java.util.Map;
  */
 public class Embed {
 
-    private String mimeType;
-    private byte[] bytes;
+    private final File file;
+    private final ResourceType resourceType;
 
-    public static Embed videoFile(String fileName) {
-        String html = "<video controls=\"true\" width=\"100%\"><source src=\"" + fileName + "\" type=\"video/mp4\"/></video>";
-        return html(html);
-    }
-    
-    public static Embed html(String html) {
-        Embed embed = new Embed();
-        embed.setBytes(FileUtils.toBytes(html));
-        embed.setMimeType("text/html");
-        return embed;        
-    }
-    
-    public static Embed pngImage(byte[] bytes) {
-        Embed embed = new Embed();
-        embed.setBytes(bytes);
-        embed.setMimeType("image/png");
-        return embed;
+    public Embed(File file, ResourceType resourceType) {
+        this.file = file;
+        this.resourceType = resourceType;
     }
 
-    public String getMimeType() {
-        return mimeType;
-    }
-
-    public void setMimeType(String mimeType) {
-        this.mimeType = mimeType;
+    public ResourceType getResourceType() {
+        return resourceType;
     }
 
     public byte[] getBytes() {
-        return bytes;
-    }
-
-    public void setBytes(byte[] bytes) {
-        this.bytes = bytes;
+        return FileUtils.toBytes(file);
     }
 
     public String getBase64() {
-        return Base64.getEncoder().encodeToString(bytes);
+        return Base64.getEncoder().encodeToString(getBytes());
     }
 
     public String getAsString() {
-        return FileUtils.toString(bytes);
+        return FileUtils.toString(file);
     }
-    
+
     public String getAsHtmlData() {
-        return "data:" + getMimeType() + ";base64," + getBase64();
+        return "data:" + resourceType.contentType + ";base64," + getBase64();
+    }
+
+    public String getAsHtmlTag() {
+        if (resourceType == ResourceType.MP4) {
+            return "<video controls=\"true\" width=\"100%\"><source src=\"" + file.getName() + "\" type=\"video/mp4\"/></video>";
+        } else if (resourceType.isImage()) {
+            return "<img src=\"" + file.getName() + "\"/>";
+        } else {
+            return "<a href=\"" + file.getName() + "\">" + file.getName() + "</a>";
+        }
     }
 
     public Map toMap() {
         Map map = new HashMap(2);
-        map.put("data", getBase64());
-        map.put("mime_type", mimeType);
+        if (resourceType == ResourceType.MP4) {
+            byte[] bytes = FileUtils.toBytes(getAsHtmlTag());
+            String base64 = Base64.getEncoder().encodeToString(bytes);
+            map.put("data", base64);
+            map.put("mime_type", ResourceType.HTML.contentType);
+        } else {
+            map.put("data", getBase64());
+            map.put("mime_type", resourceType.contentType);
+        }
         return map;
     }
 

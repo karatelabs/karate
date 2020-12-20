@@ -26,10 +26,10 @@ package com.intuit.karate.job;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.ScenarioRuntime;
+import com.intuit.karate.http.ResourceType;
 import static com.intuit.karate.job.JobConfigBase.logger;
 import java.io.File;
 import java.util.Collections;
@@ -41,11 +41,11 @@ import java.util.Map;
  * @author pthomas3
  */
 public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
-
+    
     public MavenJobConfig(int executorCount, String host, int port) {
         super(executorCount, host, port);
-    }           
-
+    }    
+    
     @Override
     public List<JobCommand> getMainCommands(JobChunk<ScenarioRuntime> chunk) {
         Scenario scenario = chunk.getValue().scenario;
@@ -61,7 +61,7 @@ public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
         }
         return Collections.singletonList(new JobCommand(temp));
     }
-
+    
     @Override
     public ScenarioRuntime handleUpload(JobChunk<ScenarioRuntime> chunk, File upload) {
         File jsonFile = JobUtils.getFirstFileWithExtension(upload, "json");
@@ -81,11 +81,9 @@ public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
         }
         File videoFile = JobUtils.getFirstFileWithExtension(upload, "mp4");
         if (videoFile != null) {
-            File dest = new File(FileUtils.getBuildDir() + File.separator + chunk.getId() + ".mp4");
-            FileUtils.copy(videoFile, dest);
-            sr.appendEmbed(Embed.videoFile("../" + dest.getName()));
+            runtime.embed(FileUtils.toBytes(videoFile), ResourceType.MP4);
         }
         return runtime;
     }
-
+    
 }

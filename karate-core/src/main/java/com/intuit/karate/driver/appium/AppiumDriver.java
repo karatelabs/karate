@@ -30,6 +30,7 @@ import com.intuit.karate.driver.DriverElement;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Element;
 import com.intuit.karate.driver.WebDriver;
+import com.intuit.karate.http.ResourceType;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -132,10 +133,7 @@ public abstract class AppiumDriver extends WebDriver {
         }
         if (embed) {
             if (src.exists()) {
-                String path = FileUtils.getBuildDir() + File.separator + System.currentTimeMillis() + ".mp4";
-                File dest = new File(path);
-                FileUtils.copy(src, dest);
-                getRuntime().embed(Embed.videoFile("../" + dest.getName()));
+                getRuntime().embed(bytes, ResourceType.MP4);
             }
         }
     }

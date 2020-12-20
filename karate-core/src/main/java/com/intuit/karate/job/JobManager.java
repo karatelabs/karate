@@ -53,7 +53,6 @@ public class JobManager<T> implements ServerHandler {
     protected static final Logger logger = LoggerFactory.getLogger(JobManager.class);
 
     public static final String KARATE_JOB_HEADER = "karate-job";
-    public static final String EXECUTOR_DIR = "executorDir";
 
     public final JobConfig<T> config;
     private final String basePath;
@@ -77,10 +76,6 @@ public class JobManager<T> implements ServerHandler {
         server = new HttpServer(config.getPort(), this);
         jobUrl = "http://" + config.getHost() + ":" + server.getPort();
         queue = new ArrayBlockingQueue(config.getExecutorCount());
-        List<T> initialChunks = config.getInitialChunks();
-        if (initialChunks != null) {
-            initialChunks.forEach(this::addChunk);
-        }
     }
 
     public <T> CompletableFuture<T> addChunk(T value) {
@@ -107,10 +102,13 @@ public class JobManager<T> implements ServerHandler {
         CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
         CompletableFuture.allOf(futuresArray).join();
         config.onStop();
-        server.stop();
     }
 
     public void start() {
+        List<T> initialChunks = config.getInitialChunks();
+        if (initialChunks != null) {
+            initialChunks.forEach(this::addChunk);
+        }
         try {
             config.onStart(jobId, jobUrl);
         } catch (Exception e) {
@@ -199,7 +197,7 @@ public class JobManager<T> implements ServerHandler {
                 init.put("startupCommands", config.getStartupCommands());
                 init.put("shutdownCommands", config.getShutdownCommands());
                 init.put("environment", config.getEnvironment());
-                init.put(EXECUTOR_DIR, config.getExecutorDir());
+                init.put("executorDir", config.getExecutorDir());
                 return init;
             case "next":
                 logger.info("next: {}", jm);
@@ -211,7 +209,7 @@ public class JobManager<T> implements ServerHandler {
                 jc.setStartTime(System.currentTimeMillis());
                 jc.setJobId(jobId);
                 jc.setExecutorId(jm.getExecutorId());
-                String executorDir = jm.get(EXECUTOR_DIR);
+                String executorDir = jm.get("executorDir");
                 jc.setExecutorDir(executorDir);
                 JobMessage next = new JobMessage("next")
                         .put("preCommands", config.getPreCommands(jc))

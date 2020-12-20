@@ -118,11 +118,11 @@ public class Command extends Thread {
         return command.getSysOut();
     }
 
-    private static final Pattern CLI_ARG = Pattern.compile("\"([^\"]*)\"|(\\S+)");
+    private static final Pattern CLI_ARG = Pattern.compile("\"([^\"]*)\"[^\\S]|(\\S+)");
 
     public static String[] tokenize(String command) {
         List<String> args = new ArrayList();
-        Matcher m = CLI_ARG.matcher(command);
+        Matcher m = CLI_ARG.matcher(command + " ");
         while (m.find()) {
             if (m.group(1) != null) {
                 args.add(m.group(1));
@@ -339,7 +339,7 @@ public class Command extends Thread {
     @Override
     public void run() {
         try {
-            logger.debug("command: {}", argList);
+            logger.debug("command: {}, working dir: {}", argList, workingDir);
             ProcessBuilder pb = new ProcessBuilder(args);
             if (environment != null) {
                 pb.environment().putAll(environment);
@@ -359,7 +359,7 @@ public class Command extends Thread {
             if (exitCode == 0) {
                 LOGGER.debug("command complete, exit code: {} - {}", exitCode, argList);
             } else {
-                LOGGER.warn("exit code was non-zero: {} - {}", exitCode, argList);
+                LOGGER.warn("exit code was non-zero: {} - {} working dir: {}", exitCode, argList, workingDir);
             }
             // the consoles actually can take more time to flush even after the process has exited
             sysErr.join();

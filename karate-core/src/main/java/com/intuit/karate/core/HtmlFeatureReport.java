@@ -24,6 +24,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.XmlUtils;
+import com.intuit.karate.http.ResourceType;
 import java.io.File;
 import java.util.Collections;
 import java.util.List;
@@ -51,7 +52,7 @@ public class HtmlFeatureReport extends HtmlReport {
             extraClass = "skipped";
         } else {
             extraClass = "passed";
-        }        
+        }
         boolean isBackground = calledFromBackground || (depth == 0 && step.isBackground());
         List<String> comments = step.getComments();
         if (comments != null) {
@@ -118,15 +119,16 @@ public class HtmlFeatureReport extends HtmlReport {
         if (embeds != null) {
             for (Embed embed : embeds) {
                 Element embedNode;
-                String mimeType = embed.getMimeType().toLowerCase();
-                if (mimeType.contains("image")) {
-                    embedNode = node("img", null);
-                    String src = embed.getAsHtmlData();
-                    XmlUtils.addAttributes(embedNode, Collections.singletonMap("src", src));
-                } else if (mimeType.contains("html")) {
+                if (embed.getResourceType().isImage()
+                        || embed.getResourceType().isHtml()
+                        || embed.getResourceType() == ResourceType.MP4) {
                     Node html;
                     try {
-                        html = XmlUtils.toXmlDoc(embed.getAsString()).getDocumentElement();
+                        if (embed.getResourceType().isHtml()) {
+                            html = XmlUtils.toXmlDoc(embed.getAsString()).getDocumentElement();
+                        } else {
+                            html = XmlUtils.toXmlDoc(embed.getAsHtmlTag()).getDocumentElement();
+                        }
                     } catch (Exception e) {
                         html = div(null, e.getMessage());
                     }

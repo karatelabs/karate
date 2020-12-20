@@ -29,6 +29,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
+import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.FileLogAppender;
 import java.io.File;
 import java.util.ArrayList;
@@ -109,10 +110,23 @@ public class ScenarioRuntime implements Runnable {
         return appender;
     }
 
-    public void embed(Embed embed) {
+    public String getEmbedFileName(ResourceType resourceType) {
+        String extension = resourceType == null ? null : resourceType.getExtension();
+        return scenario.getUniqueId() + "_" + System.currentTimeMillis() + (extension == null ? "" : "." + extension);
+    }
+
+    public File embed(byte[] bytes, ResourceType resourceType) {
+        File file = new File(featureRuntime.suite.reportDir + File.separator + getEmbedFileName(resourceType));
+        FileUtils.writeToFile(file, bytes);
+        embed(file, resourceType);
+        return file;
+    }
+
+    public void embed(File file, ResourceType resourceType) {
         if (embeds == null) {
             embeds = new ArrayList();
         }
+        Embed embed = new Embed(file, resourceType);
         embeds.add(embed);
     }
 

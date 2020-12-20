@@ -91,12 +91,12 @@ public class JobExecutor {
             // init ================================================================
             JobMessage init = invokeServer(new JobMessage("init").put("log", appender.collect()));
             logger.info("init response: {}", init);
-            executorDir = workingDir + File.separator + init.get(JobManager.EXECUTOR_DIR);
+            executorDir = workingDir + File.separator + init.get("executorDir");
             List<JobCommand> startupCommands = init.getCommands("startupCommands");
             environment.putAll(init.get("environment"));
             executeCommands(startupCommands, environment);
             shutdownCommands = init.getCommands("shutdownCommands");
-            logger.info("init done");
+            logger.info("init done, executor dir: {}", executorDir);
         } catch (Exception e) {
             reportErrorAndExit(this, e);
             // we will never reach here because of a System.exit()
@@ -121,15 +121,11 @@ public class JobExecutor {
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
         e.printStackTrace(pw);
-        je.invokeServer(new JobMessage("error").put("log", sw.toString()));
-        System.exit(1);
-    }
-
-    private File getWorkingDir(String relativePath) {
-        if (relativePath == null) {
-            return new File(workingDir);
+        try {
+            je.invokeServer(new JobMessage("error").put("log", sw.toString()));
+        } catch (Exception ee) {
+            je.logger.error("attempt to report error failed: {}", ee.getMessage());
         }
-        return new File(relativePath + File.separator + workingDir);
     }
 
     private final List<Command> backgroundCommands = new ArrayList(1);
@@ -156,7 +152,7 @@ public class JobExecutor {
         do {
             File executorDirFile = new File(executorDir);
             executorDirFile.mkdirs();
-            JobMessage req = new JobMessage("next").put(JobManager.EXECUTOR_DIR, executorDirFile.getAbsolutePath());
+            JobMessage req = new JobMessage("next").put("executorDir", executorDirFile.getAbsolutePath());
             JobMessage res = invokeServer(req);
             if (res.is("stop")) {
                 logger.info("stop received, shutting down");
@@ -170,7 +166,7 @@ public class JobExecutor {
             String log = appender.collect();
             File logFile = new File(executorDir + File.separator + "karate.log");
             FileUtils.writeToFile(logFile, log);
-            String zipBase = executorDir + "_" + chunkId;
+            String zipBase = executorDir + "_" + chunkId.get();
             File toZip = new File(zipBase);
             executorDirFile.renameTo(toZip);
             File toUpload = new File(zipBase + ".zip");
@@ -194,7 +190,13 @@ public class JobExecutor {
         }
         for (JobCommand jc : commands) {
             String commandLine = jc.getCommand();
-            File commandWorkingDir = getWorkingDir(jc.getWorkingPath());
+            String workingPath = jc.getWorkingPath();
+            File commandWorkingDir;
+            if (workingPath == null) {
+                commandWorkingDir = new File(workingDir);
+            } else {
+                commandWorkingDir = new File(workingPath + File.separator + workingDir);
+            }
             String[] args = Command.tokenize(commandLine);
             if (FileUtils.isOsWindows()) {
                 args = Command.prefixShellArgs(args);

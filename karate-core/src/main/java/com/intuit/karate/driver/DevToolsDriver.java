@@ -36,6 +36,7 @@ import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.Variable;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.Response;
 import com.intuit.karate.http.WebSocketClient;
 import com.intuit.karate.http.WebSocketOptions;
@@ -790,7 +791,7 @@ public abstract class DevToolsDriver implements Driver {
         String temp = dtm.getResult("data").getAsString();
         byte[] bytes = Base64.getDecoder().decode(temp);
         if (embed) {
-            getRuntime().embed(Embed.pngImage(bytes));
+            getRuntime().embed(bytes, ResourceType.PNG);
         }
         return bytes;
     }

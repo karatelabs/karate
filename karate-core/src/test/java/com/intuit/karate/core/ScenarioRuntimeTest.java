@@ -3,6 +3,7 @@ package com.intuit.karate.core;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.match.Match;
 import static com.intuit.karate.TestUtils.*;
+import com.intuit.karate.http.ResourceType;
 import java.io.File;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
@@ -512,7 +513,7 @@ class ScenarioRuntimeTest {
         List<Embed> embeds = results.get(0).getEmbeds();
         assertEquals(1, embeds.size());
         assertEquals(embeds.get(0).getAsString(), "<h1>hello world</h1>");
-        assertEquals(embeds.get(0).getMimeType(), "text/html");
+        assertEquals(embeds.get(0).getResourceType(), ResourceType.HTML);
     }
 
     @Test

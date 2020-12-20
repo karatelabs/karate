@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.job;
 
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.ScenarioRuntime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -51,7 +52,8 @@ public class MavenChromeJobConfig extends MavenJobConfig {
 
     @Override
     public String getExecutorCommand(String jobId, String jobUrl, int index) {
-        return "docker run --rm --cap-add=SYS_ADMIN -e KARATE_JOBURL=" + jobUrl
+        String extra = StringUtils.isBlank(addOptions) ? "" : " " + addOptions;
+        return "docker run --rm --cap-add=SYS_ADMIN -e KARATE_JOBURL=" + jobUrl + extra
                 + " -e KARATE_WIDTH=" + width + " -e KARATE_HEIGHT=" + height
                 + " " + dockerImage;
     }

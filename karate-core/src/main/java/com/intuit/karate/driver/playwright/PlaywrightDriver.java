@@ -36,6 +36,7 @@ import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Element;
 import com.intuit.karate.driver.Input;
 import com.intuit.karate.driver.Keys;
+import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.WebSocketClient;
 import com.intuit.karate.http.WebSocketOptions;
 import com.intuit.karate.shell.Command;
@@ -828,7 +829,7 @@ public class PlaywrightDriver implements Driver {
         String data = pwm.getResult("binary");
         byte[] bytes = Base64.getDecoder().decode(data);
         if (embed) {
-            getRuntime().embed(Embed.pngImage(bytes));
+            getRuntime().embed(bytes, ResourceType.PNG);
         }
         return bytes;
     }

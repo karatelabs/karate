@@ -40,7 +40,8 @@ public enum ResourceType {
     ICO("image/x-icon", vals("x-icon"), vals("ico")),
     PNG("image/png", vals("png"), vals("png")),
     GIF("image/gif", vals("gif"), vals("gif")),
-    JPEG("image/jpeg", vals("jpeg", "jpg"), vals("jpeg", "jpg")),
+    JPG("image/jpeg", vals("jpeg", "jpg"), vals("jpg", "jpeg")),
+    MP4("video/mp4", vals("mp4"), vals("mp4")),
     PDF("application/pdf", vals("pdf"), vals("pdf")),
     HTML("text/html", vals("html"), vals("html", "htm")),
     XML("application/xml", vals("xml"), vals("xml")),
@@ -85,8 +86,25 @@ public enum ResourceType {
         return rt == null ? BINARY : rt;
     }
 
+    public String getExtension() {
+        return extensions.length == 0 ? null : extensions[0];
+    }
+
     public boolean isStatic() {
         return this != BINARY;
+    }
+
+    public boolean isImage() {
+        switch (this) {
+            case BINARY:
+            case ICO:
+            case PNG:             
+            case GIF:
+            case JPG:
+                return true;
+            default:
+                return false;
+        }
     }
 
     public boolean isHtml() {
@@ -103,8 +121,9 @@ public enum ResourceType {
             case ICO:
             case PNG:
             case GIF:
-            case JPEG:
+            case JPG:
             case PDF:
+            case MP4:
                 return true;
             default:
                 return false;

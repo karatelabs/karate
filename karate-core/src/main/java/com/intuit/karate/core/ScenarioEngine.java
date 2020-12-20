@@ -952,8 +952,9 @@ public class ScenarioEngine {
                     Map<String, Object> map = options.target.stop(logger);
                     String video = (String) map.get("video");
                     if (video != null && lastStepResult != null) {
-                        Embed embed = Embed.videoFile(video);
-                        lastStepResult.addEmbed(embed);
+                        File src = new File(video);
+                        File dest = runtime.embed(FileUtils.toBytes(src), ResourceType.MP4);
+                        logger.debug("appended video to report: {}", dest.getPath());
                     }
                 } else {
                     if (options.afterStop != null) {
@@ -962,11 +963,7 @@ public class ScenarioEngine {
                     if (options.videoFile != null) {
                         File src = new File(options.videoFile);
                         if (src.exists()) {
-                            String path = FileUtils.getBuildDir() + File.separator + System.currentTimeMillis() + ".mp4";
-                            File dest = new File(path);
-                            FileUtils.copy(src, dest);
-                            Embed embed = Embed.videoFile("../" + dest.getName());
-                            lastStepResult.addEmbed(embed);
+                            File dest = runtime.embed(FileUtils.toBytes(src), ResourceType.MP4);
                             logger.debug("appended video to report: {}", dest.getPath());
                         }
                     }
@@ -1010,8 +1007,7 @@ public class ScenarioEngine {
             templateEngine = TemplateUtils.createEngine(JS);
         }
         String html = templateEngine.process(text, TemplateContext.LOCALE_US);
-        Embed embed = Embed.html(html);
-        runtime.embed(embed);
+        runtime.embed(FileUtils.toBytes(html), ResourceType.HTML);
     }
 
     //==========================================================================        

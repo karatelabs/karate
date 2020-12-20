@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public abstract class JobConfigBase<T> implements JobConfig<T> {
-    
+
     protected static final Logger logger = LoggerFactory.getLogger(JobConfigBase.class);
 
     private final int executorCount;
@@ -50,7 +50,8 @@ public abstract class JobConfigBase<T> implements JobConfig<T> {
     protected final List<String> sysPropKeys = new ArrayList(1);
     protected final List<String> envPropKeys = new ArrayList(1);
 
-    protected String dockerImage = "ptrthomas/karate-chrome";       
+    protected String addOptions = "";
+    protected String dockerImage = "ptrthomas/karate-chrome";
 
     public JobConfigBase(int executorCount, String host, int port) {
         this.executorCount = executorCount;
@@ -58,7 +59,11 @@ public abstract class JobConfigBase<T> implements JobConfig<T> {
         this.port = port;
         sysPropKeys.add("karate.env");
     }
-    
+
+    public void setAddOptions(String addOptions) {
+        this.addOptions = addOptions;
+    }
+
     private ExecutorService executor;
 
     @Override
@@ -75,11 +80,20 @@ public abstract class JobConfigBase<T> implements JobConfig<T> {
                 executor.submit(() -> Command.execLine(null, command));
             }
         }
-        executor.shutdown();
-        int timeout = getTimeoutMinutes();
-        if (timeout > 0) {
+    }
+
+    @Override
+    public void onStop() {
+        if (executor != null) {
+            executor.shutdown();
+            int timeout = getTimeoutMinutes() * 60;
+            logger.debug("called executor shutdown(), waiting");
+            if (timeout == 0) {
+                // if we don't wait enough time, docker processes can be left hanging
+                timeout = 30;
+            }
             try {
-                executor.awaitTermination(timeout, TimeUnit.MINUTES);
+                executor.awaitTermination(timeout, TimeUnit.SECONDS);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -87,15 +101,9 @@ public abstract class JobConfigBase<T> implements JobConfig<T> {
     }
 
     @Override
-    public void onStop() {
-        if (executor != null) {
-            executor.shutdownNow();
-        }
-    }     
-
-    @Override
     public String getExecutorCommand(String jobId, String jobUrl, int index) {
-        return "docker run --rm --cap-add=SYS_ADMIN -e KARATE_JOBURL=" + jobUrl + " " + dockerImage;
+        String extra = StringUtils.isBlank(addOptions) ? "" : " " + addOptions;
+        return "docker run --rm --cap-add=SYS_ADMIN -e KARATE_JOBURL=" + jobUrl + extra + " " + dockerImage;
     }
 
     public void setDockerImage(String dockerImage) {
