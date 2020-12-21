@@ -93,9 +93,9 @@ public class MockHandler implements ServerHandler {
         runtime.engine.setVariable(ACCEPT_CONTAINS, (Function<String, Boolean>) this::acceptContains);
         runtime.engine.setVariable(HEADER_CONTAINS, (BiFunction<String, String, Boolean>) this::headerContains);
         runtime.engine.setVariable(BODY_PATH, (Function<String, Object>) this::bodyPath);
+        runtime.engine.init();
         if (feature.isBackgroundPresent()) {
             ScenarioEngine.set(runtime.engine);
-            runtime.engine.init();
             for (Step step : feature.getBackground().getSteps()) {
                 Result result = StepRuntime.execute(step, runtime.actions);
                 if (result.isFailed()) {
