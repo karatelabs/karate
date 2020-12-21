@@ -1,12 +1,12 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Json;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
-import net.minidev.json.JSONValue;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,7 +54,8 @@ class AwsLambdaHandlerTest {
             throw new RuntimeException(e);
         }
         byte[] bytes = os.toByteArray();
-        return (Map) JSONValue.parse(bytes);
+        String json = FileUtils.toString(bytes);
+        return Json.of(json).asMap();
     }
 
     @Test

@@ -7,9 +7,9 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
 import java.io.File;
+import java.util.List;
 import java.util.Map;
 import java.util.function.IntBinaryOperator;
-import net.minidev.json.JSONArray;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -88,8 +88,8 @@ public class FeatureResultTest {
     void testLambdaFunctionsInScenarioFeature() throws Exception {
         FeatureResult result = result("caller-with-lambda-arg.feature");
         assertEquals(0, result.getFailedCount());
-        JSONArray dataArr = (JSONArray) result.getVariables().get("data");
-        assertTrue(((Map) dataArr.get(0)).get("javaSum") instanceof IntBinaryOperator);
+        List data = (List) result.getVariables().get("data");
+        assertTrue(((Map) data.get(0)).get("javaSum") instanceof IntBinaryOperator);
     }
 
     @Test

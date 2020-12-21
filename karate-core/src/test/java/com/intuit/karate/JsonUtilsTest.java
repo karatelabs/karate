@@ -6,7 +6,6 @@ import com.intuit.karate.core.SimplePojo;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import net.minidev.json.parser.ParseException;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 import org.slf4j.Logger;
@@ -44,7 +43,7 @@ class JsonUtilsTest {
         Map<String, Object> map = Json.of(pojo).asMap();
         assertTrue(Match.that(map).isEqualTo("{ foo: null, bar: 0 }").pass);
     }
-    
+
     @Test
     public void testPojoConversion() {
         ComplexPojo pojo = new ComplexPojo();
@@ -66,8 +65,8 @@ class JsonUtilsTest {
         assertEquals(2, temp.getBan().size());
         s = XmlUtils.toXml(pojo);
         assertEquals(s, "<root><bar>1</bar><foo>testFoo</foo><baz/><ban><bar>0</bar><foo>p1</foo><baz/><ban/></ban><ban><bar>0</bar><foo>p2</foo><baz/><ban/></ban></root>");
-    }    
-    
+    }
+
     @Test
     void testDeepCopy() {
         Map<String, Object> one = new HashMap();
@@ -77,10 +76,10 @@ class JsonUtilsTest {
         Object temp = JsonUtils.deepCopy(one);
         assertEquals(temp, one);
         assertFalse(temp == one);
-        String json = JsonUtils.toJsonSafe(temp, false);        
+        String json = JsonUtils.toJsonSafe(temp, false);
         assertEquals("{\"two\":{\"one\":{\"two\":{\"one\":\"#ref:java.util.HashMap\"}}}}", json);
     }
-    
+
     @Test
     void testMalformed() {
         String text = FileUtils.toString(getClass().getResourceAsStream("malformed.txt"));
@@ -88,8 +87,8 @@ class JsonUtilsTest {
             Object o = JsonUtils.fromJsonStrict(text);
             fail("we should not have reached here");
         } catch (Exception e) {
-            assertTrue(e.getCause() instanceof ParseException);
+            assertTrue(e.getCause() instanceof net.minidev.json.parser.ParseException);
         }
-    }    
+    }
 
 }
