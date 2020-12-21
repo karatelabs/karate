@@ -756,16 +756,15 @@ public class ScenarioEngine {
         if (parent != null) {
             parent.signal(result);
         } else {
-            SIGNAL.complete(result);
+            synchronized (JS.context) {
+                SIGNAL.complete(result);
+            }
         }
     }
 
-    public void listen(String exp) {
+    public Object listen(String exp) {
         Variable v = evalKarateExpression(exp);
-        listen(v.getAsInt());
-    }
-
-    public Object listen(long timeout) {
+        int timeout = v.getAsInt();
         logger.debug("entered listen state with timeout: {}", timeout);
         Object listenResult = null;
         try {
@@ -774,9 +773,9 @@ public class ScenarioEngine {
             logger.error("listen timed out: {}", e + "");
         }
         synchronized (JS.context) {
-            SIGNAL = new CompletableFuture();
             setHiddenVariable(LISTEN_RESULT, listenResult);
             logger.debug("exit listen state with result: {}", listenResult);
+            SIGNAL = new CompletableFuture();
             return listenResult;
         }
     }

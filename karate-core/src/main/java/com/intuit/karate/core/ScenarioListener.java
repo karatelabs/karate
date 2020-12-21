@@ -50,35 +50,38 @@ public class ScenarioListener implements Consumer, Function, Runnable {
 
     private Value function;
 
-    private Value get() {
-        if (function != null) {
-            return function;
+    private void init() {
+        if (function == null) {
+            synchronized (child) {
+                ScenarioEngine.set(child);
+                child.init();
+                function = child.attachSource(source);
+            }
         }
-        ScenarioEngine.set(child);
-        child.init();
-        function = child.attachSource(source);
-        return function;
     }
 
     @Override
     public void accept(Object arg) {
+        init();
         synchronized (parent.JS.context) {
-            get().executeVoid(JsValue.fromJava(arg));
+            function.executeVoid(JsValue.fromJava(arg));
         }
     }
 
     @Override
     public Object apply(Object arg) {
+        init();
         synchronized (parent.JS.context) {
-            Value result = get().execute(JsValue.fromJava(arg));
+            Value result = function.execute(JsValue.fromJava(arg));
             return new JsValue(result).getValue();
         }
     }
 
     @Override
     public void run() {
+        init();
         synchronized (parent.JS.context) {
-            get().executeVoid();
+            function.executeVoid();
         }
     }
 
