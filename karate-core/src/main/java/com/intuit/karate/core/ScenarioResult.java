@@ -35,7 +35,7 @@ import java.util.Map;
  */
 public class ScenarioResult implements Comparable<ScenarioResult> {
 
-    private List<StepResult> stepResults = new ArrayList();
+    private final List<StepResult> stepResults = new ArrayList();
     private final Scenario scenario;
 
     private StepResult failedStep;
@@ -58,58 +58,6 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             return delta;
         }
         return scenario.getExampleIndex() - sr.scenario.getExampleIndex();
-    }
-
-    public void reset() {
-        stepResults = new ArrayList();
-        failedStep = null;
-    }
-
-    public void appendEmbed(Embed embed) {
-        if (json != null) {
-            List<Map<String, Object>> steps = (List) json.get("steps");
-            if (steps == null || steps.isEmpty()) {
-                return;
-            }
-            Map<String, Object> map = steps.get(steps.size() - 1);
-            List<Map<String, Object>> embedList = (List) map.get("embeddings");
-            if (embedList == null) {
-                embedList = new ArrayList();
-                map.put("embeddings", embedList);
-            }
-            embedList.add(embed.toMap());
-        } else {
-            getLastStepResult().addEmbed(embed);
-        }
-    }
-
-    public StepResult getLastStepResult() {
-        if (stepResults.isEmpty()) {
-            return null;
-        }
-        return stepResults.get(stepResults.size() - 1);
-    }
-
-    public StepResult getStepResult(int index) {
-        if (stepResults.size() > index) {
-            return stepResults.get(index);
-        } else {
-            return null;
-        }
-    }
-
-    public void setStepResult(int index, StepResult sr) {
-        if (sr.getResult().isFailed()) {
-            failedStep = sr;
-        }
-        if (stepResults.size() > index) {
-            stepResults.set(index, sr);
-        } else {
-            for (int i = stepResults.size(); i < index; i++) {
-                stepResults.add(null);
-            }
-            stepResults.add(sr);
-        }
     }
 
     public String getFailureMessageForDisplay() {
