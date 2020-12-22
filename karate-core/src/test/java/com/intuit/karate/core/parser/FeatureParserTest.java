@@ -47,25 +47,25 @@ class FeatureParserTest {
         Map<String, Object> map = (Map) JsonUtils.fromJson(json);
         match(map.get("tags"), "[{ name: '@foo', line: 1 }]");
         ScenarioResult sr = result.getScenarioResults().get(0);
-        map = sr.toMap();
-        match(map.get("tags"), "[{ name: '@bar', line: 5 }]");
-        Engine.saveResultJson("target", result, null);
-        Engine.saveResultXml("target", result, null);
+        map = sr.toCucumberJson();
+        match(map.get("tags"), "[{ name: '@bar', line: 5 }, { name: '@foo', line: 1 }]");
+        Engine.saveCucumberJson("target", result, null);
+        Engine.saveJunitXml("target", result, null);
     }
 
     @Test
     void testEngineForSimpleFeatureWithBackground() {
         FeatureResult result = execute("test-simple-background.feature");
         assertEquals(1, result.getScenarioResults().size());
-        Engine.saveResultJson("target", result, null);
-        Engine.saveResultXml("target", result, null);
+        Engine.saveCucumberJson("target", result, null);
+        Engine.saveJunitXml("target", result, null);
     }
 
     @Test
     void testEngineForError() {
         FeatureResult result = execute("test-error.feature");
-        Engine.saveResultJson("target", result, null);
-        Engine.saveResultXml("target", result, null);
+        Engine.saveCucumberJson("target", result, null);
+        Engine.saveJunitXml("target", result, null);
     }
 
     @Test

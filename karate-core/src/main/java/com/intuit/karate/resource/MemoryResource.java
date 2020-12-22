@@ -27,6 +27,7 @@ import com.intuit.karate.FileUtils;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
+import java.net.URI;
 
 /**
  *
@@ -59,6 +60,11 @@ public class MemoryResource implements Resource {
     @Override
     public File getFile() {
         return file;
+    }
+
+    @Override
+    public URI getUri() {
+        return file.toURI();
     }
 
     @Override

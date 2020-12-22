@@ -59,7 +59,16 @@ public class Engine {
         return (double) nanos / MILLION;
     }
 
-    public static File saveResultJson(String targetDir, FeatureResult result, String fileName) {
+    public static File saveKarateJson(String targetDir, FeatureResult result, String fileName) {
+        if (fileName == null) {
+            fileName = result.getPackageQualifiedName() + ".karate.json";
+        }
+        File file = new File(targetDir + File.separator + fileName);
+        FileUtils.writeToFile(file, result.toKarateJson());
+        return file;
+    }
+
+    public static File saveCucumberJson(String targetDir, FeatureResult result, String fileName) {
         if (fileName == null) {
             fileName = result.getPackageQualifiedName() + ".json";
         }
@@ -102,7 +111,7 @@ public class Engine {
         return error;
     }
 
-    public static File saveResultXml(String targetDir, FeatureResult result, String fileName) {
+    public static File saveJunitXml(String targetDir, FeatureResult result, String fileName) {
         DecimalFormat formatter = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
         formatter.applyPattern("0.######");
         Document doc = XmlUtils.newDocument();

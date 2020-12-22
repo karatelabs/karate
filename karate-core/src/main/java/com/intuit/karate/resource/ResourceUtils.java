@@ -110,7 +110,7 @@ public class ResourceUtils {
                     File found = Paths.get(uri).toFile();
                     resources.add(new FileResource(found, true, res.getPath()));
                 } else {
-                    resources.add(new JarResource(bytes, res.getPath()));
+                    resources.add(new JarResource(bytes, res.getPath(), uri));
                 }
             });
             if (resources.isEmpty()) {
@@ -156,7 +156,7 @@ public class ResourceUtils {
                         File file = Paths.get(uri).toFile();
                         results.add(new FileResource(file, true, res.getPath()));
                     } else {
-                        results.add(new JarResource(bytes, res.getPath()));
+                        results.add(new JarResource(bytes, res.getPath(), uri));
                     }
                 });
             }

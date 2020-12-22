@@ -76,6 +76,7 @@ public class Suite implements Runnable {
 
     public final boolean outputHtmlReport;
     public final boolean outputCucumberJson;
+    public final boolean outputKarateJson;
     public final boolean outputJunitXml;
 
     public final boolean parallel;
@@ -115,6 +116,7 @@ public class Suite implements Runnable {
             dryRun = false;
             outputHtmlReport = false;
             outputCucumberJson = false;
+            outputKarateJson = false;
             outputJunitXml = false;
             classLoader = Thread.currentThread().getContextClassLoader();
             clientFactory = HttpClientFactory.DEFAULT;
@@ -144,6 +146,7 @@ public class Suite implements Runnable {
             rb.resolveAll();
             outputHtmlReport = rb.outputHtmlReport;
             outputCucumberJson = rb.outputCucumberJson;
+            outputKarateJson = rb.outputKarateJson;
             outputJunitXml = rb.outputJunitXml;
             dryRun = rb.dryRun;
             classLoader = rb.classLoader;
@@ -257,17 +260,20 @@ public class Suite implements Runnable {
         if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags
             try { // edge case that reports are not writable
                 if (outputCucumberJson) {
-                    Engine.saveResultJson(reportDir, result, null);
+                    Engine.saveCucumberJson(reportDir, result, null);
                 }
                 if (outputJunitXml) {
-                    Engine.saveResultXml(reportDir, result, null);
+                    Engine.saveJunitXml(reportDir, result, null);
+                }
+                if (outputKarateJson) {
+                    Engine.saveKarateJson(reportDir, result, null);
                 }
                 String status = result.isFailed() ? "fail" : "pass";
                 logger.info("<<{}>> feature {} of {}: {}", status, index, featureCount, feature);
-                result.printStats(null);
+                result.printStats();
             } catch (Exception e) {
                 logger.error("<<error>> unable to write report file(s): {} - {}", feature, e + "");
-                result.printStats(null);
+                result.printStats();
             }
         } else {
             results.addToSkipCount(1);

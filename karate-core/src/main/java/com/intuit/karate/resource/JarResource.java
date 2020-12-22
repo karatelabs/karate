@@ -27,6 +27,7 @@ import com.intuit.karate.FileUtils;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
+import java.net.URI;
 
 /**
  *
@@ -36,10 +37,12 @@ public class JarResource implements Resource {
 
     private final byte[] bytes;
     private final String relativePath;
+    private final URI uri;
 
-    public JarResource(byte[] bytes, String relativePath) {
+    public JarResource(byte[] bytes, String relativePath, URI uri) {
         this.bytes = bytes;
         this.relativePath = relativePath;
+        this.uri = uri;
     }
 
     @Override
@@ -56,6 +59,11 @@ public class JarResource implements Resource {
     public File getFile() {
         return null;
     }
+
+    @Override
+    public URI getUri() {
+        return uri;
+    }        
 
     @Override
     public String getRelativePath() {

@@ -187,7 +187,7 @@ public abstract class HtmlReport {
         AtomicInteger id = new AtomicInteger();
         DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss.SSS");
         scenarioResults.forEach(sr -> {
-            String threadName = sr.getThreadName();
+            String threadName = sr.getExecutorName();
             Integer groupId = groupsMap.get(threadName);
             if (groupId == null) {
                 groupId = groupsMap.size() + 1;

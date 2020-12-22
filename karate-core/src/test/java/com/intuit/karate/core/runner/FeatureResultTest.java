@@ -30,7 +30,7 @@ public class FeatureResultTest {
     }
 
     static String xml(FeatureResult result) {
-        File file = Engine.saveResultXml("target", result, null);
+        File file = Engine.saveJunitXml("target", result, null);
         return FileUtils.toString(file);
     }
 
@@ -102,7 +102,7 @@ public class FeatureResultTest {
     @Test
     void testScenarioOutlineXmlResult() {
         FeatureResult result = result("outline.feature");
-        Engine.saveResultXml("target", result, "outline.xml");
+        Engine.saveJunitXml("target", result, "outline.xml");
     }
 
 }

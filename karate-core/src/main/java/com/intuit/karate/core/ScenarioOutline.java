@@ -32,8 +32,6 @@ import java.util.List;
  */
 public class ScenarioOutline {
 
-    public static final String KEYWORD = "Scenario Outline";
-
     private final Feature feature;
     private final FeatureSection section;
 
@@ -54,8 +52,6 @@ public class ScenarioOutline {
         s.setName(name);
         s.setDescription(description);
         s.setDynamicExpression(dynamicExpression);
-        s.setExampleIndex(exampleIndex);
-        s.setOutline(true);
         s.setLine(line);
         if (tags != null || tagsForExamples != null) {
             List<Tag> temp = new ArrayList();
@@ -70,7 +66,7 @@ public class ScenarioOutline {
         List<Step> temp = new ArrayList(steps.size());
         s.setSteps(temp);
         for (Step original : steps) {
-            Step step = new Step(feature, s, original.getIndex());
+            Step step = new Step(s, original.getIndex());
             temp.add(step);
             step.setLine(original.getLine());
             step.setEndLine(original.getEndLine());
@@ -87,7 +83,8 @@ public class ScenarioOutline {
         for (ExamplesTable examples : examplesTables) {
             Table table = examples.getTable();
             if (table.isDynamic()) {
-                Scenario scenario = toScenario(table.getDynamicExpression(), -1, line, examples.getTags());
+                // technically row index 0 to denote an example (not -1)
+                Scenario scenario = toScenario(table.getDynamicExpression(), 0, line, examples.getTags());
                 list.add(scenario);
             } else {
                 int rowCount = table.getRows().size();

@@ -96,8 +96,8 @@ public class Main implements Callable<Void> {
     @Option(names = {"-o", "--output"}, description = "directory where logs and reports are output (default 'target')")
     String output = FileUtils.getBuildDir();
 
-    @Option(names = {"-f", "--format"}, description = "report output formats in addition to html e.g. '-f xml -f json'"
-            + " [json: Cucumber JSON, xml: JUnit XML]")
+    @Option(names = {"-f", "--format"}, split = ",", description = "report output formats in addition to html e.g. '-f junit,cucumber'"
+            + " [cucumber: Cucumber JSON, junit: JUnit XML]")
     List<String> formats;
 
     @Option(names = {"-n", "--name"}, description = "scenario name")
@@ -280,10 +280,12 @@ public class Main implements Callable<Void> {
             return null;
         }
         boolean outputCucumberJson = false;
+        boolean outputKarateJson = false;
         boolean outputJunitXml = false;
         if (formats != null) {
-            outputCucumberJson = formats.contains("json");
-            outputJunitXml = formats.contains("xml");
+            outputCucumberJson = formats.contains("cucumber");
+            outputKarateJson = formats.contains("karate");
+            outputJunitXml = formats.contains("junit");
         }
         if (paths != null) {
             Results results = Runner
@@ -293,6 +295,7 @@ public class Main implements Callable<Void> {
                     .buildDir(output)
                     .configDir(configDir)
                     .outputCucumberJson(outputCucumberJson)
+                    .outputKarateJson(outputKarateJson)
                     .outputJunitXml(outputJunitXml)
                     .dryRun(dryRun)
                     .hooks(createHooks())

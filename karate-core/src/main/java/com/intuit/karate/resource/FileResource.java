@@ -26,6 +26,7 @@ package com.intuit.karate.resource;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.net.URI;
 
 /**
  *
@@ -60,6 +61,11 @@ public class FileResource implements Resource {
     public File getFile() {
         return file;
     }
+
+    @Override
+    public URI getUri() {
+        return file.toURI();
+    }        
 
     @Override
     public boolean isClassPath() {

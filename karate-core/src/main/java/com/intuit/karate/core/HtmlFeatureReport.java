@@ -104,7 +104,7 @@ public class HtmlFeatureReport extends HtmlReport {
         if (step.getDocString() != null) {
             sb.append(step.getDocString());
         }
-        if (stepResult.isShowLog() && stepResult.getStepLog() != null) {
+        if (stepResult.getStepLog() != null) {
             if (sb.length() > 0) {
                 sb.append('\n');
             }
@@ -230,7 +230,7 @@ public class HtmlFeatureReport extends HtmlReport {
             }
             Element headingContainer = div("heading-container",
                     tagsDiv,
-                    node("span", "scenario-keyword", scenario.getKeyword() + ": " + scenarioMeta),
+                    node("span", "scenario-keyword", "Scenario: " + scenarioMeta),
                     node("span", "scenario-name", scenarioName));
             String duration = formatter.format(sr.getDurationMillis());
             Element scenarioHeadingDiv = div("scenario-heading",

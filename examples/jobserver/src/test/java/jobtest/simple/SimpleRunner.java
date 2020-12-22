@@ -3,7 +3,7 @@ package jobtest.simple;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import common.ReportUtils;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 
 /**

@@ -26,6 +26,7 @@ package com.intuit.karate.job;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.ScenarioRuntime;
@@ -41,18 +42,18 @@ import java.util.Map;
  * @author pthomas3
  */
 public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
-    
+
     public MavenJobConfig(int executorCount, String host, int port) {
         super(executorCount, host, port);
-    }    
-    
+    }
+
     @Override
     public List<JobCommand> getMainCommands(JobChunk<ScenarioRuntime> chunk) {
         Scenario scenario = chunk.getValue().scenario;
         String path = scenario.getFeature().getResource().getPrefixedPath();
         int line = scenario.getLine();
         String temp = "mvn exec:java -Dexec.mainClass=com.intuit.karate.Main -Dexec.classpathScope=test"
-                + " \"-Dexec.args=-f json " + path + ":" + line + "\"";
+                + " \"-Dexec.args=-f karate " + path + ":" + line + "\"";
         for (String k : sysPropKeys) {
             String v = StringUtils.trimToEmpty(System.getProperty(k));
             if (!v.isEmpty()) {
@@ -61,21 +62,26 @@ public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
         }
         return Collections.singletonList(new JobCommand(temp));
     }
-    
+
     @Override
     public ScenarioRuntime handleUpload(JobChunk<ScenarioRuntime> chunk, File upload) {
+        ScenarioRuntime runtime = chunk.getValue();
         File jsonFile = JobUtils.getFirstFileWithExtension(upload, "json");
         if (jsonFile == null) {
-            logger.warn("no cucumber json found in job executor result");
-            return chunk.getValue();
-        }
+            logger.warn("no karate json found in job executor result");
+            return runtime;
+        }        
         String json = FileUtils.toString(jsonFile);
-        List<Map<String, Object>> list = Json.of(json).get("$[0].elements");
-        ScenarioRuntime runtime = chunk.getValue();
-        ScenarioResult sr = new ScenarioResult(runtime.scenario, list, true);
-        sr.setThreadName(chunk.getExecutorId());
+        Map<String, Object> map = Json.of(json).asMap();
+        FeatureResult fr = FeatureResult.fromKarateJson(map);
+        if (fr.getScenarioResults().isEmpty()) {
+            logger.warn("executor feature result is empty");
+            return runtime;
+        }
+        ScenarioResult sr = fr.getScenarioResults().get(0);
+        sr.setExecutorName(chunk.getExecutorId());
         sr.setStartTime(chunk.getStartTime());
-        sr.setEndTime(System.currentTimeMillis());
+        sr.setEndTime(System.currentTimeMillis());        
         synchronized (runtime.featureRuntime) {
             runtime.featureRuntime.result.addResult(sr);
         }
@@ -85,5 +91,5 @@ public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
         }
         return runtime;
     }
-    
+
 }

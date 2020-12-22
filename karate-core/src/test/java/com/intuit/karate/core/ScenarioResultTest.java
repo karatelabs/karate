@@ -1,16 +1,13 @@
 package com.intuit.karate.core;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.Json;
-import com.intuit.karate.JsonUtils;
-import org.junit.jupiter.api.Test;
+import com.intuit.karate.TestUtils;
 import static com.intuit.karate.TestUtils.*;
+import static com.intuit.karate.core.FeatureRuntimeTest.logger;
 import java.io.File;
-import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.junit.jupiter.api.Test;
 
 /**
  *
@@ -18,22 +15,25 @@ import org.slf4j.LoggerFactory;
  */
 class ScenarioResultTest {
 
-    static final Logger logger = LoggerFactory.getLogger(ScenarioResultTest.class);
+    FeatureRuntime fr;
+
+    private FeatureRuntime run(String name) {
+        fr = TestUtils.runFeature("classpath:com/intuit/karate/core/" + name);
+        assertFalse(fr.result.isFailed());
+        return fr;
+    }
 
     @Test
-    void testFromJson() {
-        File file = new File("src/test/java/com/intuit/karate/core/executor-result.json");
-        String json = FileUtils.toString(file);
-        List<Map<String, Object>> list = Json.of(json).get("$[0].elements");
-        Feature feature = Feature.read("classpath:com/intuit/karate/core/executor-result.feature");
-        Scenario scenario = feature.getScenario(0, -1);
-        logger.debug("scenario: {}", scenario);
-        ScenarioResult sr = new ScenarioResult(scenario, list, true);
-        Map<String, Object> map = sr.toMap();
-        logger.debug("json: {}", JsonUtils.toJson(map));
-        FeatureRuntime fr = FeatureRuntime.of(feature);
-        fr.result.addResult(sr);
-        HtmlFeatureReport.saveFeatureResult("target", fr.result);
+    void testKarateJson() {
+        run("scenario-result.feature");
+        File file = HtmlFeatureReport.saveFeatureResult("target/temp1", fr.result);
+        logger.debug("saved report1: {}", file.getAbsolutePath());
+        Map<String, Object> json1 = Json.of(fr.result.toKarateJson()).asMap();
+        FeatureResult temp = FeatureResult.fromKarateJson(json1);
+        file = HtmlFeatureReport.saveFeatureResult("target/temp2", temp);
+        logger.debug("saved report2: {}", file.getAbsolutePath());
+        Map<String, Object> json2 = Json.of(temp.toKarateJson()).asMap();
+        match(json1, json2);
     }
 
 }

@@ -44,6 +44,21 @@ public class Embed {
         this.resourceType = resourceType;
     }
 
+    public static Embed fromKarateJson(Map<String, Object> map) {
+        String fileName = (String) map.get("file");
+        String rtName = (String) map.get("resourceType");
+        File file = new File(fileName);
+        ResourceType rt = ResourceType.valueOf(rtName);
+        return new Embed(file, rt);
+    }
+
+    public Map<String, Object> toKarateJson() {
+        Map<String, Object> map = new HashMap();
+        map.put("file", file.getPath());
+        map.put("resourceType", resourceType.name());
+        return map;
+    }
+
     public ResourceType getResourceType() {
         return resourceType;
     }

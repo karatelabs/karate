@@ -33,7 +33,7 @@ class RunnerTest {
         Feature feature = Feature.read("classpath:com/intuit/karate/core/runner/" + name);
         FeatureRuntime fr = FeatureRuntime.of(feature);
         fr.run();
-        File file = Engine.saveResultXml("target", fr.result, null);
+        File file = Engine.saveJunitXml("target", fr.result, null);
         return FileUtils.toString(file);
     }
 

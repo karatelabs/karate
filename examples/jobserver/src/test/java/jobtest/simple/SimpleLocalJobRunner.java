@@ -1,6 +1,5 @@
 package jobtest.simple;
 
-import common.ReportUtils;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import com.intuit.karate.job.JobExecutor;
@@ -8,6 +7,7 @@ import com.intuit.karate.job.MavenJobConfig;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -40,7 +40,7 @@ public class SimpleLocalJobRunner {
         // export KARATE_TEST="foo"
         config.addEnvPropKey("KARATE_TEST");
         Results results = Runner.path("classpath:jobtest/simple").jobManager(config);
-        ReportUtils.generateReport(results.getReportDir());
+        assertEquals(0, results.getFailCount(), results.getErrorMessages());
     }
 
 }

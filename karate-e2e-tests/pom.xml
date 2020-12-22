@@ -10,10 +10,6 @@
     <artifactId>karate-e2e-tests</artifactId>
     <packaging>jar</packaging>
 
-    <properties>
-        <junit5.version>5.5.0</junit5.version>
-    </properties>
-
     <dependencies>        
         <dependency>
             <groupId>com.intuit.karate</groupId>

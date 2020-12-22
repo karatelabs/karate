@@ -181,7 +181,7 @@ public class FeatureParser extends KarateParserBaseListener {
         List<Step> steps = new ArrayList(list.size());
         int index = 0;
         for (KarateParser.StepContext sc : list) {
-            Step step = new Step(feature, scenario, index++);
+            Step step = new Step(scenario, index++);
             step.setComments(collectComments(sc));
             steps.add(step);
             int stepLine = sc.line().getStart().getLine();

@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import java.io.File;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,33 +35,24 @@ import java.util.Map;
  */
 public class Scenario {
 
-    public static final String TYPE = "scenario";
-    public static final String KEYWORD = "Scenario";
-
     private final Feature feature;
     private final FeatureSection section;
-    private final int index;
+    private final int exampleIndex;
 
     private List<Tag> tags;
     private int line;
     private String name;
     private String description;
     private List<Step> steps;
-    private boolean outline;
     private Map<String, Object> exampleData;
-    private int exampleIndex = -1;
     private String dynamicExpression;
-    
-    protected Scenario() {
-        this(null, null, -1);
-    }
 
-    public Scenario(Feature feature, FeatureSection section, int index) {
+    public Scenario(Feature feature, FeatureSection section, int exampleIndex) {
         this.feature = feature;
         this.section = section;
-        this.index = index;
+        this.exampleIndex = exampleIndex;
     }
-    
+
     public String getNameAndDescription() {
         String temp = "";
         if (name != null) {
@@ -92,11 +82,9 @@ public class Scenario {
         s.description = description;
         s.tags = tags;
         s.line = line;
-        s.exampleIndex = exampleIndex;
-        s.outline = true; // this is a dynamic scenario row
         s.steps = new ArrayList(steps.size());
         for (Step step : steps) {
-            Step temp = new Step(feature, s, step.getIndex());
+            Step temp = new Step(s, step.getIndex());
             s.steps.add(temp);
             temp.setLine(step.getLine());
             temp.setEndLine(step.getEndLine());
@@ -130,7 +118,7 @@ public class Scenario {
             }
         }
     }
-    
+
     public Step getStepByLine(int line) {
         for (Step step : getStepsIncludingBackground()) {
             if (step.getLine() == line) {
@@ -143,19 +131,19 @@ public class Scenario {
     public String getDisplayMeta() {
         int num = section.getIndex() + 1;
         String meta = "[" + num;
-        if (index != -1) {
-            meta = meta + "." + (index + 1);
+        if (exampleIndex != -1) {
+            meta = meta + "." + (exampleIndex + 1);
         }
         return meta + ":" + line + "]";
     }
-    
+
     public String getDebugInfo() {
         return feature + ":" + line;
     }
 
     public String getUniqueId() {
         String id = feature.getResource().getPackageQualifiedName() + "_" + (section.getIndex() + 1);
-        return index == -1 ? id : id + "_" + (index + 1);
+        return exampleIndex == -1 ? id : id + "_" + (exampleIndex + 1);
     }
 
     public List<Step> getBackgroundSteps() {
@@ -173,10 +161,6 @@ public class Scenario {
         return temp;
     }
 
-    public String getKeyword() {
-        return outline ? ScenarioOutline.KEYWORD : KEYWORD;
-    }
-
     private Tags tagsEffective; // cache
 
     public Tags getTagsEffective() {
@@ -192,10 +176,6 @@ public class Scenario {
 
     public Feature getFeature() {
         return feature;
-    }
-
-    public int getIndex() {
-        return index;
     }
 
     public int getLine() {
@@ -238,12 +218,8 @@ public class Scenario {
         this.steps = steps;
     }
 
-    public boolean isOutline() {
-        return outline;
-    }
-
-    public void setOutline(boolean outline) {
-        this.outline = outline;
+    public boolean isOutlineExample() {
+        return exampleIndex != -1;
     }
 
     public boolean isDynamic() {
@@ -270,23 +246,13 @@ public class Scenario {
         return exampleIndex;
     }
 
-    public void setExampleIndex(int exampleIndex) {
-        this.exampleIndex = exampleIndex;
-    }
-
     @Override
     public String toString() {
         return feature.toString() + getDisplayMeta();
     }
 
-    // fetch src uri to point to scenario in feature file.
-    public URI getScenarioSrcUri() {
-        // this could be made conditional based on config - if navigating to feature file needed, then use below else return null.
-        String workingDir = System.getProperty("user.dir");
-        // we can use getPath as well - though that will point to feature file from compiled location i.e. target
-        String featurePath = this.feature.getResource().getRelativePath().replace("classpath:", "");
-        return URI.create(new File(workingDir + "/src/test/java/" + featurePath).toURI().toString() + "?line="
-                + this.line);
+    public URI getUriToLineNumber() {
+        return URI.create(feature.getResource().getUri() + "?line=" + line);
     }
 
 }

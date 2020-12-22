@@ -25,6 +25,7 @@ package com.intuit.karate.resource;
 
 import java.io.File;
 import java.io.InputStream;
+import java.net.URI;
 
 /**
  *
@@ -37,6 +38,8 @@ public interface Resource {
     boolean isClassPath();
 
     File getFile();
+    
+    URI getUri();
 
     String getRelativePath();
 

@@ -25,6 +25,7 @@ package com.intuit.karate.debug;
 
 import com.intuit.karate.*;
 import com.intuit.karate.cli.IdeMain;
+import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.Result;
 import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.Step;
@@ -103,7 +104,8 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     }
 
     protected boolean isBreakpoint(Step step, int line) {
-        String path = step.getFeature().getResource().getFile().getPath();
+        Feature feature = step.getScenario().getFeature();
+        String path = feature.getResource().getFile().getPath();
         int pos = findPos(path);
         SourceBreakpoints sb;
         if (pos != -1) {

@@ -41,16 +41,16 @@ public class FeatureResult {
 
     private final Feature feature;
     private final List<ScenarioResult> scenarioResults = new ArrayList<>();
+    private final List<Throwable> errors = new ArrayList<>();
 
     private String displayName; // mutable for users who want to customize
-    private List<Throwable> errors = new ArrayList<>();
     private double durationMillis;
 
     private Map<String, Object> resultVariables;
     private Map<String, Object> callArg;
     private int loopIndex;
 
-    public void printStats(String reportPath) {
+    public void printStats() {
         String featureName = feature.getResource().getPrefixedPath();
         if (feature.getCallLine() != -1) {
             featureName = featureName + ":" + feature.getCallLine();
@@ -58,32 +58,46 @@ public class FeatureResult {
         StringBuilder sb = new StringBuilder();
         sb.append("---------------------------------------------------------\n");
         sb.append("feature: ").append(featureName).append('\n');
-        if (reportPath != null) {
-            sb.append("report: ").append(reportPath).append('\n');
-        }
         sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", getScenarioCount(), getPassedCount(), getFailedCount(), durationMillis / 1000));
         sb.append("---------------------------------------------------------\n");
         System.out.println(sb);
     }
 
-    public String toCucumberJson() {
+    public static FeatureResult fromKarateJson(Map<String, Object> map) {
+        String featurePath = (String) map.get("featurePath");
+        Feature feature = Feature.read(featurePath);
+        FeatureResult fr = new FeatureResult(feature);
+        List<Map<String, Object>> list = (List) map.get("scenarioResults");
+        if (list != null) {
+            for (Map<String, Object> srMap : list) {
+                ScenarioResult sr = ScenarioResult.fromKarateJson(feature, srMap);
+                fr.addResult(sr);
+            }
+        }
+        return fr;
+    }
+
+    public String toKarateJson() {
+        Map<String, Object> map = new HashMap();
+        map.put("featurePath", feature.getResource().getPrefixedPath());
+        map.put("scenarioResults", "@@replace@@");
+        //======================================================================
         StringBuilder sb = new StringBuilder();
         sb.append('[');
         Iterator<ScenarioResult> iterator = scenarioResults.iterator();
         while (iterator.hasNext()) {
             ScenarioResult sr = iterator.next();
-            Map<String, Object> backgroundMap = sr.backgroundToMap();
-            if (backgroundMap != null) {
-                sb.append(JsonUtils.toJson(backgroundMap)).append(',');
-            }
-            sb.append(JsonUtils.toJson(sr.toMap()));
+            sb.append(JsonUtils.toJson(sr.toKarateJson()));
             if (iterator.hasNext()) {
                 sb.append(',');
             }
         }
         sb.append(']');
+        return JsonUtils.toJson(map).replace("\"@@replace@@\"", sb);
+    }
+
+    public String toCucumberJson() {
         Map<String, Object> map = new HashMap();
-        map.put("elements", "@@replace@@");
         map.put("keyword", Feature.KEYWORD);
         map.put("line", feature.getLine());
         map.put("uri", displayName);
@@ -95,8 +109,25 @@ public class FeatureResult {
         }
         map.put("description", temp.trim());
         if (feature.getTags() != null) {
-            map.put("tags", Tags.toResultList(feature.getTags()));
+            map.put("tags", ScenarioResult.tagsToCucumberJson(feature.getTags()));
         }
+        map.put("elements", "@@replace@@");
+        //======================================================================
+        StringBuilder sb = new StringBuilder();
+        sb.append('[');
+        Iterator<ScenarioResult> iterator = scenarioResults.iterator();
+        while (iterator.hasNext()) {
+            ScenarioResult sr = iterator.next();
+            Map<String, Object> backgroundMap = sr.backgroundToCucumberJson();
+            if (backgroundMap != null) {
+                sb.append(JsonUtils.toJson(backgroundMap)).append(',');
+            }
+            sb.append(JsonUtils.toJson(sr.toCucumberJson()));
+            if (iterator.hasNext()) {
+                sb.append(',');
+            }
+        }
+        sb.append(']');
         return JsonUtils.toJson(map).replace("\"@@replace@@\"", sb);
     }
 
@@ -226,7 +257,7 @@ public class FeatureResult {
         durationMillis += Engine.nanosToMillis(result.getDurationNanos());
         if (result.isFailed()) {
             Scenario scenario = result.getScenario();
-            if (scenario.isOutline()) {
+            if (scenario.isOutlineExample()) {
                 Throwable error = result.getError();
                 Throwable copy = new KarateException(scenario.getDisplayMeta() + " " + error.getMessage());
                 copy.setStackTrace(error.getStackTrace());

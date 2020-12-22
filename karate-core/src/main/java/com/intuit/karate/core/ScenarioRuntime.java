@@ -174,7 +174,7 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public Result evalAsStep(String expression) {
-        Step evalStep = new Step(scenario.getFeature(), scenario, scenario.getIndex() + 1);
+        Step evalStep = new Step(scenario, -1);
         try {
             evalStep.parseAndUpdateFrom(expression);
         } catch (Exception e) {
@@ -208,7 +208,7 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public Map<String, Object> getScenarioInfo() {
-        Map<String, Object> info = new HashMap(6);
+        Map<String, Object> info = new HashMap(5);
         File featureFile = featureRuntime.feature.getResource().getFile();
         if (featureFile != null) {
             info.put("featureDir", featureFile.getParent());
@@ -216,7 +216,6 @@ public class ScenarioRuntime implements Runnable {
         }
         info.put("scenarioName", scenario.getName());
         info.put("scenarioDescription", scenario.getDescription());
-        info.put("scenarioType", scenario.getKeyword());
         String errorMessage = error == null ? null : error.getMessage();
         info.put("errorMessage", errorMessage);
         return info;
@@ -278,7 +277,7 @@ public class ScenarioRuntime implements Runnable {
                 map.putAll(caller.arg.getValue());
             }
         }
-        if (scenario.isOutline() && !scenario.isDynamic()) { // init examples row magic variables
+        if (scenario.isOutlineExample() && !scenario.isDynamic()) { // init examples row magic variables
             Map<String, Object> exampleData = scenario.getExampleData();
             exampleData.forEach((k, v) -> map.put(k, v));
             map.put("__row", exampleData);
@@ -300,7 +299,7 @@ public class ScenarioRuntime implements Runnable {
         }
         ScenarioEngine.set(engine);
         engine.init();
-        result.setThreadName(Thread.currentThread().getName());
+        result.setExecutorName(Thread.currentThread().getName());
         result.setStartTime(System.currentTimeMillis() - featureRuntime.suite.startTime);
         if (!dryRun) {
             if (caller.isNone() && !caller.isKarateConfigDisabled()) {
@@ -376,6 +375,9 @@ public class ScenarioRuntime implements Runnable {
             logError(error.getMessage());
         }
         String stepLog = appender.collect(); // make sure we collect after error logging
+        if (!showLog) {
+            stepLog = null;
+        }
         currentStepResult = new StepResult(step, stepResult, stepLog, embeds, callResults);
         if (stepResult.isFailed()) {
             if (engine.driver != null) {
@@ -388,7 +390,6 @@ public class ScenarioRuntime implements Runnable {
         callResults = null;
         embeds = null;
         currentStepResult.setHidden(hidden);
-        currentStepResult.setShowLog(showLog);
         if (executed && !dryRun) {
             featureRuntime.suite.hooks.forEach(h -> h.afterStep(currentStepResult, this));
         }

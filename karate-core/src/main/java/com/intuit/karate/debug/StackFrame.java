@@ -48,7 +48,7 @@ public class StackFrame {
         line = step.getLine();
         Scenario scenario = context.scenario;
         name = scenario.getDisplayMeta();
-        File file = step.getFeature().getResource().getFile();
+        File file = scenario.getFeature().getResource().getFile();
         source.put("name", file.getName());
         source.put("path", file.getPath());
         source.put("sourceReference", 0); //if not zero, source can be requested by client via a message

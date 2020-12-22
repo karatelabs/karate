@@ -202,17 +202,6 @@ public class Tags implements Iterable<Tag> {
         return list;
     }
 
-    public static List<Map> toResultList(List<Tag> tags) {
-        List<Map> list = new ArrayList(tags.size());
-        for (Tag tag : tags) {
-            Map<String, Object> tagMap = new HashMap(2);
-            tagMap.put("line", tag.getLine());
-            tagMap.put("name", '@' + tag.getText());
-            list.add(tagMap);
-        }
-        return list;
-    }
-
     public static String fromKarateOptionsTags(List<String> tags) {
         if (tags == null || tags.isEmpty()) {
             return null;

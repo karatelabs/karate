@@ -44,7 +44,7 @@ public class Result {
     private final Throwable error;
     private final boolean skipped;
 
-    public Map<String, Object> toMap() {
+    public Map<String, Object> toCucumberJson() {
         Map<String, Object> map = new HashMap(error == null ? 2 : 3);
         map.put("status", status);
         map.put("duration", durationNanos);
@@ -54,14 +54,30 @@ public class Result {
         return map;
     }
 
-    public Result(Map<String, Object> map) {
-        status = (String) map.get("status");
-        Number num = (Number) map.get("duration");
-        durationNanos = num == null ? 0 : num.longValue();
-        String errorMessage = (String) map.get("error_message");
-        error = errorMessage == null ? null : new KarateException(errorMessage);
-        aborted = false;
-        skipped = false;
+    public static Result fromKarateJson(Map<String, Object> map) {
+        String status = (String) map.get("status");
+        Number num = (Number) map.get("durationNanos");
+        long durationNanos = num == null ? 0 : num.longValue();
+        String errorMessage = (String) map.get("errorMessage");
+        Throwable error = errorMessage == null ? null : new KarateException(errorMessage);
+        Boolean aborted = (Boolean) map.get("aborted");
+        if (aborted == null) {
+            aborted = false;
+        }
+        return new Result(status, durationNanos, error, aborted);
+    }
+
+    public Map<String, Object> toKarateJson() {
+        Map<String, Object> map = new HashMap();
+        map.put("status", status);
+        map.put("durationNanos", durationNanos);
+        if (error != null) {
+            map.put("errorMessage", error.getMessage());
+        }
+        if (aborted) {
+            map.put("aborted", true);
+        }
+        return map;
     }
 
     private Result(String status, long nanos, Throwable error, boolean aborted) {

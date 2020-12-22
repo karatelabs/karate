@@ -181,6 +181,7 @@ public class Runner {
         boolean outputHtmlReport = true;
         boolean outputJunitXml;
         boolean outputCucumberJson;
+        boolean outputKarateJson;
         boolean dryRun;
         Map<String, String> systemProperties;
         JobConfig jobConfig;
@@ -201,14 +202,14 @@ public class Runner {
             String tempOptions = StringUtils.trimToNull(systemProperties.get(Constants.KARATE_OPTIONS));
             if (tempOptions != null) {
                 LOGGER.info("using system property '{}': {}", Constants.KARATE_OPTIONS, tempOptions);
-                Main ro = Main.parseKarateOptions(tempOptions);
-                if (ro.tags != null) {
-                    tags = ro.tags;
+                Main ko = Main.parseKarateOptions(tempOptions);
+                if (ko.tags != null) {
+                    tags = ko.tags;
                 }
-                if (ro.paths != null) {
-                    paths = ro.paths;
+                if (ko.paths != null) {
+                    paths = ko.paths;
                 }
-                dryRun = dryRun || ro.dryRun;
+                dryRun = ko.dryRun || dryRun;
             }
             String tempEnv = StringUtils.trimToNull(systemProperties.get(Constants.KARATE_ENV));
             if (tempEnv != null) {
@@ -280,7 +281,6 @@ public class Runner {
                 }
             }
             if (jobConfig != null) {
-                outputCucumberJson = true;
                 reportDir = jobConfig.getExecutorDir();
                 threadCount = jobConfig.getExecutorCount();
                 timeoutMinutes = jobConfig.getTimeoutMinutes();                
@@ -459,6 +459,11 @@ public class Runner {
             outputCucumberJson = value;
             return this;
         }
+        
+        public Builder outputKarateJson(boolean value) {
+            outputKarateJson = value;
+            return this;
+        }        
 
         public Builder outputJunitXml(boolean value) {
             outputJunitXml = value;

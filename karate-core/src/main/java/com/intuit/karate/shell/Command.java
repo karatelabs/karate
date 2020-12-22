@@ -364,7 +364,7 @@ public class Command extends Thread {
             // the consoles actually can take more time to flush even after the process has exited
             sysErr.join();
             sysOut.join();
-            LOGGER.debug("console readers complete");
+            LOGGER.trace("console readers complete");
             if (!sharedAppender) {
                 appender.close();
             }

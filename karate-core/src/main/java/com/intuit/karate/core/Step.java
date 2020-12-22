@@ -27,7 +27,9 @@ import com.intuit.karate.KarateException;
 import com.intuit.karate.resource.MemoryResource;
 import com.intuit.karate.resource.Resource;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
@@ -35,7 +37,6 @@ import java.util.List;
  */
 public class Step {
 
-    private final Feature feature;
     private final Scenario scenario;
     private final int index;
 
@@ -56,7 +57,7 @@ public class Step {
         if (!hasPrefix) {
             text = "* " + stepText;
         }
-        Resource resource = new MemoryResource(feature.getResource().getFile(), "Feature:\nScenario:\n" + text);
+        Resource resource = new MemoryResource(scenario.getFeature().getResource().getFile(), "Feature:\nScenario:\n" + text);
         Feature tempFeature = Feature.read(resource);
         Step tempStep = tempFeature.getStep(0, -1, 0);
         if (tempStep == null) {
@@ -69,7 +70,7 @@ public class Step {
     }
 
     public String getDebugInfo() {
-        return feature + ":" + line;
+        return scenario.getFeature() + ":" + line;
     }
 
     public boolean isPrint() {
@@ -80,14 +81,51 @@ public class Step {
         return "*".equals(prefix);
     }
 
-    protected Step() {
-        this(null, null, -1);
-    }
-
-    public Step(Feature feature, Scenario scenario, int index) {
-        this.feature = feature;
+    public Step(Scenario scenario, int index) {
         this.scenario = scenario;
         this.index = index;
+    }
+
+    public static Step fromKarateJson(Scenario scenario, Map<String, Object> map) {
+        int index = (Integer) map.get("index");
+        Step step = new Step(scenario, index);
+        int line = (Integer) map.get("line");
+        step.setLine(line);
+        Integer endLine = (Integer) map.get("endLine");
+        if (endLine == null) {
+            endLine = line;
+        }
+        step.setEndLine(endLine);
+        step.setComments((List) map.get("comments"));
+        step.setPrefix((String) map.get("prefix"));
+        step.setText((String) map.get("text"));
+        step.setDocString((String) map.get("docString"));
+        List<Map<String, Object>> table = (List) map.get("table");
+        if (table != null) {
+            step.setTable(Table.fromKarateJson(table));
+        }
+        return step;
+    }
+    
+    public Map<String, Object> toKarateJson() {
+        Map<String, Object> map = new HashMap();
+        map.put("index", index);
+        map.put("line", line);
+        if (endLine != line) {
+            map.put("endLine", endLine);
+        }
+        if (comments != null && !comments.isEmpty()) {
+            map.put("comments", comments);
+        }
+        map.put("prefix", prefix);
+        map.put("text", text);
+        if (docString != null) {
+            map.put("docString", docString);
+        }
+        if (table != null) {
+            map.put("table", table.toKarateJson());
+        }
+        return map;
     }
 
     public boolean isBackground() {
@@ -95,11 +133,7 @@ public class Step {
     }
 
     public boolean isOutline() {
-        return scenario != null && scenario.isOutline();
-    }
-
-    public Feature getFeature() {
-        return feature;
+        return scenario != null && scenario.isOutlineExample();
     }
 
     public Scenario getScenario() {
