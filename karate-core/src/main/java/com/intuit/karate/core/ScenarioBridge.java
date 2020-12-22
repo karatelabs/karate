@@ -264,16 +264,15 @@ public class ScenarioBridge implements PerfContext {
         return JsValue.fromJava(result.getValue());
     }
 
-    public String exec(List<String> args) {
-        return execInternal(Collections.singletonMap("args", args));
-    }
-
-    public String exec(String line) {
-        return execInternal(Collections.singletonMap("line", line));
-    }
-
     public String exec(Value value) {
-        return execInternal(new JsValue(value).getAsMap());
+        if (value.isString()) {
+            return execInternal(Collections.singletonMap("line", value.asString()));
+        } else if (value.hasArrayElements()) {
+            List args = new JsValue(value).getAsList();
+            return execInternal(Collections.singletonMap("args", args));
+        } else {
+            return execInternal(new JsValue(value).getAsMap());
+        }
     }
 
     private String execInternal(Map<String, Object> options) {
@@ -379,16 +378,15 @@ public class ScenarioBridge implements PerfContext {
         }
     }
 
-    public Command fork(List<String> args) {
-        return getEngine().fork(true, args);
-    }
-
-    public Command fork(String line) {
-        return getEngine().fork(true, line);
-    }
-
     public Command fork(Value value) {
-        return getEngine().fork(true, new JsValue(value).getAsMap());
+        if (value.isString()) {
+            return getEngine().fork(true, value.asString());
+        } else if (value.hasArrayElements()) {
+            List args = new JsValue(value).getAsList();
+            return getEngine().fork(true, args);
+        } else {
+            return getEngine().fork(true, new JsValue(value).getAsMap());
+        }
     }
 
     // TODO breaking returns actual object not wrapper
