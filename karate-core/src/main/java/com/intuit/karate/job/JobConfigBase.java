@@ -43,13 +43,14 @@ import org.slf4j.LoggerFactory;
 public abstract class JobConfigBase<T> implements JobConfig<T> {
 
     protected static final Logger logger = LoggerFactory.getLogger(JobConfigBase.class);
-
+    
     private final int executorCount;
     private final String host;
     private final int port;
     protected final List<String> sysPropKeys = new ArrayList(1);
     protected final List<String> envPropKeys = new ArrayList(1);
 
+    protected boolean startExecutors;
     protected String addOptions = "";
     protected String dockerImage = "ptrthomas/karate-chrome";
 
@@ -59,6 +60,10 @@ public abstract class JobConfigBase<T> implements JobConfig<T> {
         this.port = port;
         sysPropKeys.add("karate.env");
     }
+
+    public void setStartExecutors(boolean startExecutors) {
+        this.startExecutors = startExecutors;
+    }        
 
     public void setAddOptions(String addOptions) {
         this.addOptions = addOptions;
