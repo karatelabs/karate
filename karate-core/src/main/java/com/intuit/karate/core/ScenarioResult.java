@@ -91,7 +91,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     private static void recurse(List<Map> list, StepResult stepResult, int depth) {
         if (stepResult.getCallResults() != null) {
             for (FeatureResult fr : stepResult.getCallResults()) {
-                Step call = new Step(stepResult.getStep().getScenario(), -1);
+                Step call = new Step(stepResult.getStep().getFeature(), -1);
                 call.setLine(stepResult.getStep().getLine());
                 call.setPrefix(StringUtils.repeat('>', depth));
                 call.setText(fr.getCallName());

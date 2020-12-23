@@ -104,7 +104,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     }
 
     protected boolean isBreakpoint(Step step, int line) {
-        Feature feature = step.getScenario().getFeature();
+        Feature feature = step.getFeature();
         String path = feature.getResource().getFile().getPath();
         int pos = findPos(path);
         SourceBreakpoints sb;
@@ -149,12 +149,15 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         if (frameId == null) {
             return Collections.EMPTY_LIST;
         }
-
         String parentExpression = "";
         Map<String, Variable> vars = null;
         if (FRAME_VARS.containsKey(frameId)) {
             focusedFrameId = frameId;
-            vars = FRAME_VARS.get(frameId).peek();
+            Stack<Map<String, Variable>> varsStack = FRAME_VARS.get(frameId);
+            if (varsStack.isEmpty()) {
+                return Collections.EMPTY_LIST; // edge case, no variables were even created yet
+            }
+            vars = varsStack.peek();
         } else if (VARIABLES.containsKey(frameId)) {
             vars = new HashMap<>();
             Entry<String, Variable> varEntry = VARIABLES.get(frameId);
@@ -187,7 +190,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                     map.put("value", "(unknown)");
                 }
                 map.put("type", v.type.name());
-                if(v.type == LIST || v.type == MAP) {
+                if (v.type == LIST || v.type == MAP) {
                     VARIABLES.put(++nextVariablesReference, new SimpleEntry(finalParentExpression + k + ".", v));
                     map.put("presentationHint", "data");
                     map.put("variablesReference", nextVariablesReference);
@@ -358,7 +361,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     protected String evaluateVarExpression(Map<String, Variable> vars, String expression) {
         String result = "";
         try {
-            if(expression.contains(".")) {
+            if (expression.contains(".")) {
                 String varName = expression.substring(0, expression.indexOf('.'));
                 String path = expression.substring(expression.indexOf('.') + 1);
                 Object nested = Json.of(vars.get(varName).getValue()).get(path);

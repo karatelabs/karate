@@ -37,7 +37,8 @@ import java.util.Map;
  */
 public class Step {
 
-    private final Scenario scenario;
+    private final Feature feature;
+    private final Scenario scenario; // can be  null for background !!
     private final int index;
 
     private int line;
@@ -81,8 +82,19 @@ public class Step {
         return "*".equals(prefix);
     }
 
+    public Feature getFeature() {
+        return feature;
+    }        
+    
+    public Step(Feature feature, int index) {
+        this.feature = feature;
+        this.scenario = null;
+        this.index = index;
+    }    
+
     public Step(Scenario scenario, int index) {
         this.scenario = scenario;
+        this.feature = scenario.getFeature();
         this.index = index;
     }
 
@@ -134,10 +146,6 @@ public class Step {
 
     public boolean isOutline() {
         return scenario != null && scenario.isOutlineExample();
-    }
-
-    public Scenario getScenario() {
-        return scenario;
     }
 
     public int getIndex() {

@@ -251,7 +251,7 @@ public class Main implements Callable<Void> {
             }
         }
         logger = (Logger) LoggerFactory.getLogger("com.intuit.karate");
-        setLogLevelWarn("org.apache", "io.netty", "com.linecorp", "org.thymeleaf");
+        setLogLevelWarn("org.apache", "io.netty", "com.linecorp", "org.thymeleaf", "com.jayway");
         logger.info("Karate version: {}", FileUtils.KARATE_VERSION);
         CommandLine cmd = new CommandLine(new Main());
         int returnCode = cmd.execute(args);
