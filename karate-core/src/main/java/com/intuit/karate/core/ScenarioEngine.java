@@ -950,26 +950,26 @@ public class ScenarioEngine {
                     logger.debug("custom target configured, attempting stop()");
                     Map<String, Object> map = options.target.stop(logger);
                     String video = (String) map.get("video");
-                    if (video != null && lastStepResult != null) {
-                        File src = new File(video);
-                        File dest = runtime.embed(FileUtils.toBytes(src), ResourceType.MP4);
-                        logger.debug("appended video to report: {}", dest.getPath());
-                    }
+                    embedVideo(video);
                 } else {
                     if (options.afterStop != null) {
                         Command.execLine(null, options.afterStop);
                     }
-                    if (options.videoFile != null) {
-                        File src = new File(options.videoFile);
-                        if (src.exists()) {
-                            File dest = runtime.embed(FileUtils.toBytes(src), ResourceType.MP4);
-                            logger.debug("appended video to report: {}", dest.getPath());
-                        }
-                    }
+                    embedVideo(options.videoFile);
                 }
             }
             if (robot != null) {
                 robot.afterScenario();
+            }
+        }
+    }
+
+    private void embedVideo(String path) {
+        if (path != null) {
+            File videoFile = new File(path);
+            if (videoFile.exists()) {
+                Embed embed = runtime.embedVideo(videoFile);
+                logger.debug("appended video to report: {}", embed);
             }
         }
     }

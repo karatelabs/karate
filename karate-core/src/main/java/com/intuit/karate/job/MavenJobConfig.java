@@ -26,10 +26,12 @@ package com.intuit.karate.job;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.ScenarioRuntime;
+import com.intuit.karate.core.StepResult;
 import com.intuit.karate.http.ResourceType;
 import static com.intuit.karate.job.JobConfigBase.logger;
 import java.io.File;
@@ -66,11 +68,11 @@ public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
     @Override
     public ScenarioRuntime handleUpload(JobChunk<ScenarioRuntime> chunk, File upload) {
         ScenarioRuntime runtime = chunk.getValue();
-        File jsonFile = JobUtils.getFirstFileWithExtension(upload, "json");
+        File jsonFile = JobUtils.getFirstFileMatching(upload, n -> n.endsWith(".json"));
         if (jsonFile == null) {
             logger.warn("no karate json found in job executor result");
             return runtime;
-        }        
+        }
         String json = FileUtils.toString(jsonFile);
         Map<String, Object> map = Json.of(json).asMap();
         FeatureResult fr = FeatureResult.fromKarateJson(map);
@@ -81,13 +83,20 @@ public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
         ScenarioResult sr = fr.getScenarioResults().get(0);
         sr.setExecutorName(chunk.getExecutorId());
         sr.setStartTime(chunk.getStartTime());
-        sr.setEndTime(System.currentTimeMillis());        
+        sr.setEndTime(System.currentTimeMillis());
         synchronized (runtime.featureRuntime) {
             runtime.featureRuntime.result.addResult(sr);
         }
-        File videoFile = JobUtils.getFirstFileWithExtension(upload, "mp4");
+        String reportDir = runtime.featureRuntime.suite.reportDir;
+        for (File file : fr.getAllEmbedFiles()) {
+            File dest = new File(reportDir + File.separator + file.getName());
+            FileUtils.copy(file, dest);
+        }
+        File videoFile = JobUtils.getFirstFileMatching(upload, n -> n.endsWith("karate.mp4"));
         if (videoFile != null) {
-            runtime.embed(FileUtils.toBytes(videoFile), ResourceType.MP4);
+            StepResult stepResult = sr.addFakeStepResult("[video]", null);
+            Embed embed = runtime.saveToFileAndCreateEmbed(FileUtils.toBytes(videoFile), ResourceType.MP4);
+            stepResult.addEmbed(embed);
         }
         return runtime;
     }

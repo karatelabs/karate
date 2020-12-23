@@ -14,21 +14,6 @@ Feature: web 1
     When submit().click("input[name=btnI]")
     Then waitForUrl('https://github.com/intuit/karate')
 
-  Scenario: google search, land on the karate github page, and search for a file
-
-    Given driver 'https://google.com'
-    And input('input[name=q]', 'karate dsl')
-    When click('input[name=btnI]')
-    Then waitForUrl('https://github.com/intuit/karate')
-
-    When click('{a}Go to file')
-    And def searchField = waitFor('input[name=query]')
-    Then match driver.url == 'https://github.com/intuit/karate/find/master'
-
-    When searchField.input('karate-logo.png')
-    Then def searchResults = waitForResultCount('.js-tree-browser-result-path', 2, '_.innerText')
-    Then match searchResults contains 'karate-core/src/main/resources/karate-logo.png'
-
   Scenario: test-automation challenge
     Given driver 'https://semantic-ui.com/modules/dropdown.html'
     And def locator = "select[name=skills]"

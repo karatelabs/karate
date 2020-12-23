@@ -26,6 +26,7 @@ package com.intuit.karate.core;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.KarateException;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -61,6 +62,20 @@ public class FeatureResult {
         sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", getScenarioCount(), getPassedCount(), getFailedCount(), durationMillis / 1000));
         sb.append("---------------------------------------------------------\n");
         System.out.println(sb);
+    }
+
+    public List<File> getAllEmbedFiles() {
+        List<File> files = new ArrayList();
+        for (ScenarioResult sr : scenarioResults) {
+            for (StepResult stepResult : sr.getStepResults()) {
+                if (stepResult.getEmbeds() != null) {
+                    for (Embed embed : stepResult.getEmbeds()) {
+                        files.add(embed.getFile());
+                    }
+                }
+            }
+        }
+        return files;
     }
 
     public static FeatureResult fromKarateJson(Map<String, Object> map) {

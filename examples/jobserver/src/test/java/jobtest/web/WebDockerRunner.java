@@ -1,8 +1,8 @@
 package jobtest.web;
 
-import common.ReportUtils;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -19,8 +19,8 @@ public class WebDockerRunner {
         // docker exec -it -w /src karate bash
         // mvn clean test -Dtest=jobtest.web.WebDockerRunner
         System.setProperty("karate.env", "docker");
-        Results results = Runner.path("classpath:jobtest/web").outputCucumberJson(true).parallel(1);
-        ReportUtils.generateReport(results.getReportDir());
+        Results results = Runner.path("classpath:jobtest/web").parallel(1);
+        assertEquals(0, results.getFailCount(), results.getErrorMessages());
     }
 
 }

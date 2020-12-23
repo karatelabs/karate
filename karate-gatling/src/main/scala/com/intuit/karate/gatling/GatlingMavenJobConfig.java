@@ -105,7 +105,7 @@ public class GatlingMavenJobConfig extends JobConfigBase<Integer> {
         File[] dirs = upload.listFiles();
         for (File dir : dirs) {
             if (dir.isDirectory()) {
-                File file = JobUtils.getFirstFileWithExtension(dir, "log");
+                File file = JobUtils.getFirstFileMatching(dir, n -> n.endsWith(".log"));
                 if (file != null) {
                     FileUtils.copy(file, new File(gatlingReportDir + File.separator + "simulation_" + jc.getId() + ".log"));
                 }

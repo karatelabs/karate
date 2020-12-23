@@ -115,19 +115,26 @@ public class ScenarioRuntime implements Runnable {
         return scenario.getUniqueId() + "_" + System.currentTimeMillis() + (extension == null ? "" : "." + extension);
     }
 
-    public File embed(byte[] bytes, ResourceType resourceType) {
+    public Embed saveToFileAndCreateEmbed(byte[] bytes, ResourceType resourceType) {
         File file = new File(featureRuntime.suite.reportDir + File.separator + getEmbedFileName(resourceType));
         FileUtils.writeToFile(file, bytes);
-        embed(file, resourceType);
-        return file;
+        return new Embed(file, resourceType);
     }
 
-    public void embed(File file, ResourceType resourceType) {
+    public Embed embed(byte[] bytes, ResourceType resourceType) {
         if (embeds == null) {
             embeds = new ArrayList();
         }
-        Embed embed = new Embed(file, resourceType);
+        Embed embed = saveToFileAndCreateEmbed(bytes, resourceType);
         embeds.add(embed);
+        return embed;
+    }
+
+    public Embed embedVideo(File file) {
+        StepResult stepResult = result.addFakeStepResult("[video]", null);
+        Embed embed = saveToFileAndCreateEmbed(FileUtils.toBytes(file), ResourceType.MP4);
+        stepResult.addEmbed(embed);
+        return embed;
     }
 
     public void addCallResult(FeatureResult fr) {

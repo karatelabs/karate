@@ -59,6 +59,10 @@ public class Embed {
         return map;
     }
 
+    public File getFile() {
+        return file;
+    }        
+
     public ResourceType getResourceType() {
         return resourceType;
     }
@@ -102,5 +106,10 @@ public class Embed {
         }
         return map;
     }
+
+    @Override
+    public String toString() {
+        return file.toString();
+    }        
 
 }
