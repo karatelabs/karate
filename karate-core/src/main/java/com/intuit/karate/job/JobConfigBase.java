@@ -50,7 +50,7 @@ public abstract class JobConfigBase<T> implements JobConfig<T> {
     protected final List<String> sysPropKeys = new ArrayList(1);
     protected final List<String> envPropKeys = new ArrayList(1);
 
-    protected boolean startExecutors;
+    protected boolean startExecutors = true;
     protected String addOptions = "";
     protected String dockerImage = "ptrthomas/karate-chrome";
 
@@ -73,16 +73,15 @@ public abstract class JobConfigBase<T> implements JobConfig<T> {
 
     @Override
     public void onStart(String jobId, String jobUrl) {
-        int count = getExecutorCount();
-        if (count < 1) {
-            return;
-        }
-        executor = Executors.newFixedThreadPool(count);
-        for (int i = 0; i < count; i++) {
-            int index = i;
-            String command = getExecutorCommand(jobId, jobUrl, index);
-            if (command != null) {
-                executor.submit(() -> Command.execLine(null, command));
+        if (startExecutors) {
+            int count = getExecutorCount();
+            executor = Executors.newFixedThreadPool(count);
+            for (int i = 0; i < count; i++) {
+                int index = i;
+                String command = getExecutorCommand(jobId, jobUrl, index);
+                if (command != null) {
+                    executor.submit(() -> Command.execLine(null, command));
+                }
             }
         }
     }
