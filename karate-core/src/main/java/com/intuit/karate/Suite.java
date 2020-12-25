@@ -220,11 +220,8 @@ public class Suite implements Runnable {
             results.setEndTime(System.currentTimeMillis());
             if (outputHtmlReport) {
                 HtmlSummaryReport summary = new HtmlSummaryReport();
-                List<FeatureResult> featureResults = new ArrayList(featureResultFiles.size());
-                for (File file : featureResultFiles) {
-                    String json = FileUtils.toString(file);
-                    FeatureResult result = FeatureResult.fromKarateJson(workingDir, Json.of(json).asMap());
-                    featureResults.add(result);
+                List<FeatureResult> featureResults = getFeatureResults();
+                for (FeatureResult result : featureResults) {
                     int scenarioCount = result.getScenarioCount();
                     results.addToScenarioCount(scenarioCount);
                     if (scenarioCount != 0) {
@@ -287,6 +284,16 @@ public class Suite implements Runnable {
                 logger.trace("<<skip>> feature {} of {}: {}", index, featureCount, feature);
             }
         }
+    }
+
+    public List<FeatureResult> getFeatureResults() {
+        List<FeatureResult> featureResults = new ArrayList(featureResultFiles.size());
+        for (File file : featureResultFiles) {
+            String json = FileUtils.toString(file);
+            FeatureResult result = FeatureResult.fromKarateJson(workingDir, Json.of(json).asMap());
+            featureResults.add(result);
+        }
+        return featureResults;
     }
 
 }
