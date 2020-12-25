@@ -1417,7 +1417,6 @@ public class ScenarioEngine {
                             return EmbedAction.remove();
                         } else if (result.isObject() || result.isArray()) {
                             // preserve optional JSON chunk schema-like references as-is, they are needed for future match attempts
-                            // TODO similar XML schema intelligence
                             return null;
                         }
                         // and only substitute primitives ! 
@@ -1478,8 +1477,14 @@ public class ScenarioEngine {
                     value = value.substring(optional ? 2 : 1);
                     try {
                         JsValue jv = JS.eval(value);
-                        if (optional && jv.isNull()) {
-                            elementsToRemove.add(child);
+                        if (optional) {
+                            if (jv.isNull()) {
+                                elementsToRemove.add(child);
+                            } else if (jv.isXml() || jv.isObject()) {
+                                // preserve optional XML chunk schema-like references as-is, they are needed for future match attempts
+                            } else {
+                                child.setNodeValue(jv.getAsString());
+                            }
                         } else {
                             if (jv.isXml() || jv.isObject()) {
                                 Node evalNode = jv.isXml() ? jv.getValue() : XmlUtils.fromMap(jv.getValue());

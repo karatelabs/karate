@@ -472,3 +472,33 @@ Scenario: xml to map conversion should ignore comments
 """
 * def message = karate.xmlPath(temp, "/hello")
 * match message == "world"
+
+Scenario: xml matching involving karate-schema substitutions
+* def subSchema =
+"""
+<c>#string</c>
+"""
+* def schema =
+"""
+<root>
+  <a>#string</a>
+  <b>##(subSchema)</b>
+</root>
+"""
+* def test1 =
+"""
+<root>
+  <a>x</a>
+  <b>
+    <c>y</c>
+  </b>
+</root>
+"""
+* match test1 == schema
+* def test2 =
+"""
+<root>
+  <a>x</a>
+</root>
+"""
+* match test2 == schema
