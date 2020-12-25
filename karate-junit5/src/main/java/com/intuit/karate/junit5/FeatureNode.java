@@ -66,6 +66,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
             if (runtime.isSelectedForExecution()) {
                 if (featureRuntime.beforeHook()) { // minimal code duplication from feature-runtime
                     runtime.run();
+                    featureRuntime.result.addResult(runtime.result);
                 } else {
                     runtime.logger.info("before-feature hook returned [false], aborting: ", featureRuntime);
                 }

@@ -868,7 +868,7 @@ public class ScenarioEngine {
             if (v.isMap()) {
                 options.putAll(v.getValue());
             }
-            setDriver(DriverOptions.start(options, logger, runtime.getAppender()));
+            setDriver(DriverOptions.start(options, logger, runtime.getLogAppender()));
         }
         if (v.isString()) {
             driver.setUrl(v.getAsString());

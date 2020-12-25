@@ -178,6 +178,9 @@ public class FeatureRuntime implements Runnable {
                 } else {
                     sr.run();
                 }
+                synchronized (result) {
+                    result.addResult(sr.result);
+                }
             }
         } else {
             logger.trace("excluded by tags: {}", sr);

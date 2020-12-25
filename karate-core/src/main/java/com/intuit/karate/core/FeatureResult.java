@@ -26,6 +26,8 @@ package com.intuit.karate.core;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.KarateException;
+import com.intuit.karate.resource.Resource;
+import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,7 +47,6 @@ public class FeatureResult {
     private final List<Throwable> errors = new ArrayList<>();
 
     private String displayName; // mutable for users who want to customize
-    private double durationMillis;
 
     private Map<String, Object> resultVariables;
     private Map<String, Object> callArg;
@@ -59,7 +60,7 @@ public class FeatureResult {
         StringBuilder sb = new StringBuilder();
         sb.append("---------------------------------------------------------\n");
         sb.append("feature: ").append(featureName).append('\n');
-        sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", getScenarioCount(), getPassedCount(), getFailedCount(), durationMillis / 1000));
+        sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", getScenarioCount(), getPassedCount(), getFailedCount(), getDurationMillis() / 1000));
         sb.append("---------------------------------------------------------\n");
         System.out.println(sb);
     }
@@ -78,37 +79,30 @@ public class FeatureResult {
         return files;
     }
 
-    public static FeatureResult fromKarateJson(Map<String, Object> map) {
+    public static FeatureResult fromKarateJson(File workingDir, Map<String, Object> map) {
         String featurePath = (String) map.get("featurePath");
-        Feature feature = Feature.read(featurePath);
+        Resource resource = ResourceUtils.getResource(workingDir, featurePath);
+        Feature feature = Feature.read(resource);
         FeatureResult fr = new FeatureResult(feature);
         List<Map<String, Object>> list = (List) map.get("scenarioResults");
         if (list != null) {
             for (Map<String, Object> srMap : list) {
-                ScenarioResult sr = ScenarioResult.fromKarateJson(feature, srMap);
+                ScenarioResult sr = ScenarioResult.fromKarateJson(workingDir, feature, srMap);
                 fr.addResult(sr);
             }
         }
         return fr;
     }
 
-    public String toKarateJson() {
+    public Map<String, Object> toKarateJson() {
         Map<String, Object> map = new HashMap();
         map.put("featurePath", feature.getResource().getPrefixedPath());
-        map.put("scenarioResults", "@@replace@@");
-        //======================================================================
-        StringBuilder sb = new StringBuilder();
-        sb.append('[');
-        Iterator<ScenarioResult> iterator = scenarioResults.iterator();
-        while (iterator.hasNext()) {
-            ScenarioResult sr = iterator.next();
-            sb.append(JsonUtils.toJson(sr.toKarateJson()));
-            if (iterator.hasNext()) {
-                sb.append(',');
-            }
+        List<Map<String, Object>> list = new ArrayList(scenarioResults.size());
+        map.put("scenarioResults", list);
+        for (ScenarioResult sr : scenarioResults) {
+            list.add(sr.toKarateJson());
         }
-        sb.append(']');
-        return JsonUtils.toJson(map).replace("\"@@replace@@\"", sb);
+        return map;
     }
 
     public String toCucumberJson() {
@@ -236,7 +230,11 @@ public class FeatureResult {
     }
 
     public double getDurationMillis() {
-        return durationMillis;
+        long duration = 0;
+        for (ScenarioResult sr : scenarioResults) {
+            duration += Engine.nanosToMillis(sr.getDurationNanos());
+        }
+        return duration;
     }
 
     public int getFailedCount() {
@@ -269,7 +267,6 @@ public class FeatureResult {
 
     public void addResult(ScenarioResult result) {
         scenarioResults.add(result);
-        durationMillis += Engine.nanosToMillis(result.getDurationNanos());
         if (result.isFailed()) {
             Scenario scenario = result.getScenario();
             if (scenario.isOutlineExample()) {

@@ -24,7 +24,6 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.Results;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.JsonUtils;
@@ -180,9 +179,9 @@ public abstract class HtmlReport {
         return file;
     }
 
-    public static File saveTimeline(String targetDir, Results results, String fileName) {
+    public static File saveTimeline(String targetDir, List<FeatureResult> results) {
         Map<String, Integer> groupsMap = new LinkedHashMap();
-        Stream<ScenarioResult> scenarioResults = results.getFeatureResults().stream().flatMap(fr -> fr.getScenarioResults().stream());
+        Stream<ScenarioResult> scenarioResults = results.stream().flatMap(fr -> fr.getScenarioResults().stream());
         List<Map> items = new ArrayList();
         AtomicInteger id = new AtomicInteger();
         DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss.SSS");
@@ -232,10 +231,7 @@ public abstract class HtmlReport {
                 + "timeline.setOptions({ groupOrder: 'content' });\n"
                 + "timeline.setGroups(groups);\n"
                 + "timeline.setItems(items);\n");
-        if (fileName == null) {
-            fileName = File.separator + "timeline.html";
-        }
-        File htmlFile = new File(targetDir + fileName);
+        File htmlFile = new File(targetDir + File.separator + "timeline.html");
         String html = getResourceAsString("timeline-template.html");
         html = html.replace("//timeline//", sb.toString());
         FileUtils.writeToFile(htmlFile, html);

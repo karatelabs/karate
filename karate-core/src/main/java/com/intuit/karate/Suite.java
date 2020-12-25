@@ -40,8 +40,10 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -70,13 +72,13 @@ public class Suite implements Runnable {
     public final int timeoutMinutes;
     public final List<Feature> features;
     public final Results results;
+    public final Set<File> featureResultFiles;
     public final Collection<RuntimeHook> hooks;
     public final HttpClientFactory clientFactory;
     public final Map<String, String> systemProperties;
 
     public final boolean outputHtmlReport;
     public final boolean outputCucumberJson;
-    public final boolean outputKarateJson;
     public final boolean outputJunitXml;
 
     public final boolean parallel;
@@ -116,7 +118,6 @@ public class Suite implements Runnable {
             dryRun = false;
             outputHtmlReport = false;
             outputCucumberJson = false;
-            outputKarateJson = false;
             outputJunitXml = false;
             classLoader = Thread.currentThread().getContextClassLoader();
             clientFactory = HttpClientFactory.DEFAULT;
@@ -130,6 +131,7 @@ public class Suite implements Runnable {
             hooks = null;
             features = null;
             results = null;
+            featureResultFiles = null;
             workingDir = FileUtils.WORKING_DIR;
             buildDir = FileUtils.getBuildDir();
             reportDir = null;
@@ -146,7 +148,6 @@ public class Suite implements Runnable {
             rb.resolveAll();
             outputHtmlReport = rb.outputHtmlReport;
             outputCucumberJson = rb.outputCucumberJson;
-            outputKarateJson = rb.outputKarateJson;
             outputJunitXml = rb.outputJunitXml;
             dryRun = rb.dryRun;
             classLoader = rb.classLoader;
@@ -157,6 +158,7 @@ public class Suite implements Runnable {
             hooks = rb.hooks;
             features = rb.features;
             results = new Results(this);
+            featureResultFiles = new HashSet();
             workingDir = rb.workingDir;
             buildDir = rb.buildDir;
             reportDir = rb.reportDir;
@@ -197,7 +199,6 @@ public class Suite implements Runnable {
                 futures.add(future);
                 final int featureNum = ++index;
                 FeatureRuntime fr = FeatureRuntime.of(this, feature);
-                results.addFeatureResult(fr.result);
                 fr.setNext(() -> {
                     onFeatureDone(fr, featureNum);
                     future.complete(Boolean.TRUE);
@@ -219,7 +220,11 @@ public class Suite implements Runnable {
             results.setEndTime(System.currentTimeMillis());
             if (outputHtmlReport) {
                 HtmlSummaryReport summary = new HtmlSummaryReport();
-                for (FeatureResult result : results.getFeatureResults()) {
+                List<FeatureResult> featureResults = new ArrayList(featureResultFiles.size());
+                for (File file : featureResultFiles) {
+                    String json = FileUtils.toString(file);
+                    FeatureResult result = FeatureResult.fromKarateJson(workingDir, Json.of(json).asMap());
+                    featureResults.add(result);
                     int scenarioCount = result.getScenarioCount();
                     results.addToScenarioCount(scenarioCount);
                     if (scenarioCount != 0) {
@@ -238,7 +243,7 @@ public class Suite implements Runnable {
                 // saving reports can in rare cases throw errors, so do all this within try-catch
                 summary.save(reportDir);
                 Engine.saveStatsJson(reportDir, results);
-                HtmlReport.saveTimeline(reportDir, results, null);
+                HtmlReport.saveTimeline(reportDir, featureResults);
             }
             results.printStats();
             hooks.forEach(h -> h.afterSuite(this));
@@ -258,15 +263,16 @@ public class Suite implements Runnable {
         FeatureResult result = fr.result;
         Feature feature = fr.feature;
         if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags
-            try { // edge case that reports are not writable
+            try { // edge case that reports are not writable     
+                File file = Engine.saveKarateJson(reportDir, result, null);
+                synchronized (featureResultFiles) {
+                    featureResultFiles.add(file);
+                }
                 if (outputCucumberJson) {
                     Engine.saveCucumberJson(reportDir, result, null);
                 }
                 if (outputJunitXml) {
                     Engine.saveJunitXml(reportDir, result, null);
-                }
-                if (outputKarateJson) {
-                    Engine.saveKarateJson(reportDir, result, null);
                 }
                 String status = result.isFailed() ? "fail" : "pass";
                 logger.info("<<{}>> feature {} of {}: {}", status, index, featureCount, feature);

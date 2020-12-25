@@ -24,6 +24,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.Json;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -64,38 +65,54 @@ public class StepResult {
         stepLog = stepLog + log;
     }
 
-    public static StepResult fromKarateJson(Scenario scenario, Map<String, Object> map) {
+    public void setStepLog(String stepLog) {
+        this.stepLog = stepLog;
+    }
+
+    public void setCallResults(List<FeatureResult> callResults) {
+        this.callResults = callResults;
+    }
+
+    public void addEmbeds(List<Embed> value) {
+        if (value != null) {
+            if (embeds == null) {
+                embeds = new ArrayList();
+            }
+            embeds.addAll(value);
+        }
+    }
+
+    public void setCallResultsFromKarateJson(File workingDir, List<Map<String, Object>> list) {
+        if (list != null) {
+            callResults = new ArrayList(list.size());
+            for (Map<String, Object> map : list) {
+                FeatureResult fr = FeatureResult.fromKarateJson(workingDir, map);
+                callResults.add(fr);
+            }
+        }
+    }
+
+    public static StepResult fromKarateJson(File workingDir, Scenario scenario, Map<String, Object> map) {
         Map<String, Object> stepMap = (Map) map.get("step");
         Step step = Step.fromKarateJson(scenario, stepMap);
         Result result = Result.fromKarateJson((Map) map.get("result"));
-        String stepLog = (String) map.get("stepLog");
-        List<Map<String, Object>> embedsList = (List) map.get("embeds");
-        List<Embed> embeds;
-        if (embedsList != null) {
-            embeds = new ArrayList(embedsList.size());
-            for (Map<String, Object> embedMap : embedsList) {
-                Embed embed = Embed.fromKarateJson(embedMap);
-                embeds.add(embed);
-            }
-        } else {
-            embeds = null;
-        }
-        List<Map<String, Object>> callResultsList = (List) map.get("callResults");
-        List<FeatureResult> callResults;
-        if (callResultsList != null) {
-            callResults = new ArrayList(callResultsList.size());
-            for (Map<String, Object> callResultsMap : callResultsList) {
-                FeatureResult fr = FeatureResult.fromKarateJson(callResultsMap);
-                callResults.add(fr);
-            }
-        } else {
-            callResults = null;
-        }
-        StepResult sr = new StepResult(step, result, stepLog, embeds, callResults);
+        StepResult sr = new StepResult(step, result);
         Boolean hidden = (Boolean) map.get("hidden");
         if (hidden != null) {
             sr.setHidden(hidden);
         }
+        String stepLog = (String) map.get("stepLog");
+        sr.setStepLog(stepLog);
+        List<Map<String, Object>> embedsList = (List) map.get("embeds");        
+        if (embedsList != null) {
+            List<Embed> embeds = new ArrayList(embedsList.size());
+            for (Map<String, Object> embedMap : embedsList) {
+                Embed embed = Embed.fromKarateJson(embedMap);
+                embeds.add(embed);
+            }
+            sr.addEmbeds(embeds);
+        }    
+        sr.setCallResultsFromKarateJson(workingDir, (List) map.get("callResults"));
         return sr;
     }
 
@@ -198,12 +215,9 @@ public class StepResult {
         return result.isFailed() || result.isAborted();
     }
 
-    public StepResult(Step step, Result result, String stepLog, List<Embed> embeds, List<FeatureResult> callResults) {
+    public StepResult(Step step, Result result) {
         this.step = step;
         this.result = result;
-        this.stepLog = stepLog;
-        this.embeds = embeds;
-        this.callResults = callResults;
     }
 
     public Step getStep() {

@@ -29,7 +29,7 @@ class ScenarioResultTest {
         File file = HtmlFeatureReport.saveFeatureResult("target/temp1", fr.result);
         logger.debug("saved report1: {}", file.getAbsolutePath());
         Map<String, Object> json1 = Json.of(fr.result.toKarateJson()).asMap();
-        FeatureResult temp = FeatureResult.fromKarateJson(json1);
+        FeatureResult temp = FeatureResult.fromKarateJson(fr.suite.workingDir, json1);
         file = HtmlFeatureReport.saveFeatureResult("target/temp2", temp);
         logger.debug("saved report2: {}", file.getAbsolutePath());
         Map<String, Object> json2 = Json.of(temp.toKarateJson()).asMap();

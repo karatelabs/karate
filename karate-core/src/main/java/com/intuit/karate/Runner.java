@@ -181,7 +181,6 @@ public class Runner {
         boolean outputHtmlReport = true;
         boolean outputJunitXml;
         boolean outputCucumberJson;
-        boolean outputKarateJson;
         boolean dryRun;
         Map<String, String> systemProperties;
         JobConfig jobConfig;
@@ -458,12 +457,7 @@ public class Runner {
         public Builder outputCucumberJson(boolean value) {
             outputCucumberJson = value;
             return this;
-        }
-        
-        public Builder outputKarateJson(boolean value) {
-            outputKarateJson = value;
-            return this;
-        }        
+        }      
 
         public Builder outputJunitXml(boolean value) {
             outputJunitXml = value;

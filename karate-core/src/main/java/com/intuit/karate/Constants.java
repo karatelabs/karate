@@ -38,6 +38,7 @@ public class Constants {
     public static final String KARATE_OUTPUT_DIR = "karate.output.dir";
     public static final String KARATE_OPTIONS = "karate.options";
     public static final String KARATE_REPORTS = "karate-reports";
+    public static final String KARATE_JSON_SUFFIX = ".karate.txt";
     
     public static final byte[] ZERO_BYTES = new byte[0];
 

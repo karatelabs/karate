@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.job;
 
+import com.intuit.karate.Constants;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.StringUtils;
@@ -55,7 +56,7 @@ public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
         String path = scenario.getFeature().getResource().getPrefixedPath();
         int line = scenario.getLine();
         String temp = "mvn exec:java -Dexec.mainClass=com.intuit.karate.Main -Dexec.classpathScope=test"
-                + " \"-Dexec.args=-f karate " + path + ":" + line + "\"";
+                + " \"-Dexec.args=" + path + ":" + line + "\"";
         for (String k : sysPropKeys) {
             String v = StringUtils.trimToEmpty(System.getProperty(k));
             if (!v.isEmpty()) {
@@ -68,14 +69,14 @@ public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
     @Override
     public ScenarioRuntime handleUpload(JobChunk<ScenarioRuntime> chunk, File upload) {
         ScenarioRuntime runtime = chunk.getValue();
-        File jsonFile = JobUtils.getFirstFileMatching(upload, n -> n.endsWith(".json"));
+        File jsonFile = JobUtils.getFirstFileMatching(upload, n -> n.endsWith(Constants.KARATE_JSON_SUFFIX));
         if (jsonFile == null) {
             logger.warn("no karate json found in job executor result");
             return runtime;
         }
         String json = FileUtils.toString(jsonFile);
         Map<String, Object> map = Json.of(json).asMap();
-        FeatureResult fr = FeatureResult.fromKarateJson(map);
+        FeatureResult fr = FeatureResult.fromKarateJson(runtime.featureRuntime.suite.workingDir, map);
         if (fr.getScenarioResults().isEmpty()) {
             logger.warn("executor feature result is empty");
             return runtime;

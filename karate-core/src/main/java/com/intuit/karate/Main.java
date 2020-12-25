@@ -280,11 +280,9 @@ public class Main implements Callable<Void> {
             return null;
         }
         boolean outputCucumberJson = false;
-        boolean outputKarateJson = false;
         boolean outputJunitXml = false;
         if (formats != null) {
             outputCucumberJson = formats.contains("cucumber");
-            outputKarateJson = formats.contains("karate");
             outputJunitXml = formats.contains("junit");
         }
         if (paths != null) {
@@ -295,7 +293,6 @@ public class Main implements Callable<Void> {
                     .buildDir(output)
                     .configDir(configDir)
                     .outputCucumberJson(outputCucumberJson)
-                    .outputKarateJson(outputKarateJson)
                     .outputJunitXml(outputJunitXml)
                     .dryRun(dryRun)
                     .hooks(createHooks())

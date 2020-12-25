@@ -122,7 +122,7 @@ public class DebugThread implements RuntimeHook, LogAppender {
         if (context.caller.depth == 0) {
             handler.THREADS.put(id, this);
         }
-        appender = context.getAppender();
+        appender = context.getLogAppender();
         context.logger.setAppender(this); // wrap       
         return true;
     }
