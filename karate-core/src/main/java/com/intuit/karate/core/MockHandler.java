@@ -131,8 +131,6 @@ public class MockHandler implements ServerHandler {
         LOCAL_REQUEST.set(req);
         req.processBody();
         ScenarioEngine engine = new ScenarioEngine(runtime, new HashMap(globals));
-        // highly unlikely but support mocks calling other mocks in the same jvm
-        ScenarioEngine prevEngine = ScenarioEngine.get();
         ScenarioEngine.set(engine);
         engine.init();
         engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
@@ -177,7 +175,6 @@ public class MockHandler implements ServerHandler {
                 responseHeaders = engine.vars.remove(ScenarioEngine.RESPONSE_HEADERS);
                 responseDelay = engine.vars.remove(RESPONSE_DELAY);
                 globals.putAll(engine.detachVariables());
-                ScenarioEngine.set(prevEngine);
                 Response res = new Response(200);
                 if (result.isFailed()) {
                     response = new Variable(result.getError().getMessage());
@@ -209,7 +206,6 @@ public class MockHandler implements ServerHandler {
                 return res;
             }
         }
-        ScenarioEngine.set(prevEngine);
         runtime.logger.warn("no scenarios matched, returning 404: {}", req);
         return new Response(404);
     }
