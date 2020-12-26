@@ -135,20 +135,17 @@ public class ScenarioRuntime implements Runnable {
         return embed;
     }
 
-    private int callResultCount;
+    private List<FeatureResult> callResults;
 
     public void addCallResult(FeatureResult fr) {
-        if (callAppender == null) {
-            callAppender = CALL_APPENDER.get();
+        if (callResults == null) {
+            callResults = new ArrayList();
         }
-        callResultCount++;
-        callAppender.append(JsonUtils.toJson(fr.toKarateJson()));
-        callAppender.append(",\n");
+        callResults.add(fr);
     }
 
     private LogAppender logAppender;
     private LogAppender resultAppender;
-    private LogAppender callAppender;
 
     public LogAppender getLogAppender() {
         return logAppender;
@@ -168,15 +165,6 @@ public class ScenarioRuntime implements Runnable {
         protected LogAppender initialValue() {
             String fileName = FileUtils.getBuildDir() + File.separator + "karate-"
                     + Thread.currentThread().getName() + ".txt";
-            return new FileLogAppender(new File(fileName));
-        }
-    };
-
-    private static final ThreadLocal<LogAppender> CALL_APPENDER = new ThreadLocal<LogAppender>() {
-        @Override
-        protected LogAppender initialValue() {
-            String fileName = FileUtils.getBuildDir() + File.separator + "karate-"
-                    + Thread.currentThread().getName() + "-call.txt";
             return new FileLogAppender(new File(fileName));
         }
     };
@@ -410,12 +398,12 @@ public class ScenarioRuntime implements Runnable {
                     resultAppender.append(",\n");
                 }
             }
+            List<Map<String, Object>> list = Json.of("[" + resultAppender.collect() + "]").asList();
+            list.forEach(m -> result.addStepResult(StepResult.fromKarateJson(featureRuntime.suite.workingDir, scenario, m)));
         } catch (Exception e) {
             logError("scenario [run] failed\n" + e.getMessage());
             currentStepResult = result.addFakeStepResult("scenario [run] failed", e);
         } finally {
-            List<Map<String, Object>> list = Json.of("[" + resultAppender.collect() + "]").asList();
-            list.forEach(m -> result.addStepResult(StepResult.fromKarateJson(featureRuntime.suite.workingDir, scenario, m)));
             if (!scenario.isDynamic()) { // don't add "fake" scenario to feature results
                 afterRun();
             }
@@ -501,10 +489,9 @@ public class ScenarioRuntime implements Runnable {
         if (showLog) {
             currentStepResult.appendToStepLog(stepLog);
         }
-        if (callResultCount > 0) {
-            callResultCount = 0;
-            List<Map<String, Object>> list = Json.of("[" + callAppender.collect() + "]").asList();
-            currentStepResult.setCallResultsFromKarateJson(featureRuntime.suite.workingDir, list);
+        if (callResults != null) {
+            currentStepResult.addCallResults(callResults);
+            callResults = null;
         }
         if (embeds != null) {
             currentStepResult.addEmbeds(embeds);
