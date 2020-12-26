@@ -81,7 +81,8 @@ public class Karate extends ParentRunner<Feature> {
                 Runner.Builder rb = Runner.builder().fromKarateAnnotation(annotatedClass);
                 rb.hook(hook);
                 rb.features(features);
-                Karate.this.suite = new Suite(rb);
+                suite = new Suite(rb);
+                suite.backupReportDirIfExists();
                 statement.evaluate();
             }
         };

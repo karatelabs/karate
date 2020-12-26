@@ -168,7 +168,9 @@ public class JobExecutor {
             FileUtils.writeToFile(logFile, log);
             String zipBase = executorDir + "_" + chunkId.get();
             File toZip = new File(zipBase);
-            executorDirFile.renameTo(toZip);
+            if (!executorDirFile.renameTo(toZip)) {
+                logger.warn("failed to rename old executor dir: {}", executorDirFile);
+            }
             File toUpload = new File(zipBase + ".zip");
             JobUtils.zip(toZip, toUpload);
             byte[] upload = toBytes(toUpload);

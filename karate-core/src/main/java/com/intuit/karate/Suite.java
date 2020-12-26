@@ -296,4 +296,14 @@ public class Suite implements Runnable {
         return featureResults;
     }
 
+    public void backupReportDirIfExists() {
+        File file = new File(reportDir);
+        if (file.exists()) {
+            File dest = new File(reportDir + "_" + System.currentTimeMillis());
+            if (!file.renameTo(dest)) {
+                logger.warn("failed to backup existing dir: {}", file);
+            }
+        }
+    }
+
 }

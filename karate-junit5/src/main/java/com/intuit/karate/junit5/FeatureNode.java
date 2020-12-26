@@ -33,6 +33,8 @@ import com.intuit.karate.core.ScenarioIterator;
 import com.intuit.karate.core.ScenarioRuntime;
 
 import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DynamicTest;
 
@@ -42,15 +44,20 @@ import org.junit.jupiter.api.DynamicTest;
  */
 public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest> {
 
+    public final List<CompletableFuture> futures;
     public final Suite suite;
     public final HtmlSummaryReport summary;
     public final FeatureRuntime featureRuntime;
     private final Iterator<ScenarioRuntime> scenarios;
 
-    public FeatureNode(Suite suite, HtmlSummaryReport summary, Feature feature, String tagSelector) {
+    public FeatureNode(Suite suite, List<CompletableFuture> futures, HtmlSummaryReport summary, Feature feature, String tagSelector) {
         this.suite = suite;
+        this.futures = futures;
         this.summary = summary;
         featureRuntime = FeatureRuntime.of(suite, feature);
+        CompletableFuture future = new CompletableFuture();
+        futures.add(future);
+        featureRuntime.setNext(() -> future.complete(Boolean.TRUE));
         scenarios = new ScenarioIterator(featureRuntime).iterator();
     }
 
@@ -80,6 +87,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
                     HtmlFeatureReport.saveFeatureResult(suite.reportDir, result);
                     summary.addFeatureResult(result);
                 }
+                saveSummaryIfAllComplete();
             }
             if (failed) {
                 Assertions.fail(runtime.result.getError().getMessage());
@@ -90,6 +98,15 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     @Override
     public Iterator<DynamicTest> iterator() {
         return this;
+    }
+
+    private void saveSummaryIfAllComplete() {
+        for (CompletableFuture cf : futures) {
+            if (!cf.isDone()) {
+                return;
+            }
+        }
+        summary.save(suite.reportDir);
     }
 
 }

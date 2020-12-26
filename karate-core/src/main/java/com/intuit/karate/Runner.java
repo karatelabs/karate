@@ -282,7 +282,7 @@ public class Runner {
             if (jobConfig != null) {
                 reportDir = jobConfig.getExecutorDir();
                 threadCount = jobConfig.getExecutorCount();
-                timeoutMinutes = jobConfig.getTimeoutMinutes();                
+                timeoutMinutes = jobConfig.getTimeoutMinutes();
             }
             if (threadCount < 1) {
                 threadCount = 1;
@@ -433,7 +433,6 @@ public class Runner {
             return this;
         }
 
-
         public Builder hookFactory(RuntimeHookFactory hookFactory) {
             this.hookFactory = hookFactory;
             return this;
@@ -457,7 +456,7 @@ public class Runner {
         public Builder outputCucumberJson(boolean value) {
             outputCucumberJson = value;
             return this;
-        }      
+        }
 
         public Builder outputJunitXml(boolean value) {
             outputJunitXml = value;
@@ -468,10 +467,11 @@ public class Runner {
             dryRun = value;
             return this;
         }
-        
+
         public Results jobManager(JobConfig value) {
             jobConfig = value;
             Suite suite = new Suite(this);
+            suite.backupReportDirIfExists();
             suite.run();
             return suite.results;
         }
@@ -479,6 +479,7 @@ public class Runner {
         public Results parallel(int threadCount) {
             threads(threadCount);
             Suite suite = new Suite(this);
+            suite.backupReportDirIfExists();
             suite.run();
             return suite.results;
         }
