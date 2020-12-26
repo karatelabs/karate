@@ -92,7 +92,7 @@ public class Suite implements Runnable {
     public final String karateConfig;
     public final String karateConfigEnv;
 
-    public final Map<String, Object> SUITE_CACHE = new HashMap();
+    public final Map<String, Object> suiteCache;
 
     private String read(String name) {
         try {
@@ -142,6 +142,7 @@ public class Suite implements Runnable {
             featureCount = -1;
             scenarioExecutor = null;
             pendingTasks = null;
+            suiteCache = null;
             jobManager = null;
         } else {
             startTime = System.currentTimeMillis();
@@ -157,6 +158,7 @@ public class Suite implements Runnable {
             tagSelector = Tags.fromKarateOptionsTags(rb.tags);
             hooks = rb.hooks;
             features = rb.features;
+            suiteCache = rb.suiteCache;
             results = new Results(this);
             featureResultFiles = new HashSet();
             workingDir = rb.workingDir;

@@ -164,7 +164,7 @@ public class ScenarioBridge implements PerfContext {
 
     public Object callSingle(String fileName, Object arg) throws Exception {
         ScenarioEngine engine = getEngine();
-        final Map<String, Object> CACHE = engine.runtime.featureRuntime.suite.SUITE_CACHE;
+        final Map<String, Object> CACHE = engine.runtime.featureRuntime.suite.suiteCache;
         if (CACHE.containsKey(fileName)) {
             engine.logger.trace("callSingle cache hit: {}", fileName);
             return fromCache(CACHE.get(fileName));

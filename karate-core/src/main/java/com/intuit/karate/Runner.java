@@ -74,6 +74,7 @@ public class Runner {
     public static void callAsync(String path, List<String> tags, Map<String, Object> arg, PerfHook perfHook) {
         Builder builder = new Builder();
         builder.tags = tags;
+        builder.suiteCache = perfHook.getGlobalCache(); // for call-single to lock across all threads
         Suite suite = new Suite(builder); // sets tag selector
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, arg, perfHook);
@@ -183,6 +184,7 @@ public class Runner {
         boolean outputCucumberJson;
         boolean dryRun;
         Map<String, String> systemProperties;
+        Map<String, Object> suiteCache;
         JobConfig jobConfig;
 
         public List<Feature> resolveAll() {
@@ -278,6 +280,9 @@ public class Runner {
                 for (Feature feature : features) {
                     feature.setCallName(scenarioName);
                 }
+            }
+            if (suiteCache == null) {
+                suiteCache = new HashMap();
             }
             if (jobConfig != null) {
                 reportDir = jobConfig.getExecutorDir();
@@ -465,6 +470,11 @@ public class Runner {
 
         public Builder dryRun(boolean value) {
             dryRun = value;
+            return this;
+        }
+
+        public Builder suiteCache(Map<String, Object> value) {
+            suiteCache = value;
             return this;
         }
 

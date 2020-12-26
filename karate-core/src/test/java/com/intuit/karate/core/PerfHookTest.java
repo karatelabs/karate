@@ -5,6 +5,7 @@ import com.intuit.karate.Runner;
 import static com.intuit.karate.TestUtils.*;
 import com.intuit.karate.http.HttpRequest;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -142,10 +143,11 @@ class PerfHookTest {
         }
         assertNull(eventName);
         assertNull(featureResult);
-    }  
+    }
 
     String eventName;
     FeatureResult featureResult;
+    static Map<String, Object> globalCache = new HashMap();
 
     PerfHook perfHook = new PerfHook() {
 
@@ -171,6 +173,12 @@ class PerfHookTest {
             featureResult = fr;
             logger.debug("afterFeature called");
         }
+
+        @Override
+        public Map<String, Object> getGlobalCache() {
+            return globalCache;
+        }
+
     };
 
 }

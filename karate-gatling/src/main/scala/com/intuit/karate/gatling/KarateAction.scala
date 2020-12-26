@@ -17,6 +17,10 @@ import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration, MILLISECONDS}
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 
+object KarateAction {
+  val GLOBAL_CACHE = new java.util.HashMap[String, AnyRef]
+}
+
 class KarateAction(val name: String, val tags: Seq[String], val protocol: KarateProtocol, val system: ActorSystem,
                    val statsEngine: StatsEngine, val clock: Clock, val next: Action) extends ExitableAction {
 
@@ -67,6 +71,9 @@ class KarateAction(val name: String, val tags: Seq[String], val protocol: Karate
           next ! session.setAll(attributes)
         }
       }
+
+      override def getGlobalCache = KarateAction.GLOBAL_CACHE
+
     }
 
     val pauseFunction: Consumer[java.lang.Number] = t => pause(t.intValue())
