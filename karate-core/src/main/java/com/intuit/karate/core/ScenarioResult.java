@@ -83,6 +83,12 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         return sr;
     }
     
+    public void addStepResults(List<StepResult> value) {
+        if (value != null) {
+            value.forEach(this::addStepResult);
+        }
+    }
+    
     public void addStepResult(StepResult stepResult) {
         stepResults.add(stepResult);
         Result result = stepResult.getResult();
@@ -133,7 +139,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         int exampleIndex = (Integer) map.get("example");
         FeatureSection section = feature.getSection(sectionIndex);
         Scenario scenario = new Scenario(feature, section, exampleIndex);
-        ScenarioResult sr = new ScenarioResult(scenario, null);
+        ScenarioResult sr = new ScenarioResult(scenario);
         String executorName = (String) map.get("executorName");
         Number startTime = (Number) map.get("startTime");
         Number endTime = (Number) map.get("endTime");
@@ -209,11 +215,8 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         return map;
     }
     
-    public ScenarioResult(Scenario scenario, List<StepResult> stepResults) {
+    public ScenarioResult(Scenario scenario) {
         this.scenario = scenario;
-        if (stepResults != null) {
-            this.stepResults.addAll(stepResults);
-        }
     }
     
     public Scenario getScenario() {

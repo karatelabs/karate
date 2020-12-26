@@ -84,13 +84,13 @@ public class Step {
 
     public Feature getFeature() {
         return feature;
-    }        
-    
+    }
+
     public Step(Feature feature, int index) {
         this.feature = feature;
         this.scenario = null;
         this.index = index;
-    }    
+    }
 
     public Step(Scenario scenario, int index) {
         this.scenario = scenario;
@@ -100,7 +100,11 @@ public class Step {
 
     public static Step fromKarateJson(Scenario scenario, Map<String, Object> map) {
         int index = (Integer) map.get("index");
-        Step step = new Step(scenario, index);
+        Boolean background = (Boolean) map.get("background");
+        if (background == null) {
+            background = false;
+        }
+        Step step = background ? new Step(scenario.getFeature(), index) : new Step(scenario, index);
         int line = (Integer) map.get("line");
         step.setLine(line);
         Integer endLine = (Integer) map.get("endLine");
@@ -118,9 +122,12 @@ public class Step {
         }
         return step;
     }
-    
+
     public Map<String, Object> toKarateJson() {
         Map<String, Object> map = new HashMap();
+        if (isBackground()) {
+            map.put("background", true);
+        }
         map.put("index", index);
         map.put("line", line);
         if (endLine != line) {

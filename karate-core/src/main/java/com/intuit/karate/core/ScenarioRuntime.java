@@ -33,6 +33,7 @@ import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.FileLogAppender;
+import com.intuit.karate.shell.StringLogAppender;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -81,10 +82,9 @@ public class ScenarioRuntime implements Runnable {
         this.scenario = scenario;
         magicVariables = initMagicVariables(); // depends on scenario
         this.background = background; // used only to check which steps remain
-        if (background == null) {
-            result = new ScenarioResult(scenario, null);
-        } else {
-            result = new ScenarioResult(scenario, background.result.getStepResults());
+        result = new ScenarioResult(scenario);
+        if (background != null) {
+            result.addStepResults(background.result.getStepResults());
         }
         tags = scenario.getTagsEffective();
         if (featureRuntime.perfHook != null) {
@@ -92,6 +92,9 @@ public class ScenarioRuntime implements Runnable {
             reportDisabled = true;
         } else {
             reportDisabled = tags.valuesFor("report").isAnyOf("false");
+        }
+        if (!featureRuntime.caller.isNone()) {
+            resultAppender = new StringLogAppender(true);
         }
         dryRun = featureRuntime.suite.dryRun;
     }
@@ -353,11 +356,11 @@ public class ScenarioRuntime implements Runnable {
             logAppender = LOG_APPENDER.get();
         }
         logger.setAppender(logAppender);
-        if (resultAppender == null) {
+        if (resultAppender == null) { // top level (no caller)
             resultAppender = RESULT_APPENDER.get();
+            resultAppender.append(scenario.getUniqueId() + "\n");
+            resultAppender.collect(); // clean slate for this thread            
         }
-        resultAppender.append(scenario.getUniqueId() + "\n");
-        resultAppender.collect(); // clean slate for this thread
         if (scenario.isDynamic()) {
             steps = scenario.getBackgroundSteps();
         } else {
