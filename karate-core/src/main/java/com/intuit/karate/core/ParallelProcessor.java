@@ -60,19 +60,17 @@ public abstract class ParallelProcessor<T> {
                 executor.submit(() -> {
                     try {
                         process(in);
-                        future.complete(Boolean.TRUE);
                     } catch (Exception e) {
                         logger.error("[parallel] input item failed: {}", e.getMessage());
                     }
+                    future.complete(Boolean.TRUE);
                 });
             }
         });
         final CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
         monitor.submit(() -> {
             CompletableFuture.allOf(futuresArray).join();
-            synchronized (ParallelProcessor.this) {
-                onComplete();
-            }
+            onComplete();
         });
     }
 

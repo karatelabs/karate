@@ -286,7 +286,9 @@ public class Runner {
             }
             if (jobConfig != null) {
                 reportDir = jobConfig.getExecutorDir();
-                threadCount = jobConfig.getExecutorCount();
+                if (threadCount < 1) {
+                    threadCount = jobConfig.getExecutorCount();
+                }
                 timeoutMinutes = jobConfig.getTimeoutMinutes();
             }
             if (threadCount < 1) {
