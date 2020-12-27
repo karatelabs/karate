@@ -140,6 +140,15 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         int line = (Integer) map.get("line");
         FeatureSection section = feature.getSection(sectionIndex);
         Scenario scenario = new Scenario(feature, line, section, exampleIndex);
+        if (section.isOutline()) {    
+            scenario.setName(section.getScenarioOutline().getName());
+            scenario.setDescription(section.getScenarioOutline().getDescription());
+            scenario.setTags(section.getScenarioOutline().getTags());
+        } else {
+            scenario.setName(section.getScenario().getName());
+            scenario.setDescription(section.getScenario().getDescription());
+            scenario.setTags(section.getScenario().getTags());            
+        }
         ScenarioResult sr = new ScenarioResult(scenario);
         String executorName = (String) map.get("executorName");
         Number startTime = (Number) map.get("startTime");
@@ -186,9 +195,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         map.put("description", scenario.getDescription());
         map.put("type", "scenario");
         map.put("keyword", "Scenario");
-        if (scenario.getTags() != null) {
-            map.put("tags", tagsToCucumberJson(scenario.getTagsEffective().getOriginal()));
-        }
+        map.put("tags", tagsToCucumberJson(scenario.getTagsEffective().getOriginal()));
         return map;
     }
 

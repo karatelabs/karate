@@ -26,14 +26,11 @@ package com.intuit.karate.core;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.Json;
-import com.intuit.karate.JsonUtils;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.FileLogAppender;
-import com.intuit.karate.shell.StringLogAppender;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -94,9 +91,6 @@ public class ScenarioRuntime implements Runnable {
         } else {
             reportDisabled = tags.valuesFor("report").isAnyOf("false");
         }
-        if (!featureRuntime.caller.isNone()) {
-            resultAppender = new StringLogAppender(true);
-        }
         dryRun = featureRuntime.suite.dryRun;
         selectedForExecution = isSelectedForExecution(featureRuntime, scenario, tags);
     }
@@ -150,7 +144,6 @@ public class ScenarioRuntime implements Runnable {
     }
 
     private LogAppender logAppender;
-    private LogAppender resultAppender;
 
     public LogAppender getLogAppender() {
         return logAppender;
@@ -161,15 +154,6 @@ public class ScenarioRuntime implements Runnable {
         protected LogAppender initialValue() {
             String fileName = FileUtils.getBuildDir() + File.separator + "karate-"
                     + Thread.currentThread().getName() + ".log";
-            return new FileLogAppender(new File(fileName));
-        }
-    };
-
-    private static final ThreadLocal<LogAppender> RESULT_APPENDER = new ThreadLocal<LogAppender>() {
-        @Override
-        protected LogAppender initialValue() {
-            String fileName = FileUtils.getBuildDir() + File.separator + "karate-"
-                    + Thread.currentThread().getName() + ".txt";
             return new FileLogAppender(new File(fileName));
         }
     };
@@ -358,11 +342,6 @@ public class ScenarioRuntime implements Runnable {
             logAppender = LOG_APPENDER.get();
         }
         logger.setAppender(logAppender);
-        if (resultAppender == null) { // top level (no caller)
-            resultAppender = RESULT_APPENDER.get();
-            resultAppender.append(scenario.getUniqueId() + "\n");
-            resultAppender.collect(); // clean slate for this thread            
-        }
         if (scenario.isDynamic()) {
             steps = scenario.getBackgroundSteps();
         } else {
@@ -398,13 +377,9 @@ public class ScenarioRuntime implements Runnable {
                 currentStep = steps.get(index);
                 execute(currentStep);
                 if (currentStepResult != null) { // can be null if debug step-back or hook skip
-                    String json = JsonUtils.toJson(currentStepResult.toKarateJson());
-                    resultAppender.append(json);
-                    resultAppender.append(",\n");
+                    result.addStepResult(currentStepResult);
                 }
             }
-            List<Map<String, Object>> list = Json.of("[" + resultAppender.collect() + "]").asList();
-            list.forEach(m -> result.addStepResult(StepResult.fromKarateJson(featureRuntime.suite.workingDir, scenario, m)));
         } catch (Exception e) {
             logError("scenario [run] failed\n" + e.getMessage());
             currentStepResult = result.addFakeStepResult("scenario [run] failed", e);

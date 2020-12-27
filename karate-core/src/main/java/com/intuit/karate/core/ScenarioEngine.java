@@ -1966,12 +1966,13 @@ public class ScenarioEngine {
             fr.run();
             // VERY IMPORTANT ! switch back from called feature js context
             THREAD_LOCAL.set(this);
-            runtime.addCallResult(fr.result);
-            if (fr.result.isFailed()) {
-                KarateException ke = fr.result.getErrorsCombined();
+            FeatureResult result = fr.result;
+            runtime.addCallResult(result);
+            if (result.isFailed()) {
+                KarateException ke = result.getErrorsCombined();
                 throw ke;
             } else {
-                return new Variable(fr.result.getVariables());
+                return new Variable(result.getVariables());
             }
         } else if (arg.isList() || arg.isJsOrJavaFunction()) {
             List result = new ArrayList();

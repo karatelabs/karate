@@ -1,6 +1,5 @@
 package com.intuit.karate.core.parser;
 
-import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Runner;
 import com.intuit.karate.Suite;
 import com.intuit.karate.core.Reports;
@@ -43,8 +42,7 @@ class FeatureParserTest {
     @Test
     void testEngineForSimpleFeature() {
         FeatureResult result = execute("test-simple.feature");
-        String json = result.toCucumberJson();
-        Map<String, Object> map = (Map) JsonUtils.fromJson(json);
+        Map<String, Object> map = result.toCucumberJson();
         match(map.get("tags"), "[{ name: '@foo', line: 1 }]");
         ScenarioResult sr = result.getScenarioResults().get(0);
         map = sr.toCucumberJson();

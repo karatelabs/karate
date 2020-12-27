@@ -73,6 +73,10 @@ public class Feature {
     public Resource getResource() {
         return resource;
     }
+    
+    public String getPackageQualifiedName() {
+        return resource.getPackageQualifiedName();
+    }
 
     public boolean isBackgroundPresent() {
         return background != null && background.getSteps() != null;

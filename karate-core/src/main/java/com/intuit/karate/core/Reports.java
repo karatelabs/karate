@@ -32,6 +32,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -58,18 +59,18 @@ public class Reports {
     public static double nanosToMillis(long nanos) {
         return (double) nanos / MILLION;
     }
-    
+
     public static String formatNanos(long nanos, DecimalFormat formatter) {
         return formatter.format(nanosToSeconds(nanos));
     }
 
     public static String formatMillis(double millis, DecimalFormat formatter) {
         return formatter.format(millis / 1000);
-    }    
+    }
 
     public static File saveKarateJson(String targetDir, FeatureResult result, String fileName) {
         if (fileName == null) {
-            fileName = result.getPackageQualifiedName() + Constants.KARATE_JSON_SUFFIX;
+            fileName = result.getFeature().getPackageQualifiedName() + Constants.KARATE_JSON_SUFFIX;
         }
         File file = new File(targetDir + File.separator + fileName);
         FileUtils.writeToFile(file, JsonUtils.toJson(result.toKarateJson()));
@@ -78,10 +79,11 @@ public class Reports {
 
     public static File saveCucumberJson(String targetDir, FeatureResult result, String fileName) {
         if (fileName == null) {
-            fileName = result.getPackageQualifiedName() + ".json";
+            fileName = result.getFeature().getPackageQualifiedName() + ".json";
         }
         File file = new File(targetDir + File.separator + fileName);
-        FileUtils.writeToFile(file, "[" + result.toCucumberJson() + "]");
+        String json = JsonUtils.toJson(Collections.singletonList(result.toCucumberJson()));
+        FileUtils.writeToFile(file, json);
         return file;
     }
 
@@ -124,7 +126,7 @@ public class Reports {
         root.setAttribute("skipped", "0");
         StringBuilder xmlString = new StringBuilder();
         xmlString.append(XmlUtils.toString(doc, false).replace("/>", ">"));
-        String baseName = result.getPackageQualifiedName();
+        String baseName = result.getFeature().getPackageQualifiedName();
         Iterator<ScenarioResult> iterator = result.getScenarioResults().iterator();
         while (iterator.hasNext()) {
             ScenarioResult sr = iterator.next();

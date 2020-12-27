@@ -58,7 +58,7 @@ public class HtmlTagsReport extends HtmlReport {
         Map<String, Set<String>> featureTagsMap = new HashMap();
         for (FeatureResult fr : FEATURES) {
             Set<String> featureTags = new HashSet();
-            featureTagsMap.put(fr.getPackageQualifiedName(), featureTags);
+            featureTagsMap.put(fr.getFeature().getPackageQualifiedName(), featureTags);
             for (ScenarioResult sr : fr.getScenarioResults()) {
                 Tags tags = sr.getScenario().getTagsEffective();
                 Collection<String> tagKeys = tags.getTagKeys();
@@ -93,7 +93,7 @@ public class HtmlTagsReport extends HtmlReport {
             featureCell.appendChild(featureLink);
             featureLink.setAttribute("href", getHtmlFileName(fr));
             featureLink.setTextContent(fr.getDisplayUri());
-            Set<String> featureTags = featureTagsMap.get(fr.getPackageQualifiedName());
+            Set<String> featureTags = featureTagsMap.get(fr.getFeature().getPackageQualifiedName());
             for (String tagKey : allTags) {
                 Element td;
                 String tagClass = fr.isFailed() ? "failed" : "passed";

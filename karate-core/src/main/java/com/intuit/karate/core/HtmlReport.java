@@ -152,7 +152,7 @@ public abstract class HtmlReport {
     }
 
     protected static String getHtmlFileName(FeatureResult result) {
-        return result.getPackageQualifiedName() + ".html";
+        return result.getFeature().getPackageQualifiedName() + ".html";
     }
 
     protected File saveHtmlToFile(String targetDir, String fileName) {

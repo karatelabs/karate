@@ -62,6 +62,7 @@ public class Suite implements Runnable {
 
     public final String env;
     public final String tagSelector;
+    public final boolean forTempUse;
     public final boolean dryRun;
     public final long startTime;
     public final File workingDir;
@@ -117,6 +118,7 @@ public class Suite implements Runnable {
 
     public Suite(Runner.Builder rb) {
         if (rb.forTempUse) {
+            forTempUse = true;
             dryRun = false;
             outputHtmlReport = false;
             outputCucumberJson = false;
@@ -148,6 +150,7 @@ public class Suite implements Runnable {
             jobManager = null;
             progressFileLock = null;
         } else {
+            forTempUse = false;
             startTime = System.currentTimeMillis();
             rb.resolveAll();
             outputHtmlReport = rb.outputHtmlReport;
@@ -236,7 +239,7 @@ public class Suite implements Runnable {
                     results.addToFailCount(fr.getFailedCount());
                     results.addToTimeTaken(fr.getDurationMillis());
                     if (fr.isFailed()) {
-                        results.addToFailedList(fr.getPackageQualifiedName(), fr.getErrorMessages());
+                        results.addToFailedList(fr.getFeature().getPackageQualifiedName(), fr.getErrorMessages());
                     }
                     if (!fr.isEmpty()) {
                         HtmlFeatureReport.saveFeatureResult(reportDir, fr);

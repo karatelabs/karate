@@ -198,7 +198,7 @@ public class HtmlFeatureReport extends HtmlReport {
     private HtmlFeatureReport(FeatureResult featureResult) {
         this.featureResult = featureResult;
         Feature feature = featureResult.getFeature();
-        set("/html/head/title", featureResult.getPackageQualifiedName());
+        set("/html/head/title", featureResult.getFeature().getPackageQualifiedName());
         setById("nav-type", "Scenarios");
         setById("nav-pass", featureResult.getPassedCount() + "");
         setById("nav-fail", featureResult.getFailedCount() + "");

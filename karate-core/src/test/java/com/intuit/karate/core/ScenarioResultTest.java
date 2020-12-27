@@ -2,7 +2,6 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Json;
-import com.intuit.karate.JsonUtils;
 import com.intuit.karate.TestUtils;
 import static com.intuit.karate.TestUtils.*;
 import java.io.File;

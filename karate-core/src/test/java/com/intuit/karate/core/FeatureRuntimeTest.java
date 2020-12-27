@@ -19,7 +19,7 @@ class FeatureRuntimeTest {
     static final Logger logger = LoggerFactory.getLogger(FeatureRuntimeTest.class);
 
     boolean fail;
-    FeatureRuntime fr;
+    FeatureRuntime fr;    
 
     @BeforeEach
     void beforeEach() {

@@ -167,6 +167,9 @@ public class StringUtils {
     }
 
     public static String toIdString(String name) {
+        if (name == null) {
+            return "";
+        }
         return name.replaceAll("[\\s_\\\\/]", "-").toLowerCase();
     }
 
