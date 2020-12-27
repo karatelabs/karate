@@ -231,7 +231,7 @@ public abstract class HtmlReport {
                 + "timeline.setOptions({ groupOrder: 'content' });\n"
                 + "timeline.setGroups(groups);\n"
                 + "timeline.setItems(items);\n");
-        File htmlFile = new File(targetDir + File.separator + "timeline.html");
+        File htmlFile = new File(targetDir + File.separator + "karate-timeline.html");
         String html = getResourceAsString("timeline-template.html");
         html = html.replace("//timeline//", sb.toString());
         FileUtils.writeToFile(htmlFile, html);

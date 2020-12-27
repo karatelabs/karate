@@ -24,10 +24,10 @@
 package com.intuit.karate.core;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,17 +41,17 @@ public abstract class ParallelProcessor<T> {
 
     private final ExecutorService executor;
     private final ExecutorService monitor;
-    private final Stream<T> publisher;
+    private final Iterator<T> publisher;
     private final List<CompletableFuture> futures = new ArrayList();
 
-    public ParallelProcessor(ExecutorService executor, Stream<T> publisher, ExecutorService monitor) {
+    public ParallelProcessor(ExecutorService executor, Iterator<T> publisher, ExecutorService monitor) {
         this.executor = executor;
         this.publisher = publisher;
         this.monitor = monitor;
     }
 
     public void execute() {
-        publisher.forEach(in -> {
+        publisher.forEachRemaining(in -> {
             if (shouldRunSynchronously(in)) {
                 process(in);
             } else {

@@ -90,7 +90,7 @@ public class ResourceUtils {
         return features;
     }
 
-    private static final ScanResult scanResult = new ClassGraph().acceptPaths("/").scan();
+    private static final ScanResult SCAN_RESULT = new ClassGraph().acceptPaths("/").scan();
 
     public static Resource getResource(File workingDir, String path) {
         if (path.startsWith("classpath:")) {
@@ -100,7 +100,7 @@ public class ResourceUtils {
                 return new FileResource(file, true, path);
             }
             List<Resource> resources = new ArrayList<>();
-            ResourceList rl = scanResult.getResourcesWithPath(path);
+            ResourceList rl = SCAN_RESULT.getResourcesWithPath(path);
             if (rl == null) {
                 rl = ResourceList.emptyList();
             }

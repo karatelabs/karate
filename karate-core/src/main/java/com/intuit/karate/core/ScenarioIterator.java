@@ -28,7 +28,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Spliterator;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -56,33 +55,12 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
         this.sections = featureRuntime.feature.getSections().iterator();
     }
 
-    public Stream<ScenarioRuntime> stream() {
-        return StreamSupport.stream(this, false);
+    public Stream<ScenarioRuntime> filterSelected() {
+        return StreamSupport.stream(this, false).filter(sr -> sr.selectedForExecution);
     }
 
     public ScenarioRuntime first() {
-        return stream().findFirst().get();
-    }
-
-    public Iterator<ScenarioRuntime> iterator() {
-        return new Iterator<ScenarioRuntime>() {
-            
-            final AtomicReference<ScenarioRuntime> next = new AtomicReference();
-            
-            @Override
-            public boolean hasNext() {
-                if (next.get() != null) {
-                    return true;
-                }
-                return tryAdvance(sr -> next.set(sr));
-            }
-
-            @Override
-            public ScenarioRuntime next() {
-                return next.getAndSet(null);
-            }
-
-        };
+        return filterSelected().findFirst().get();
     }
 
     @Override

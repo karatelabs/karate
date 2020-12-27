@@ -25,7 +25,6 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.Constants;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.Results;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.JsonUtils;
 import java.io.File;
@@ -152,14 +151,6 @@ public class Engine {
         }
         File file = new File(targetDir + File.separator + fileName);
         FileUtils.writeToFile(file, xmlString.toString());
-        return file;
-    }
-
-    public static File saveStatsJson(String targetDir, Results results) {
-        String json = JsonUtils.toJson(results.toMap());
-        String fileName = "results-json.txt";
-        File file = new File(targetDir + File.separator + fileName);
-        FileUtils.writeToFile(file, json);
         return file;
     }
 

@@ -30,6 +30,7 @@ import com.intuit.karate.resource.MemoryResource;
 import com.intuit.karate.resource.Resource;
 import java.io.File;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
@@ -41,14 +42,14 @@ import org.slf4j.LoggerFactory;
  */
 public class FeatureRuntime implements Runnable {
 
-    private static final Logger logger = LoggerFactory.getLogger(FeatureRuntime.class);
+    protected static final Logger logger = LoggerFactory.getLogger(FeatureRuntime.class);
 
     public final Suite suite;
     public final FeatureRuntime rootFeature;
     public final ScenarioCall caller;
     public final Feature feature;
     public final FeatureResult result;
-    public final ScenarioIterator scenarios;
+    public final Iterator<ScenarioRuntime> scenarios;
     public final PerfHook perfHook;
 
     private final ParallelProcessor<ScenarioRuntime> processor;
@@ -107,12 +108,12 @@ public class FeatureRuntime implements Runnable {
         this.caller = caller;
         this.rootFeature = caller.isNone() ? this : caller.parentRuntime.featureRuntime;
         result = new FeatureResult(feature);
-        scenarios = new ScenarioIterator(this);
+        scenarios = new ScenarioIterator(this).filterSelected().iterator();
         this.perfHook = perfHook;
         if (caller.isNone() && suite.parallel && perfHook == null) {
             processor = new ParallelProcessor<ScenarioRuntime>(
                     suite.scenarioExecutor,
-                    scenarios.stream(),
+                    scenarios,
                     suite.pendingTasks) {
 
                 @Override
@@ -164,25 +165,21 @@ public class FeatureRuntime implements Runnable {
     private ScenarioRuntime lastExecutedScenario;
 
     private void processScenario(ScenarioRuntime sr) {
-        if (sr.isSelectedForExecution()) {
-            if (!beforeHook()) {
-                logger.info("before-feature hook returned [false], aborting: ", this);
-            } else {
-                lastExecutedScenario = sr;
-                if (suite.jobManager != null) {
-                    CompletableFuture future = suite.jobManager.addChunk(sr);
-                    logger.info("waiting for job executor to process: {}", sr);
-                    future.join();
-                    logger.info("job executor completed processing: {}", sr);
-                } else {
-                    sr.run();
-                }
-                synchronized (result) {
-                    result.addResult(sr.result);
-                }
-            }
+        if (!beforeHook()) {
+            logger.info("before-feature hook returned [false], aborting: ", this);
         } else {
-            logger.trace("excluded by tags: {}", sr);
+            lastExecutedScenario = sr;
+            if (suite.jobManager != null) {
+                CompletableFuture future = suite.jobManager.addChunk(sr);
+                logger.info("waiting for job executor to process: {}", sr);
+                future.join();
+                logger.info("job executor completed processing: {}", sr);
+            } else {
+                sr.run();
+            }
+            synchronized (result) {
+                result.addResult(sr.result);
+            }
         }
     }
 

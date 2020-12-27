@@ -18,7 +18,7 @@ public class ChromeJavaRunner {
     public static RobotBase getRobot() {
         Feature feature = Feature.read("classpath:robot/core/dummy.feature");
         FeatureRuntime fr = FeatureRuntime.of(new Suite(), feature);
-        ScenarioRuntime sr = fr.scenarios.first();
+        ScenarioRuntime sr = fr.scenarios.next();
         return (RobotBase) new RobotFactory().create(sr, null);
     }
 

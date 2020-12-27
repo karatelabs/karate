@@ -57,6 +57,7 @@ public class ScenarioRuntime implements Runnable {
     public final ScenarioEngine engine;
     public final boolean reportDisabled;
     public final Map<String, Object> magicVariables;
+    public final boolean selectedForExecution;
     public final boolean dryRun;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
@@ -91,12 +92,13 @@ public class ScenarioRuntime implements Runnable {
             logAppender = LogAppender.NO_OP;
             reportDisabled = true;
         } else {
-            reportDisabled = tags.valuesFor("report").isAnyOf("false");
+            reportDisabled = scenario.getTagsEffective().valuesFor("report").isAnyOf("false");
         }
         if (!featureRuntime.caller.isNone()) {
             resultAppender = new StringLogAppender(true);
         }
         dryRun = featureRuntime.suite.dryRun;
+        selectedForExecution = isSelectedForExecution(featureRuntime, scenario, tags);
     }
 
     public boolean isFailed() {
@@ -306,43 +308,43 @@ public class ScenarioRuntime implements Runnable {
         }
     }
 
-    public boolean isSelectedForExecution() {
+    private static boolean isSelectedForExecution(FeatureRuntime fr, Scenario scenario, Tags tags) {
         Feature feature = scenario.getFeature();
         int callLine = feature.getCallLine();
         if (callLine != -1) {
             int sectionLine = scenario.getSection().getLine();
             int scenarioLine = scenario.getLine();
             if (callLine == sectionLine || callLine == scenarioLine) {
-                logger.info("found scenario at line: {}", callLine);
+                fr.logger.info("found scenario at line: {}", callLine);
                 return true;
             }
-            logger.trace("skipping scenario at line: {}, needed: {}", scenario.getLine(), callLine);
+            fr.logger.trace("skipping scenario at line: {}, needed: {}", scenario.getLine(), callLine);
             return false;
         }
         String callName = feature.getCallName();
         if (callName != null) {
             if (scenario.getName().matches(callName)) {
-                logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
+                fr.logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
                 return true;
             }
-            logger.trace("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
+            fr.logger.trace("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
             return false;
         }
         String callTag = feature.getCallTag();
         if (callTag != null) {
             if (tags.contains(callTag)) {
-                logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
+                fr.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
                 return true;
             }
-            logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
+            fr.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
             return false;
         }
-        if (caller.isNone()) {
-            if (tags.evaluate(featureRuntime.suite.tagSelector)) {
-                logger.trace("matched scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
+        if (fr.caller.isNone()) {
+            if (tags.evaluate(fr.suite.tagSelector)) {
+                fr.logger.trace("matched scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
                 return true;
             }
-            logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
+            fr.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
             return false;
         } else {
             return true; // when called, tags are ignored, all scenarios will be run

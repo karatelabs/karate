@@ -58,7 +58,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
         CompletableFuture future = new CompletableFuture();
         futures.add(future);
         featureRuntime.setNext(() -> future.complete(Boolean.TRUE));
-        scenarios = new ScenarioIterator(featureRuntime).iterator();
+        scenarios = new ScenarioIterator(featureRuntime).filterSelected().iterator();
     }
 
     @Override
@@ -70,13 +70,11 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     public DynamicTest next() {
         ScenarioRuntime runtime = scenarios.next();
         return DynamicTest.dynamicTest(runtime.scenario.getNameForReport(), runtime.scenario.getUriToLineNumber(), () -> {
-            if (runtime.isSelectedForExecution()) {
-                if (featureRuntime.beforeHook()) { // minimal code duplication from feature-runtime
-                    runtime.run();
-                    featureRuntime.result.addResult(runtime.result);
-                } else {
-                    runtime.logger.info("before-feature hook returned [false], aborting: ", featureRuntime);
-                }
+            if (featureRuntime.beforeHook()) { // minimal code duplication from feature-runtime
+                runtime.run();
+                featureRuntime.result.addResult(runtime.result);
+            } else {
+                runtime.logger.info("before-feature hook returned [false], aborting: ", featureRuntime);
             }
             boolean failed = runtime.result.isFailed();
             if (!scenarios.hasNext()) {
