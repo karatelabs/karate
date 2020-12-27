@@ -50,7 +50,7 @@ public class FeatureResult {
 
     private Map<String, Object> resultVariables;
     private Map<String, Object> callArg;
-    private int loopIndex;
+    private int loopIndex = -1;
 
     public void printStats() {
         String featureName = feature.getResource().getPrefixedPath();
@@ -84,6 +84,11 @@ public class FeatureResult {
         Resource resource = ResourceUtils.getResource(workingDir, featurePath);
         Feature feature = Feature.read(resource);
         FeatureResult fr = new FeatureResult(feature);
+        fr.callArg = (Map) map.get("callArg");
+        Integer loopIndex = (Integer) map.get("loopIndex");
+        if (loopIndex != null) {
+            fr.loopIndex = loopIndex;
+        }
         List<Map<String, Object>> list = (List) map.get("scenarioResults");
         if (list != null) {
             for (Map<String, Object> srMap : list) {
@@ -101,6 +106,13 @@ public class FeatureResult {
         map.put("scenarioResults", list);
         for (ScenarioResult sr : scenarioResults) {
             list.add(sr.toKarateJson());
+        }
+        if (callArg != null) {
+            String json = JsonUtils.toJsonSafe(callArg, false);
+            map.put("callArg", JsonUtils.fromJson(json));
+        }
+        if (loopIndex != -1) {
+            map.put("loopIndex", loopIndex);
         }
         return map;
     }
@@ -232,7 +244,7 @@ public class FeatureResult {
     public double getDurationMillis() {
         long duration = 0;
         for (ScenarioResult sr : scenarioResults) {
-            duration += Engine.nanosToMillis(sr.getDurationNanos());
+            duration += Reports.nanosToMillis(sr.getDurationNanos());
         }
         return duration;
     }

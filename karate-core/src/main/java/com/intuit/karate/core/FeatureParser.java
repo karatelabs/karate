@@ -235,10 +235,10 @@ public class FeatureParser extends KarateParserBaseListener {
     @Override
     public void enterScenario(KarateParser.ScenarioContext ctx) {
         FeatureSection section = new FeatureSection();
-        Scenario scenario = new Scenario(feature, section, -1);
+        int line = getActualLine(ctx.SCENARIO());
+        Scenario scenario = new Scenario(feature, line, section, -1);
         section.setScenario(scenario);
         feature.addSection(section);
-        scenario.setLine(getActualLine(ctx.SCENARIO()));
         if (ctx.tags() != null) {
             scenario.setTags(toTags(-1, ctx.tags().TAGS()));
         }
@@ -257,10 +257,10 @@ public class FeatureParser extends KarateParserBaseListener {
     @Override
     public void enterScenarioOutline(KarateParser.ScenarioOutlineContext ctx) {
         FeatureSection section = new FeatureSection();
-        ScenarioOutline outline = new ScenarioOutline(feature, section);
+        int line = getActualLine(ctx.SCENARIO_OUTLINE());
+        ScenarioOutline outline = new ScenarioOutline(feature, section, line);
         section.setScenarioOutline(outline);
         feature.addSection(section);
-        outline.setLine(getActualLine(ctx.SCENARIO_OUTLINE()));
         if (ctx.tags() != null) {
             outline.setTags(toTags(-1, ctx.tags().TAGS()));
         }

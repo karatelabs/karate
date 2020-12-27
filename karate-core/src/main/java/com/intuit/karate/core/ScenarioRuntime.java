@@ -92,7 +92,7 @@ public class ScenarioRuntime implements Runnable {
             logAppender = LogAppender.NO_OP;
             reportDisabled = true;
         } else {
-            reportDisabled = scenario.getTagsEffective().valuesFor("report").isAnyOf("false");
+            reportDisabled = tags.valuesFor("report").isAnyOf("false");
         }
         if (!featureRuntime.caller.isNone()) {
             resultAppender = new StringLogAppender(true);

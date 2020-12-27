@@ -42,9 +42,9 @@ import org.w3c.dom.Element;
  *
  * @author pthomas3
  */
-public class Engine {
+public class Reports {
 
-    private Engine() {
+    private Reports() {
         // only static methods
     }
 
@@ -58,6 +58,14 @@ public class Engine {
     public static double nanosToMillis(long nanos) {
         return (double) nanos / MILLION;
     }
+    
+    public static String formatNanos(long nanos, DecimalFormat formatter) {
+        return formatter.format(nanosToSeconds(nanos));
+    }
+
+    public static String formatMillis(double millis, DecimalFormat formatter) {
+        return formatter.format(millis / 1000);
+    }    
 
     public static File saveKarateJson(String targetDir, FeatureResult result, String fileName) {
         if (fileName == null) {
@@ -75,14 +83,6 @@ public class Engine {
         File file = new File(targetDir + File.separator + fileName);
         FileUtils.writeToFile(file, "[" + result.toCucumberJson() + "]");
         return file;
-    }
-
-    public static String formatNanos(long nanos, DecimalFormat formatter) {
-        return formatter.format(nanosToSeconds(nanos));
-    }
-
-    public static String formatMillis(double millis, DecimalFormat formatter) {
-        return formatter.format(millis / 1000);
     }
 
     private static Throwable appendSteps(List<StepResult> steps, StringBuilder sb) {

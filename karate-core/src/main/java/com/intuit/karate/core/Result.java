@@ -138,7 +138,7 @@ public class Result {
     }
 
     public double getDurationMillis() {
-        return Engine.nanosToMillis(durationNanos);
+        return Reports.nanosToMillis(durationNanos);
     }
 
     @Override

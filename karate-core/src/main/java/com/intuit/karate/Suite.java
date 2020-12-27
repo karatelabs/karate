@@ -23,7 +23,7 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.Engine;
+import com.intuit.karate.core.Reports;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
@@ -48,7 +48,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.LoggerFactory;
 
@@ -266,15 +265,15 @@ public class Suite implements Runnable {
         Feature feature = fr.feature;
         if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags
             try { // edge case that reports are not writable     
-                File file = Engine.saveKarateJson(reportDir, result, null);
+                File file = Reports.saveKarateJson(reportDir, result, null);
                 synchronized (featureResultFiles) {
                     featureResultFiles.add(file);
                 }
                 if (outputCucumberJson) {
-                    Engine.saveCucumberJson(reportDir, result, null);
+                    Reports.saveCucumberJson(reportDir, result, null);
                 }
                 if (outputJunitXml) {
-                    Engine.saveJunitXml(reportDir, result, null);
+                    Reports.saveJunitXml(reportDir, result, null);
                 }
                 String status = result.isFailed() ? "fail" : "pass";
                 logger.info("<<{}>> feature {} of {} ({} remaining) {}", status, index, featuresFound, getFeaturesRemaining() - 1, feature);

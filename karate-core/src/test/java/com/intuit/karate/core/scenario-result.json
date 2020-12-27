@@ -94,7 +94,8 @@
                             "section": 0,
                             "startTime": "#number",
                             "endTime": "#number",
-                            "example": -1
+                            "example": -1,
+                            "line": 3
                         }
                     ],
                     "featurePath": "classpath:com\/intuit\/karate\/core\/scenario-result-called.feature"
@@ -119,5 +120,6 @@
     "section": 0,
     "startTime": "#number",
     "endTime": "#number",
-    "example": -1
+    "example": -1,
+    "line": 6
 }

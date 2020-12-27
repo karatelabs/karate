@@ -5,7 +5,7 @@ import com.intuit.karate.KarateException;
 import com.intuit.karate.KarateOptions;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
-import com.intuit.karate.core.Engine;
+import com.intuit.karate.core.Reports;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
 import java.io.File;
@@ -33,7 +33,7 @@ class RunnerTest {
         Feature feature = Feature.read("classpath:com/intuit/karate/core/runner/" + name);
         FeatureRuntime fr = FeatureRuntime.of(feature);
         fr.run();
-        File file = Engine.saveJunitXml("target", fr.result, null);
+        File file = Reports.saveJunitXml("target", fr.result, null);
         return FileUtils.toString(file);
     }
 
