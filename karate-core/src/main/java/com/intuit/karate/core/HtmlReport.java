@@ -24,23 +24,15 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
-import com.intuit.karate.JsonUtils;
+import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
-import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Stream;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -58,7 +50,7 @@ public abstract class HtmlReport {
     protected final String dateString;
 
     public HtmlReport() {
-        String html = getResourceAsString("report-template.html");
+        String html = ResourceUtils.classPathResourceToString("report-template.html");
         doc = XmlUtils.toXmlDoc(html);
         formatter = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
         formatter.applyPattern("0");
@@ -99,10 +91,6 @@ public abstract class HtmlReport {
             copyFile(cl, "res/" + name, resPath + name);
         }
         copyFile(cl, "favicon.ico", targetDir + File.separator + "favicon.ico");
-    }
-
-    protected static String getResourceAsString(String name) {
-        return FileUtils.toString(HtmlFeatureReport.class.getClassLoader().getResourceAsStream(name));
     }
 
     protected void set(String path, String value) {
@@ -177,65 +165,6 @@ public abstract class HtmlReport {
             System.out.println("html report output failed: " + e.getMessage());
         }
         return file;
-    }
-
-    public static File saveTimeline(String targetDir, List<FeatureResult> results) {
-        Map<String, Integer> groupsMap = new LinkedHashMap();
-        Stream<ScenarioResult> scenarioResults = results.stream().flatMap(fr -> fr.getScenarioResults().stream());
-        List<Map> items = new ArrayList();
-        AtomicInteger id = new AtomicInteger();
-        DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss.SSS");
-        scenarioResults.forEach(sr -> {
-            String threadName = sr.getExecutorName();
-            Integer groupId = groupsMap.get(threadName);
-            if (groupId == null) {
-                groupId = groupsMap.size() + 1;
-                groupsMap.put(threadName, groupId);
-            }
-            Map<String, Object> item = new LinkedHashMap(10);
-            items.add(item);
-            item.put("id", id.incrementAndGet());
-            item.put("group", groupId);
-            Scenario s = sr.getScenario();
-            String featureName = s.getFeature().getResource().getFileNameWithoutExtension();
-            String content = featureName + s.getDisplayMeta();
-            item.put("content", content);
-            long startTime = sr.getStartTime();
-            item.put("start", startTime);
-            long endTime = sr.getEndTime() - 1; // avoid overlap when rendering
-            item.put("end", endTime);
-            String startTimeString = dateFormat.format(new Date(startTime));
-            String endTimeString = dateFormat.format(new Date(endTime));
-            content = content + " " + startTimeString + "-" + endTimeString;
-            String scenarioTitle = StringUtils.trimToEmpty(s.getName());
-            if (!scenarioTitle.isEmpty()) {
-                content = content + " " + scenarioTitle;
-            }
-            item.put("title", content);
-            if (sr.isFailed()) {
-                item.put("className", "failed");
-            }
-        });
-        List<Map> groups = new ArrayList(groupsMap.size());
-        groupsMap.forEach((k, v) -> {
-            Map<String, Object> group = new LinkedHashMap(2);
-            groups.add(group);
-            group.put("id", v);
-            group.put("content", k);
-        });
-        StringBuilder sb = new StringBuilder();
-        sb.append("\nvar groups = new vis.DataSet(").append(JsonUtils.toJson(groups)).append(");").append('\n');
-        sb.append("var items = new vis.DataSet(").append(JsonUtils.toJson(items)).append(");").append('\n');
-        sb.append("var container = document.getElementById('visualization');\n"
-                + "var timeline = new vis.Timeline(container);\n"
-                + "timeline.setOptions({ groupOrder: 'content' });\n"
-                + "timeline.setGroups(groups);\n"
-                + "timeline.setItems(items);\n");
-        File htmlFile = new File(targetDir + File.separator + "karate-timeline.html");
-        String html = getResourceAsString("timeline-template.html");
-        html = html.replace("//timeline//", sb.toString());
-        FileUtils.writeToFile(htmlFile, html);
-        return htmlFile;
     }
 
 }

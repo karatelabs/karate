@@ -65,7 +65,7 @@ public interface ResourceResolver {
 
         @Override
         public InputStream read(String path) {
-            return ResourceUtils.classPathToStream(root + path);
+            return ResourceUtils.classPathResourceToStream(root + path);
         }
 
         @Override

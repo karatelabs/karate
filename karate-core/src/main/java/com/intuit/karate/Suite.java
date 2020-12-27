@@ -23,13 +23,13 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.Reports;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.HtmlFeatureReport;
-import com.intuit.karate.core.HtmlReport;
 import com.intuit.karate.core.HtmlSummaryReport;
+import com.intuit.karate.core.HtmlTimelineReport;
+import com.intuit.karate.core.Reports;
 import com.intuit.karate.core.SyncExecutorService;
 import com.intuit.karate.core.Tags;
 import com.intuit.karate.http.HttpClientFactory;
@@ -49,6 +49,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Stream;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -224,30 +225,28 @@ public class Suite implements Runnable {
             results.setEndTime(System.currentTimeMillis());
             if (outputHtmlReport) {
                 HtmlSummaryReport summary = new HtmlSummaryReport();
-                List<FeatureResult> featureResults = getFeatureResults();
-                for (FeatureResult result : featureResults) {
-                    int scenarioCount = result.getScenarioCount();
+                HtmlTimelineReport timeline = new HtmlTimelineReport();
+                getFeatureResults().forEach(fr -> {
+                    timeline.addFeatureResult(fr);
+                    int scenarioCount = fr.getScenarioCount();
                     results.addToScenarioCount(scenarioCount);
                     if (scenarioCount != 0) {
                         results.incrementFeatureCount();
                     }
-                    results.addToFailCount(result.getFailedCount());
-                    results.addToTimeTaken(result.getDurationMillis());
-                    if (result.isFailed()) {
-                        results.addToFailedList(result.getPackageQualifiedName(), result.getErrorMessages());
+                    results.addToFailCount(fr.getFailedCount());
+                    results.addToTimeTaken(fr.getDurationMillis());
+                    if (fr.isFailed()) {
+                        results.addToFailedList(fr.getPackageQualifiedName(), fr.getErrorMessages());
                     }
-                    if (!result.isEmpty()) {
-                        HtmlFeatureReport.saveFeatureResult(reportDir, result);
-                        summary.addFeatureResult(result);
+                    if (!fr.isEmpty()) {
+                        HtmlFeatureReport.saveFeatureResult(reportDir, fr);
+                        summary.addFeatureResult(fr);
                     }
-                }
-                // saving reports can in rare cases throw errors, so do all this within try-catch
+                });
                 summary.save(reportDir);
+                timeline.save(reportDir);
                 saveStatsJson();
-                HtmlReport.saveTimeline(reportDir, featureResults);
-            }
-            results.printStats();
-            hooks.forEach(h -> h.afterSuite(this));
+            }                        
         } catch (Exception e) {
             logger.error("runner failed: " + e);
             results.setFailureReason(e);
@@ -257,6 +256,8 @@ public class Suite implements Runnable {
             if (jobManager != null) {
                 jobManager.server.stop();
             }
+            results.printStats();
+            hooks.forEach(h -> h.afterSuite(this));
         }
     }
 
@@ -294,14 +295,9 @@ public class Suite implements Runnable {
         }
     }
 
-    public List<FeatureResult> getFeatureResults() {
-        List<FeatureResult> featureResults = new ArrayList(featureResultFiles.size());
-        for (File file : featureResultFiles) {
-            String json = FileUtils.toString(file);
-            FeatureResult result = FeatureResult.fromKarateJson(workingDir, Json.of(json).asMap());
-            featureResults.add(result);
-        }
-        return featureResults;
+    public Stream<FeatureResult> getFeatureResults() {
+        return featureResultFiles.stream()
+                .map(file -> FeatureResult.fromKarateJson(workingDir, Json.of(FileUtils.toString(file)).asMap()));
     }
 
     public void backupReportDirIfExists() {
@@ -324,7 +320,7 @@ public class Suite implements Runnable {
         String json = JsonUtils.toJson(map);
         File file = new File(reportDir + File.separator + "karate-progress-json.txt");
         FileUtils.writeToFile(file, json);
-        return file;        
+        return file;
     }
 
     private File saveStatsJson() {

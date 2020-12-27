@@ -234,8 +234,12 @@ public class ResourceUtils {
 
     private static final ClassLoader CLASS_LOADER = ResourceUtils.class.getClassLoader();
 
-    public static InputStream classPathToStream(String path) {
+    public static InputStream classPathResourceToStream(String path) {
         return CLASS_LOADER.getResourceAsStream(path);
+    }
+    
+    public static String classPathResourceToString(String path) {
+        return FileUtils.toString(classPathResourceToStream(path));
     }
 
     public static File classPathToFile(String path) {

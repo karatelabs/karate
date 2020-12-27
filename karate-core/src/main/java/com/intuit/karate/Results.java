@@ -26,8 +26,8 @@ package com.intuit.karate;
 import com.intuit.karate.core.FeatureResult;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  *
@@ -49,7 +49,7 @@ public class Results {
         this.suite = suite;
     }
 
-    public List<FeatureResult> getFeatureResults() {
+    public Stream<FeatureResult> getFeatureResults() {
         return suite.getFeatureResults();
     }
 
