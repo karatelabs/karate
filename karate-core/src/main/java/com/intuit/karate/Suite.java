@@ -39,7 +39,6 @@ import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +46,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.LoggerFactory;
 
@@ -68,7 +66,6 @@ public class Suite implements Runnable {
     public final String reportDir;
     public final ClassLoader classLoader;
     public final int threadCount;
-    public final Semaphore batchLimiter;
     public final int timeoutMinutes;
     public final List<Feature> features;
     public final Results results;
@@ -126,7 +123,6 @@ public class Suite implements Runnable {
             systemProperties = null;
             tagSelector = null;
             threadCount = -1;
-            batchLimiter = null;
             timeoutMinutes = -1;
             hooks = null;
             features = null;
@@ -178,7 +174,6 @@ public class Suite implements Runnable {
                 jobManager = null;
             }
             threadCount = rb.threadCount;
-            batchLimiter = new Semaphore(threadCount);
             timeoutMinutes = rb.timeoutMinutes;
             parallel = threadCount > 1;
             if (parallel) {

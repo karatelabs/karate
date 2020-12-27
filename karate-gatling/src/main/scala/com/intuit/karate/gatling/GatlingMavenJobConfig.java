@@ -53,6 +53,9 @@ public class GatlingMavenJobConfig extends JobConfigBase<Integer> {
     @Override
     public List<Integer> getInitialChunks() {
         int count = getExecutorCount();
+        if (count < 1) {
+            throw new RuntimeException("executor count should be greater than zero");
+        }
         List<Integer> list = new ArrayList(count);
         for (int i = 0; i < count; i++) {
             list.add(i);

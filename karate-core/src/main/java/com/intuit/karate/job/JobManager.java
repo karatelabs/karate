@@ -38,8 +38,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,7 +62,7 @@ public class JobManager<T> implements ServerHandler {
     public final HttpServer server;
 
     private final Map<String, JobChunk<T>> chunks = new HashMap();
-    private final ArrayBlockingQueue<JobChunk> queue;
+    private final LinkedBlockingQueue<JobChunk> queue;
     private final AtomicInteger chunkCounter = new AtomicInteger();
     private final AtomicInteger executorCounter = new AtomicInteger(1);
 
@@ -75,7 +75,7 @@ public class JobManager<T> implements ServerHandler {
         logger.info("created zip archive: {}", ZIP_FILE);
         server = new HttpServer(config.getPort(), this);
         jobUrl = "http://" + config.getHost() + ":" + server.getPort();
-        queue = new ArrayBlockingQueue(config.getExecutorCount());
+        queue = new LinkedBlockingQueue();
     }
 
     public <T> CompletableFuture<T> addChunk(T value) {
@@ -85,9 +85,8 @@ public class JobManager<T> implements ServerHandler {
             synchronized (chunks) {
                 chunks.put(jc.getId(), jc);
             }
-            logger.debug("waiting for queue: {}", jc);
             queue.put(jc);
-            logger.debug("queue put: {}", jc);
+            logger.debug("added to queue: {}", jc);
             return jc.getFuture();
         } catch (Exception e) {
             throw new RuntimeException(e);

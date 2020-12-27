@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Semaphore;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,13 +41,11 @@ public abstract class ParallelProcessor<T> {
 
     private final ExecutorService executor;
     private final ExecutorService monitor;
-    private final Semaphore batchLimiter;
     private final Stream<T> publisher;
     private final List<CompletableFuture> futures = new ArrayList();
 
-    public ParallelProcessor(ExecutorService executor, Semaphore batchLimiter, Stream<T> publisher, ExecutorService monitor) {
+    public ParallelProcessor(ExecutorService executor, Stream<T> publisher, ExecutorService monitor) {
         this.executor = executor;
-        this.batchLimiter = batchLimiter;
         this.publisher = publisher;
         this.monitor = monitor;
     }
@@ -60,12 +57,10 @@ public abstract class ParallelProcessor<T> {
             } else {
                 final CompletableFuture future = new CompletableFuture();
                 futures.add(future);
-                waitForHeadRoom();
                 executor.submit(() -> {
                     try {
                         process(in);
                         future.complete(Boolean.TRUE);
-                        batchLimiter.release();
                     } catch (Exception e) {
                         logger.error("[parallel] input item failed: {}", e.getMessage());
                     }
@@ -79,14 +74,6 @@ public abstract class ParallelProcessor<T> {
                 onComplete();
             }
         });
-    }
-
-    private void waitForHeadRoom() {
-        try {
-            batchLimiter.acquire();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 
     public boolean shouldRunSynchronously(T in) {

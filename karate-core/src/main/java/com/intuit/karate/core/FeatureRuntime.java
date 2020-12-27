@@ -112,7 +112,6 @@ public class FeatureRuntime implements Runnable {
         if (caller.isNone() && suite.parallel && perfHook == null) {
             processor = new ParallelProcessor<ScenarioRuntime>(
                     suite.scenarioExecutor,
-                    suite.batchLimiter,
                     scenarios.stream(),
                     suite.pendingTasks) {
 
