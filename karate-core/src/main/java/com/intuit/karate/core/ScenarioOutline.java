@@ -34,24 +34,24 @@ public class ScenarioOutline {
 
     private final Feature feature;
     private final FeatureSection section;
-    private final int line;
-    
+
+    private int line;
     private List<Tag> tags;
     private String name;
     private String description;
     private List<Step> steps;
     private List<ExamplesTable> examplesTables;
 
-    public ScenarioOutline(Feature feature, FeatureSection section, int line) {
+    public ScenarioOutline(Feature feature, FeatureSection section) {
         this.feature = feature;
         this.section = section;
-        this.line = line;
     }
-    
-    public Scenario toScenario(String dynamicExpression, int exampleIndex, int line, List<Tag> tagsForExamples) {
-        Scenario s = new Scenario(feature, line, section, exampleIndex);
+
+    public Scenario toScenario(String dynamicExpression, int exampleIndex, int updateLine, List<Tag> tagsForExamples) {
+        Scenario s = new Scenario(feature, section, exampleIndex);
         s.setName(name);
         s.setDescription(description);
+        s.setLine(updateLine);
         s.setDynamicExpression(dynamicExpression);
         if (tags != null || tagsForExamples != null) {
             List<Tag> temp = new ArrayList();
@@ -76,7 +76,7 @@ public class ScenarioOutline {
             step.setTable(original.getTable());
         }
         return s;
-    }    
+    }
 
     public List<Scenario> getScenarios() {
         List<Scenario> list = new ArrayList();
@@ -108,6 +108,10 @@ public class ScenarioOutline {
 
     public int getLine() {
         return line;
+    }
+
+    public void setLine(int line) {
+        this.line = line;
     }
 
     public List<Tag> getTags() {

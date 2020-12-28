@@ -137,18 +137,19 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     public static ScenarioResult fromKarateJson(File workingDir, Feature feature, Map<String, Object> map) {
         int sectionIndex = (Integer) map.get("section");
         int exampleIndex = (Integer) map.get("example");
-        int line = (Integer) map.get("line");
         FeatureSection section = feature.getSection(sectionIndex);
-        Scenario scenario = new Scenario(feature, line, section, exampleIndex);
-        if (section.isOutline()) {    
-            scenario.setName(section.getScenarioOutline().getName());
-            scenario.setDescription(section.getScenarioOutline().getDescription());
+        Scenario scenario = new Scenario(feature, section, exampleIndex);
+        if (section.isOutline()) {
             scenario.setTags(section.getScenarioOutline().getTags());
+            scenario.setDescription(section.getScenarioOutline().getDescription());
         } else {
-            scenario.setName(section.getScenario().getName());
+            scenario.setTags(section.getScenario().getTags());
             scenario.setDescription(section.getScenario().getDescription());
-            scenario.setTags(section.getScenario().getTags());            
         }
+        String name = (String) map.get("name");
+        scenario.setName(name);
+        int line = (Integer) map.get("line");
+        scenario.setLine(line);
         ScenarioResult sr = new ScenarioResult(scenario);
         String executorName = (String) map.get("executorName");
         Number startTime = (Number) map.get("startTime");
@@ -174,6 +175,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         Map<String, Object> map = new HashMap();
         map.put("section", scenario.getSection().getIndex());
         map.put("example", scenario.getExampleIndex());
+        map.put("name", scenario.getName());
         map.put("line", scenario.getLine());
         map.put("executorName", executorName);
         map.put("startTime", startTime);

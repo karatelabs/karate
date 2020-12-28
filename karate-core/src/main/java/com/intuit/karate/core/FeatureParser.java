@@ -42,13 +42,13 @@ import java.util.List;
  * @author pthomas3
  */
 public class FeatureParser extends KarateParserBaseListener {
-
+    
     private static final Logger logger = LoggerFactory.getLogger(FeatureParser.class);
-
+    
     private final ParserErrorListener errorListener = new ParserErrorListener();
     private final Feature feature;
     private final CommonTokenStream tokenStream;
-
+    
     private FeatureParser(Feature feature, InputStream is) {
         this.feature = feature;
         CharStream stream;
@@ -68,7 +68,7 @@ public class FeatureParser extends KarateParserBaseListener {
         ParseTreeWalker walker = new ParseTreeWalker();
         walker.walk(this, tree);
     }
-
+    
     protected static void parse(Feature feature) {
         FeatureParser fp = new FeatureParser(feature, feature.getResource().getStream());
         if (fp.errorListener.isFail()) {
@@ -77,7 +77,7 @@ public class FeatureParser extends KarateParserBaseListener {
             throw new RuntimeException(errorMessage);
         }
     }
-
+    
     private static int getActualLine(TerminalNode node) {
         int count = 0;
         for (char c : node.getText().toCharArray()) {
@@ -89,7 +89,7 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         return node.getSymbol().getLine() + count;
     }
-
+    
     private static List<Tag> toTags(int line, List<TerminalNode> nodes) {
         List<Tag> tags = new ArrayList();
         for (TerminalNode node : nodes) {
@@ -104,7 +104,7 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         return tags;
     }
-
+    
     private static Table toTable(KarateParser.TableContext ctx) {
         List<TerminalNode> nodes = ctx.TABLE_ROW();
         int rowCount = nodes.size();
@@ -125,9 +125,9 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         return new Table(rows, lineNumbers);
     }
-
+    
     private static final String TRIPLE_QUOTES = "\"\"\"";
-
+    
     private static int indexOfFirstText(String s) {
         int pos = 0;
         for (char c : s.toCharArray()) {
@@ -138,7 +138,7 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         return 0; // defensive coding
     }
-
+    
     private static String fixDocString(String temp) {
         int quotePos = temp.indexOf(TRIPLE_QUOTES);
         int endPos = temp.lastIndexOf(TRIPLE_QUOTES);
@@ -164,7 +164,7 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         return sb.toString().trim();
     }
-
+    
     private List<String> collectComments(ParserRuleContext prc) {
         List<Token> tokens = tokenStream.getHiddenTokensToLeft(prc.start.getTokenIndex());
         if (tokens == null) {
@@ -176,7 +176,7 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         return comments;
     }
-
+    
     private List<Step> toSteps(Scenario scenario, List<KarateParser.StepContext> list) {
         List<Step> steps = new ArrayList(list.size());
         int index = 0;
@@ -202,7 +202,7 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         return steps;
     }
-
+    
     @Override
     public void enterFeatureHeader(KarateParser.FeatureHeaderContext ctx) {
         if (ctx.featureTags() != null) {
@@ -217,7 +217,7 @@ public class FeatureParser extends KarateParserBaseListener {
             }
         }
     }
-
+    
     @Override
     public void enterBackground(KarateParser.BackgroundContext ctx) {
         Background background = new Background();
@@ -231,12 +231,12 @@ public class FeatureParser extends KarateParserBaseListener {
             logger.trace("background steps: {}", steps);
         }
     }
-
+    
     @Override
     public void enterScenario(KarateParser.ScenarioContext ctx) {
         FeatureSection section = new FeatureSection();
-        int line = getActualLine(ctx.SCENARIO());
-        Scenario scenario = new Scenario(feature, line, section, -1);
+        Scenario scenario = new Scenario(feature, section, -1);
+        scenario.setLine(getActualLine(ctx.SCENARIO()));
         section.setScenario(scenario);
         feature.addSection(section);
         if (ctx.tags() != null) {
@@ -253,12 +253,12 @@ public class FeatureParser extends KarateParserBaseListener {
             logger.trace("scenario steps: {}", steps);
         }
     }
-
+    
     @Override
     public void enterScenarioOutline(KarateParser.ScenarioOutlineContext ctx) {
         FeatureSection section = new FeatureSection();
-        int line = getActualLine(ctx.SCENARIO_OUTLINE());
-        ScenarioOutline outline = new ScenarioOutline(feature, section, line);
+        ScenarioOutline outline = new ScenarioOutline(feature, section);
+        outline.setLine(getActualLine(ctx.SCENARIO_OUTLINE()));
         section.setScenarioOutline(outline);
         feature.addSection(section);
         if (ctx.tags() != null) {
@@ -289,5 +289,5 @@ public class FeatureParser extends KarateParserBaseListener {
             }
         }
     }
-
+    
 }

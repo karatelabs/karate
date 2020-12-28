@@ -38,8 +38,8 @@ public class Scenario {
     private final Feature feature;
     private final FeatureSection section;
     private final int exampleIndex;
-    private final int line;
-
+    
+    private int line;
     private List<Tag> tags;
     private String name;
     private String description;
@@ -47,10 +47,9 @@ public class Scenario {
     private Map<String, Object> exampleData;
     private String dynamicExpression;
 
-    public Scenario(Feature feature, int line, FeatureSection section, int exampleIndex) {
+    public Scenario(Feature feature, FeatureSection section, int exampleIndex) {
         this.feature = feature;
         this.section = section;
-        this.line = line;
         this.exampleIndex = exampleIndex;
     }
 
@@ -78,10 +77,11 @@ public class Scenario {
 
     // only called for dynamic scenarios
     public Scenario copy(int exampleIndex) {
-        Scenario s = new Scenario(feature, line, section, exampleIndex);
+        Scenario s = new Scenario(feature, section, exampleIndex);
         s.name = name;
         s.description = description;
         s.tags = tags;
+        s.line = line;
         s.steps = new ArrayList(steps.size());
         for (Step step : steps) {
             Step temp = new Step(s, step.getIndex());
@@ -181,6 +181,10 @@ public class Scenario {
     public int getLine() {
         return line;
     }
+
+    public void setLine(int line) {
+        this.line = line;
+    }        
 
     public List<Tag> getTags() {
         return tags;

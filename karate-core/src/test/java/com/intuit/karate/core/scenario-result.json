@@ -1,125 +1,208 @@
 {
-    "stepResults": [
+    "scenarioResults": [
         {
-            "result": {
-                "durationNanos": "#number",
-                "status": "passed"
-            },
-            "step": {
-                "background": true,
-                "line": 4,
-                "prefix": "*",
-                "index": 0,
-                "text": "print 'in background'"
-            },
-            "stepLog": "#string"
-        },
-        {
-            "result": {
-                "durationNanos": "#number",
-                "status": "passed"
-            },
-            "step": {
-                "line": 7,
-                "prefix": "*",
-                "index": 0,
-                "text": "print 'before'"
-            },
-            "stepLog": "#string"
-        },
-        {
-            "result": {
-                "durationNanos": "#number",
-                "status": "passed"
-            },
-            "step": {
-                "line": 8,
-                "prefix": "*",
-                "index": 1,
-                "text": "call read('scenario-result-called.feature')"
-            },
-            "stepLog": "",
-            "callResults": [
+            "stepResults": [
                 {
-                    "scenarioResults": [
+                    "result": {
+                        "durationNanos": "#number",
+                        "status": "passed"
+                    },
+                    "step": {
+                        "background": true,
+                        "line": 5,
+                        "prefix": "*",
+                        "index": 0,
+                        "text": "print 'in background'"
+                    },
+                    "stepLog": "#string"
+                },
+                {
+                    "result": {
+                        "durationNanos": "#number",
+                        "status": "passed"
+                    },
+                    "step": {
+                        "line": 9,
+                        "prefix": "*",
+                        "index": 0,
+                        "text": "print 'before'"
+                    },
+                    "stepLog": "#string"
+                },
+                {
+                    "result": {
+                        "durationNanos": "#number",
+                        "status": "passed"
+                    },
+                    "step": {
+                        "line": 10,
+                        "prefix": "*",
+                        "index": 1,
+                        "text": "call read('scenario-result-called.feature')"
+                    },
+                    "stepLog": "",
+                    "callResults": [
                         {
-                            "stepResults": [
+                            "scenarioResults": [
                                 {
-                                    "result": {
-                                        "durationNanos": "#number",
-                                        "status": "passed"
-                                    },
-                                    "step": {
-                                        "line": 4,
-                                        "prefix": "*",
-                                        "index": 0,
-                                        "text": "print 'in called'"
-                                    },
-                                    "stepLog": "#string"
-                                },
-                                {
-                                    "result": {
-                                        "durationNanos": "#number",
-                                        "status": "passed"
-                                    },
-                                    "step": {
-                                        "line": 5,
-                                        "prefix": "*",
-                                        "index": 1,
-                                        "text": "karate.embed('<h1>hello world<\/h1>', 'text\/html')"
-                                    },
-                                    "stepLog": "",
-                                    "embeds": [
+                                    "stepResults": [
                                         {
-                                            "file": "#string",
-                                            "resourceType": "HTML"
+                                            "result": {
+                                                "durationNanos": "#number",
+                                                "status": "passed"
+                                            },
+                                            "step": {
+                                                "line": 4,
+                                                "prefix": "*",
+                                                "index": 0,
+                                                "text": "print 'in called'"
+                                            },
+                                            "stepLog": "#string"
+                                        },
+                                        {
+                                            "result": {
+                                                "durationNanos": "#number",
+                                                "status": "passed"
+                                            },
+                                            "step": {
+                                                "line": 5,
+                                                "prefix": "*",
+                                                "index": 1,
+                                                "text": "karate.embed('<h1>hello world<\/h1>', 'text\/html')"
+                                            },
+                                            "stepLog": "",
+                                            "embeds": [
+                                                {
+                                                    "file": "#string",
+                                                    "resourceType": "HTML"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "result": {
+                                                "durationNanos": "#number",
+                                                "status": "passed"
+                                            },
+                                            "step": {
+                                                "line": 6,
+                                                "prefix": "*",
+                                                "index": 2,
+                                                "text": "print 'after embed'"
+                                            },
+                                            "stepLog": "#string"
                                         }
-                                    ]
-                                },
-                                {
-                                    "result": {
-                                        "durationNanos": "#number",
-                                        "status": "passed"
-                                    },
-                                    "step": {
-                                        "line": 6,
-                                        "prefix": "*",
-                                        "index": 2,
-                                        "text": "print 'after embed'"
-                                    },
-                                    "stepLog": "#string"
+                                    ],
+                                    "executorName": "main",
+                                    "name": "",
+                                    "line": 3,
+                                    "section": 0,
+                                    "startTime": "#number",
+                                    "endTime": "#number",
+                                    "example": -1
                                 }
                             ],
-                            "executorName": "main",
-                            "section": 0,
-                            "startTime": "#number",
-                            "endTime": "#number",
-                            "example": -1,
-                            "line": 3
+                            "featurePath": "classpath:com\/intuit\/karate\/core\/scenario-result-called.feature"
                         }
-                    ],
-                    "featurePath": "classpath:com\/intuit\/karate\/core\/scenario-result-called.feature"
+                    ]
+                },
+                {
+                    "result": {
+                        "durationNanos": "#number",
+                        "status": "passed"
+                    },
+                    "step": {
+                        "line": 11,
+                        "prefix": "*",
+                        "index": 2,
+                        "text": "print 'after'"
+                    },
+                    "stepLog": "#string"
                 }
-            ]
+            ],
+            "executorName": "main",
+            "name": "hello world",
+            "line": 8,
+            "section": 0,
+            "startTime": "#number",
+            "endTime": "#number",
+            "example": -1
         },
         {
-            "result": {
-                "durationNanos": "#number",
-                "status": "passed"
-            },
-            "step": {
-                "line": 9,
-                "prefix": "*",
-                "index": 2,
-                "text": "print 'after'"
-            },
-            "stepLog": "#string"
+            "stepResults": [
+                {
+                    "result": {
+                        "durationNanos": "#number",
+                        "status": "passed"
+                    },
+                    "step": {
+                        "background": true,
+                        "line": 5,
+                        "prefix": "*",
+                        "index": 0,
+                        "text": "print 'in background'"
+                    },
+                    "stepLog": "#string"
+                },
+                {
+                    "result": {
+                        "durationNanos": "#number",
+                        "status": "passed"
+                    },
+                    "step": {
+                        "line": 14,
+                        "prefix": "*",
+                        "index": 0,
+                        "text": "print 'name:', name"
+                    },
+                    "stepLog": "#string"
+                }
+            ],
+            "executorName": "main",
+            "name": "hello foo",
+            "line": 18,
+            "section": 1,
+            "startTime": "#number",
+            "endTime": "#number",
+            "example": 0
+        },
+        {
+            "stepResults": [
+                {
+                    "result": {
+                        "durationNanos": "#number",
+                        "status": "passed"
+                    },
+                    "step": {
+                        "background": true,
+                        "line": 5,
+                        "prefix": "*",
+                        "index": 0,
+                        "text": "print 'in background'"
+                    },
+                    "stepLog": "#string"
+                },
+                {
+                    "result": {
+                        "durationNanos": "#number",
+                        "status": "passed"
+                    },
+                    "step": {
+                        "line": 14,
+                        "prefix": "*",
+                        "index": 0,
+                        "text": "print 'name:', name"
+                    },
+                    "stepLog": "#string"
+                }
+            ],
+            "executorName": "#string",
+            "name": "hello bar",
+            "line": 19,
+            "section": 1,
+            "startTime": "#number",
+            "endTime": "#number",
+            "example": 1
         }
     ],
-    "executorName": "#string",
-    "section": 0,
-    "startTime": "#number",
-    "endTime": "#number",
-    "example": -1,
-    "line": 6
+    "featurePath": "classpath:com\/intuit\/karate\/core\/scenario-result.feature"
 }

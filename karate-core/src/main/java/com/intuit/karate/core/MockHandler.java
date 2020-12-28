@@ -82,7 +82,7 @@ public class MockHandler implements ServerHandler {
         FeatureRuntime featureRuntime = FeatureRuntime.of(Suite.forTempUse(), feature, args);
         FeatureSection section = new FeatureSection();
         section.setIndex(-1); // TODO util for creating dummy scenario
-        Scenario dummy = new Scenario(feature, -1, section, -1);
+        Scenario dummy = new Scenario(feature, section, -1);
         section.setScenario(dummy);
         runtime = new ScenarioRuntime(featureRuntime, dummy);
         runtime.engine.setVariable(PATH_MATCHES, (Function<String, Boolean>) this::pathMatches);
