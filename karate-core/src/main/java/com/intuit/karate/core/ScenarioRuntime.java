@@ -23,19 +23,22 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.RuntimeHook;
-import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
+import com.intuit.karate.RuntimeHook;
+import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.FileLogAppender;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  *
@@ -56,12 +59,21 @@ public class ScenarioRuntime implements Runnable {
     public final Map<String, Object> magicVariables;
     public final boolean selectedForExecution;
     public final boolean dryRun;
+    public final boolean isBackgroundRuntime;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
-        this(featureRuntime, scenario, null);
+        this(featureRuntime, scenario, null, false);
+    }
+
+    public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario, boolean backgroundRuntime) {
+        this(featureRuntime, scenario, null, backgroundRuntime);
     }
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario, ScenarioRuntime background) {
+        this(featureRuntime, scenario, background, false);
+    }
+
+    public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario, ScenarioRuntime background, boolean backgroundRuntime) {
         logger = new Logger();
         this.featureRuntime = featureRuntime;
         this.caller = featureRuntime.caller;
@@ -93,6 +105,7 @@ public class ScenarioRuntime implements Runnable {
         }
         dryRun = featureRuntime.suite.dryRun;
         selectedForExecution = isSelectedForExecution(featureRuntime, scenario, tags);
+        isBackgroundRuntime = backgroundRuntime;
     }
 
     public boolean isFailed() {
@@ -349,6 +362,11 @@ public class ScenarioRuntime implements Runnable {
         }
         ScenarioEngine.set(engine);
         engine.init();
+        if(!this.isBackgroundRuntime) {
+            // don't evaluate names when running the background section
+            this.evaluateScenarioName();
+            this.evaluateScenarioDescription();
+        }
         result.setExecutorName(Thread.currentThread().getName());
         result.setStartTime(System.currentTimeMillis() - featureRuntime.suite.startTime);
         if (!dryRun) {
@@ -482,6 +500,25 @@ public class ScenarioRuntime implements Runnable {
     @Override
     public String toString() {
         return scenario.toString();
+    }
+
+    public void evaluateScenarioName() {
+        String scenarioName = this.scenario.getName();
+        boolean wrappedByBackTick = scenarioName != null && scenarioName.length() > 1 && '`' == scenarioName.charAt(0) && '`' == scenarioName.charAt((scenarioName.length() - 1));
+        if (wrappedByBackTick) {
+            String evaluatedScenarioName = this.engine.evalJs(scenarioName).getAsString();
+            this.scenario.setName(evaluatedScenarioName);
+        }
+    }
+
+    public void evaluateScenarioDescription() {
+        String scenarioDescription = this.scenario.getDescription();
+        boolean wrappedByBackTick =  scenarioDescription != null && scenarioDescription.length() > 1 && '`' == scenarioDescription.charAt(0)
+                                    && '`' == scenarioDescription.charAt((scenarioDescription.length() - 1));
+        if (wrappedByBackTick) {
+            String evaluatedScenarioDescription = this.engine.evalJs(scenarioDescription).getAsString();
+            this.scenario.setDescription(evaluatedScenarioDescription);
+        }
     }
 
 }

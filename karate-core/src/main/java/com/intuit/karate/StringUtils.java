@@ -26,11 +26,13 @@ package com.intuit.karate;
 import java.io.BufferedReader;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -178,14 +180,42 @@ public class StringUtils {
         String right = "";
         if (text != null) {
             int pos = text.indexOf('\n');
+            // use backslash to continue in the same line
+            String pattern = "(.|\\n)+?[^\\\\\\s*](\\n|$)";
+            Pattern r = Pattern.compile(pattern);
+            Matcher m = r.matcher(text);
+            if (m.find( )) {
+                pos = m.end();
+            }
+
             if (pos != -1) {
-                left = text.substring(0, pos).trim();
-                right = text.substring(pos).trim();
+                left = trimBetweenNewLinesWithEscape(text.substring(0, pos)).trim();
+                right = trimBetweenNewLinesWithEscape(text.substring(pos)).trim();
             } else {
                 left = text.trim();
             }
         }
         return StringUtils.pair(left, right);
+    }
+
+    public static String trimBetweenNewLinesWithEscape(String text) {
+        AtomicBoolean previousLineHasBackslash = new AtomicBoolean(false);
+        return Arrays.stream(text.split("\\n")).map(s -> {
+            if(s.matches(".*\\\\\\s*$")) {
+                // ends with a backslash
+                String trimmed = s.trim(); // in Java 11 this should be strip() instead of trim()
+                previousLineHasBackslash.set(true);
+                return '\\' == trimmed.charAt(trimmed.length() - 1) ? trimmed.substring(0, trimmed.length() - 1) : trimmed;
+            } else {
+                String returnStr = s;
+                if(previousLineHasBackslash.get()) {
+                    returnStr = returnStr.trim();
+                }
+                previousLineHasBackslash.set(false);
+                return returnStr;
+            }
+
+        }).collect(StringBuilder::new, StringBuilder::append, StringBuilder::append).toString();
     }
 
     public static List<String> toStringLines(String text) {

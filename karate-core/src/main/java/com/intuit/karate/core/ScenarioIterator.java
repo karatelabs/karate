@@ -90,7 +90,7 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
         }
         if (currentScenario.isDynamic()) {
             if (background == null) {
-                background = new ScenarioRuntime(featureRuntime, currentScenario);
+                background = new ScenarioRuntime(featureRuntime, currentScenario, true);
                 background.run();
                 if (background.result.isFailed()) { // karate-config.js || background failed
                     currentScenario = null;

@@ -26,8 +26,13 @@ class FeatureParserTest {
     static final Logger logger = LoggerFactory.getLogger(FeatureParserTest.class);
 
     static FeatureResult execute(String name) {
+        return execute(name, null);
+    }
+
+    static FeatureResult execute(String name, String env) {
         Feature feature = Feature.read("classpath:com/intuit/karate/core/parser/" + name);
         Runner.Builder builder = Runner.builder();
+        builder.karateEnv(env);
         builder.tags("~@ignore");
         FeatureRuntime fr = FeatureRuntime.of(new Suite(builder), feature);
         fr.run();
@@ -144,6 +149,12 @@ class FeatureParserTest {
         Map<String, Object> map = result.getVariables();
         match(map.get("name"), "Nyan");
         match(map.get("title"), "name is Nyan and age is 5");
+    }
+
+    @Test
+    void testOutlineNameJs() {
+        FeatureResult result = execute("test-outline-name-js.feature", "unit-test");
+        assertFalse(result.isFailed());
     }
 
     @Test

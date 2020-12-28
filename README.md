@@ -4037,6 +4037,25 @@ Scenario Outline: inline json
 
 For another example, see: [`examples.feature`](karate-demo/src/test/java/demo/outline/examples.feature).
 
+If you're looking for more complex ways of naming your scenarios you can use JavaScript String interpolation by wrapping the name of the scenario in backticks. 
+
+```cucumber
+Scenario Outline: `name is ${name.first} ${name.last} \
+                    and age is ${age}`
+  * match name.first == "#? _ == 'Bob' || _ == 'Nyan'"
+  * match name.last == "#? _ == 'Dylan' || _ == 'Cat'"
+  * match title == karate.info.scenarioName
+
+Examples:
+  | name!  | age  | title |
+  | { "first": "Bob", "last": "Dylan" }  | 10 | name is Bob Dylan and age is 10 |
+  | { "first": "Nyan", "last": "Cat" }  | 5 | name is Nyan Cat and age is 5 |
+```
+
+String interpolation will support variables in scope and/or Examples (including functions defined globally, but not functions defined in the background), operators and even the Java Interop access and access to the Karate API.
+
+For some more examples check [`test-outline-name-js.feature`](karate-core/src/test/java/com/intuit/karate/core/parser/test-outline-name-js.feature).
+
 ### The Karate Way
 The limitation of the Cucumber `Scenario Outline:` (seen above) is that the number of rows in the `Examples:` is fixed. But take a look at how Karate can [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic data-driven testing, if you need it. For advanced examples, refer to some of the scenarios within this [demo](karate-demo): [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature#L70).
 
