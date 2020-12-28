@@ -64,10 +64,7 @@ class RunnerTest {
         assertTrue(contains(pathBase + "outline.xml", "Then assert a == 55"));
         // a scenario failure should not stop other features from running
         assertTrue(contains(pathBase + "multi-scenario-fail.xml", "Then assert a != 2 ........................................................ passed"));
-        assertEquals(3, results.getFailedMap().size());
-        assertTrue(results.getFailedMap().keySet().contains("com.intuit.karate.core.runner.no-scenario-name"));
-        assertTrue(results.getFailedMap().keySet().contains("com.intuit.karate.core.runner.multi-scenario-fail"));
-        assertTrue(results.getFailedMap().keySet().contains("com.intuit.karate.core.runner.stackoverflow-error"));
+        assertEquals(3, results.getFailCount());
     }
 
     @Test

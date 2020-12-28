@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.Constants;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.resource.FileResource;
 import com.intuit.karate.resource.Resource;
@@ -73,9 +74,13 @@ public class Feature {
     public Resource getResource() {
         return resource;
     }
-    
+
     public String getPackageQualifiedName() {
         return resource.getPackageQualifiedName();
+    }
+
+    public String getKarateJsonFileName() {
+        return getPackageQualifiedName() + Constants.KARATE_JSON_SUFFIX;
     }
 
     public boolean isBackgroundPresent() {
@@ -126,17 +131,17 @@ public class Feature {
         return sections.get(sectionIndex);
     }
 
-    public Scenario getScenario(int sectionIndex, int scenarioIndex) {
+    public Scenario getScenario(int sectionIndex, int exampleIndex) {
         FeatureSection section = getSection(sectionIndex);
-        if (scenarioIndex == -1) {
+        if (exampleIndex == -1) {
             return section.getScenario();
         }
         ScenarioOutline outline = section.getScenarioOutline();
-        return outline.getScenarios().get(scenarioIndex);
+        return outline.getScenarios().get(exampleIndex);
     }
 
-    public Step getStep(int sectionIndex, int scenarioIndex, int stepIndex) {
-        Scenario scenario = getScenario(sectionIndex, scenarioIndex);
+    public Step getStep(int sectionIndex, int exampleIndex, int stepIndex) {
+        Scenario scenario = getScenario(sectionIndex, exampleIndex);
         List<Step> steps = scenario.getSteps();
         if (stepIndex == -1 || steps.isEmpty() || steps.size() <= stepIndex) {
             return null;

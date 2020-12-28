@@ -52,6 +52,10 @@ public class Scenario {
         this.section = section;
         this.exampleIndex = exampleIndex;
     }
+    
+    public boolean isEqualTo(Scenario other) {
+        return other.section.getIndex() == section.getIndex() && other.exampleIndex == exampleIndex;
+    }
 
     public String getNameAndDescription() {
         String temp = "";

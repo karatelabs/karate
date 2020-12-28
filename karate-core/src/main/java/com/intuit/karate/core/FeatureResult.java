@@ -44,7 +44,6 @@ public class FeatureResult {
 
     private final Feature feature;
     private final List<ScenarioResult> scenarioResults = new ArrayList<>();
-    private final List<Throwable> errors = new ArrayList<>();
 
     private String displayName; // mutable for users who want to customize
 
@@ -170,9 +169,7 @@ public class FeatureResult {
     }
 
     public KarateException getErrorsCombined() {
-        if (errors == null) {
-            return null;
-        }
+        List<Throwable> errors = getErrors();
         if (errors.size() == 1) {
             Throwable error = errors.get(0);
             if (error instanceof KarateException) {
@@ -185,6 +182,7 @@ public class FeatureResult {
     }
 
     public String getErrorMessages() {
+        List<Throwable> errors = getErrors();
         StringBuilder sb = new StringBuilder();
         Iterator<Throwable> iterator = errors.iterator();
         while (iterator.hasNext()) {
@@ -258,26 +256,17 @@ public class FeatureResult {
     }
 
     public List<Throwable> getErrors() {
+        List<Throwable> errors = new ArrayList();
+        for (ScenarioResult sr : scenarioResults) {
+            if (sr.isFailed()) {
+                errors.add(sr.getError());
+            }
+        }
         return errors;
-    }
-
-    private void addError(Throwable error) {
-        errors.add(error);
     }
 
     public void addResult(ScenarioResult result) {
         scenarioResults.add(result);
-        if (result.isFailed()) {
-            Scenario scenario = result.getScenario();
-            if (scenario.isOutlineExample()) {
-                Throwable error = result.getError();
-                Throwable copy = new KarateException(scenario.getDisplayMeta() + " " + error.getMessage());
-                copy.setStackTrace(error.getStackTrace());
-                addError(copy);
-            } else {
-                addError(result.getError());
-            }
-        }
     }
 
     public void setVariables(Map<String, Object> resultVariables) {

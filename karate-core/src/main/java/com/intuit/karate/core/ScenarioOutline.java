@@ -84,7 +84,7 @@ public class ScenarioOutline {
             Table table = examples.getTable();
             if (table.isDynamic()) {
                 // technically row index 0 to denote an example (not -1)
-                Scenario scenario = toScenario(table.getDynamicExpression(), 0, line, examples.getTags());
+                Scenario scenario = toScenario(table.getDynamicExpression(), 0, table.getLineNumberForRow(0), examples.getTags());
                 list.add(scenario);
             } else {
                 int rowCount = table.getRows().size();

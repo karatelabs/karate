@@ -485,7 +485,7 @@ public class Runner {
             Suite suite = new Suite(this);
             suite.backupReportDirIfExists();
             suite.run();
-            return suite.results;
+            return suite.buildResults();
         }
 
         public Results parallel(int threadCount) {
@@ -493,7 +493,7 @@ public class Runner {
             Suite suite = new Suite(this);
             suite.backupReportDirIfExists();
             suite.run();
-            return suite.results;
+            return suite.buildResults();
         }
 
         @Override

@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.Constants;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.JsonUtils;
@@ -70,7 +69,7 @@ public class Reports {
 
     public static File saveKarateJson(String targetDir, FeatureResult result, String fileName) {
         if (fileName == null) {
-            fileName = result.getFeature().getPackageQualifiedName() + Constants.KARATE_JSON_SUFFIX;
+            fileName = result.getFeature().getKarateJsonFileName();
         }
         File file = new File(targetDir + File.separator + fileName);
         FileUtils.writeToFile(file, JsonUtils.toJson(result.toKarateJson()));

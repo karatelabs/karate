@@ -27,9 +27,10 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.HtmlFeatureReport;
-import com.intuit.karate.core.HtmlSummaryReport;
-import com.intuit.karate.core.HtmlTimelineReport;
 import com.intuit.karate.core.Reports;
+import com.intuit.karate.core.Scenario;
+import com.intuit.karate.core.ScenarioResult;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.SyncExecutorService;
 import com.intuit.karate.core.Tags;
 import com.intuit.karate.http.HttpClientFactory;
@@ -60,11 +61,13 @@ public class Suite implements Runnable {
 
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(Suite.class);
 
+    public final long startTime;
+    protected long endTime;
+    protected int skippedCount;
+
     public final String env;
     public final String tagSelector;
-    public final boolean forTempUse;
     public final boolean dryRun;
-    public final long startTime;
     public final File workingDir;
     public final String buildDir;
     public final String reportDir;
@@ -74,7 +77,6 @@ public class Suite implements Runnable {
     public final int featuresFound;
     public final List<Feature> features;
     public final List<CompletableFuture> futures;
-    public final Results results;
     public final Set<File> featureResultFiles;
     public final Collection<RuntimeHook> hooks;
     public final HttpClientFactory clientFactory;
@@ -118,7 +120,6 @@ public class Suite implements Runnable {
 
     public Suite(Runner.Builder rb) {
         if (rb.forTempUse) {
-            forTempUse = true;
             dryRun = false;
             outputHtmlReport = false;
             outputCucumberJson = false;
@@ -135,7 +136,6 @@ public class Suite implements Runnable {
             features = null;
             featuresFound = -1;
             futures = null;
-            results = null;
             featureResultFiles = null;
             workingDir = FileUtils.WORKING_DIR;
             buildDir = FileUtils.getBuildDir();
@@ -150,7 +150,6 @@ public class Suite implements Runnable {
             jobManager = null;
             progressFileLock = null;
         } else {
-            forTempUse = false;
             startTime = System.currentTimeMillis();
             rb.resolveAll();
             outputHtmlReport = rb.outputHtmlReport;
@@ -167,7 +166,6 @@ public class Suite implements Runnable {
             featuresFound = features.size();
             futures = new ArrayList(featuresFound);
             suiteCache = rb.suiteCache;
-            results = new Results(this);
             featureResultFiles = new HashSet();
             workingDir = rb.workingDir;
             buildDir = rb.buildDir;
@@ -208,7 +206,7 @@ public class Suite implements Runnable {
                 final CompletableFuture future = new CompletableFuture();
                 futures.add(future);
                 fr.setNext(() -> {
-                    onFeatureDone(fr, featureNum);
+                    onFeatureDone(fr.result, featureNum);
                     future.complete(Boolean.TRUE);
                 });
                 pendingTasks.submit(fr);
@@ -225,71 +223,50 @@ public class Suite implements Runnable {
             } else {
                 CompletableFuture.allOf(futuresArray).join();
             }
-            results.setEndTime(System.currentTimeMillis());
-            if (outputHtmlReport) {
-                HtmlSummaryReport summary = new HtmlSummaryReport();
-                HtmlTimelineReport timeline = new HtmlTimelineReport();
-                getFeatureResults().forEach(fr -> {
-                    timeline.addFeatureResult(fr);
-                    int scenarioCount = fr.getScenarioCount();
-                    results.addToScenarioCount(scenarioCount);
-                    if (scenarioCount != 0) {
-                        results.incrementFeatureCount();
-                    }
-                    results.addToFailCount(fr.getFailedCount());
-                    results.addToTimeTaken(fr.getDurationMillis());
-                    if (fr.isFailed()) {
-                        results.addToFailedList(fr.getFeature().getPackageQualifiedName(), fr.getErrorMessages());
-                    }
-                    if (!fr.isEmpty()) {
-                        HtmlFeatureReport.saveFeatureResult(reportDir, fr);
-                        summary.addFeatureResult(fr);
-                    }
-                });
-                summary.save(reportDir);
-                timeline.save(reportDir);
-                saveStatsJson();
-            }                        
+            endTime = System.currentTimeMillis();
         } catch (Exception e) {
             logger.error("runner failed: " + e);
-            results.setFailureReason(e);
         } finally {
             scenarioExecutor.shutdownNow();
             pendingTasks.shutdownNow();
             if (jobManager != null) {
                 jobManager.server.stop();
             }
-            results.printStats();
             hooks.forEach(h -> h.afterSuite(this));
         }
     }
 
-    private void onFeatureDone(FeatureRuntime fr, int index) {
-        FeatureResult result = fr.result;
-        Feature feature = fr.feature;
-        if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags
+    private void saveFeatureResults(FeatureResult fr) {
+        File file = Reports.saveKarateJson(reportDir, fr, null);
+        synchronized (featureResultFiles) {
+            featureResultFiles.add(file);
+        }
+        if (outputHtmlReport) {
+            HtmlFeatureReport.saveFeatureResult(reportDir, fr);
+        }
+        if (outputCucumberJson) {
+            Reports.saveCucumberJson(reportDir, fr, null);
+        }
+        if (outputJunitXml) {
+            Reports.saveJunitXml(reportDir, fr, null);
+        }
+        fr.printStats();
+    }
+
+    private void onFeatureDone(FeatureResult fr, int index) {
+        if (fr.getScenarioCount() > 0) { // possible that zero scenarios matched tags
             try { // edge case that reports are not writable     
-                File file = Reports.saveKarateJson(reportDir, result, null);
-                synchronized (featureResultFiles) {
-                    featureResultFiles.add(file);
-                }
-                if (outputCucumberJson) {
-                    Reports.saveCucumberJson(reportDir, result, null);
-                }
-                if (outputJunitXml) {
-                    Reports.saveJunitXml(reportDir, result, null);
-                }
-                String status = result.isFailed() ? "fail" : "pass";
-                logger.info("<<{}>> feature {} of {} ({} remaining) {}", status, index, featuresFound, getFeaturesRemaining() - 1, feature);
-                result.printStats();
+                saveFeatureResults(fr);
+                String status = fr.isFailed() ? "fail" : "pass";
+                logger.info("<<{}>> feature {} of {} ({} remaining) {}", status, index, featuresFound, getFeaturesRemaining() - 1, fr.getFeature());                
             } catch (Exception e) {
-                logger.error("<<error>> unable to write report file(s): {} - {}", feature, e + "");
-                result.printStats();
+                logger.error("<<error>> unable to write report file(s): {} - {}", fr.getFeature(), e + "");
+                fr.printStats();
             }
         } else {
-            results.addToSkipCount(1);
+            skippedCount++;
             if (logger.isTraceEnabled()) {
-                logger.trace("<<skip>> feature {} of {}: {}", index, featuresFound, feature);
+                logger.trace("<<skip>> feature {} of {}: {}", index, featuresFound, fr.getFeature());
             }
         }
         if (progressFileLock.tryLock()) {
@@ -301,6 +278,47 @@ public class Suite implements Runnable {
     public Stream<FeatureResult> getFeatureResults() {
         return featureResultFiles.stream()
                 .map(file -> FeatureResult.fromKarateJson(workingDir, Json.of(FileUtils.toString(file)).asMap()));
+    }
+
+    public Stream<ScenarioResult> getScenarioResults() {
+        return getFeatureResults().flatMap(fr -> fr.getScenarioResults().stream());
+    }
+
+    public ScenarioResult retryScenario(Scenario scenario) {
+        FeatureRuntime fr = FeatureRuntime.of(this, scenario.getFeature());
+        ScenarioRuntime runtime = new ScenarioRuntime(fr, scenario);
+        runtime.run();
+        return runtime.result;
+    }
+
+    public Results updateResults(ScenarioResult sr) {
+        Scenario scenario = sr.getScenario();
+        FeatureResult fr;
+        File file = new File(reportDir + File.separator + scenario.getFeature().getKarateJsonFileName());
+        if (file.exists()) {
+            String json = FileUtils.toString(file);
+            fr = FeatureResult.fromKarateJson(workingDir, Json.of(json).asMap());
+        } else {
+            fr = new FeatureResult(scenario.getFeature());
+        }
+        List<ScenarioResult> scenarioResults = fr.getScenarioResults();
+        int count = scenarioResults.size();
+        int found = -1;
+        for (int i = 0; i < count; i++) {
+            ScenarioResult temp = scenarioResults.get(i);
+            if (temp.getScenario().isEqualTo(scenario)) {
+                found = i;
+                break;
+            }
+        }
+        if (found != -1) {
+            scenarioResults.set(found, sr);
+        } else {
+            scenarioResults.add(sr);
+        }
+        fr.sortScenarioResults();
+        saveFeatureResults(fr);
+        return buildResults();
     }
 
     public void backupReportDirIfExists() {
@@ -326,11 +344,8 @@ public class Suite implements Runnable {
         return file;
     }
 
-    private File saveStatsJson() {
-        String json = JsonUtils.toJson(results.toMap());
-        File file = new File(reportDir + File.separator + "karate-results-json.txt");
-        FileUtils.writeToFile(file, json);
-        return file;
+    Results buildResults() {
+        return Results.of(this);
     }
 
 }
