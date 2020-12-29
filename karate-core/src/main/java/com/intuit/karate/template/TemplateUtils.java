@@ -28,7 +28,6 @@ import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.http.RequestCycle;
 import java.util.Map;
 import org.thymeleaf.IEngineConfiguration;
-import org.thymeleaf.ITemplateEngine;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.IContext;
 import org.thymeleaf.context.IEngineContext;
@@ -65,7 +64,7 @@ public class TemplateUtils {
         return false;
     }
 
-    public static ITemplateEngine createServerEngine(ServerConfig config) {
+    public static KarateTemplateEngine createServerEngine(ServerConfig config) {
         TemplateEngine engine = new TemplateEngine();
         StandardEngineContextFactory standardFactory = new StandardEngineContextFactory();
         engine.setEngineContextFactory((IEngineConfiguration ec, TemplateData data, Map<String, Object> attrs, IContext context) -> {
@@ -79,7 +78,7 @@ public class TemplateUtils {
         return new KarateTemplateEngine(engine);
     }
     
-    public static ITemplateEngine createEngine(JsEngine je) {
+    public static KarateTemplateEngine createEngine(JsEngine je) {
         TemplateEngine engine = new TemplateEngine();
         StandardEngineContextFactory standardFactory = new StandardEngineContextFactory();
         engine.setEngineContextFactory((IEngineConfiguration ec, TemplateData data, Map<String, Object> attrs, IContext context) -> {

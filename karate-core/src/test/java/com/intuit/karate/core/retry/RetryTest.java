@@ -2,16 +2,12 @@ package com.intuit.karate.core.retry;
 
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.MockHandler;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.Step;
-import com.intuit.karate.http.HttpServer;
 import java.util.List;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,15 +18,7 @@ import org.slf4j.LoggerFactory;
  */
 class RetryTest {
     
-    static final Logger logger = LoggerFactory.getLogger(RetryTest.class);
-    
-    static HttpServer server;
-
-    @BeforeAll
-    static void beforeAll() {
-        MockHandler mock = new MockHandler(Feature.read("classpath:com/intuit/karate/core/parallel/mock.feature"));
-        server = new HttpServer(0, mock);
-    }    
+    static final Logger logger = LoggerFactory.getLogger(RetryTest.class);   
 
     @Test
     void testParallel() {
@@ -42,8 +30,8 @@ class RetryTest {
         assertEquals(1, failed.size());
         Scenario scenario = failed.get(0).getScenario();
         Step step = scenario.getSteps().get(0);
-        assertEquals("assert 1 == 2", step.getText());
-        step.setText("assert 2 == 2");
+        assertEquals("assert value != 1", step.getText());
+        step.setText("assert value == 1");
         ScenarioResult sr = results.getSuite().retryScenario(scenario);
         assertFalse(sr.isFailed());
         results = results.getSuite().updateResults(sr);

@@ -167,8 +167,9 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             for (Map<String, Object> stepResultMap : list) {
                 StepResult stepResult = StepResult.fromKarateJson(workingDir, scenario, stepResultMap);
                 sr.addStepResult(stepResult);
-                if (!stepResult.getStep().isBackground()) {
-                    steps.add(stepResult.getStep());
+                Step step = stepResult.getStep();
+                if (!step.isBackground() && step.getLine() != -1) {
+                    steps.add(step);
                 }
             }
             scenario.setSteps(steps);

@@ -53,6 +53,7 @@ import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.match.MatchType;
 import com.intuit.karate.match.MatchValue;
 import com.intuit.karate.shell.Command;
+import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateContext;
 import com.intuit.karate.template.TemplateUtils;
 import com.jayway.jsonpath.PathNotFoundException;
@@ -75,7 +76,6 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.graalvm.polyglot.Value;
-import org.thymeleaf.ITemplateEngine;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
@@ -294,7 +294,7 @@ public class ScenarioEngine {
     private PerfEvent prevPerfEvent;
 
     public void logLastPerfEvent(String failureMessage) {
-        if (prevPerfEvent != null && runtime.featureRuntime.perfHook != null) {
+        if (prevPerfEvent != null && runtime.perfMode) {
             if (failureMessage != null) {
                 prevPerfEvent.setFailed(true);
                 prevPerfEvent.setMessage(failureMessage);
@@ -582,7 +582,7 @@ public class ScenarioEngine {
         }
         request = requestBuilder.build();
         String perfEventName = null; // acts as a flag to report perf if not null
-        if (runtime.featureRuntime.perfHook != null) {
+        if (runtime.perfMode) {
             perfEventName = runtime.featureRuntime.perfHook.getPerfEventName(request, runtime);
         }
         long startTime = System.currentTimeMillis();
@@ -976,7 +976,7 @@ public class ScenarioEngine {
 
     // doc =====================================================================
     //    
-    private ITemplateEngine templateEngine;
+    private KarateTemplateEngine templateEngine;
 
     public void doc(String exp, boolean docString) {
         if (runtime.reportDisabled) {

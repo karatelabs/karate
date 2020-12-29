@@ -24,6 +24,7 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateContext;
 import com.intuit.karate.template.TemplateUtils;
 import java.io.InputStream;
@@ -31,7 +32,6 @@ import java.time.Instant;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.thymeleaf.ITemplateEngine;
 
 /**
  *
@@ -42,7 +42,7 @@ public class RequestHandler implements ServerHandler {
     private static final Logger logger = LoggerFactory.getLogger(RequestHandler.class);
 
     private final SessionStore sessionStore;
-    private final ITemplateEngine engine;
+    private final KarateTemplateEngine engine;
     private final String homePagePath;
     private final ServerConfig config;
     private final Function<Request, ServerContext> contextFactory;
