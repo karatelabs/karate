@@ -13,7 +13,7 @@ class ServerRunner {
 
     @Test
     void testServer() {
-        ServerConfig config = new ServerConfig().fileSystemRoot("src/test/java/demo");
+        ServerConfig config = new ServerConfig("src/test/java/demo");
         RequestHandler handler = new RequestHandler(config);
         HttpServer server = new HttpServer(8080, handler);
         server.waitSync();

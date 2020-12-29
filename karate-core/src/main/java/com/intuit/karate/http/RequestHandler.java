@@ -23,9 +23,9 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.template.KarateTemplateEngine;
-import com.intuit.karate.template.TemplateContext;
 import com.intuit.karate.template.TemplateUtils;
 import java.io.InputStream;
 import java.time.Instant;
@@ -53,7 +53,7 @@ public class RequestHandler implements ServerHandler {
         this.config = config;
         contextFactory = config.getContextFactory();
         resourceResolver = config.getResourceResolver();
-        engine = TemplateUtils.createServerEngine(config);
+        engine = TemplateUtils.forServer(config);
         homePagePath = config.getHomePagePath();
         sessionStore = config.getSessionStore();
         stripHostContextPath = config.isStripContextPathFromRequest() ? config.getHostContextPath() : null;
@@ -115,7 +115,7 @@ public class RequestHandler implements ServerHandler {
         rc.init(context, session);
         try {
             if (context.isApi()) {
-                InputStream is = resourceResolver.read(request.getResourcePath());
+                InputStream is = resourceResolver.read(request.getResourcePath()).getStream();
                 ResponseBuilder rb = response(rc, session, newSession);
                 if (context.isLockNeeded()) {
                     synchronized (this) {
@@ -147,11 +147,11 @@ public class RequestHandler implements ServerHandler {
 
     private String htmlResponse(Request request) {
         try {
-            return engine.process(request.getPath(), TemplateContext.LOCALE_US);
+            return engine.process(request.getPath());
         } catch (RedirectException re) {
             String template = re.getTemplate();
             logger.debug("redirect requested to: {}", template);
-            return engine.process(template, TemplateContext.LOCALE_US);
+            return engine.process(template);
         }
     }
 

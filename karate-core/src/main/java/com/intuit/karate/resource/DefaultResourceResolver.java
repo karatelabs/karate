@@ -23,59 +23,50 @@
  */
 package com.intuit.karate.resource;
 
+import com.intuit.karate.FileUtils;
 import java.io.File;
-import java.io.InputStream;
-import java.net.URI;
+import java.util.Set;
 
 /**
  *
  * @author pthomas3
  */
-public interface Resource {
+public class DefaultResourceResolver implements ResourceResolver {
 
-    boolean isFile();
+    private final boolean classpath;
+    private final String root;
+    private final Set<String> jsFiles;
 
-    boolean isClassPath();
-
-    File getFile();
-
-    URI getUri();
-
-    String getRelativePath();
-
-    Resource resolve(String path);
-
-    default String getPrefixedPath() {
-        return isClassPath() ? "classpath:" + getRelativePath() : getRelativePath();
-    }
-
-    default String getPrefixedParentPath() {
-        String prefixedPath = getPrefixedPath();
-        int pos = prefixedPath.lastIndexOf('/');
-        return pos == -1 ? prefixedPath : prefixedPath.substring(0, pos + 1);
-    }
-
-    default String getPackageQualifiedName() {
-        String path = getRelativePath();
-        if (path.endsWith(".feature")) {
-            path = path.substring(0, path.length() - 8);
+    public DefaultResourceResolver(String root) {
+        if (root == null) {
+            root = "";
         }
-        if (path.charAt(0) == '/') {
-            path = path.substring(1);
+        classpath = root.startsWith("classpath:");
+        root = ResourceUtils.removePrefix(root);
+        if (!root.isEmpty() && !root.endsWith("/")) {
+            root = root + "/";
         }
-        return path.replace('/', '.').replaceAll("\\.[.]+", ".");
-    }
-
-    default String getFileNameWithoutExtension() {
-        String path = getRelativePath();
-        int pos = path.lastIndexOf('.');
-        if (pos == -1) {
-            return path;
+        this.root = root;
+        if (classpath) {
+            jsFiles = ResourceUtils.findJsFilesInClassPath(root);
         } else {
-            return path.substring(0, pos);
+            jsFiles = ResourceUtils.findJsFilesInDirectory(new File(root));
         }
     }
 
-    InputStream getStream();
+    @Override
+    public Resource read(String path) {
+        if (path.startsWith("classpath:") || path.startsWith("file:")) {
+            // use path as-is
+        } else {
+            path = (classpath ? "classpath:" : "") + root + ResourceUtils.removePrefix(path);
+        }
+        return ResourceUtils.getResource(FileUtils.WORKING_DIR, path);
+    }
+
+    @Override
+    public Set<String> jsfiles() {
+        return jsFiles;
+    }
 
 }

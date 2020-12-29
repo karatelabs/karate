@@ -54,7 +54,6 @@ import com.intuit.karate.match.MatchType;
 import com.intuit.karate.match.MatchValue;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.template.KarateTemplateEngine;
-import com.intuit.karate.template.TemplateContext;
 import com.intuit.karate.template.TemplateUtils;
 import com.jayway.jsonpath.PathNotFoundException;
 import java.io.File;
@@ -978,34 +977,33 @@ public class ScenarioEngine {
     //    
     private KarateTemplateEngine templateEngine;
 
-    public void doc(String exp, boolean docString) {
+    public void doc(String exp) {
         if (runtime.reportDisabled) {
             return;
         }
-        String text;
-        if (docString) {
-            text = exp;
-        } else {
-            Variable v = evalKarateExpression(exp);
-            if (v.isString()) {
-                text = v.getAsString();
-            } else if (v.isMap()) {
-                Map<String, Object> map = v.getValue();
-                String path = (String) map.get("read");
-                if (path == null) {
-                    logger.warn("doc json missing 'read' property: {}", v);
-                    return;
-                }
-                text = fileReader.readFileAsString(path);
-            } else {
-                logger.warn("doc is not string or json: {}", v);
+        String path;
+        Variable v = evalKarateExpression(exp);
+        if (v.isString()) {
+            path = v.getAsString();
+        } else if (v.isMap()) {
+            Map<String, Object> map = v.getValue();
+            path = (String) map.get("read");
+            if (path == null) {
+                logger.warn("doc json missing 'read' property: {}", v);
                 return;
             }
+        } else {
+            logger.warn("doc is not string or json: {}", v);
+            return;
         }
         if (templateEngine == null) {
-            templateEngine = TemplateUtils.createEngine(JS);
+            String prefixedPath = runtime.featureRuntime.rootFeature.feature.getResource().getPrefixedParentPath();
+            templateEngine = TemplateUtils.forRelativePath(JS, prefixedPath);
         }
-        String html = templateEngine.process(text, TemplateContext.LOCALE_US);
+        if (path.startsWith("this:")) {
+            path = runtime.featureRuntime.feature.getResource().getPrefixedParentPath() + path.substring(5);
+        }
+        String html = templateEngine.process(path);
         runtime.embed(FileUtils.toBytes(html), ResourceType.HTML);
     }
 

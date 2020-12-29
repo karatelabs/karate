@@ -23,7 +23,8 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.http.ServerConfig;
+import com.intuit.karate.resource.Resource;
+import com.intuit.karate.resource.ResourceResolver;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,10 +42,10 @@ public class ServerHtmlTemplateResolver implements ITemplateResolver {
 
     private static final Logger logger = LoggerFactory.getLogger(ServerHtmlTemplateResolver.class);
 
-    private final ServerConfig config;
+    private final ResourceResolver resourceResolver;
 
-    public ServerHtmlTemplateResolver(ServerConfig config) {
-        this.config = config;
+    public ServerHtmlTemplateResolver(ResourceResolver resourceResolver) {
+        this.resourceResolver = resourceResolver;
     }
 
     @Override
@@ -58,9 +59,10 @@ public class ServerHtmlTemplateResolver implements ITemplateResolver {
     }
 
     @Override
-    public TemplateResolution resolveTemplate(IEngineConfiguration ec, String ownerTemplate, String template, Map<String, Object> templateResolutionAttributes) {
-        ServerTemplateResource resource = new ServerTemplateResource(template, config);
-        return new TemplateResolution(resource, TemplateMode.HTML, NonCacheableCacheEntryValidity.INSTANCE);
+    public TemplateResolution resolveTemplate(IEngineConfiguration ec, String ownerTemplate, String name, Map<String, Object> templateResolutionAttributes) {
+        Resource resource = resourceResolver.read(name + ".html");
+        KarateTemplateResource templateResource = new KarateTemplateResource(resource);
+        return new TemplateResolution(templateResource, TemplateMode.HTML, NonCacheableCacheEntryValidity.INSTANCE);
     }
 
 }

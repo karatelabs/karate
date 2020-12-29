@@ -26,14 +26,7 @@ package com.intuit.karate.template;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.http.RequestCycle;
-import java.util.Map;
-import org.thymeleaf.IEngineConfiguration;
-import org.thymeleaf.TemplateEngine;
-import org.thymeleaf.context.IContext;
-import org.thymeleaf.context.IEngineContext;
 import org.thymeleaf.context.ITemplateContext;
-import org.thymeleaf.context.StandardEngineContextFactory;
-import org.thymeleaf.engine.TemplateData;
 import org.thymeleaf.model.IModel;
 import org.thymeleaf.model.IModelFactory;
 import org.thymeleaf.model.IProcessableElementTag;
@@ -64,31 +57,24 @@ public class TemplateUtils {
         return false;
     }
 
-    public static KarateTemplateEngine createServerEngine(ServerConfig config) {
-        TemplateEngine engine = new TemplateEngine();
-        StandardEngineContextFactory standardFactory = new StandardEngineContextFactory();
-        engine.setEngineContextFactory((IEngineConfiguration ec, TemplateData data, Map<String, Object> attrs, IContext context) -> {
-            IEngineContext engineContext = standardFactory.createEngineContext(ec, data, attrs, context);
-            return new TemplateEngineContext(engineContext, RequestCycle.get());
-        });
-        engine.setTemplateResolver(new ServerHtmlTemplateResolver(config));
-        // the next line is a set which clears and replaces all existing / default
-        engine.setDialect(new KarateStandardDialect());
-        engine.addDialect(new KarateDialect(config));
-        return new KarateTemplateEngine(engine);
+    public static KarateTemplateEngine forServer(ServerConfig config) {
+        KarateTemplateEngine engine = new KarateTemplateEngine(() -> RequestCycle.get(), new KarateDialect(config));
+        engine.setTemplateResolver(new ServerHtmlTemplateResolver(config.getResourceResolver()));
+        return engine;
     }
-    
-    public static KarateTemplateEngine createEngine(JsEngine je) {
-        TemplateEngine engine = new TemplateEngine();
-        StandardEngineContextFactory standardFactory = new StandardEngineContextFactory();
-        engine.setEngineContextFactory((IEngineConfiguration ec, TemplateData data, Map<String, Object> attrs, IContext context) -> {
-            IEngineContext engineContext = standardFactory.createEngineContext(ec, data, attrs, context);
-            return new TemplateEngineContext(engineContext, RequestCycle.init(je));
-        });
+
+    public static KarateTemplateEngine forStrings(JsEngine je) {
+        final RequestCycle rc = RequestCycle.init(je);
+        KarateTemplateEngine engine = new KarateTemplateEngine(() -> rc);
         engine.setTemplateResolver(StringHtmlTemplateResolver.INSTANCE);
-        // the next line is a set which clears and replaces all existing / default
-        engine.setDialect(new KarateStandardDialect());
-        return new KarateTemplateEngine(engine);
+        return engine;
+    }
+
+    public static KarateTemplateEngine forRelativePath(JsEngine je, String root) {
+        final RequestCycle rc = RequestCycle.init(je);
+        KarateTemplateEngine engine = new KarateTemplateEngine(() -> rc);
+        engine.setTemplateResolver(new ResourceHtmlTemplateResolver(root));
+        return engine;
     }
 
 }

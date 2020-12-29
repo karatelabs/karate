@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test</title>
+  </head>
+  <body>
+    <div th:text="featureResult.featurePath"></div>
+    <ul th:each="sr: featureResult.scenarioResults">
+      <li th:text="sr.name"></li>
+    </ul>
+  </body>
+</html>
+

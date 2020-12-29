@@ -142,8 +142,6 @@ public interface Actions {
 
     void doc(String exp);
 
-    void docDocstring(String exp);
-
     //==========================================================================
     //
     void driver(String exp);

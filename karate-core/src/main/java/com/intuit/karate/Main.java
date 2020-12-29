@@ -315,7 +315,7 @@ public class Main implements Callable<Void> {
             return null;
         }
         if (serve) {
-            ServerConfig config = new ServerConfig().fileSystemRoot(workingDir.getAbsolutePath());
+            ServerConfig config = new ServerConfig(workingDir.getPath());
             RequestHandler handler = new RequestHandler(config);
             HttpServer server = new HttpServer(port, handler);
             server.waitSync();

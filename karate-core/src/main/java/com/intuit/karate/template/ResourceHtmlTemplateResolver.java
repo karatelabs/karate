@@ -23,40 +23,47 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.http.ServerConfig;
-import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.resource.DefaultResourceResolver;
+import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceResolver;
-import java.io.InputStream;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.thymeleaf.context.ITemplateContext;
-import org.thymeleaf.engine.AttributeName;
-import org.thymeleaf.model.IProcessableElementTag;
-import org.thymeleaf.processor.element.AbstractAttributeTagProcessor;
-import org.thymeleaf.processor.element.IElementTagStructureHandler;
+import org.thymeleaf.IEngineConfiguration;
+import org.thymeleaf.cache.NonCacheableCacheEntryValidity;
 import org.thymeleaf.templatemode.TemplateMode;
+import org.thymeleaf.templateresolver.ITemplateResolver;
+import org.thymeleaf.templateresolver.TemplateResolution;
 
 /**
  *
  * @author pthomas3
  */
-public class KaScriptAttrProcessor extends AbstractAttributeTagProcessor {
+public class ResourceHtmlTemplateResolver implements ITemplateResolver {
 
-    private static final Logger logger = LoggerFactory.getLogger(KaScriptAttrProcessor.class);
+    private static final Logger logger = LoggerFactory.getLogger(ResourceHtmlTemplateResolver.class);
+
     private final ResourceResolver resourceResolver;
 
-    public KaScriptAttrProcessor(String dialectPrefix, ServerConfig config) {
-        super(TemplateMode.HTML, dialectPrefix, null, false, "src", true, 1000, true);
-        resourceResolver = config.getResourceResolver();
+    public ResourceHtmlTemplateResolver(String root) {
+        this.resourceResolver = new DefaultResourceResolver(root);
     }
 
     @Override
-    protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag, AttributeName an, String av, IElementTagStructureHandler sh) {
-        InputStream is = resourceResolver.read(av).getStream();
-        String src = FileUtils.toString(is);
-        JsEngine.evalGlobal(src);
-        sh.removeElement();
+    public String getName() {
+        return getClass().getName();
+    }
+
+    @Override
+    public Integer getOrder() {
+        return 0;
+    }
+
+    @Override
+    public TemplateResolution resolveTemplate(IEngineConfiguration ec, String ownerTemplate, String name, Map<String, Object> templateResolutionAttributes) {
+        Resource resource = resourceResolver.read(name);
+        KarateTemplateResource templateResource = new KarateTemplateResource(resource);
+        return new TemplateResolution(templateResource, TemplateMode.HTML, NonCacheableCacheEntryValidity.INSTANCE);
     }
 
 }

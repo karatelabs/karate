@@ -390,14 +390,8 @@ public class ScenarioActions implements Actions {
     @Override
     @When("^doc (.+)")
     public void doc(String exp) {
-        engine.doc(exp, false);
-    }
-    
-    @Override
-    @When("^doc$")
-    public void docDocstring(String exp) {
-        engine.doc(exp, true);
-    }    
+        engine.doc(exp);
+    }  
 
     //==========================================================================
     //

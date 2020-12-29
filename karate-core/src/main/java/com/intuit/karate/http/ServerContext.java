@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsValue;
@@ -152,7 +153,7 @@ public class ServerContext implements ProxyObject {
     }
 
     public Object read(String resource) {
-        InputStream is = config.getResourceResolver().read(resource);
+        InputStream is = config.getResourceResolver().read(resource).getStream();
         String raw = FileUtils.toString(is);
         ResourceType resourceType = ResourceType.fromFileExtension(resource);
         switch (resourceType) {
