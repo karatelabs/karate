@@ -157,7 +157,8 @@
     | <a href="#driverscreenshotfull"><code>driver.screenshotFull()</code></a>
     | <a href="#driverintercept"><code>driver.intercept()</code></a>
     | <a href="#driverinputfile"><code>driver.inputFile()</code></a>
-    | <a href="#driveremulatedevice"><code>driver.emulateDevice()</code></a> 
+    | <a href="#driveremulatedevice"><code>driver.emulateDevice()</code></a>
+    | <a href="#scriptawait"><code>driver.scriptAwait()</code></a> 
   </td> 
 </tr>
 <tr>
@@ -1334,6 +1335,13 @@ See [Function Composition](#function-composition) for another good example. Also
 > Note that the JS in this case is run by *Karate* not the browser, so you use the Java `String.contains()` API not the JavaScript `String.includes()` one.
 
 See also [`locateAll()` with filter](#locateall-with-filter).
+
+## `driver.scriptAwait()`
+Only supported for `type: 'chrome'` - this will wait for a JS promise to resolve and then return the result as a JSON object. Here is an [example](../karate-e2e-tests/src/test/java/accessibility/axe.feature):
+
+```cucumber
+* def axeResponse = driver.scriptAwait('axe.run()')
+```
 
 ## `locate()`
 Rarely used, but when you want to just instantiate an [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instance, typically when you are writing custom re-usable functions, or using an element as a "waypoint" to access other elements in a large, complex "tree".

@@ -964,11 +964,15 @@ public abstract class DevToolsDriver implements Driver {
         method("DOM.setFileInputFiles").param("files", files).param("nodeId", nodeId).send();
     }
 
-    public Object scriptAwaitPromise(String expression) {
-        return method("Runtime.evaluate")
+    public Object scriptAwait(String expression) {
+        DevToolsMessage toSend = method("Runtime.evaluate")
                 .param("expression", expression)
-                .param("awaitPromise", true) // awaiting promise.
-                .send().getResult().getValueAndForceParsingAsJson();
+                .param("returnByValue", true)
+                .param("awaitPromise", true);
+        if (executionContextId != null) {
+            toSend.param("contextId", executionContextId);
+        }        
+        return toSend.send().getResult().getValue();
     }
 
 }
