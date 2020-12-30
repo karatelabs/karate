@@ -6,7 +6,7 @@
   <body>
     <div th:text="featureResult.featurePath"></div>
     <ul th:each="sr: featureResult.scenarioResults">
-      <li th:text="sr.name"></li>
+      <li th:include="scenario.html"></li>
     </ul>
   </body>
 </html>

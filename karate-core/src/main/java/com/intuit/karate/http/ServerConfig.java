@@ -23,12 +23,12 @@
  */
 package com.intuit.karate.http;
 
-import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.Config;
-import com.intuit.karate.resource.DefaultResourceResolver;
+import com.intuit.karate.resource.ResourceResolver;
 import com.linecorp.armeria.common.RequestContext;
 import java.util.HashMap;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -38,6 +38,7 @@ import java.util.function.Function;
 public class ServerConfig {
 
     private final ResourceResolver resourceResolver;
+    private final Set<String> jsFiles;
 
     private String hostContextPath = null;
     private String homePagePath = "index";
@@ -74,11 +75,16 @@ public class ServerConfig {
     };
 
     public ServerConfig(String root) {
-        resourceResolver = new DefaultResourceResolver(root);
+        resourceResolver = new ResourceResolver(root);
+        jsFiles = resourceResolver.getJsFiles();
     }
 
     public ResourceResolver getResourceResolver() {
         return resourceResolver;
+    }
+
+    public Set<String> getJsFiles() {
+        return jsFiles;
     }
 
     public String getHostContextPath() {

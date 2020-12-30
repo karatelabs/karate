@@ -50,9 +50,7 @@ public interface Resource {
     }
 
     default String getPrefixedParentPath() {
-        String prefixedPath = getPrefixedPath();
-        int pos = prefixedPath.lastIndexOf('/');
-        return pos == -1 ? prefixedPath : prefixedPath.substring(0, pos + 1);
+        return ResourceUtils.getParentPath(getPrefixedPath());
     }
 
     default String getPackageQualifiedName() {

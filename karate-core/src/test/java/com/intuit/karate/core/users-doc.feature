@@ -3,7 +3,7 @@ Feature:
 Scenario:
 * url 'https://jsonplaceholder.typicode.com/users'
 * method get
-* doc { read: 'this:users.html' }
+* doc { read: 'users.html' }
 
 * path '1'
 * method get

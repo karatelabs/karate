@@ -115,7 +115,7 @@ public class RequestHandler implements ServerHandler {
         rc.init(context, session);
         try {
             if (context.isApi()) {
-                InputStream is = resourceResolver.read(request.getResourcePath()).getStream();
+                InputStream is = resourceResolver.resolve(request.getResourcePath()).getStream();
                 ResponseBuilder rb = response(rc, session, newSession);
                 if (context.isLockNeeded()) {
                     synchronized (this) {

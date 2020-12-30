@@ -60,7 +60,7 @@ public class ServerHtmlTemplateResolver implements ITemplateResolver {
 
     @Override
     public TemplateResolution resolveTemplate(IEngineConfiguration ec, String ownerTemplate, String name, Map<String, Object> templateResolutionAttributes) {
-        Resource resource = resourceResolver.read(name + ".html");
+        Resource resource = resourceResolver.resolve(name + ".html");
         KarateTemplateResource templateResource = new KarateTemplateResource(resource);
         return new TemplateResolution(templateResource, TemplateMode.HTML, NonCacheableCacheEntryValidity.INSTANCE);
     }

@@ -108,7 +108,7 @@ public class ServerContext implements ProxyObject {
                 ResourceResolver resourceResolver = config.getResourceResolver();
                 String jsPath = path + DOT_JS;
                 resourcePath = jsPath;
-                if (!resourceResolver.jsfiles().contains(jsPath)) {
+                if (!config.getJsFiles().contains(jsPath)) {
                     List<String> pathParams = new ArrayList();
                     request.setPathParams(pathParams);
                     String temp = path;
@@ -125,7 +125,7 @@ public class ServerContext implements ProxyObject {
                         pathParams.add(pp);
                         jsPath = temp.substring(0, pos) + DOT_JS;
                         temp = temp.substring(0, pos);
-                    } while (!resourceResolver.jsfiles().contains(jsPath));
+                    } while (!config.getJsFiles().contains(jsPath));
                     resourcePath = jsPath;
                 }
                 request.setPathParam(pathParam);
@@ -153,7 +153,7 @@ public class ServerContext implements ProxyObject {
     }
 
     public Object read(String resource) {
-        InputStream is = config.getResourceResolver().read(resource).getStream();
+        InputStream is = config.getResourceResolver().resolve(resource).getStream();
         String raw = FileUtils.toString(is);
         ResourceType resourceType = ResourceType.fromFileExtension(resource);
         switch (resourceType) {

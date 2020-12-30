@@ -1000,9 +1000,6 @@ public class ScenarioEngine {
             String prefixedPath = runtime.featureRuntime.rootFeature.feature.getResource().getPrefixedParentPath();
             templateEngine = TemplateUtils.forRelativePath(JS, prefixedPath);
         }
-        if (path.startsWith("this:")) {
-            path = runtime.featureRuntime.feature.getResource().getPrefixedParentPath() + path.substring(5);
-        }
         String html = templateEngine.process(path);
         runtime.embed(FileUtils.toBytes(html), ResourceType.HTML);
     }

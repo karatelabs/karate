@@ -23,16 +23,64 @@
  */
 package com.intuit.karate.resource;
 
+import com.intuit.karate.FileUtils;
+import java.io.File;
 import java.util.Set;
 
 /**
  *
  * @author pthomas3
  */
-public interface ResourceResolver {
+public class ResourceResolver {
 
-    Resource read(String path);
+    public final boolean classpath;
+    public final String root;
 
-    Set<String> jsfiles();
+    public ResourceResolver(String root) {
+        if (root == null) {
+            root = "";
+        }
+        classpath = root.startsWith("classpath:");
+        root = ResourceUtils.removePrefix(root);
+        if (!root.isEmpty() && !root.endsWith("/")) {
+            root = root + "/";
+        }
+        this.root = root;
+    }
+
+    public Resource resolve(String path) {
+        return resolve(null, path);
+    }
+
+    public Resource resolve(String parent, String path) {
+        if (path.startsWith("classpath:")) {
+            return get(path);
+        } else if (parent == null) {
+            return get((classpath ? "classpath:" : "") + root + path);
+        } else if (parent.startsWith("classpath:")) {
+            parent = ResourceUtils.getParentPath(parent);
+            return get(parent + path);
+        } else {
+            parent = ResourceUtils.getParentPath((classpath ? "classpath:" : "") + root + parent);
+            return get(parent + path);
+        }
+    }
+
+    private static Resource get(String path) {
+        return ResourceUtils.getResource(FileUtils.WORKING_DIR, path);
+    }
+
+    public Set<String> getJsFiles() {
+        if (classpath) {
+            return ResourceUtils.findJsFilesInClassPath(root);
+        } else {
+            return ResourceUtils.findJsFilesInDirectory(new File(root));
+        }
+    }
+
+    @Override
+    public String toString() {
+        return classpath ? "classpath:" + root : root;
+    }
 
 }

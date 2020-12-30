@@ -236,6 +236,11 @@ public class ResourceUtils {
         }
     }
 
+    public static String getParentPath(String relativePath) {
+        int pos = relativePath.lastIndexOf('/');
+        return pos == -1 ? relativePath : relativePath.substring(0, pos + 1);        
+    }
+    
     private static final ClassLoader CLASS_LOADER = ResourceUtils.class.getClassLoader();
 
     public static InputStream classPathResourceToStream(String path) {

@@ -208,7 +208,7 @@ public class ResponseBuilder {
         }
         contentType(resourceType.contentType);
         try {
-            InputStream is = resourceResolver.read(request.getResourcePath()).getStream();
+            InputStream is = resourceResolver.resolve(request.getResourcePath()).getStream();
             body(is);
         } catch (Exception e) {
             logger.error("local resource failed: {} - {}", request, e.toString());
