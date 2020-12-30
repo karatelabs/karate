@@ -52,7 +52,7 @@ public class ScenarioListener implements Consumer, Function, Runnable {
 
     private void init() {
         if (function == null) {
-            synchronized (child) {
+            synchronized (parent.JS.context) {
                 ScenarioEngine.set(child);
                 child.init();
                 function = child.attachSource(source);
