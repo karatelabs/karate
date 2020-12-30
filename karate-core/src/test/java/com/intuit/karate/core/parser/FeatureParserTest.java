@@ -11,6 +11,7 @@ import com.intuit.karate.core.StepResult;
 import com.intuit.karate.match.Match;
 import com.intuit.karate.match.MatchResult;
 import com.intuit.karate.core.FeatureRuntime;
+import com.intuit.karate.core.Scenario;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
@@ -205,6 +206,14 @@ class FeatureParserTest {
     void testComments() {
         FeatureResult result = execute("test-comments.feature");
         assertFalse(result.isFailed());
+    }
+    
+    @Test
+    void testScenarioDescription() {
+        Feature feature = Feature.read("classpath:com/intuit/karate/core/parser/test-scenario-description.feature");
+        Scenario scenario = feature.getScenario(0, -1);
+        assertEquals("hello world", scenario.getName());
+        assertEquals("another line", scenario.getDescription());
     }
 
 }
