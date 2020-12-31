@@ -1,7 +1,7 @@
 Feature: axe accessibility native
 
   Background:
-    * configure driver = { type: 'chrome', showDriverLog: true }
+    * configure driver = { type: 'chrome' }
 
   Scenario:
     # get axe script

@@ -1,4 +1,4 @@
-package accessibility;
+package axe;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -11,7 +11,7 @@ public class AxeRunner {
 
     @Test
     public void axeSimpleTest() {
-        Results results = Runner.path("classpath:accessibility/axe.feature")
+        Results results = Runner.path("classpath:axe/axe.feature")
                 .parallel(1);
         assertEquals(0, results.getFailCount());
     }

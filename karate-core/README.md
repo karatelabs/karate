@@ -1337,7 +1337,7 @@ See [Function Composition](#function-composition) for another good example. Also
 See also [`locateAll()` with filter](#locateall-with-filter).
 
 ## `driver.scriptAwait()`
-Only supported for `type: 'chrome'` - this will wait for a JS promise to resolve and then return the result as a JSON object. Here is an [example](../karate-e2e-tests/src/test/java/accessibility/axe.feature):
+Only supported for `type: 'chrome'` - this will wait for a JS promise to resolve and then return the result as a JSON object. Here is an [example](../karate-e2e-tests/src/test/java/axe/axe.feature):
 
 ```cucumber
 * def axeResponse = driver.scriptAwait('axe.run()')
