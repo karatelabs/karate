@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.match;
+package com.intuit.karate;
 
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;

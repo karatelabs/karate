@@ -1,9 +1,10 @@
-package com.intuit.karate.match;
+package com.intuit.karate;
 
+import com.intuit.karate.Match;
 import com.intuit.karate.Json;
 import com.intuit.karate.graal.JsEngine;
 import static org.junit.jupiter.api.Assertions.*;
-import static com.intuit.karate.match.Match.Type.*;
+import static com.intuit.karate.Match.Type.*;
 import java.math.BigDecimal;
 import java.util.Map;
 import org.junit.jupiter.api.Test;

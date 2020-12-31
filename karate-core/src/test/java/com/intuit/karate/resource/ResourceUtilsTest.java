@@ -25,7 +25,7 @@ package com.intuit.karate.resource;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.match.Match;
+import com.intuit.karate.Match;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;

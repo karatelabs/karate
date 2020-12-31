@@ -8,7 +8,7 @@ import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
-import com.intuit.karate.match.Match;
+import com.intuit.karate.Match;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.Scenario;
 import java.util.Map;

@@ -1,6 +1,5 @@
 package com.intuit.karate;
 
-import com.intuit.karate.match.Match;
 import com.intuit.karate.core.ComplexPojo;
 import com.intuit.karate.core.SimplePojo;
 import java.util.Arrays;

@@ -1,6 +1,6 @@
 package com.intuit.karate.http;
 
-import com.intuit.karate.match.Match;
+import com.intuit.karate.Match;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;

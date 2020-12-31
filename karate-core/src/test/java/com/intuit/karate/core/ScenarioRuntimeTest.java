@@ -1,7 +1,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.match.Match;
+import com.intuit.karate.Match;
 import static com.intuit.karate.TestUtils.*;
 import com.intuit.karate.http.ResourceType;
 import java.io.File;

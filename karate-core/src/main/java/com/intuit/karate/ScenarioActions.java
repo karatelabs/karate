@@ -25,7 +25,6 @@ package com.intuit.karate;
 
 import com.intuit.karate.core.AssignType;
 import com.intuit.karate.core.Action;
-import com.intuit.karate.match.MatchStep;
 import com.intuit.karate.core.ScenarioEngine;
 import cucumber.api.DataTable;
 import cucumber.api.java.en.When;

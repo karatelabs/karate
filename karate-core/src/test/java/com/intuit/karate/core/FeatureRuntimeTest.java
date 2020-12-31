@@ -1,7 +1,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.TestUtils;
-import com.intuit.karate.match.Match;
+import com.intuit.karate.Match;
 import java.io.File;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;

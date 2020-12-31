@@ -7,7 +7,6 @@ import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.ScenarioIterator;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.http.HttpClientFactory;
-import com.intuit.karate.match.Match;
 import com.intuit.karate.resource.MemoryResource;
 import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceUtils;

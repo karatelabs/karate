@@ -1,6 +1,6 @@
 package com.intuit.karate.graal;
 
-import com.intuit.karate.match.Match;
+import com.intuit.karate.Match;
 import com.intuit.karate.core.MockUtils;
 import com.intuit.karate.http.Request;
 import java.util.Collections;
