@@ -9,7 +9,7 @@
                     },
                     "step": {
                         "background": true,
-                        "line": 5,
+                        "line": 6,
                         "prefix": "*",
                         "index": 0,
                         "text": "print 'in background'"
@@ -22,7 +22,7 @@
                         "status": "passed"
                     },
                     "step": {
-                        "line": 9,
+                        "line": 10,
                         "prefix": "*",
                         "index": 0,
                         "text": "print 'before'"
@@ -35,10 +35,10 @@
                         "status": "passed"
                     },
                     "step": {
-                        "line": 10,
+                        "line": 11,
                         "prefix": "*",
                         "index": 1,
-                        "text": "call read('scenario-result-called.feature')"
+                        "text": "call read('feature-result-called.feature')"
                     },
                     "stepLog": "",
                     "callResults": [
@@ -94,14 +94,22 @@
                                     ],
                                     "executorName": "main",
                                     "name": "",
+                                    "description": "",
                                     "line": 3,
                                     "section": 0,
                                     "startTime": "#number",
                                     "endTime": "#number",
-                                    "example": -1
+                                    "example": -1,
+                                    "durationMillis": "#number"                                  
                                 }
                             ],
-                            "featurePath": "classpath:com\/intuit\/karate\/core\/scenario-result-called.feature"
+                            "prefixedPath": "classpath:com\/intuit\/karate\/core\/feature-result-called.feature",
+                            "name": "",
+                            "description": "",
+                            "durationMillis": "#number",
+                            "total": 1,
+                            "passed": 1,
+                            "failed": 0                            
                         }
                     ]
                 },
@@ -111,7 +119,7 @@
                         "status": "passed"
                     },
                     "step": {
-                        "line": 11,
+                        "line": 12,
                         "prefix": "*",
                         "index": 2,
                         "text": "print 'after'"
@@ -121,11 +129,17 @@
             ],
             "executorName": "main",
             "name": "hello world",
-            "line": 8,
+            "description": "",
+            "line": 9,
             "section": 0,
             "startTime": "#number",
             "endTime": "#number",
-            "example": -1
+            "example": -1,
+            "durationMillis": "#number",
+            "tags": [
+                "@one",
+                "@two"
+            ]            
         },
         {
             "stepResults": [
@@ -136,7 +150,7 @@
                     },
                     "step": {
                         "background": true,
-                        "line": 5,
+                        "line": 6,
                         "prefix": "*",
                         "index": 0,
                         "text": "print 'in background'"
@@ -149,7 +163,7 @@
                         "status": "passed"
                     },
                     "step": {
-                        "line": 14,
+                        "line": 15,
                         "prefix": "*",
                         "index": 0,
                         "text": "print 'name:', name"
@@ -159,11 +173,19 @@
             ],
             "executorName": "main",
             "name": "hello foo",
-            "line": 18,
+            "description": "",
+            "line": 19,
             "section": 1,
             "startTime": "#number",
             "endTime": "#number",
-            "example": 0
+            "example": 0,
+            "durationMillis": "#number",
+            "tags": [
+                "@one"
+            ],
+            "exampleData": {
+                "name": "foo"
+            }
         },
         {
             "stepResults": [
@@ -174,7 +196,7 @@
                     },
                     "step": {
                         "background": true,
-                        "line": 5,
+                        "line": 6,
                         "prefix": "*",
                         "index": 0,
                         "text": "print 'in background'"
@@ -187,7 +209,7 @@
                         "status": "passed"
                     },
                     "step": {
-                        "line": 14,
+                        "line": 15,
                         "prefix": "*",
                         "index": 0,
                         "text": "print 'name:', name"
@@ -197,12 +219,26 @@
             ],
             "executorName": "#string",
             "name": "hello bar",
-            "line": 19,
+            "description": "",
+            "line": 20,
             "section": 1,
             "startTime": "#number",
             "endTime": "#number",
-            "example": 1
+            "example": 1,
+            "durationMillis": "#number",
+            "tags": [
+                "@one"
+            ],
+            "exampleData": {
+                "name": "bar"
+            }            
         }
     ],
-    "featurePath": "classpath:com\/intuit\/karate\/core\/scenario-result.feature"
+    "prefixedPath": "classpath:com\/intuit\/karate\/core\/feature-result.feature",
+    "name": "my feature",
+    "description": "my description",
+    "durationMillis": "#number",
+    "total": 3,
+    "passed": 3,
+    "failed": 0
 }

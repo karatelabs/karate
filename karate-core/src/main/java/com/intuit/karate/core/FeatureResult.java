@@ -79,7 +79,7 @@ public class FeatureResult {
     }
 
     public static FeatureResult fromKarateJson(File workingDir, Map<String, Object> map) {
-        String featurePath = (String) map.get("featurePath");
+        String featurePath = (String) map.get("prefixedPath");
         Resource resource = ResourceUtils.getResource(workingDir, featurePath);
         Feature feature = Feature.read(resource);
         FeatureResult fr = new FeatureResult(feature);
@@ -100,7 +100,16 @@ public class FeatureResult {
 
     public Map<String, Object> toKarateJson() {
         Map<String, Object> map = new HashMap();
-        map.put("featurePath", feature.getResource().getPrefixedPath());
+        // these first few are only for the ease of reports
+        // note that they are not involved in the reverse fromKarateJson()
+        map.put("name", feature.getName());
+        map.put("description", feature.getDescription());
+        map.put("durationMillis", getDurationMillis());
+        map.put("total", getScenarioCount());
+        map.put("passed", getPassedCount());
+        map.put("failed", getFailedCount());
+        //======================================================================
+        map.put("prefixedPath", feature.getResource().getPrefixedPath());
         List<Map<String, Object>> list = new ArrayList(scenarioResults.size());
         map.put("scenarioResults", list);
         for (ScenarioResult sr : scenarioResults) {
@@ -195,7 +204,7 @@ public class FeatureResult {
         return sb.toString();
     }
 
-    public String getCallName() {
+    public String getCallNameForReport() {
         String append = loopIndex == -1 ? "" : "[" + loopIndex + "] ";
         return append + displayName;
     }
@@ -228,11 +237,11 @@ public class FeatureResult {
     }
 
     public double getDurationMillis() {
-        long duration = 0;
+        long durationNanos = 0;
         for (ScenarioResult sr : scenarioResults) {
-            duration += Reports.nanosToMillis(sr.getDurationNanos());
+            durationNanos += sr.getDurationNanos();
         }
-        return duration;
+        return Reports.nanosToMillis(durationNanos);
     }
 
     public int getFailedCount() {
@@ -240,11 +249,11 @@ public class FeatureResult {
     }
 
     public boolean isEmpty() {
-        return getScenarioCount() == 0;
+        return scenarioResults.isEmpty();
     }
 
     public int getScenarioCount() {
-        return getScenarioResults().size();
+        return scenarioResults.size();
     }
 
     public int getPassedCount() {

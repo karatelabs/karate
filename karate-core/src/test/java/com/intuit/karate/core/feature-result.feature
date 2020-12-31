@@ -1,5 +1,6 @@
 @one
-Feature:
+Feature: my feature
+    my description
 
 Background:
 * print 'in background'
@@ -7,7 +8,7 @@ Background:
 @two
 Scenario: hello world
 * print 'before'
-* call read('scenario-result-called.feature')
+* call read('feature-result-called.feature')
 * print 'after'
 
 Scenario Outline: hello <name>

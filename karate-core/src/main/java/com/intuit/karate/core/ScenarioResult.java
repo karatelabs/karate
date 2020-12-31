@@ -30,23 +30,24 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  *
  * @author pthomas3
  */
 public class ScenarioResult implements Comparable<ScenarioResult> {
-
+    
     private final List<StepResult> stepResults = new ArrayList();
     private final Scenario scenario;
-
+    
     private StepResult failedStep;
-
+    
     private String executorName;
     private long startTime;
     private long endTime;
     private long durationNanos;
-
+    
     @Override
     public int compareTo(ScenarioResult sr) {
         if (sr == null) {
@@ -58,7 +59,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         }
         return scenario.getExampleIndex() - sr.scenario.getExampleIndex();
     }
-
+    
     public String getFailureMessageForDisplay() {
         if (failedStep == null) {
             return null;
@@ -68,7 +69,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         String featureName = scenario.getFeature().getResource().getRelativePath();
         return featureName + ":" + step.getLine() + " " + step.getText();
     }
-
+    
     public StepResult addFakeStepResult(String message, Throwable error) {
         Step step = new Step(scenario, -1);
         step.setLine(scenario.getLine());
@@ -82,13 +83,13 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         addStepResult(sr);
         return sr;
     }
-
+    
     public void addStepResults(List<StepResult> value) {
         if (value != null) {
             value.forEach(this::addStepResult);
         }
     }
-
+    
     public void addStepResult(StepResult stepResult) {
         stepResults.add(stepResult);
         Result result = stepResult.getResult();
@@ -97,14 +98,14 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             failedStep = stepResult;
         }
     }
-
+    
     private static void recurse(List<Map> list, StepResult stepResult, int depth) {
         if (stepResult.getCallResults() != null) {
             for (FeatureResult fr : stepResult.getCallResults()) {
                 Step call = new Step(stepResult.getStep().getFeature(), -1);
                 call.setLine(stepResult.getStep().getLine());
                 call.setPrefix(StringUtils.repeat('>', depth));
-                call.setText(fr.getCallName());
+                call.setText(fr.getCallNameForReport());
                 call.setDocString(fr.getCallArgPretty());
                 StepResult callResult = new StepResult(call, Result.passed(0));
                 callResult.setHidden(stepResult.isHidden());
@@ -119,7 +120,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             }
         }
     }
-
+    
     private List<Map> getStepResults(boolean background) {
         List<Map> list = new ArrayList(stepResults.size());
         for (StepResult stepResult : stepResults) {
@@ -133,7 +134,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         }
         return list;
     }
-
+    
     public static ScenarioResult fromKarateJson(File workingDir, Feature feature, Map<String, Object> map) {
         int sectionIndex = (Integer) map.get("section");
         int exampleIndex = (Integer) map.get("example");
@@ -146,11 +147,11 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             scenario.setTags(section.getScenario().getTags());
             scenario.setDescription(section.getScenario().getDescription());
         }
-        String name = (String) map.get("name");
-        scenario.setName(name);
-        int line = (Integer) map.get("line");
-        scenario.setLine(line);
-        ScenarioResult sr = new ScenarioResult(scenario);
+        scenario.setName((String) map.get("name"));
+        scenario.setDescription((String) map.get("description"));
+        scenario.setLine((Integer) map.get("line"));
+        scenario.setExampleData((Map) map.get("exampleData"));
+        ScenarioResult sr = new ScenarioResult(scenario);        
         String executorName = (String) map.get("executorName");
         Number startTime = (Number) map.get("startTime");
         Number endTime = (Number) map.get("endTime");
@@ -176,12 +177,25 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         }
         return sr;
     }
-
+    
     public Map<String, Object> toKarateJson() {
         Map<String, Object> map = new HashMap();
+        // these first few are only for the ease of reports
+        // note that they are not involved in the reverse fromKarateJson()
+        map.put("durationMillis", getDurationMillis());
+        List<String> tags = scenario.getTagsEffective().getTags();
+        if (tags != null && !tags.isEmpty()) {            
+            map.put("tags", tags.stream().map(t -> "@" + t).collect(Collectors.toList()));
+        }
+        //======================================================================
         map.put("section", scenario.getSection().getIndex());
         map.put("example", scenario.getExampleIndex());
+        Map<String, Object> exampleData = scenario.getExampleData();
+        if (exampleData != null) {
+            map.put("exampleData", exampleData);
+        }        
         map.put("name", scenario.getName());
+        map.put("description", scenario.getDescription());
         map.put("line", scenario.getLine());
         map.put("executorName", executorName);
         map.put("startTime", startTime);
@@ -193,7 +207,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         }
         return map;
     }
-
+    
     public Map<String, Object> toCucumberJson() {
         Map<String, Object> map = new HashMap();
         map.put("name", scenario.getName());
@@ -206,7 +220,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         map.put("tags", tagsToCucumberJson(scenario.getTagsEffective().getOriginal()));
         return map;
     }
-
+    
     public static List<Map> tagsToCucumberJson(Collection<Tag> tags) {
         List<Map> list = new ArrayList(tags.size());
         for (Tag tag : tags) {
@@ -217,7 +231,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         }
         return list;
     }
-
+    
     public Map<String, Object> backgroundToCucumberJson() {
         if (!scenario.getFeature().isBackgroundPresent()) {
             return null;
@@ -231,19 +245,19 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         map.put("keyword", Background.KEYWORD);
         return map;
     }
-
+    
     public ScenarioResult(Scenario scenario) {
         this.scenario = scenario;
     }
-
+    
     public Scenario getScenario() {
         return scenario;
     }
-
+    
     public List<StepResult> getStepResults() {
         return stepResults;
     }
-
+    
     public List<StepResult> getStepResultsNotHidden() {
         List<StepResult> list = new ArrayList(stepResults.size());
         for (StepResult sr : stepResults) {
@@ -254,54 +268,54 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         }
         return list;
     }
-
+    
     public boolean isFailed() {
         return failedStep != null;
     }
-
+    
     public StepResult getFailedStep() {
         return failedStep;
     }
-
+    
     public Throwable getError() {
         return failedStep == null ? null : failedStep.getResult().getError();
     }
-
+    
     public long getDurationNanos() {
         return durationNanos;
     }
-
+    
     public double getDurationMillis() {
         return Reports.nanosToMillis(durationNanos);
     }
-
+    
     public String getExecutorName() {
         return executorName;
     }
-
+    
     public void setExecutorName(String executorName) {
         this.executorName = executorName;
     }
-
+    
     public long getStartTime() {
         return startTime;
     }
-
+    
     public void setStartTime(long startTime) {
         this.startTime = startTime;
     }
-
+    
     public long getEndTime() {
         return endTime;
     }
-
+    
     public void setEndTime(long endTime) {
         this.endTime = endTime;
     }
-
+    
     @Override
     public String toString() {
         return failedStep == null ? scenario.toString() : failedStep + "";
     }
-
+    
 }

@@ -418,7 +418,7 @@ public class MatchOperation {
             for (String key : expMap.keySet()) {
                 diffMap.remove(key);
             }
-            return fail("actual has " + sizeDiff + " more key(s) than expected - " + diffMap);
+            return fail("actual has " + sizeDiff + " more key(s) than expected - " + JsonUtils.toJson(diffMap));
         }
         Set<String> unMatchedKeysAct = new LinkedHashSet(actMap.keySet());
         Set<String> unMatchedKeysExp = new LinkedHashSet(expMap.keySet());
@@ -526,7 +526,7 @@ public class MatchOperation {
                         }
                     }
                     if (!found && type != Match.Type.CONTAINS_ANY) { // if we reached here, all items in the actual list were scanned
-                        return fail("actual array does not contain expected item - " + exp);
+                        return fail("actual array does not contain expected item - " + expListValue.getAsString());
                     }
                 }
                 if (type == Match.Type.CONTAINS_ANY) {
@@ -611,6 +611,7 @@ public class MatchOperation {
                 sb.append(prefix).append(mo.actual.getWithinSingleQuotesIfString()).append('\n');
                 sb.append(prefix).append(expected.getWithinSingleQuotesIfString()).append('\n');
             }
+            sb.append('\n');
         }
         return sb.toString();
     }

@@ -164,7 +164,7 @@ public class HtmlFeatureReport extends HtmlReport {
         for (int i = 0; i < depth; i++) {
             stepContainer.appendChild(div("step-indent", " "));
         }
-        stepContainer.appendChild(div("step-cell " + extraClass, featureResult.getCallName()));
+        stepContainer.appendChild(div("step-cell " + extraClass, featureResult.getCallNameForReport()));
         Element stepRow = div("step-row",
                 stepContainer,
                 div("time-cell " + extraClass, formatter.format(featureResult.getDurationMillis())));
