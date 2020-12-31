@@ -208,6 +208,7 @@
                                             <include>io.netty.incubator:*</include>
                                             <include>org.apache.httpcomponents:*</include>
                                             <include>org.antlr:*</include>
+                                            <include>io.github.classgraph:*</include>
                                         </includes>
                                     </artifactSet>                 
                                     <relocations>
@@ -226,7 +227,11 @@
                                         <relocation>
                                             <pattern>org.antlr.v4</pattern>
                                             <shadedPattern>karate.org.antlr.v4</shadedPattern>
-                                        </relocation>                                       
+                                        </relocation>
+                                        <relocation>
+                                            <pattern>io.github.classgraph</pattern>
+                                            <shadedPattern>karate.io.github.classgraph</shadedPattern>
+                                        </relocation>                                                                               
                                     </relocations>
                                     <filters>
                                         <filter>
