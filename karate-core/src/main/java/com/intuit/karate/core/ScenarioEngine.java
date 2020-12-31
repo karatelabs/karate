@@ -1778,7 +1778,7 @@ public class ScenarioEngine {
     }
 
     public Match.Result match(Match.Type matchType, Object actual, Object expected) {
-        return Match.execute(JS, matchType, new Match.Value(actual), new Match.Value(expected));
+        return Match.execute(JS, matchType, actual, expected);
     }
 
     private static final Pattern VAR_AND_PATH_PATTERN = Pattern.compile("\\w+");

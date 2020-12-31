@@ -128,18 +128,6 @@ public class Match {
             this.message = message;
         }
 
-        public void isTrue() {
-            if (!pass) {
-                throw new RuntimeException(message);
-            }
-        }
-
-        public void isFalse() {
-            if (pass) {
-                throw new RuntimeException("expected 'fail' but is 'pass'");
-            }
-        }
-
         @Override
         public String toString() {
             return pass ? "[pass]" : message;
@@ -214,11 +202,11 @@ public class Match {
 
         private final Object value;
 
-        public Value(Object value) {
+        Value(Object value) {
             this(value, false);
         }
 
-        public Value(Object value, boolean exceptionOnMatchFailure) {
+        Value(Object value, boolean exceptionOnMatchFailure) {
             this.value = value;
             this.exceptionOnMatchFailure = exceptionOnMatchFailure;
             if (value == null) {
@@ -270,11 +258,11 @@ public class Match {
             return type == ValueType.XML;
         }
 
-        public boolean isNotPresent() {
+        boolean isNotPresent() {
             return "#notpresent".equals(value);
         }
 
-        public boolean isMapOrListOrXml() {
+        boolean isMapOrListOrXml() {
             switch (type) {
                 case MAP:
                 case LIST:
@@ -309,7 +297,7 @@ public class Match {
             }
         }
 
-        public String getAsXmlString() {
+        String getAsXmlString() {
             if (type == ValueType.MAP) {
                 Node node = XmlUtils.fromMap(getValue());
                 return XmlUtils.toString(node);
@@ -348,7 +336,7 @@ public class Match {
             return sb.toString();
         }
 
-        Result is(Type mt, Object o) {
+        public Result is(Type mt, Object o) {
             MatchOperation mo = new MatchOperation(mt, this, new Value(parseIfJsonOrXmlString(o), exceptionOnMatchFailure));
             mo.execute();
             if (mo.pass) {
@@ -421,6 +409,16 @@ public class Match {
 
     }
 
+    public static Result execute(JsEngine js, Type matchType, Object actual, Object expected) {
+        MatchOperation mo = new MatchOperation(js, matchType, new Value(actual), new Value(expected));
+        mo.execute();
+        if (mo.pass) {
+            return PASS;
+        } else {
+            return fail(mo.getFailureReasons());
+        }
+    }
+
     public static Object parseIfJsonOrXmlString(Object o) {
         if (o instanceof String) {
             String s = (String) o;
@@ -439,24 +437,12 @@ public class Match {
         return o;
     }
 
-    //==========================================================================
-    //
     public static Value evaluate(Object o) {
         return new Value(parseIfJsonOrXmlString(o), false);
     }
 
     public static Value that(Object o) {
         return new Value(parseIfJsonOrXmlString(o), true);
-    }
-
-    public static Result execute(JsEngine js, Type matchType, Value actual, Value expected) {
-        MatchOperation mo = new MatchOperation(js, matchType, actual, expected);
-        mo.execute();
-        if (mo.pass) {
-            return PASS;
-        } else {
-            return fail(mo.getFailureReasons());
-        }
     }
 
 }

@@ -52,15 +52,15 @@ public class MatchOperation {
     boolean pass = true;
     private String failReason;
 
-    public MatchOperation(Match.Type type, Match.Value actual, Match.Value expected) {
+    MatchOperation(Match.Type type, Match.Value actual, Match.Value expected) {
         this(JsEngine.global(), null, type, actual, expected);
     }
 
-    public MatchOperation(JsEngine js, Match.Type type, Match.Value actual, Match.Value expected) {
+    MatchOperation(JsEngine js, Match.Type type, Match.Value actual, Match.Value expected) {
         this(js, null, type, actual, expected);
     }
 
-    private MatchOperation(Match.Context context, Match.Type type, Match.Value actual, Match.Value expected) {
+    MatchOperation(Match.Context context, Match.Type type, Match.Value actual, Match.Value expected) {
         this(null, context, type, actual, expected);
     }
 
