@@ -24,12 +24,12 @@ import org.thymeleaf.util.StringUtils;
 public class TestUtils {
 
     public static void match(Object actual, Object expected) {
-        Match.Result mr = Match.that(actual).isEqualTo(expected);
+        Match.Result mr = Match.evaluate(actual).isEqualTo(expected);
         assertTrue(mr.pass, mr.message);
     }
 
     public static void matchContains(Object actual, Object expected) {
-        Match.Result mr = Match.that(actual).contains(expected);
+        Match.Result mr = Match.evaluate(actual).contains(expected);
         assertTrue(mr.pass, mr.message);
     }
 

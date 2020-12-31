@@ -97,7 +97,7 @@ public class JsonUtils {
             s = s.trim();
             if (s.isEmpty()) {
                 return false;
-            }            
+            }
         }
         return s.charAt(0) == '{' || s.charAt(0) == '[';
     }
@@ -113,7 +113,18 @@ public class JsonUtils {
     }
 
     public static String toJson(Object o) {
-        return JSONValue.toJSONString(o);
+        return toJson(o, false);
+    }
+
+    public static String toJson(Object o, boolean pretty) {
+        if (!pretty) { // TODO use JSONStyleIdent in json-smart 2.4
+            try {
+                return JSONValue.toJSONString(o);
+            } catch (Throwable t) {
+                logger.warn("object to json serialization failure, trying alternate approach: {}", t.getMessage());
+            }
+        }
+        return JsonUtils.toJsonSafe(o, pretty);
     }
 
     public static byte[] toJsonBytes(Object o) {

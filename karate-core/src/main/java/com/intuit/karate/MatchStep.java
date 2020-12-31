@@ -23,8 +23,6 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.StringUtils;
-
 /**
  *
  * @author pthomas3

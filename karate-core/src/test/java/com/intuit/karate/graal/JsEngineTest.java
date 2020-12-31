@@ -80,7 +80,7 @@ class JsEngineTest {
         v = je.evalForValue("() => ({ a: 1 })");
         assertTrue(v.canExecute());
         res = v.execute();
-        assertTrue(Match.that(res.as(Map.class)).isEqualTo("{ a: 1 }").pass);
+        Match.that(res.as(Map.class)).isEqualTo("{ a: 1 }");
     }
 
     @Test

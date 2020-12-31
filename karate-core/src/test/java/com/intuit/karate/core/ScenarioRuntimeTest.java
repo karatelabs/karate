@@ -95,7 +95,7 @@ class ScenarioRuntimeTest {
         );
         matchVar("foo", "hello world");
         matchVar("bar", "hello world");
-        Match.that(get("res")).contains("{ calledBar: 'hello world' }").isTrue();
+        Match.that(get("res")).contains("{ calledBar: 'hello world' }");
         System.clearProperty("karate.env");
         System.clearProperty("karate.config.dir");
     }
@@ -108,7 +108,7 @@ class ScenarioRuntimeTest {
         );
         matchVar("foo", "{ hello: 'world' }");
         Variable bar = sr.engine.vars.get("bar");
-        Match.that(bar.getValue()).isString();
+        Match.that(bar.getValue()).isEqualTo("{ hello: 'world' }");
         // fixed for windows
         assertEquals(((String) bar.getValue()).trim(), "{ \"hello\": \"world\" }");
     }

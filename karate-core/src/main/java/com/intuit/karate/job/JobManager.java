@@ -166,11 +166,11 @@ public class JobManager<T> implements ServerHandler {
 
     public static JobMessage toJobMessage(String value) {
         Json json = Json.of(value);
-        String method = json.getOptional("method");
+        String method = json.get("method");
         JobMessage jm = new JobMessage(method);
-        jm.setJobId(json.getOptional("jobId"));
-        jm.setExecutorId(json.getOptional("executorId"));
-        jm.setChunkId(json.getOptional("chunkId"));
+        jm.setJobId(json.getOrNull("jobId"));
+        jm.setExecutorId(json.getOrNull("executorId"));
+        jm.setChunkId(json.getOrNull("chunkId"));
         return jm;
     }
 

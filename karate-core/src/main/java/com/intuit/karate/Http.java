@@ -39,7 +39,7 @@ public class Http {
     private final ScenarioEngine engine;
     private final HttpRequestBuilder builder;
 
-    public static Http forUrl(String url) {
+    public static Http to(String url) {
         return new Http(url);
     }
 

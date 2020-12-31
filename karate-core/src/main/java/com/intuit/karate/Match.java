@@ -23,10 +23,6 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.Json;
-import com.intuit.karate.JsonUtils;
-import com.intuit.karate.StringUtils;
-import com.intuit.karate.XmlUtils;
 import com.intuit.karate.graal.JsEngine;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -199,72 +195,79 @@ public class Match {
 
     }
 
+    static enum ValueType {
+        NULL,
+        BOOLEAN,
+        NUMBER,
+        STRING,
+        BYTES,
+        LIST,
+        MAP,
+        XML,
+        OTHER
+    }
+
     public static class Value {
 
-        public static enum Type {
-            NULL,
-            BOOLEAN,
-            NUMBER,
-            STRING,
-            BYTES,
-            LIST,
-            MAP,
-            XML,
-            OTHER
-        }
+        final ValueType type;
+        final boolean exceptionOnMatchFailure;
 
-        final Type type;
         private final Object value;
 
         public Value(Object value) {
+            this(value, false);
+        }
+
+        public Value(Object value, boolean exceptionOnMatchFailure) {
             this.value = value;
+            this.exceptionOnMatchFailure = exceptionOnMatchFailure;
             if (value == null) {
-                type = Type.NULL;
+                type = ValueType.NULL;
             } else if (value instanceof Node) {
-                type = Type.XML;
+                type = ValueType.XML;
             } else if (value instanceof List) {
-                type = Type.LIST;
+                type = ValueType.LIST;
             } else if (value instanceof Map) {
-                type = Type.MAP;
+                type = ValueType.MAP;
             } else if (value instanceof String) {
-                type = Type.STRING;
+                type = ValueType.STRING;
             } else if (Number.class.isAssignableFrom(value.getClass())) {
-                type = Type.NUMBER;
+                type = ValueType.NUMBER;
             } else if (Boolean.class.equals(value.getClass())) {
-                type = Type.BOOLEAN;
+                type = ValueType.BOOLEAN;
             } else if (value instanceof byte[]) {
-                type = Type.BYTES;
+                type = ValueType.BYTES;
             } else {
-                type = Type.OTHER;
+                type = ValueType.OTHER;
             }
         }
 
         public boolean isBoolean() {
-            return type == Type.BOOLEAN;
+            return type == ValueType.BOOLEAN;
         }
 
         public boolean isNumber() {
-            return type == Type.NUMBER;
+            return type == ValueType.NUMBER;
         }
 
         public boolean isString() {
-            return type == Type.STRING;
+            return type == ValueType.STRING;
         }
 
         public boolean isNull() {
-            return type == Type.NULL;
+            return type == ValueType.NULL;
         }
 
         public boolean isMap() {
-            return type == Type.MAP;
+            return type == ValueType.MAP;
         }
 
         public boolean isList() {
-            return type == Type.LIST;
+            return type == ValueType.LIST;
         }
 
         public boolean isXml() {
-            return type == Type.XML;
+            return type == ValueType.XML;
         }
 
         public boolean isNotPresent() {
@@ -286,22 +289,8 @@ public class Match {
             return (T) value;
         }
 
-        public Match.Result is(Match.Type mt, Object o) {
-            MatchOperation mo = new MatchOperation(mt, this, new Value(parseIfJsonOrXmlString(o)));
-            mo.execute();
-            return mo.pass ? Match.PASS : Match.fail(mo.getFailureReasons());
-        }
-
-        public Match.Result contains(Object o) {
-            return is(Match.Type.CONTAINS, o);
-        }
-
-        public Match.Result isEqualTo(Object o) {
-            return is(Match.Type.EQUALS, o);
-        }
-
-        public String getWithinSingleQuotesIfString() {
-            if (type == Type.STRING) {
+        String getWithinSingleQuotesIfString() {
+            if (type == ValueType.STRING) {
                 return "'" + value + "'";
             } else {
                 return getAsString();
@@ -321,7 +310,7 @@ public class Match {
         }
 
         public String getAsXmlString() {
-            if (type == Type.MAP) {
+            if (type == ValueType.MAP) {
                 Node node = XmlUtils.fromMap(getValue());
                 return XmlUtils.toString(node);
             } else {
@@ -329,7 +318,7 @@ public class Match {
             }
         }
 
-        public Value getSortedLike(Value other) {
+        Value getSortedLike(Value other) {
             if (isMap() && other.isMap()) {
                 Map<String, Object> reference = other.getValue();
                 Map<String, Object> source = getValue();
@@ -344,7 +333,7 @@ public class Match {
                 for (String key : remainder) {
                     result.put(key, source.get(key));
                 }
-                return new Value(result);
+                return new Value(result, other.exceptionOnMatchFailure);
             } else {
                 return this;
             }
@@ -357,6 +346,77 @@ public class Match {
             sb.append(", value: ").append(value);
             sb.append("]");
             return sb.toString();
+        }
+
+        Result is(Type mt, Object o) {
+            MatchOperation mo = new MatchOperation(mt, this, new Value(parseIfJsonOrXmlString(o), exceptionOnMatchFailure));
+            mo.execute();
+            if (mo.pass) {
+                return Match.PASS;
+            } else {
+                if (exceptionOnMatchFailure) {
+                    throw new RuntimeException(mo.getFailureReasons());
+                }
+                return Match.fail(mo.getFailureReasons());
+            }
+        }
+
+        //======================================================================
+        //
+        public Result isEqualTo(Object o) {
+            return is(Type.EQUALS, o);
+        }
+
+        public Result contains(Object o) {
+            return is(Type.CONTAINS, o);
+        }
+
+        public Result containsDeep(Object o) {
+            return is(Type.CONTAINS_DEEP, o);
+        }
+
+        public Result containsOnly(Object o) {
+            return is(Type.CONTAINS_ONLY, o);
+        }
+
+        public Result containsAny(Object o) {
+            return is(Type.CONTAINS_ANY, o);
+        }
+
+        public Result isNotEqualTo(Object o) {
+            return is(Type.NOT_EQUALS, o);
+        }
+
+        public Result isNotContaining(Object o) {
+            return is(Type.NOT_CONTAINS, o);
+        }
+
+        public Result isEachEqualTo(Object o) {
+            return is(Type.EACH_EQUALS, o);
+        }
+
+        public Result isEachNotEqualTo(Object o) {
+            return is(Type.EACH_NOT_EQUALS, o);
+        }
+
+        public Result isEachContaining(Object o) {
+            return is(Type.EACH_CONTAINS, o);
+        }
+
+        public Result isEachNotContaining(Object o) {
+            return is(Type.EACH_NOT_CONTAINS, o);
+        }
+
+        public Result isEachContainingDeep(Object o) {
+            return is(Type.EACH_CONTAINS_DEEP, o);
+        }
+
+        public Result isEachContainingOnly(Object o) {
+            return is(Type.EACH_CONTAINS_ONLY, o);
+        }
+
+        public Result isEachContainingAny(Object o) {
+            return is(Type.EACH_CONTAINS_ANY, o);
         }
 
     }
@@ -381,8 +441,12 @@ public class Match {
 
     //==========================================================================
     //
+    public static Value evaluate(Object o) {
+        return new Value(parseIfJsonOrXmlString(o), false);
+    }
+
     public static Value that(Object o) {
-        return new Value(parseIfJsonOrXmlString(o));
+        return new Value(parseIfJsonOrXmlString(o), true);
     }
 
     public static Result execute(JsEngine js, Type matchType, Value actual, Value expected) {

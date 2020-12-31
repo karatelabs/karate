@@ -41,12 +41,12 @@ class RequestHandlerTest {
     }
 
     private void matchHeaderEquals(String name, String expected) {
-        Match.Result mr = Match.that(response.getHeader(name)).isEqualTo(expected);
+        Match.Result mr = Match.evaluate(response.getHeader(name)).isEqualTo(expected);
         assertTrue(mr.pass, mr.message);
     }
 
     private void matchHeaderContains(String name, String expected) {
-        Match.Result mr = Match.that(response.getHeader(name)).contains(expected);
+        Match.Result mr = Match.evaluate(response.getHeader(name)).contains(expected);
         assertTrue(mr.pass, mr.message);
     }
 

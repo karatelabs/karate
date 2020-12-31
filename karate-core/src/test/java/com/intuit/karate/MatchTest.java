@@ -1,7 +1,5 @@
 package com.intuit.karate;
 
-import com.intuit.karate.Match;
-import com.intuit.karate.Json;
 import com.intuit.karate.graal.JsEngine;
 import static org.junit.jupiter.api.Assertions.*;
 import static com.intuit.karate.Match.Type.*;
@@ -36,7 +34,7 @@ class MatchTest {
     }
 
     private void match(Object actual, Match.Type mt, Object expected, boolean fails) {
-        Match.Result mr = Match.that(actual).is(mt, expected);
+        Match.Result mr = Match.evaluate(actual).is(mt, expected);
         message = mr.message;
         if (!fails) {
             assertTrue(mr.pass, mr.message);
@@ -280,6 +278,15 @@ class MatchTest {
         match("<root><a>x</a><b></b></root>", EQUALS, "<root><a>#string</a><b><c>#string</c></b></root>", FAILS);
         match("<root><a>x</a><b><c></c></b></root>", EQUALS, "<root><a>#string</a><b><c>#string</c></b></root>", FAILS);
         match("<root><a>x</a><b><c>y</c></b></root>", EQUALS, "<root><a>#string</a><b><c>#string</c></b></root>");
+    }
+
+    @Test
+    void testApiUsage() {
+        Match.that("[1, 2, 3]").contains(2);
+        Match.that("[1, 2, 3]").isEachEqualTo("#number");
+        Match.that("[1, 2, 3]").containsOnly("[3, 2, 1]");
+        Match.that("{ a: 1, b: 2 }").contains("{ b: 2 }");
+        Match.that("{ a: 1, b: 2, c: { d: 3, e: 4} }").containsDeep("{ b: 2, c: { e: 4 } }");
     }
 
 }

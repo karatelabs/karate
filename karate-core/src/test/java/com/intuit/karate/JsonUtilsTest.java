@@ -40,7 +40,7 @@ class JsonUtilsTest {
         String s = JsonUtils.toJson(pojo);
         assertEquals("{\"bar\":0,\"foo\":null}", s);
         Map<String, Object> map = Json.of(pojo).asMap();
-        assertTrue(Match.that(map).isEqualTo("{ foo: null, bar: 0 }").pass);
+        Match.that(map).isEqualTo("{ foo: null, bar: 0 }");
     }
 
     @Test

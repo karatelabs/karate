@@ -35,7 +35,7 @@ class FeatureParserTest {
     }
     
     private void match(Object actual, Object expected) {
-        Match.Result mr = Match.that(actual).isEqualTo(expected);
+        Match.Result mr = Match.evaluate(actual).isEqualTo(expected);
         assertTrue(mr.pass, mr.message);
     }    
 
@@ -150,7 +150,7 @@ class FeatureParserTest {
     void testTagsMultiline() {
         FeatureResult result = execute("test-tags-multiline.feature");
         Map<String, Object> map = result.getVariables();
-        Match.that(map.get("tags")).contains("[ 'tag1', 'tag2', 'tag3', 'tag4' ]").isTrue();
+        Match.that(map.get("tags")).contains("[ 'tag1', 'tag2', 'tag3', 'tag4' ]");
     }
 
     @Test

@@ -73,7 +73,7 @@ public class JobExecutor {
             logger.error("unable to connect to server, aborting");
             System.exit(1);
         }
-        http = Http.forUrl(serverUrl);
+        http = Http.to(serverUrl);
         http.configure("lowerCaseResponseHeaders", "true");
         // download ============================================================
         JobMessage download = invokeServer(new JobMessage("download"));

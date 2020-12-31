@@ -46,12 +46,12 @@ class FeatureRuntimeTest {
     }
 
     private void match(Object actual, Object expected) {
-        Match.Result mr = Match.that(actual).isEqualTo(expected);
+        Match.Result mr = Match.evaluate(actual).isEqualTo(expected);
         assertTrue(mr.pass, mr.message);
     }
 
     private void matchContains(Object actual, Object expected) {
-        Match.Result mr = Match.that(actual).contains(expected);
+        Match.Result mr = Match.evaluate(actual).contains(expected);
         assertTrue(mr.pass, mr.message);
     }
 

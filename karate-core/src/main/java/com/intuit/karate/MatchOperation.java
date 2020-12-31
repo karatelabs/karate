@@ -23,8 +23,6 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.StringUtils;
-import com.intuit.karate.XmlUtils;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
 import java.math.BigDecimal;
