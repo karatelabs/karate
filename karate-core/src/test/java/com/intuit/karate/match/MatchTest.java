@@ -3,7 +3,7 @@ package com.intuit.karate.match;
 import com.intuit.karate.Json;
 import com.intuit.karate.graal.JsEngine;
 import static org.junit.jupiter.api.Assertions.*;
-import static com.intuit.karate.match.MatchType.*;
+import static com.intuit.karate.match.Match.Type.*;
 import java.math.BigDecimal;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -20,7 +20,7 @@ class MatchTest {
 
     private static final boolean FAILS = true;
 
-    private void match(Object actual, MatchType mt, Object expected) {
+    private void match(Object actual, Match.Type mt, Object expected) {
         match(actual, mt, expected, false);
     }
 
@@ -34,8 +34,8 @@ class MatchTest {
         logger.debug("{}", message);
     }
 
-    private void match(Object actual, MatchType mt, Object expected, boolean fails) {
-        MatchResult mr = Match.that(actual).is(mt, expected);
+    private void match(Object actual, Match.Type mt, Object expected, boolean fails) {
+        Match.Result mr = Match.that(actual).is(mt, expected);
         message = mr.message;
         if (!fails) {
             assertTrue(mr.pass, mr.message);

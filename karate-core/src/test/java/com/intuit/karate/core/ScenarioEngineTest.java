@@ -4,9 +4,6 @@ import com.intuit.karate.TestUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.match.Match;
-import com.intuit.karate.match.MatchResult;
-import com.intuit.karate.match.MatchType;
-import com.intuit.karate.match.MatchValue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -30,9 +27,9 @@ public class ScenarioEngineTest {
     }
 
     private void matchEval(Object before, Object after) {
-        Variable actual = new Variable(MatchValue.parseIfJsonOrXml(before));
+        Variable actual = new Variable(Match.parseIfJsonOrXmlString(before));
         Variable expected = engine.evalEmbeddedExpressions(actual);
-        MatchResult mr = Match.that(expected.getValue()).is(MatchType.EQUALS, MatchValue.parseIfJsonOrXml(after));
+        Match.Result mr = Match.that(expected.getValue()).is(Match.Type.EQUALS, Match.parseIfJsonOrXmlString(after));
         assertTrue(mr.pass, mr.message);
     }
 
@@ -41,12 +38,12 @@ public class ScenarioEngineTest {
     }
 
     private void matchEquals(String lhs, String rhs) {
-        MatchResult mr = engine.match(MatchType.EQUALS, lhs, null, rhs);
+        Match.Result mr = engine.match(Match.Type.EQUALS, lhs, null, rhs);
         assertTrue(mr.pass, mr.message);
     }
 
     private void matchNotEquals(String lhs, String rhs) {
-        assertFalse(engine.match(MatchType.EQUALS, lhs, null, rhs).pass);
+        assertFalse(engine.match(Match.Type.EQUALS, lhs, null, rhs).pass);
     }
 
     @Test

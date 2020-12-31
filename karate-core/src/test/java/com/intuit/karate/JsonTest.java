@@ -1,7 +1,6 @@
 package com.intuit.karate;
 
 import com.intuit.karate.match.Match;
-import com.intuit.karate.match.MatchResult;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -16,7 +15,7 @@ class JsonTest {
     static final Logger logger = LoggerFactory.getLogger(JsonTest.class);
 
     private void match(Json json, String expected) {
-        MatchResult mr = Match.that(json.value()).isEqualTo(expected);
+        Match.Result mr = Match.that(json.value()).isEqualTo(expected);
         assertTrue(mr.pass, mr.message);
     }
 

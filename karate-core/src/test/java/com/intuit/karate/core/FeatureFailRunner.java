@@ -2,7 +2,6 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.TestUtils;
 import com.intuit.karate.match.Match;
-import com.intuit.karate.match.MatchResult;
 import java.io.File;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
@@ -35,12 +34,12 @@ class FeatureFailRunner {
     }
 
     private void match(Object actual, Object expected) {
-        MatchResult mr = Match.that(actual).isEqualTo(expected);
+        Match.Result mr = Match.that(actual).isEqualTo(expected);
         assertTrue(mr.pass, mr.message);
     }
 
     private void matchContains(Object actual, Object expected) {
-        MatchResult mr = Match.that(actual).contains(expected);
+        Match.Result mr = Match.that(actual).contains(expected);
         assertTrue(mr.pass, mr.message);
     }
 

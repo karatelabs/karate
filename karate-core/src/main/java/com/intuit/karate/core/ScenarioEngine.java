@@ -49,9 +49,6 @@ import com.intuit.karate.http.Response;
 import com.intuit.karate.http.WebSocketClient;
 import com.intuit.karate.http.WebSocketOptions;
 import com.intuit.karate.match.Match;
-import com.intuit.karate.match.MatchResult;
-import com.intuit.karate.match.MatchType;
-import com.intuit.karate.match.MatchValue;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateUtils;
@@ -203,8 +200,8 @@ public class ScenarioEngine {
         assign(assignType, name, exp, true);
     }
 
-    public void matchResult(MatchType matchType, String expression, String path, String expected) {
-        MatchResult mr = match(matchType, expression, path, expected);
+    public void matchResult(Match.Type matchType, String expression, String path, String expected) {
+        Match.Result mr = match(matchType, expression, path, expected);
         if (!mr.pass) {
             setFailedReason(new KarateException(mr.message));
         }
@@ -1720,7 +1717,7 @@ public class ScenarioEngine {
         return StringUtils.pair(name, path);
     }
 
-    public MatchResult match(MatchType matchType, String expression, String path, String rhs) {
+    public Match.Result match(Match.Type matchType, String expression, String path, String rhs) {
         String name = StringUtils.trimToEmpty(expression);
         if (isDollarPrefixedJsonPath(name) || isXmlPath(name)) { // 
             path = name;
@@ -1774,14 +1771,14 @@ public class ScenarioEngine {
     }
 
     // TODO document that match header is case-insensitive at last
-    private MatchResult matchHeader(MatchType matchType, String name, String exp) {
+    private Match.Result matchHeader(Match.Type matchType, String name, String exp) {
         Variable expected = evalKarateExpression(exp);
         String actual = response.getHeader(name);
         return match(matchType, actual, expected.getValue());
     }
 
-    public MatchResult match(MatchType matchType, Object actual, Object expected) {
-        return Match.execute(JS, matchType, new MatchValue(actual), new MatchValue(expected));
+    public Match.Result match(Match.Type matchType, Object actual, Object expected) {
+        return Match.execute(JS, matchType, new Match.Value(actual), new Match.Value(expected));
     }
 
     private static final Pattern VAR_AND_PATH_PATTERN = Pattern.compile("\\w+");
