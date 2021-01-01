@@ -37,9 +37,6 @@ import java.util.Map;
 
 /**
  *
- * chrome devtools protocol - the "preferred" driver:
- * https://chromedevtools.github.io/devtools-protocol/
- *
  * @author pthomas3
  */
 public class Chrome extends DevToolsDriver {

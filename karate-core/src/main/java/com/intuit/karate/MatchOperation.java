@@ -144,7 +144,7 @@ public class MatchOperation {
         }
     }
 
-    public boolean execute() {
+    boolean execute() {
         switch (type) {
             case EACH_CONTAINS:
             case EACH_NOT_CONTAINS:
@@ -572,7 +572,7 @@ public class MatchOperation {
         return false;
     }
 
-    public String getFailureReasons() {
+    String getFailureReasons() {
         return collectFailureReasons(this);
     }
 

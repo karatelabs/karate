@@ -61,13 +61,13 @@ public class Match {
 
     }
 
-    public static final Result PASS = new Result(true, null);
+    static final Result PASS = new Result(true, null);
 
     static Result fail(String message) {
         return new Result(false, message);
     }
 
-    public interface Validator extends Function<Value, Result> {
+    interface Validator extends Function<Value, Result> {
         //
     }
 
@@ -92,7 +92,7 @@ public class Match {
 
     }
 
-    public static final Map<String, Validator> VALIDATORS = new HashMap(11);
+    static final Map<String, Validator> VALIDATORS = new HashMap(11);
 
     static {
         VALIDATORS.put("array", v -> v.isList() ? PASS : fail("not an array or list"));
@@ -162,7 +162,7 @@ public class Match {
             this.index = index;
         }
 
-        public Context descend(String name) {
+        Context descend(String name) {
             if (xml) {
                 String childPath = path.endsWith("/@") ? path + name : (depth == 0 ? "" : path) + "/" + name;
                 return new Context(JS, root, xml, depth + 1, childPath, name, -1);
@@ -173,7 +173,7 @@ public class Match {
             }
         }
 
-        public Context descend(int index) {
+        Context descend(int index) {
             if (xml) {
                 return new Context(JS, root, xml, depth + 1, path + "[" + (index + 1) + "]", name, index);
             } else {
