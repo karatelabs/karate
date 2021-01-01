@@ -58,7 +58,7 @@ public class TemplateUtils {
     }
 
     public static KarateTemplateEngine forServer(ServerConfig config) {
-        KarateTemplateEngine engine = new KarateTemplateEngine(() -> RequestCycle.get(), new KarateDialect(config));
+        KarateTemplateEngine engine = new KarateTemplateEngine(() -> RequestCycle.get(), new KarateServerDialect(config));
         engine.setTemplateResolver(new ServerHtmlTemplateResolver(config.getResourceResolver()));
         return engine;
     }
@@ -72,7 +72,7 @@ public class TemplateUtils {
 
     public static KarateTemplateEngine forRelativePath(JsEngine je, String root) {
         final RequestCycle rc = RequestCycle.init(je);
-        KarateTemplateEngine engine = new KarateTemplateEngine(() -> rc);
+        KarateTemplateEngine engine = new KarateTemplateEngine(() -> rc, new KarateScriptDialect());
         engine.setTemplateResolver(new ResourceHtmlTemplateResolver(root));
         return engine;
     }

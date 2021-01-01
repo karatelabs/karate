@@ -108,6 +108,8 @@ public class FeatureResult {
         map.put("total", getScenarioCount());
         map.put("passed", getPassedCount());
         map.put("failed", getFailedCount());
+        map.put("packageQualifiedName", feature.getPackageQualifiedName());
+        map.put("reportDate", Reports.getDateString());
         //======================================================================
         map.put("prefixedPath", feature.getResource().getPrefixedPath());
         List<Map<String, Object>> list = new ArrayList(scenarioResults.size());

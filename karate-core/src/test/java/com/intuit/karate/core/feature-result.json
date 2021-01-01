@@ -104,9 +104,11 @@
                                 }
                             ],
                             "prefixedPath": "classpath:com\/intuit\/karate\/core\/feature-result-called.feature",
+                            "packageQualifiedName": "com.intuit.karate.core.feature-result-called",
                             "name": "",
                             "description": "",
                             "durationMillis": "#number",
+                            "reportDate": "#string",
                             "total": 1,
                             "passed": 1,
                             "failed": 0                            
@@ -235,9 +237,11 @@
         }
     ],
     "prefixedPath": "classpath:com\/intuit\/karate\/core\/feature-result.feature",
+    "packageQualifiedName": "com.intuit.karate.core.feature-result",
     "name": "my feature",
     "description": "my description",
     "durationMillis": "#number",
+    "reportDate": "#string",
     "total": 3,
     "passed": 3,
     "failed": 0

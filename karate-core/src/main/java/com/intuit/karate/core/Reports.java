@@ -26,12 +26,17 @@ package com.intuit.karate.core;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.resource.Resource;
+import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -46,6 +51,40 @@ public class Reports {
 
     private Reports() {
         // only static methods
+    }
+
+    private static final String[] STATIC_RESOURCES = new String[]{
+        "bootstrap.min.css",
+        "bootstrap.min.js",
+        "jquery.min.js",
+        "jquery.tablesorter.min.js",
+        "karate-logo.png",
+        "karate-logo.svg",
+        "karate-report.css",
+        "karate-report.js"
+    };
+
+    public static String getDateString() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss a");
+        return sdf.format(new Date());
+    }
+
+    private static void copyToFile(String classPath, String destPath) {
+        InputStream is = ResourceUtils.classPathResourceToStream(classPath);
+        byte[] bytes = FileUtils.toBytes(is);
+        FileUtils.writeToFile(new File(destPath), bytes);
+    }
+
+    public static void initStaticResources(String targetDir) {
+        String resPath = targetDir + File.separator + "res" + File.separator;
+        File res = new File(resPath);
+        if (res.exists()) {
+            return;
+        }
+        for (String name : STATIC_RESOURCES) {
+            copyToFile("res/" + name, resPath + name);
+        }
+        copyToFile("favicon.ico", targetDir + File.separator + "favicon.ico");
     }
 
     private static final double MILLION = 1000000;

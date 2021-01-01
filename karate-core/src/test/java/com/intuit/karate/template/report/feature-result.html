@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+    <link rel="stylesheet" href="res/bootstrap.min.css" type="text/css"/>
+    <link rel="stylesheet" href="res/karate-report.css" type="text/css"/>
+    <link rel="shortcut icon" href="favicon.ico"/>
+    <script type="text/javascript" src="res/jquery.min.js"></script>
+    <script type="text/javascript" src="res/jquery.tablesorter.min.js"></script>
+    <script type="text/javascript" src="res/bootstrap.min.js"></script>
+    <script type="text/javascript" src="res/karate-report.js"></script>
+    <title th:text="fr.packageQualifiedName"></title>
+  </head>
+  <body>
+    <div id="root-container">
+      <script ka:lang="js">
+        var passed = fr.passed;
+        var failed = fr.failed;
+        var reportType = 'Scenarios';
+        var reportDate = fr.reportDate;
+      </script>
+      <div th:include="left-nav.html"></div>
+      <div id="content">
+        <div th:text="fr.prefixedPath"></div>
+        <ul th:each="sr: fr.scenarioResults">
+          <li th:include="scenario-result.html"></li>
+        </ul>        
+      </div>
+    </div>
+  </body>
+</html>
+

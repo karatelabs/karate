@@ -159,7 +159,7 @@ public class FileUtils {
             }
             // try with resources, so will be closed automatically
             try (FileOutputStream fos = new FileOutputStream(file)) {
-                fos.write(data);
+                fos.write(data);                
             }
         } catch (IOException e) {
             throw new RuntimeException(e);

@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.http.ServerConfig;
 import java.util.HashSet;
 import java.util.Set;
 import org.thymeleaf.dialect.AbstractProcessorDialect;
@@ -33,31 +32,16 @@ import org.thymeleaf.processor.IProcessor;
  *
  * @author pthomas3
  */
-public class KarateDialect extends AbstractProcessorDialect {
-
-    private final ServerConfig config;
+public class KarateScriptDialect extends AbstractProcessorDialect {
     
-    public KarateDialect(ServerConfig config) {
+    public KarateScriptDialect() {
         super("karate", "ka", 2000); // has to be processed after standard (default) dialect which is 1000
-        this.config = config;
     }
 
     @Override
     public Set<IProcessor> getProcessors(String dialectPrefix) {
         Set<IProcessor> ps = new HashSet();
-        ps.add(new KaScriptAttrProcessor(dialectPrefix, config));
         ps.add(new KaScriptElemProcessor(dialectPrefix));
-        ps.add(new KaLinkHrefProcessor(dialectPrefix, config));
-        ps.add(new KaHxAnyAttrProcessor(dialectPrefix, "target"));
-        ps.add(new KaHxAnyAttrProcessor(dialectPrefix, "swap"));
-        ps.add(new KaHxAnyAttrProcessor(dialectPrefix, "trigger"));
-        ps.add(new KaHxPathAttrProcessor(dialectPrefix, "get", config));
-        ps.add(new KaHxPathAttrProcessor(dialectPrefix, "post", config));
-        ps.add(new KaHxPathAttrProcessor(dialectPrefix, "put", config));
-        ps.add(new KaHxPathAttrProcessor(dialectPrefix, "patch", config));
-        ps.add(new KaHxPathAttrProcessor(dialectPrefix, "delete", config));
-        ps.add(new KaHxVarsAttrProcessor(dialectPrefix));
-        ps.add(new KaHxValsAttrProcessor(dialectPrefix));
         return ps;
     }
 

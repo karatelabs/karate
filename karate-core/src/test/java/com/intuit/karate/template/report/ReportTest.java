@@ -3,6 +3,7 @@ package com.intuit.karate.template.report;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
+import com.intuit.karate.core.Reports;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateUtils;
@@ -25,10 +26,11 @@ class ReportTest {
         FeatureRuntime fr = FeatureRuntime.of(feature);
         fr.run();        
         JsEngine je = JsEngine.local();
-        je.put("featureResult", fr.result.toKarateJson());
+        je.put("fr", fr.result.toKarateJson());
         KarateTemplateEngine engine = TemplateUtils.forRelativePath(je, "classpath:com/intuit/karate/template/report");
-        String html = engine.process("main.html");
-        FileUtils.writeToFile(new File("target/template-test.html"), html);
+        String html = engine.process("feature-result.html");
+        Reports.initStaticResources("target/template-test");
+        FileUtils.writeToFile(new File("target/template-test/" + fr.result.getFeature().getPackageQualifiedName() + ".html"), html);
     }
     
 }
