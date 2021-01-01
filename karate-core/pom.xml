@@ -213,25 +213,29 @@
                                     </artifactSet>                 
                                     <relocations>
                                         <relocation>
-                                            <pattern>com.linecorp</pattern>
-                                            <shadedPattern>karate.com.linecorp</shadedPattern>
+                                            <pattern>com.linecorp.</pattern>
+                                            <shadedPattern>karate.com.linecorp.</shadedPattern>
                                         </relocation>                                        
                                         <relocation>
-                                            <pattern>io.netty</pattern>
-                                            <shadedPattern>karate.io.netty</shadedPattern>
+                                            <pattern>io.netty.</pattern>
+                                            <shadedPattern>karate.io.netty.</shadedPattern>
                                         </relocation>
                                         <relocation>
-                                            <pattern>org.apache.http</pattern>
-                                            <shadedPattern>karate.org.apache.http</shadedPattern>
+                                            <pattern>org.apache.http.</pattern>
+                                            <shadedPattern>karate.org.apache.http.</shadedPattern>
                                         </relocation>                                        
                                         <relocation>
-                                            <pattern>org.antlr.v4</pattern>
-                                            <shadedPattern>karate.org.antlr.v4</shadedPattern>
+                                            <pattern>org.antlr.v4.</pattern>
+                                            <shadedPattern>karate.org.antlr.v4.</shadedPattern>
                                         </relocation>
                                         <relocation>
-                                            <pattern>io.github.classgraph</pattern>
-                                            <shadedPattern>karate.io.github.classgraph</shadedPattern>
-                                        </relocation>                                                                               
+                                            <pattern>io.github.classgraph.</pattern>
+                                            <shadedPattern>karate.io.github.classgraph.</shadedPattern>
+                                        </relocation>
+                                        <relocation>
+                                            <pattern>nonapi.io.github.classgraph.</pattern>
+                                            <shadedPattern>karate.nonapi.io.github.classgraph.</shadedPattern>
+                                        </relocation>                                                                                                                      
                                     </relocations>
                                     <filters>
                                         <filter>
