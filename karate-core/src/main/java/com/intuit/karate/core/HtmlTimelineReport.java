@@ -61,7 +61,7 @@ public class HtmlTimelineReport {
             item.put("group", groupId);
             Scenario s = sr.getScenario();
             String featureName = s.getFeature().getResource().getFileNameWithoutExtension();
-            String content = featureName + s.getDisplayMeta();
+            String content = featureName + s.getRefId();
             item.put("content", content);
             long startTime = sr.getStartTime();
             item.put("start", startTime);

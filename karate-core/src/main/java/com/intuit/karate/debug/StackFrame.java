@@ -47,7 +47,7 @@ public class StackFrame {
         Step step = context.getCurrentStep();
         line = step.getLine();
         Scenario scenario = context.scenario;
-        name = scenario.getDisplayMeta();
+        name = scenario.getRefId();
         File file = scenario.getFeature().getResource().getFile();
         source.put("name", file.getName());
         source.put("path", file.getPath());

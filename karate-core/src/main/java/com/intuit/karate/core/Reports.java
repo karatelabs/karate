@@ -26,7 +26,6 @@ package com.intuit.karate.core;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
 import java.io.InputStream;
@@ -98,14 +97,6 @@ public class Reports {
         return (double) nanos / MILLION;
     }
 
-    public static String formatNanos(long nanos, DecimalFormat formatter) {
-        return formatter.format(nanosToSeconds(nanos));
-    }
-
-    public static String formatMillis(double millis, DecimalFormat formatter) {
-        return formatter.format(millis / 1000);
-    }
-
     public static File saveKarateJson(String targetDir, FeatureResult result, String fileName) {
         if (fileName == null) {
             fileName = result.getFeature().getKarateJsonFileName();
@@ -159,7 +150,7 @@ public class Reports {
         doc.appendChild(root);
         root.setAttribute("tests", result.getScenarioCount() + "");
         root.setAttribute("failures", result.getFailedCount() + "");
-        root.setAttribute("time", formatMillis(result.getDurationMillis(), formatter));
+        root.setAttribute("time", formatter.format(result.getDurationMillis() / 1000));
         root.setAttribute("name", result.getDisplayUri()); // will be uri
         root.setAttribute("skipped", "0");
         StringBuilder xmlString = new StringBuilder();
@@ -173,7 +164,7 @@ public class Reports {
             StringBuilder sb = new StringBuilder();
             Throwable error = appendSteps(sr.getStepResults(), sb);
             testCase.setAttribute("name", sr.getScenario().getNameForReport());
-            testCase.setAttribute("time", formatMillis(sr.getDurationMillis(), formatter));
+            testCase.setAttribute("time", formatter.format(sr.getDurationMillis() / 1000));
             Element stepsHolder;
             if (error != null) {
                 stepsHolder = doc.createElement("failure");

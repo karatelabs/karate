@@ -100,7 +100,9 @@
                                     "startTime": "#number",
                                     "endTime": "#number",
                                     "example": -1,
-                                    "durationMillis": "#number"                                  
+                                    "refId": "[1:3]",
+                                    "durationMillis": "#number",
+                                    "failed": false
                                 }
                             ],
                             "prefixedPath": "classpath:com\/intuit\/karate\/core\/feature-result-called.feature",
@@ -108,10 +110,9 @@
                             "name": "",
                             "description": "",
                             "durationMillis": "#number",
-                            "reportDate": "#string",
-                            "total": 1,
-                            "passed": 1,
-                            "failed": 0                            
+                            "resultDate": "#string",
+                            "passedCount": 1,
+                            "failedCount": 0                            
                         }
                     ]
                 },
@@ -137,10 +138,12 @@
             "startTime": "#number",
             "endTime": "#number",
             "example": -1,
+            "refId": "[1:9]",
             "durationMillis": "#number",
+            "failed": false,
             "tags": [
-                "@one",
-                "@two"
+                "one",
+                "two"
             ]            
         },
         {
@@ -181,9 +184,11 @@
             "startTime": "#number",
             "endTime": "#number",
             "example": 0,
+            "refId": "[2.1:19]",
             "durationMillis": "#number",
+            "failed": false,
             "tags": [
-                "@one"
+                "one"
             ],
             "exampleData": {
                 "name": "foo"
@@ -227,9 +232,11 @@
             "startTime": "#number",
             "endTime": "#number",
             "example": 1,
+            "refId": "[2.2:20]",
             "durationMillis": "#number",
+            "failed": false,
             "tags": [
-                "@one"
+                "one"
             ],
             "exampleData": {
                 "name": "bar"
@@ -241,8 +248,7 @@
     "name": "my feature",
     "description": "my description",
     "durationMillis": "#number",
-    "reportDate": "#string",
-    "total": 3,
-    "passed": 3,
-    "failed": 0
+    "resultDate": "#string",
+    "passedCount": 3,
+    "failedCount": 0
 }

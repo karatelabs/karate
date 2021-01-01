@@ -15,17 +15,38 @@
   <body>
     <div id="root-container">
       <script ka:lang="js">
-        var passed = fr.passed;
-        var failed = fr.failed;
+        var passed = fr.passedCount;
+        var failed = fr.failedCount;
         var reportType = 'Scenarios';
-        var reportDate = fr.reportDate;
+        var reportDate = fr.resultDate;
       </script>
       <div th:include="left-nav.html"></div>
       <div id="content">
-        <div th:text="fr.prefixedPath"></div>
-        <ul th:each="sr: fr.scenarioResults">
-          <li th:include="scenario-result.html"></li>
-        </ul>        
+        <div class="page-heading alert alert-primary">
+          <a href="karate-summary.html">Summary</a><span class="feature-label">|</span>
+          <a href="karate-tags.html">Tags</a><span class="feature-label">|</span>
+          <span class="feature-label">Feature:</span>
+          <span class="feature-name" th:text="fr.name"></span>
+          <span class="feature-description" th:text="fr.description"></span>
+        </div>
+        <div th:each="sr: fr.scenarioResults" class="scenario">
+          <script ka:lang="js">
+            var scenarioStatus = sr.failed ? 'failed' : 'passed';
+          </script>
+          <div class="scenario-heading" th:id="sr.refId">
+            <div class="heading-container">
+              <div class="scenario-tags">
+                <a class="badge badge-primary" href="karate-tags.html" th:each="tag: sr.tags"></a>
+              </div>
+              <div class="scenario-keyword">Scenario: <span th:text="sr.refId"></span></div>
+              <div class="scenario-name">
+                <span th:text="sr.name"></span>
+                <span th:text="sr.description"></span>
+              </div>
+            </div>
+            <div class="scenario-time" th:classappend="scenarioStatus">ms: <span th:text="Math.round(sr.durationMillis)"></span></div>
+          </div>
+        </div>     
       </div>
     </div>
   </body>

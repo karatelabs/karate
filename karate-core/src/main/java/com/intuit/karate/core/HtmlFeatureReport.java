@@ -216,7 +216,7 @@ public class HtmlFeatureReport extends HtmlReport {
             Node scenarioDiv = div("scenario");
             contentContainer.appendChild(scenarioDiv);
             Scenario scenario = sr.getScenario();
-            String scenarioMeta = scenario.getDisplayMeta();
+            String scenarioMeta = scenario.getRefId();
             String scenarioName = scenario.getNameAndDescription();
             String extraClass = sr.isFailed() ? "failed" : "passed";
             Tags tags = scenario.getTagsEffective();

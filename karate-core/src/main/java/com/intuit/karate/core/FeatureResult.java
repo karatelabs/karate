@@ -45,6 +45,7 @@ public class FeatureResult {
     private final Feature feature;
     private final List<ScenarioResult> scenarioResults = new ArrayList<>();
 
+    private String resultDate;
     private String displayName; // mutable for users who want to customize
 
     private Map<String, Object> resultVariables;
@@ -88,6 +89,7 @@ public class FeatureResult {
         if (loopIndex != null) {
             fr.loopIndex = loopIndex;
         }
+        fr.resultDate = (String) map.get("resultDate");
         List<Map<String, Object>> list = (List) map.get("scenarioResults");
         if (list != null) {
             for (Map<String, Object> srMap : list) {
@@ -105,12 +107,14 @@ public class FeatureResult {
         map.put("name", feature.getName());
         map.put("description", feature.getDescription());
         map.put("durationMillis", getDurationMillis());
-        map.put("total", getScenarioCount());
-        map.put("passed", getPassedCount());
-        map.put("failed", getFailedCount());
-        map.put("packageQualifiedName", feature.getPackageQualifiedName());
-        map.put("reportDate", Reports.getDateString());
+        map.put("passedCount", getPassedCount());
+        map.put("failedCount", getFailedCount());
+        map.put("packageQualifiedName", feature.getPackageQualifiedName());        
         //======================================================================
+        if (resultDate == null) {
+            resultDate = Reports.getDateString();
+        }
+        map.put("resultDate", resultDate);
         map.put("prefixedPath", feature.getResource().getPrefixedPath());
         List<Map<String, Object>> list = new ArrayList(scenarioResults.size());
         map.put("scenarioResults", list);

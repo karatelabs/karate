@@ -62,7 +62,7 @@ public class ServerHtmlTemplateResolver implements ITemplateResolver {
     public TemplateResolution resolveTemplate(IEngineConfiguration ec, String ownerTemplate, String name, Map<String, Object> templateResolutionAttributes) {
         Resource resource = resourceResolver.resolve(name + ".html");
         KarateTemplateResource templateResource = new KarateTemplateResource(resource);
-        return new TemplateResolution(templateResource, TemplateMode.HTML, NonCacheableCacheEntryValidity.INSTANCE);
+        return new TemplateResolution(templateResource, TemplateMode.HTML, NonCacheableCacheEntryValidity.INSTANCE); // TODO cache switch
     }
 
 }
