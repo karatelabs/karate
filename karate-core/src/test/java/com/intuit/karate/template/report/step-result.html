@@ -3,6 +3,9 @@
     var step = sr.step;
     var result = sr.result;
     var stepId = (scenario.exampleIndex + 1) + '.' + step.line;
+    if (parentId) {
+      stepId = parentId + '.' + stepId;
+    }
     var stepStatus = result.status;
     var stepIndents = Array.from({length: callDepth}, (v, k) => k);
   </script>
@@ -38,10 +41,10 @@
       if (cr.loopIndex !== -1) {
         callName = '[' + cr.loopIndex + ']' + callName;
       }
-      var callRefId = sr.refId + '.' + (cr.loopIndex + 1);
+      var callerId = stepId + '.' + (cr.loopIndex + 1);
     </script>    
     <div class="step-row" th:attrappend="data-parent=${parentId}">
-      <div class="step-container" th:id="callRefId">
+      <div class="step-container" th:id="callerId">
         <div class="step-ref" th:classappend="callStatus">&gt;&gt;</div>
         <div th:each="indent: stepIndents" class="step-indent"></div>
         <div class="step-cell" th:classappend="callStatus" th:text="callName"></div>
@@ -50,7 +53,7 @@
     </div>
     <div th:each="csr: cr.scenarioResults">
       <div th:each="sr: csr.stepResults" th:include="step-result.html" 
-           th:with="callDepth=${cr.callDepth},parentId=${callRefId}"></div>
+           th:with="callDepth=${cr.callDepth},parentId=${callerId}"></div>
     </div>    
   </div>
 
