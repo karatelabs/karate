@@ -10,17 +10,25 @@
     <script type="text/javascript" src="res/jquery.tablesorter.min.js"></script>
     <script type="text/javascript" src="res/bootstrap.min.js"></script>
     <script type="text/javascript" src="res/karate-report.js"></script>
-    <title th:text="fr.packageQualifiedName"></title>
+    <title th:text="fr.packageQualifiedName"></title>  
   </head>
   <body>
+    <script ka:lang="js">
+      var passed = fr.passedCount;
+      var failed = fr.failedCount;
+      var reportType = 'Scenarios';
+      var reportDate = fr.resultDate;
+      var statusCss = scenario => scenario.failed ? 'failed' : 'passed';
+    </script>    
     <div id="root-container">
-      <script ka:lang="js">
-        var passed = fr.passedCount;
-        var failed = fr.failedCount;
-        var reportType = 'Scenarios';
-        var reportDate = fr.resultDate;
-      </script>
-      <div th:include="left-nav.html"></div>
+      <div id="leftnav">
+        <div th:replace="left-nav.html"></div>
+        <div class="nav-container">
+          <div class="nav-item" th:each="sr: fr.scenarioResults" th:classappend="statusCss(sr)">
+            <a th:href="'#' + sr.refId"><span th:text="sr.refId"></span> <span th:text="sr.name"></span></a>
+          </div>
+        </div>
+      </div>
       <div id="content">
         <div class="page-heading alert alert-primary">
           <a href="karate-summary.html">Summary</a><span class="feature-label">|</span>
@@ -29,23 +37,45 @@
           <span class="feature-name" th:text="fr.name"></span>
           <span class="feature-description" th:text="fr.description"></span>
         </div>
-        <div th:each="sr: fr.scenarioResults" class="scenario">
-          <script ka:lang="js">
-            var scenarioStatus = sr.failed ? 'failed' : 'passed';
-          </script>
-          <div class="scenario-heading" th:id="sr.refId">
+        <div th:each="scenario: fr.scenarioResults" class="scenario">
+          <div class="scenario-heading" th:id="scenario.refId">
             <div class="heading-container">
               <div class="scenario-tags">
-                <a class="badge badge-primary" href="karate-tags.html" th:each="tag: sr.tags"></a>
+                <a class="badge badge-primary" href="karate-tags.html" th:each="tag: scenario.tags" th:text="tag"></a>
               </div>
-              <div class="scenario-keyword">Scenario: <span th:text="sr.refId"></span></div>
-              <div class="scenario-name">
-                <span th:text="sr.name"></span>
-                <span th:text="sr.description"></span>
+              <div class="scenario-keyword">
+                Scenario: <span th:text="scenario.refId"></span>
+                <span class="scenario-name" th:text="scenario.name"></span>
+                <span th:text="scenario.description"></span>
               </div>
             </div>
-            <div class="scenario-time" th:classappend="scenarioStatus">ms: <span th:text="Math.round(sr.durationMillis)"></span></div>
+            <div class="scenario-time" th:classappend="statusCss(scenario)">
+              ms: <span th:text="Math.round(scenario.durationMillis)"></span>
+            </div>
           </div>
+          <div th:if="scenario.stepResults[0].step.background" class="step-row">
+            <div class="step-container" th:id="scenario.refId + 'bg'">
+              <div class="step-ref bg-step">&gt;&gt;</div>
+              <div class="step-cell passed">Background:</div>
+            </div>
+            <div class="time-cell passed"></div>
+          </div>          
+          <div class="step-row" th:each="sr: scenario.stepResults" 
+               th:attrappend="data-parent=${sr.step.background ? scenario.refId + 'bg' : null}">
+            <script ka:lang="js">
+              var step = sr.step;
+              var result = sr.result;
+              var stepId = (scenario.exampleIndex + 1) + '.' + step.line;
+              var stepStatus = result.status;
+            </script>
+            <div class="step-container" th:id="stepId">
+              <div class="step-ref" th:classappend="stepStatus" th:text="step.line"></div>
+              <div class="step-cell" th:classappend="stepStatus">
+                <span th:text="step.prefix"></span>&nbsp;<span th:text="step.text"></span>
+              </div>
+            </div>
+            <div class="time-cell" th:classappend="stepStatus" th:text="Math.round(result.millis)"></div>
+          </div>          
         </div>     
       </div>
     </div>

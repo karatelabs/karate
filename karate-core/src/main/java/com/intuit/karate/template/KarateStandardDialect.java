@@ -73,7 +73,7 @@ public class KarateStandardDialect extends StandardDialect implements IStandardV
 
     @Override
     public Object evaluate(IExpressionContext ctx, IStandardVariableExpression ve, StandardExpressionExecutionContext ec) {
-        logger.debug("dialect expression evaluator called: {}", ve);
+        // found to be used for th:attrappend="data-parent=${expression}"
         KarateExpression ke = new KarateExpression(ve.getExpression());
         return ke.execute(ctx);
     }

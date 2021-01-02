@@ -4,7 +4,8 @@
             "stepResults": [
                 {
                     "result": {
-                        "durationNanos": "#number",
+                        "nanos": "#number",
+                        "millis": "#number",
                         "status": "passed"
                     },
                     "step": {
@@ -18,7 +19,8 @@
                 },
                 {
                     "result": {
-                        "durationNanos": "#number",
+                        "nanos": "#number",
+                        "millis": "#number",
                         "status": "passed"
                     },
                     "step": {
@@ -31,7 +33,8 @@
                 },
                 {
                     "result": {
-                        "durationNanos": "#number",
+                        "nanos": "#number",
+                        "millis": "#number",
                         "status": "passed"
                     },
                     "step": {
@@ -48,7 +51,8 @@
                                     "stepResults": [
                                         {
                                             "result": {
-                                                "durationNanos": "#number",
+                                                "nanos": "#number",
+                                                "millis": "#number",
                                                 "status": "passed"
                                             },
                                             "step": {
@@ -61,7 +65,8 @@
                                         },
                                         {
                                             "result": {
-                                                "durationNanos": "#number",
+                                                "nanos": "#number",
+                                                "millis": "#number",
                                                 "status": "passed"
                                             },
                                             "step": {
@@ -80,7 +85,8 @@
                                         },
                                         {
                                             "result": {
-                                                "durationNanos": "#number",
+                                                "nanos": "#number",
+                                                "millis": "#number",
                                                 "status": "passed"
                                             },
                                             "step": {
@@ -96,10 +102,10 @@
                                     "name": "",
                                     "description": "",
                                     "line": 3,
-                                    "section": 0,
+                                    "sectionIndex": 0,
                                     "startTime": "#number",
                                     "endTime": "#number",
-                                    "example": -1,
+                                    "exampleIndex": -1,
                                     "refId": "[1:3]",
                                     "durationMillis": "#number",
                                     "failed": false
@@ -118,7 +124,8 @@
                 },
                 {
                     "result": {
-                        "durationNanos": "#number",
+                        "nanos": "#number",
+                        "millis": "#number",
                         "status": "passed"
                     },
                     "step": {
@@ -134,10 +141,10 @@
             "name": "hello world",
             "description": "",
             "line": 9,
-            "section": 0,
+            "sectionIndex": 0,
             "startTime": "#number",
             "endTime": "#number",
-            "example": -1,
+            "exampleIndex": -1,
             "refId": "[1:9]",
             "durationMillis": "#number",
             "failed": false,
@@ -150,7 +157,8 @@
             "stepResults": [
                 {
                     "result": {
-                        "durationNanos": "#number",
+                        "nanos": "#number",
+                        "millis": "#number",
                         "status": "passed"
                     },
                     "step": {
@@ -164,7 +172,8 @@
                 },
                 {
                     "result": {
-                        "durationNanos": "#number",
+                        "nanos": "#number",
+                        "millis": "#number",
                         "status": "passed"
                     },
                     "step": {
@@ -180,10 +189,10 @@
             "name": "hello foo",
             "description": "",
             "line": 19,
-            "section": 1,
+            "sectionIndex": 1,
             "startTime": "#number",
             "endTime": "#number",
-            "example": 0,
+            "exampleIndex": 0,
             "refId": "[2.1:19]",
             "durationMillis": "#number",
             "failed": false,
@@ -198,7 +207,8 @@
             "stepResults": [
                 {
                     "result": {
-                        "durationNanos": "#number",
+                        "nanos": "#number",
+                        "millis": "#number",
                         "status": "passed"
                     },
                     "step": {
@@ -212,7 +222,8 @@
                 },
                 {
                     "result": {
-                        "durationNanos": "#number",
+                        "nanos": "#number",
+                        "millis": "#number",
                         "status": "passed"
                     },
                     "step": {
@@ -228,10 +239,10 @@
             "name": "hello bar",
             "description": "",
             "line": 20,
-            "section": 1,
+            "sectionIndex": 1,
             "startTime": "#number",
             "endTime": "#number",
-            "example": 1,
+            "exampleIndex": 1,
             "refId": "[2.2:20]",
             "durationMillis": "#number",
             "failed": false,

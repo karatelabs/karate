@@ -56,7 +56,7 @@ public class Result {
 
     public static Result fromKarateJson(Map<String, Object> map) {
         String status = (String) map.get("status");
-        Number num = (Number) map.get("durationNanos");
+        Number num = (Number) map.get("nanos");
         long durationNanos = num == null ? 0 : num.longValue();
         String errorMessage = (String) map.get("errorMessage");
         Throwable error = errorMessage == null ? null : new KarateException(errorMessage);
@@ -70,7 +70,8 @@ public class Result {
     public Map<String, Object> toKarateJson() {
         Map<String, Object> map = new HashMap();
         map.put("status", status);
-        map.put("durationNanos", durationNanos);
+        map.put("millis", getDurationMillis()); // not used in fromKarateJson()
+        map.put("nanos", durationNanos);
         if (error != null) {
             map.put("errorMessage", error.getMessage());
         }

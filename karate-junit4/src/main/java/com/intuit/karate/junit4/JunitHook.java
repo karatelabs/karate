@@ -47,7 +47,7 @@ public class JunitHook implements RuntimeHook {
     }
 
     private static Description getScenarioDescription(Scenario scenario) {
-        return Description.createTestDescription(scenario.getFeature().getNameForReport(), scenario.getNameForReport());
+        return Description.createTestDescription(scenario.getFeature().getNameForReport(), scenario.getRefIdAndName());
     }    
 
     @Override

@@ -163,7 +163,7 @@ public class Reports {
             testCase.setAttribute("classname", baseName);
             StringBuilder sb = new StringBuilder();
             Throwable error = appendSteps(sr.getStepResults(), sb);
-            testCase.setAttribute("name", sr.getScenario().getNameForReport());
+            testCase.setAttribute("name", sr.getScenario().getRefIdAndName());
             testCase.setAttribute("time", formatter.format(sr.getDurationMillis() / 1000));
             Element stepsHolder;
             if (error != null) {

@@ -69,7 +69,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     @Override
     public DynamicTest next() {
         ScenarioRuntime runtime = scenarios.next();
-        return DynamicTest.dynamicTest(runtime.scenario.getNameForReport(), runtime.scenario.getUriToLineNumber(), () -> {
+        return DynamicTest.dynamicTest(runtime.scenario.getRefIdAndName(), runtime.scenario.getUriToLineNumber(), () -> {
             if (featureRuntime.beforeHook()) { // minimal code duplication from feature-runtime
                 runtime.run();
                 featureRuntime.result.addResult(runtime.result);

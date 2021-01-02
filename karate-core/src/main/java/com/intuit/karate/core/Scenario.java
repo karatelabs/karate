@@ -71,7 +71,7 @@ public class Scenario {
         return temp;
     }
 
-    public String getNameForReport() {
+    public String getRefIdAndName() {
         if (name == null) {
             return getRefId();
         } else {
