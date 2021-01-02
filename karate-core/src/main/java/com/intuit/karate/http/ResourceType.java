@@ -93,6 +93,15 @@ public enum ResourceType {
     public boolean isStatic() {
         return this != BINARY;
     }
+    
+    public boolean isVideo() {
+        switch (this) {
+            case MP4:
+                return true;
+            default:
+                return false;
+        }
+    }
 
     public boolean isImage() {
         switch (this) {

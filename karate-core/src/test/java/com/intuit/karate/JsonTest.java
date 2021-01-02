@@ -1,7 +1,6 @@
 package com.intuit.karate;
 
-import com.intuit.karate.match.Match;
-import com.intuit.karate.match.MatchResult;
+import java.util.NoSuchElementException;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -16,7 +15,7 @@ class JsonTest {
     static final Logger logger = LoggerFactory.getLogger(JsonTest.class);
 
     private void match(Json json, String expected) {
-        MatchResult mr = Match.that(json.value()).isEqualTo(expected);
+        Match.Result mr = Match.evaluate(json.value()).isEqualTo(expected);
         assertTrue(mr.pass, mr.message);
     }
 
@@ -75,23 +74,38 @@ class JsonTest {
         json.set("$[1].foo", "[3, 4]");
         match(json, "[{ foo: [1, 2] }, { foo: [3, 4] }]");
         json.remove("$[0]");
-        match(json, "[{ foo: [3, 4] }]");        
+        match(json, "[{ foo: [3, 4] }]");
         json = Json.object().set("$.foo[]", "a");
         match(json, "{ foo: ['a'] }");
     }
-    
+
     @Test
     void testSetNestedObject() {
         Json json = Json.of("{ name: 'Wild', kitten: null }");
         json.set("$.kitten.name", "Bob");
         match(json, "{ name: 'Wild', kitten: { name: 'Bob' } }");
     }
-    
+
     @Test
     void testSetNestedArray() {
         Json json = Json.of("[]");
         json.set("$[0].name.first", "Bob");
         match(json, "[{ name: { first: 'Bob' } }]");
-    }    
+    }
+    
+    @Test
+    void testJsonApi() {
+        Json json = Json.of("{ a: 1, b: { c: 2 } }");
+        assertEquals(2, (int) json.get("b.c"));
+        assertEquals(2, (int) json.getOptional("b.c").get());
+        assertNull(json.getOrNull("b.d"));
+        assertEquals(3, (int) json.getOr("b.d", 3));
+        try {
+            json.getOptional("b.d").get();
+            fail("expected exception");
+        } catch (Exception e) {
+            assertTrue(e instanceof NoSuchElementException);
+        }
+    }
 
 }

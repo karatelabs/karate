@@ -1,6 +1,5 @@
 package com.intuit.karate;
 
-import com.intuit.karate.match.Match;
 import com.intuit.karate.core.ComplexPojo;
 import com.intuit.karate.core.SimplePojo;
 import java.util.Arrays;
@@ -41,7 +40,7 @@ class JsonUtilsTest {
         String s = JsonUtils.toJson(pojo);
         assertEquals("{\"bar\":0,\"foo\":null}", s);
         Map<String, Object> map = Json.of(pojo).asMap();
-        assertTrue(Match.that(map).isEqualTo("{ foo: null, bar: 0 }").pass);
+        Match.that(map).isEqualTo("{ foo: null, bar: 0 }");
     }
 
     @Test

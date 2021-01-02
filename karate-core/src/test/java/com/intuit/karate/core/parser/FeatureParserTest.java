@@ -8,9 +8,9 @@ import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
-import com.intuit.karate.match.Match;
-import com.intuit.karate.match.MatchResult;
+import com.intuit.karate.Match;
 import com.intuit.karate.core.FeatureRuntime;
+import com.intuit.karate.core.Scenario;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
@@ -40,7 +40,7 @@ class FeatureParserTest {
     }
     
     private void match(Object actual, Object expected) {
-        MatchResult mr = Match.that(actual).isEqualTo(expected);
+        Match.Result mr = Match.evaluate(actual).isEqualTo(expected);
         assertTrue(mr.pass, mr.message);
     }    
 
@@ -161,7 +161,7 @@ class FeatureParserTest {
     void testTagsMultiline() {
         FeatureResult result = execute("test-tags-multiline.feature");
         Map<String, Object> map = result.getVariables();
-        Match.that(map.get("tags")).contains("[ 'tag1', 'tag2', 'tag3', 'tag4' ]").isTrue();
+        Match.that(map.get("tags")).contains("[ 'tag1', 'tag2', 'tag3', 'tag4' ]");
     }
 
     @Test
@@ -216,6 +216,14 @@ class FeatureParserTest {
     void testComments() {
         FeatureResult result = execute("test-comments.feature");
         assertFalse(result.isFailed());
+    }
+    
+    @Test
+    void testScenarioDescription() {
+        Feature feature = Feature.read("classpath:com/intuit/karate/core/parser/test-scenario-description.feature");
+        Scenario scenario = feature.getScenario(0, -1);
+        assertEquals("hello world", scenario.getName());
+        assertEquals("another line", scenario.getDescription());
     }
 
 }

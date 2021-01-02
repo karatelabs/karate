@@ -63,36 +63,6 @@ public abstract class HtmlReport {
         setById("nav-date", dateString);
     }
 
-    private static final String[] RESOURCES = new String[]{
-        "bootstrap.min.css",
-        "bootstrap.min.js",
-        "jquery.min.js",
-        "jquery.tablesorter.min.js",
-        "karate-logo.png",
-        "karate-logo.svg",
-        "karate-report.css",
-        "karate-report.js"
-    };
-
-    protected static void copyFile(ClassLoader cl, String srcPath, String destPath) {
-        byte[] bytes = FileUtils.toBytes(cl.getResourceAsStream(srcPath));
-        File dest = new File(destPath);
-        FileUtils.writeToFile(dest, bytes);
-    }
-
-    protected void initStaticResources(String targetDir) {
-        String resPath = targetDir + File.separator + "res" + File.separator;
-        File res = new File(resPath);
-        if (res.exists()) {
-            return;
-        }
-        ClassLoader cl = getClass().getClassLoader();
-        for (String name : RESOURCES) {
-            copyFile(cl, "res/" + name, resPath + name);
-        }
-        copyFile(cl, "favicon.ico", targetDir + File.separator + "favicon.ico");
-    }
-
     protected void set(String path, String value) {
         XmlUtils.setByPath(doc, path, value);
     }
@@ -159,7 +129,7 @@ public abstract class HtmlReport {
         File file = new File(targetDir + File.separator + fileName);
         try {
             String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, false);
-            initStaticResources(targetDir); // TODO improve init
+            Reports.initStaticResources(targetDir);
             FileUtils.writeToFile(file, xml);
         } catch (Exception e) {
             System.out.println("html report output failed: " + e.getMessage());

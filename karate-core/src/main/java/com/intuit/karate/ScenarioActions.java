@@ -25,7 +25,6 @@ package com.intuit.karate;
 
 import com.intuit.karate.core.AssignType;
 import com.intuit.karate.core.Action;
-import com.intuit.karate.match.MatchStep;
 import com.intuit.karate.core.ScenarioEngine;
 import cucumber.api.DataTable;
 import cucumber.api.java.en.When;
@@ -390,14 +389,8 @@ public class ScenarioActions implements Actions {
     @Override
     @When("^doc (.+)")
     public void doc(String exp) {
-        engine.doc(exp, false);
-    }
-    
-    @Override
-    @When("^doc$")
-    public void docDocstring(String exp) {
-        engine.doc(exp, true);
-    }    
+        engine.doc(exp);
+    }  
 
     //==========================================================================
     //

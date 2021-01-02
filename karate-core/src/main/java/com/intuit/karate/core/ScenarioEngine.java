@@ -48,12 +48,9 @@ import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.Response;
 import com.intuit.karate.http.WebSocketClient;
 import com.intuit.karate.http.WebSocketOptions;
-import com.intuit.karate.match.Match;
-import com.intuit.karate.match.MatchResult;
-import com.intuit.karate.match.MatchType;
-import com.intuit.karate.match.MatchValue;
+import com.intuit.karate.Match;
 import com.intuit.karate.shell.Command;
-import com.intuit.karate.template.TemplateContext;
+import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateUtils;
 import com.jayway.jsonpath.PathNotFoundException;
 import java.io.File;
@@ -75,7 +72,6 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.graalvm.polyglot.Value;
-import org.thymeleaf.ITemplateEngine;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
@@ -204,8 +200,8 @@ public class ScenarioEngine {
         assign(assignType, name, exp, true);
     }
 
-    public void matchResult(MatchType matchType, String expression, String path, String expected) {
-        MatchResult mr = match(matchType, expression, path, expected);
+    public void matchResult(Match.Type matchType, String expression, String path, String expected) {
+        Match.Result mr = match(matchType, expression, path, expected);
         if (!mr.pass) {
             setFailedReason(new KarateException(mr.message));
         }
@@ -294,7 +290,7 @@ public class ScenarioEngine {
     private PerfEvent prevPerfEvent;
 
     public void logLastPerfEvent(String failureMessage) {
-        if (prevPerfEvent != null && runtime.featureRuntime.perfHook != null) {
+        if (prevPerfEvent != null && runtime.perfMode) {
             if (failureMessage != null) {
                 prevPerfEvent.setFailed(true);
                 prevPerfEvent.setMessage(failureMessage);
@@ -582,7 +578,7 @@ public class ScenarioEngine {
         }
         request = requestBuilder.build();
         String perfEventName = null; // acts as a flag to report perf if not null
-        if (runtime.featureRuntime.perfHook != null) {
+        if (runtime.perfMode) {
             perfEventName = runtime.featureRuntime.perfHook.getPerfEventName(request, runtime);
         }
         long startTime = System.currentTimeMillis();
@@ -976,36 +972,32 @@ public class ScenarioEngine {
 
     // doc =====================================================================
     //    
-    private ITemplateEngine templateEngine;
+    private KarateTemplateEngine templateEngine;
 
-    public void doc(String exp, boolean docString) {
+    public void doc(String exp) {
         if (runtime.reportDisabled) {
             return;
         }
-        String text;
-        if (docString) {
-            text = exp;
-        } else {
-            Variable v = evalKarateExpression(exp);
-            if (v.isString()) {
-                text = v.getAsString();
-            } else if (v.isMap()) {
-                Map<String, Object> map = v.getValue();
-                String path = (String) map.get("read");
-                if (path == null) {
-                    logger.warn("doc json missing 'read' property: {}", v);
-                    return;
-                }
-                text = fileReader.readFileAsString(path);
-            } else {
-                logger.warn("doc is not string or json: {}", v);
+        String path;
+        Variable v = evalKarateExpression(exp);
+        if (v.isString()) {
+            path = v.getAsString();
+        } else if (v.isMap()) {
+            Map<String, Object> map = v.getValue();
+            path = (String) map.get("read");
+            if (path == null) {
+                logger.warn("doc json missing 'read' property: {}", v);
                 return;
             }
+        } else {
+            logger.warn("doc is not string or json: {}", v);
+            return;
         }
         if (templateEngine == null) {
-            templateEngine = TemplateUtils.createEngine(JS);
+            String prefixedPath = runtime.featureRuntime.rootFeature.feature.getResource().getPrefixedParentPath();
+            templateEngine = TemplateUtils.forRelativePath(JS, prefixedPath);
         }
-        String html = templateEngine.process(text, TemplateContext.LOCALE_US);
+        String html = templateEngine.process(path);
         runtime.embed(FileUtils.toBytes(html), ResourceType.HTML);
     }
 
@@ -1725,7 +1717,7 @@ public class ScenarioEngine {
         return StringUtils.pair(name, path);
     }
 
-    public MatchResult match(MatchType matchType, String expression, String path, String rhs) {
+    public Match.Result match(Match.Type matchType, String expression, String path, String rhs) {
         String name = StringUtils.trimToEmpty(expression);
         if (isDollarPrefixedJsonPath(name) || isXmlPath(name)) { // 
             path = name;
@@ -1779,14 +1771,14 @@ public class ScenarioEngine {
     }
 
     // TODO document that match header is case-insensitive at last
-    private MatchResult matchHeader(MatchType matchType, String name, String exp) {
+    private Match.Result matchHeader(Match.Type matchType, String name, String exp) {
         Variable expected = evalKarateExpression(exp);
         String actual = response.getHeader(name);
         return match(matchType, actual, expected.getValue());
     }
 
-    public MatchResult match(MatchType matchType, Object actual, Object expected) {
-        return Match.execute(JS, matchType, new MatchValue(actual), new MatchValue(expected));
+    public Match.Result match(Match.Type matchType, Object actual, Object expected) {
+        return Match.execute(JS, matchType, actual, expected);
     }
 
     private static final Pattern VAR_AND_PATH_PATTERN = Pattern.compile("\\w+");

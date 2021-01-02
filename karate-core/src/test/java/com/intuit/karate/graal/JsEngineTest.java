@@ -1,6 +1,6 @@
 package com.intuit.karate.graal;
 
-import com.intuit.karate.match.Match;
+import com.intuit.karate.Match;
 import com.intuit.karate.core.MockUtils;
 import com.intuit.karate.http.Request;
 import java.util.Collections;
@@ -80,7 +80,7 @@ class JsEngineTest {
         v = je.evalForValue("() => ({ a: 1 })");
         assertTrue(v.canExecute());
         res = v.execute();
-        assertTrue(Match.that(res.as(Map.class)).isEqualTo("{ a: 1 }").pass);
+        Match.that(res.as(Map.class)).isEqualTo("{ a: 1 }");
     }
 
     @Test

@@ -104,7 +104,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
                 Step call = new Step(stepResult.getStep().getFeature(), -1);
                 call.setLine(stepResult.getStep().getLine());
                 call.setPrefix(StringUtils.repeat('>', depth));
-                call.setText(fr.getCallName());
+                call.setText(fr.getCallNameForReport());
                 call.setDocString(fr.getCallArgPretty());
                 StepResult callResult = new StepResult(call, Result.passed(0));
                 callResult.setHidden(stepResult.isHidden());
@@ -135,8 +135,8 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     }
 
     public static ScenarioResult fromKarateJson(File workingDir, Feature feature, Map<String, Object> map) {
-        int sectionIndex = (Integer) map.get("section");
-        int exampleIndex = (Integer) map.get("example");
+        int sectionIndex = (Integer) map.get("sectionIndex");
+        int exampleIndex = (Integer) map.get("exampleIndex");
         FeatureSection section = feature.getSection(sectionIndex);
         Scenario scenario = new Scenario(feature, section, exampleIndex);
         if (section.isOutline()) {
@@ -146,10 +146,10 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             scenario.setTags(section.getScenario().getTags());
             scenario.setDescription(section.getScenario().getDescription());
         }
-        String name = (String) map.get("name");
-        scenario.setName(name);
-        int line = (Integer) map.get("line");
-        scenario.setLine(line);
+        scenario.setName((String) map.get("name"));
+        scenario.setDescription((String) map.get("description"));
+        scenario.setLine((Integer) map.get("line"));
+        scenario.setExampleData((Map) map.get("exampleData"));
         ScenarioResult sr = new ScenarioResult(scenario);
         String executorName = (String) map.get("executorName");
         Number startTime = (Number) map.get("startTime");
@@ -167,8 +167,9 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             for (Map<String, Object> stepResultMap : list) {
                 StepResult stepResult = StepResult.fromKarateJson(workingDir, scenario, stepResultMap);
                 sr.addStepResult(stepResult);
-                if (!stepResult.getStep().isBackground()) {
-                    steps.add(stepResult.getStep());
+                Step step = stepResult.getStep();
+                if (!step.isBackground() && step.getLine() != -1) {
+                    steps.add(step);
                 }
             }
             scenario.setSteps(steps);
@@ -178,9 +179,24 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
 
     public Map<String, Object> toKarateJson() {
         Map<String, Object> map = new HashMap();
-        map.put("section", scenario.getSection().getIndex());
-        map.put("example", scenario.getExampleIndex());
+        // these first few are only for the ease of reports
+        // note that they are not involved in the reverse fromKarateJson()
+        map.put("durationMillis", getDurationMillis());
+        List<String> tags = scenario.getTagsEffective().getTags();
+        if (tags != null && !tags.isEmpty()) {
+            map.put("tags", tags);
+        }
+        map.put("failed", isFailed());
+        map.put("refId", scenario.getRefId());
+        //======================================================================
+        map.put("sectionIndex", scenario.getSection().getIndex());
+        map.put("exampleIndex", scenario.getExampleIndex());
+        Map<String, Object> exampleData = scenario.getExampleData();
+        if (exampleData != null) {
+            map.put("exampleData", exampleData);
+        }
         map.put("name", scenario.getName());
+        map.put("description", scenario.getDescription());
         map.put("line", scenario.getLine());
         map.put("executorName", executorName);
         map.put("startTime", startTime);

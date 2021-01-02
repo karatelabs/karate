@@ -24,11 +24,14 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.XmlUtils;
 import com.intuit.karate.http.ResourceType;
 import java.io.File;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 
 /**
  *
@@ -44,6 +47,14 @@ public class Embed {
         this.resourceType = resourceType;
     }
 
+    public String getAsHtmlForReport() {
+        if (resourceType.isImage() || resourceType.isVideo()) {
+            return getAsHtmlTag();
+        } else {
+            return getAsString();
+        }
+    }
+
     public static Embed fromKarateJson(Map<String, Object> map) {
         String fileName = (String) map.get("file");
         String rtName = (String) map.get("resourceType");
@@ -56,12 +67,13 @@ public class Embed {
         Map<String, Object> map = new HashMap();
         map.put("file", file.getPath());
         map.put("resourceType", resourceType.name());
+        map.put("html", getAsHtmlForReport()); // not used in fromKarateJson()
         return map;
     }
 
     public File getFile() {
         return file;
-    }        
+    }
 
     public ResourceType getResourceType() {
         return resourceType;
@@ -110,6 +122,6 @@ public class Embed {
     @Override
     public String toString() {
         return file.toString();
-    }        
+    }
 
 }

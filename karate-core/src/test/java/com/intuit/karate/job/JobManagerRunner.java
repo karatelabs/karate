@@ -79,7 +79,7 @@ class JobManagerRunner {
         };
         JobManager jm = new JobManager(jc);
         new Thread(() -> fr.scenarios.forEachRemaining(jm::addChunk)).start();
-        Http http = Http.forUrl("http://localhost:8080");
+        Http http = Http.to("http://localhost:8080");
         Json json = Json.of("{ method: 'next', executorId: '1' }");
         json.set("jobId", jm.jobId);
         Response response = http.header(JobManager.KARATE_JOB_HEADER, json.toString()).postJson("{}");

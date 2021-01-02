@@ -33,11 +33,11 @@ import org.thymeleaf.processor.IProcessor;
  *
  * @author pthomas3
  */
-public class KarateDialect extends AbstractProcessorDialect {
+public class KarateServerDialect extends AbstractProcessorDialect {
 
     private final ServerConfig config;
     
-    public KarateDialect(ServerConfig config) {
+    public KarateServerDialect(ServerConfig config) {
         super("karate", "ka", 2000); // has to be processed after standard (default) dialect which is 1000
         this.config = config;
     }

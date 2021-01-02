@@ -38,7 +38,7 @@ public interface Resource {
     boolean isClassPath();
 
     File getFile();
-    
+
     URI getUri();
 
     String getRelativePath();
@@ -47,6 +47,10 @@ public interface Resource {
 
     default String getPrefixedPath() {
         return isClassPath() ? "classpath:" + getRelativePath() : getRelativePath();
+    }
+
+    default String getPrefixedParentPath() {
+        return ResourceUtils.getParentPath(getPrefixedPath());
     }
 
     default String getPackageQualifiedName() {
@@ -70,6 +74,6 @@ public interface Resource {
         }
     }
 
-    InputStream getStream();    
+    InputStream getStream();
 
 }

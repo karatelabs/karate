@@ -23,39 +23,32 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.http.ServerConfig;
-import com.intuit.karate.http.ResourceResolver;
+import com.intuit.karate.resource.Resource;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
-import java.io.StringReader;
 import org.thymeleaf.templateresource.ITemplateResource;
 
 /**
  *
  * @author pthomas3
  */
-public class ServerTemplateResource implements ITemplateResource {
+public class KarateTemplateResource implements ITemplateResource {
 
-    private final ServerConfig config;
-    private final ResourceResolver resourceResolver;
-    private final String name;
+    private final Resource resource;
 
-    public ServerTemplateResource(String name, ServerConfig config) {
-        this.name = name;
-        this.config = config;
-        resourceResolver = config.getResourceResolver();
+    public KarateTemplateResource(Resource resource) {
+        this.resource = resource;
     }
 
     @Override
     public String getDescription() {
-        return name;
+        return resource.getRelativePath();
     }
 
     @Override
     public String getBaseName() {
-        return name;
+        return resource.getRelativePath();
     }
 
     @Override
@@ -63,19 +56,14 @@ public class ServerTemplateResource implements ITemplateResource {
         return true;
     }
 
-    private static final String DOT_HTML = ".html";
-    
     @Override
     public Reader reader() throws IOException {
-        String mount = config.getMountPath(name);
-        String resource = mount == null ? name : mount;
-        InputStream is = resourceResolver.read(resource + DOT_HTML);
-        return new StringReader(FileUtils.toString(is));
+        return new InputStreamReader(resource.getStream());
     }
 
     @Override
     public ITemplateResource relative(String relativeLocation) {
-        throw new UnsupportedOperationException("relative: " + relativeLocation + " - not implemented");
+        return new KarateTemplateResource(resource.resolve(relativeLocation));
     }
 
 }

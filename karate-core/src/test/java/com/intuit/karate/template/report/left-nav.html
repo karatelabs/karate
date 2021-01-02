@@ -1,0 +1,17 @@
+<div>
+  <div class="nav-logo">
+    <a href="karate-summary.html">
+      <img src="res/karate-logo.svg" alt="Karate"/>
+    </a>
+    <div class="nav-count">
+      <div id="nav-pass" class="bg-success" th:text="passed">XX</div>
+      <div id="nav-fail" class="bg-danger" th:text="failed">YY</div>
+    </div>
+  </div>
+  <div id="nav-type">
+    <div th:text="reportType">XXXX</div>
+  </div>         
+  <div id="nav-date">
+    <div th:text="reportDate">YYYY</div>
+  </div>        
+</div>

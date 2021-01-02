@@ -24,24 +24,23 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.PerfContext;
-import com.intuit.karate.XmlUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.KarateException;
+import com.intuit.karate.PerfContext;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.XmlUtils;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsMap;
 import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.match.MatchResult;
-import com.intuit.karate.match.MatchStep;
-import com.intuit.karate.match.MatchType;
-import com.intuit.karate.http.WebSocketClient;
-import com.intuit.karate.http.WebSocketOptions;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.ResourceType;
+import com.intuit.karate.http.WebSocketClient;
+import com.intuit.karate.http.WebSocketOptions;
+import com.intuit.karate.Match;
+import com.intuit.karate.MatchStep;
 import com.intuit.karate.shell.Command;
 import java.io.File;
 import java.util.ArrayList;
@@ -540,13 +539,13 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object match(Object actual, Object expected) {
-        MatchResult mr = getEngine().match(MatchType.EQUALS, actual, expected);
+        Match.Result mr = getEngine().match(Match.Type.EQUALS, actual, expected);
         return JsValue.fromJava(mr.toMap());
     }
 
     public Object match(String exp) {
         MatchStep ms = new MatchStep(exp);
-        MatchResult mr = getEngine().match(ms.type, ms.name, ms.path, ms.expected);
+        Match.Result mr = getEngine().match(ms.type, ms.name, ms.path, ms.expected);
         return JsValue.fromJava(mr.toMap());
     }
 

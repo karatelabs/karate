@@ -21,27 +21,28 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.match;
+package com.intuit.karate.template;
+
+import java.util.HashSet;
+import java.util.Set;
+import org.thymeleaf.dialect.AbstractProcessorDialect;
+import org.thymeleaf.processor.IProcessor;
 
 /**
  *
  * @author pthomas3
  */
-public enum MatchType {
+public class KarateScriptDialect extends AbstractProcessorDialect {
     
-    EQUALS,
-    NOT_EQUALS,
-    CONTAINS,    
-    NOT_CONTAINS,
-    CONTAINS_ONLY,
-    CONTAINS_ANY,
-    CONTAINS_DEEP,
-    EACH_EQUALS,
-    EACH_NOT_EQUALS,
-    EACH_CONTAINS,
-    EACH_NOT_CONTAINS,
-    EACH_CONTAINS_ONLY,
-    EACH_CONTAINS_ANY,
-    EACH_CONTAINS_DEEP
-    
+    public KarateScriptDialect() {
+        super("karate", "ka", 2000); // has to be processed after standard (default) dialect which is 1000
+    }
+
+    @Override
+    public Set<IProcessor> getProcessors(String dialectPrefix) {
+        Set<IProcessor> ps = new HashSet();
+        ps.add(new KaScriptElemProcessor(dialectPrefix));
+        return ps;
+    }
+
 }

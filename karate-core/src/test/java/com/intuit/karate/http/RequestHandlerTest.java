@@ -1,7 +1,6 @@
 package com.intuit.karate.http;
 
-import com.intuit.karate.match.Match;
-import com.intuit.karate.match.MatchResult;
+import com.intuit.karate.Match;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +24,7 @@ class RequestHandlerTest {
 
     @BeforeEach
     void beforeEach() {
-        ServerConfig config = new ServerConfig().classPathRoot("demo");
+        ServerConfig config = new ServerConfig("classpath:demo");
         handler = new RequestHandler(config);
         request = new HttpRequestBuilder(null).method("GET");
     }
@@ -42,12 +41,12 @@ class RequestHandlerTest {
     }
 
     private void matchHeaderEquals(String name, String expected) {
-        MatchResult mr = Match.that(response.getHeader(name)).isEqualTo(expected);
+        Match.Result mr = Match.evaluate(response.getHeader(name)).isEqualTo(expected);
         assertTrue(mr.pass, mr.message);
     }
 
     private void matchHeaderContains(String name, String expected) {
-        MatchResult mr = Match.that(response.getHeader(name)).contains(expected);
+        Match.Result mr = Match.evaluate(response.getHeader(name)).contains(expected);
         assertTrue(mr.pass, mr.message);
     }
 

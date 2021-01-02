@@ -45,11 +45,13 @@ public class FeatureResult {
     private final Feature feature;
     private final List<ScenarioResult> scenarioResults = new ArrayList<>();
 
+    private String resultDate;
     private String displayName; // mutable for users who want to customize
 
     private Map<String, Object> resultVariables;
     private Map<String, Object> callArg;
     private int loopIndex = -1;
+    private int callDepth;
 
     public void printStats() {
         String featureName = feature.getResource().getPrefixedPath();
@@ -79,15 +81,14 @@ public class FeatureResult {
     }
 
     public static FeatureResult fromKarateJson(File workingDir, Map<String, Object> map) {
-        String featurePath = (String) map.get("featurePath");
+        String featurePath = (String) map.get("prefixedPath");
         Resource resource = ResourceUtils.getResource(workingDir, featurePath);
         Feature feature = Feature.read(resource);
         FeatureResult fr = new FeatureResult(feature);
         fr.callArg = (Map) map.get("callArg");
-        Integer loopIndex = (Integer) map.get("loopIndex");
-        if (loopIndex != null) {
-            fr.loopIndex = loopIndex;
-        }
+        fr.loopIndex = (Integer) map.get("loopIndex");
+        fr.resultDate = (String) map.get("resultDate");
+        fr.callDepth = (Integer) map.get("callDepth");
         List<Map<String, Object>> list = (List) map.get("scenarioResults");
         if (list != null) {
             for (Map<String, Object> srMap : list) {
@@ -100,7 +101,20 @@ public class FeatureResult {
 
     public Map<String, Object> toKarateJson() {
         Map<String, Object> map = new HashMap();
-        map.put("featurePath", feature.getResource().getPrefixedPath());
+        // these first few are only for the ease of reports
+        // note that they are not involved in the reverse fromKarateJson()
+        map.put("name", feature.getName());
+        map.put("description", feature.getDescription());
+        map.put("durationMillis", getDurationMillis());
+        map.put("passedCount", getPassedCount());
+        map.put("failedCount", getFailedCount());
+        map.put("packageQualifiedName", feature.getPackageQualifiedName());
+        //======================================================================
+        if (resultDate == null) {
+            resultDate = Reports.getDateString();
+        }
+        map.put("resultDate", resultDate);
+        map.put("prefixedPath", feature.getResource().getPrefixedPath());
         List<Map<String, Object>> list = new ArrayList(scenarioResults.size());
         map.put("scenarioResults", list);
         for (ScenarioResult sr : scenarioResults) {
@@ -110,9 +124,8 @@ public class FeatureResult {
             String json = JsonUtils.toJsonSafe(callArg, false);
             map.put("callArg", JsonUtils.fromJson(json));
         }
-        if (loopIndex != -1) {
-            map.put("loopIndex", loopIndex);
-        }
+        map.put("loopIndex", loopIndex);
+        map.put("callDepth", callDepth);
         return map;
     }
 
@@ -195,7 +208,7 @@ public class FeatureResult {
         return sb.toString();
     }
 
-    public String getCallName() {
+    public String getCallNameForReport() {
         String append = loopIndex == -1 ? "" : "[" + loopIndex + "] ";
         return append + displayName;
     }
@@ -209,6 +222,10 @@ public class FeatureResult {
         } catch (Throwable t) {
             return "#error: " + t.getMessage();
         }
+    }
+
+    public void setCallDepth(int callDepth) {
+        this.callDepth = callDepth;
     }
 
     public Map<String, Object> getCallArg() {
@@ -228,11 +245,11 @@ public class FeatureResult {
     }
 
     public double getDurationMillis() {
-        long duration = 0;
+        long durationNanos = 0;
         for (ScenarioResult sr : scenarioResults) {
-            duration += Reports.nanosToMillis(sr.getDurationNanos());
+            durationNanos += sr.getDurationNanos();
         }
-        return duration;
+        return Reports.nanosToMillis(durationNanos);
     }
 
     public int getFailedCount() {
@@ -240,11 +257,11 @@ public class FeatureResult {
     }
 
     public boolean isEmpty() {
-        return getScenarioCount() == 0;
+        return scenarioResults.isEmpty();
     }
 
     public int getScenarioCount() {
-        return getScenarioResults().size();
+        return scenarioResults.size();
     }
 
     public int getPassedCount() {

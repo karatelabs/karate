@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,17 +66,8 @@ public class Json {
         } else if (o instanceof Map) {
             return new Json(JsonPath.parse((Map) o));
         } else {
-            String json = toJsonString(o);
+            String json = JsonUtils.toJson(o);
             return new Json(JsonPath.parse(json));
-        }
-    }
-
-    private static String toJsonString(Object o) {
-        try {
-            return JsonUtils.toJson(o);
-        } catch (Throwable t) {
-            logger.warn("object to json serialization failure, trying alternate approach: {}", t.getMessage());
-            return JsonUtils.toJsonSafe(o, false);
         }
     }
 
@@ -92,12 +84,20 @@ public class Json {
     public <T> T get(String path) {
         return (T) doc.read(prefix(path));
     }
-    
-    public <T> T getOptional(String path) {
+
+    public <T> T getOrNull(String path) {
+        return (T) getOptional(path).orElse(null);
+    }
+
+    public <T> T getOr(String path, T defaultValue) {
+        return (T) getOptional(path).orElse(defaultValue);
+    }
+
+    public <T> Optional<T> getOptional(String path) {
         try {
-            return get(path);
+            return Optional.<T>of(get(path));
         } catch (Exception e) {
-            return null;
+            return Optional.empty();
         }
     }
 
@@ -116,6 +116,10 @@ public class Json {
     @Override
     public String toString() {
         return doc.jsonString();
+    }
+
+    public String toStringPretty() {
+        return JsonUtils.toJson(value(), true);
     }
 
     public boolean isArray() {

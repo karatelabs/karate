@@ -30,8 +30,7 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.http.ResourceType;
-import com.intuit.karate.shell.FileLogAppender;
-
+import com.intuit.karate.shell.StringLogAppender;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -58,7 +57,9 @@ public class ScenarioRuntime implements Runnable {
     public final boolean reportDisabled;
     public final Map<String, Object> magicVariables;
     public final boolean selectedForExecution;
+    public final boolean perfMode;
     public final boolean dryRun;
+    public final LogAppender logAppender;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
         this(featureRuntime, scenario, null);
@@ -68,17 +69,22 @@ public class ScenarioRuntime implements Runnable {
         logger = new Logger();
         this.featureRuntime = featureRuntime;
         this.caller = featureRuntime.caller;
+        perfMode = featureRuntime.perfHook != null;
         if (caller.isNone()) {
+            logAppender = perfMode ? LogAppender.NO_OP : new StringLogAppender(false);
             engine = new ScenarioEngine(new Config(), this, new HashMap(), logger);
         } else if (caller.isSharedScope()) {
+            logAppender = caller.parentRuntime.logAppender;
             Config config = caller.parentRuntime.engine.getConfig();
             Map<String, Variable> vars = caller.parentRuntime.engine.vars;
             engine = new ScenarioEngine(config, this, vars, logger);
         } else { // new, but clone and copy data
+            logAppender = caller.parentRuntime.logAppender;
             Config config = new Config(caller.parentRuntime.engine.getConfig());
             Map<String, Variable> vars = caller.parentRuntime.engine.copyVariables(false);
             engine = new ScenarioEngine(config, this, vars, logger);
         }
+        logger.setAppender(logAppender);
         actions = new ScenarioActions(engine);
         this.scenario = scenario;
         magicVariables = initMagicVariables(); // depends on scenario
@@ -87,14 +93,9 @@ public class ScenarioRuntime implements Runnable {
         if (background != null) {
             result.addStepResults(background.result.getStepResults());
         }
-        tags = scenario.getTagsEffective();
-        if (featureRuntime.perfHook != null) {
-            logAppender = LogAppender.NO_OP;
-            reportDisabled = true;
-        } else {
-            reportDisabled = tags.valuesFor("report").isAnyOf("false");
-        }
         dryRun = featureRuntime.suite.dryRun;
+        tags = scenario.getTagsEffective();
+        reportDisabled = perfMode ? true : tags.valuesFor("report").isAnyOf("false");
         selectedForExecution = isSelectedForExecution(featureRuntime, scenario, tags);
     }
 
@@ -146,20 +147,9 @@ public class ScenarioRuntime implements Runnable {
         callResults.add(fr);
     }
 
-    private LogAppender logAppender;
-
     public LogAppender getLogAppender() {
         return logAppender;
     }
-
-    private static final ThreadLocal<LogAppender> LOG_APPENDER = new ThreadLocal<LogAppender>() {
-        @Override
-        protected LogAppender initialValue() {
-            String fileName = FileUtils.getBuildDir() + File.separator + "karate-"
-                    + Thread.currentThread().getName() + ".log";
-            return new FileLogAppender(new File(fileName));
-        }
-    };
 
     private List<Step> steps;
     private List<Embed> embeds;
@@ -341,10 +331,6 @@ public class ScenarioRuntime implements Runnable {
     //==========================================================================
     //
     public void beforeRun() {
-        if (logAppender == null) { // not perf, not debug
-            logAppender = LOG_APPENDER.get();
-        }
-        logger.setAppender(logAppender);
         if (scenario.isDynamic()) {
             steps = scenario.getBackgroundSteps();
         } else {
@@ -353,7 +339,7 @@ public class ScenarioRuntime implements Runnable {
         ScenarioEngine.set(engine);
         engine.init();
         result.setExecutorName(Thread.currentThread().getName());
-        result.setStartTime(System.currentTimeMillis() - featureRuntime.suite.startTime);
+        result.setStartTime(System.currentTimeMillis());
         if (!dryRun) {
             if (caller.isNone() && !caller.isKarateConfigDisabled()) {
                 // evaluate config js, variables above will apply !
@@ -393,6 +379,9 @@ public class ScenarioRuntime implements Runnable {
         } finally {
             if (!scenario.isDynamic()) { // don't add "fake" scenario to feature results
                 afterRun();
+            }
+            if (caller.isNone()) {
+                logAppender.close(); // reclaim memory
             }
         }
     }
@@ -453,7 +442,7 @@ public class ScenarioRuntime implements Runnable {
 
     public void afterRun() {
         try {
-            result.setEndTime(System.currentTimeMillis() - featureRuntime.suite.startTime);
+            result.setEndTime(System.currentTimeMillis());
             engine.logLastPerfEvent(result.getFailureMessageForDisplay());
             if (currentStepResult == null) {
                 currentStepResult = result.addFakeStepResult("no steps executed", null);

@@ -217,7 +217,7 @@ public class Command extends Thread {
     public static boolean waitForHttp(String url) {
         int attempts = 0;
         long startTime = System.currentTimeMillis();
-        Http http = Http.forUrl(url);
+        Http http = Http.to(url);
         do {
             if (attempts > 0) {
                 LOGGER.debug("attempt #{} waiting for http to be ready at: {}", attempts, url);

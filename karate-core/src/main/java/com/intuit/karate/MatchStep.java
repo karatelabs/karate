@@ -21,9 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.match;
-
-import com.intuit.karate.StringUtils;
+package com.intuit.karate;
 
 /**
  *
@@ -33,7 +31,7 @@ public class MatchStep {
 
     public final String name;
     public final String path;
-    public final MatchType type;
+    public final Match.Type type;
     public final String expected;
 
     public MatchStep(String raw) {
@@ -122,32 +120,32 @@ public class MatchStep {
         return Math.min(a, b);
     }
 
-    private static MatchType getType(boolean each, boolean not, boolean contains, boolean only, boolean any, boolean deep) {
+    private static Match.Type getType(boolean each, boolean not, boolean contains, boolean only, boolean any, boolean deep) {
         if (each) {
             if (contains) {
                 if (only) {
-                    return MatchType.EACH_CONTAINS_ONLY;
+                    return Match.Type.EACH_CONTAINS_ONLY;
                 }
                 if (any) {
-                    return MatchType.EACH_CONTAINS_ANY;
+                    return Match.Type.EACH_CONTAINS_ANY;
                 }
-                return not ? MatchType.EACH_NOT_CONTAINS : MatchType.EACH_CONTAINS;
+                return not ? Match.Type.EACH_NOT_CONTAINS : Match.Type.EACH_CONTAINS;
             }
-            return not ? MatchType.EACH_NOT_EQUALS : MatchType.EACH_EQUALS;
+            return not ? Match.Type.EACH_NOT_EQUALS : Match.Type.EACH_EQUALS;
         }
         if (contains) {
             if (only) {
-                return MatchType.CONTAINS_ONLY;
+                return Match.Type.CONTAINS_ONLY;
             }
             if (any) {
-                return MatchType.CONTAINS_ANY;
+                return Match.Type.CONTAINS_ANY;
             }
             if (deep) {
-                return MatchType.CONTAINS_DEEP;
+                return Match.Type.CONTAINS_DEEP;
             }
-            return not ? MatchType.NOT_CONTAINS : MatchType.CONTAINS;
+            return not ? Match.Type.NOT_CONTAINS : Match.Type.CONTAINS;
         }
-        return not ? MatchType.NOT_EQUALS : MatchType.EQUALS;
+        return not ? Match.Type.NOT_EQUALS : Match.Type.EQUALS;
     }
 
 }

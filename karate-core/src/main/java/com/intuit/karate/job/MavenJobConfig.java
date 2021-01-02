@@ -34,7 +34,6 @@ import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.StepResult;
 import com.intuit.karate.http.ResourceType;
-import static com.intuit.karate.job.JobConfigBase.logger;
 import java.io.File;
 import java.util.Collections;
 import java.util.List;

@@ -23,8 +23,6 @@
  */
 package com.intuit.karate;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
 import com.intuit.karate.core.MockServer;
 import com.intuit.karate.core.RuntimeHookFactory;
 import com.intuit.karate.debug.DapServer;
@@ -35,8 +33,8 @@ import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.http.SslContextFactory;
 import com.intuit.karate.job.JobExecutor;
 import com.intuit.karate.shell.Command;
-
 import java.io.File;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -45,7 +43,7 @@ import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
+import org.slf4j.ILoggerFactory;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
@@ -59,7 +57,7 @@ public class Main implements Callable<Void> {
 
     private static final String LOGBACK_CONFIG = "logback.configurationFile";
 
-    private static Logger logger;
+    private static org.slf4j.Logger logger;
 
     @Option(names = {"-h", "--help"}, usageHelp = true, description = "display this help message")
     boolean help;
@@ -209,9 +207,9 @@ public class Main implements Callable<Void> {
 
                 }
             } catch (Exception e) {
-                logger.error("Error instantiating RuntimeHook for {}", hookClassName, e);
+                logger.error("error instantiating RuntimeHook: {}", hookClassName, e);
             }
-            logger.error("Provided Hook/FactoryClass({}) is not an RuntimeHook or RuntimeHookFactory", hookClassName);
+            logger.error("provided hook / class is not a RuntimeHook or RuntimeHookFactory: {}", hookClassName);
         }
         return null;
     }
@@ -250,17 +248,25 @@ public class Main implements Callable<Void> {
                 System.setProperty(LOGBACK_CONFIG, "logback-fatjar.xml");
             }
         }
-        logger = (Logger) LoggerFactory.getLogger("com.intuit.karate");
-        setLogLevelWarn("org.apache", "io.netty", "com.linecorp", "org.thymeleaf", "com.jayway");
+        resetLoggerConfig();
+        logger = LoggerFactory.getLogger("com.intuit.karate");
         logger.info("Karate version: {}", FileUtils.KARATE_VERSION);
         CommandLine cmd = new CommandLine(new Main());
         int returnCode = cmd.execute(args);
         System.exit(returnCode);
     }
 
-    private static void setLogLevelWarn(String... names) {
-        for (String name : names) {
-            ((Logger) LoggerFactory.getLogger(name)).setLevel(Level.WARN);
+    private static void resetLoggerConfig() {
+        ILoggerFactory factory = LoggerFactory.getILoggerFactory();
+        try {
+            Method reset = factory.getClass().getDeclaredMethod("reset");
+            reset.invoke(factory);
+            Class clazz = Class.forName("ch.qos.logback.classic.util.ContextInitializer");
+            Object temp = clazz.getDeclaredConstructors()[0].newInstance(factory);
+            Method autoConfig = clazz.getDeclaredMethod("autoConfig");
+            autoConfig.invoke(temp);
+        } catch (Exception e) {
+            // ignore
         }
     }
 
@@ -315,7 +321,7 @@ public class Main implements Callable<Void> {
             return null;
         }
         if (serve) {
-            ServerConfig config = new ServerConfig().fileSystemRoot(workingDir.getAbsolutePath());
+            ServerConfig config = new ServerConfig(workingDir.getPath());
             RequestHandler handler = new RequestHandler(config);
             HttpServer server = new HttpServer(port, handler);
             server.waitSync();

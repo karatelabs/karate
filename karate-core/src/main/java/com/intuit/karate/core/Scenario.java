@@ -71,11 +71,11 @@ public class Scenario {
         return temp;
     }
 
-    public String getNameForReport() {
+    public String getRefIdAndName() {
         if (name == null) {
-            return getDisplayMeta();
+            return getRefId();
         } else {
-            return getDisplayMeta() + " " + name;
+            return getRefId() + " " + name;
         }
     }
 
@@ -132,7 +132,7 @@ public class Scenario {
         return null;
     }
 
-    public String getDisplayMeta() {
+    public String getRefId() {
         int num = section.getIndex() + 1;
         String meta = "[" + num;
         if (exampleIndex != -1) {
@@ -252,7 +252,7 @@ public class Scenario {
 
     @Override
     public String toString() {
-        return feature.toString() + getDisplayMeta();
+        return feature.toString() + getRefId();
     }
 
     public URI getUriToLineNumber() {

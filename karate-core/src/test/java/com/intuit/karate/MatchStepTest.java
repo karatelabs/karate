@@ -1,7 +1,7 @@
-package com.intuit.karate.match;
+package com.intuit.karate;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static com.intuit.karate.match.MatchType.*;
+import static com.intuit.karate.Match.Type.*;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
  */
 class MatchStepTest {
 
-    private void test(String raw, MatchType type, String name, String path, String expected) {
+    private void test(String raw, Match.Type type, String name, String path, String expected) {
         MatchStep step = new MatchStep(raw);
         assertEquals(type, step.type);
         assertEquals(name, step.name);

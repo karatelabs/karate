@@ -25,7 +25,7 @@ package com.intuit.karate.resource;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.match.Match;
+import com.intuit.karate.Match;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -198,14 +198,14 @@ class ResourceUtilsTest {
     void testFindJsFilesFromFileSystem() {
         Set<String> files = ResourceUtils.findJsFilesInDirectory(new File("src/test/java/demo").getAbsoluteFile());
         assertEquals(3, files.size());
-        Match.that(new ArrayList(files)).contains("['api/demo.js', 'api/cats.js', 'api/payments.js']").isTrue();
+        Match.that(new ArrayList(files)).contains("['api/demo.js', 'api/cats.js', 'api/payments.js']");
     }
     
     @Test
     void testFindJsFilesFromClassPath() {
         Set<String> files = ResourceUtils.findJsFilesInClassPath("demo");
         assertEquals(3, files.size());
-        Match.that(new ArrayList(files)).contains("['/api/demo.js', '/api/cats.js', '/api/payments.js']").isTrue();
+        Match.that(new ArrayList(files)).contains("['/api/demo.js', '/api/cats.js', '/api/payments.js']");
     }    
 
 }

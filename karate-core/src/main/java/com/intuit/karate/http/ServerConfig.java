@@ -25,10 +25,10 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.Config;
-import com.intuit.karate.http.ResourceResolver.*;
+import com.intuit.karate.resource.ResourceResolver;
 import com.linecorp.armeria.common.RequestContext;
 import java.util.HashMap;
-import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -36,6 +36,9 @@ import java.util.function.Function;
  * @author pthomas3
  */
 public class ServerConfig {
+
+    private final ResourceResolver resourceResolver;
+    private final Set<String> jsFiles;
 
     private String hostContextPath = null;
     private String homePagePath = "index";
@@ -45,8 +48,6 @@ public class ServerConfig {
     private boolean autoCreateSession;
     private SessionStore sessionStore = JvmSessionStore.INSTANCE;
     private int sessionExpirySeconds = 60 * 10;
-    private ResourceResolver resourceResolver = new FileSystemResourceResolver(null);
-    private Map<String, String> resourceMounts;
 
     private static final Session GLOBAL_SESSION = new Session("-1", new HashMap(), -1, -1, -1);
 
@@ -73,8 +74,17 @@ public class ServerConfig {
         return client;
     };
 
+    public ServerConfig(String root) {
+        resourceResolver = new ResourceResolver(root);
+        jsFiles = resourceResolver.getJsFiles();
+    }
+
     public ResourceResolver getResourceResolver() {
         return resourceResolver;
+    }
+
+    public Set<String> getJsFiles() {
+        return jsFiles;
     }
 
     public String getHostContextPath() {
@@ -103,31 +113,6 @@ public class ServerConfig {
 
     public int getSessionExpirySeconds() {
         return sessionExpirySeconds;
-    }
-
-    public ServerConfig mount(String from, String to) {
-        if (resourceMounts == null) {
-            resourceMounts = new HashMap();
-        }
-        resourceMounts.put(from, to);
-        return this;
-    }
-
-    public String getMountPath(String from) {
-        if (resourceMounts == null) {
-            return null;
-        }
-        return resourceMounts.get(from);
-    }
-
-    public ServerConfig classPathRoot(String value) {
-        resourceResolver = new ClassPathResourceResolver(value);
-        return this;
-    }
-
-    public ServerConfig fileSystemRoot(String value) {
-        resourceResolver = new FileSystemResourceResolver(value);
-        return this;
     }
 
     public SessionStore getSessionStore() {

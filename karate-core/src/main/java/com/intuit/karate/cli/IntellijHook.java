@@ -66,7 +66,7 @@ public class IntellijHook implements RuntimeHook {
         if (sr.caller.depth == 0) {
             Scenario scenario = sr.scenario;
             String path = scenario.getFeature().getResource().getRelativePath();
-            log(String.format(TEMPLATE_TEST_STARTED, getCurrentTime(), path + ":" + scenario.getLine(), escape(scenario.getNameForReport())));
+            log(String.format(TEMPLATE_TEST_STARTED, getCurrentTime(), path + ":" + scenario.getLine(), escape(scenario.getRefIdAndName())));
             // log(String.format(TEMPLATE_SCENARIO_STARTED, getCurrentTime()));
         }
         return true;
@@ -78,9 +78,9 @@ public class IntellijHook implements RuntimeHook {
             Scenario scenario = sr.scenario;
             if (sr.result.isFailed()) {
                 StringUtils.Pair error = details(sr.result.getError());
-                log(String.format(TEMPLATE_TEST_FAILED, getCurrentTime(), escape(error.right), escape(error.left), escape(scenario.getNameForReport()), ""));
+                log(String.format(TEMPLATE_TEST_FAILED, getCurrentTime(), escape(error.right), escape(error.left), escape(scenario.getRefIdAndName()), ""));
             }
-            log(String.format(TEMPLATE_TEST_FINISHED, getCurrentTime(), sr.result.getDurationNanos() / 1000000, escape(scenario.getNameForReport())));
+            log(String.format(TEMPLATE_TEST_FINISHED, getCurrentTime(), sr.result.getDurationNanos() / 1000000, escape(scenario.getRefIdAndName())));
         }
     }
 

@@ -26,12 +26,16 @@ package com.intuit.karate.core;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -48,6 +52,40 @@ public class Reports {
         // only static methods
     }
 
+    private static final String[] STATIC_RESOURCES = new String[]{
+        "bootstrap.min.css",
+        "bootstrap.min.js",
+        "jquery.min.js",
+        "jquery.tablesorter.min.js",
+        "karate-logo.png",
+        "karate-logo.svg",
+        "karate-report.css",
+        "karate-report.js"
+    };
+
+    public static String getDateString() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss a");
+        return sdf.format(new Date());
+    }
+
+    private static void copyToFile(String classPath, String destPath) {
+        InputStream is = ResourceUtils.classPathResourceToStream(classPath);
+        byte[] bytes = FileUtils.toBytes(is);
+        FileUtils.writeToFile(new File(destPath), bytes);
+    }
+
+    public static void initStaticResources(String targetDir) {
+        String resPath = targetDir + File.separator + "res" + File.separator;
+        File res = new File(resPath);
+        if (res.exists()) {
+            return;
+        }
+        for (String name : STATIC_RESOURCES) {
+            copyToFile("res/" + name, resPath + name);
+        }
+        copyToFile("favicon.ico", targetDir + File.separator + "favicon.ico");
+    }
+
     private static final double MILLION = 1000000;
     private static final double BILLION = 1000000000;
 
@@ -57,14 +95,6 @@ public class Reports {
 
     public static double nanosToMillis(long nanos) {
         return (double) nanos / MILLION;
-    }
-
-    public static String formatNanos(long nanos, DecimalFormat formatter) {
-        return formatter.format(nanosToSeconds(nanos));
-    }
-
-    public static String formatMillis(double millis, DecimalFormat formatter) {
-        return formatter.format(millis / 1000);
     }
 
     public static File saveKarateJson(String targetDir, FeatureResult result, String fileName) {
@@ -120,7 +150,7 @@ public class Reports {
         doc.appendChild(root);
         root.setAttribute("tests", result.getScenarioCount() + "");
         root.setAttribute("failures", result.getFailedCount() + "");
-        root.setAttribute("time", formatMillis(result.getDurationMillis(), formatter));
+        root.setAttribute("time", formatter.format(result.getDurationMillis() / 1000));
         root.setAttribute("name", result.getDisplayUri()); // will be uri
         root.setAttribute("skipped", "0");
         StringBuilder xmlString = new StringBuilder();
@@ -133,8 +163,8 @@ public class Reports {
             testCase.setAttribute("classname", baseName);
             StringBuilder sb = new StringBuilder();
             Throwable error = appendSteps(sr.getStepResults(), sb);
-            testCase.setAttribute("name", sr.getScenario().getNameForReport());
-            testCase.setAttribute("time", formatMillis(sr.getDurationMillis(), formatter));
+            testCase.setAttribute("name", sr.getScenario().getRefIdAndName());
+            testCase.setAttribute("time", formatter.format(sr.getDurationMillis() / 1000));
             Element stepsHolder;
             if (error != null) {
                 stepsHolder = doc.createElement("failure");

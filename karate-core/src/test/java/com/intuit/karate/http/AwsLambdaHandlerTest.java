@@ -8,7 +8,6 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,9 +23,8 @@ class AwsLambdaHandlerTest {
     AwsLambdaHandler handler;
     String sessionId;
 
-    @BeforeEach
-    void beforeEach() {
-        ServerConfig config = new ServerConfig().classPathRoot("demo");
+    void init(boolean classpath) {
+        ServerConfig config = classpath ? new ServerConfig("classpath:demo") : new ServerConfig("src/test/java/demo");
         handler = new AwsLambdaHandler(new RequestHandler(config));
     }
 
@@ -58,8 +56,7 @@ class AwsLambdaHandlerTest {
         return Json.of(json).asMap();
     }
 
-    @Test
-    void testForm() {
+    void testFormInternal() {
         String body = handle("index.json");
         // logger.debug("{}", body);
         assertTrue(body.startsWith("<!doctype html>"));
@@ -72,7 +69,18 @@ class AwsLambdaHandlerTest {
     }
 
     @Test
-    void testApi() {
+    void testFormClassPath() {
+        init(true);
+        testFormInternal();
+    }
+
+    @Test
+    void testFormFileSystem() {
+        init(false);
+        testFormInternal();
+    }
+
+    void testApiInternal() {
         Map<String, Object> res = handleAsMap("api.json");
         Map<String, List<String>> headers = (Map) res.get("multiValueHeaders");
         List<String> vals = headers.get("foo");
@@ -81,6 +89,18 @@ class AwsLambdaHandlerTest {
         assertEquals("{\"hello\":\"world\"}", body);
         Integer status = (Integer) res.get("statusCode");
         assertEquals(201, status);
+    }
+
+    @Test
+    void testApiClassPath() {
+        init(true);
+        testApiInternal();
+    }
+
+    @Test
+    void testApiFileSystem() {
+        init(false);
+        testApiInternal();
     }
 
 }

@@ -228,10 +228,19 @@ public class ResourceUtils {
         return relative;
     }
 
-    private static String removePrefix(String text) {
-        return text.replaceFirst("(^classpath\\:|^file\\:)", "");
+    public static String removePrefix(String text) {
+        if (text.startsWith("classpath:") || text.startsWith("file:")) {
+            return text.substring(text.indexOf(':') + 1);
+        } else {
+            return text;
+        }
     }
 
+    public static String getParentPath(String relativePath) {
+        int pos = relativePath.lastIndexOf('/');
+        return pos == -1 ? relativePath : relativePath.substring(0, pos + 1);        
+    }
+    
     private static final ClassLoader CLASS_LOADER = ResourceUtils.class.getClassLoader();
 
     public static InputStream classPathResourceToStream(String path) {

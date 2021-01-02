@@ -64,7 +64,7 @@ public class FileResource implements Resource {
 
     @Override
     public URI getUri() {
-        return file.toURI();
+        return file.toPath().toUri();
     }        
 
     @Override

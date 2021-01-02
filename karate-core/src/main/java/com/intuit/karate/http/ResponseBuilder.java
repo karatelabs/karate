@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import io.netty.handler.codec.http.cookie.Cookie;
@@ -207,7 +208,7 @@ public class ResponseBuilder {
         }
         contentType(resourceType.contentType);
         try {
-            InputStream is = resourceResolver.read(request.getResourcePath());
+            InputStream is = resourceResolver.resolve(request.getResourcePath()).getStream();
             body(is);
         } catch (Exception e) {
             logger.error("local resource failed: {} - {}", request, e.toString());

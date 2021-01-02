@@ -29,7 +29,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.IEngineConfiguration;
-import org.thymeleaf.cache.NonCacheableCacheEntryValidity;
+import org.thymeleaf.cache.AlwaysValidCacheEntryValidity;
 import org.thymeleaf.templatemode.TemplateMode;
 import org.thymeleaf.templateresolver.ITemplateResolver;
 import org.thymeleaf.templateresolver.TemplateResolution;
@@ -38,14 +38,14 @@ import org.thymeleaf.templateresolver.TemplateResolution;
  *
  * @author pthomas3
  */
-public class ServerHtmlTemplateResolver implements ITemplateResolver {
+public class ResourceHtmlTemplateResolver implements ITemplateResolver {
 
-    private static final Logger logger = LoggerFactory.getLogger(ServerHtmlTemplateResolver.class);
+    private static final Logger logger = LoggerFactory.getLogger(ResourceHtmlTemplateResolver.class);
 
     private final ResourceResolver resourceResolver;
 
-    public ServerHtmlTemplateResolver(ResourceResolver resourceResolver) {
-        this.resourceResolver = resourceResolver;
+    public ResourceHtmlTemplateResolver(String root) {
+        this.resourceResolver = new ResourceResolver(root);
     }
 
     @Override
@@ -60,9 +60,9 @@ public class ServerHtmlTemplateResolver implements ITemplateResolver {
 
     @Override
     public TemplateResolution resolveTemplate(IEngineConfiguration ec, String ownerTemplate, String name, Map<String, Object> templateResolutionAttributes) {
-        Resource resource = resourceResolver.resolve(name + ".html");
+        Resource resource = resourceResolver.resolve(ownerTemplate, name);
         KarateTemplateResource templateResource = new KarateTemplateResource(resource);
-        return new TemplateResolution(templateResource, TemplateMode.HTML, NonCacheableCacheEntryValidity.INSTANCE); // TODO cache switch
+        return new TemplateResolution(templateResource, TemplateMode.HTML, AlwaysValidCacheEntryValidity.INSTANCE);
     }
 
 }

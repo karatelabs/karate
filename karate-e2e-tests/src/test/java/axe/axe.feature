@@ -10,5 +10,5 @@ Feature: axe accessibility native
     # inject axe script
     * driver.script(axeJs);
     # execute axe
-    * def axeResponse = driver.scriptAwaitPromise('axe.run().then(results => JSON.stringify(results))')
+    * def axeResponse = driver.scriptAwait('axe.run()')
     * doc { read: 'axe-report.html' }    

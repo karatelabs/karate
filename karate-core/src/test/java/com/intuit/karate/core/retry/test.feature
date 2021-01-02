@@ -1,7 +1,10 @@
 Feature: retry test
 
+Background:
+* def value = 1
+
 Scenario: one
-* assert 1 == 1
+* assert value == 1
 
 Scenario: two
-* assert 1 == 2
+* assert value != 1

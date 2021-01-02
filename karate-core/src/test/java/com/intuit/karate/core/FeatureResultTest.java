@@ -14,9 +14,9 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-class ScenarioResultTest {
+class FeatureResultTest {
     
-    static final Logger logger = LoggerFactory.getLogger(ScenarioResultTest.class);
+    static final Logger logger = LoggerFactory.getLogger(FeatureResultTest.class);
 
     FeatureRuntime fr;
 
@@ -28,9 +28,9 @@ class ScenarioResultTest {
 
     @Test
     void testJsonConversion() {
-        run("scenario-result.feature");
+        run("feature-result.feature");
         Map<String, Object> featureResult = fr.result.toKarateJson();
-        String expected = FileUtils.toString(new File("src/test/java/com/intuit/karate/core/scenario-result.json"));
+        String expected = FileUtils.toString(new File("src/test/java/com/intuit/karate/core/feature-result.json"));
         match(featureResult, expected);
         FeatureResult temp = FeatureResult.fromKarateJson(fr.suite.workingDir, featureResult);
         File file = HtmlFeatureReport.saveFeatureResult("target", temp);
@@ -38,7 +38,7 @@ class ScenarioResultTest {
         Map<String, Object> karateClone = temp.toKarateJson();
         match(featureResult, karateClone);
         Map<String, Object> cucumberClone = temp.toCucumberJson();
-        expected = FileUtils.toString(new File("src/test/java/com/intuit/karate/core/scenario-result-cucumber.json"));
+        expected = FileUtils.toString(new File("src/test/java/com/intuit/karate/core/feature-result-cucumber.json"));
         match(cucumberClone, expected);
     }
 
