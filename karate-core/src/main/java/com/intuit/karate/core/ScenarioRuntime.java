@@ -31,13 +31,12 @@ import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.StringLogAppender;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  *
