@@ -106,14 +106,6 @@ class StringUtilsTest {
                 StringUtils.splitByFirstLineFeed("foo"));
         assertEquals(new Pair("foo", "bar"),
                 StringUtils.splitByFirstLineFeed("foo\nbar"));
-        assertEquals(new Pair("foo foo2", "bar"),
-                StringUtils.splitByFirstLineFeed("foo \\\nfoo2\nbar"));
-        assertEquals(new Pair("foo foo2", "bar  test"), // leave the space, it's not an error in the unit test
-                StringUtils.splitByFirstLineFeed("foo \\\nfoo2\nbar\n  test"));
-        assertEquals(new Pair("foo foo2", "bar test"),
-                StringUtils.splitByFirstLineFeed("foo \\\nfoo2\nbar \\\n  test"));
-        assertEquals(new Pair("multi line left", "right side can also be multiline and note the concatenated multiline word"),
-                StringUtils.splitByFirstLineFeed("multi \\\nline \\\n left\nright side \\\n            can also be multi\\\nline \\\n   and note the concatenated multiline word"));
     }
 
     @Test
