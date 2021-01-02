@@ -23,8 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.XmlUtils;
-import com.intuit.karate.http.ResourceType;
 import java.io.File;
 import java.util.List;
 import org.w3c.dom.Element;
@@ -117,26 +115,7 @@ public class HtmlFeatureReport extends HtmlReport {
         List<Embed> embeds = stepResult.getEmbeds();
         if (embeds != null) {
             for (Embed embed : embeds) {
-                Element embedNode;
-                if (embed.getResourceType().isImage()
-                        || embed.getResourceType().isHtml()
-                        || embed.getResourceType() == ResourceType.MP4) {
-                    Node html;
-                    try {
-                        if (embed.getResourceType().isHtml()) {
-                            html = XmlUtils.toXmlDoc(embed.getAsString()).getDocumentElement();
-                        } else {
-                            html = XmlUtils.toXmlDoc(embed.getAsHtmlTag()).getDocumentElement();
-                        }
-                    } catch (Exception e) {
-                        html = div(null, e.getMessage());
-                    }
-                    html = doc.importNode(html, true);
-                    embedNode = div(null, html);
-                } else {
-                    embedNode = div(null);
-                    embedNode.setTextContent(embed.getAsString());
-                }
+                Element embedNode = div(null, embed.getAsHtmlForReport());
                 Element embedContainer = div("embed", embedNode);
                 embedContainer.setAttribute("data-parent", refNum);
                 parent.appendChild(embedContainer);

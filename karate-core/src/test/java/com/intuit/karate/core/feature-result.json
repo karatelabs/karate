@@ -43,7 +43,6 @@
                         "index": 1,
                         "text": "call read('feature-result-called.feature')"
                     },
-                    "stepLog": "",
                     "callResults": [
                         {
                             "scenarioResults": [
@@ -75,11 +74,11 @@
                                                 "index": 1,
                                                 "text": "karate.embed('<h1>hello world<\/h1>', 'text\/html')"
                                             },
-                                            "stepLog": "",
                                             "embeds": [
                                                 {
                                                     "file": "#string",
-                                                    "resourceType": "HTML"
+                                                    "resourceType": "HTML",
+                                                    "html": "<h1>hello world<\/h1>"
                                                 }
                                             ]
                                         },
@@ -118,7 +117,9 @@
                             "durationMillis": "#number",
                             "resultDate": "#string",
                             "passedCount": 1,
-                            "failedCount": 0                            
+                            "failedCount": 0,
+                            "callDepth": 1,
+                            "loopIndex": -1
                         }
                     ]
                 },
@@ -261,5 +262,7 @@
     "durationMillis": "#number",
     "resultDate": "#string",
     "passedCount": 3,
-    "failedCount": 0
+    "failedCount": 0,
+    "callDepth": 0,
+    "loopIndex": -1
 }

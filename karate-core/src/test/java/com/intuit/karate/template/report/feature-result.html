@@ -60,22 +60,10 @@
             </div>
             <div class="time-cell passed"></div>
           </div>          
-          <div class="step-row" th:each="sr: scenario.stepResults" 
-               th:attrappend="data-parent=${sr.step.background ? scenario.refId + 'bg' : null}">
-            <script ka:lang="js">
-              var step = sr.step;
-              var result = sr.result;
-              var stepId = (scenario.exampleIndex + 1) + '.' + step.line;
-              var stepStatus = result.status;
-            </script>
-            <div class="step-container" th:id="stepId">
-              <div class="step-ref" th:classappend="stepStatus" th:text="step.line"></div>
-              <div class="step-cell" th:classappend="stepStatus">
-                <span th:text="step.prefix"></span>&nbsp;<span th:text="step.text"></span>
-              </div>
-            </div>
-            <div class="time-cell" th:classappend="stepStatus" th:text="Math.round(result.millis)"></div>
-          </div>          
+          <div th:each="sr: scenario.stepResults" 
+               th:attrappend="data-parent=${sr.step.background ? scenario.refId + 'bg' : null}"
+               th:include="step-result.html" th:with="callDepth=${fr.callDepth},parentId=${null}">
+          </div>
         </div>     
       </div>
     </div>

@@ -12,4 +12,6 @@ Scenario:
 
 @one @two
 Scenario:
+# some comment
 * print 'in second'
+# another comment

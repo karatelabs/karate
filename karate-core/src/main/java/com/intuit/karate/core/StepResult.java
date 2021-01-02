@@ -24,6 +24,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.Json;
+import com.intuit.karate.StringUtils;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -103,7 +104,7 @@ public class StepResult {
         }
         String stepLog = (String) map.get("stepLog");
         sr.setStepLog(stepLog);
-        List<Map<String, Object>> embedsList = (List) map.get("embeds");        
+        List<Map<String, Object>> embedsList = (List) map.get("embeds");
         if (embedsList != null) {
             List<Embed> embeds = new ArrayList(embedsList.size());
             for (Map<String, Object> embedMap : embedsList) {
@@ -111,7 +112,7 @@ public class StepResult {
                 embeds.add(embed);
             }
             sr.addEmbeds(embeds);
-        }    
+        }
         sr.setCallResultsFromKarateJson(workingDir, (List) map.get("callResults"));
         return sr;
     }
@@ -123,7 +124,9 @@ public class StepResult {
         if (hidden) {
             map.put("hidden", hidden);
         }
-        map.put("stepLog", stepLog);
+        if (!StringUtils.isBlank(stepLog)) {
+            map.put("stepLog", stepLog);
+        }
         if (embeds != null && !embeds.isEmpty()) {
             List<Map<String, Object>> list = new ArrayList(embeds.size());
             map.put("embeds", list);

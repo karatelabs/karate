@@ -51,6 +51,7 @@ public class FeatureResult {
     private Map<String, Object> resultVariables;
     private Map<String, Object> callArg;
     private int loopIndex = -1;
+    private int callDepth;
 
     public void printStats() {
         String featureName = feature.getResource().getPrefixedPath();
@@ -85,11 +86,9 @@ public class FeatureResult {
         Feature feature = Feature.read(resource);
         FeatureResult fr = new FeatureResult(feature);
         fr.callArg = (Map) map.get("callArg");
-        Integer loopIndex = (Integer) map.get("loopIndex");
-        if (loopIndex != null) {
-            fr.loopIndex = loopIndex;
-        }
+        fr.loopIndex = (Integer) map.get("loopIndex");
         fr.resultDate = (String) map.get("resultDate");
+        fr.callDepth = (Integer) map.get("callDepth");
         List<Map<String, Object>> list = (List) map.get("scenarioResults");
         if (list != null) {
             for (Map<String, Object> srMap : list) {
@@ -109,7 +108,7 @@ public class FeatureResult {
         map.put("durationMillis", getDurationMillis());
         map.put("passedCount", getPassedCount());
         map.put("failedCount", getFailedCount());
-        map.put("packageQualifiedName", feature.getPackageQualifiedName());        
+        map.put("packageQualifiedName", feature.getPackageQualifiedName());
         //======================================================================
         if (resultDate == null) {
             resultDate = Reports.getDateString();
@@ -125,9 +124,8 @@ public class FeatureResult {
             String json = JsonUtils.toJsonSafe(callArg, false);
             map.put("callArg", JsonUtils.fromJson(json));
         }
-        if (loopIndex != -1) {
-            map.put("loopIndex", loopIndex);
-        }
+        map.put("loopIndex", loopIndex);
+        map.put("callDepth", callDepth);
         return map;
     }
 
@@ -224,6 +222,10 @@ public class FeatureResult {
         } catch (Throwable t) {
             return "#error: " + t.getMessage();
         }
+    }
+
+    public void setCallDepth(int callDepth) {
+        this.callDepth = callDepth;
     }
 
     public Map<String, Object> getCallArg() {
