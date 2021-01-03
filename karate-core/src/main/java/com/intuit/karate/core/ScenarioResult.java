@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.StringUtils;
 import java.io.File;
 import java.util.ArrayList;
@@ -287,7 +288,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     }
 
     public double getDurationMillis() {
-        return Reports.nanosToMillis(durationNanos);
+        return ReportUtils.nanosToMillis(durationNanos);
     }
 
     public String getExecutorName() {

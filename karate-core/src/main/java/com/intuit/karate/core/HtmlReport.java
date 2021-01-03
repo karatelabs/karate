@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.resource.ResourceUtils;
@@ -50,7 +51,7 @@ public abstract class HtmlReport {
     protected final String dateString;
 
     public HtmlReport() {
-        String html = ResourceUtils.classPathResourceToString("report-template.html");
+        String html = ResourceUtils.classPathResourceToString("com/intuit/karate/report/report-template.html");
         doc = XmlUtils.toXmlDoc(html);
         formatter = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
         formatter.applyPattern("0");
@@ -129,7 +130,7 @@ public abstract class HtmlReport {
         File file = new File(targetDir + File.separator + fileName);
         try {
             String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, false);
-            Reports.initStaticResources(targetDir);
+            ReportUtils.initStaticResources(targetDir);
             FileUtils.writeToFile(file, xml);
         } catch (Exception e) {
             System.out.println("html report output failed: " + e.getMessage());

@@ -53,7 +53,8 @@
     </div>
     <div th:each="csr: cr.scenarioResults">
       <div th:each="sr: csr.stepResults" th:include="step-result.html" 
-           th:with="callDepth=${cr.callDepth},parentId=${callerId}"></div>
+           th:with="callDepth=${cr.callDepth},parentId=${callerId}">
+      </div>
     </div>    
   </div>
 

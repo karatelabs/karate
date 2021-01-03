@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.KarateException;
@@ -111,7 +112,7 @@ public class FeatureResult {
         map.put("packageQualifiedName", feature.getPackageQualifiedName());
         //======================================================================
         if (resultDate == null) {
-            resultDate = Reports.getDateString();
+            resultDate = ReportUtils.getDateString();
         }
         map.put("resultDate", resultDate);
         map.put("prefixedPath", feature.getResource().getPrefixedPath());
@@ -249,7 +250,7 @@ public class FeatureResult {
         for (ScenarioResult sr : scenarioResults) {
             durationNanos += sr.getDurationNanos();
         }
-        return Reports.nanosToMillis(durationNanos);
+        return ReportUtils.nanosToMillis(durationNanos);
     }
 
     public int getFailedCount() {

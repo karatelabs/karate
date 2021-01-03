@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.XmlUtils;
 import java.io.File;
 import java.util.List;
 import org.w3c.dom.Element;
@@ -115,7 +116,8 @@ public class HtmlFeatureReport extends HtmlReport {
         List<Embed> embeds = stepResult.getEmbeds();
         if (embeds != null) {
             for (Embed embed : embeds) {
-                Element embedNode = div(null, embed.getAsHtmlForReport());
+                Element temp = XmlUtils.toXmlDoc(embed.getAsHtmlForReport()).getDocumentElement();
+                Node embedNode = doc.importNode(temp, true);
                 Element embedContainer = div("embed", embedNode);
                 embedContainer.setAttribute("data-parent", refNum);
                 parent.appendChild(embedContainer);

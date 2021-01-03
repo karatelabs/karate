@@ -27,7 +27,7 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.HtmlFeatureReport;
-import com.intuit.karate.core.Reports;
+import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.ScenarioRuntime;
@@ -237,7 +237,7 @@ public class Suite implements Runnable {
     }
 
     private void saveFeatureResults(FeatureResult fr) {
-        File file = Reports.saveKarateJson(reportDir, fr, null);
+        File file = ReportUtils.saveKarateJson(reportDir, fr, null);
         synchronized (featureResultFiles) {
             featureResultFiles.add(file);
         }
@@ -245,10 +245,10 @@ public class Suite implements Runnable {
             HtmlFeatureReport.saveFeatureResult(reportDir, fr);
         }
         if (outputCucumberJson) {
-            Reports.saveCucumberJson(reportDir, fr, null);
+            ReportUtils.saveCucumberJson(reportDir, fr, null);
         }
         if (outputJunitXml) {
-            Reports.saveJunitXml(reportDir, fr, null);
+            ReportUtils.saveJunitXml(reportDir, fr, null);
         }
         fr.printStats();
     }
