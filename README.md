@@ -4037,10 +4037,10 @@ Scenario Outline: inline json
 
 For another example, see: [`examples.feature`](karate-demo/src/test/java/demo/outline/examples.feature).
 
-If you're looking for more complex ways of naming your scenarios you can use JavaScript String interpolation by wrapping the name of the scenario in backticks. 
+If you're looking for more complex ways of naming your scenarios you can use JavaScript String interpolation by and include placeholders in your scenario name.
 
 ```cucumber
-Scenario Outline: `name is ${name.first} ${name.last} and age is ${age}`
+Scenario Outline: name is ${name.first} ${name.last} and age is ${age}
   * match name.first == "#? _ == 'Bob' || _ == 'Nyan'"
   * match name.last == "#? _ == 'Dylan' || _ == 'Cat'"
   * match title == karate.info.scenarioName
