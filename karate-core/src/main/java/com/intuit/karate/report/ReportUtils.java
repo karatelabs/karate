@@ -29,7 +29,10 @@ import com.intuit.karate.JsonUtils;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.StepResult;
+import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.resource.ResourceUtils;
+import com.intuit.karate.template.KarateTemplateEngine;
+import com.intuit.karate.template.TemplateUtils;
 import java.io.File;
 import java.io.InputStream;
 import java.io.PrintWriter;
@@ -58,7 +61,7 @@ public class ReportUtils {
     private static final String[] STATIC_RESOURCES = new String[]{
         "favicon.ico",
         "karate-logo.png",
-        "karate-logo.svg",        
+        "karate-logo.svg",
         "com/intuit/karate/report/bootstrap.min.css",
         "com/intuit/karate/report/bootstrap.min.js",
         "com/intuit/karate/report/jquery.min.js",
@@ -190,6 +193,17 @@ public class ReportUtils {
         }
         File file = new File(targetDir + File.separator + fileName);
         FileUtils.writeToFile(file, xmlString.toString());
+        return file;
+    }
+
+    public static File saveHtmlFeatureReport(FeatureResult fr, String reportDir) {
+        JsEngine je = JsEngine.local();
+        je.put("fr", fr.toKarateJson());
+        KarateTemplateEngine engine = TemplateUtils.forResourcePath(je, "classpath:com/intuit/karate/report");
+        String html = engine.process("karate-feature.html");
+        ReportUtils.initStaticResources(reportDir);
+        File file = new File(reportDir + File.separator + fr.getFeature().getPackageQualifiedName() + ".html");
+        FileUtils.writeToFile(file, html);
         return file;
     }
 

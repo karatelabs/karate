@@ -55,38 +55,46 @@ public class TemplateEngineContext implements IEngineContext {
     private static final String ENGINE = "_engine";
 
     private final IEngineContext wrapped;
+    private final JsEngine GLOBAL_ENGINE;
     private final RequestCycle requestCycle;
 
-    public TemplateEngineContext(IEngineContext wrapped, RequestCycle requestCycle) {
+    public TemplateEngineContext(IEngineContext wrapped, RequestCycle requestCycle, JsEngine jsEngine) {
         this.wrapped = wrapped;
         this.requestCycle = requestCycle;
-        requestCycle.setEngineContext(this);
+        if (requestCycle != null) {
+            requestCycle.setEngineContext(this);
+        }
+        GLOBAL_ENGINE = jsEngine;
     }
 
     private JsEngine LOCAL_ENGINE;
 
     public JsValue eval(boolean queue, String exp) {
-        JsEngine je = JsEngine.local(requestCycle.getEngine());
-        requestCycle.setLocalEngine(je);
-        Set<String> variableNames = getVariableNames();
-        if (variableNames.contains(ENGINE)) {
-            variableNames.remove(ENGINE);
-            JsEngine local = (JsEngine) getVariable(ENGINE);
-            for (String key : local.bindings.getMemberKeys()) {
-                if (RequestCycle.GLOBALS.contains(key)) {
-                    continue;
+        if (GLOBAL_ENGINE != null) {
+            return GLOBAL_ENGINE.eval(exp);
+        } else {
+            JsEngine je = JsEngine.local(requestCycle.getEngine());
+            requestCycle.setLocalEngine(je);
+            Set<String> variableNames = getVariableNames();
+            if (variableNames.contains(ENGINE)) {
+                variableNames.remove(ENGINE);
+                JsEngine local = (JsEngine) getVariable(ENGINE);
+                for (String key : local.bindings.getMemberKeys()) {
+                    if (RequestCycle.GLOBALS.contains(key)) {
+                        continue;
+                    }
+                    Value v = local.bindings.getMember(key);
+                    je.putValue(key, v);
                 }
-                Value v = local.bindings.getMember(key);
-                je.putValue(key, v);
             }
+            for (String key : variableNames) {
+                je.put(key, getVariable(key));
+            }
+            if (queue) {
+                LOCAL_ENGINE = je;
+            }
+            return je.eval(exp);
         }
-        for (String key : variableNames) {
-            je.put(key, getVariable(key));
-        }
-        if (queue) {
-            LOCAL_ENGINE = je;
-        }
-        return je.eval(exp);
     }
 
     @Override
@@ -107,23 +115,32 @@ public class TemplateEngineContext implements IEngineContext {
     //
     @Override
     public void setVariable(String name, Object value) {
+        if (GLOBAL_ENGINE != null) {
+            GLOBAL_ENGINE.put(name, value);
+        }
         wrapped.setVariable(name, value);
     }
 
     @Override
-    public void setTemplateData(TemplateData template) {
-        wrapped.setTemplateData(template);
-    }
-
-    @Override
     public void setVariables(Map<String, Object> variables) {
+        if (GLOBAL_ENGINE != null) {
+            GLOBAL_ENGINE.putAll(variables);
+        }        
         wrapped.setVariables(variables);
     }
 
     @Override
     public void removeVariable(String name) {
+        if (GLOBAL_ENGINE != null) {
+            GLOBAL_ENGINE.bindings.removeMember(name);
+        }         
         wrapped.removeVariable(name);
     }
+    
+    @Override
+    public void setTemplateData(TemplateData template) {
+        wrapped.setTemplateData(template);
+    }    
 
     @Override
     public void decreaseLevel() {

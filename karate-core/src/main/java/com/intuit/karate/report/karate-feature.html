@@ -23,7 +23,7 @@
             reportDate: fr.resultDate
           };
         </script>        
-        <div th:replace="left-nav.html"></div>
+        <div th:replace="karate-leftnav.html"></div>
         <div class="nav-container">
           <div class="nav-item" th:each="scenario: fr.scenarioResults" th:classappend="scenario.failed ? 'failed' : 'passed'">
             <a th:href="'#' + scenario.refId"><span th:text="scenario.refId"></span> <span th:text="scenario.name"></span></a>
@@ -60,12 +60,12 @@
               <div class="step-cell passed">Background:</div>
             </div>
             <div class="time-cell passed"></div>
-          </div>          
-          <div th:each="sr: scenario.stepResults" 
-               th:attrappend="data-parent=${sr.step.background ? scenario.refId + 'bg' : null}"
-               th:include="step-result.html" th:with="callDepth=${fr.callDepth},parentId=${null}">
           </div>
-        </div>     
+          <div th:each="sr: scenario.stepResults"               
+               th:attrappend="data-parent=${sr.step.background ? scenario.refId + 'bg' : null}"
+               th:include="karate-step.html" th:with="callDepth=${fr.callDepth},parentId=${null}">
+          </div>
+        </div>
       </div>
     </div>
   </body>

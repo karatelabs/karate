@@ -2,6 +2,7 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.TestUtils;
 import com.intuit.karate.Match;
+import com.intuit.karate.report.ReportUtils;
 import java.io.File;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,7 @@ class FeatureFailRunner {
     }
 
     private File report() {
-        File file = HtmlFeatureReport.saveFeatureResult("target/temp", fr.result);
+        File file = ReportUtils.saveHtmlFeatureReport(fr.result, "target/temp");
         logger.debug("saved report: {}", file.getAbsolutePath());
         return file;
     }

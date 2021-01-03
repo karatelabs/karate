@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.template;
 
+import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.http.RequestCycle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,12 +40,14 @@ public class KarateExpression implements IStandardExpression {
     private static final Logger logger = LoggerFactory.getLogger(KarateExpression.class);
 
     private final String input;
+    private final JsEngine jsEngine;
 
-    public KarateExpression(String input) {
+    public KarateExpression(String input, JsEngine jsEngine) {
         if (input.startsWith("${")) {
             input = input.substring(2, input.length() - 1);
         }
         this.input = input;
+        this.jsEngine = jsEngine;
     }
 
     @Override
@@ -54,7 +57,11 @@ public class KarateExpression implements IStandardExpression {
 
     @Override
     public Object execute(IExpressionContext context) {
-        return RequestCycle.get().eval(input).getValue();
+        if (jsEngine != null) {
+            return jsEngine.eval(input).getValue();
+        } else {
+            return RequestCycle.get().eval(input).getValue();
+        }
     }
 
     @Override

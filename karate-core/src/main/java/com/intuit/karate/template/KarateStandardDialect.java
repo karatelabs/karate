@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.template;
 
+import com.intuit.karate.graal.JsEngine;
 import java.util.HashSet;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -47,6 +48,12 @@ public class KarateStandardDialect extends StandardDialect implements IStandardV
     private static final Logger logger = LoggerFactory.getLogger(KarateStandardDialect.class);
 
     private final StandardExpressionParser expressionParser = new StandardExpressionParser();
+    
+    private final JsEngine jsEngine;
+    
+    public KarateStandardDialect(JsEngine jsEngine) {
+        this.jsEngine = jsEngine;
+    }
 
     @Override
     public IStandardVariableExpressionEvaluator getVariableExpressionEvaluator() {
@@ -64,7 +71,7 @@ public class KarateStandardDialect extends StandardDialect implements IStandardV
         Set<IProcessor> patched = new HashSet(processors.size());
         for (IProcessor p : processors) {
             if (p instanceof StandardEachTagProcessor) {
-                p = new KarateEachTagProcessor(dialectPrefix);
+                p = new KarateEachTagProcessor(dialectPrefix, jsEngine);
             }
             patched.add(p);
         }
@@ -74,7 +81,7 @@ public class KarateStandardDialect extends StandardDialect implements IStandardV
     @Override
     public Object evaluate(IExpressionContext ctx, IStandardVariableExpression ve, StandardExpressionExecutionContext ec) {
         // found to be used for th:attrappend="data-parent=${expression}"
-        KarateExpression ke = new KarateExpression(ve.getExpression());
+        KarateExpression ke = new KarateExpression(ve.getExpression(), jsEngine);
         return ke.execute(ctx);
     }
 
@@ -83,7 +90,7 @@ public class KarateStandardDialect extends StandardDialect implements IStandardV
         if (input.charAt(0) == '~') { // template
             return expressionParser.parseExpression(context, input);
         }
-        return new KarateExpression(input);
+        return new KarateExpression(input, jsEngine);
     }
 
 }

@@ -27,9 +27,9 @@ import com.intuit.karate.Runner;
 import com.intuit.karate.Suite;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.HtmlFeatureReport;
 import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.FeatureRuntime;
+import com.intuit.karate.report.ReportUtils;
 import java.io.IOException;
 import java.util.List;
 import org.junit.BeforeClass;
@@ -107,7 +107,7 @@ public class Karate extends ParentRunner<Feature> {
         FeatureResult result = fr.result;
         if (!result.isEmpty()) {
             result.printStats();
-            HtmlFeatureReport.saveFeatureResult(suite.reportDir, result);
+            ReportUtils.saveHtmlFeatureReport(result, suite.reportDir);
             summary.addFeatureResult(result);
         }
     }

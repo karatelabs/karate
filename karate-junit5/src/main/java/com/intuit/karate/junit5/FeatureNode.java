@@ -26,11 +26,11 @@ package com.intuit.karate.junit5;
 import com.intuit.karate.Suite;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.HtmlFeatureReport;
 import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.ScenarioIterator;
 import com.intuit.karate.core.ScenarioRuntime;
+import com.intuit.karate.report.ReportUtils;
 
 import java.util.Iterator;
 import java.util.List;
@@ -82,7 +82,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
                 FeatureResult result = featureRuntime.result;
                 if (!result.isEmpty()) {
                     result.printStats();
-                    HtmlFeatureReport.saveFeatureResult(suite.reportDir, result);
+                    ReportUtils.saveHtmlFeatureReport(result, suite.reportDir);
                     summary.addFeatureResult(result);
                 }
                 saveSummaryIfAllComplete();

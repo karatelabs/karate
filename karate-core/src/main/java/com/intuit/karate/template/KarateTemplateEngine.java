@@ -23,13 +23,13 @@
  */
 package com.intuit.karate.template;
 
+import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.http.RedirectException;
 import com.intuit.karate.http.RequestCycle;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.IEngineConfiguration;
@@ -59,15 +59,17 @@ public class KarateTemplateEngine implements ITemplateEngine {
     private final StandardEngineContextFactory standardFactory;
     private final TemplateEngine wrapped;
     
-    public KarateTemplateEngine(Supplier<RequestCycle> requestCycleFactory, IDialect... dialects) {
+    
+    public KarateTemplateEngine(JsEngine jsEngine, IDialect... dialects) {
         standardFactory = new StandardEngineContextFactory();
         wrapped = new TemplateEngine();
         wrapped.setEngineContextFactory((IEngineConfiguration ec, TemplateData data, Map<String, Object> attrs, IContext context) -> {
             IEngineContext engineContext = standardFactory.createEngineContext(ec, data, attrs, context);
-            return new TemplateEngineContext(engineContext, requestCycleFactory.get());
+            RequestCycle rc = jsEngine == null ? RequestCycle.get() : null;
+            return new TemplateEngineContext(engineContext, rc, jsEngine);
         });
         // the next line is a set which clears and replaces all existing / default
-        wrapped.setDialect(new KarateStandardDialect());        
+        wrapped.setDialect(new KarateStandardDialect(jsEngine));        
         for (IDialect dialect : dialects) {
             wrapped.addDialect(dialect);
         }

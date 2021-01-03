@@ -26,7 +26,6 @@ package com.intuit.karate;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
-import com.intuit.karate.core.HtmlFeatureReport;
 import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
@@ -243,7 +242,7 @@ public class Suite implements Runnable {
             featureResultFiles.add(file);
         }
         if (outputHtmlReport) {
-            HtmlFeatureReport.saveFeatureResult(reportDir, fr);
+            ReportUtils.saveHtmlFeatureReport(fr, reportDir);
         }
         if (outputCucumberJson) {
             ReportUtils.saveCucumberJson(reportDir, fr, null);

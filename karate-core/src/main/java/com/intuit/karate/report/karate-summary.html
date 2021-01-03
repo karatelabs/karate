@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+    <link rel="stylesheet" href="res/bootstrap.min.css" type="text/css"/>
+    <link rel="stylesheet" href="res/karate-report.css" type="text/css"/>
+    <link rel="shortcut icon" href="favicon.ico"/>
+    <script type="text/javascript" src="res/jquery.min.js"></script>
+    <script type="text/javascript" src="res/jquery.tablesorter.min.js"></script>
+    <script type="text/javascript" src="res/bootstrap.min.js"></script>
+    <script type="text/javascript" src="res/karate-report.js"></script>
+    <title>Karate Summary Report</title>  
+  </head>
+  <body>   
+    <div id="root-container">
+      <div id="leftnav">
+        <script ka:lang="js">
+          var reportMeta = {
+            passedCount: 'passed',
+            failedCount: 'failed',
+            reportType: 'Features',
+            reportDate: 'date'
+          };
+        </script>        
+        <div th:replace="karate-leftnav.html"></div>
+        <div class="nav-container">
+          <div class="nav-item" th:each="scenario: fr.scenarioResults" th:classappend="scenario.failed ? 'failed' : 'passed'">
+            <a th:href="'#' + scenario.refId"><span th:text="scenario.refId"></span> <span th:text="scenario.name"></span></a>
+          </div>
+        </div>
+      </div>
+      <div id="content">
+
+      </div>
+    </div>
+  </body>
+</html>
+
