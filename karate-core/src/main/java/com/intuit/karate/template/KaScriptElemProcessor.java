@@ -43,7 +43,7 @@ import org.thymeleaf.templatemode.TemplateMode;
 public class KaScriptElemProcessor extends AbstractElementModelProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(KaScriptElemProcessor.class);
-    
+
     private final JsEngine jsEngine;
 
     public KaScriptElemProcessor(String dialectPrefix, JsEngine jsEngine) {
@@ -60,23 +60,15 @@ public class KaScriptElemProcessor extends AbstractElementModelProcessor {
             final ITemplateEvent event = model.get(n);
             if (event instanceof IText) {
                 String text = StringUtils.trimToNull(((IText) event).getText());
-                if (isHead) {
-                    if (text != null) {
-                        if (jsEngine != null) {
-                            jsEngine.eval(text);
-                        } else {
-                            JsEngine.evalGlobal(text);
-                        }                        
-                    }
-                    if (headModel == null) {
-                        headModel = TemplateUtils.generateHeadScriptTag(ctx);
-                    }
-                } else if (text != null) {
+                if (text != null) {
                     if (jsEngine != null) {
                         jsEngine.eval(text);
                     } else {
-                        RequestCycle.get().evalAndQueue(text);
+                        RequestCycle.get().eval(text);
                     }
+                }
+                if (isHead && headModel == null) {
+                    headModel = TemplateUtils.generateHeadScriptTag(ctx);
                 }
             }
         }

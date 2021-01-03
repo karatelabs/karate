@@ -24,14 +24,10 @@
 package com.intuit.karate.template;
 
 import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.http.RedirectException;
-import com.intuit.karate.http.RequestCycle;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.IEngineConfiguration;
@@ -52,95 +48,47 @@ public class TemplateEngineContext implements IEngineContext {
 
     private static final Logger logger = LoggerFactory.getLogger(TemplateEngineContext.class);
 
-    private static final String ENGINE = "_engine";
-
     private final IEngineContext wrapped;
-    private final JsEngine GLOBAL_ENGINE;
-    private final RequestCycle requestCycle;
+    private final JsEngine jsEngine;
 
-    public TemplateEngineContext(IEngineContext wrapped, RequestCycle requestCycle, JsEngine jsEngine) {
+    public TemplateEngineContext(IEngineContext wrapped, JsEngine jsEngine) {
         this.wrapped = wrapped;
-        this.requestCycle = requestCycle;
-        if (requestCycle != null) {
-            requestCycle.setEngineContext(this);
-        }
-        GLOBAL_ENGINE = jsEngine;
-    }
-
-    private JsEngine LOCAL_ENGINE;
-
-    public JsValue eval(boolean queue, String exp) {
-        if (GLOBAL_ENGINE != null) {
-            return GLOBAL_ENGINE.eval(exp);
-        } else {
-            JsEngine je = JsEngine.local(requestCycle.getEngine());
-            requestCycle.setLocalEngine(je);
-            Set<String> variableNames = getVariableNames();
-            if (variableNames.contains(ENGINE)) {
-                variableNames.remove(ENGINE);
-                JsEngine local = (JsEngine) getVariable(ENGINE);
-                for (String key : local.bindings.getMemberKeys()) {
-                    if (RequestCycle.GLOBALS.contains(key)) {
-                        continue;
-                    }
-                    Value v = local.bindings.getMember(key);
-                    je.putValue(key, v);
-                }
-            }
-            for (String key : variableNames) {
-                je.put(key, getVariable(key));
-            }
-            if (queue) {
-                LOCAL_ENGINE = je;
-            }
-            return je.eval(exp);
-        }
+        this.jsEngine = jsEngine;
     }
 
     @Override
     public void increaseLevel() {
-        if (LOCAL_ENGINE != null) {
-            if (requestCycle.getSwitchTemplate() != null) {
-                String redirect = requestCycle.getSwitchTemplate();
-                requestCycle.setSwitchTemplate(null);
-                throw new RedirectException(redirect);
-            }
-            setVariable(ENGINE, LOCAL_ENGINE);
-            LOCAL_ENGINE = null;
-        }
         wrapped.increaseLevel();
     }
 
-    //==========================================================================
-    //
     @Override
     public void setVariable(String name, Object value) {
-        if (GLOBAL_ENGINE != null) {
-            GLOBAL_ENGINE.put(name, value);
+        if (jsEngine != null) {
+            jsEngine.put(name, value);
         }
         wrapped.setVariable(name, value);
     }
 
     @Override
     public void setVariables(Map<String, Object> variables) {
-        if (GLOBAL_ENGINE != null) {
-            GLOBAL_ENGINE.putAll(variables);
-        }        
+        if (jsEngine != null) {
+            jsEngine.putAll(variables);
+        }
         wrapped.setVariables(variables);
     }
 
     @Override
     public void removeVariable(String name) {
-        if (GLOBAL_ENGINE != null) {
-            GLOBAL_ENGINE.bindings.removeMember(name);
-        }         
+        if (jsEngine != null) {
+            jsEngine.bindings.removeMember(name);
+        }
         wrapped.removeVariable(name);
     }
-    
+
     @Override
     public void setTemplateData(TemplateData template) {
         wrapped.setTemplateData(template);
-    }    
+    }
 
     @Override
     public void decreaseLevel() {

@@ -125,7 +125,7 @@ public class RequestHandler implements ServerHandler {
                     return apiResponse(is, rb, rc);
                 }
             } else {
-                String html = htmlResponse(request);
+                String html = htmlResponse(request, rc);
                 return response(rc, session, newSession).html(html).build(rc);
             }
         } catch (Exception e) {
@@ -145,13 +145,17 @@ public class RequestHandler implements ServerHandler {
         return contextPath == null ? "/" + homePagePath : contextPath + homePagePath;
     }
 
-    private String htmlResponse(Request request) {
+    private String htmlResponse(Request request, RequestCycle rc) {
         try {
             return engine.process(request.getPath());
-        } catch (RedirectException re) {
-            String template = re.getTemplate();
-            logger.debug("redirect requested to: {}", template);
-            return engine.process(template);
+        } catch (Exception e) {
+            String switchTemplate = rc.getAndClearSwitchTemplate();
+            if (switchTemplate != null) {
+                logger.debug("redirect requested to: {}", switchTemplate);
+                return engine.process(switchTemplate);
+            } else {
+                throw e;
+            }
         }
     }
 
