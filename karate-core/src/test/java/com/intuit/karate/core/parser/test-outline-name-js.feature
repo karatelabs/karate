@@ -80,19 +80,19 @@ Examples:
 
 
 # String interpolation allows you to use operators
+Scenario: one plus one equals ${1 + 1}
+  * match karate.info.scenarioName == "one plus one equals 2"
+
 Scenario: `one plus one equals ${1 + 1}`
   * match karate.info.scenarioName == "one plus one equals 2"
 
-Scenario: if name is not entirely wrapped in backticks... won't be evaluated `one plus one equals ${1 + 1}`
-  * match karate.info.scenarioName == "if name is not entirely wrapped in backticks... won't be evaluated `one plus one equals ${1 + 1}`"
-
 # can even access the karate object
-Scenario: `scenario execution (env = ${karate.env})`
+Scenario: scenario execution (env = ${karate.env})
   # the env is set on the unit test in FeatureParserTest.java
   * match karate.info.scenarioName == "scenario execution (env = unit-test)"
 
 # functions can also be used, including access to the Java Interop API
-Scenario: `math scenario: should return ${java.lang.Math.pow(2, 2)}`
+Scenario: math scenario: should return ${java.lang.Math.pow(2, 2)}
   * def powResult = java.lang.Math.pow(2, 2)
   * match karate.info.scenarioName == "math scenario: should return " + powResult
   * match karate.info.scenarioName == "math scenario: should return 4"

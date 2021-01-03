@@ -1785,6 +1785,7 @@ public class ScenarioEngine {
     private static final String VARIABLE_PATTERN_STRING = "[a-zA-Z][\\w]*";
     private static final Pattern VARIABLE_PATTERN = Pattern.compile(VARIABLE_PATTERN_STRING);
     private static final Pattern FUNCTION_PATTERN = Pattern.compile("^function[^(]*\\(");
+    private static final Pattern JS_PLACEHODER = Pattern.compile("\\$\\{.*?\\}");
 
     public static boolean isJavaScriptFunction(String text) {
         return FUNCTION_PATTERN.matcher(text).find();
@@ -1801,6 +1802,10 @@ public class ScenarioEngine {
 
     public static boolean isValidVariableName(String name) {
         return VARIABLE_PATTERN.matcher(name).matches();
+    }
+
+    public static boolean hasJavaScriptPlacehoder(String exp) {
+        return JS_PLACEHODER.matcher(exp).find();
     }
 
     public static final boolean isVariableAndSpaceAndPath(String text) {

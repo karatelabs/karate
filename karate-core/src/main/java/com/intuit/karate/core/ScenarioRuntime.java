@@ -482,8 +482,14 @@ public class ScenarioRuntime implements Runnable {
     public void evaluateScenarioName() {
         String scenarioName = this.scenario.getName();
         boolean wrappedByBackTick = scenarioName != null && scenarioName.length() > 1 && '`' == scenarioName.charAt(0) && '`' == scenarioName.charAt((scenarioName.length() - 1));
-        if (wrappedByBackTick) {
-            String evaluatedScenarioName = this.engine.evalJs(scenarioName).getAsString();
+        boolean hasJavascriptPlaceholder = ScenarioEngine.hasJavaScriptPlacehoder(scenarioName);
+        if (wrappedByBackTick || hasJavascriptPlaceholder) {
+            String eval = scenarioName;
+            if(!wrappedByBackTick) {
+                eval = '`' + eval + '`';
+            }
+
+            String evaluatedScenarioName = this.engine.evalJs(eval).getAsString();
             this.scenario.setName(evaluatedScenarioName);
         }
     }
