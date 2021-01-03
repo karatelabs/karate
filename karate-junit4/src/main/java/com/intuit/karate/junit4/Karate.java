@@ -27,8 +27,6 @@ import com.intuit.karate.Runner;
 import com.intuit.karate.Suite;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.HtmlFeatureReport;
-import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.FeatureRuntime;
 import java.io.IOException;
 import java.util.List;
@@ -53,7 +51,6 @@ public class Karate extends ParentRunner<Feature> {
     private static final Logger logger = LoggerFactory.getLogger(Karate.class);
 
     private final Class annotatedClass;
-    private final HtmlSummaryReport summary;
     private final JunitHook hook;
     private final List<Feature> features;
 
@@ -66,7 +63,6 @@ public class Karate extends ParentRunner<Feature> {
         if (!testMethods.isEmpty()) {
             logger.warn("WARNING: there are methods annotated with '@Test', they will NOT be run when using '@RunWith(Karate.class)'");
         }
-        summary = new HtmlSummaryReport();
         hook = new JunitHook();
         Runner.Builder rb = Runner.builder().fromKarateAnnotation(clazz);
         features = rb.resolveAll();
@@ -106,9 +102,7 @@ public class Karate extends ParentRunner<Feature> {
         fr.run();
         FeatureResult result = fr.result;
         if (!result.isEmpty()) {
-            result.printStats();
-            HtmlFeatureReport.saveFeatureResult(suite.reportDir, result);
-            summary.addFeatureResult(result);
+            suite.saveFeatureResults(result);
         }
     }
 
@@ -118,7 +112,7 @@ public class Karate extends ParentRunner<Feature> {
         if (suite == null) {
             logger.warn("no feature files scanned");
         } else {
-            summary.save(suite.reportDir);
+            suite.buildResults();
         }
     }
 

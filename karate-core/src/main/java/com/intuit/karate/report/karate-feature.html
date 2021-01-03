@@ -12,20 +12,21 @@
     <script type="text/javascript" src="res/karate-report.js"></script>
     <title th:text="fr.packageQualifiedName"></title>  
   </head>
-  <body>
-    <script ka:lang="js">
-      var passed = fr.passedCount;
-      var failed = fr.failedCount;
-      var reportType = 'Scenarios';
-      var reportDate = fr.resultDate;
-      var statusCss = scenario => scenario.failed ? 'failed' : 'passed';
-    </script>    
+  <body>   
     <div id="root-container">
       <div id="leftnav">
-        <div th:replace="left-nav.html"></div>
+        <script ka:lang="js">
+          var reportMeta = {
+            passedCount: fr.passedCount,
+            failedCount: fr.failedCount,
+            reportType: 'Scenarios',
+            reportDate: fr.resultDate
+          };
+        </script>        
+        <div th:replace="karate-leftnav.html"></div>
         <div class="nav-container">
-          <div class="nav-item" th:each="sr: fr.scenarioResults" th:classappend="statusCss(sr)">
-            <a th:href="'#' + sr.refId"><span th:text="sr.refId"></span> <span th:text="sr.name"></span></a>
+          <div class="nav-item" th:each="scenario: fr.scenarioResults" th:classappend="scenario.failed ? 'failed' : 'passed'">
+            <a th:href="'#' + scenario.refId"><span th:text="scenario.refId"></span> <span th:text="scenario.name"></span></a>
           </div>
         </div>
       </div>
@@ -49,7 +50,7 @@
                 <span th:text="scenario.description"></span>
               </div>
             </div>
-            <div class="scenario-time" th:classappend="statusCss(scenario)">
+            <div class="scenario-time" th:classappend="scenario.failed ? 'failed' : 'passed'">
               ms: <span th:text="Math.round(scenario.durationMillis)"></span>
             </div>
           </div>
@@ -59,12 +60,12 @@
               <div class="step-cell passed">Background:</div>
             </div>
             <div class="time-cell passed"></div>
-          </div>          
-          <div th:each="sr: scenario.stepResults" 
-               th:attrappend="data-parent=${sr.step.background ? scenario.refId + 'bg' : null}"
-               th:include="step-result.html" th:with="callDepth=${fr.callDepth},parentId=${null}">
           </div>
-        </div>     
+          <div th:each="sr: scenario.stepResults"               
+               th:attrappend="data-parent=${sr.step.background ? scenario.refId + 'bg' : null}"
+               th:include="karate-step.html" th:with="callDepth=${fr.callDepth},parentId=${null}">
+          </div>
+        </div>
       </div>
     </div>
   </body>

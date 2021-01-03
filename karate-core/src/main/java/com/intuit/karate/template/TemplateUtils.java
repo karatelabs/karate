@@ -25,7 +25,7 @@ package com.intuit.karate.template;
 
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.http.ServerConfig;
-import com.intuit.karate.http.RequestCycle;
+import com.intuit.karate.resource.ResourceResolver;
 import org.thymeleaf.context.ITemplateContext;
 import org.thymeleaf.model.IModel;
 import org.thymeleaf.model.IModelFactory;
@@ -58,22 +58,21 @@ public class TemplateUtils {
     }
 
     public static KarateTemplateEngine forServer(ServerConfig config) {
-        KarateTemplateEngine engine = new KarateTemplateEngine(() -> RequestCycle.get(), new KarateServerDialect(config));
+        KarateTemplateEngine engine = new KarateTemplateEngine(null, new KarateServerDialect(config));
         engine.setTemplateResolver(new ServerHtmlTemplateResolver(config.getResourceResolver()));
         return engine;
     }
 
     public static KarateTemplateEngine forStrings(JsEngine je) {
-        final RequestCycle rc = RequestCycle.init(je);
-        KarateTemplateEngine engine = new KarateTemplateEngine(() -> rc);
+        KarateTemplateEngine engine = new KarateTemplateEngine(je);
         engine.setTemplateResolver(StringHtmlTemplateResolver.INSTANCE);
         return engine;
     }
 
-    public static KarateTemplateEngine forRelativePath(JsEngine je, String root) {
-        final RequestCycle rc = RequestCycle.init(je);
-        KarateTemplateEngine engine = new KarateTemplateEngine(() -> rc, new KarateScriptDialect());
-        engine.setTemplateResolver(new ResourceHtmlTemplateResolver(root));
+    public static KarateTemplateEngine forResourcePath(JsEngine je, String root) {
+        ResourceResolver resourceResolver = new ResourceResolver(root);
+        KarateTemplateEngine engine = new KarateTemplateEngine(je, new KarateScriptDialect(resourceResolver, je));
+        engine.setTemplateResolver(new ResourceHtmlTemplateResolver(resourceResolver));
         return engine;
     }
 

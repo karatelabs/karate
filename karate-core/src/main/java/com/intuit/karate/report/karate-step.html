@@ -30,6 +30,12 @@
     <div class="time-cell" th:classappend="stepStatus" th:text="Math.round(result.millis)"></div>
   </div>
 
+  <table th:if="step.table">
+    <tr th:each="tableRow: step.table" class="tr">      
+      <td th:each="cell: tableRow.row" class="td" th:text="cell"></td>
+    </tr>     
+  </table> 
+
   <div th:each="embed: step.embeds" class="embed" th:attr="data-parent=${stepId}" th:utext="embed.html"></div>
 
   <div class="preformatted" th:attr="data-parent=${stepId}" th:if="sr.stepLog" th:text="sr.stepLog"></div>
@@ -52,8 +58,9 @@
       <div class="time-cell" th:classappend="callStatus" th:text="Math.round(cr.durationMillis)"></div>
     </div>
     <div th:each="csr: cr.scenarioResults">
-      <div th:each="sr: csr.stepResults" th:include="step-result.html" 
-           th:with="callDepth=${cr.callDepth},parentId=${callerId}"></div>
+      <div th:each="sr: csr.stepResults" th:include="karate-step.html" 
+           th:with="callDepth=${cr.callDepth},parentId=${callerId}">
+      </div>
     </div>    
   </div>
 

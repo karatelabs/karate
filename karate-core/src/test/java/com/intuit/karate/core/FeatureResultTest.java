@@ -3,6 +3,7 @@ package com.intuit.karate.core;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.TestUtils;
 import static com.intuit.karate.TestUtils.*;
+import com.intuit.karate.report.ReportUtils;
 import java.io.File;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
@@ -33,7 +34,7 @@ class FeatureResultTest {
         String expected = FileUtils.toString(new File("src/test/java/com/intuit/karate/core/feature-result.json"));
         match(featureResult, expected);
         FeatureResult temp = FeatureResult.fromKarateJson(fr.suite.workingDir, featureResult);
-        File file = HtmlFeatureReport.saveFeatureResult("target", temp);
+        File file = ReportUtils.saveHtmlFeatureReport(fr.result, "target");
         logger.debug("saved report: {}", file.getAbsolutePath());        
         Map<String, Object> karateClone = temp.toKarateJson();
         match(featureResult, karateClone);

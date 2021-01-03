@@ -24,14 +24,10 @@
 package com.intuit.karate.template;
 
 import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.http.RedirectException;
-import com.intuit.karate.http.RequestCycle;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.IEngineConfiguration;
@@ -52,77 +48,46 @@ public class TemplateEngineContext implements IEngineContext {
 
     private static final Logger logger = LoggerFactory.getLogger(TemplateEngineContext.class);
 
-    private static final String ENGINE = "_engine";
-
     private final IEngineContext wrapped;
-    private final RequestCycle requestCycle;
+    private final JsEngine jsEngine;
 
-    public TemplateEngineContext(IEngineContext wrapped, RequestCycle requestCycle) {
+    public TemplateEngineContext(IEngineContext wrapped, JsEngine jsEngine) {
         this.wrapped = wrapped;
-        this.requestCycle = requestCycle;
-        requestCycle.setEngineContext(this);
-    }
-
-    private JsEngine LOCAL_ENGINE;
-
-    public JsValue eval(boolean queue, String exp) {
-        JsEngine je = JsEngine.local(requestCycle.getEngine());
-        requestCycle.setLocalEngine(je);
-        Set<String> variableNames = getVariableNames();
-        if (variableNames.contains(ENGINE)) {
-            variableNames.remove(ENGINE);
-            JsEngine local = (JsEngine) getVariable(ENGINE);
-            for (String key : local.bindings.getMemberKeys()) {
-                if (RequestCycle.GLOBALS.contains(key)) {
-                    continue;
-                }
-                Value v = local.bindings.getMember(key);
-                je.putValue(key, v);
-            }
-        }
-        for (String key : variableNames) {
-            je.put(key, getVariable(key));
-        }
-        if (queue) {
-            LOCAL_ENGINE = je;
-        }
-        return je.eval(exp);
+        this.jsEngine = jsEngine;
     }
 
     @Override
     public void increaseLevel() {
-        if (LOCAL_ENGINE != null) {
-            if (requestCycle.getSwitchTemplate() != null) {
-                String redirect = requestCycle.getSwitchTemplate();
-                requestCycle.setSwitchTemplate(null);
-                throw new RedirectException(redirect);
-            }
-            setVariable(ENGINE, LOCAL_ENGINE);
-            LOCAL_ENGINE = null;
-        }
         wrapped.increaseLevel();
     }
 
-    //==========================================================================
-    //
     @Override
     public void setVariable(String name, Object value) {
+        if (jsEngine != null) {
+            jsEngine.put(name, value);
+        }
         wrapped.setVariable(name, value);
     }
 
     @Override
-    public void setTemplateData(TemplateData template) {
-        wrapped.setTemplateData(template);
-    }
-
-    @Override
     public void setVariables(Map<String, Object> variables) {
+        if (jsEngine != null) {
+            jsEngine.putAll(variables);
+        }
         wrapped.setVariables(variables);
     }
 
     @Override
     public void removeVariable(String name) {
+        if (jsEngine != null) {
+            jsEngine.bindings.removeMember(name);
+        }
         wrapped.removeVariable(name);
+    }
+
+    @Override
+    public void setTemplateData(TemplateData template) {
+        wrapped.setTemplateData(template);
     }
 
     @Override

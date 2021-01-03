@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.KarateException;
 
 import java.util.HashMap;
@@ -104,6 +105,10 @@ public class Result {
     public Throwable getError() {
         return error;
     }
+    
+    public String getErrorMessage() {
+        return error == null ? null : error.getMessage();
+    }
 
     public static Result passed(long nanos) {
         return new Result(PASSED, nanos, null, false);
@@ -139,7 +144,7 @@ public class Result {
     }
 
     public double getDurationMillis() {
-        return Reports.nanosToMillis(durationNanos);
+        return ReportUtils.nanosToMillis(durationNanos);
     }
 
     @Override

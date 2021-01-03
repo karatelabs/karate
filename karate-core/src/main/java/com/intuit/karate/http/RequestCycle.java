@@ -52,7 +52,7 @@ public class RequestCycle {
     public static RequestCycle get() {
         return THREAD_LOCAL.get();
     }
-    
+
     public static RequestCycle init(JsEngine je) {
         RequestCycle rc = new RequestCycle(je);
         THREAD_LOCAL.set(rc);
@@ -60,7 +60,7 @@ public class RequestCycle {
     }
 
     private final JsEngine engine;
-    
+
     private JsEngine localEngine;
     private TemplateEngineContext engineContext;
     private Session session;
@@ -74,7 +74,7 @@ public class RequestCycle {
 
     public JsEngine getEngine() {
         return engine;
-    }        
+    }
 
     public void close() {
         if (session != null) {
@@ -91,7 +91,7 @@ public class RequestCycle {
     }
 
     public JsValue eval(String src) {
-        return engineContext.eval(false, src);
+        return engine.eval(src);
     }
 
     public JsEngine getLocalEngine() {
@@ -100,10 +100,6 @@ public class RequestCycle {
 
     public void setLocalEngine(JsEngine localEngine) {
         this.localEngine = localEngine;
-    }
-
-    public JsValue evalAndQueue(String src) {
-        return engineContext.eval(true, src);
     }
 
     public void setEngineContext(TemplateEngineContext engineContext) {
@@ -134,10 +130,15 @@ public class RequestCycle {
         this.switchTemplate = switchTemplate;
     }
 
-    public String getSwitchTemplate() {
-        return switchTemplate;
+    public String getAndClearSwitchTemplate() {
+        if (switchTemplate == null) {
+            return null;
+        }
+        String temp = switchTemplate;
+        switchTemplate = null;
+        return temp;
     }
-
+    
     public void init(ServerContext context, Session session) {
         this.context = context;
         if (session != null) {

@@ -26,8 +26,7 @@ package com.intuit.karate;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
-import com.intuit.karate.core.HtmlFeatureReport;
-import com.intuit.karate.core.Reports;
+import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.ScenarioRuntime;
@@ -199,6 +198,7 @@ public class Suite implements Runnable {
     @Override
     public void run() {
         try {
+            hooks.forEach(h -> h.beforeSuite(this));
             int index = 0;
             for (Feature feature : features) {
                 final int featureNum = ++index;
@@ -236,19 +236,19 @@ public class Suite implements Runnable {
         }
     }
 
-    private void saveFeatureResults(FeatureResult fr) {
-        File file = Reports.saveKarateJson(reportDir, fr, null);
+    public void saveFeatureResults(FeatureResult fr) {
+        File file = ReportUtils.saveKarateJson(reportDir, fr, null);
         synchronized (featureResultFiles) {
             featureResultFiles.add(file);
         }
         if (outputHtmlReport) {
-            HtmlFeatureReport.saveFeatureResult(reportDir, fr);
+            ReportUtils.saveHtmlFeatureReport(fr, reportDir);
         }
         if (outputCucumberJson) {
-            Reports.saveCucumberJson(reportDir, fr, null);
+            ReportUtils.saveCucumberJson(reportDir, fr, null);
         }
         if (outputJunitXml) {
-            Reports.saveJunitXml(reportDir, fr, null);
+            ReportUtils.saveJunitXml(reportDir, fr, null);
         }
         fr.printStats();
     }
@@ -258,7 +258,7 @@ public class Suite implements Runnable {
             try { // edge case that reports are not writable     
                 saveFeatureResults(fr);
                 String status = fr.isFailed() ? "fail" : "pass";
-                logger.info("<<{}>> feature {} of {} ({} remaining) {}", status, index, featuresFound, getFeaturesRemaining() - 1, fr.getFeature());                
+                logger.info("<<{}>> feature {} of {} ({} remaining) {}", status, index, featuresFound, getFeaturesRemaining() - 1, fr.getFeature());
             } catch (Exception e) {
                 logger.error("<<error>> unable to write report file(s): {} - {}", fr.getFeature(), e + "");
                 fr.printStats();
@@ -344,7 +344,7 @@ public class Suite implements Runnable {
         return file;
     }
 
-    Results buildResults() {
+    public Results buildResults() {
         return Results.of(this);
     }
 

@@ -234,11 +234,15 @@ public class ServerContext implements ProxyObject {
         }
         afterSettleScripts.add(js);
     }
-
-    private final Consumer<String> SWITCH_FUNCTION = s -> RequestCycle.get().setSwitchTemplate(s);
+    
     private static final Supplier<String> UUID_FUNCTION = () -> java.util.UUID.randomUUID().toString();
     private final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s, false);
     private final Methods.FunVar HTTP_FUNCTION; // set in constructor
+    
+    private final Consumer<String> SWITCH_FUNCTION = s -> {
+        RequestCycle.get().setSwitchTemplate(s);
+        throw new RedirectException(s);
+    };    
 
     private static final BiFunction<Object, Object, Object> REMOVE_FUNCTION = (o, k) -> {
         if (o instanceof Map && k != null) {

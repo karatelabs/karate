@@ -21,12 +21,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.core;
+package com.intuit.karate.report;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.Results;
+import com.intuit.karate.core.FeatureResult;
+import com.intuit.karate.core.ScenarioResult;
+import com.intuit.karate.core.StepResult;
+import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.resource.ResourceUtils;
+import com.intuit.karate.template.KarateTemplateEngine;
+import com.intuit.karate.template.TemplateUtils;
 import java.io.File;
 import java.io.InputStream;
 import java.io.PrintWriter;
@@ -46,21 +53,22 @@ import org.w3c.dom.Element;
  *
  * @author pthomas3
  */
-public class Reports {
+public class ReportUtils {
 
-    private Reports() {
+    private ReportUtils() {
         // only static methods
     }
 
     private static final String[] STATIC_RESOURCES = new String[]{
-        "bootstrap.min.css",
-        "bootstrap.min.js",
-        "jquery.min.js",
-        "jquery.tablesorter.min.js",
+        "favicon.ico",
         "karate-logo.png",
         "karate-logo.svg",
-        "karate-report.css",
-        "karate-report.js"
+        "com/intuit/karate/report/bootstrap.min.css",
+        "com/intuit/karate/report/bootstrap.min.js",
+        "com/intuit/karate/report/jquery.min.js",
+        "com/intuit/karate/report/jquery.tablesorter.min.js",
+        "com/intuit/karate/report/karate-report.css",
+        "com/intuit/karate/report/karate-report.js"
     };
 
     public static String getDateString() {
@@ -76,14 +84,18 @@ public class Reports {
 
     public static void initStaticResources(String targetDir) {
         String resPath = targetDir + File.separator + "res" + File.separator;
-        File res = new File(resPath);
-        if (res.exists()) {
+        File resFile = new File(resPath);
+        if (resFile.exists()) {
             return;
         }
-        for (String name : STATIC_RESOURCES) {
-            copyToFile("res/" + name, resPath + name);
+        for (String path : STATIC_RESOURCES) {
+            int pos = path.lastIndexOf('/');
+            if (pos == -1) {
+                copyToFile(path, resFile.getParent() + File.separator + path);
+            } else {
+                copyToFile(path, resPath + path.substring(pos + 1));
+            }
         }
-        copyToFile("favicon.ico", targetDir + File.separator + "favicon.ico");
     }
 
     private static final double MILLION = 1000000;
@@ -151,7 +163,7 @@ public class Reports {
         root.setAttribute("tests", result.getScenarioCount() + "");
         root.setAttribute("failures", result.getFailedCount() + "");
         root.setAttribute("time", formatter.format(result.getDurationMillis() / 1000));
-        root.setAttribute("name", result.getDisplayUri()); // will be uri
+        root.setAttribute("name", result.getDisplayName()); // will be uri
         root.setAttribute("skipped", "0");
         StringBuilder xmlString = new StringBuilder();
         xmlString.append(XmlUtils.toString(doc, false).replace("/>", ">"));
@@ -182,6 +194,32 @@ public class Reports {
         }
         File file = new File(targetDir + File.separator + fileName);
         FileUtils.writeToFile(file, xmlString.toString());
+        return file;
+    }
+
+    public static File saveHtmlFeatureReport(FeatureResult fr, String reportDir) {
+        JsEngine je = JsEngine.local();
+        je.put("fr", fr.toKarateJson());
+        KarateTemplateEngine engine = TemplateUtils.forResourcePath(je, "classpath:com/intuit/karate/report");
+        String html = engine.process("karate-feature.html");
+        ReportUtils.initStaticResources(reportDir);
+        File file = new File(reportDir + File.separator + fr.getFeature().getPackageQualifiedName() + ".html");
+        FileUtils.writeToFile(file, html);
+        return file;
+    }
+
+    public static File saveHtmlSummaryReport(Results results, String reportDir) {
+        JsEngine je = JsEngine.local();
+        je.put("results", results.toKarateJson());
+        KarateTemplateEngine engine = TemplateUtils.forResourcePath(je, "classpath:com/intuit/karate/report");
+        String html = engine.process("karate-summary.html");
+        ReportUtils.initStaticResources(reportDir);
+        File file = new File(reportDir + File.separator + "karate-summary.html");
+        FileUtils.writeToFile(file, html);
+        System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
+                + FileUtils.KARATE_VERSION + "\n"
+                + file.toPath().toUri()
+                + "\n===================================================================\n");        
         return file;
     }
 

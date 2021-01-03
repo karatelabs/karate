@@ -121,17 +121,17 @@
         </dependency>
     </dependencies>
 
-    <build>
+    <build>       
         <resources>
             <resource>
-                <directory>src/main/resources</directory>
+                <directory>src/main/java</directory>
                 <filtering>true</filtering>
                 <includes>
-                    <include>*.properties</include>
+                    <include>karate-meta.properties</include>
                 </includes>
             </resource>
             <resource>
-                <directory>src/main/resources</directory>
+                <directory>src/main/java</directory>
                 <filtering>false</filtering>
                 <includes>
                     <include>**/*</include>
@@ -144,9 +144,6 @@
                 <excludes>
                     <exclude>**/*.java</exclude>
                 </excludes>
-            </testResource>
-            <testResource>
-                <directory>src/test/resources</directory>
             </testResource>
         </testResources>
         <plugins>           

@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.http.RequestCycle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,8 +45,11 @@ public class KarateEachTagProcessor extends AbstractAttributeTagProcessor {
     public static final int PRECEDENCE = 200;
     public static final String ATTR_NAME = "each";
 
-    public KarateEachTagProcessor(final String dialectPrefix) {
+    private final JsEngine jsEngine;
+
+    public KarateEachTagProcessor(final String dialectPrefix, JsEngine jsEngine) {
         super(TemplateMode.HTML, dialectPrefix, null, false, ATTR_NAME, true, PRECEDENCE, true);
+        this.jsEngine = jsEngine;
     }
 
     @Override
@@ -59,8 +62,13 @@ public class KarateEachTagProcessor extends AbstractAttributeTagProcessor {
             iterVarName = av.substring(0, pos).trim();
             av = av.substring(pos + 1);
         }
-        JsValue jv = RequestCycle.get().eval(av);
-        structureHandler.iterateElement(iterVarName, null, jv.getValue());
+        Object value;
+        if (jsEngine != null) {
+            value = jsEngine.eval(av).getValue();
+        } else {
+            value = RequestCycle.get().eval(av).getValue();            
+        }
+        structureHandler.iterateElement(iterVarName, null, value);
     }
 
 }

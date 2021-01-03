@@ -15,7 +15,7 @@ class ScenarioHookTest {
     void testStopIfScenarioHasNoTags() {
         String path = "classpath:com/intuit/karate/core/runner/test-hook-notags.feature";
         Results results = Runner.path(path).hook(new MandatoryTagHook()).parallel(1);
-        assertEquals(1, results.getFeatureCount());
+        assertEquals(1, results.getFeaturesTotal());
         assertEquals(1, results.getFailCount());
     }
 
@@ -23,8 +23,8 @@ class ScenarioHookTest {
     void testHookForExamplesWithTags() {
         String path = "classpath:com/intuit/karate/core/runner/test-hook-multiexample.feature";
         Results results = Runner.path(path).hook(new MandatoryTagHook()).parallel(1);
-        assertEquals(1, results.getFeatureCount());
-        assertEquals(7, results.getScenarioCount());
+        assertEquals(1, results.getFeaturesTotal());
+        assertEquals(7, results.getScenariosTotal());
         assertEquals(0, results.getFailCount());
     }
 

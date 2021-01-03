@@ -71,7 +71,7 @@ public class Step {
     }
 
     public String getDebugInfo() {
-        return scenario.getFeature() + ":" + line;
+        return feature + ":" + line;
     }
 
     public boolean isPrint() {

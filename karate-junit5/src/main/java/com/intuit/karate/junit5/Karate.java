@@ -26,7 +26,6 @@ package com.intuit.karate.junit5;
 import com.intuit.karate.Runner;
 import com.intuit.karate.Suite;
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.HtmlSummaryReport;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -78,13 +77,12 @@ public class Karate implements Iterable<DynamicNode> {
 
     @Override
     public Iterator<DynamicNode> iterator() {
-        HtmlSummaryReport summaryReport = new HtmlSummaryReport();
         Suite suite = new Suite(builder);
         suite.backupReportDirIfExists();
         List<DynamicNode> list = new ArrayList();
         List<CompletableFuture> futures = new ArrayList();
         for (Feature feature : suite.features) {
-            FeatureNode featureNode = new FeatureNode(suite, futures, summaryReport, feature, suite.tagSelector);
+            FeatureNode featureNode = new FeatureNode(suite, futures, feature, suite.tagSelector);
             String testName = feature.getResource().getFileNameWithoutExtension();
             DynamicNode node = DynamicContainer.dynamicContainer(testName, featureNode);
             list.add(node);

@@ -50,7 +50,7 @@ public class Runner {
         featureRuntime.run();
         FeatureResult result = featureRuntime.result;
         if (result.isFailed()) {
-            throw result.getErrorsCombined();
+            throw result.getErrorMessagesCombined();
         }
         return result.getVariables();
     }

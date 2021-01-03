@@ -2,7 +2,7 @@ package com.intuit.karate.core.runner;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Suite;
-import com.intuit.karate.core.Reports;
+import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
@@ -30,7 +30,7 @@ public class FeatureResultTest {
     }
 
     static String xml(FeatureResult result) {
-        File file = Reports.saveJunitXml("target", result, null);
+        File file = ReportUtils.saveJunitXml("target", result, null);
         return FileUtils.toString(file);
     }
 
@@ -96,13 +96,13 @@ public class FeatureResultTest {
     void testStackOverFlowError() {
         FeatureResult result = result("stackoverflow-error.feature");
         assertTrue(result.isFailed());
-        assertTrue(result.getScenarioResults().get(0).getError().getMessage().contains("StackOverflowError"));
+        assertTrue(result.getScenarioResults().get(0).getErrorMessage().contains("StackOverflowError"));
     }
 
     @Test
     void testScenarioOutlineXmlResult() {
         FeatureResult result = result("outline.feature");
-        Reports.saveJunitXml("target", result, "outline.xml");
+        ReportUtils.saveJunitXml("target", result, "outline.xml");
     }
 
 }

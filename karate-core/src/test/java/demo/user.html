@@ -3,7 +3,7 @@
   if (userId) {
     var http = context.http('https://jsonplaceholder.typicode.com/users/' + userId);
     var user = http.get().body;
-    // console.log('user', user);
+    context.switch('apidocs');
   }
 </script>
 <a th:unless="userId" ka:get="this" ka:vals="id:user.id" href="#">(more)</a>

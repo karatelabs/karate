@@ -97,7 +97,7 @@ public class HtmlTimelineReport {
                 + "timeline.setOptions({ groupOrder: 'content' });\n"
                 + "timeline.setGroups(groups);\n"
                 + "timeline.setItems(items);\n");
-        String html = ResourceUtils.classPathResourceToString("timeline-template.html");
+        String html = ResourceUtils.classPathResourceToString("com/intuit/karate/report/timeline-template.html");
         html = html.replace("//timeline//", sb.toString());
         File file = new File(reportDir + File.separator + "karate-timeline.html");
         FileUtils.writeToFile(file, html);

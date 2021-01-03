@@ -2,7 +2,7 @@ package com.intuit.karate.core.parser;
 
 import com.intuit.karate.Runner;
 import com.intuit.karate.Suite;
-import com.intuit.karate.core.Reports;
+import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.ScenarioResult;
@@ -52,23 +52,23 @@ class FeatureParserTest {
         ScenarioResult sr = result.getScenarioResults().get(0);
         map = sr.toCucumberJson();
         match(map.get("tags"), "[{ name: '@bar', line: 5 }, { name: '@foo', line: 1 }]");
-        Reports.saveCucumberJson("target", result, null);
-        Reports.saveJunitXml("target", result, null);
+        ReportUtils.saveCucumberJson("target", result, null);
+        ReportUtils.saveJunitXml("target", result, null);
     }
 
     @Test
     void testEngineForSimpleFeatureWithBackground() {
         FeatureResult result = execute("test-simple-background.feature");
         assertEquals(1, result.getScenarioResults().size());
-        Reports.saveCucumberJson("target", result, null);
-        Reports.saveJunitXml("target", result, null);
+        ReportUtils.saveCucumberJson("target", result, null);
+        ReportUtils.saveJunitXml("target", result, null);
     }
 
     @Test
     void testEngineForError() {
         FeatureResult result = execute("test-error.feature");
-        Reports.saveCucumberJson("target", result, null);
-        Reports.saveJunitXml("target", result, null);
+        ReportUtils.saveCucumberJson("target", result, null);
+        ReportUtils.saveJunitXml("target", result, null);
     }
 
     @Test
