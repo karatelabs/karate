@@ -199,6 +199,7 @@ public class Suite implements Runnable {
     @Override
     public void run() {
         try {
+            hooks.forEach(h -> h.beforeSuite(this));
             int index = 0;
             for (Feature feature : features) {
                 final int featureNum = ++index;
@@ -258,7 +259,7 @@ public class Suite implements Runnable {
             try { // edge case that reports are not writable     
                 saveFeatureResults(fr);
                 String status = fr.isFailed() ? "fail" : "pass";
-                logger.info("<<{}>> feature {} of {} ({} remaining) {}", status, index, featuresFound, getFeaturesRemaining() - 1, fr.getFeature());                
+                logger.info("<<{}>> feature {} of {} ({} remaining) {}", status, index, featuresFound, getFeaturesRemaining() - 1, fr.getFeature());
             } catch (Exception e) {
                 logger.error("<<error>> unable to write report file(s): {} - {}", fr.getFeature(), e + "");
                 fr.printStats();
