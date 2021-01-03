@@ -26,6 +26,7 @@ package com.intuit.karate.report;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.Results;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.StepResult;
@@ -162,7 +163,7 @@ public class ReportUtils {
         root.setAttribute("tests", result.getScenarioCount() + "");
         root.setAttribute("failures", result.getFailedCount() + "");
         root.setAttribute("time", formatter.format(result.getDurationMillis() / 1000));
-        root.setAttribute("name", result.getDisplayUri()); // will be uri
+        root.setAttribute("name", result.getDisplayName()); // will be uri
         root.setAttribute("skipped", "0");
         StringBuilder xmlString = new StringBuilder();
         xmlString.append(XmlUtils.toString(doc, false).replace("/>", ">"));
@@ -204,6 +205,21 @@ public class ReportUtils {
         ReportUtils.initStaticResources(reportDir);
         File file = new File(reportDir + File.separator + fr.getFeature().getPackageQualifiedName() + ".html");
         FileUtils.writeToFile(file, html);
+        return file;
+    }
+
+    public static File saveHtmlSummaryReport(Results results, String reportDir) {
+        JsEngine je = JsEngine.local();
+        je.put("results", results.toKarateJson());
+        KarateTemplateEngine engine = TemplateUtils.forResourcePath(je, "classpath:com/intuit/karate/report");
+        String html = engine.process("karate-summary.html");
+        ReportUtils.initStaticResources(reportDir);
+        File file = new File(reportDir + File.separator + "karate-summary.html");
+        FileUtils.writeToFile(file, html);
+        System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
+                + FileUtils.KARATE_VERSION + "\n"
+                + file.toPath().toUri()
+                + "\n===================================================================\n");        
         return file;
     }
 

@@ -24,7 +24,7 @@
 
 .scenario { border: 1px solid gray; margin-bottom: 1em;  }
 .scenario-heading { border-bottom: 1px solid gray; margin-bottom: 2px; display: flex; }
-.heading-container { padding: 0.2em 0.5em; background-color: #F5F28F; width: 100%; margin: 0 0 0 2px; }
+.heading-container { padding: 0.2em 0.5em; background-color: #fff3cd; width: 100%; margin: 0 0 0 2px; }
 .scenario-tags .badge { margin-right: 0.5em; }
 .scenario-name { font-weight: bold; padding-left: 0.2em; }
 .scenario-time { width: 90px; padding: 0.2em 0.6em; text-align: right; margin: 0 2px 0 2px }
@@ -47,12 +47,9 @@ a .step-ref { font-weight: bold; color: blue; }
 .preformatted { white-space: pre-wrap; font-family: monospace; padding: 0 0.3em 0.2em 0.3em; overflow: auto; } 
 .embed img { width: 100%; }
 
-.passed { background-color: #98e6ab; } 
-.failed { background-color: #F2928C; } 
+.passed { background-color: #a6e9d5; } 
+.failed { background-color: #FFCCCC; } 
 .skipped { background-color: #f5f28f; }
 
 .features-table th { border: 1px solid gray; background-color: #f2f2f2; }
 .features-table td { border: 1px solid gray; }
-.passed-lt td { background-color: #CCffCC; } 
-.failed-lt td { background-color: #FFCCCC; } 
-.skipped-lt td { background-color: #FFFFCC; }

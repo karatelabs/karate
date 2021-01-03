@@ -44,8 +44,8 @@ public class ResourceHtmlTemplateResolver implements ITemplateResolver {
 
     private final ResourceResolver resourceResolver;
 
-    public ResourceHtmlTemplateResolver(String root) {
-        this.resourceResolver = new ResourceResolver(root);
+    public ResourceHtmlTemplateResolver(ResourceResolver resourceResolver) {
+        this.resourceResolver = resourceResolver;
     }
 
     @Override

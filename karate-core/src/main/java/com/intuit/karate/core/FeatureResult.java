@@ -33,7 +33,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -53,6 +52,11 @@ public class FeatureResult {
     private Map<String, Object> callArg;
     private int loopIndex = -1;
     private int callDepth;
+    
+    public FeatureResult(Feature feature) {
+        this.feature = feature;
+        displayName = feature.getResource().getRelativePath();
+    }    
 
     public void printStats() {
         String featureName = feature.getResource().getPrefixedPath();
@@ -165,11 +169,6 @@ public class FeatureResult {
         return list;
     }
 
-    public FeatureResult(Feature feature) {
-        this.feature = feature;
-        displayName = feature.getResource().getRelativePath();
-    }
-
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
     }
@@ -178,35 +177,20 @@ public class FeatureResult {
         return feature;
     }
 
-    public String getDisplayUri() {
+    public String getDisplayName() {
         return displayName;
     }
 
-    public KarateException getErrorsCombined() {
-        List<Throwable> errors = getErrors();
+    public KarateException getErrorMessagesCombined() {
+        List<String> errors = getErrors();
         if (errors.size() == 1) {
-            Throwable error = errors.get(0);
-            if (error instanceof KarateException) {
-                return (KarateException) error;
-            } else {
-                return new KarateException("call failed", error);
-            }
+            return new KarateException(errors.get(0));
         }
         return new KarateException(getErrorMessages());
     }
 
     public String getErrorMessages() {
-        List<Throwable> errors = getErrors();
-        StringBuilder sb = new StringBuilder();
-        Iterator<Throwable> iterator = errors.iterator();
-        while (iterator.hasNext()) {
-            Throwable error = iterator.next();
-            sb.append(error.getMessage());
-            if (iterator.hasNext()) {
-                sb.append('\n');
-            }
-        }
-        return sb.toString();
+        return StringUtils.join(getErrors(), '\n');
     }
 
     public String getCallNameForReport() {
@@ -273,11 +257,11 @@ public class FeatureResult {
         return getFailedCount() > 0;
     }
 
-    public List<Throwable> getErrors() {
-        List<Throwable> errors = new ArrayList();
+    public List<String> getErrors() {
+        List<String> errors = new ArrayList();
         for (ScenarioResult sr : scenarioResults) {
             if (sr.isFailed()) {
-                errors.add(sr.getError());
+                errors.add(sr.getErrorMessage());
             }
         }
         return errors;

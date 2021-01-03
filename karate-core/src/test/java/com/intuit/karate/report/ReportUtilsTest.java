@@ -10,9 +10,9 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-class ReportTest {
+class ReportUtilsTest {
 
-    static final Logger logger = LoggerFactory.getLogger(ReportTest.class);
+    static final Logger logger = LoggerFactory.getLogger(ReportUtilsTest.class);
 
     @Test
     void testReport() {

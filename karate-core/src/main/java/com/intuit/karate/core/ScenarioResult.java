@@ -283,6 +283,10 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         return failedStep == null ? null : failedStep.getResult().getError();
     }
 
+    public String getErrorMessage() {
+        return failedStep == null ? null : failedStep.getResult().getErrorMessage();
+    }
+
     public long getDurationNanos() {
         return durationNanos;
     }

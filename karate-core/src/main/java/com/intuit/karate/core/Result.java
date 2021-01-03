@@ -105,6 +105,10 @@ public class Result {
     public Throwable getError() {
         return error;
     }
+    
+    public String getErrorMessage() {
+        return error == null ? null : error.getMessage();
+    }
 
     public static Result passed(long nanos) {
         return new Result(PASSED, nanos, null, false);

@@ -1961,7 +1961,7 @@ public class ScenarioEngine {
             FeatureResult result = fr.result;
             runtime.addCallResult(result);
             if (result.isFailed()) {
-                KarateException ke = result.getErrorsCombined();
+                KarateException ke = result.getErrorMessagesCombined();
                 throw ke;
             } else {
                 return new Variable(result.getVariables());

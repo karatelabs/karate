@@ -24,9 +24,9 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.HtmlSummaryReport;
 import com.intuit.karate.core.HtmlTimelineReport;
 import com.intuit.karate.core.ScenarioResult;
+import com.intuit.karate.report.ReportUtils;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,12 +42,15 @@ import java.util.stream.Stream;
 public class Results {
 
     private final Suite suite;
-    private final int featureCount;
-    private final int scenarioCount;
-    private final int skippedCount;
+    private final int featuresPassed;
+    private final int featuresFailed;
+    private final int featuresSkipped;
+    private final int scenariosPassed;
+    private final int scenariosFailed;
     private final double timeTakenMillis;
     private final long endTime;
-    private final List<Throwable> errors = new ArrayList();
+    private final List<String> errors = new ArrayList();
+    private final List<Map<String, Object>> featureResults = new ArrayList();
 
     public static Results of(Suite suite) {
         return new Results(suite);
@@ -55,18 +58,18 @@ public class Results {
 
     private Results(Suite suite) {
         this.suite = suite;
-        endTime = suite.endTime;
-        skippedCount = suite.skippedCount;
-        AtomicInteger fc = new AtomicInteger();
-        AtomicInteger sc = new AtomicInteger();
+        // endTime may not be set for junit
+        endTime = suite.endTime == 0 ? System.currentTimeMillis() : suite.endTime;
+        featuresSkipped = suite.skippedCount;
+        AtomicInteger fp = new AtomicInteger();
+        AtomicInteger ff = new AtomicInteger();
+        AtomicInteger sp = new AtomicInteger();
+        AtomicInteger sf = new AtomicInteger();
         AtomicInteger time = new AtomicInteger();
-        HtmlSummaryReport summary;
         HtmlTimelineReport timeline;
         if (suite.outputHtmlReport) {
-            summary = new HtmlSummaryReport();
             timeline = new HtmlTimelineReport();
         } else {
-            summary = null;
             timeline = null;
         }
         suite.getFeatureResults().forEach(fr -> {
@@ -74,27 +77,40 @@ public class Results {
                 if (timeline != null) {
                     timeline.addFeatureResult(fr);
                 }
-                if (summary != null) {
-                    summary.addFeatureResult(fr);
+                if (fr.isFailed()) {
+                    ff.incrementAndGet();
+                } else {
+                    fp.incrementAndGet();
                 }
-                fc.incrementAndGet();
                 Long duration = Math.round(fr.getDurationMillis());
                 time.addAndGet(duration.intValue());
+                Map<String, Object> map = new HashMap();
+                featureResults.add(map);
+                map.put("failed", fr.isFailed());
+                map.put("name", fr.getFeature().getName());
+                map.put("description", fr.getFeature().getDescription());
+                map.put("durationMillis", fr.getDurationMillis());
+                map.put("passedCount", fr.getPassedCount());
+                map.put("failedCount", fr.getFailedCount());
+                map.put("scenarioCount", fr.getScenarioCount());
+                map.put("packageQualifiedName", fr.getFeature().getPackageQualifiedName());
+                map.put("relativePath", fr.getFeature().getResource().getRelativePath());
             }
-            sc.addAndGet(fr.getScenarioCount());
+            sp.addAndGet(fr.getPassedCount());
+            sf.addAndGet(fr.getFailedCount());
             errors.addAll(fr.getErrors());
         });
-        featureCount = fc.get();
-        scenarioCount = sc.get();
+        featuresPassed = fp.get();
+        featuresFailed = ff.get();
+        scenariosPassed = sp.get();
+        scenariosFailed = sf.get();
         timeTakenMillis = time.get();
         saveStatsJson();
         printStats();
         if (timeline != null) {
             timeline.save(suite.reportDir);
-        } 
-        if (summary != null) {
-            summary.save(suite.reportDir);
-        }        
+            ReportUtils.saveHtmlSummaryReport(this, suite.reportDir);
+        }
     }
 
     public Stream<FeatureResult> getFeatureResults() {
@@ -106,8 +122,8 @@ public class Results {
     }
 
     private void saveStatsJson() {
-        String json = JsonUtils.toJson(toMap());
-        File file = new File(suite.reportDir + File.separator + "karate-results-json.txt");
+        String json = JsonUtils.toJson(toKarateJson());
+        File file = new File(suite.reportDir + File.separator + "karate-summary-json.txt");
         FileUtils.writeToFile(file, json);
     }
 
@@ -116,27 +132,31 @@ public class Results {
         System.out.println("======================================================");
         System.out.println(String.format("elapsed: %6.2f | threads: %4d | thread time: %.2f ",
                 getElapsedTime() / 1000, suite.threadCount, timeTakenMillis / 1000));
-        System.out.println(String.format("features: %5d | ignored: %4d | efficiency: %.2f", featureCount, skippedCount, getEfficiency()));
+        System.out.println(String.format("features: %5d | skipped: %4d | efficiency: %.2f", getFeaturesTotal(), featuresSkipped, getEfficiency()));
         System.out.println(String.format("scenarios: %4d | passed: %5d | failed: %d",
-                scenarioCount, getPassCount(), errors.size()));
+                getScenariosTotal(), scenariosPassed, scenariosFailed));
         System.out.println("======================================================");
         if (!errors.isEmpty()) {
+            System.out.println(">>> failed features:");
             System.out.println(getErrorMessages());
+            System.out.println("<<<");
         }
     }
 
-    public Map<String, Object> toMap() {
+    public Map<String, Object> toKarateJson() {
         Map<String, Object> map = new HashMap();
         map.put("version", FileUtils.KARATE_VERSION);
         map.put("threads", suite.threadCount);
-        map.put("features", featureCount);
-        map.put("ignored", skippedCount);
-        map.put("scenarios", scenarioCount);
-        map.put("failed", errors.size());
-        map.put("passed", getPassCount());
+        map.put("featuresPassed", featuresPassed);
+        map.put("featuresFailed", featuresFailed);
+        map.put("featuresSkipped", featuresSkipped);
+        map.put("scenariosPassed", scenariosPassed);
+        map.put("scenariosfailed", errors.size());
         map.put("elapsedTime", getElapsedTime());
         map.put("totalTime", getTimeTakenMillis());
         map.put("efficiency", getEfficiency());
+        map.put("resultDate", ReportUtils.getDateString());
+        map.put("featureResults", featureResults);
         return map;
     }
 
@@ -144,11 +164,8 @@ public class Results {
         return suite.reportDir;
     }
 
-    public String getErrorMessages() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("failed features:\n");
-        errors.forEach(e -> sb.append(e.getMessage()).append("\n"));
-        return sb.toString();
+    public List<String> getErrors() {
+        return errors;
     }
 
     public double getElapsedTime() {
@@ -159,16 +176,28 @@ public class Results {
         return timeTakenMillis / (getElapsedTime() * suite.threadCount);
     }
 
-    public int getPassCount() {
-        return scenarioCount - errors.size();
+    public int getScenariosPassed() {
+        return scenariosPassed;
     }
 
-    public int getFeatureCount() {
-        return featureCount;
+    public int getScenariosFailed() {
+        return scenariosFailed;
     }
 
-    public int getScenarioCount() {
-        return scenarioCount;
+    public int getScenariosTotal() {
+        return scenariosPassed + scenariosFailed;
+    }
+
+    public int getFeaturesTotal() {
+        return featuresPassed + featuresFailed;
+    }
+
+    public int getFeaturesPassed() {
+        return featuresPassed;
+    }
+
+    public int getFeaturesFailed() {
+        return featuresFailed;
     }
 
     public int getFailCount() {
@@ -187,8 +216,8 @@ public class Results {
         return endTime;
     }
 
-    public List<Throwable> getErrors() {
-        return errors;
+    public String getErrorMessages() {
+        return StringUtils.join(errors, '\n');
     }
 
     public Suite getSuite() {

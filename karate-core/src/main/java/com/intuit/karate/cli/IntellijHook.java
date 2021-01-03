@@ -77,7 +77,7 @@ public class IntellijHook implements RuntimeHook {
         if (sr.caller.depth == 0) {
             Scenario scenario = sr.scenario;
             if (sr.result.isFailed()) {
-                StringUtils.Pair error = details(sr.result.getError());
+                StringUtils.Pair error = details(sr.result.getErrorMessage());
                 log(String.format(TEMPLATE_TEST_FAILED, getCurrentTime(), escape(error.right), escape(error.left), escape(scenario.getRefIdAndName()), ""));
             }
             log(String.format(TEMPLATE_TEST_FINISHED, getCurrentTime(), sr.result.getDurationNanos() / 1000000, escape(scenario.getRefIdAndName())));
@@ -116,8 +116,8 @@ public class IntellijHook implements RuntimeHook {
         return source.replace("|", "||").replace("\n", "|n").replace("\r", "|r").replace("'", "|'").replace("[", "|[").replace("]", "|]");
     }
 
-    private static StringUtils.Pair details(Throwable error) {
-        String fullMessage = error.getMessage().replace("\r", "").replace("\t", "  ");
+    private static StringUtils.Pair details(String errorMessage) {
+        String fullMessage = errorMessage.replace("\r", "").replace("\t", "  ");
         String[] messageInfo = fullMessage.split("\n", 2);
         if (messageInfo.length == 2) {
             return StringUtils.pair(messageInfo[0].trim(), messageInfo[1].trim());

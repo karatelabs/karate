@@ -25,6 +25,7 @@ package com.intuit.karate.template;
 
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.http.ServerConfig;
+import com.intuit.karate.resource.ResourceResolver;
 import org.thymeleaf.context.ITemplateContext;
 import org.thymeleaf.model.IModel;
 import org.thymeleaf.model.IModelFactory;
@@ -69,8 +70,9 @@ public class TemplateUtils {
     }
 
     public static KarateTemplateEngine forResourcePath(JsEngine je, String root) {
-        KarateTemplateEngine engine = new KarateTemplateEngine(je, new KarateScriptDialect(je));
-        engine.setTemplateResolver(new ResourceHtmlTemplateResolver(root));
+        ResourceResolver resourceResolver = new ResourceResolver(root);
+        KarateTemplateEngine engine = new KarateTemplateEngine(je, new KarateScriptDialect(resourceResolver, je));
+        engine.setTemplateResolver(new ResourceHtmlTemplateResolver(resourceResolver));
         return engine;
     }
 

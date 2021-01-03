@@ -236,7 +236,7 @@ public class Suite implements Runnable {
         }
     }
 
-    private void saveFeatureResults(FeatureResult fr) {
+    public void saveFeatureResults(FeatureResult fr) {
         File file = ReportUtils.saveKarateJson(reportDir, fr, null);
         synchronized (featureResultFiles) {
             featureResultFiles.add(file);
@@ -344,7 +344,7 @@ public class Suite implements Runnable {
         return file;
     }
 
-    Results buildResults() {
+    public Results buildResults() {
         return Results.of(this);
     }
 

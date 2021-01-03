@@ -96,7 +96,7 @@ public class FeatureResultTest {
     void testStackOverFlowError() {
         FeatureResult result = result("stackoverflow-error.feature");
         assertTrue(result.isFailed());
-        assertTrue(result.getScenarioResults().get(0).getError().getMessage().contains("StackOverflowError"));
+        assertTrue(result.getScenarioResults().get(0).getErrorMessage().contains("StackOverflowError"));
     }
 
     @Test

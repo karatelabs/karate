@@ -92,7 +92,7 @@ public class HtmlTagsReport extends HtmlReport {
             Element featureLink = node("a", "");
             featureCell.appendChild(featureLink);
             featureLink.setAttribute("href", getHtmlFileName(fr));
-            featureLink.setTextContent(fr.getDisplayUri());
+            featureLink.setTextContent(fr.getDisplayName());
             Set<String> featureTags = featureTagsMap.get(fr.getFeature().getPackageQualifiedName());
             for (String tagKey : allTags) {
                 Element td;

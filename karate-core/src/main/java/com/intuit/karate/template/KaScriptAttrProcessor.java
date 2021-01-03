@@ -24,8 +24,8 @@
 package com.intuit.karate.template;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.http.RequestCycle;
 import com.intuit.karate.resource.ResourceResolver;
 import java.io.InputStream;
 import org.slf4j.Logger;
@@ -45,17 +45,23 @@ public class KaScriptAttrProcessor extends AbstractAttributeTagProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(KaScriptAttrProcessor.class);
     private final ResourceResolver resourceResolver;
+    private final JsEngine jsEngine;
 
-    public KaScriptAttrProcessor(String dialectPrefix, ServerConfig config) {
+    public KaScriptAttrProcessor(String dialectPrefix, ResourceResolver resourceResolver, JsEngine jsEngine) {
         super(TemplateMode.HTML, dialectPrefix, null, false, "src", true, 1000, true);
-        resourceResolver = config.getResourceResolver();
+        this.resourceResolver = resourceResolver;
+        this.jsEngine = jsEngine;
     }
 
     @Override
     protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag, AttributeName an, String av, IElementTagStructureHandler sh) {
         InputStream is = resourceResolver.resolve(av).getStream();
         String src = FileUtils.toString(is);
-        JsEngine.evalGlobal(src);
+        if (jsEngine != null) {
+            jsEngine.eval(src);
+        } else {
+            RequestCycle.get().eval(src);
+        }
         sh.removeElement();
     }
 

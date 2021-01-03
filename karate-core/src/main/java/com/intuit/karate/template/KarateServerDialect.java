@@ -36,7 +36,7 @@ import org.thymeleaf.processor.IProcessor;
 public class KarateServerDialect extends AbstractProcessorDialect {
 
     private final ServerConfig config;
-    
+
     public KarateServerDialect(ServerConfig config) {
         super("karate", "ka", 2000); // has to be processed after standard (default) dialect which is 1000
         this.config = config;
@@ -45,7 +45,7 @@ public class KarateServerDialect extends AbstractProcessorDialect {
     @Override
     public Set<IProcessor> getProcessors(String dialectPrefix) {
         Set<IProcessor> ps = new HashSet();
-        ps.add(new KaScriptAttrProcessor(dialectPrefix, config));
+        ps.add(new KaScriptAttrProcessor(dialectPrefix, config.getResourceResolver(), null));
         ps.add(new KaScriptElemProcessor(dialectPrefix, null));
         ps.add(new KaLinkHrefProcessor(dialectPrefix, config));
         ps.add(new KaHxAnyAttrProcessor(dialectPrefix, "target"));
