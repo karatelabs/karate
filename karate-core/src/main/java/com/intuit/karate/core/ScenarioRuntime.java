@@ -350,9 +350,9 @@ public class ScenarioRuntime implements Runnable {
                 featureRuntime.suite.hooks.forEach(h -> h.beforeScenario(this));
             }
         }
-        if(!this.scenario.isDynamic()) {
+        if (!scenario.isDynamic()) {
             // don't evaluate names when running the background section
-            this.evaluateScenarioName();
+            evaluateScenarioName();
         }
     }
 
@@ -485,10 +485,9 @@ public class ScenarioRuntime implements Runnable {
         boolean hasJavascriptPlaceholder = ScenarioEngine.hasJavaScriptPlacehoder(scenarioName);
         if (wrappedByBackTick || hasJavascriptPlaceholder) {
             String eval = scenarioName;
-            if(!wrappedByBackTick) {
+            if (!wrappedByBackTick) {
                 eval = '`' + eval + '`';
             }
-
             String evaluatedScenarioName = this.engine.evalJs(eval).getAsString();
             this.scenario.setName(evaluatedScenarioName);
         }
