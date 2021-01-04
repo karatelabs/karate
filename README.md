@@ -747,6 +747,8 @@ The demo also features [code-coverage using Jacoco](karate-demo#code-coverage-us
 
 Karate uses [LOGBack](http://logback.qos.ch) which looks for a file called `logback-test.xml` on the '[classpath](#classpath)'.
 
+> In rare cases, e.g. if you are using Karate to create a Java application, [LOGBack will look for `logback.xml`](http://logback.qos.ch/manual/configuration.html)
+
 Here is a sample `logback-test.xml` for you to get started.
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
