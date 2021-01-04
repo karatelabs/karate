@@ -10,16 +10,16 @@
     <script type="text/javascript" src="res/jquery.tablesorter.min.js"></script>
     <script type="text/javascript" src="res/bootstrap.min.js"></script>
     <script type="text/javascript" src="res/karate-report.js"></script>
-    <title>Karate Summary Report</title>  
+    <title>Karate Tags Report</title>  
   </head>
   <body>   
     <div id="root-container">
       <div id="leftnav">
         <script ka:lang="js">
           var reportMeta = {
-            passedCount: results.featuresPassed,
-            failedCount: results.featuresFailed,
-            reportType: 'Features',
+            passedCount: results.tagKeysPassed,
+            failedCount: results.tagKeysFailed,
+            reportType: 'Tags',
             reportDate: results.resultDate
           };
         </script>        
@@ -27,29 +27,23 @@
       </div>
       <div id="content">
         <div class="page-heading alert alert-primary">
-          <a href="karate-tags.html">Tags</a>
+          <a href="karate-summary.html">Summary</a>
         </div>       
-        <table class="features-table table table-sm">
+        <table class="tags-table table table-sm table-bordered">
           <thead>
             <tr>
-              <th>Feature</th>
-              <th>Title</th>
-              <th class="num">Passed</th>
-              <th class="num">Failed</th>
-              <th class="num">Scenarios</th>
-              <th class="num">Time (ms)</th>
+              <th class="feature-cell">Feature</th>
+              <th th:each="tagKey: results.tagKeys" th:text="tagKey" th:classapend="results.failedTagKeys.contains(tagKey) ? 'failed' : 'passed'"></th>
             </tr>
           </thead>
           <tbody>
-            <tr th:each="fr: results.featureSummary" th:classappend="fr.failed ? 'failed' : 'passed'">              
-              <td>
-                <a th:href="fr.packageQualifiedName + '.html'" th:text="fr.relativePath"></a>
+            <tr th:each="ft: results.featureTags" th:classappend="ft.featureSummary.failed ? 'failed' : 'passed'">
+              <td class="feature-cell">
+                <a th:href="ft.featureSummary.packageQualifiedName + '.html'" th:text="ft.featureSummary.relativePath"></a>
               </td>
-              <td th:title="fr.description" th:text="fr.name"></td>
-              <td class="num" th:text="fr.passedCount"></td>
-              <td class="num" th:text="fr.failedCount"></td>
-              <td class="num" th:text="fr.scenarioCount"></td>
-              <td class="num" th:text="Math.round(fr.durationMillis)"></td>            
+              <td th:each="tagKey: results.tagKeys" 
+                  th:text="ft.tagKeys.contains(tagKey) ? 'X' : ''"
+                  th:classapend="ft.failedTagKeys.contains(tagKey) ? 'failed' : 'passed'"></td>
             </tr>            
           </tbody>
         </table>

@@ -52,11 +52,11 @@ public class FeatureResult {
     private Map<String, Object> callArg;
     private int loopIndex = -1;
     private int callDepth;
-    
+
     public FeatureResult(Feature feature) {
         this.feature = feature;
         displayName = feature.getResource().getRelativePath();
-    }    
+    }
 
     public void printStats() {
         String featureName = feature.getResource().getPrefixedPath();
@@ -102,6 +102,20 @@ public class FeatureResult {
             }
         }
         return fr;
+    }
+
+    public Map<String, Object> toSummaryJson() {
+        Map<String, Object> map = new HashMap();
+        map.put("failed", isFailed());
+        map.put("name", feature.getName());
+        map.put("description", feature.getDescription());
+        map.put("durationMillis", getDurationMillis());
+        map.put("passedCount", getPassedCount());
+        map.put("failedCount", getFailedCount());
+        map.put("scenarioCount", getScenarioCount());
+        map.put("packageQualifiedName", feature.getPackageQualifiedName());
+        map.put("relativePath", feature.getResource().getRelativePath());
+        return map;
     }
 
     public Map<String, Object> toKarateJson() {

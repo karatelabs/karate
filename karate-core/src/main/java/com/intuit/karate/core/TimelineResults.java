@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 Intuit Inc.
+ * Copyright 2021 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,11 +23,8 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.resource.ResourceUtils;
-import java.io.File;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -40,7 +37,7 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class HtmlTimelineReport {
+public class TimelineResults {
 
     private final Map<String, Integer> groupsMap = new LinkedHashMap();
     private final List<Map> items = new ArrayList();
@@ -81,7 +78,7 @@ public class HtmlTimelineReport {
         });
     }
 
-    public File save(String reportDir) {
+    public String getJavaScript() {
         List<Map> groups = new ArrayList(groupsMap.size());
         groupsMap.forEach((k, v) -> {
             Map<String, Object> group = new LinkedHashMap(2);
@@ -97,11 +94,7 @@ public class HtmlTimelineReport {
                 + "timeline.setOptions({ groupOrder: 'content' });\n"
                 + "timeline.setGroups(groups);\n"
                 + "timeline.setItems(items);\n");
-        String html = ResourceUtils.classPathResourceToString("com/intuit/karate/report/timeline-template.html");
-        html = html.replace("//timeline//", sb.toString());
-        File file = new File(reportDir + File.separator + "karate-timeline.html");
-        FileUtils.writeToFile(file, html);
-        return file;
+        return sb.toString();
     }
 
 }

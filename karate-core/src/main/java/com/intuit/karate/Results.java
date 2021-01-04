@@ -24,8 +24,9 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.HtmlTimelineReport;
 import com.intuit.karate.core.ScenarioResult;
+import com.intuit.karate.core.TagResults;
+import com.intuit.karate.core.TimelineResults;
 import com.intuit.karate.report.ReportUtils;
 import java.io.File;
 import java.util.ArrayList;
@@ -50,7 +51,7 @@ public class Results {
     private final double timeTakenMillis;
     private final long endTime;
     private final List<String> errors = new ArrayList();
-    private final List<Map<String, Object>> featureResults = new ArrayList();
+    private final List<Map<String, Object>> featureSummary = new ArrayList();
 
     public static Results of(Suite suite) {
         return new Results(suite);
@@ -66,17 +67,12 @@ public class Results {
         AtomicInteger sp = new AtomicInteger();
         AtomicInteger sf = new AtomicInteger();
         AtomicInteger time = new AtomicInteger();
-        HtmlTimelineReport timeline;
-        if (suite.outputHtmlReport) {
-            timeline = new HtmlTimelineReport();
-        } else {
-            timeline = null;
-        }
+        TimelineResults timeline = new TimelineResults();
+        TagResults tags = new TagResults();
         suite.getFeatureResults().forEach(fr -> {
             if (!fr.isEmpty()) {
-                if (timeline != null) {
-                    timeline.addFeatureResult(fr);
-                }
+                timeline.addFeatureResult(fr);
+                tags.addFeatureResult(fr);
                 if (fr.isFailed()) {
                     ff.incrementAndGet();
                 } else {
@@ -84,17 +80,7 @@ public class Results {
                 }
                 Long duration = Math.round(fr.getDurationMillis());
                 time.addAndGet(duration.intValue());
-                Map<String, Object> map = new HashMap();
-                featureResults.add(map);
-                map.put("failed", fr.isFailed());
-                map.put("name", fr.getFeature().getName());
-                map.put("description", fr.getFeature().getDescription());
-                map.put("durationMillis", fr.getDurationMillis());
-                map.put("passedCount", fr.getPassedCount());
-                map.put("failedCount", fr.getFailedCount());
-                map.put("scenarioCount", fr.getScenarioCount());
-                map.put("packageQualifiedName", fr.getFeature().getPackageQualifiedName());
-                map.put("relativePath", fr.getFeature().getResource().getRelativePath());
+                featureSummary.add(fr.toSummaryJson());
             }
             sp.addAndGet(fr.getPassedCount());
             sf.addAndGet(fr.getFailedCount());
@@ -107,8 +93,10 @@ public class Results {
         timeTakenMillis = time.get();
         saveStatsJson();
         printStats();
-        if (timeline != null) {
-            timeline.save(suite.reportDir);
+        if (suite.outputHtmlReport) {
+            ReportUtils.saveHtmlTimelineReport(timeline, suite.reportDir);
+            ReportUtils.saveHtmlTagsReport(tags, suite.reportDir);
+            // last so that path can be printed to the console 
             ReportUtils.saveHtmlSummaryReport(this, suite.reportDir);
         }
     }
@@ -156,7 +144,7 @@ public class Results {
         map.put("totalTime", getTimeTakenMillis());
         map.put("efficiency", getEfficiency());
         map.put("resultDate", ReportUtils.getDateString());
-        map.put("featureResults", featureResults);
+        map.put("featureSummary", featureSummary);
         return map;
     }
 
