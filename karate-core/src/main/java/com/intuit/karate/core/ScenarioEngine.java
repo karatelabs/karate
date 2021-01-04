@@ -143,7 +143,7 @@ public class ScenarioEngine {
         return sr.engine;
     }
 
-    private List<ScenarioEngine> children;
+    protected List<ScenarioEngine> children;
     private ScenarioEngine parent;
 
     public ScenarioEngine child() {

@@ -24,6 +24,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.graal.JsValue;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.graalvm.polyglot.Value;
@@ -52,11 +53,16 @@ public class ScenarioListener implements Consumer, Function, Runnable {
 
     private void init() {
         if (function == null) {
-            synchronized (parent.JS.context) {
-                ScenarioEngine.set(child);
-                child.init();
-                function = child.attachSource(source);
+            try {                
+                parent.runtime.ASYNC_SEMAPHORE.tryAcquire(1000, TimeUnit.MILLISECONDS);
+                logger.debug("[listener-init] async lock acquired");
+            } catch (Exception e) {
+                logger.warn("[listener-init] async lock failed: {}", e.getMessage());
             }
+            ScenarioEngine.set(child);
+            child.init();
+            function = child.attachSource(source);
+            parent.runtime.ASYNC_SEMAPHORE.release();
         }
     }
 
