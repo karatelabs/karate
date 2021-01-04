@@ -28,7 +28,9 @@ Scenario:
 * waitForUrl(serverUrl + '/02')
 
 # assert for driver title
-* match driver.title == 'Page 02'
+# * match driver.title == 'Page 02'
+# safer
+* waitUntil("document.title == 'Page 02'")
 
 # browser navigation: back
 * back()
