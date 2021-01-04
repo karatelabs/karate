@@ -108,7 +108,6 @@ public class Scenario {
             return;
         }
         name = name.replace(token, value);
-        description = description.replace(token, value);
         for (Step step : steps) {
             String text = step.getText();
             step.setText(text.replace(token, value));
