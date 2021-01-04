@@ -23,14 +23,15 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.RuntimeHook;
-import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
+import com.intuit.karate.RuntimeHook;
+import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.StringLogAppender;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -349,6 +350,10 @@ public class ScenarioRuntime implements Runnable {
                 featureRuntime.suite.hooks.forEach(h -> h.beforeScenario(this));
             }
         }
+        if(!this.scenario.isDynamic()) {
+            // don't evaluate names when running the background section
+            this.evaluateScenarioName();
+        }
     }
 
     @Override
@@ -472,6 +477,21 @@ public class ScenarioRuntime implements Runnable {
     @Override
     public String toString() {
         return scenario.toString();
+    }
+
+    public void evaluateScenarioName() {
+        String scenarioName = this.scenario.getName();
+        boolean wrappedByBackTick = scenarioName != null && scenarioName.length() > 1 && '`' == scenarioName.charAt(0) && '`' == scenarioName.charAt((scenarioName.length() - 1));
+        boolean hasJavascriptPlaceholder = ScenarioEngine.hasJavaScriptPlacehoder(scenarioName);
+        if (wrappedByBackTick || hasJavascriptPlaceholder) {
+            String eval = scenarioName;
+            if(!wrappedByBackTick) {
+                eval = '`' + eval + '`';
+            }
+
+            String evaluatedScenarioName = this.engine.evalJs(eval).getAsString();
+            this.scenario.setName(evaluatedScenarioName);
+        }
     }
 
 }
