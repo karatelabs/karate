@@ -209,7 +209,7 @@ public class ReportUtils {
         FileUtils.writeToFile(file, html);
         return file;
     }
-    
+
     public static File saveHtmlTagsReport(TagResults results, String reportDir) {
         JsEngine je = JsEngine.local();
         je.put("results", results.toKarateJson());
@@ -219,17 +219,17 @@ public class ReportUtils {
         File file = new File(reportDir + File.separator + "karate-tags.html");
         FileUtils.writeToFile(file, html);
         return file;
-    }    
-    
+    }
+
     public static File saveHtmlTimelineReport(TimelineResults results, String reportDir) {
         JsEngine je = JsEngine.local();
-        je.put("results", results.getJavaScript());
+        je.put("results", results.toKarateJson());
         KarateTemplateEngine engine = TemplateUtils.forResourcePath(je, "classpath:com/intuit/karate/report");
         String html = engine.process("karate-timeline.html");
         File file = new File(reportDir + File.separator + "karate-timeline.html");
         FileUtils.writeToFile(file, html);
         return file;
-    }     
+    }
 
     public static File saveHtmlSummaryReport(Results results, String reportDir) {
         JsEngine je = JsEngine.local();
@@ -239,10 +239,6 @@ public class ReportUtils {
         ReportUtils.initStaticResources(reportDir);
         File file = new File(reportDir + File.separator + "karate-summary.html");
         FileUtils.writeToFile(file, html);
-        System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
-                + FileUtils.KARATE_VERSION + "\n"
-                + file.toPath().toUri()
-                + "\n===================================================================\n");        
         return file;
     }
 

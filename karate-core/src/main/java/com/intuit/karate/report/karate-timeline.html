@@ -12,6 +12,16 @@
   </head>
   <body>
     <div id="visualization"></div>
-    <script th:utext="results"></script>
+    <script th:utext="results.data">
+      var groups = [];
+      var items = [];
+    </script>
+    <script>
+      var container = document.getElementById('visualization');
+      var timeline = new vis.Timeline(container);
+      timeline.setOptions({groupOrder: 'content'});
+      timeline.setGroups(new vis.DataSet(groups));
+      timeline.setItems(new vis.DataSet(items));
+    </script>
   </body>
 </html>

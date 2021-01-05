@@ -28,7 +28,9 @@ import com.intuit.karate.StringUtils;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -78,23 +80,21 @@ public class TimelineResults {
         });
     }
 
-    public String getJavaScript() {
+    public Map<String, Object> toKarateJson() {
         List<Map> groups = new ArrayList(groupsMap.size());
         groupsMap.forEach((k, v) -> {
-            Map<String, Object> group = new LinkedHashMap(2);
+            Map<String, Object> group = new HashMap(2);
             groups.add(group);
             group.put("id", v);
             group.put("content", k);
         });
         StringBuilder sb = new StringBuilder();
-        sb.append("\nvar groups = new vis.DataSet(").append(JsonUtils.toJson(groups)).append(");").append('\n');
-        sb.append("var items = new vis.DataSet(").append(JsonUtils.toJson(items)).append(");").append('\n');
-        sb.append("var container = document.getElementById('visualization');\n"
-                + "var timeline = new vis.Timeline(container);\n"
-                + "timeline.setOptions({ groupOrder: 'content' });\n"
-                + "timeline.setGroups(groups);\n"
-                + "timeline.setItems(items);\n");
-        return sb.toString();
+        sb.append('\n');
+        sb.append("var groups = ").append(JsonUtils.toJson(groups)).append(';');
+        sb.append('\n');
+        sb.append("var items = ").append(JsonUtils.toJson(items)).append(';');
+        sb.append('\n');
+        return Collections.singletonMap("data", sb.toString());
     }
 
 }

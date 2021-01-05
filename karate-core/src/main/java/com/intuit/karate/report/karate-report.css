@@ -20,7 +20,9 @@
 
 .page-heading  { margin-bottom: 0.5em; }
 .feature-label { padding: 0 0.5em; }
-.feature-description { font-weight: bold; padding-left: 1em; font-style: italic; }
+.feature-path { font-weight: bold; font-style: italic; }
+.feature-name { font-weight: bold; }
+.feature-description { font-style: italic; padding-left: 1em; }
 
 .scenario { border: 1px solid gray; margin-bottom: 1em;  }
 .scenario-heading { border-bottom: 1px solid gray; margin-bottom: 2px; display: flex; }
@@ -47,8 +49,8 @@ a .step-ref { font-weight: bold; color: blue; }
 .preformatted { white-space: pre-wrap; font-family: monospace; padding: 0 0.3em 0.2em 0.3em; overflow: auto; } 
 .embed img { width: 100%; }
 
-.passed { background-color: #a6e9d5; } 
-.failed { background-color: #FFCCCC; } 
+.passed { background-color: #a3cfbb; } 
+.failed { background-color: #f1aeb5; } 
 .skipped { background-color: #f5f28f; }
 
 .features-table th { border: 1px solid gray; background-color: #f2f2f2; }

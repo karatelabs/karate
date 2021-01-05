@@ -35,6 +35,7 @@
           <a href="karate-summary.html">Summary</a><span class="feature-label">|</span>
           <a href="karate-tags.html">Tags</a><span class="feature-label">|</span>
           <span class="feature-label">Feature:</span>
+          <span class="feature-path" th:text="fr.relativePath"></span><span class="feature-label">|</span>
           <span class="feature-name" th:text="fr.name"></span>
           <span class="feature-description" th:text="fr.description"></span>
         </div>
@@ -63,7 +64,8 @@
           </div>
           <div th:each="sr: scenario.stepResults"               
                th:attrappend="data-parent=${sr.step.background ? scenario.refId + 'bg' : null}"
-               th:include="karate-step.html" th:with="callDepth=${fr.callDepth},parentId=${null}">
+               th:with="callDepth=${0},parentId=${null},isBackground=${sr.step.background}"
+               th:include="karate-step.html">
           </div>
         </div>
       </div>

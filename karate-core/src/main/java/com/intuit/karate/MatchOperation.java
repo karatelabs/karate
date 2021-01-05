@@ -611,7 +611,9 @@ public class MatchOperation {
                 sb.append(prefix).append(mo.actual.getWithinSingleQuotesIfString()).append('\n');
                 sb.append(prefix).append(expected.getWithinSingleQuotesIfString()).append('\n');
             }
-            sb.append('\n');
+            if (iterator.hasNext()) {
+                sb.append('\n');
+            }
         }
         return sb.toString();
     }

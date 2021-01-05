@@ -128,6 +128,7 @@ public class FeatureResult {
         map.put("passedCount", getPassedCount());
         map.put("failedCount", getFailedCount());
         map.put("packageQualifiedName", feature.getPackageQualifiedName());
+        map.put("relativePath", feature.getResource().getRelativePath());
         //======================================================================
         if (resultDate == null) {
             resultDate = ReportUtils.getDateString();

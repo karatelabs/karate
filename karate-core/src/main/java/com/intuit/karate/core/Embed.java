@@ -24,14 +24,11 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.XmlUtils;
 import com.intuit.karate.http.ResourceType;
 import java.io.File;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 
 /**
  *

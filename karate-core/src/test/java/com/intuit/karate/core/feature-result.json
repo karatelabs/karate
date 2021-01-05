@@ -111,6 +111,7 @@
                                 }
                             ],
                             "prefixedPath": "classpath:com\/intuit\/karate\/core\/feature-result-called.feature",
+                            "relativePath": "com\/intuit\/karate\/core\/feature-result-called.feature",
                             "packageQualifiedName": "com.intuit.karate.core.feature-result-called",
                             "name": "",
                             "description": "",
@@ -256,6 +257,7 @@
         }
     ],
     "prefixedPath": "classpath:com\/intuit\/karate\/core\/feature-result.feature",
+    "relativePath": "com\/intuit\/karate\/core\/feature-result.feature",
     "packageQualifiedName": "com.intuit.karate.core.feature-result",
     "name": "my feature",
     "description": "my description",

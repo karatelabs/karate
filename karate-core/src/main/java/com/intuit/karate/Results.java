@@ -97,7 +97,11 @@ public class Results {
             ReportUtils.saveHtmlTimelineReport(timeline, suite.reportDir);
             ReportUtils.saveHtmlTagsReport(tags, suite.reportDir);
             // last so that path can be printed to the console 
-            ReportUtils.saveHtmlSummaryReport(this, suite.reportDir);
+            File file = ReportUtils.saveHtmlSummaryReport(this, suite.reportDir);
+            System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
+                    + FileUtils.KARATE_VERSION + "\n"
+                    + file.toPath().toUri()
+                    + "\n===================================================================\n");
         }
     }
 
