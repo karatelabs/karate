@@ -77,5 +77,12 @@ class FeatureFailRunner {
         assertFalse(fr.result.isFailed());
         report();
     }
+    
+    @Test
+    void testUiGoogle() {
+        run("ui-google.feature");
+        assertFalse(fr.result.isFailed());
+        report();
+    }    
 
 }

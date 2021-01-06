@@ -29,7 +29,6 @@ import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.MockHandler;
 import com.intuit.karate.core.ScenarioEngine;

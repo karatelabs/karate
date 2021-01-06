@@ -28,7 +28,6 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.core.Embed;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverElement;
 
