@@ -120,6 +120,13 @@ class FeatureRuntimeTest {
         matchContains(fr.result.getVariables(), "{ foo: 'hello foo' }");
         System.clearProperty("karate.env");
     }
+    
+    @Test
+    void testKarateJsGetScenario() {
+        System.setProperty("karate.env", "getscenario");
+        run("karate-config-getscenario.feature", "classpath:com/intuit/karate/core/");
+        System.clearProperty("karate.env");
+    }    
 
     @Test
     void testCallByTag() {
