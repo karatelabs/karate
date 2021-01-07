@@ -167,7 +167,7 @@ public class FeatureRuntime implements Runnable {
     
     private void processScenario(ScenarioRuntime sr) {
         if (!beforeHook()) {
-            logger.info("before-feature hook returned [false], aborting: ", this);
+            logger.info("before-feature hook returned [false], aborting: {}", this);
         } else {
             lastExecutedScenario = sr;
             if (suite.jobManager != null) {
