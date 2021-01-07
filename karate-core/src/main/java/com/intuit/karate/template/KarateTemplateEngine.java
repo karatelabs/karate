@@ -58,15 +58,15 @@ public class KarateTemplateEngine implements ITemplateEngine {
     private final StandardEngineContextFactory standardFactory;
     private final TemplateEngine wrapped;
 
-    public KarateTemplateEngine(JsEngine jsEngine, IDialect... dialects) {
+    public KarateTemplateEngine(JsEngine je, IDialect... dialects) {
         standardFactory = new StandardEngineContextFactory();
         wrapped = new TemplateEngine();
         wrapped.setEngineContextFactory((IEngineConfiguration ec, TemplateData data, Map<String, Object> attrs, IContext context) -> {
             IEngineContext engineContext = standardFactory.createEngineContext(ec, data, attrs, context);
-            return new TemplateEngineContext(engineContext, jsEngine == null ? RequestCycle.get().getEngine() : jsEngine);
+            return TemplateEngineContext.initThreadLocal(engineContext, je == null ? RequestCycle.get().getEngine() : je);
         });
         // the next line is a set which clears and replaces all existing / default
-        wrapped.setDialect(new KarateStandardDialect(jsEngine));
+        wrapped.setDialect(new KarateStandardDialect());
         for (IDialect dialect : dialects) {
             wrapped.addDialect(dialect);
         }

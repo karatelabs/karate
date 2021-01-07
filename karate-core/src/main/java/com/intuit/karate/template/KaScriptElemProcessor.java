@@ -24,8 +24,6 @@
 package com.intuit.karate.template;
 
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.http.RequestCycle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.context.ITemplateContext;
@@ -44,11 +42,8 @@ public class KaScriptElemProcessor extends AbstractElementModelProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(KaScriptElemProcessor.class);
 
-    private final JsEngine jsEngine;
-
-    public KaScriptElemProcessor(String dialectPrefix, JsEngine jsEngine) {
+    public KaScriptElemProcessor(String dialectPrefix) {
         super(TemplateMode.HTML, dialectPrefix, "script", false, "lang", true, 1000);
-        this.jsEngine = jsEngine;
     }
 
     @Override
@@ -61,11 +56,7 @@ public class KaScriptElemProcessor extends AbstractElementModelProcessor {
             if (event instanceof IText) {
                 String text = StringUtils.trimToNull(((IText) event).getText());
                 if (text != null) {
-                    if (jsEngine != null) {
-                        jsEngine.eval(text);
-                    } else {
-                        RequestCycle.get().eval(text);
-                    }
+                    TemplateEngineContext.get().eval(text);
                 }
                 if (isHead && headModel == null) {
                     headModel = TemplateUtils.generateHeadScriptTag(ctx);

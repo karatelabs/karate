@@ -15,12 +15,20 @@ class TemplateTest {
     static final Logger logger = LoggerFactory.getLogger(TemplateTest.class);
 
     @Test
-    void testHtml() {
+    void testHtmlString() {
         JsEngine je = JsEngine.global();
         je.put("message", "hello world");
         KarateTemplateEngine engine = TemplateUtils.forStrings(je);
         String rendered = engine.process("<h1 th:text=\"message\">replace me</h1>");
         assertEquals("<h1>hello world</h1>", rendered);
     }
+    
+    @Test
+    void testHtmlFile() {
+        JsEngine je = JsEngine.local();
+        KarateTemplateEngine engine = TemplateUtils.forResourcePath(je, "classpath:com/intuit/karate/template");
+        String rendered = engine.process("main.html");
+        logger.debug("rendered: {}", rendered);
+    }    
 
 }

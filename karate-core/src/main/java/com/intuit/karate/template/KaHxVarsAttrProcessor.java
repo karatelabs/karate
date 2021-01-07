@@ -24,7 +24,6 @@
 package com.intuit.karate.template;
 
 import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.http.RequestCycle;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +48,7 @@ public class KaHxVarsAttrProcessor extends AbstractAttributeTagProcessor {
 
     @Override
     protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag, AttributeName an, String av, IElementTagStructureHandler sh) {
-        JsValue jv = RequestCycle.get().eval("({" + av + "})");
+        JsValue jv = TemplateEngineContext.get().eval("({" + av + "})");
         if (!jv.isObject()) {
             logger.warn("value did not evaluate to map: {}", av);
         } else {

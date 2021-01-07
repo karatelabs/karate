@@ -27,6 +27,7 @@ import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.resource.ResourceResolver;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Supplier;
 import org.thymeleaf.dialect.AbstractProcessorDialect;
 import org.thymeleaf.processor.IProcessor;
 
@@ -37,19 +38,17 @@ import org.thymeleaf.processor.IProcessor;
 public class KarateScriptDialect extends AbstractProcessorDialect {
 
     private final ResourceResolver resourceResolver;
-    private final JsEngine jsEngine;
 
-    public KarateScriptDialect(ResourceResolver resourceResolver, JsEngine jsEngine) {
+    public KarateScriptDialect(ResourceResolver resourceResolver) {
         super("karate", "ka", 2000); // has to be processed after standard (default) dialect which is 1000
         this.resourceResolver = resourceResolver;
-        this.jsEngine = jsEngine;
     }
 
     @Override
     public Set<IProcessor> getProcessors(String dialectPrefix) {
         Set<IProcessor> ps = new HashSet();
-        ps.add(new KaScriptAttrProcessor(dialectPrefix, resourceResolver, jsEngine));
-        ps.add(new KaScriptElemProcessor(dialectPrefix, jsEngine));
+        ps.add(new KaScriptAttrProcessor(dialectPrefix, resourceResolver));
+        ps.add(new KaScriptElemProcessor(dialectPrefix));
         return ps;
     }
 

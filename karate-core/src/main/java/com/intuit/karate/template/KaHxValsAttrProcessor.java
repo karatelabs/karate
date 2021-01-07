@@ -49,7 +49,7 @@ public class KaHxValsAttrProcessor extends AbstractAttributeTagProcessor {
 
     @Override
     protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag, AttributeName an, String av, IElementTagStructureHandler sh) {
-        JsValue jv = RequestCycle.get().eval("({" + av + "})");
+        JsValue jv = TemplateEngineContext.get().eval("({" + av + "})");
         if (!jv.isObject()) {
             logger.warn("value did not evaluate to json: {}", av);
         } else {

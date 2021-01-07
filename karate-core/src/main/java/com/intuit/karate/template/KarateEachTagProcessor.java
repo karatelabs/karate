@@ -23,8 +23,6 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.http.RequestCycle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.context.ITemplateContext;
@@ -45,11 +43,8 @@ public class KarateEachTagProcessor extends AbstractAttributeTagProcessor {
     public static final int PRECEDENCE = 200;
     public static final String ATTR_NAME = "each";
 
-    private final JsEngine jsEngine;
-
-    public KarateEachTagProcessor(final String dialectPrefix, JsEngine jsEngine) {
+    public KarateEachTagProcessor(final String dialectPrefix) {
         super(TemplateMode.HTML, dialectPrefix, null, false, ATTR_NAME, true, PRECEDENCE, true);
-        this.jsEngine = jsEngine;
     }
 
     @Override
@@ -62,12 +57,7 @@ public class KarateEachTagProcessor extends AbstractAttributeTagProcessor {
             iterVarName = av.substring(0, pos).trim();
             av = av.substring(pos + 1);
         }
-        Object value;
-        if (jsEngine != null) {
-            value = jsEngine.eval(av).getValue();
-        } else {
-            value = RequestCycle.get().eval(av).getValue();            
-        }
+        Object value = TemplateEngineContext.get().eval(av).getValue();
         structureHandler.iterateElement(iterVarName, null, value);
     }
 

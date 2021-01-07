@@ -24,6 +24,7 @@
 package com.intuit.karate.template;
 
 import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.graal.JsValue;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -48,12 +49,29 @@ public class TemplateEngineContext implements IEngineContext {
 
     private static final Logger logger = LoggerFactory.getLogger(TemplateEngineContext.class);
 
+    private static final ThreadLocal<TemplateEngineContext> THREAD_LOCAL = new ThreadLocal();
+
     private final IEngineContext wrapped;
     private final JsEngine jsEngine;
 
-    public TemplateEngineContext(IEngineContext wrapped, JsEngine jsEngine) {
+    public static TemplateEngineContext initThreadLocal(IEngineContext wrapped, JsEngine engine) {
+        TemplateEngineContext tec = new TemplateEngineContext(wrapped, engine);
+        THREAD_LOCAL.set(tec);
+        return tec;
+    }
+
+    private TemplateEngineContext(IEngineContext wrapped, JsEngine jsEngine) {
         this.wrapped = wrapped;
         this.jsEngine = jsEngine;
+    }
+
+    public static TemplateEngineContext get() {
+        return THREAD_LOCAL.get();
+    }
+
+    public JsValue eval(String src) {
+        getVariableNames().forEach(name -> jsEngine.put(name, getVariable(name)));
+        return jsEngine.eval(src);
     }
 
     @Override
@@ -63,25 +81,25 @@ public class TemplateEngineContext implements IEngineContext {
 
     @Override
     public void setVariable(String name, Object value) {
-        if (jsEngine != null) {
-            jsEngine.put(name, value);
-        }
+//        if (jsEngine != null) {
+//            jsEngine.put(name, value);
+//        }
         wrapped.setVariable(name, value);
     }
 
     @Override
     public void setVariables(Map<String, Object> variables) {
-        if (jsEngine != null) {
-            jsEngine.putAll(variables);
-        }
+//        if (jsEngine != null) {
+//            jsEngine.putAll(variables);
+//        }
         wrapped.setVariables(variables);
     }
 
     @Override
     public void removeVariable(String name) {
-        if (jsEngine != null) {
-            jsEngine.bindings.removeMember(name);
-        }
+//        if (jsEngine != null) {
+//            jsEngine.bindings.removeMember(name);
+//        }
         wrapped.removeVariable(name);
     }
 

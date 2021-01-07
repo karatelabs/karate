@@ -47,7 +47,7 @@ public class RequestCycle {
 
     public static final Set<String> GLOBALS = new HashSet(Arrays.asList(REQUEST, SESSION, RESPONSE, CONTEXT));
 
-    private static final ThreadLocal<RequestCycle> THREAD_LOCAL = new ThreadLocal<RequestCycle>();
+    private static final ThreadLocal<RequestCycle> THREAD_LOCAL = new ThreadLocal();
 
     public static RequestCycle get() {
         return THREAD_LOCAL.get();
@@ -90,24 +90,12 @@ public class RequestCycle {
         THREAD_LOCAL.remove();
     }
 
-    public JsValue eval(String src) {
-        return engine.eval(src);
-    }
-
     public JsEngine getLocalEngine() {
         return localEngine;
     }
 
     public void setLocalEngine(JsEngine localEngine) {
         this.localEngine = localEngine;
-    }
-
-    public void setEngineContext(TemplateEngineContext engineContext) {
-        this.engineContext = engineContext;
-    }
-
-    public TemplateEngineContext getEngineContext() {
-        return engineContext;
     }
 
     public Session getSession() {
