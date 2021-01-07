@@ -245,14 +245,13 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             case "launch":
                 // normally a single feature full path, but can be set with any valid karate.options
                 // for e.g. "-t ~@ignore -T 5 classpath:demo.feature"
-                launchCommand = StringUtils.trimToNull(req.getArgument("karateOptions", String.class));
+                String karateOptions = StringUtils.trimToEmpty(req.getArgument("karateOptions", String.class));
+                String feature = StringUtils.trimToEmpty(req.getArgument("feature", String.class));
+                launchCommand = StringUtils.trimToEmpty(karateOptions + " " + feature);
+                singleFeature = karateOptions.length() == 0;
                 preStep = StringUtils.trimToNull(req.getArgument("debugPreStep", String.class));
                 if (preStep != null) {
                     logger.debug("using pre-step: {}", preStep);
-                }
-                if (launchCommand == null) {
-                    launchCommand = req.getArgument("feature", String.class);
-                    singleFeature = true;
                 }
                 start();
                 ctx.write(response(req));
