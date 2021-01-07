@@ -189,6 +189,9 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         }
         map.put("failed", isFailed());
         map.put("refId", scenario.getRefId());
+        if (isFailed()) {
+            map.put("error", getErrorMessage());
+        }
         //======================================================================
         map.put("sectionIndex", scenario.getSection().getIndex());
         map.put("exampleIndex", scenario.getExampleIndex());
