@@ -46,6 +46,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
 import org.slf4j.Logger;
@@ -376,7 +378,10 @@ public class HttpRequestBuilder implements ProxyObject {
         if (params == null) {
             params = new HashMap();
         }
-        params.put(name, values);
+        List<String> notNullValues = values.stream().filter(v -> v != null).collect(Collectors.toList());
+        if (!notNullValues.isEmpty()) {
+            params.put(name, notNullValues);
+        }
         return this;
     }
 
