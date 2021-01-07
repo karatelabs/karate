@@ -177,7 +177,6 @@ public class DebugThread implements RuntimeHook, LogAppender {
     public void afterStep(StepResult result, ScenarioRuntime context) {
         if (result.getResult().isFailed()) {
             String errorMessage = result.getErrorMessage();
-            getContext().stepReset();
             handler.output("*** step failed: " + errorMessage + "\n");
             stop("exception", errorMessage);
             errored = true;
