@@ -16,6 +16,10 @@
 .features-table, .tags-table { border: 1px solid gray; }
 .tags-table th, .tags-table td { text-align: center; }
 .tags-table .feature-cell { text-align: left; }
+.features-table .passed a, .tags-table .passed a { color: #006600; }
+.features-table .failed a, .tags-table .failed a { color: #990000; }
+.features-table th, .tags-table th { border: 1px solid gray; background-color: #f2f2f2; }
+.features-table td, .tags-table td { border: 1px solid gray; }
 .num { text-align: right; }
 
 .page-heading  { margin-bottom: 0.5em; }
@@ -49,9 +53,6 @@ a .step-ref { font-weight: bold; color: blue; }
 .preformatted { white-space: pre-wrap; font-family: monospace; padding: 0 0.3em 0.2em 0.3em; overflow: auto; } 
 .embed img { width: 100%; }
 
-.passed { background-color: #a3cfbb; } 
-.failed { background-color: #f1aeb5; } 
-.skipped { background-color: #f5f28f; }
-
-.features-table th { border: 1px solid gray; background-color: #f2f2f2; }
-.features-table td { border: 1px solid gray; }
+.passed { background-color: #bff2bf; } 
+.failed { background-color: #ffcccc; } 
+.skipped { background-color: #ffdd99; }
