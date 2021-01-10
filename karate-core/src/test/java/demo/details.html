@@ -1,4 +1,4 @@
-<script ka:lang="js">
+<script ka:scope="global">
   var productId = ~~request.param('id');
   if (productId) {
     var prod = session.products.find(x => x.id === productId);

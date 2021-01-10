@@ -1,6 +1,6 @@
 Feature:
 
-Scenario Outline:
+Scenario Outline: ${driverType}
 * call read('00.feature')
 
 Examples:

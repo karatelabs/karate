@@ -193,4 +193,16 @@ class JsEngineTest {
         assertTrue(v.isHostObject());
     }
 
+    @Test
+    void testEvalWithinFunction() {
+        Map<String, Object> map = new HashMap();
+        map.put("a", 1);
+        map.put("b", 2);
+        String src = "a + b";
+        Value function = je.evalForValue("x => { var a = x.a; var b = x.b; return " + src + "; }");
+        assertTrue(function.canExecute());
+        Value result = function.execute(JsValue.fromJava(map));
+        assertEquals(result.asInt(), 3);
+    }
+
 }

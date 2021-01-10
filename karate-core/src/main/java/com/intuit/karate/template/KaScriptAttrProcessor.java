@@ -54,7 +54,7 @@ public class KaScriptAttrProcessor extends AbstractAttributeTagProcessor {
     protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag, AttributeName an, String av, IElementTagStructureHandler sh) {
         InputStream is = resourceResolver.resolve(av).getStream();
         String src = FileUtils.toString(is);
-        TemplateEngineContext.get().eval(src);
+        TemplateEngineContext.get().eval(src, false);
         sh.removeElement();
     }
 

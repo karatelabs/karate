@@ -25,10 +25,12 @@ package com.intuit.karate.template;
 
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.IEngineConfiguration;
@@ -53,6 +55,7 @@ public class TemplateEngineContext implements IEngineContext {
 
     private final IEngineContext wrapped;
     private final JsEngine jsEngine;
+    private final Map<String, Object> context = new HashMap();
 
     public static TemplateEngineContext initThreadLocal(IEngineContext wrapped, JsEngine engine) {
         TemplateEngineContext tec = new TemplateEngineContext(wrapped, engine);
@@ -63,43 +66,60 @@ public class TemplateEngineContext implements IEngineContext {
     private TemplateEngineContext(IEngineContext wrapped, JsEngine jsEngine) {
         this.wrapped = wrapped;
         this.jsEngine = jsEngine;
+        jsEngine.put("_", context);
     }
 
     public static TemplateEngineContext get() {
         return THREAD_LOCAL.get();
     }
-
-    public JsValue eval(String src) {
+    
+    public JsValue evalGlobal(String src) {
         getVariableNames().forEach(name -> jsEngine.put(name, getVariable(name)));
-        return jsEngine.eval(src);
+        return jsEngine.eval(src);        
+    }
+
+    public JsValue eval(String src, boolean returnValue) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("(function(x){\n");
+        Set<String> names = getVariableNames();
+        Map<String, Object> arg = new HashMap(names.size());
+        for (String name : getVariableNames()) {
+            sb.append("let ").append(name).append(" = x.").append(name).append(";\n");
+            arg.put(name, getVariable(name));
+        }
+        if (returnValue) {
+            sb.append("return ");
+        }
+        sb.append(src).append("\n");
+        sb.append("})");
+        String source = sb.toString();
+        // logger.debug("src: {} | {}", arg, source);
+        Value function = jsEngine.evalForValue(source);
+        Value result = function.execute(JsValue.fromJava(arg));
+        return new JsValue(result);
     }
 
     @Override
     public void increaseLevel() {
+        if (!context.isEmpty()) {
+            setVariables(context);
+            context.clear();
+        }
         wrapped.increaseLevel();
     }
 
     @Override
     public void setVariable(String name, Object value) {
-//        if (jsEngine != null) {
-//            jsEngine.put(name, value);
-//        }
         wrapped.setVariable(name, value);
     }
 
     @Override
     public void setVariables(Map<String, Object> variables) {
-//        if (jsEngine != null) {
-//            jsEngine.putAll(variables);
-//        }
         wrapped.setVariables(variables);
     }
 
     @Override
     public void removeVariable(String name) {
-//        if (jsEngine != null) {
-//            jsEngine.bindings.removeMember(name);
-//        }
         wrapped.removeVariable(name);
     }
 

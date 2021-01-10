@@ -1,16 +1,13 @@
 <div>
-  <script ka:lang="js">
-    var step = sr.step;
-    var result = sr.result;
-    var stepId = (scenario.exampleIndex + 1) + '.' + step.line;
+  <script ka:scope="local">
+    _.stepId = (scenario.exampleIndex + 1) + '.' + sr.step.line;
     if (parentId) {
-      stepId = parentId + '.' + stepId;
+      _.stepId = parentId + '.' + _.stepId;
     }
-    var stepStatus = result.status;
-    var repeat = n => Array.from({length: n}, (v, k) => k);
+    _.stepStatus = sr.result.status;    
   </script>
 
-  <div th:each="comment: step.comments" class="step-row" th:attrappend="data-parent=${parentId}">
+  <div th:each="comment: sr.step.comments" class="step-row" th:attrappend="data-parent=${parentId}">
     <div class="step-container">
       <div class="step-ref passed"></div>
       <div th:each="indent: repeat(callDepth)" class="step-indent"></div>
@@ -21,17 +18,17 @@
 
   <div class="step-row" th:attrappend="data-parent=${parentId}">
     <div class="step-container" th:id="stepId">
-      <div class="step-ref" th:classappend="isBackground ? 'bg-step' : stepStatus" th:text="step.line"></div>
+      <div class="step-ref" th:classappend="isBackground ? 'bg-step' : stepStatus" th:text="sr.step.line"></div>
       <div th:each="indent: repeat(callDepth)" class="step-indent"></div>
       <div class="step-cell" th:classappend="stepStatus">
-        <span th:text="step.prefix"></span>&nbsp;<span th:text="step.text"></span>
+        <span th:text="sr.step.prefix"></span>&nbsp;<span th:text="sr.step.text"></span>
       </div>
     </div>
-    <div class="time-cell" th:classappend="stepStatus" th:text="Math.round(result.millis)"></div>
+    <div class="time-cell" th:classappend="stepStatus" th:text="Math.round(sr.result.millis)"></div>
   </div>
 
-  <table th:if="step.table">
-    <tr th:each="tableRow: step.table" class="tr">      
+  <table th:if="sr.step.table">
+    <tr th:each="tableRow: sr.step.table" class="tr">      
       <td th:each="cell: tableRow.row" class="td" th:text="cell"></td>
     </tr>     
   </table> 
@@ -41,13 +38,13 @@
   <div class="preformatted" th:attr="data-parent=${stepId}" th:if="sr.stepLog" th:text="sr.stepLog"></div>   
 
   <div th:each="cr: sr.callResults">
-    <script ka:lang="js">
-      var callStatus = cr.failed ? 'failed' : 'passed';
-      var callName = cr.packageQualifiedName;
+    <script ka:scope="local">
+      _.callStatus = cr.failed ? 'failed' : 'passed';
+      _.callName = cr.packageQualifiedName;
       if (cr.loopIndex !== -1) {
-        callName = '[' + cr.loopIndex + ']' + callName;
+        _.callName = '[' + cr.loopIndex + ']' + _.callName;
       }
-      var callerId = stepId + '.' + (cr.loopIndex + 1) + '.call';
+      _.callerId = stepId + '.' + (cr.loopIndex + 1) + '.call';
     </script>    
     <div class="step-row" th:attrappend="data-parent=${parentId}">
       <div class="step-container" th:id="callerId">
@@ -57,9 +54,9 @@
       </div>
       <div class="time-cell" th:classappend="callStatus" th:text="Math.round(cr.durationMillis)"></div>
     </div>
-    <div th:each="calledScenario: cr.scenarioResults">
-      <div th:each="calledStep: calledScenario.stepResults" 
-           th:with="scenario=${calledScenario},sr=${calledStep},callDepth=${cr.callDepth},parentId=${callerId},isBackground=${isBackground}"
+    <div th:each="scenario: cr.scenarioResults">
+      <div th:each="sr: scenario.stepResults" 
+           th:with="callDepth=${cr.callDepth},parentId=${callerId},isBackground=${isBackground}"
            th:include="karate-step.html">
       </div>
     </div>    

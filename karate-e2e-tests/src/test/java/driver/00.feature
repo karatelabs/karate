@@ -23,3 +23,6 @@ Scenario:
 
 # position()
 * call read('06.feature')
+
+# input() | value() | text() | html()
+* call read('07.feature')

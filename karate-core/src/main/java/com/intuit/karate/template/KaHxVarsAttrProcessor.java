@@ -48,7 +48,7 @@ public class KaHxVarsAttrProcessor extends AbstractAttributeTagProcessor {
 
     @Override
     protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag, AttributeName an, String av, IElementTagStructureHandler sh) {
-        JsValue jv = TemplateEngineContext.get().eval("({" + av + "})");
+        JsValue jv = TemplateEngineContext.get().eval("({" + av + "})", true);
         if (!jv.isObject()) {
             logger.warn("value did not evaluate to map: {}", av);
         } else {

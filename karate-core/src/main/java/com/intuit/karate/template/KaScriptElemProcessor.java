@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.context.ITemplateContext;
 import org.thymeleaf.model.IModel;
+import org.thymeleaf.model.IProcessableElementTag;
 import org.thymeleaf.model.ITemplateEvent;
 import org.thymeleaf.model.IText;
 import org.thymeleaf.processor.element.AbstractElementModelProcessor;
@@ -43,11 +44,14 @@ public class KaScriptElemProcessor extends AbstractElementModelProcessor {
     private static final Logger logger = LoggerFactory.getLogger(KaScriptElemProcessor.class);
 
     public KaScriptElemProcessor(String dialectPrefix) {
-        super(TemplateMode.HTML, dialectPrefix, "script", false, "lang", true, 1000);
+        super(TemplateMode.HTML, dialectPrefix, "script", false, "scope", true, 1000);
     }
 
     @Override
-    protected void doProcess(ITemplateContext ctx, IModel model, IElementModelStructureHandler sh) {
+    protected void doProcess(ITemplateContext ctx, IModel model, IElementModelStructureHandler sh) {        
+        int depth = ctx.getElementStack().size();
+        IProcessableElementTag tag = ctx.getElementStack().get(depth - 1);
+        String scope = tag.getAttributeValue(getDialectPrefix(), "lang");
         int n = model.size();
         boolean isHead = TemplateUtils.hasAncestorElement(ctx, "head");
         IModel headModel = null;
@@ -56,7 +60,11 @@ public class KaScriptElemProcessor extends AbstractElementModelProcessor {
             if (event instanceof IText) {
                 String text = StringUtils.trimToNull(((IText) event).getText());
                 if (text != null) {
-                    TemplateEngineContext.get().eval(text);
+                    if ("local".equals(scope)) {
+                        TemplateEngineContext.get().eval(text, false);
+                    } else {
+                        TemplateEngineContext.get().evalGlobal(text);
+                    }
                 }
                 if (isHead && headModel == null) {
                     headModel = TemplateUtils.generateHeadScriptTag(ctx);

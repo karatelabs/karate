@@ -22,14 +22,16 @@ class LocalSingleRunner {
     
     void run(String id) {
         Results results = Runner.path("src/test/java/driver/" + id + ".feature")
+                .karateEnv("single")
                 .systemProperty("server.port", server.getPort() + "")
+                .systemProperty("driver.type", "chromedriver")
                 .configDir("src/test/java/driver").parallel(1);
         assertEquals(0, results.getFailCount(), results.getErrorMessages());        
     }
     
     @Test
     void testSingle() {
-        run("06");
+        run("07");
     }    
     
 }

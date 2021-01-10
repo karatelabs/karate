@@ -53,7 +53,7 @@ public class KarateExpression implements IStandardExpression {
 
     @Override
     public Object execute(IExpressionContext context) {
-        return TemplateEngineContext.get().eval(input).getValue();
+        return TemplateEngineContext.get().eval(input, true).getValue();
     }
 
     @Override

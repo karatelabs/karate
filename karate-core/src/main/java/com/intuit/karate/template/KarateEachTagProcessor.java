@@ -57,7 +57,7 @@ public class KarateEachTagProcessor extends AbstractAttributeTagProcessor {
             iterVarName = av.substring(0, pos).trim();
             av = av.substring(pos + 1);
         }
-        Object value = TemplateEngineContext.get().eval(av).getValue();
+        Object value = TemplateEngineContext.get().eval(av, true).getValue();
         structureHandler.iterateElement(iterVarName, null, value);
     }
 
