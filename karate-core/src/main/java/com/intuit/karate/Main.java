@@ -94,6 +94,9 @@ public class Main implements Callable<Void> {
     @Option(names = {"-o", "--output"}, description = "directory where logs and reports are output (default 'target')")
     String output = FileUtils.getBuildDir();
 
+    @Option(names = {"-r", "--htmlreport"}, description = "output html report enabled (default 'true')")
+    boolean outputHtmlReport = true;
+
     @Option(names = {"-f", "--format"}, split = ",", description = "report output formats in addition to html e.g. '-f junit,cucumber'"
             + " [cucumber: Cucumber JSON, junit: JUnit XML]")
     List<String> formats;
@@ -160,6 +163,38 @@ public class Main implements Callable<Void> {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getOutput() {
+        return output;
+    }
+
+    public void setOutput(String output) {
+        this.output = output;
+    }
+
+    public boolean isOutputHtmlReport() {
+        return outputHtmlReport;
+    }
+
+    public void setOutputHtmlReport(boolean outputHtmlReport) {
+        this.outputHtmlReport = outputHtmlReport;
+    }
+
+    public String getEnv() {
+        return env;
+    }
+
+    public void setEnv(String env) {
+        this.env = env;
+    }
+
+    public String getConfigDir() {
+        return configDir;
+    }
+
+    public void setConfigDir(String configDir) {
+        this.configDir = configDir;
     }
 
     public static Main parseKarateOptions(String line) {
@@ -298,6 +333,7 @@ public class Main implements Callable<Void> {
                     .workingDir(workingDir)
                     .buildDir(output)
                     .configDir(configDir)
+                    .outputHtmlReport(outputHtmlReport)
                     .outputCucumberJson(outputCucumberJson)
                     .outputJunitXml(outputJunitXml)
                     .dryRun(dryRun)

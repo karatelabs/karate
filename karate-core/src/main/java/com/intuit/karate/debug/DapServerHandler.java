@@ -409,6 +409,10 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                     .hookFactory(this)
                     .hooks(options.createHooks())
                     .tags(options.getTags())
+                    .reportDir(options.getOutput())
+                    .configDir(options.getConfigDir())
+                    .karateEnv(options.getEnv())
+                    .outputHtmlReport(options.isOutputHtmlReport())
                     .scenarioName(options.getName())
                     .parallel(options.getThreads());
             // if we reached here, run was successful
@@ -441,8 +445,12 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         channel.eventLoop().execute(()
                 -> channel.writeAndFlush(event("exited")
                         .body("exitCode", 0)));
-        server.stop();
-        System.exit(0);
+        if (server.exitAfterDisconnect()) {
+            server.stop();
+            System.exit(0);
+        } else {
+            channel.disconnect();
+        }
     }
 
     protected long nextFrameId() {
