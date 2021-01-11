@@ -404,6 +404,11 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         if (runnerThread != null) {
             runnerThread.interrupt();
         }
+
+        boolean outputHtmlReport = options.getFormats() != null && !options.getFormats().contains("~html");
+        boolean outputCucumberJson = options.getFormats() != null && options.getFormats().contains("cucumber:json");
+        boolean outputJunitXml = options.getFormats() != null && options.getFormats().contains("junit:xml");
+
         runnerThread = new Thread(() -> {
             Runner.path(options.getPaths())
                     .hookFactory(this)
@@ -412,7 +417,9 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                     .reportDir(options.getOutput())
                     .configDir(options.getConfigDir())
                     .karateEnv(options.getEnv())
-                    .outputHtmlReport(options.isOutputHtmlReport())
+                    .outputHtmlReport(outputHtmlReport)
+                    .outputCucumberJson(outputCucumberJson)
+                    .outputJunitXml(outputJunitXml)
                     .scenarioName(options.getName())
                     .parallel(options.getThreads());
             // if we reached here, run was successful

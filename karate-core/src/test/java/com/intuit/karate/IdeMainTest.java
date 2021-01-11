@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+
 /**
  *
  * @author pthomas3
@@ -70,6 +72,20 @@ class IdeMainTest {
         Main options = IdeMain.parseIdeCommandLine(INTELLIJ6);
         assertEquals(1, options.paths.size());
         assertEquals("/Users/pthomas3/dev/zcode/temp/my co test/src/test/java/examples/users/users.feature", options.paths.get(0));
+    }
+
+    @Test
+    void testParsingCommandLineReportFormats() {
+        Main options = IdeMain.parseIdeCommandLine("cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome -e local -f html,json,cucumber:json,junit:xml -g /dev/config/dir /dev/test/todos.feature:27");
+        System.out.println();
+
+        assertIterableEquals(options.formats, new ArrayList<String>() { { add("html"); add("json"); add("cucumber:json"); add("junit:xml"); }});
+
+        Main options2 = IdeMain.parseIdeCommandLine("cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome -e local -f json,cucumber:json,junit:xml -g /dev/config/dir /dev/test/todos.feature:27");
+        assertIterableEquals(options2.formats, new ArrayList<String>() { { add("json"); add("cucumber:json"); add("junit:xml"); }});
+
+        Main options3 = IdeMain.parseIdeCommandLine("cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome -e local -f ~html,json,cucumber:json,junit:xml -g /dev/config/dir /dev/test/todos.feature:27");
+        assertIterableEquals(options3.formats, new ArrayList<String>() { { add("~html"); add("json"); add("cucumber:json"); add("junit:xml"); }});
     }
 
     @Test
