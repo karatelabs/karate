@@ -37,6 +37,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Map.Entry;
@@ -405,16 +407,26 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             runnerThread.interrupt();
         }
 
-        boolean outputHtmlReport = options.getFormats() != null && !options.getFormats().contains("~html");
+        // html report is enabled by default
+        boolean outputHtmlReport = options.getFormats() == null || (options.getFormats() != null && !options.getFormats().contains("~html"));
         boolean outputCucumberJson = options.getFormats() != null && options.getFormats().contains("cucumber:json");
         boolean outputJunitXml = options.getFormats() != null && options.getFormats().contains("junit:xml");
 
+        // for the debugger, if the output dir is the default
+        // create a subfolder so multiple executions don't override the previous reports
+        String outputDir = options.getOutput();
+        if(outputDir.contentEquals(FileUtils.getBuildDir())) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+            outputDir += (FileUtils.isOsWindows() ? "\\" : "/") + LocalDateTime.now().format(formatter);
+        }
+
+        String finalOutputDir = outputDir;
         runnerThread = new Thread(() -> {
             Runner.path(options.getPaths())
                     .hookFactory(this)
                     .hooks(options.createHooks())
                     .tags(options.getTags())
-                    .reportDir(options.getOutput())
+                    .reportDir(finalOutputDir)
                     .configDir(options.getConfigDir())
                     .karateEnv(options.getEnv())
                     .outputHtmlReport(outputHtmlReport)
