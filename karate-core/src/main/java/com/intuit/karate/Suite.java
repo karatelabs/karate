@@ -332,7 +332,9 @@ public class Suite implements Runnable {
         File file = new File(reportDir);
         if (file.exists()) {
             File dest = new File(reportDir + "_" + System.currentTimeMillis());
-            if (!file.renameTo(dest)) {
+            if (file.renameTo(dest)) {
+                logger.info("backed up existing '{}' dir to: {}", reportDir, file);
+            } else {
                 logger.warn("failed to backup existing dir: {}", file);
             }
         }
