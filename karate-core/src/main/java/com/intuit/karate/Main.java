@@ -94,8 +94,8 @@ public class Main implements Callable<Void> {
     @Option(names = {"-o", "--output"}, description = "directory where logs and reports are output (default 'target')")
     String output = FileUtils.getBuildDir();
 
-    @Option(names = {"-f", "--format"}, split = ",", description = "comma separate report output formats. tilde excludes the output report. html report is included by default unless it's negated." +
-            "e.g. '-f json,cucumber:json,junit:xml. Possible values [html: Karate HTML, json: Karate JSON, cucumber:json: Cucumber JSON, junit:xml: JUnit XML]")
+    @Option(names = {"-f", "--format"}, split = ",", description = "comma separate report output formats. tilde excludes the output report. html report is included by default unless it's negated."
+            + "e.g. '-f json,cucumber:json,junit:xml. Possible values [html: Karate HTML, json: Karate JSON, cucumber:json: Cucumber JSON, junit:xml: JUnit XML]")
     List<String> formats;
 
     @Option(names = {"-n", "--name"}, description = "scenario name")
@@ -162,20 +162,16 @@ public class Main implements Callable<Void> {
         this.name = name;
     }
 
-    public List<String> getFormats() {
-        return formats;
+    public boolean isOutputHtmlReport() {
+        return formats == null ? true : !formats.contains("~html");
     }
 
-    public void setFormats(List<String> formats) {
-        this.formats = formats;
+    public boolean isOutputCucumberJson() {
+        return formats == null ? false : formats.contains("cucumber:json");
     }
 
-    public String getOutput() {
-        return output;
-    }
-
-    public void setOutput(String output) {
-        this.output = output;
+    public boolean isOutputJunitXml() {
+        return formats == null ? false : formats.contains("junit:xml");
     }
 
     public String getEnv() {
@@ -317,14 +313,6 @@ public class Main implements Callable<Void> {
             server.waitSync();
             return null;
         }
-        boolean outputHtmlReport = false;
-        boolean outputCucumberJson = false;
-        boolean outputJunitXml = false;
-        if (formats != null) {
-            outputHtmlReport = !formats.contains("~html");
-            outputCucumberJson = formats.contains("cucumber:json");
-            outputJunitXml = formats.contains("junit:xml");
-        }
         if (paths != null) {
             Results results = Runner
                     .path(paths).tags(tags).scenarioName(name)
@@ -332,9 +320,9 @@ public class Main implements Callable<Void> {
                     .workingDir(workingDir)
                     .buildDir(output)
                     .configDir(configDir)
-                    .outputHtmlReport(outputHtmlReport)
-                    .outputCucumberJson(outputCucumberJson)
-                    .outputJunitXml(outputJunitXml)
+                    .outputHtmlReport(isOutputHtmlReport())
+                    .outputCucumberJson(isOutputCucumberJson())
+                    .outputJunitXml(isOutputJunitXml())
                     .dryRun(dryRun)
                     .hooks(createHooks())
                     .parallel(threads);

@@ -179,6 +179,7 @@ public class Runner {
         RuntimeHookFactory hookFactory;
         HttpClientFactory clientFactory;
         boolean forTempUse;
+        boolean backupReportDir = true;
         boolean outputHtmlReport = true;
         boolean outputJunitXml;
         boolean outputCucumberJson;
@@ -459,6 +460,11 @@ public class Runner {
             outputHtmlReport = value;
             return this;
         }
+        
+        public Builder backupReportDir(boolean value) {
+            backupReportDir = value;
+            return this;
+        }        
 
         public Builder outputCucumberJson(boolean value) {
             outputCucumberJson = value;
@@ -483,7 +489,6 @@ public class Runner {
         public Results jobManager(JobConfig value) {
             jobConfig = value;
             Suite suite = new Suite(this);
-            suite.backupReportDirIfExists();
             suite.run();
             return suite.buildResults();
         }
@@ -491,7 +496,6 @@ public class Runner {
         public Results parallel(int threadCount) {
             threads(threadCount);
             Suite suite = new Suite(this);
-            suite.backupReportDirIfExists();
             suite.run();
             return suite.buildResults();
         }

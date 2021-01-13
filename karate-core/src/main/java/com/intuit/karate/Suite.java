@@ -81,6 +81,8 @@ public class Suite implements Runnable {
     public final HttpClientFactory clientFactory;
     public final Map<String, String> systemProperties;
 
+    public final boolean backupReportDir;
+
     public final boolean outputHtmlReport;
     public final boolean outputCucumberJson;
     public final boolean outputJunitXml;
@@ -120,6 +122,7 @@ public class Suite implements Runnable {
     public Suite(Runner.Builder rb) {
         if (rb.forTempUse) {
             dryRun = false;
+            backupReportDir = false;
             outputHtmlReport = false;
             outputCucumberJson = false;
             outputJunitXml = false;
@@ -151,6 +154,7 @@ public class Suite implements Runnable {
         } else {
             startTime = System.currentTimeMillis();
             rb.resolveAll();
+            backupReportDir = rb.backupReportDir;
             outputHtmlReport = rb.outputHtmlReport;
             outputCucumberJson = rb.outputCucumberJson;
             outputJunitXml = rb.outputJunitXml;
@@ -198,6 +202,9 @@ public class Suite implements Runnable {
     @Override
     public void run() {
         try {
+            if (backupReportDir) {
+                backupReportDirIfExists();
+            }
             hooks.forEach(h -> h.beforeSuite(this));
             int index = 0;
             for (Feature feature : features) {
@@ -321,7 +328,7 @@ public class Suite implements Runnable {
         return buildResults();
     }
 
-    public void backupReportDirIfExists() {
+    private void backupReportDirIfExists() {
         File file = new File(reportDir);
         if (file.exists()) {
             File dest = new File(reportDir + "_" + System.currentTimeMillis());

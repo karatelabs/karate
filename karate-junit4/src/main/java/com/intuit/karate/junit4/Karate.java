@@ -78,7 +78,6 @@ public class Karate extends ParentRunner<Feature> {
                 rb.hook(hook);
                 rb.features(features);
                 suite = new Suite(rb);
-                suite.backupReportDirIfExists();
                 statement.evaluate();
             }
         };

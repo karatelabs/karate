@@ -78,7 +78,6 @@ public class Karate implements Iterable<DynamicNode> {
     @Override
     public Iterator<DynamicNode> iterator() {
         Suite suite = new Suite(builder);
-        suite.backupReportDirIfExists();
         List<DynamicNode> list = new ArrayList();
         List<CompletableFuture> futures = new ArrayList();
         for (Feature feature : suite.features) {
