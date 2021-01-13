@@ -37,6 +37,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Map.Entry;
@@ -404,11 +406,32 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         if (runnerThread != null) {
             runnerThread.interrupt();
         }
+
+        // html report is enabled by default
+        boolean outputHtmlReport = options.getFormats() == null || (options.getFormats() != null && !options.getFormats().contains("~html"));
+        boolean outputCucumberJson = options.getFormats() != null && options.getFormats().contains("cucumber:json");
+        boolean outputJunitXml = options.getFormats() != null && options.getFormats().contains("junit:xml");
+
+        // for the debugger, if the output dir is the default
+        // create a subfolder so multiple executions don't override the previous reports
+        String outputDir = options.getOutput();
+        if(outputDir.contentEquals(FileUtils.getBuildDir())) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+            outputDir += (FileUtils.isOsWindows() ? "\\" : "/") + LocalDateTime.now().format(formatter);
+        }
+
+        String finalOutputDir = outputDir;
         runnerThread = new Thread(() -> {
             Runner.path(options.getPaths())
                     .hookFactory(this)
                     .hooks(options.createHooks())
                     .tags(options.getTags())
+                    .reportDir(finalOutputDir)
+                    .configDir(options.getConfigDir())
+                    .karateEnv(options.getEnv())
+                    .outputHtmlReport(outputHtmlReport)
+                    .outputCucumberJson(outputCucumberJson)
+                    .outputJunitXml(outputJunitXml)
                     .scenarioName(options.getName())
                     .parallel(options.getThreads());
             // if we reached here, run was successful
@@ -441,8 +464,12 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         channel.eventLoop().execute(()
                 -> channel.writeAndFlush(event("exited")
                         .body("exitCode", 0)));
-        server.stop();
-        System.exit(0);
+        if (server.exitAfterDisconnect()) {
+            server.stop();
+            System.exit(0);
+        } else {
+            channel.disconnect();
+        }
     }
 
     protected long nextFrameId() {

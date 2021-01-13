@@ -94,8 +94,8 @@ public class Main implements Callable<Void> {
     @Option(names = {"-o", "--output"}, description = "directory where logs and reports are output (default 'target')")
     String output = FileUtils.getBuildDir();
 
-    @Option(names = {"-f", "--format"}, split = ",", description = "report output formats in addition to html e.g. '-f junit,cucumber'"
-            + " [cucumber: Cucumber JSON, junit: JUnit XML]")
+    @Option(names = {"-f", "--format"}, split = ",", description = "comma separate report output formats. tilde excludes the output report. html report is included by default unless it's negated." +
+            "e.g. '-f json,cucumber:json,junit:xml. Possible values [html: Karate HTML, json: Karate JSON, cucumber:json: Cucumber JSON, junit:xml: JUnit XML]")
     List<String> formats;
 
     @Option(names = {"-n", "--name"}, description = "scenario name")
@@ -160,6 +160,38 @@ public class Main implements Callable<Void> {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public List<String> getFormats() {
+        return formats;
+    }
+
+    public void setFormats(List<String> formats) {
+        this.formats = formats;
+    }
+
+    public String getOutput() {
+        return output;
+    }
+
+    public void setOutput(String output) {
+        this.output = output;
+    }
+
+    public String getEnv() {
+        return env;
+    }
+
+    public void setEnv(String env) {
+        this.env = env;
+    }
+
+    public String getConfigDir() {
+        return configDir;
+    }
+
+    public void setConfigDir(String configDir) {
+        this.configDir = configDir;
     }
 
     public static Main parseKarateOptions(String line) {
@@ -285,11 +317,13 @@ public class Main implements Callable<Void> {
             server.waitSync();
             return null;
         }
+        boolean outputHtmlReport = false;
         boolean outputCucumberJson = false;
         boolean outputJunitXml = false;
         if (formats != null) {
-            outputCucumberJson = formats.contains("cucumber");
-            outputJunitXml = formats.contains("junit");
+            outputHtmlReport = !formats.contains("~html");
+            outputCucumberJson = formats.contains("cucumber:json");
+            outputJunitXml = formats.contains("junit:xml");
         }
         if (paths != null) {
             Results results = Runner
@@ -298,6 +332,7 @@ public class Main implements Callable<Void> {
                     .workingDir(workingDir)
                     .buildDir(output)
                     .configDir(configDir)
+                    .outputHtmlReport(outputHtmlReport)
                     .outputCucumberJson(outputCucumberJson)
                     .outputJunitXml(outputJunitXml)
                     .dryRun(dryRun)

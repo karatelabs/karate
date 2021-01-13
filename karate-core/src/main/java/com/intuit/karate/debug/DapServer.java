@@ -49,9 +49,14 @@ public class DapServer {
     private final Channel channel;
     private final String host;
     private final int port;
+    private final boolean exitAfterDisconnect;
     
     public int getPort() {
         return port;
+    }
+
+    public boolean exitAfterDisconnect() {
+        return exitAfterDisconnect;
     }
 
     public void waitSync() {
@@ -68,10 +73,15 @@ public class DapServer {
         workerGroup.shutdownGracefully();
         logger.info("stop: shutdown complete");
     }    
-    
+
     public DapServer(int requestedPort) {
+        this(requestedPort, true);
+    }
+
+    public DapServer(int requestedPort, boolean exitAfterDisconnect) {
         bossGroup = new NioEventLoopGroup(1);
         workerGroup = new NioEventLoopGroup();
+        this.exitAfterDisconnect = exitAfterDisconnect;
         try {
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup)
