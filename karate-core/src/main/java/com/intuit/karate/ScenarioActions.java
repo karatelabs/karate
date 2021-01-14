@@ -167,7 +167,7 @@ public class ScenarioActions implements Actions {
     @Override
     @Action("^replace (\\w+)$")
     public void replace(String name, List<Map<String, String>> table) {
-        engine.replace(name, table);
+        engine.replaceTable(name, table);
     }
 
     @Override
@@ -335,7 +335,7 @@ public class ScenarioActions implements Actions {
     @Override
     @Action("^set ([^\\s]+)( [^=]+)?$")
     public void set(String name, String path, List<Map<String, String>> table) {
-        engine.set(name, path, table);
+        engine.setViaTable(name, path, table);
     }
 
     @Override
@@ -347,13 +347,13 @@ public class ScenarioActions implements Actions {
     @Override
     @When("^call (.+)")
     public void call(String line) {
-        engine.call(false, line);
+        engine.call(false, line, true);
     }
 
     @Override
     @When("^callonce (.+)")
     public void callonce(String line) {
-        engine.call(true, line);
+        engine.call(true, line, true);
     }
 
     @Override

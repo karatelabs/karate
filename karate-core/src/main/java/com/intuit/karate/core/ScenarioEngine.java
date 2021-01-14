@@ -192,14 +192,6 @@ public class ScenarioEngine {
         return failedReason;
     }
 
-    public void call(boolean callOnce, String line) {
-        call(callOnce, line, true);
-    }
-
-    public void assign(AssignType assignType, String name, String exp) {
-        assign(assignType, name, exp, true);
-    }
-
     public void matchResult(Match.Type matchType, String expression, String path, String expected) {
         Match.Result mr = match(matchType, expression, path, expected);
         if (!mr.pass) {
@@ -209,10 +201,6 @@ public class ScenarioEngine {
 
     public void set(String name, String path, String exp) {
         set(name, path, exp, false, false);
-    }
-
-    public void set(String name, String path, List<Map<String, String>> table) {
-        setViaTable(name, path, table);
     }
 
     public void remove(String name, String path) {
@@ -247,13 +235,13 @@ public class ScenarioEngine {
 
     public void replace(String name, String token, String value) {
         name = name.trim();
-        String text = getVarAsString(name);
+        Variable v = vars.get(name);
+        if (v == null) {
+            throw new RuntimeException("no variable found with name: " + name);
+        }
+        String text = v.getAsString();
         String replaced = replacePlaceholderText(text, token, value);
         setVariable(name, replaced);
-    }
-
-    public void replace(String name, List<Map<String, String>> table) {
-        replaceTable(name, table);
     }
 
     public void assertTrue(String expression) {
@@ -1287,18 +1275,16 @@ public class ScenarioEngine {
                 return new Variable(JsonUtils.fromCsv(v.getAsString()));
             case COPY:
                 return v.copy(true);
-            default: // AUTO (TEXT is pre-handled)
+            default: // AUTO (TEXT is pre-handled, see below)
                 return v; // as is
         }
     }
 
-    public void assign(AssignType assignType, String name, String exp, boolean validateName) {
+    public void assign(AssignType assignType, String name, String exp) {
         name = StringUtils.trimToEmpty(name);
-        if (validateName) {
-            validateVariableName(name);
-            if (vars.containsKey(name)) {
-                logger.warn("over-writing existing variable '{}' with new value: {}", name, exp);
-            }
+        validateVariableName(name); // always validate when gherkin
+        if (vars.containsKey(name)) {
+            logger.warn("over-writing existing variable '{}' with new value: {}", name, exp);
         }
         if (assignType == AssignType.TEXT) {
             setVariable(name, exp);
@@ -1506,14 +1492,6 @@ public class ScenarioEngine {
             Node grandParent = parent.getParentNode(); // parent element
             grandParent.removeChild(parent);
         }
-    }
-
-    private String getVarAsString(String name) {
-        Variable v = vars.get(name);
-        if (v == null) {
-            throw new RuntimeException("no variable found with name: " + name);
-        }
-        return v.getAsString();
     }
 
     public String replacePlaceholderText(String text, String token, String replaceWith) {
@@ -1789,15 +1767,6 @@ public class ScenarioEngine {
 
     public static boolean isJavaScriptFunction(String text) {
         return FUNCTION_PATTERN.matcher(text).find();
-    }
-
-    public static String fixJavaScriptFunction(String text) {
-        Matcher matcher = FUNCTION_PATTERN.matcher(text);
-        if (matcher.find()) {
-            return matcher.replaceFirst("function(");
-        } else {
-            return text;
-        }
     }
 
     public static boolean isValidVariableName(String name) {

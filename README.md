@@ -1419,8 +1419,7 @@ Just like [`yaml`](#yaml), you may occasionally need to [convert a string](#type
 ## JavaScript Functions
 JavaScript Functions are also 'native'. And yes, functions can take arguments.
 
-> Standard JavaScript syntax rules apply, but the right-hand-side (or contents of the `*.js` file if applicable) should begin with the `function` keyword. This means that JavaScript comments are *not* supported if they appear *before* the function body. Also note that [ES6 arrow functions](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Functions/Arrow_functions) 
-are **not** supported. Finally, especially when using stand-alone `*.js` files, you can use `fn` as the function name, so that your IDE does not complain about JavaScript syntax errors, e.g. `function fn(x){ return x + 1 }`
+> Standard JavaScript syntax rules apply, but the right-hand-side should begin with the `function` keyword if declared *in-line*. When using stand-alone `*.js` files, you can have a comment before the `function` keyword, and you can use `fn` as the function name, so that your IDE does not complain about JavaScript syntax errors, e.g. `function fn(x){ return x + 1 }`
 
 ```cucumber
 * def greeter = function(title, name) { return 'hello ' + title + ' ' + name }

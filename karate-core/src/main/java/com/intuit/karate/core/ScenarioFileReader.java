@@ -54,8 +54,7 @@ public class ScenarioFileReader {
             return temp.getValue();
         } else if (isJavaScriptFile(text)) {
             String contents = readFileAsString(text);
-            contents = ScenarioEngine.fixJavaScriptFunction(contents);
-            Variable temp = engine.evalKarateExpression(contents);
+            Variable temp = engine.evalJs("(" + contents + ")");
             return temp.getValue();
         } else if (isTextFile(text) || isGraphQlFile(text)) {
             return readFileAsString(text);

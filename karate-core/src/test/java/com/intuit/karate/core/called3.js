@@ -1,4 +1,4 @@
-function fn() {
+function() {
   var A = '2';
   var B = '3';
   return {

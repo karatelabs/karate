@@ -270,7 +270,7 @@ public class ScenarioRuntime implements Runnable {
         if (js == null) {
             return;
         }
-        Variable fun = engine.evalKarateExpression(js);
+        Variable fun = engine.evalJs("(" + js + ")");
         if (!fun.isJsFunction()) {
             logger.warn("not a valid js function: {}", displayName);
             return;
