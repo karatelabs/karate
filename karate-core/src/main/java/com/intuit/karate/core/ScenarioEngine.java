@@ -249,7 +249,7 @@ public class ScenarioEngine {
         name = name.trim();
         String text = getVarAsString(name);
         String replaced = replacePlaceholderText(text, token, value);
-        vars.put(name, new Variable(replaced));
+        setVariable(name, replaced);
     }
 
     public void replace(String name, List<Map<String, String>> table) {

@@ -690,4 +690,15 @@ class ScenarioRuntimeTest {
         matchVar("res4", "value is 2.0");
     }
 
+    @Test
+    void testReplace() {
+        run(
+                "def text = 'words that need to be {replaced}'",
+                "replace text.{replaced} = 'correct'",
+                "match text == 'words that need to be correct'",
+                "match text.toString() == 'words that need to be correct'"
+        );
+        matchVar("text", "words that need to be correct");
+    }
+
 }
