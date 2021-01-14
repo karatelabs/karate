@@ -25,6 +25,7 @@
     | <a href="#configure-drivertarget"><code>configure driverTarget</code></a>
     | <a href="#karate-chrome">Docker / <code>karate-chrome</code></a>
     | <a href="#driver-types">Driver Types</a> 
+    | <a href="#playwright">Playwright</a> 
     | <a href="#timeout"><code>timeout()</code></a>
     | <a href="#driversessionid"><code>driver.sessionId</code></a>
   </td>
@@ -333,13 +334,6 @@ Note that some capabilities such as "headless" may be possible via the command-l
 
 Also see [`driver.sessionId`](#driversessionid).
 
-## `playwrightOptions`
-This can take the following keys:
-* `browserType` - defaults to `chromium`, can be set to the other types that Playwright supports, e.g. `firefox` and `webkit`
-* `context` - JSON which will be passed as the argument of the Playwright [`browser.newContext()`](https://playwright.dev/#path=docs%2Fapi.md&q=browsernewcontextoptions) call, needed typically to set the page dimensions
-
-Note that there is a top-level config flag for `headless` mode. The default is: `* configure driver = { headless: false }`
-
 ### Playwright
 To use Playwright, you need to start a Playwright server. If you have one pre-started, you need to use the [`playwrightUrl`](#configure-driver) driver config.
 
@@ -381,11 +375,26 @@ The final piece of the puzzle is to set up a batch file to start the server:
 exec node /some/path/playwright/server.js $*
 ```
 
-The [`exec`](http://veithen.io/2014/11/16/sigterm-propagation.html) is important here so that Karate can stop the node process cleanly.
+The [`exec`](http://veithen.io/2014/11/16/sigterm-propagation.html) is important here so that Karate can stop the `node` process cleanly.
 
-Now you can use the path of the batch file in the driver config. For convenience, Karate assumes by default that the executable name is `playwright` and that it exists in the System [`PATH`](https://www.java.com/en/download/help/path.xml). Make sure that the batch file is made executable depending on your OS.
+Now you can use the path of the batch file in the driver `executable` config.
+
+```cucumber
+* configure driver = { type: 'playwright', executable: 'path/to/start-server' }
+```
+
+For convenience, Karate assumes by default that the executable name is `playwright` and that it exists in the System [`PATH`](https://www.java.com/en/download/help/path.xml). Make sure that the batch file is made executable depending on your OS.
 
 Based on the above details, you should be able to come up with a custom strategy to connect Karate to Playwright. And you can consider a [`driverTarget`](#custom-target) approach for complex needs such as using a Docker container for CI.
+
+### `playwrightOptions`
+When using [Playwright](#playwright) you can omit this in which case Karate will default to Chrome (within Playwright) and the default browser window size.
+
+This can take the following keys:
+* `browserType` - defaults to `chromium`, can be set to the other types that Playwright supports, e.g. `firefox` and `webkit`
+* `context` - JSON which will be passed as the argument of the Playwright [`browser.newContext()`](https://playwright.dev/#path=docs%2Fapi.md&q=browsernewcontextoptions) call, needed typically to set the page dimensions
+
+Note that there is a top-level config flag for `headless` mode. The default is: `* configure driver = { headless: false }`
 
 ## `configure driverTarget`
 The [`configure driver`](#configure-driver) options are fine for testing on "`localhost`" and when not in `headless` mode. But when the time comes for running your web-UI automation tests on a continuous integration server, things get interesting. To support all the various options such as Docker, headless Chrome, cloud-providers etc., Karate introduces the concept of a pluggable [`Target`](src/main/java/com/intuit/karate/driver/Target.java) where you just have to implement two methods:

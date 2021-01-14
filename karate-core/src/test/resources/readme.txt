@@ -26,14 +26,13 @@ https://bintray.com/ptrthomas/karate
 (upload to github release notes)
 
 docker:
-(double check if the below pom files are updated for the version
-(edit examples/jobserver/pom.xml)
-(edit examples/gatling/pom.xml)
 make sure docker is started and is running !
-cd karate-docker/karate-chrome
-rm -rf target
-./docker-build.sh
-docker tag karate-chrome ptrthomas/karate-chrome:latest
+rm -rf ~/.m2/repository/com/intuit/karate
+rm -rf karate-docker/karate-chrome/target
+mvn clean install -P pre-release -DskipTests
+./build-docker.sh
 
+docker tag karate-chrome ptrthomas/karate-chrome:latest
 docker tag karate-chrome ptrthomas/karate-chrome:@@@
+
 docker push ptrthomas/karate-chrome

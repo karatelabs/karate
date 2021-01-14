@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
  *
  * @author pthomas3
  */
-class LocalAllRunner {
+class LocalParallelRunner {
     
     static HttpServer server;
     
