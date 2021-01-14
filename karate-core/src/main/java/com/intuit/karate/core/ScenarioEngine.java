@@ -830,12 +830,12 @@ public class ScenarioEngine {
     private void autoDef(Plugin plugin, String instanceName) {
         for (String methodName : plugin.methodNames()) {
             String invoke = instanceName + "." + methodName;
-            String js = "function(){ if (arguments.length == 0) return " + invoke + "();"
-                    + " if (arguments.length == 1) return " + invoke + "(arguments[0]);"
-                    + " if (arguments.length == 2) return " + invoke + "(arguments[0], arguments[1]);"
-                    + " return " + invoke + "(arguments[0], arguments[1], arguments[2]) }";
-
-            setHiddenVariable(methodName, evalJs(js));
+            StringBuilder sb = new StringBuilder();
+            sb.append("(function(){ if (arguments.length == 0) return ").append(invoke).append("();")
+                    .append(" if (arguments.length == 1) return ").append(invoke).append("(arguments[0]);")
+                    .append(" if (arguments.length == 2) return ").append(invoke).append("(arguments[0], arguments[1]);")
+                    .append(" return ").append(invoke).append("(arguments[0], arguments[1], arguments[2]) })");
+            setHiddenVariable(methodName, evalJs(sb.toString()));
         }
     }
 
