@@ -994,7 +994,14 @@ public class ScenarioEngine {
     public void init() { // not in constructor because it has to be on Runnable.run() thread 
         JS = JsEngine.local();
         logger.trace("js context: {}", JS);
-        setVariables(runtime.magicVariables);
+        setVariables(runtime.magicVariables, true);
+        if(this.runtime.scenario.isOutlineExample()) {
+            Map<String, Object> exampleData = runtime.scenario.getExampleData();
+            setVariables(exampleData, false);
+        }
+        if (this.runtime.caller.arg != null && this.runtime.caller.arg.isMap()) {
+            setVariables(this.runtime.caller.arg.getValue(), false);
+        }
         attachVariables(); // re-hydrate any functions from caller or background
         setHiddenVariable(KARATE, bridge);
         setHiddenVariable(READ, readFunction);
@@ -1205,26 +1212,36 @@ public class ScenarioEngine {
     }
 
     public void setVariable(String key, Object value) {
+        this.setVariable(key, value, false);
+    }
+
+    public void setVariable(String key, Object value, boolean isScenarioScopeOnly) {
         Variable v;
         if (value instanceof Variable) {
             v = (Variable) value;
         } else {
             v = new Variable(value);
         }
-        vars.put(key, v);
+        if(!isScenarioScopeOnly) {
+            vars.put(key, v);
+        }
         if (JS != null) {
             JS.put(key, v.getValue());
         }
         if (children != null) {
-            children.forEach(c -> c.setVariable(key, value));
+            children.forEach(c -> c.setVariable(key, value, isScenarioScopeOnly));
         }
     }
 
     public void setVariables(Map<String, Object> map) {
+        this.setVariables(map, false);
+    }
+
+    public void setVariables(Map<String, Object> map, boolean isScenarioScopeOnly) {
         if (map == null) {
             return;
         }
-        map.forEach((k, v) -> setVariable(k, v));
+        map.forEach((k, v) -> setVariable(k, v, isScenarioScopeOnly));
     }
 
     private static Map<String, Variable> copy(Map<String, Variable> source, boolean deep) {

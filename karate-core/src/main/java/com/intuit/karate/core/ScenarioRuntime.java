@@ -95,7 +95,7 @@ public class ScenarioRuntime implements Runnable {
             // detaching is as good as cloning
             // the detach is needed as the js-engine will be different
             Map<String, Variable> detached = background.engine.detachVariables();
-            detached.forEach((k, v) -> magicVariables.put(k, v.getValue()));
+            detached.forEach((k, v) -> this.engine.vars.put(k, v)); // maybe this should go into this.engine.vars
             result.addStepResults(background.result.getStepResults());
         }
         dryRun = featureRuntime.suite.dryRun;
@@ -248,6 +248,8 @@ public class ScenarioRuntime implements Runnable {
     }
 
     private Map<String, Object> initMagicVariables() {
+        // do not init anything in this map that couldn't be considered a magic var (e.g. __arg, __loop)
+        // those should remain in the scope of the scenario being executed only
         Map<String, Object> map = new HashMap();
         if (caller.isNone()) { // if feature called via java api
             if (caller.arg != null && caller.arg.isMap()) {
@@ -256,13 +258,9 @@ public class ScenarioRuntime implements Runnable {
         } else {
             map.put("__arg", caller.arg);
             map.put("__loop", caller.getLoopIndex());
-            if (caller.arg != null && caller.arg.isMap()) {
-                map.putAll(caller.arg.getValue());
-            }
         }
         if (scenario.isOutlineExample() && !scenario.isDynamic()) { // init examples row magic variables
             Map<String, Object> exampleData = scenario.getExampleData();
-            exampleData.forEach((k, v) -> map.put(k, v));
             map.put("__row", exampleData);
             map.put("__num", scenario.getExampleIndex());
             // TODO breaking change configure outlineVariablesAuto deprecated          
