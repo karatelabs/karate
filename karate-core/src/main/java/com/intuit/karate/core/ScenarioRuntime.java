@@ -92,7 +92,10 @@ public class ScenarioRuntime implements Runnable {
         this.background = background; // used only to check which steps remain
         result = new ScenarioResult(scenario);
         if (background != null) {
-            magicVariables.putAll(background.engine.getAllVariablesAsMap());
+            // detaching is as good as cloning
+            // the detach is needed as the js-engine will be different
+            Map<String, Variable> detached = background.engine.detachVariables();
+            detached.forEach((k, v) -> magicVariables.put(k, v.getValue()));
             result.addStepResults(background.result.getStepResults());
         }
         dryRun = featureRuntime.suite.dryRun;
