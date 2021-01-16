@@ -181,7 +181,22 @@ class FeatureRuntimeTest {
 
     @Test
     void testJsRead() {
-        run("js-read.feature");
+        run("jsread/js-read.feature");
+    }
+
+    @Test
+    void testJsRead2() {
+        run("jsread/js-read-2.feature");
+    }
+
+    @Test
+    void testJsRead3() {
+        run("jsread/js-read-3.feature");
+    }
+
+    @Test
+    void testJsRead4() {
+        run("jsread/js-read-4.feature");
     }
 
     @Test
