@@ -362,8 +362,8 @@ serverPromise.then(bs => console.log(bs.wsEndpoint()));
 The main thing here is that the server URL should be logged to the console when it starts. Karate will scan the log for any string that starts with `ws://` and kick things off from there.
 
 Also Karate will call the executable with three arguments in this order:
-* `browserType`
 * `port`
+* `browserType`
 * `headless`
 
 So this is how you can communicate your cross-browser config from your Karate test to the executable.
