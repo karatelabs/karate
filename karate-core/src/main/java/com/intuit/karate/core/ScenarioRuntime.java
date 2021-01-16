@@ -88,14 +88,10 @@ public class ScenarioRuntime implements Runnable {
         logger.setAppender(logAppender);
         actions = new ScenarioActions(engine);
         this.scenario = scenario;
-        magicVariables = initMagicVariables(); // depends on scenario
+        magicVariables = initMagicVariables(background); // depends on scenario
         this.background = background; // used only to check which steps remain
         result = new ScenarioResult(scenario);
         if (background != null) {
-            // detaching is as good as cloning
-            // the detach is needed as the js-engine will be different
-            Map<String, Variable> detached = background.engine.detachVariables();
-            detached.forEach((k, v) -> magicVariables.put(k, v.getValue()));
             result.addStepResults(background.result.getStepResults());
         }
         dryRun = featureRuntime.suite.dryRun;
@@ -247,8 +243,14 @@ public class ScenarioRuntime implements Runnable {
         logger.error("{}", message);
     }
 
-    private Map<String, Object> initMagicVariables() {
+    private Map<String, Object> initMagicVariables(ScenarioRuntime background) {
         Map<String, Object> map = new HashMap();
+        if (background != null) {
+            // detaching is as good as cloning
+            // the detach is needed as the js-engine will be different
+            Map<String, Variable> detached = background.engine.detachVariables();
+            detached.forEach((k, v) -> map.put(k, v.getValue()));
+        }
         if (caller.isNone()) { // if feature called via java api
             if (caller.arg != null && caller.arg.isMap()) {
                 map.putAll(caller.arg.getValue());
