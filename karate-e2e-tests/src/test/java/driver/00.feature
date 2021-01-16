@@ -26,3 +26,6 @@ Scenario:
 
 # input() | value() | text() | html()
 * call read('07.feature')
+
+# switchFrame()
+* call read('08.feature')
