@@ -140,23 +140,23 @@ class ScenarioRuntimeTest {
                 "def b = 'bar'",
                 "def res = call read('called1.feature')"
         );
-        matchVar("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: null, __loop: -1 }");
+        matchVar("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal' }");
         run(
                 "def b = 'bar'",
                 "def res = call read('called1.feature') { foo: 'bar' }"
         );
-        matchVar("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { foo: 'bar' }, __loop: -1 }");
+        matchVar("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal' }");
         run(
                 "def b = 'bar'",
                 "def res = call read('called1.feature') [{ foo: 'bar' }]"
         );
-        matchVar("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { foo: 'bar' }, __loop: 0 }]");
+        matchVar("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal' } ]");
         run(
                 "def b = 'bar'",
                 "def fun = function(i){ if (i == 1) return null; return { index: i } }",
                 "def res = call read('called1.feature') fun"
         );
-        matchVar("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', __arg: { index: 0 }, __loop: 0, index: 0, fun: '#ignore' }]");
+        matchVar("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', index: 0, fun: '#ignore' }]");
     }
 
     @Test
@@ -215,7 +215,7 @@ class ScenarioRuntimeTest {
         run(
                 "def res = karate.call('called1.feature')"
         );
-        matchVar("res", "{ a: 1, foo: { hello: 'world' }, configSource: 'normal', __arg: null, __loop: -1 }");
+        matchVar("res", "{ a: 1, foo: { hello: 'world' }, configSource: 'normal' }");
     }
 
     @Test
