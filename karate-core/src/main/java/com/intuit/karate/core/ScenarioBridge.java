@@ -49,6 +49,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -604,16 +605,6 @@ public class ScenarioBridge implements PerfContext {
         return new JsList(list);
     }
 
-    public Object sizeOf(Value v) {
-        if (v.hasArrayElements()) {
-            return v.getArraySize();
-        } else if (v.hasMembers()) {
-            return v.getMemberKeys().size();
-        } else {
-            return -1;
-        }
-    }
-
     // set multiple variables in one shot
     public void set(Map<String, Object> map) {
         getEngine().setVariables(map);
@@ -639,6 +630,36 @@ public class ScenarioBridge implements PerfContext {
 
     public void signal(Value result) {
         getEngine().signal(JsValue.toJava(result));
+    }
+
+    public Object sizeOf(Value v) {
+        if (v.hasArrayElements()) {
+            return v.getArraySize();
+        } else if (v.hasMembers()) {
+            return v.getMemberKeys().size();
+        } else {
+            return -1;
+        }
+    }
+
+    public Object sort(Value o, Value f) {
+        if (!o.hasArrayElements()) {
+            return JsList.EMPTY;
+        }
+        assertIfJsFunction(f);
+        long count = o.getArraySize();
+        Map<Object, Object> map = new TreeMap();
+        for (int i = 0; i < count; i++) {
+            Object value = JsValue.toJava(o.getArrayElement(i));
+            Object item = JsValue.fromJava(value); // necessary re-conversion
+            Value key = f.execute(item, i);
+            if (key.isNumber()) {
+                map.put(key.as(Number.class), item);
+            } else {
+                map.put(key.asString(), item);
+            }
+        }
+        return JsValue.fromJava(new ArrayList(map.values()));
     }
 
     public MockServer start(String mock) {

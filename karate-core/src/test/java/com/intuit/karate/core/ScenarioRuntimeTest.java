@@ -700,5 +700,18 @@ class ScenarioRuntimeTest {
         );
         matchVar("text", "words that need to be correct");
     }
+    
+    @Test
+    void testSort() {
+        run(
+                "def list1 = [{ num: 3 }, { num: 1 }, { num: 2 }]",
+                "def fun1 = x => x.num",
+                "def res1 = karate.sort(list1, fun1)",
+                "match res1 == [{ num: 1 }, { num: 2 }, { num: 3 }]",
+                "def list2 = [{ val: 'C' }, { val: 'A' }, { val: 'B' }]",
+                "def res2 = karate.sort(list2, x => x.val)",
+                "match res2 == [{ val: 'A' }, { val: 'B' }, { val: 'C' }]"                
+        );        
+    }
 
 }

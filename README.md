@@ -2965,6 +2965,8 @@ Karate supports the following [functional-style](https://en.wikipedia.org/wiki/F
 
 A few more useful "transforms" are to select a sub-set of key-value pairs using [`karate.filterKeys()`](#karate-filterkeys), merging 2 or more JSON-s using [`karate.merge()`](#karate-merge) and combining 2 or more arrays (or objects) into a single array using [`karate.append()`](#karate-append). And [`karate.appendTo()`](#karate-appendto) is for updating an existing variable (the equivalent of `array.push()` in JavaScript), which is especially useful in the body of a `karate.forEach()`.
 
+You can also sort arrays of arbitrary JSON using [`karate.sort()`](#karate-sort).
+
 > Note that a single JS function is sufficient to transform a given JSON object into a completely new one, and you can use complex conditional logic if needed.
 
 ```cucumber
@@ -3026,6 +3028,12 @@ Scenario: append
     * def foo = [{ a: 1 }]
     * def bar = karate.append(foo, { b: 2 })
     * match bar == [{ a: 1 }, { b: 2 }]
+
+Scenario: sort
+    * def foo = [{a: { b: 3 }}, {a: { b: 1 }}, {a: { b: 2 }}]
+    * def fun = function(x){ return x.a.b }
+    * def bar = karate.sort(foo, fun)
+    * match bar == [{a: { b: 1 }}, {a: { b: 2 }}, {a: { b: 3 }}]    
 ```
 
 ### Loops
@@ -3308,6 +3316,7 @@ Operation | Description
 <a name="karate-setxml"><code>karate.setXml(name, xmlString)</code></a> | rarely used, refer to the example above
 <a name="karate-signal"><code>karate.signal(result)</code></a> | trigger an event that [`karate.listen(timeout)`](#karate-listen) is waiting for, and pass the data, see [async](#async)
 <a name="karate-sizeof"><code>karate.sizeOf(object)</code></a> | returns the size of the map-like or list-like object
+<a name="karate-sort"><code>karate.sort(list, function)</code></a> | sorts the list using the provided custom function called for each item in the list (and the optional second argument is the item index) e.g. `karate.sort(myList, x => x.val)`
 <a name="karate-stop"><code>karate.stop(port)</code></a> | will pause the test execution until a socket connection (even HTTP `GET`) is made to the port logged to the console, useful for troubleshooting UI tests without using a [de-bugger](https://twitter.com/KarateDSL/status/1167533484560142336), of course - *NEVER* forget to remove this after use ! 
 <a name="karate-target"><code>karate.target(object)</code></a> | currently for web-ui automation only, see [target lifecycle](karate-core#target-lifecycle)
 <a name="karate-tags"><code>karate.tags</code></a> | for advanced users - scripts can introspect the tags that apply to the current scope, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)

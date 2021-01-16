@@ -141,6 +141,12 @@ Scenario: append
     * def fun = function(){ var x = [1, 2]; return karate.append(x, 3, 4) }
     * match fun() == [1, 2, 3, 4]
 
+Scenario: sort
+    * def foo = [{a: { b: 3 }}, {a: { b: 1 }}, {a: { b: 2 }}]
+    * def fun = function(x){ return x.a.b }
+    * def bar = karate.sort(foo, fun)
+    * match bar == [{a: { b: 1 }}, {a: { b: 2 }}, {a: { b: 3 }}]
+
 Scenario: get last array element (js)
     * def list = [1, 2, 3, 4]
     * def last = list[list.length-1]
