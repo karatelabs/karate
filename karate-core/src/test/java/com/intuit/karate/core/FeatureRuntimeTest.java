@@ -203,5 +203,10 @@ class FeatureRuntimeTest {
     void testToBean() {
         run("to-bean.feature");
     }
+    
+    @Test
+    void testOutlineBackground() {
+        run("outline-background.feature");
+    }    
 
 }

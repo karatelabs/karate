@@ -92,6 +92,7 @@ public class ScenarioRuntime implements Runnable {
         this.background = background; // used only to check which steps remain
         result = new ScenarioResult(scenario);
         if (background != null) {
+            magicVariables.putAll(background.engine.getAllVariablesAsMap());
             result.addStepResults(background.result.getStepResults());
         }
         dryRun = featureRuntime.suite.dryRun;
