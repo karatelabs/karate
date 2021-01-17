@@ -37,6 +37,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 
+import java.io.File;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.AbstractMap.SimpleEntry;
@@ -106,7 +107,11 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
 
     protected boolean isBreakpoint(Step step, int line) {
         Feature feature = step.getFeature();
-        String path = normalizePath(feature.getResource().getFile().getPath());
+        File file = feature.getResource().getFile();
+        if (file == null) {
+            return false;
+        }
+        String path = normalizePath(file.getPath());
         int pos = findPos(path);
         SourceBreakpoints sb;
         if (pos != -1) {
