@@ -207,6 +207,11 @@ class FeatureRuntimeTest {
     @Test
     void testOutlineBackground() {
         run("outline-background.feature");
-    }    
+    }  
+    
+    @Test
+    void testCallArg() {
+        run("call-arg.feature");
+    }     
 
 }

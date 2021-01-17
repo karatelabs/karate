@@ -994,7 +994,7 @@ public class ScenarioEngine {
     public void init() { // not in constructor because it has to be on Runnable.run() thread 
         JS = JsEngine.local();
         logger.trace("js context: {}", JS);
-        setVariables(runtime.magicVariables);
+        runtime.magicVariables.forEach((k, v) -> setHiddenVariable(k, v));
         attachVariables(); // re-hydrate any functions from caller or background
         setHiddenVariable(KARATE, bridge);
         setHiddenVariable(READ, readFunction);
