@@ -38,7 +38,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  *
@@ -88,15 +87,13 @@ public class ScenarioRuntime implements Runnable {
         logger.setAppender(logAppender);
         actions = new ScenarioActions(engine);
         this.scenario = scenario;
-        magicVariables = initMagicVariables(); // depends on scenario
         this.background = background; // used only to check which steps remain
+        magicVariables = initMagicVariables();      
         result = new ScenarioResult(scenario);
         if (background != null) {
-            // detaching is as good as cloning
-            // the detach is needed as the js-engine will be different
-            Map<String, Variable> detached = background.engine.detachVariables();
-            detached.forEach((k, v) -> magicVariables.put(k, v.getValue()));
             result.addStepResults(background.result.getStepResults());
+            Map<String, Variable> detached = background.engine.detachVariables();
+            engine.vars.putAll(detached);         
         }
         dryRun = featureRuntime.suite.dryRun;
         tags = scenario.getTagsEffective();
@@ -254,6 +251,10 @@ public class ScenarioRuntime implements Runnable {
                 map.putAll(caller.arg.getValue());
             }
         } else {
+            // karate principle: parent variables are always "visible"
+            // so we inject the parent magic variables
+            // but they will be over-written by what is local to this scenario
+            map.putAll(caller.parentRuntime.magicVariables);
             map.put("__arg", caller.arg);
             map.put("__loop", caller.getLoopIndex());
             if (caller.arg != null && caller.arg.isMap()) {

@@ -27,11 +27,13 @@ import com.intuit.karate.*;
 import com.intuit.karate.cli.IdeMain;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.Result;
-import com.intuit.karate.core.ScenarioEngine;
-import com.intuit.karate.core.Step;
 import com.intuit.karate.core.RuntimeHookFactory;
+import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.ScenarioRuntime;
+import com.intuit.karate.core.Step;
 import com.intuit.karate.core.Variable;
+import static com.intuit.karate.core.Variable.Type.LIST;
+import static com.intuit.karate.core.Variable.Type.MAP;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
@@ -43,12 +45,8 @@ import java.util.*;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static com.intuit.karate.core.Variable.Type.LIST;
-import static com.intuit.karate.core.Variable.Type.MAP;
 
 /**
  *
@@ -127,7 +125,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
 
     protected String normalizePath(String path) {
         String normalizedPath = Paths.get(path).normalize().toString();
-        if(FileUtils.isOsWindows() && path.matches("^[a-zA-Z]:\\\\.*")) {
+        if (FileUtils.isOsWindows() && path.matches("^[a-zA-Z]:\\\\.*")) {
             // in Windows if the first character is the drive, let's capitalize it
             // Windows paths are case insensitive but in the debugger it mostly comes capitalized but sometimes
             // VS Studio sends the paths with the first letter lower case
