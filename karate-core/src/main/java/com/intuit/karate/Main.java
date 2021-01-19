@@ -207,9 +207,8 @@ public class Main implements Callable<Void> {
             String path = matcher.group(2).trim();
             if (path.contains(" ")) {
                 // unquote if necessary
+                String options = line.substring(0, line.lastIndexOf(path));
                 path = path.replaceAll("^\"|^'|\"$|\'$", "");
-                String options = matcher.group(1);
-                options = options != null ? options : "";
                 line = String.format("%s \"%s\"", options, path);
             }
         }

@@ -112,9 +112,9 @@ class IdeMainTest {
             " -H com.intuit.karate.RuntimeHook /tmp/name with spaces.feature ",
             "-H com.intuit.karate.RuntimeHook \"/tmp/name with spaces.feature\"",
             " -H com.intuit.karate.RuntimeHook \"/tmp/name with spaces.feature\" ",
-            "-H com.intuit.karate.RuntimeHook '/tmp/name with spaces.feature'",
-            "-H com.intuit.karate.RuntimeHook -H com.intuit.karate.RuntimeHook /tmp/name with spaces.feature ",
-            "-H com.intuit.karate.RuntimeHook,com.intuit.karate.RuntimeHook /tmp/name with spaces.feature "
+                "-H com.intuit.karate.RuntimeHook '/tmp/name with spaces.feature'",
+                "-H com.intuit.karate.RuntimeHook -H com.intuit.karate.RuntimeHook /tmp/name with spaces.feature ",
+                "-H com.intuit.karate.RuntimeHook,com.intuit.karate.RuntimeHook /tmp/name with spaces.feature "
         };
 
         for (String line : lines) {
@@ -122,6 +122,13 @@ class IdeMainTest {
             assertEquals(1, options.paths.size());
             assertEquals("/tmp/name with spaces.feature", options.paths.get(0));
         }
+
+        String line = "-g C:\\test_cases\\config -e dev01 -H com.intuit.karate.RuntimeHook,com.intuit.karate.RuntimeHook /tmp/name with spaces.feature ";
+        Main options = Main.parseKarateOptionAndQuotePath(line);
+        assertEquals(1, options.paths.size());
+        assertEquals("C:\\test_cases\\config", options.configDir);
+        assertEquals("dev01", options.env);
+        assertEquals("/tmp/name with spaces.feature", options.paths.get(0));
     }
     
 }
