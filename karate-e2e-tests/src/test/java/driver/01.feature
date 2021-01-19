@@ -5,7 +5,9 @@ Background:
 
 Scenario:
 # assert page url
-* match driver.url == serverUrl + '/01'
+# match driver.url == serverUrl + '/01'
+# safer
+* waitForUrl(serverUrl + '/01')
 
 # assert page title
 * match driver.title == 'Page 01'
@@ -38,7 +40,9 @@ Scenario:
 # wait for page to re-load
 * waitForUrl(serverUrl + '/01')
 
-* match driver.title == 'Page 01'
+# * match driver.title == 'Page 01'
+# safer
+* waitUntil("document.title == 'Page 01'")
 
 # browser navigation: forward
 * forward()
@@ -46,7 +50,9 @@ Scenario:
 # wait for page to re-load
 * waitForUrl(serverUrl + '/02')
 
-* match driver.title == 'Page 02'
+# * match driver.title == 'Page 02'
+# safer
+* waitUntil("document.title == 'Page 02'")
 
 # driver.dimensions
-# * match driver.dimensions contains { x: '#number', y: '#number', width: '#number', height: '#number' }
+* match driver.dimensions contains { x: '#number', y: '#number', width: '#number', height: '#number' }

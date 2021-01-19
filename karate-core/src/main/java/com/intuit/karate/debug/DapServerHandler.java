@@ -479,7 +479,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
 
         launchCommand = null;
         preStep = null;
-        if(runnerThread != null && runnerThread.isAlive()) {
+        if (runnerThread != null && runnerThread.isAlive()) {
             runnerThread.interrupt();
         }
     }
