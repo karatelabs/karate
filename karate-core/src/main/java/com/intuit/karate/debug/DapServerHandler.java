@@ -465,7 +465,22 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             server.stop();
             System.exit(0);
         } else {
+            this.clearDebugSession();
             channel.disconnect();
+        }
+    }
+
+    private void clearDebugSession() {
+        this.BREAKPOINTS.clear();
+        this.THREADS.clear();
+        this.FRAMES.clear();
+        this.FRAME_VARS.clear();
+        this.VARIABLES.clear();
+
+        launchCommand = null;
+        preStep = null;
+        if(runnerThread != null && runnerThread.isAlive()) {
+            runnerThread.interrupt();
         }
     }
 
