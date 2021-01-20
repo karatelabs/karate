@@ -497,7 +497,7 @@ public class MatchOperation {
                 List expList = expected.getValue();
                 int actListCount = actList.size();
                 int expListCount = expList.size();
-                if (expListCount > actListCount) {
+                if (type != Match.Type.CONTAINS_ANY && expListCount > actListCount) {
                     return fail("actual array length is less than expected - " + actListCount + ":" + expListCount);
                 }
                 if (type == Match.Type.CONTAINS_ONLY && expListCount != actListCount) {
