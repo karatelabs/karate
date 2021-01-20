@@ -129,9 +129,9 @@ class IdeMainTest {
             " -H com.intuit.karate.RuntimeHook /tmp/name with spaces.feature ",
             "-H com.intuit.karate.RuntimeHook \"/tmp/name with spaces.feature\"",
             " -H com.intuit.karate.RuntimeHook \"/tmp/name with spaces.feature\" ",
-                "-H com.intuit.karate.RuntimeHook '/tmp/name with spaces.feature'",
-                "-H com.intuit.karate.RuntimeHook -H com.intuit.karate.RuntimeHook /tmp/name with spaces.feature ",
-                "-H com.intuit.karate.RuntimeHook,com.intuit.karate.RuntimeHook /tmp/name with spaces.feature "
+            "-H com.intuit.karate.RuntimeHook '/tmp/name with spaces.feature'",
+            "-H com.intuit.karate.RuntimeHook -H com.intuit.karate.RuntimeHook /tmp/name with spaces.feature ",
+            "-H com.intuit.karate.RuntimeHook,com.intuit.karate.RuntimeHook /tmp/name with spaces.feature "
         };
         for (String line : lines) {
             Main options = Main.parseKarateOptionAndQuotePath(line);
