@@ -379,7 +379,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 String varName = expression.substring(0, expression.indexOf('.'));
                 String path = expression.substring(expression.indexOf('.') + 1);
                 Object nested = Json.of(vars.get(varName).getValue()).get(path);
-                result = JsonUtils.toJson(nested);
+                result = JsonUtils.toJsonSafe(nested, true);
             } else {
                 Variable v = vars.get(expression);
                 result = v.getAsPrettyString();
