@@ -345,7 +345,11 @@ public class Main implements Callable<Void> {
         if (serve) {
             ServerConfig config = new ServerConfig(workingDir.getPath());
             RequestHandler handler = new RequestHandler(config);
-            HttpServer server = new HttpServer(port, handler);
+            HttpServer server = HttpServer
+                    .handler(handler)
+                    .port(port)
+                    .corsEnabled(true)
+                    .build();
             server.waitSync();
             return null;
         }

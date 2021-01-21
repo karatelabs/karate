@@ -24,7 +24,7 @@ class ParallelTest {
     @BeforeAll
     static void beforeAll() {
         MockHandler mock = new MockHandler(Feature.read("classpath:com/intuit/karate/core/parallel/mock.feature"));
-        server = new HttpServer(0, mock);
+        server = HttpServer.handler(mock).build();
     }    
 
     @Test
