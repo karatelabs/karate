@@ -24,7 +24,7 @@ class LocalSingleRunner {
         Results results = Runner.path("src/test/java/driver/" + id + ".feature")
                 .karateEnv("single")
                 .systemProperty("server.port", server.getPort() + "")
-                .systemProperty("driver.type", "chromedriver")
+                .systemProperty("driver.type", "chrome")
                 .configDir("src/test/java/driver").parallel(1);
         assertEquals(0, results.getFailCount(), results.getErrorMessages());        
     }

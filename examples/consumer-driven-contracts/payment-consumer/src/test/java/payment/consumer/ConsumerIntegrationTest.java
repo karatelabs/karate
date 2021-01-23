@@ -1,9 +1,9 @@
 package payment.consumer;
 
-import org.junit.AfterClass;
-import org.junit.Test;
-import static org.junit.Assert.*;
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.AfterAll;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.springframework.context.ConfigurableApplicationContext;
 import payment.producer.Payment;
 import payment.producer.PaymentService;
@@ -12,20 +12,20 @@ import payment.producer.PaymentService;
  *
  * @author pthomas3
  */
-public class ConsumerIntegrationTest {
-    
-    private static ConfigurableApplicationContext context;
-    private static Consumer consumer;
-    
-    @BeforeClass
-    public static void beforeClass() {
+class ConsumerIntegrationTest {
+
+    static ConfigurableApplicationContext context;
+    static Consumer consumer;
+
+    @BeforeAll
+    static void beforeAll() {
         context = PaymentService.start();
         String paymentServiceUrl = "http://localhost:" + PaymentService.getPort(context);
-        consumer = new Consumer(paymentServiceUrl);       
+        consumer = new Consumer(paymentServiceUrl);
     }
-    
+
     @Test
-    public void testPaymentCreate() throws Exception {
+    void testPaymentCreate() throws Exception {
         Payment payment = new Payment();
         payment.setAmount(5.67);
         payment.setDescription("test one");
@@ -34,10 +34,10 @@ public class ConsumerIntegrationTest {
         assertEquals(payment.getAmount(), 5.67, 0);
         assertEquals(payment.getDescription(), "test one");
     }
-    
-    @AfterClass
-    public static void afterClass() {
+
+    @AfterAll
+    static void afterAll() {
         PaymentService.stop(context);
     }
-    
+
 }
