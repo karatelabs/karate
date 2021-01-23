@@ -29,7 +29,7 @@ If you need to create a completely new `HttpClient` implementation from scratch,
 Karate defaults to the [`ApacheHttpClient`](../karate-core/src/main/java/com/intuit/karate/http/ApacheHttpClient.java), and to change this for a test-run, you can set the [`HttpClientFactory`](../karate-core/src/main/java/com/intuit/karate/http/HttpClientFactory.java) using the [`Runner`](../karate-core/src/main/java/com/intuit/karate/Runner.java) "builder" API.
 
 ## Mocking Your Servlet
-Creating a `Servlet` and `ServletContext` instance is up to you and here is where you would manage configuration for your web-application. And then you can implement `HttpClientFactory` by using the `MockHttpClient` code provide by Karate.
+Creating a `Servlet` and `ServletContext` instance is up to you and here is where you would manage configuration for your web-application. And then you can implement `HttpClientFactory` by using the `MockHttpClient` code provided by Karate.
 
 Once you refer to the following examples, you should be able to get up and running for your project.
 * Spring MVC Dispatcher Servlet
