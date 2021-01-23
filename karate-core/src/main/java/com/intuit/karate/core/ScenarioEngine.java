@@ -37,46 +37,28 @@ import com.intuit.karate.driver.Key;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.http.ArmeriaHttpClient;
-import com.intuit.karate.http.Cookies;
-import com.intuit.karate.http.HttpClient;
-import com.intuit.karate.http.HttpConstants;
-import com.intuit.karate.http.HttpLogger;
-import com.intuit.karate.http.HttpRequest;
-import com.intuit.karate.http.HttpRequestBuilder;
-import com.intuit.karate.http.Request;
-import com.intuit.karate.http.ResourceType;
-import com.intuit.karate.http.Response;
-import com.intuit.karate.http.WebSocketClient;
-import com.intuit.karate.http.WebSocketOptions;
+import com.intuit.karate.http.*;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateUtils;
 import com.jayway.jsonpath.PathNotFoundException;
-import java.io.File;
-import java.io.InputStream;
-import java.security.KeyStore;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.graalvm.polyglot.Value;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+
+import java.io.File;
+import java.io.InputStream;
+import java.security.KeyStore;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  *
@@ -182,6 +164,10 @@ public class ScenarioEngine {
 
     public boolean isFailed() {
         return failedReason != null;
+    }
+
+    public boolean isIgnoringStepErrors() {
+        return !config.getContinueOnStepFailureMethods().isEmpty();
     }
 
     public void setFailedReason(Throwable failedReason) {

@@ -47,6 +47,8 @@ public class StepResult {
     private List<Embed> embeds;
     private List<FeatureResult> callResults;
     private String stepLog;
+    private boolean errorIgnored = false;
+    private Throwable failedReason;
 
     public String getErrorMessage() {
         if (result == null) {
@@ -255,6 +257,22 @@ public class StepResult {
 
     public List<FeatureResult> getCallResults() {
         return callResults;
+    }
+
+    public boolean isErrorIgnored() {
+        return errorIgnored;
+    }
+
+    public void setErrorIgnored(boolean errorIgnored) {
+        this.errorIgnored = errorIgnored;
+    }
+
+    public Throwable getFailedReason() {
+        return failedReason;
+    }
+
+    public void setFailedReason(Throwable failedReason) {
+        this.failedReason = failedReason;
     }
 
     @Override

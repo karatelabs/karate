@@ -33,6 +33,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -124,28 +125,44 @@ public class StepRuntime {
     }
 
     private static final Collection<MethodPattern> PATTERNS;
+    private static final Map<String,Collection<Method>> KEYWORDS_METHODS;
 
     static {
         Map<String, MethodPattern> temp = new HashMap();
         List<MethodPattern> overwrite = new ArrayList();
+        KEYWORDS_METHODS = new HashMap<>();
         for (Method method : ScenarioActions.class.getMethods()) {
             When when = method.getDeclaredAnnotation(When.class);
             if (when != null) {
                 String regex = when.value();
-                temp.put(regex, new MethodPattern(method, regex));
+                MethodPattern methodPattern = new MethodPattern(method, regex);
+                temp.put(regex, methodPattern);
+
+                // assuming all @When or @Action start with a ^, get the first word
+                String methodKeyword = regex.substring(1).split(" ")[0];
+                Collection<Method> keywordMethods = KEYWORDS_METHODS.computeIfAbsent(methodKeyword, k -> new HashSet<>());
+                keywordMethods.add(methodPattern.method);
             } else {
                 Action action = method.getDeclaredAnnotation(Action.class);
                 if (action != null) {
                     String regex = action.value();
-                    overwrite.add(new MethodPattern(method, regex));
+                    MethodPattern methodPattern = new MethodPattern(method, regex);
+                    overwrite.add(methodPattern);
+
+                    // assuming all @When or @Action start with a ^, get the first word
+                    String methodKeyword = regex.substring(1).split(" ")[0];
+                    Collection<Method> keywordMethods = KEYWORDS_METHODS.computeIfAbsent(methodKeyword, k -> new HashSet<>());
+                    keywordMethods.add(methodPattern.method);
                 }
             }
         }
+
         for (MethodPattern mp : overwrite) {
             temp.put(mp.regex, mp);
         }
         PATTERNS = temp.values();
     }
+
 
     private static List<MethodMatch> findMethodsMatching(String text) {
         List<MethodMatch> matches = new ArrayList(1);
@@ -156,6 +173,16 @@ public class StepRuntime {
             }
         }
         return matches;
+    }
+
+    public static Collection<Method> findMethodsByKeywords(List<String> text) {
+        Collection<Method> methods = new HashSet<>();
+        text.forEach(m -> { methods.addAll(findMethodsByKeyword(m)); });
+        return methods;
+    }
+
+    public static Collection<Method> findMethodsByKeyword(String text) {
+        return KEYWORDS_METHODS.get(text);
     }
 
     private static long getElapsedTimeNanos(long startTime) {
@@ -173,6 +200,7 @@ public class StepRuntime {
             return Result.failed(0, e, step);
         }
         MethodMatch match = matches.get(0);
+        step.setMatch(match);
         Object last;
         if (step.getDocString() != null) {
             last = step.getDocString();

@@ -60,6 +60,7 @@ public class ScenarioRuntime implements Runnable {
     public final boolean perfMode;
     public final boolean dryRun;
     public final LogAppender logAppender;
+    public boolean ignoringFailureSteps;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
         this(featureRuntime, scenario, null);
@@ -103,6 +104,11 @@ public class ScenarioRuntime implements Runnable {
 
     public boolean isFailed() {
         return error != null || result.isFailed();
+    }
+
+    public boolean hasIgnoredErrors() {
+        return ignoringFailureSteps; // result.getStepResults().stream().anyMatch(StepResult::isErrorIgnored);
+        // to review in code review if boolean is required, avoiding stream() might be desirable for performance
     }
 
     public Step getCurrentStep() {
@@ -436,14 +442,40 @@ public class ScenarioRuntime implements Runnable {
             stopped = true;
             logger.debug("abort at {}", step.getDebugInfo());
         } else if (stepResult.isFailed()) {
-            stopped = true;
-            error = stepResult.getError();
-            logError(error.getMessage());
+            if (step.getMatch() != null && this.engine.getConfig().getContinueOnStepFailureMethods().contains(step.getMatch().method)) {
+                stopped = false;
+                ignoringFailureSteps = true;
+                currentStepResult.setErrorIgnored(true);
+            } else {
+                stopped = true;
+            }
+
+            if(stopped && !this.engine.getConfig().isContinueAfterContinueOnStepFailure()) {
+                error = stepResult.getError();
+                logError(error.getMessage());
+            }
         } else {
             boolean hidden = reportDisabled || (step.isPrefixStar() && !step.isPrint() && !engine.getConfig().isShowAllSteps());
             currentStepResult.setHidden(hidden);
         }
         addStepLogEmbedsAndCallResults();
+
+        if(currentStepResult.isErrorIgnored()) {
+            this.engine.setFailedReason(null);
+        }
+
+        if (!this.engine.isIgnoringStepErrors() && this.ignoringFailureSteps) {
+            if (this.engine.getConfig().isContinueAfterContinueOnStepFailure()) {
+                // continue execution and reset failed reason for engine to null
+                this.engine.setFailedReason(null);
+                ignoringFailureSteps = false;
+            } else {
+                // stop execution
+                // keep failed reason for scenario as the last failed step that was ignored
+                stopped = true;
+            }
+        }
+
         if (stepResult.isFailed()) {
             if (engine.driver != null) {
                 engine.driver.onFailure(currentStepResult);
@@ -481,6 +513,10 @@ public class ScenarioRuntime implements Runnable {
         String stepLog = logAppender.collect();
         if (showLog) {
             currentStepResult.appendToStepLog(stepLog);
+            if(currentStepResult.getFailedReason() != null) {
+                currentStepResult.appendToStepLog("\n");
+                currentStepResult.appendToStepLog(currentStepResult.getFailedReason() + "\n" + currentStepResult.getStep().getDebugInfo());
+            }
         }
         if (callResults != null) {
             currentStepResult.addCallResults(callResults);

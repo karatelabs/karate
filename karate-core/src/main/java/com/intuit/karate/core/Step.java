@@ -48,6 +48,7 @@ public class Step {
     private String text;
     private String docString;
     private Table table;
+    private StepRuntime.MethodMatch match;
 
     private static final List<String> PREFIXES = Arrays.asList("*", "Given", "When", "Then", "And", "But");
 
@@ -217,6 +218,14 @@ public class Step {
 
     public void setComments(List<String> comments) {
         this.comments = comments;
+    }
+
+    public StepRuntime.MethodMatch getMatch() {
+        return match;
+    }
+
+    public void setMatch(StepRuntime.MethodMatch match) {
+        this.match = match;
     }
 
     @Override

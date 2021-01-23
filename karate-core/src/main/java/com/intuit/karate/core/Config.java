@@ -31,8 +31,13 @@ import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.http.HttpLogModifier;
 import com.intuit.karate.http.Cookies;
+
+import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import org.graalvm.polyglot.Value;
@@ -88,6 +93,8 @@ public class Config {
     private Variable headers = Variable.NULL;
     private Variable cookies = Variable.NULL;
     private Variable responseHeaders = Variable.NULL;
+    private List<Method> continueOnStepFailureMethods = new ArrayList<>();
+    private boolean continueAfterContinueOnStepFailure;
 
     // retry config
     private int retryInterval = DEFAULT_RETRY_INTERVAL;
@@ -286,6 +293,45 @@ public class Config {
             case "localAddress":
                 localAddress = value.getAsString();
                 return true;
+            case "continueOnStepFailure":
+                continueOnStepFailureMethods.clear(); // clears previous configuration - in case someone is trying to chain these and forgets resetting the previous one
+
+                boolean enableContinueOnStepFailureFeature = false;
+                Boolean continueAfterIgnoredFailure = null;
+
+                Collection<Method> selectedMethods = new HashSet<>();
+                if (value.isMap()) {
+                    Map<String, Object> map = value.getValue();
+                    List<String> stepKeywords = (List<String>) map.get("keywords");
+                    if (stepKeywords != null) {
+                        selectedMethods = StepRuntime.findMethodsByKeywords(stepKeywords);
+                    }
+
+                    continueAfterIgnoredFailure = (Boolean) map.get("continueAfter");
+                    enableContinueOnStepFailureFeature = map.get("enabled") != null && (Boolean) map.get("enabled");
+                }
+
+                if (value.isTrue() || enableContinueOnStepFailureFeature) {
+
+                    if(selectedMethods.isEmpty()) {
+                        selectedMethods = StepRuntime.findMethodsByKeyword("match");
+                    }
+                    continueOnStepFailureMethods.addAll(selectedMethods);
+                    if(continueAfterIgnoredFailure != null) {
+                        this.continueAfterContinueOnStepFailure = continueAfterIgnoredFailure;
+                    }
+                } else {
+                    if(selectedMethods.isEmpty()) {
+                        continueOnStepFailureMethods.clear();
+                    } else {
+                        continueOnStepFailureMethods.removeAll(selectedMethods);
+                    }
+                    if(continueAfterIgnoredFailure != null) {
+                        this.continueAfterContinueOnStepFailure = continueAfterIgnoredFailure;
+                    }
+                }
+
+                return true;
             default:
                 throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
         }
@@ -333,6 +379,7 @@ public class Config {
         responseHeaders = parent.responseHeaders;
         afterScenario = parent.afterScenario;
         afterFeature = parent.afterFeature;
+        // purposely not passing ignoredStepFailures to the children config
     }
 
     public void setCookies(Variable cookies) {
@@ -531,4 +578,19 @@ public class Config {
         return callSingleCacheMinutes;
     }
 
+    public List<Method> getContinueOnStepFailureMethods() {
+        return continueOnStepFailureMethods;
+    }
+
+    public void setContinueOnStepFailureMethods(List<Method> continueOnStepFailureMethods) {
+        this.continueOnStepFailureMethods = continueOnStepFailureMethods;
+    }
+
+    public boolean isContinueAfterContinueOnStepFailure() {
+        return continueAfterContinueOnStepFailure;
+    }
+
+    public void setContinueAfterContinueOnStepFailure(boolean continueAfterContinueOnStepFailure) {
+        this.continueAfterContinueOnStepFailure = continueAfterContinueOnStepFailure;
+    }
 }
