@@ -135,7 +135,7 @@ public class StepRuntime {
     static {
         Map<String, MethodPattern> temp = new HashMap();
         List<MethodPattern> overwrite = new ArrayList();
-        KEYWORDS_METHODS = new HashMap<>();
+        KEYWORDS_METHODS = new HashMap();
         for (Method method : ScenarioActions.class.getMethods()) {
             When when = method.getDeclaredAnnotation(When.class);
             if (when != null) {
@@ -178,7 +178,7 @@ public class StepRuntime {
     }
 
     public static Collection<Method> findMethodsByKeywords(List<String> text) {
-        Collection<Method> methods = new HashSet<>();
+        Collection<Method> methods = new HashSet();
         text.forEach(m -> {
             methods.addAll(findMethodsByKeyword(m));
         });
