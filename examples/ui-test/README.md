@@ -4,12 +4,12 @@ This project is designed to be the simplest way to replicate issues with the [Ka
 ## Overview
 To point to a specifc version of Karate, edit the `pom.xml`. If you are working with the source-code of Karate, follow the [developer guide](https://github.com/intuit/karate/wiki/Developer-Guide).
 
-You can double-click and view `page-01.html` to see how it works. It depends on `karate.js` which is very simple, so you can see how to add any JS (if required) along the same lines.
+You can view the HTML source of `page-01.html` to see how it works. It depends on `karate.js` which is very simple, so you can see how to add any JS (if required) along the same lines.
 
-The `mock.feature` is a Karate mock. Note how it is very simple - but able to serve both HTML and JS. If you need to include navigation to a second page, you can easily add a second HTML file and `Scenario`. To test the HTML being served manually, you can start the mock-server by running `MockRunner` as a JUnit test, and then opening [`http://localhost:8080/page-01`](http://localhost:8080/page-01) in a browser.
+The code in [`MockRunner.java`](src/test/java/ui/MockRunner.java) starts a Karate HTTP server. Note how it is very simple - but able to serve both HTML and JS. If you need to include navigation to a second page, you can easily add a second HTML file. To manually verify the HTML that will be served, you can start the mock-server by running `MockRunner` as a JUnit test, and then opening [`http://localhost:8080/page-01`](http://localhost:8080/page-01) in a browser. And yes, hot-reloading is possible !
 
 ## Running
-The `test.feature` is a simple [Karate UI test](https://github.com/intuit/karate/tree/master/karate-core), and executing `UiRunner` as a JUnit test will run it. You will be able to open the HTML report (look towards the end of the console log) and refresh it after re-running. For convenience, this test is a `Scenario Outline` - set up so that you can add multiple browser targets or driver implementations. This makes it easy to validate cross-browser compatibility.
+The `test.feature` is a simple [Karate UI test](https://github.com/intuit/karate/tree/master/karate-core) that can be executed by running `UiRunner` as a JUnit test. You will be able to open the HTML report (the file-name will appear at the end of the console log) and refresh it when re-running the test. For convenience, this test is a `Scenario Outline` - set up so that you can add multiple browser targets or driver implementations. This makes it easy to validate cross-browser compatibility.
 
 ## Debugging
 You should be able to use the [Karate extension for Visual Studio Code](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) for stepping-through a test for troubleshooting.
@@ -66,4 +66,4 @@ Chrome will respond with something like this, which should be viewable in the lo
 {"id":7,"result":{"frameTree":{"frame":{"id":"11B3A5ABDEE5802201D84389EE0215B8","loaderId":"D2241AD7B86ED533F095F907A78A1208","url":"http://localhost:52664/page-01","securityOrigin":"http://localhost:52664","mimeType":"text/html"}}}}
 ```
 
-You can do more, but this should be sufficient for exploring the possible commands and troubleshooting via trial and error. And suggest / contribute changes to be made to the code, e.g. the [DevToolsDriver](../../karate-core/src/main/java/com/intuit/karate/driver/DevToolsDriver.java).
+You can do more, but this should be sufficient for exploring the possible commands and troubleshooting via trial and error. And then you can suggest / contribute changes to be made to the code, e.g. the [DevToolsDriver](../../karate-core/src/main/java/com/intuit/karate/driver/DevToolsDriver.java).
