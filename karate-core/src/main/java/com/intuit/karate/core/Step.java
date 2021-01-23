@@ -26,13 +26,13 @@ package com.intuit.karate.core;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.resource.MemoryResource;
 import com.intuit.karate.resource.Resource;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- *
  * @author pthomas3
  */
 public class Step {
@@ -48,7 +48,7 @@ public class Step {
     private String text;
     private String docString;
     private Table table;
-    private StepRuntime.MethodMatch match;
+    private StepRuntime.MethodMatch matchingMethod;
 
     private static final List<String> PREFIXES = Arrays.asList("*", "Given", "When", "Then", "And", "But");
 
@@ -220,12 +220,12 @@ public class Step {
         this.comments = comments;
     }
 
-    public StepRuntime.MethodMatch getMatch() {
-        return match;
+    public StepRuntime.MethodMatch getMatchingMethod() {
+        return matchingMethod;
     }
 
-    public void setMatch(StepRuntime.MethodMatch match) {
-        this.match = match;
+    public void setMatchingMethod(StepRuntime.MethodMatch matchingMethod) {
+        this.matchingMethod = matchingMethod;
     }
 
     @Override

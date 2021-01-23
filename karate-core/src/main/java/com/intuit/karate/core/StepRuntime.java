@@ -23,11 +23,12 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.Actions;
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.KarateException;
+import com.intuit.karate.ScenarioActions;
+import com.intuit.karate.StringUtils;
 import cucumber.api.java.en.When;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -40,7 +41,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- *
  * @author pthomas3
  */
 public class StepRuntime {
@@ -54,6 +54,7 @@ public class StepRuntime {
         final String regex;
         final Method method;
         final Pattern pattern;
+        final String keyword;
 
         MethodPattern(Method method, String regex) {
             this.regex = regex;
@@ -63,6 +64,9 @@ public class StepRuntime {
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
+
+            // assuming all @When or @Action start with a ^, get the first word
+            keyword = regex.substring(1).split(" ")[0];
         }
 
         List<String> match(String text) {
@@ -125,7 +129,8 @@ public class StepRuntime {
     }
 
     private static final Collection<MethodPattern> PATTERNS;
-    private static final Map<String,Collection<Method>> KEYWORDS_METHODS;
+    private static final Map<String, Collection<Method>> KEYWORDS_METHODS;
+    public static final Collection<Method> METHOD_MATCH;
 
     static {
         Map<String, MethodPattern> temp = new HashMap();
@@ -138,9 +143,7 @@ public class StepRuntime {
                 MethodPattern methodPattern = new MethodPattern(method, regex);
                 temp.put(regex, methodPattern);
 
-                // assuming all @When or @Action start with a ^, get the first word
-                String methodKeyword = regex.substring(1).split(" ")[0];
-                Collection<Method> keywordMethods = KEYWORDS_METHODS.computeIfAbsent(methodKeyword, k -> new HashSet<>());
+                Collection<Method> keywordMethods = KEYWORDS_METHODS.computeIfAbsent(methodPattern.keyword, k -> new HashSet<>());
                 keywordMethods.add(methodPattern.method);
             } else {
                 Action action = method.getDeclaredAnnotation(Action.class);
@@ -148,19 +151,18 @@ public class StepRuntime {
                     String regex = action.value();
                     MethodPattern methodPattern = new MethodPattern(method, regex);
                     overwrite.add(methodPattern);
-
-                    // assuming all @When or @Action start with a ^, get the first word
-                    String methodKeyword = regex.substring(1).split(" ")[0];
-                    Collection<Method> keywordMethods = KEYWORDS_METHODS.computeIfAbsent(methodKeyword, k -> new HashSet<>());
-                    keywordMethods.add(methodPattern.method);
                 }
             }
         }
 
         for (MethodPattern mp : overwrite) {
             temp.put(mp.regex, mp);
+
+            Collection<Method> keywordMethods = KEYWORDS_METHODS.computeIfAbsent(mp.keyword, k -> new HashSet<>());
+            keywordMethods.add(mp.method);
         }
         PATTERNS = temp.values();
+        METHOD_MATCH = findMethodsByKeyword("match");
     }
 
 
@@ -177,7 +179,9 @@ public class StepRuntime {
 
     public static Collection<Method> findMethodsByKeywords(List<String> text) {
         Collection<Method> methods = new HashSet<>();
-        text.forEach(m -> { methods.addAll(findMethodsByKeyword(m)); });
+        text.forEach(m -> {
+            methods.addAll(findMethodsByKeyword(m));
+        });
         return methods;
     }
 
@@ -200,7 +204,7 @@ public class StepRuntime {
             return Result.failed(0, e, step);
         }
         MethodMatch match = matches.get(0);
-        step.setMatch(match);
+        step.setMatchingMethod(match);
         Object last;
         if (step.getDocString() != null) {
             last = step.getDocString();

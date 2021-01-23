@@ -40,7 +40,6 @@ import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 /**
- *
  * @author pthomas3
  */
 public class ScenarioRuntime implements Runnable {
@@ -89,12 +88,12 @@ public class ScenarioRuntime implements Runnable {
         actions = new ScenarioActions(engine);
         this.scenario = scenario;
         this.background = background; // used only to check which steps remain
-        magicVariables = initMagicVariables();      
+        magicVariables = initMagicVariables();
         result = new ScenarioResult(scenario);
         if (background != null) {
             result.addStepResults(background.result.getStepResults());
             Map<String, Variable> detached = background.engine.detachVariables();
-            engine.vars.putAll(detached);         
+            engine.vars.putAll(detached);
         }
         dryRun = featureRuntime.suite.dryRun;
         tags = scenario.getTagsEffective();
@@ -106,7 +105,7 @@ public class ScenarioRuntime implements Runnable {
         return error != null || result.isFailed();
     }
 
-    public boolean hasIgnoredErrors() {
+    public boolean isIgnoringFailureSteps() {
         return ignoringFailureSteps; // result.getStepResults().stream().anyMatch(StepResult::isErrorIgnored);
         // to review in code review if boolean is required, avoiding stream() might be desirable for performance
     }
@@ -442,7 +441,7 @@ public class ScenarioRuntime implements Runnable {
             stopped = true;
             logger.debug("abort at {}", step.getDebugInfo());
         } else if (stepResult.isFailed()) {
-            if (step.getMatch() != null && this.engine.getConfig().getContinueOnStepFailureMethods().contains(step.getMatch().method)) {
+            if (step.getMatchingMethod() != null && this.engine.getConfig().getContinueOnStepFailureMethods().contains(step.getMatchingMethod().method)) {
                 stopped = false;
                 ignoringFailureSteps = true;
                 currentStepResult.setErrorIgnored(true);
@@ -450,7 +449,7 @@ public class ScenarioRuntime implements Runnable {
                 stopped = true;
             }
 
-            if(stopped && !this.engine.getConfig().isContinueAfterContinueOnStepFailure()) {
+            if (stopped && !this.engine.getConfig().isContinueAfterContinueOnStepFailure()) {
                 error = stepResult.getError();
                 logError(error.getMessage());
             }
@@ -460,11 +459,11 @@ public class ScenarioRuntime implements Runnable {
         }
         addStepLogEmbedsAndCallResults();
 
-        if(currentStepResult.isErrorIgnored()) {
+        if (currentStepResult.isErrorIgnored()) {
             this.engine.setFailedReason(null);
         }
 
-        if (!this.engine.isIgnoringStepErrors() && this.ignoringFailureSteps) {
+        if (!this.engine.isIgnoringStepErrors() && this.isIgnoringFailureSteps()) {
             if (this.engine.getConfig().isContinueAfterContinueOnStepFailure()) {
                 // continue execution and reset failed reason for engine to null
                 this.engine.setFailedReason(null);
@@ -513,7 +512,7 @@ public class ScenarioRuntime implements Runnable {
         String stepLog = logAppender.collect();
         if (showLog) {
             currentStepResult.appendToStepLog(stepLog);
-            if(currentStepResult.getFailedReason() != null) {
+            if (currentStepResult.getFailedReason() != null) {
                 currentStepResult.appendToStepLog("\n");
                 currentStepResult.appendToStepLog(currentStepResult.getFailedReason() + "\n" + currentStepResult.getStep().getDebugInfo());
             }

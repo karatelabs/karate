@@ -29,23 +29,20 @@ import com.intuit.karate.driver.DockerTarget;
 import com.intuit.karate.driver.Target;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsFunction;
-import com.intuit.karate.http.HttpLogModifier;
 import com.intuit.karate.http.Cookies;
+import com.intuit.karate.http.HttpLogModifier;
+import org.graalvm.polyglot.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import org.graalvm.polyglot.Value;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- *
  * @author pthomas3
  */
 public class Config {
@@ -299,36 +296,25 @@ public class Config {
                 boolean enableContinueOnStepFailureFeature = false;
                 Boolean continueAfterIgnoredFailure = null;
 
-                Collection<Method> selectedMethods = new HashSet<>();
+                List<String> stepKeywords = null;
                 if (value.isMap()) {
                     Map<String, Object> map = value.getValue();
-                    List<String> stepKeywords = (List<String>) map.get("keywords");
-                    if (stepKeywords != null) {
-                        selectedMethods = StepRuntime.findMethodsByKeywords(stepKeywords);
-                    }
-
+                    stepKeywords = (List<String>) map.get("keywords");
                     continueAfterIgnoredFailure = (Boolean) map.get("continueAfter");
                     enableContinueOnStepFailureFeature = map.get("enabled") != null && (Boolean) map.get("enabled");
                 }
 
                 if (value.isTrue() || enableContinueOnStepFailureFeature) {
-
-                    if(selectedMethods.isEmpty()) {
-                        selectedMethods = StepRuntime.findMethodsByKeyword("match");
-                    }
-                    continueOnStepFailureMethods.addAll(selectedMethods);
-                    if(continueAfterIgnoredFailure != null) {
-                        this.continueAfterContinueOnStepFailure = continueAfterIgnoredFailure;
-                    }
+                    continueOnStepFailureMethods.addAll(stepKeywords == null ? StepRuntime.METHOD_MATCH : StepRuntime.findMethodsByKeywords(stepKeywords));
                 } else {
-                    if(selectedMethods.isEmpty()) {
+                    if (stepKeywords == null) {
                         continueOnStepFailureMethods.clear();
                     } else {
-                        continueOnStepFailureMethods.removeAll(selectedMethods);
+                        continueOnStepFailureMethods.removeAll(StepRuntime.findMethodsByKeywords(stepKeywords));
                     }
-                    if(continueAfterIgnoredFailure != null) {
-                        this.continueAfterContinueOnStepFailure = continueAfterIgnoredFailure;
-                    }
+                }
+                if (continueAfterIgnoredFailure != null) {
+                    this.continueAfterContinueOnStepFailure = continueAfterIgnoredFailure;
                 }
 
                 return true;

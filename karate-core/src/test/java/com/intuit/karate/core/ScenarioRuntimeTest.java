@@ -2,18 +2,23 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Match;
-import static com.intuit.karate.TestUtils.*;
 import com.intuit.karate.http.ResourceType;
-import java.io.File;
-import java.util.List;
-import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.util.List;
+
+import static com.intuit.karate.TestUtils.match;
+import static com.intuit.karate.TestUtils.runScenario;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 /**
- *
  * @author pthomas3
  */
 class ScenarioRuntimeTest {
@@ -700,7 +705,7 @@ class ScenarioRuntimeTest {
         );
         matchVar("text", "words that need to be correct");
     }
-    
+
     @Test
     void testSort() {
         run(
@@ -710,8 +715,8 @@ class ScenarioRuntimeTest {
                 "match res1 == [{ num: 1 }, { num: 2 }, { num: 3 }]",
                 "def list2 = [{ val: 'C' }, { val: 'A' }, { val: 'B' }]",
                 "def res2 = karate.sort(list2, x => x.val)",
-                "match res2 == [{ val: 'A' }, { val: 'B' }, { val: 'C' }]"                
-        );        
+                "match res2 == [{ val: 'A' }, { val: 'B' }, { val: 'C' }]"
+        );
     }
 
     @Test
@@ -755,7 +760,7 @@ class ScenarioRuntimeTest {
     @Test
     void testcontinueOnStepFailure3() {
         fail = true;
-        // bad idea to expose anything else as keywords but ...
+        // bad idea to continue/ignore anything else other than match but ...
         run(
                 "def var = 'foo'",
                 "configure continueOnStepFailure = { enabled: true, continueAfter: true, keywords: ['match', 'def'] }",
@@ -814,4 +819,27 @@ class ScenarioRuntimeTest {
         assertEquals("[failed] * match var == 'bar'", sr.result.getStepResults().get(9).toString());
         assertEquals("[skipped] * match var == 'skipped'", sr.result.getStepResults().get(10).toString());
     }
+
+    @Test
+    void testcontinueOnStepFailure6() {
+        fail = true;
+        // "continuing" on javascript line errors is not supported
+        // note the if without space after evalutes line as JS
+        run(
+                "def var = 'foo'",
+                "configure continueOnStepFailure = { enabled: true, continueAfter: true, keywords: ['match', 'eval', 'if'] }",
+                "match var == 'bar'",
+                "if(true == true) { syntax error within JS line }",
+                "match var == 'crawl'",
+                "match var == 'foo'",
+                "configure continueOnStepFailure = false",
+                "match var == 'foo'",
+                "match var == 'bar2'",
+                "match var == 'foo'"
+        );
+        // the last failed step will be show as the result failed step
+        // TODO: verify how this will look in the reports
+        assertEquals("if(true == true) { syntax error within JS line }", sr.result.getFailedStep().getStep().getText());
+    }
+
 }
