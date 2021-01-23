@@ -440,7 +440,7 @@ public class ScenarioRuntime implements Runnable {
             stopped = true;
             logger.debug("abort at {}", step.getDebugInfo());
         } else if (stepResult.isFailed()) {
-            if (step.getMatchingMethod() != null && this.engine.getConfig().getContinueOnStepFailureMethods().contains(step.getMatchingMethod().method)) {
+            if (stepResult.getMatchingMethod() != null && this.engine.getConfig().getContinueOnStepFailureMethods().contains(stepResult.getMatchingMethod().method)) {
                 stopped = false;
                 ignoringFailureSteps = true;
                 currentStepResult.setErrorIgnored(true);

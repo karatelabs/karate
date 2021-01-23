@@ -32,11 +32,14 @@ import cucumber.api.java.en.When;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.StringJoiner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -92,6 +95,8 @@ public class StepRuntime {
 
     static class MethodMatch {
 
+        private static Pattern METHOD_REGEX_PATTERN = Pattern.compile("([a-zA-Z_$][a-zA-Z\\d_$\\.]*)*\\.([a-zA-Z_$][a-zA-Z\\d_$]*?)\\((.*)\\)");
+
         final Method method;
         final List<String> args;
 
@@ -121,9 +126,47 @@ public class StepRuntime {
             return result;
         }
 
+        public static MethodMatch getBySignatureAndArgs(String methodReference) {
+            String[] split = methodReference.split("\\s");
+            Matcher methodMatch = METHOD_REGEX_PATTERN.matcher(split[0]);
+            String referenceArgs = split[1];
+            Method method = null;
+            if (methodMatch.find()) {
+                try {
+                    String className = methodMatch.group(1);
+                    String methodName = methodMatch.group(2);
+                    String params = methodMatch.group(3);
+                    List<String> paramList = Arrays.asList(params.split(","));
+                    method = Class.forName(className).getMethod(methodName, paramList.stream().map(param -> {
+                        try {
+                            return Class.forName(param);
+                        } catch (ClassNotFoundException e) {
+                            return null;
+                        }
+                    }).filter(Objects::nonNull).toArray(Class<?>[]::new));
+                } catch (ClassNotFoundException | NoSuchMethodException e) {
+                    return null;
+                }
+            }
+            List<String> args = "null".equalsIgnoreCase(referenceArgs) ? null : Arrays.asList(referenceArgs.replaceAll("\\[|\\]", "").split(","));
+            return new MethodMatch(method, args);
+        }
+
         @Override
         public String toString() {
-            return method + " " + args;
+            StringBuilder sb = new StringBuilder();
+            sb.append(method.getDeclaringClass().getName());
+            sb.append(".");
+            sb.append(method.getName());
+            sb.append("(");
+            StringJoiner sj = new StringJoiner(",");
+            for (Class<?> parameterType : method.getParameterTypes()) {
+                sj.add(parameterType.getTypeName());
+            }
+            sb.append(sj);
+            sb.append(")");
+
+            return sb.toString() + " " + args;
         }
 
     }
@@ -204,7 +247,6 @@ public class StepRuntime {
             return Result.failed(0, e, step);
         }
         MethodMatch match = matches.get(0);
-        step.setMatchingMethod(match);
         Object last;
         if (step.getDocString() != null) {
             last = step.getDocString();
@@ -224,16 +266,16 @@ public class StepRuntime {
         try {
             match.method.invoke(actions, args);
             if (actions.isAborted()) {
-                return Result.aborted(getElapsedTimeNanos(startTime));
+                return Result.aborted(getElapsedTimeNanos(startTime), match);
             } else if (actions.isFailed()) {
-                return Result.failed(getElapsedTimeNanos(startTime), actions.getFailedReason(), step);
+                return Result.failed(getElapsedTimeNanos(startTime), actions.getFailedReason(), step, match);
             } else {
-                return Result.passed(getElapsedTimeNanos(startTime));
+                return Result.passed(getElapsedTimeNanos(startTime), match);
             }
         } catch (InvocationTargetException e) {
-            return Result.failed(getElapsedTimeNanos(startTime), e.getTargetException(), step);
+            return Result.failed(getElapsedTimeNanos(startTime), e.getTargetException(), step, match);
         } catch (Exception e) {
-            return Result.failed(getElapsedTimeNanos(startTime), e, step);
+            return Result.failed(getElapsedTimeNanos(startTime), e, step, match);
         }
     }
 
