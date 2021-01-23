@@ -106,8 +106,7 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public boolean isIgnoringFailureSteps() {
-        return ignoringFailureSteps; // result.getStepResults().stream().anyMatch(StepResult::isErrorIgnored);
-        // to review in code review if boolean is required, avoiding stream() might be desirable for performance
+        return ignoringFailureSteps;
     }
 
     public Step getCurrentStep() {
@@ -449,7 +448,7 @@ public class ScenarioRuntime implements Runnable {
                 stopped = true;
             }
 
-            if (stopped && !this.engine.getConfig().isContinueAfterContinueOnStepFailure()) {
+            if (stopped && (!this.engine.getConfig().isContinueAfterContinueOnStepFailure() || !this.engine.isIgnoringStepErrors())) {
                 error = stepResult.getError();
                 logError(error.getMessage());
             }
@@ -512,9 +511,8 @@ public class ScenarioRuntime implements Runnable {
         String stepLog = logAppender.collect();
         if (showLog) {
             currentStepResult.appendToStepLog(stepLog);
-            if (currentStepResult.getFailedReason() != null) {
-                currentStepResult.appendToStepLog("\n");
-                currentStepResult.appendToStepLog(currentStepResult.getFailedReason() + "\n" + currentStepResult.getStep().getDebugInfo());
+            if (currentStepResult.isErrorIgnored()) {
+                currentStepResult.appendToStepLog(currentStepResult.getErrorMessage());
             }
         }
         if (callResults != null) {

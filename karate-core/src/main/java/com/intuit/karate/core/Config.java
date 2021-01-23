@@ -314,7 +314,7 @@ public class Config {
                     }
                 }
                 if (continueAfterIgnoredFailure != null) {
-                    this.continueAfterContinueOnStepFailure = continueAfterIgnoredFailure;
+                    continueAfterContinueOnStepFailure = continueAfterIgnoredFailure;
                 }
 
                 return true;
@@ -365,7 +365,8 @@ public class Config {
         responseHeaders = parent.responseHeaders;
         afterScenario = parent.afterScenario;
         afterFeature = parent.afterFeature;
-        // purposely not passing ignoredStepFailures to the children config
+        continueOnStepFailureMethods = parent.continueOnStepFailureMethods;
+        continueAfterContinueOnStepFailure = parent.continueAfterContinueOnStepFailure;
     }
 
     public void setCookies(Variable cookies) {

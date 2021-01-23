@@ -1,17 +1,19 @@
 package com.intuit.karate.core;
 
-import com.intuit.karate.TestUtils;
 import com.intuit.karate.Match;
+import com.intuit.karate.TestUtils;
 import com.intuit.karate.report.ReportUtils;
-import java.io.File;
-import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 /**
- *
  * @author pthomas3
  */
 class FeatureRuntimeTest {
@@ -120,13 +122,13 @@ class FeatureRuntimeTest {
         matchContains(fr.result.getVariables(), "{ foo: 'hello foo' }");
         System.clearProperty("karate.env");
     }
-    
+
     @Test
     void testKarateJsGetScenario() {
         System.setProperty("karate.env", "getscenario");
         run("karate-config-getscenario.feature", "classpath:com/intuit/karate/core/");
         System.clearProperty("karate.env");
-    }    
+    }
 
     @Test
     void testCallByTag() {
@@ -218,15 +220,23 @@ class FeatureRuntimeTest {
     void testToBean() {
         run("to-bean.feature");
     }
-    
+
     @Test
     void testOutlineBackground() {
         run("outline-background.feature");
-    }  
-    
+    }
+
     @Test
     void testCallArg() {
         run("call-arg.feature");
-    }     
+    }
+
+    @Test
+    void testIgnoreStepFailure() {
+        fail = true;
+        run("ignore-step-failure.feature");
+        ReportUtils.saveHtmlFeatureReport(fr.result, "target/report-test");
+        // error log will should have logs on all failures
+    }
 
 }
