@@ -20,7 +20,7 @@ class JavaApiPlaywrightRunner {
     }
 
     @Test
-    void testHybrid() {
+    void testPlaywright() {
         Driver driver = Driver.start("playwright");
         String serverUrl = "http://localhost:" + server.getPort();
         driver.setUrl(serverUrl + "/01");

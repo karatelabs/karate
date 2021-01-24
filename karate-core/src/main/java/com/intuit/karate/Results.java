@@ -94,10 +94,10 @@ public class Results {
         saveStatsJson();
         printStats();
         if (suite.outputHtmlReport) {
-            ReportUtils.saveHtmlTimelineReport(timeline, suite.reportDir);
-            ReportUtils.saveHtmlTagsReport(tags, suite.reportDir);
+            suite.suiteReports.timelineReport(suite, timeline).render();
+            suite.suiteReports.tagsReport(suite, tags).render();
             // last so that path can be printed to the console 
-            File file = ReportUtils.saveHtmlSummaryReport(this, suite.reportDir);
+            File file = suite.suiteReports.summaryReport(suite, this).render();
             System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
                     + FileUtils.KARATE_VERSION + "\n"
                     + file.toPath().toUri()

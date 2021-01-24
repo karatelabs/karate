@@ -29,6 +29,7 @@ import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.RuntimeHookFactory;
 import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.job.JobConfig;
+import com.intuit.karate.report.SuiteReports;
 import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
 import java.util.*;
@@ -186,6 +187,7 @@ public class Runner {
         boolean dryRun;
         Map<String, String> systemProperties;
         Map<String, Object> suiteCache;
+        SuiteReports suiteReports;
         JobConfig jobConfig;
 
         public List<Feature> resolveAll() {
@@ -284,6 +286,9 @@ public class Runner {
             }
             if (suiteCache == null) {
                 suiteCache = new HashMap();
+            }
+            if (suiteReports == null) {
+                suiteReports = SuiteReports.DEFAULT;
             }
             if (jobConfig != null) {
                 reportDir = jobConfig.getExecutorDir();
@@ -483,6 +488,11 @@ public class Runner {
 
         public Builder suiteCache(Map<String, Object> value) {
             suiteCache = value;
+            return this;
+        }
+        
+        public Builder suiteReports(SuiteReports value) {
+            suiteReports = value;
             return this;
         }
 

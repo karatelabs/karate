@@ -19,7 +19,8 @@ class ReportUtilsTest {
         Feature feature = Feature.read("classpath:com/intuit/karate/report/test.feature");
         FeatureRuntime fr = FeatureRuntime.of(feature);
         fr.run();
-        ReportUtils.saveHtmlFeatureReport(fr.result, "target/report-test");
+        Report report = SuiteReports.DEFAULT.featureReport(fr.suite, fr.result);
+        report.render("target/report-test");
     }
 
 }

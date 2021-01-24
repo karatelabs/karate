@@ -10,23 +10,23 @@
     <script type="text/javascript" src="res/jquery.tablesorter.min.js"></script>
     <script type="text/javascript" src="res/bootstrap.min.js"></script>
     <script type="text/javascript" src="res/karate-report.js"></script>
-    <title th:text="fr.packageQualifiedName"></title>  
+    <title th:text="results.packageQualifiedName"></title>  
   </head>
   <body>   
     <div id="root-container">
       <div id="leftnav">
         <script ka:scope="global">
           var reportMeta = {
-            passedCount: fr.passedCount,
-            failedCount: fr.failedCount,
+            passedCount: results.passedCount,
+            failedCount: results.failedCount,
             reportType: 'Scenarios',
-            reportDate: fr.resultDate
+            reportDate: results.resultDate
           };
           var repeat = n => Array.from({length: n}, (v, k) => k);
         </script>        
         <div th:replace="karate-leftnav.html"></div>
         <div class="nav-container">
-          <div class="nav-item" th:each="scenario: fr.scenarioResults" th:classappend="scenario.failed ? 'failed' : 'passed'">
+          <div class="nav-item" th:each="scenario: results.scenarioResults" th:classappend="scenario.failed ? 'failed' : 'passed'">
             <a th:href="'#' + scenario.refId"><span th:text="scenario.refId"></span> <span th:text="scenario.name"></span></a>
           </div>
         </div>
@@ -36,11 +36,11 @@
           <a href="karate-summary.html">Summary</a><span class="feature-label">|</span>
           <a href="karate-tags.html">Tags</a><span class="feature-label">|</span>
           <span class="feature-label">Feature:</span>
-          <span class="feature-path" th:text="fr.relativePath"></span><span class="feature-label">|</span>
-          <span class="feature-name" th:text="fr.name"></span>
-          <span class="feature-description" th:text="fr.description"></span>
+          <span class="feature-path" th:text="results.relativePath"></span><span class="feature-label">|</span>
+          <span class="feature-name" th:text="results.name"></span>
+          <span class="feature-description" th:text="results.description"></span>
         </div>
-        <div th:each="scenario: fr.scenarioResults" class="scenario">
+        <div th:each="scenario: results.scenarioResults" class="scenario">
           <div class="scenario-heading" th:id="scenario.refId">
             <div class="heading-container">
               <div class="scenario-tags">
