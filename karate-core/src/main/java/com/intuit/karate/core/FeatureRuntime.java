@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.PerfHook;
 import com.intuit.karate.Suite;
@@ -72,7 +73,7 @@ public class FeatureRuntime implements Runnable {
     
     public static FeatureRuntime forTempUse() {
         Suite sr = Suite.forTempUse();
-        File workingDir = new File(sr.buildDir);
+        File workingDir = new File(sr.buildDir).getAbsoluteFile();
         Resource resource = new MemoryResource(workingDir, "Feature:\nScenario:\n");
         Feature feature = Feature.read(resource);
         return FeatureRuntime.of(sr, feature);

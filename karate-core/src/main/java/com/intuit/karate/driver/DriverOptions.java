@@ -80,7 +80,6 @@ public class DriverOptions {
     public final Logger driverLogger;
     public final String uniqueName;
     public final File workingDir;
-    public final boolean disableNotifications;
     public final String userAgent;
     public final String userDataDir;
     public final String processLogFile;
@@ -160,7 +159,6 @@ public class DriverOptions {
                 args.add(executable);
             }
         }
-        disableNotifications = get("disableNotifications", false);
         userAgent = get("userAgent", null);
         if (options.containsKey("userDataDir")) {
             String temp = get("userDataDir", null);
