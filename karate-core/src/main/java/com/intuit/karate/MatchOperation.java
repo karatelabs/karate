@@ -183,10 +183,13 @@ public class MatchOperation {
         if (expected.isString()) {
             String expStr = expected.getValue();
             if (expStr.startsWith("#")) {
-                if (type == Match.Type.EQUALS) {
-                    return macroEqualsExpected(expStr) ? pass() : fail(null);
-                } else {
-                    return macroEqualsExpected(expStr) ? fail("is equal") : pass();
+                switch (type) {
+                    case NOT_EQUALS:
+                        return macroEqualsExpected(expStr) ? fail("is equal") : pass();
+                    case NOT_CONTAINS:
+                        return macroEqualsExpected(expStr) ? fail("actual contains expected") : pass();
+                    default:
+                        return macroEqualsExpected(expStr) ? pass() : fail(null);
                 }
             }
         }
@@ -197,6 +200,7 @@ public class MatchOperation {
                 case CONTAINS_ANY:
                 case CONTAINS_ONLY:
                 case CONTAINS_DEEP:
+                case CONTAINS_ANY_DEEP:
                     if (!expected.isList()) {
                         MatchOperation mo = new MatchOperation(context, type, actual, new Match.Value(Collections.singletonList(expected.getValue())));
                         mo.execute();
@@ -224,6 +228,7 @@ public class MatchOperation {
             case CONTAINS_ANY:
             case CONTAINS_ONLY:
             case CONTAINS_DEEP:
+            case CONTAINS_ANY_DEEP:
                 return actualContainsExpected() ? pass() : fail("actual does not contain expected");
             case NOT_CONTAINS:
                 return actualContainsExpected() ? fail("actual contains expected") : pass();
@@ -242,6 +247,12 @@ public class MatchOperation {
                 Match.Type nestedType = macroToMatchType(false, macro);
                 int startPos = matchTypeToStartPos(nestedType);
                 macro = macro.substring(startPos);
+                if (actual.isList() && nestedType == Match.Type.CONTAINS) {
+                    nestedType = Match.Type.CONTAINS_DEEP; // special case, look for partial maps within list
+                }
+                if (actual.isList() && nestedType == Match.Type.CONTAINS_ANY) {
+                    nestedType = Match.Type.CONTAINS_ANY_DEEP;
+                }
                 context.JS.put("$", context.root.actual.getValue());
                 context.JS.put("_", actual.getValue());
                 JsValue jv = context.JS.eval(macro);
@@ -333,8 +344,14 @@ public class MatchOperation {
                                     return fail(mr.message);
                                 }
                             }
-                        } else { // validator part was not used
-                            macro = validatorName + macro;
+                        } else { // expected is a string that happens to start with "#"
+                            String actualValue = actual.getValue();
+                            switch (type) {
+                                case CONTAINS:
+                                    return actualValue.contains(expStr);
+                                default:
+                                    return actualValue.equals(expStr);
+                            }
                         }
                     }
                 }
@@ -429,7 +446,7 @@ public class MatchOperation {
                 if (childExp instanceof String) {
                     String childString = (String) childExp;
                     if (childString.startsWith("##") || childString.equals("#ignore") || childString.equals("#notpresent")) {
-                        if (type == Match.Type.CONTAINS_ANY) {
+                        if (type == Match.Type.CONTAINS_ANY || type == Match.Type.CONTAINS_ANY_DEEP) {
                             return true; // exit early
                         }
                         unMatchedKeysExp.remove(key);
@@ -441,7 +458,7 @@ public class MatchOperation {
                         continue;
                     }
                 }
-                if (type != Match.Type.CONTAINS_ANY) {
+                if (type != Match.Type.CONTAINS_ANY && type != Match.Type.CONTAINS_ANY_DEEP) {
                     return fail("actual does not contain key - '" + key + "'");
                 }
             }
@@ -455,7 +472,7 @@ public class MatchOperation {
             MatchOperation mo = new MatchOperation(context.descend(key), childMatchType, childActValue, new Match.Value(childExp));
             mo.execute();
             if (mo.pass) {
-                if (type == Match.Type.CONTAINS_ANY) {
+                if (type == Match.Type.CONTAINS_ANY || type == Match.Type.CONTAINS_ANY_DEEP) {
                     return true; // exit early
                 }
                 unMatchedKeysExp.remove(key);
@@ -470,7 +487,7 @@ public class MatchOperation {
 
             }
         }
-        if (type == Match.Type.CONTAINS_ANY) {
+        if (type == Match.Type.CONTAINS_ANY || type == Match.Type.CONTAINS_ANY_DEEP) {
             return unMatchedKeysExp.isEmpty() ? true : fail("no key-values matched");
         }
         if (unMatchedKeysExp.isEmpty()
@@ -497,7 +514,7 @@ public class MatchOperation {
                 List expList = expected.getValue();
                 int actListCount = actList.size();
                 int expListCount = expList.size();
-                if (type != Match.Type.CONTAINS_ANY && expListCount > actListCount) {
+                if (type != Match.Type.CONTAINS_ANY && type != Match.Type.CONTAINS_ANY_DEEP && expListCount > actListCount) {
                     return fail("actual array length is less than expected - " + actListCount + ":" + expListCount);
                 }
                 if (type == Match.Type.CONTAINS_ONLY && expListCount != actListCount) {
@@ -509,15 +526,20 @@ public class MatchOperation {
                     for (int i = 0; i < actListCount; i++) {
                         Match.Value actListValue = new Match.Value(actList.get(i));
                         Match.Type childMatchType;
-                        if (type == Match.Type.CONTAINS_DEEP) {
-                            childMatchType = actListValue.isMapOrListOrXml() ? Match.Type.CONTAINS_DEEP : Match.Type.EQUALS;
-                        } else {
-                            childMatchType = Match.Type.EQUALS;
+                        switch (type) {
+                            case CONTAINS_DEEP:
+                                childMatchType = actListValue.isMapOrListOrXml() ? Match.Type.CONTAINS_DEEP : Match.Type.EQUALS;
+                                break;
+                            case CONTAINS_ANY_DEEP:
+                                childMatchType = actListValue.isMapOrListOrXml() ? Match.Type.CONTAINS_ANY : Match.Type.EQUALS;
+                                break;
+                            default:
+                                childMatchType = Match.Type.EQUALS;
                         }
                         MatchOperation mo = new MatchOperation(context.descend(i), childMatchType, actListValue, expListValue);
                         mo.execute();
                         if (mo.pass) {
-                            if (type == Match.Type.CONTAINS_ANY) {
+                            if (type == Match.Type.CONTAINS_ANY || type == Match.Type.CONTAINS_ANY_DEEP) {
                                 return true; // exit early
                             } else {
                                 found = true;
@@ -525,11 +547,11 @@ public class MatchOperation {
                             }
                         }
                     }
-                    if (!found && type != Match.Type.CONTAINS_ANY) { // if we reached here, all items in the actual list were scanned
+                    if (!found && type != Match.Type.CONTAINS_ANY && type != Match.Type.CONTAINS_ANY_DEEP) { // if we reached here, all items in the actual list were scanned
                         return fail("actual array does not contain expected item - " + expListValue.getAsString());
                     }
                 }
-                if (type == Match.Type.CONTAINS_ANY) {
+                if (type == Match.Type.CONTAINS_ANY || type == Match.Type.CONTAINS_ANY_DEEP) {
                     return fail("actual array does not contain any of the expected items");
                 }
                 return true; // if we reached here, all items in the expected list were found
