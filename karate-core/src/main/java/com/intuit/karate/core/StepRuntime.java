@@ -24,6 +24,8 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.Actions;
+import com.intuit.karate.Json;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.StringUtils;
@@ -42,6 +44,7 @@ import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * @author pthomas3
@@ -127,9 +130,11 @@ public class StepRuntime {
         }
 
         public static MethodMatch getBySignatureAndArgs(String methodReference) {
-            String[] split = methodReference.split("\\s");
-            Matcher methodMatch = METHOD_REGEX_PATTERN.matcher(split[0]);
-            String referenceArgs = split[1];
+
+            String methodSignature = methodReference.substring(0, methodReference.indexOf(' '));
+            String referenceArgs = methodReference.substring(methodReference.indexOf(' ') + 1);
+            Matcher methodMatch = METHOD_REGEX_PATTERN.matcher(methodSignature);
+
             Method method = null;
             if (methodMatch.find()) {
                 try {
@@ -148,8 +153,17 @@ public class StepRuntime {
                     return null;
                 }
             }
-            List<String> args = "null".equalsIgnoreCase(referenceArgs) ? null : Arrays.asList(referenceArgs.replaceAll("\\[|\\]", "").split(","));
+
+            List<String> args = "null".equalsIgnoreCase(referenceArgs) ? null : Json.of(JsonUtils.fromJson(referenceArgs)).asList();
             return new MethodMatch(method, args);
+        }
+
+        public Method getMethod() {
+            return method;
+        }
+
+        public List<String> getArgs() {
+            return args;
         }
 
         @Override
@@ -166,7 +180,18 @@ public class StepRuntime {
             sb.append(sj);
             sb.append(")");
 
-            return sb.toString() + " " + args;
+            //StringBuilder argList = new StringBuilder("null");
+/*            if(args != null && !args.isEmpty()) {
+                argList = new StringBuilder("[");
+                argList.append(args.stream()
+                        .map(a -> "\"" + a.replace("\"", "\\\"") + "\"")
+                        .collect(Collectors.joining(",")));
+                argList.append("]");
+                // consistently wrap all args with single quotes so there's a consistent
+                // pattern to reverse the list back from String into List
+            }*/
+
+            return sb.toString() + " " + (args == null || args.isEmpty() ? "null" : JsonUtils.toJson(args));
         }
 
     }

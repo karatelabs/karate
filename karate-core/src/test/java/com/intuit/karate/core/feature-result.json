@@ -4,6 +4,7 @@
             "stepResults": [
                 {
                     "result": {
+                        "matchingMethod": "com.intuit.karate.ScenarioActions.print(java.lang.String) [\"'in background'\"]",
                         "nanos": "#number",
                         "millis": "#number",
                         "status": "passed"
@@ -19,6 +20,7 @@
                 },
                 {
                     "result": {
+                        "matchingMethod": "com.intuit.karate.ScenarioActions.print(java.lang.String) [\"'before'\"]",
                         "nanos": "#number",
                         "millis": "#number",
                         "status": "passed"
@@ -33,6 +35,7 @@
                 },
                 {
                     "result": {
+                        "matchingMethod": "com.intuit.karate.ScenarioActions.call(java.lang.String) [\"read('feature-result-called.feature')\"]",
                         "nanos": "#number",
                         "millis": "#number",
                         "status": "passed"
@@ -50,6 +53,7 @@
                                     "stepResults": [
                                         {
                                             "result": {
+                                                "matchingMethod": "com.intuit.karate.ScenarioActions.print(java.lang.String) [\"'in called'\"]",
                                                 "nanos": "#number",
                                                 "millis": "#number",
                                                 "status": "passed"
@@ -64,6 +68,7 @@
                                         },
                                         {
                                             "result": {
+                                                "matchingMethod": "com.intuit.karate.ScenarioActions.eval(java.lang.String,java.lang.String,java.lang.String) [\"karate\",\".\",\"embed('<h1>hello world</h1>', 'text/html')\"]",
                                                 "nanos": "#number",
                                                 "millis": "#number",
                                                 "status": "passed"
@@ -84,6 +89,7 @@
                                         },
                                         {
                                             "result": {
+                                                "matchingMethod": "com.intuit.karate.ScenarioActions.print(java.lang.String) [\"'after embed'\"]",
                                                 "nanos": "#number",
                                                 "millis": "#number",
                                                 "status": "passed"
@@ -126,6 +132,7 @@
                 },
                 {
                     "result": {
+                        "matchingMethod": "com.intuit.karate.ScenarioActions.print(java.lang.String) [\"'after'\"]",
                         "nanos": "#number",
                         "millis": "#number",
                         "status": "passed"
@@ -159,6 +166,7 @@
             "stepResults": [
                 {
                     "result": {
+                        "matchingMethod": "com.intuit.karate.ScenarioActions.print(java.lang.String) [\"'in background'\"]",
                         "nanos": "#number",
                         "millis": "#number",
                         "status": "passed"
@@ -174,6 +182,7 @@
                 },
                 {
                     "result": {
+                        "matchingMethod": "com.intuit.karate.ScenarioActions.print(java.lang.String) [\"'name:', name\"]",
                         "nanos": "#number",
                         "millis": "#number",
                         "status": "passed"
@@ -209,6 +218,7 @@
             "stepResults": [
                 {
                     "result": {
+                        "matchingMethod": "com.intuit.karate.ScenarioActions.print(java.lang.String) [\"'in background'\"]",
                         "nanos": "#number",
                         "millis": "#number",
                         "status": "passed"
@@ -224,6 +234,7 @@
                 },
                 {
                     "result": {
+                        "matchingMethod": "com.intuit.karate.ScenarioActions.print(java.lang.String) [\"'name:', name\"]",
                         "nanos": "#number",
                         "millis": "#number",
                         "status": "passed"
