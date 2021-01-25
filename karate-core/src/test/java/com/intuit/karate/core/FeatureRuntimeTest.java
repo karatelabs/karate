@@ -1,10 +1,9 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.Match;
+import com.intuit.karate.TestUtils;
 import com.intuit.karate.report.Report;
 import com.intuit.karate.report.SuiteReports;
-import java.io.File;
-import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -238,7 +237,8 @@ class FeatureRuntimeTest {
     void testIgnoreStepFailure() {
         fail = true;
         run("ignore-step-failure.feature");
-        ReportUtils.saveHtmlFeatureReport(fr.result, "target/report-test");
+        Report report = SuiteReports.DEFAULT.featureReport(fr.suite, fr.result);
+        report.render("target/report-test");
         // error log will should have logs on all failures
     }
 

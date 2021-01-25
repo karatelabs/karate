@@ -49,9 +49,9 @@ public class StepRuntimeTest {
     public void testConversionMethodWithNoParams() throws ClassNotFoundException, NoSuchMethodException {
         StepRuntime.MethodMatch methodMatch = StepRuntime.MethodMatch.getBySignatureAndArgs("com.intuit.karate.ScenarioActions.getFailedReason() []");
         Assertions.assertNotNull(methodMatch);
-        Assertions.assertEquals(methodMatch.method, Class.forName("com.intuit.karate.ScenarioActions").getMethod("getFailedReason"));
-        Assertions.assertEquals(methodMatch.args, new ArrayList<>());
-        Assertions.assertEquals(methodMatch.toString(), "com.intuit.karate.ScenarioActions.getFailedReason() []");
+        Assertions.assertEquals(Class.forName("com.intuit.karate.ScenarioActions").getMethod("getFailedReason"), methodMatch.method);
+        Assertions.assertEquals(new ArrayList<>(), methodMatch.args);
+        Assertions.assertEquals("com.intuit.karate.ScenarioActions.getFailedReason() null", methodMatch.toString());
     }
 
     @ParameterizedTest
