@@ -97,7 +97,12 @@ public class StepRuntimeTest {
                         com.intuit.karate.ScenarioActions.class,
                         com.intuit.karate.ScenarioActions.class.getMethod("print", String.class),
                         new ArrayList<String>() { { add("\"name:\", name"); }},
-                        "print \"name:\", name")
+                        "print \"name:\", name"),
+                Arguments.of("com.intuit.karate.ScenarioActions.print(java.lang.String) [\"'test with\\/slash'\"]", // JSON escapes forward slash
+                        com.intuit.karate.ScenarioActions.class,
+                        com.intuit.karate.ScenarioActions.class.getMethod("print", String.class),
+                        new ArrayList<String>() { { add("'test with/slash'"); }},
+                        "print 'test with/slash'")
 
         );
     }

@@ -68,7 +68,7 @@
                                         },
                                         {
                                             "result": {
-                                                "matchingMethod": "com.intuit.karate.ScenarioActions.eval(java.lang.String,java.lang.String,java.lang.String) [\"karate\",\".\",\"embed('<h1>hello world</h1>', 'text/html')\"]",
+                                                "matchingMethod": "com.intuit.karate.ScenarioActions.eval(java.lang.String,java.lang.String,java.lang.String) [\"karate\",\".\",\"embed('<h1>hello world<\\/h1>', 'text\\/html')\"]",
                                                 "nanos": "#number",
                                                 "millis": "#number",
                                                 "status": "passed"

@@ -180,17 +180,6 @@ public class StepRuntime {
             sb.append(sj);
             sb.append(")");
 
-            //StringBuilder argList = new StringBuilder("null");
-/*            if(args != null && !args.isEmpty()) {
-                argList = new StringBuilder("[");
-                argList.append(args.stream()
-                        .map(a -> "\"" + a.replace("\"", "\\\"") + "\"")
-                        .collect(Collectors.joining(",")));
-                argList.append("]");
-                // consistently wrap all args with single quotes so there's a consistent
-                // pattern to reverse the list back from String into List
-            }*/
-
             return sb.toString() + " " + (args == null || args.isEmpty() ? "null" : JsonUtils.toJson(args));
         }
 
