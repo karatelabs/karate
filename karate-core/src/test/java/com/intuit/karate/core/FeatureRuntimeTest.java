@@ -1,8 +1,10 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.Match;
-import com.intuit.karate.TestUtils;
-import com.intuit.karate.report.ReportUtils;
+import com.intuit.karate.report.Report;
+import com.intuit.karate.report.SuiteReports;
+import java.io.File;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -43,7 +45,8 @@ class FeatureRuntimeTest {
     }
 
     private File report() {
-        File file = ReportUtils.saveHtmlFeatureReport(fr.result, "target/temp");
+        Report report = SuiteReports.DEFAULT.featureReport(fr.suite, fr.result);
+        File file = report.render("target/temp");
         logger.debug("saved report: {}", file.getAbsolutePath());
         return file;
     }

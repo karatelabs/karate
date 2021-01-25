@@ -51,6 +51,7 @@ public class Match {
         CONTAINS_ONLY,
         CONTAINS_ANY,
         CONTAINS_DEEP,
+        CONTAINS_ANY_DEEP,
         EACH_EQUALS,
         EACH_NOT_EQUALS,
         EACH_CONTAINS,

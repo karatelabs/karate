@@ -34,6 +34,8 @@ import com.intuit.karate.core.SyncExecutorService;
 import com.intuit.karate.core.Tags;
 import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.job.JobManager;
+import com.intuit.karate.report.Report;
+import com.intuit.karate.report.SuiteReports;
 import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
@@ -82,6 +84,7 @@ public class Suite implements Runnable {
     public final Map<String, String> systemProperties;
 
     public final boolean backupReportDir;
+    public final SuiteReports suiteReports;
 
     public final boolean outputHtmlReport;
     public final boolean outputCucumberJson;
@@ -149,6 +152,7 @@ public class Suite implements Runnable {
             scenarioExecutor = null;
             pendingTasks = null;
             suiteCache = null;
+            suiteReports = null;
             jobManager = null;
             progressFileLock = null;
         } else {
@@ -169,6 +173,7 @@ public class Suite implements Runnable {
             featuresFound = features.size();
             futures = new ArrayList(featuresFound);
             suiteCache = rb.suiteCache;
+            suiteReports = rb.suiteReports;
             featureResultFiles = new HashSet();
             workingDir = rb.workingDir;
             buildDir = rb.buildDir;
@@ -249,7 +254,7 @@ public class Suite implements Runnable {
             featureResultFiles.add(file);
         }
         if (outputHtmlReport) {
-            ReportUtils.saveHtmlFeatureReport(fr, reportDir);
+            suiteReports.featureReport(this, fr).render();
         }
         if (outputCucumberJson) {
             ReportUtils.saveCucumberJson(reportDir, fr, null);

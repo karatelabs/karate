@@ -95,6 +95,12 @@ class MatchTest {
         match("foobar", CONTAINS, "baz", FAILS);
         match("foobar", NOT_CONTAINS, "baz");
     }
+    
+    @Test
+    void testStringStartingWithHash() {
+        match("#bob", EQUALS, "#bob");
+        match("#bob", CONTAINS, "#bob");
+    }
 
     @Test
     void testBytes() {
