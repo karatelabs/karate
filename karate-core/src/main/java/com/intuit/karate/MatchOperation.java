@@ -247,11 +247,12 @@ public class MatchOperation {
                 Match.Type nestedType = macroToMatchType(false, macro);
                 int startPos = matchTypeToStartPos(nestedType);
                 macro = macro.substring(startPos);
-                if (actual.isList() && nestedType == Match.Type.CONTAINS) {
-                    nestedType = Match.Type.CONTAINS_DEEP; // special case, look for partial maps within list
-                }
-                if (actual.isList() && nestedType == Match.Type.CONTAINS_ANY) {
-                    nestedType = Match.Type.CONTAINS_ANY_DEEP;
+                if (actual.isList()) { // special case, look for partial maps within list
+                    if (nestedType == Match.Type.CONTAINS) {
+                        nestedType = Match.Type.CONTAINS_DEEP;
+                    } else if (nestedType == Match.Type.CONTAINS_ANY) {
+                        nestedType = Match.Type.CONTAINS_ANY_DEEP;
+                    }
                 }
                 context.JS.put("$", context.root.actual.getValue());
                 context.JS.put("_", actual.getValue());
