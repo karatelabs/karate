@@ -205,14 +205,16 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                     map.put("value", "(unknown)");
                 }
                 map.put("type", v.type.name());
+                // remove last dot before an array
+                String pathExpression = k.startsWith("[") ? finalParentExpression.replaceAll("\\.$", "") : finalParentExpression;
                 if (v.type == LIST || v.type == MAP) {
-                    VARIABLES.put(++nextVariablesReference, new SimpleEntry(finalParentExpression + k + ".", v));
+                    VARIABLES.put(++nextVariablesReference, new SimpleEntry(pathExpression + k + ".", v));
                     map.put("presentationHint", "data");
                     map.put("variablesReference", nextVariablesReference);
                 } else {
                     map.put("variablesReference", 0);
                 }
-                map.put("evaluateName", finalParentExpression + k);
+                map.put("evaluateName", pathExpression + k);
                 list.add(map);
             }
         });
