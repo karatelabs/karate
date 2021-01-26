@@ -327,6 +327,10 @@ public class MatchOperation {
                         if (validator != null) {
                             if (optional && actual.isNotPresent()) {
                                 // pass
+                            } else if (!optional && actual.isNotPresent()) {
+                                // if the element is not present the expected result can only be
+                                // the notpresent keyword, ignored or an optional comparison
+                                return expected.isNotPresent() || "#ignore".contentEquals(expected.getAsString());
                             } else {
                                 Match.Result mr = validator.apply(actual);
                                 if (!mr.pass) {
