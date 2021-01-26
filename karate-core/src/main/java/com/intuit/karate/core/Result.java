@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.Constants;
 import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.KarateException;
 
@@ -38,6 +39,8 @@ public class Result {
     private static final String PASSED = "passed";
     private static final String FAILED = "failed";
     private static final String SKIPPED = "skipped";
+
+    private static final boolean INCLUDE_METHOD_KARATE_JSON = Boolean.parseBoolean(System.getProperty(Constants.KARATE_CONFIG_INCL_RESULT_METHOD));
 
     private final String status;
     private final long durationNanos;
@@ -66,10 +69,12 @@ public class Result {
         if (aborted == null) {
             aborted = false;
         }
-        String jsonMatchingMethod = (String) map.get("matchingMethod");
         StepRuntime.MethodMatch matchingMethod = null;
-        if(jsonMatchingMethod != null) {
-            matchingMethod = StepRuntime.MethodMatch.getBySignatureAndArgs(jsonMatchingMethod);
+        if (INCLUDE_METHOD_KARATE_JSON) {
+            String jsonMatchingMethod = (String) map.get("matchingMethod");
+            if (jsonMatchingMethod != null) {
+                matchingMethod = StepRuntime.MethodMatch.getBySignatureAndArgs(jsonMatchingMethod);
+            }
         }
         return new Result(status, durationNanos, error, aborted, matchingMethod);
     }
@@ -85,7 +90,7 @@ public class Result {
         if (aborted) {
             map.put("aborted", true);
         }
-        if (matchingMethod != null) {
+        if (INCLUDE_METHOD_KARATE_JSON && matchingMethod != null) {
             map.put("matchingMethod", matchingMethod.toString());
         }
         return map;
