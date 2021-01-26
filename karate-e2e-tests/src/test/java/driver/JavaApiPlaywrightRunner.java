@@ -13,16 +13,17 @@ import org.junit.jupiter.api.Test;
 class JavaApiPlaywrightRunner {
 
     static HttpServer server;
+    static String serverUrl;
 
     @BeforeAll
     static void beforeAll() {
         server = ServerStarter.start(0);
+        serverUrl = "http://localhost:" + server.getPort();
     }
 
     @Test
     void testPlaywright() {
         Driver driver = Driver.start("playwright");
-        String serverUrl = "http://localhost:" + server.getPort();
         driver.setUrl(serverUrl + "/01");
         driver.waitForUrl(serverUrl + "/01");
         Match.that(driver.getTitle()).isEqualTo("Page 01");
