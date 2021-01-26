@@ -58,15 +58,15 @@ public class Json {
         return Json.of("[]");
     }
 
-    public static Json of(Object o) {
-        if (o instanceof String) {
-            return new Json(JsonPath.parse((String) o));
-        } else if (o instanceof List) {
-            return new Json(JsonPath.parse((List) o));
-        } else if (o instanceof Map) {
-            return new Json(JsonPath.parse((Map) o));
+    public static Json of(Object any) {
+        if (any instanceof String) {
+            return new Json(JsonPath.parse((String) any));
+        } else if (any instanceof List) {
+            return new Json(JsonPath.parse((List) any));
+        } else if (any instanceof Map) {
+            return new Json(JsonPath.parse((Map) any));
         } else {
-            String json = JsonUtils.toJson(o);
+            String json = JsonUtils.toJson(any);
             return new Json(JsonPath.parse(json));
         }
     }
@@ -138,14 +138,14 @@ public class Json {
         return value();
     }
 
-    public Json set(String path, String s) {
-        if (JsonUtils.isJson(s)) {
-            setInternal(path, Json.of(s).value());
+    public Json set(String path, String value) {
+        if (JsonUtils.isJson(value)) {
+            setInternal(path, Json.of(value).value());
         } else {
-            if (s != null && s.charAt(0) == '\\') {
-                s = s.substring(1);
+            if (value != null && value.charAt(0) == '\\') {
+                value = value.substring(1);
             }
-            setInternal(path, s);
+            setInternal(path, value);
         }
         return this;
     }
@@ -155,8 +155,8 @@ public class Json {
         return this;
     }
 
-    public Json set(String path, Object o) {
-        setInternal(path, o);
+    public Json set(String path, Object value) {
+        setInternal(path, value);
         return this;
     }
 
