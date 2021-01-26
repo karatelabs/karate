@@ -11,10 +11,6 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-/**
- *
- * @author pthomas3
- */
 class JavaApiRunner {
 
     static HttpServer server;

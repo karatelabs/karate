@@ -437,7 +437,11 @@ public class ScenarioBridge implements PerfContext {
         return getEngine().runtime.featureRuntime.suite.env;
     }
 
-    public Object getInfo() {
+    public Object getFeature() {
+        return new JsMap(getEngine().runtime.featureRuntime.result.toInfoJson());
+    }
+
+    public Object getInfo() { // TODO deprecate
         return new JsMap(getEngine().runtime.getScenarioInfo());
     }
 
@@ -469,7 +473,7 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object getScenario() {
-        return JsValue.fromJava(getEngine().runtime.result.toKarateJson());
+        return new JsMap(getEngine().runtime.result.toKarateJson());
     }
 
     public Object getTags() {
