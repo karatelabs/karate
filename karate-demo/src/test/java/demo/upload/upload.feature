@@ -78,11 +78,11 @@ Scenario: multipart upload has content-length header set
     And multipart field message = 'hello world'
     When method post
     Then status 200
-    And match header Content-Type == '#notnull'
+    And match response['content-length'][0] == '#notnull'
 
     Given path 'search', 'headers'
     And multipart file myFile = { read: 'test.pdf', filename: 'upload-name.pdf', contentType: 'application/pdf' }
     And multipart field message = 'hello world'
     When method post
     Then status 200
-    And match header Content-Type == '#notnull'
+    And match response['content-length'][0] == '#notnull'

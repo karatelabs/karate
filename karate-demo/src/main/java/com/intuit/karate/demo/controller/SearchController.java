@@ -68,7 +68,7 @@ public class SearchController {
             List<String> list = new ArrayList();
             while (headerValues.hasMoreElements()) {
                 String headerValue = headerValues.nextElement();
-                list.add(headerValue);
+                list.add(headerValue.toLowerCase());
             }
             map.put(headerName, list);
         }
