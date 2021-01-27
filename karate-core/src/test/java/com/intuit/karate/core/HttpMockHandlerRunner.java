@@ -49,7 +49,7 @@ class HttpMockHandlerRunner { // TODO investigate intermittent CI failure
 
     HttpRequestBuilder handle() {
         handler = new MockHandler(mock.build());
-        server = new HttpServer(0, handler);
+        server = HttpServer.handler(handler).build();
         ArmeriaHttpClient client = new ArmeriaHttpClient(new Config(), new com.intuit.karate.Logger());
         http = new HttpRequestBuilder(client);
         http.url("http://localhost:" + server.getPort());
@@ -71,7 +71,7 @@ class HttpMockHandlerRunner { // TODO investigate intermittent CI failure
         FeatureBuilder fb = background().scenario(
                 "pathMatches('/hello')",
                 "def response = 'world'");
-        HttpServer downStream = new HttpServer(0, new MockHandler(fb.build()));
+        HttpServer downStream = HttpServer.handler(new MockHandler(fb.build())).build();
         String downStreamUrl = "http://localhost:" + downStream.getPort();
         background().scenario(
                 "pathMatches('/hello')",

@@ -207,9 +207,8 @@ public class Main implements Callable<Void> {
             String path = matcher.group(2).trim();
             if (path.contains(" ")) {
                 // unquote if necessary
+                String options = line.substring(0, line.lastIndexOf(path));
                 path = path.replaceAll("^\"|^'|\"$|\'$", "");
-                String options = matcher.group(1);
-                options = options != null ? options : "";
                 line = String.format("%s \"%s\"", options, path);
             }
         }
@@ -346,7 +345,11 @@ public class Main implements Callable<Void> {
         if (serve) {
             ServerConfig config = new ServerConfig(workingDir.getPath());
             RequestHandler handler = new RequestHandler(config);
-            HttpServer server = new HttpServer(port, handler);
+            HttpServer server = HttpServer
+                    .handler(handler)
+                    .port(port)
+                    .corsEnabled(true)
+                    .build();
             server.waitSync();
             return null;
         }

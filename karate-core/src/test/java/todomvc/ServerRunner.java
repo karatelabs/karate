@@ -1,8 +1,6 @@
 package todomvc;
 
-import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.http.HttpServer;
-import com.intuit.karate.http.RequestHandler;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -13,10 +11,7 @@ class ServerRunner {
 
     @Test
     void testServer() {
-        ServerConfig config = new ServerConfig("src/test/java/todomvc");
-        RequestHandler handler = new RequestHandler(config);
-        HttpServer server = new HttpServer(8080, handler);
-        server.waitSync();
+        HttpServer.configRoot("src/test/java/todomvc").port(8080).build().waitSync();
     }
 
 }

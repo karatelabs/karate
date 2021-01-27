@@ -51,8 +51,8 @@ public class EdgeChromium extends DevToolsDriver {
     }
 
     public static EdgeChromium start(Map<String, Object> map, LogAppender appender) {
-        if (! FileUtils.isOsWindows() && ! FileUtils.isOsMacOsX()) {
-            throw new UnsupportedOperationException("Edge browser is not yet available on linux!");
+        if (!FileUtils.isOsWindows() && !FileUtils.isOsMacOsX()) {
+            throw new UnsupportedOperationException("edge browser is not yet available on linux!");
         }
         DriverOptions options = new DriverOptions(map, appender, 9222,
                 FileUtils.isOsWindows() ? DEFAULT_PATH_WIN : FileUtils.isOsMacOsX() ? DEFAULT_PATH_MAC : DEFAULT_PATH_LINUX);

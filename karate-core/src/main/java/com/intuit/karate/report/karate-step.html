@@ -32,6 +32,8 @@
       <td th:each="cell: tableRow.row" class="td" th:text="cell"></td>
     </tr>     
   </table> 
+  
+  <div class="preformatted" th:attr="data-parent=${stepId}" th:if="sr.step.docString" th:text="sr.step.docString"></div>
 
   <div th:each="embed: sr.embeds" class="embed" th:attr="data-parent=${stepId}" th:utext="embed.html"></div>
 

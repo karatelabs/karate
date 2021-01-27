@@ -30,12 +30,6 @@
         </dependency>
         <dependency>
             <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-apache</artifactId>
-            <version>${karate.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.intuit.karate</groupId>
             <artifactId>karate-mock-servlet</artifactId>
             <version>${karate.version}</version>
             <scope>test</scope>

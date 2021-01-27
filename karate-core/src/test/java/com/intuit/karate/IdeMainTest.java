@@ -78,14 +78,31 @@ class IdeMainTest {
     void testParsingCommandLineReportFormats() {
         Main options = IdeMain.parseIdeCommandLine("cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome -e local -f html,json,cucumber:json,junit:xml -g /dev/config/dir /dev/test/todos.feature:27");
         System.out.println();
-
-        assertIterableEquals(options.formats, new ArrayList<String>() { { add("html"); add("json"); add("cucumber:json"); add("junit:xml"); }});
-
+        assertIterableEquals(options.formats, new ArrayList<String>() {
+            {
+                add("html");
+                add("json");
+                add("cucumber:json");
+                add("junit:xml");
+            }
+        });
         Main options2 = IdeMain.parseIdeCommandLine("cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome -e local -f json,cucumber:json,junit:xml -g /dev/config/dir /dev/test/todos.feature:27");
-        assertIterableEquals(options2.formats, new ArrayList<String>() { { add("json"); add("cucumber:json"); add("junit:xml"); }});
-
+        assertIterableEquals(options2.formats, new ArrayList<String>() {
+            {
+                add("json");
+                add("cucumber:json");
+                add("junit:xml");
+            }
+        });
         Main options3 = IdeMain.parseIdeCommandLine("cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome -e local -f ~html,json,cucumber:json,junit:xml -g /dev/config/dir /dev/test/todos.feature:27");
-        assertIterableEquals(options3.formats, new ArrayList<String>() { { add("~html"); add("json"); add("cucumber:json"); add("junit:xml"); }});
+        assertIterableEquals(options3.formats, new ArrayList<String>() {
+            {
+                add("~html");
+                add("json");
+                add("cucumber:json");
+                add("junit:xml");
+            }
+        });
     }
 
     @Test
@@ -116,12 +133,18 @@ class IdeMainTest {
             "-H com.intuit.karate.RuntimeHook -H com.intuit.karate.RuntimeHook /tmp/name with spaces.feature ",
             "-H com.intuit.karate.RuntimeHook,com.intuit.karate.RuntimeHook /tmp/name with spaces.feature "
         };
-
         for (String line : lines) {
             Main options = Main.parseKarateOptionAndQuotePath(line);
             assertEquals(1, options.paths.size());
             assertEquals("/tmp/name with spaces.feature", options.paths.get(0));
         }
+
+        String line = "-g C:\\test_cases\\config -e dev01 -H com.intuit.karate.RuntimeHook,com.intuit.karate.RuntimeHook /tmp/name with spaces.feature ";
+        Main options = Main.parseKarateOptionAndQuotePath(line);
+        assertEquals(1, options.paths.size());
+        assertEquals("C:\\test_cases\\config", options.configDir);
+        assertEquals("dev01", options.env);
+        assertEquals("/tmp/name with spaces.feature", options.paths.get(0));
     }
-    
+
 }

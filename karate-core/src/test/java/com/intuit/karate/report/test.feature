@@ -19,3 +19,11 @@ Scenario: second one
     | foo | bar |
     |   1 |   2 |
     |   3 |   4 |
+* def large = 
+"""
+{ 
+  one: 'first', 
+  two: 'second'
+}
+"""
+* print large

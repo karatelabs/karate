@@ -60,7 +60,7 @@ class PerfHookTest {
         assertEquals(featureResult.getScenarioCount(), 1);
         assertEquals(featureResult.getPassedCount(), 1);
         assertEquals(featureResult.getFailedCount(), 0);
-        matchContains(featureResult.getVariables(), "{ bar: '" + bar + "', configSource: 'normal', responseStatus: 200, response: { foo: ['" + bar + "'] } }");
+        matchContains(featureResult.getVariables(), "{ configSource: 'normal', responseStatus: 200, response: { foo: ['" + bar + "'] } }");
     }
 
     @Test
@@ -77,7 +77,7 @@ class PerfHookTest {
         assertEquals(featureResult.getScenarioCount(), 1);
         assertEquals(featureResult.getPassedCount(), 0);
         assertEquals(featureResult.getFailedCount(), 1);
-        matchContains(featureResult.getVariables(), "{ bar: '" + bar + "', configSource: 'normal', responseStatus: 200, response: { foo: ['" + bar + "'] } }");
+        matchContains(featureResult.getVariables(), "{ configSource: 'normal', responseStatus: 200, response: { foo: ['" + bar + "'] } }");
     }
 
     @Test
@@ -94,7 +94,7 @@ class PerfHookTest {
         assertEquals(featureResult.getScenarioCount(), 1);
         assertEquals(featureResult.getPassedCount(), 0);
         assertEquals(featureResult.getFailedCount(), 1);
-        matchContains(featureResult.getVariables(), "{ bar: '" + bar + "', configSource: 'normal', responseStatus: 200, response: { foo: ['" + bar + "'] } }");
+        matchContains(featureResult.getVariables(), "{ configSource: 'normal', responseStatus: 200, response: { foo: ['" + bar + "'] } }");
     }
 
     @Test

@@ -51,6 +51,7 @@ public class Match {
         CONTAINS_ONLY,
         CONTAINS_ANY,
         CONTAINS_DEEP,
+        CONTAINS_ANY_DEEP,
         EACH_EQUALS,
         EACH_NOT_EQUALS,
         EACH_CONTAINS,
@@ -336,8 +337,8 @@ public class Match {
             return sb.toString();
         }
 
-        public Result is(Type mt, Object o) {
-            MatchOperation mo = new MatchOperation(mt, this, new Value(parseIfJsonOrXmlString(o), exceptionOnMatchFailure));
+        public Result is(Type matchType, Object expected) {
+            MatchOperation mo = new MatchOperation(matchType, this, new Value(parseIfJsonOrXmlString(expected), exceptionOnMatchFailure));
             mo.execute();
             if (mo.pass) {
                 return Match.PASS;
@@ -351,60 +352,60 @@ public class Match {
 
         //======================================================================
         //
-        public Result isEqualTo(Object o) {
-            return is(Type.EQUALS, o);
+        public Result isEqualTo(Object expected) {
+            return is(Type.EQUALS, expected);
         }
 
-        public Result contains(Object o) {
-            return is(Type.CONTAINS, o);
+        public Result contains(Object expected) {
+            return is(Type.CONTAINS, expected);
         }
 
-        public Result containsDeep(Object o) {
-            return is(Type.CONTAINS_DEEP, o);
+        public Result containsDeep(Object expected) {
+            return is(Type.CONTAINS_DEEP, expected);
         }
 
-        public Result containsOnly(Object o) {
-            return is(Type.CONTAINS_ONLY, o);
+        public Result containsOnly(Object expected) {
+            return is(Type.CONTAINS_ONLY, expected);
         }
 
-        public Result containsAny(Object o) {
-            return is(Type.CONTAINS_ANY, o);
+        public Result containsAny(Object expected) {
+            return is(Type.CONTAINS_ANY, expected);
         }
 
-        public Result isNotEqualTo(Object o) {
-            return is(Type.NOT_EQUALS, o);
+        public Result isNotEqualTo(Object expected) {
+            return is(Type.NOT_EQUALS, expected);
         }
 
-        public Result isNotContaining(Object o) {
-            return is(Type.NOT_CONTAINS, o);
+        public Result isNotContaining(Object expected) {
+            return is(Type.NOT_CONTAINS, expected);
         }
 
-        public Result isEachEqualTo(Object o) {
-            return is(Type.EACH_EQUALS, o);
+        public Result isEachEqualTo(Object expected) {
+            return is(Type.EACH_EQUALS, expected);
         }
 
-        public Result isEachNotEqualTo(Object o) {
-            return is(Type.EACH_NOT_EQUALS, o);
+        public Result isEachNotEqualTo(Object expected) {
+            return is(Type.EACH_NOT_EQUALS, expected);
         }
 
-        public Result isEachContaining(Object o) {
-            return is(Type.EACH_CONTAINS, o);
+        public Result isEachContaining(Object expected) {
+            return is(Type.EACH_CONTAINS, expected);
         }
 
-        public Result isEachNotContaining(Object o) {
-            return is(Type.EACH_NOT_CONTAINS, o);
+        public Result isEachNotContaining(Object expected) {
+            return is(Type.EACH_NOT_CONTAINS, expected);
         }
 
-        public Result isEachContainingDeep(Object o) {
-            return is(Type.EACH_CONTAINS_DEEP, o);
+        public Result isEachContainingDeep(Object expected) {
+            return is(Type.EACH_CONTAINS_DEEP, expected);
         }
 
-        public Result isEachContainingOnly(Object o) {
-            return is(Type.EACH_CONTAINS_ONLY, o);
+        public Result isEachContainingOnly(Object expected) {
+            return is(Type.EACH_CONTAINS_ONLY, expected);
         }
 
-        public Result isEachContainingAny(Object o) {
-            return is(Type.EACH_CONTAINS_ANY, o);
+        public Result isEachContainingAny(Object expected) {
+            return is(Type.EACH_CONTAINS_ANY, expected);
         }
 
     }
@@ -437,12 +438,12 @@ public class Match {
         return o;
     }
 
-    public static Value evaluate(Object o) {
-        return new Value(parseIfJsonOrXmlString(o), false);
+    public static Value evaluate(Object actual) {
+        return new Value(parseIfJsonOrXmlString(actual), false);
     }
 
-    public static Value that(Object o) {
-        return new Value(parseIfJsonOrXmlString(o), true);
+    public static Value that(Object actual) {
+        return new Value(parseIfJsonOrXmlString(actual), true);
     }
 
 }

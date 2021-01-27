@@ -4,8 +4,6 @@ if (request.post) {
   cat.id = session.cats.length + 1;
   session.cats.push(cat);
   response.body = cat;
-} else if (request.pathParams.length === 2) {
-  response.body = [{ kittens: true }];
 } else if (request.pathParam) {
   var id = ~~request.pathParam;
   if (request.get) {

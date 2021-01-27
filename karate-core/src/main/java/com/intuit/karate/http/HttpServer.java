@@ -23,8 +23,10 @@
  */
 package com.intuit.karate.http;
 
+import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
+import com.linecorp.armeria.server.cors.CorsService;
 import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +42,40 @@ public class HttpServer {
     private final Server server;
     private final CompletableFuture<Void> future;
     private final int port;
+
+    public static class Builder { // TODO
+
+        int port;
+        boolean corsEnabled;
+        ServerHandler handler;
+
+        public Builder port(int value) {
+            port = value;
+            return this;
+        }
+
+        public Builder corsEnabled(boolean value) {
+            corsEnabled = value;
+            return this;
+        }
+
+        public Builder handler(ServerHandler value) {
+            handler = value;
+            return this;
+        }
+
+        public HttpServer build() {
+            ServerBuilder sb = Server.builder();
+            sb.http(port);
+            HttpService service = new HttpServerHandler(handler);
+            if (corsEnabled) {
+                service = service.decorate(CorsService.builderForAnyOrigin().newDecorator());
+            }
+            sb.service("prefix:/", service);
+            return new HttpServer(sb);
+        }
+
+    }
 
     public void waitSync() {
         try {
@@ -57,10 +93,16 @@ public class HttpServer {
         return server.stop();
     }
 
-    public HttpServer(int port, ServerHandler handler) {
-        this(Server.builder()
-                .http(port)
-                .service("prefix:/", new HttpServerHandler(handler)));
+    public static Builder handler(ServerHandler handler) {
+        return new Builder().handler(handler);
+    }
+
+    public static Builder configRoot(String root) {
+        return config(new ServerConfig(root));
+    }
+
+    public static Builder config(ServerConfig config) {
+        return handler(new RequestHandler(config));
     }
 
     public HttpServer(ServerBuilder sb) {

@@ -27,7 +27,7 @@ class KarateHttpMockHandlerTest {
 
     void startMockServer() {
         handler = new MockHandler(mock.build());
-        server = new HttpServer(0, handler);
+        server = HttpServer.handler(handler).build();
     }
 
     FeatureBuilder background(String... lines) {

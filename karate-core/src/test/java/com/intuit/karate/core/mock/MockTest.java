@@ -21,7 +21,7 @@ class MockTest {
 
     static HttpServer startMockServer() {
         MockHandler mock = new MockHandler(Feature.read("classpath:com/intuit/karate/core/mock/_mock.feature"));
-        HttpServer server = new HttpServer(0, mock);
+        HttpServer server = HttpServer.handler(mock).build();
         System.setProperty("karate.server.port", server.getPort() + "");
         return server;
     }

@@ -27,7 +27,7 @@ class HttpMockHandlerTest {
 
     HttpRequestBuilder handle() {
         handler = new MockHandler(mock.build());
-        server = new HttpServer(0, handler);
+        server = HttpServer.handler(handler).build();
         ScenarioEngine se = ScenarioEngine.forTempUse();
         ApacheHttpClient client = new ApacheHttpClient(se);
         http = new HttpRequestBuilder(client);

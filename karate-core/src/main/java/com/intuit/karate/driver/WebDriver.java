@@ -234,7 +234,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Map<String, Object> getDimensions() {
-        return http.path("window", "rect").get().json().getJson("value").value();
+        return http.path("window", "rect").get().json().get("value");
     }
 
     @Override

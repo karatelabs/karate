@@ -2,7 +2,8 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.TestUtils;
 import com.intuit.karate.Match;
-import com.intuit.karate.report.ReportUtils;
+import com.intuit.karate.report.Report;
+import com.intuit.karate.report.SuiteReports;
 import java.io.File;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,7 +42,8 @@ class FeatureRuntimeTest {
     }
 
     private File report() {
-        File file = ReportUtils.saveHtmlFeatureReport(fr.result, "target/temp");
+        Report report = SuiteReports.DEFAULT.featureReport(fr.suite, fr.result);
+        File file = report.render("target/temp");        
         logger.debug("saved report: {}", file.getAbsolutePath());
         return file;
     }
@@ -181,7 +183,22 @@ class FeatureRuntimeTest {
 
     @Test
     void testJsRead() {
-        run("js-read.feature");
+        run("jsread/js-read.feature");
+    }
+
+    @Test
+    void testJsRead2() {
+        run("jsread/js-read-2.feature");
+    }
+
+    @Test
+    void testJsRead3() {
+        run("jsread/js-read-3.feature");
+    }
+
+    @Test
+    void testJsRead4() {
+        run("jsread/js-read-4.feature");
     }
 
     @Test
@@ -207,6 +224,11 @@ class FeatureRuntimeTest {
     @Test
     void testOutlineBackground() {
         run("outline-background.feature");
-    }    
+    }  
+    
+    @Test
+    void testCallArg() {
+        run("call-arg.feature");
+    }     
 
 }

@@ -27,26 +27,26 @@ import com.intuit.karate.*;
 import com.intuit.karate.cli.IdeMain;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.Result;
-import com.intuit.karate.core.ScenarioEngine;
-import com.intuit.karate.core.Step;
 import com.intuit.karate.core.RuntimeHookFactory;
+import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.ScenarioRuntime;
+import com.intuit.karate.core.Step;
 import com.intuit.karate.core.Variable;
+import static com.intuit.karate.core.Variable.Type.LIST;
+import static com.intuit.karate.core.Variable.Type.MAP;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 
+import java.io.File;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static com.intuit.karate.core.Variable.Type.LIST;
-import static com.intuit.karate.core.Variable.Type.MAP;
 
 /**
  *
@@ -105,7 +105,11 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
 
     protected boolean isBreakpoint(Step step, int line) {
         Feature feature = step.getFeature();
-        String path = feature.getResource().getFile().getPath();
+        File file = feature.getResource().getFile();
+        if (file == null) {
+            return false;
+        }
+        String path = normalizePath(file.getPath());
         int pos = findPos(path);
         SourceBreakpoints sb;
         if (pos != -1) {
@@ -117,6 +121,17 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             return false;
         }
         return sb.isBreakpoint(line);
+    }
+
+    protected String normalizePath(String path) {
+        String normalizedPath = Paths.get(path).normalize().toString();
+        if (FileUtils.isOsWindows() && path.matches("^[a-zA-Z]:\\\\.*")) {
+            // in Windows if the first character is the drive, let's capitalize it
+            // Windows paths are case insensitive but in the debugger it mostly comes capitalized but sometimes
+            // VS Studio sends the paths with the first letter lower case
+            normalizedPath = normalizedPath.substring(0, 1).toUpperCase() + normalizedPath.substring(1);
+        }
+        return normalizedPath;
     }
 
     private DebugThread thread(DapMessage dm) {
@@ -190,14 +205,16 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                     map.put("value", "(unknown)");
                 }
                 map.put("type", v.type.name());
+                // remove last dot before an array
+                String pathExpression = k.startsWith("[") ? finalParentExpression.replaceAll("\\.$", "") : finalParentExpression;
                 if (v.type == LIST || v.type == MAP) {
-                    VARIABLES.put(++nextVariablesReference, new SimpleEntry(finalParentExpression + k + ".", v));
+                    VARIABLES.put(++nextVariablesReference, new SimpleEntry(pathExpression + k + ".", v));
                     map.put("presentationHint", "data");
                     map.put("variablesReference", nextVariablesReference);
                 } else {
                     map.put("variablesReference", 0);
                 }
-                map.put("evaluateName", finalParentExpression + k);
+                map.put("evaluateName", pathExpression + k);
                 list.add(map);
             }
         });
@@ -238,7 +255,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 break;
             case "setBreakpoints":
                 SourceBreakpoints sb = new SourceBreakpoints(req.getArguments());
-                BREAKPOINTS.put(sb.path, sb);
+                BREAKPOINTS.put(normalizePath(sb.path), sb);
                 logger.trace("source breakpoints: {}", sb);
                 ctx.write(response(req).body("breakpoints", sb.breakpoints));
                 break;
@@ -364,7 +381,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 String varName = expression.substring(0, expression.indexOf('.'));
                 String path = expression.substring(expression.indexOf('.') + 1);
                 Object nested = Json.of(vars.get(varName).getValue()).get(path);
-                result = JsonUtils.toJson(nested);
+                result = JsonUtils.toJsonSafe(nested, true);
             } else {
                 Variable v = vars.get(expression);
                 result = v.getAsPrettyString();
@@ -450,7 +467,22 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             server.stop();
             System.exit(0);
         } else {
+            this.clearDebugSession();
             channel.disconnect();
+        }
+    }
+
+    private void clearDebugSession() {
+        this.BREAKPOINTS.clear();
+        this.THREADS.clear();
+        this.FRAMES.clear();
+        this.FRAME_VARS.clear();
+        this.VARIABLES.clear();
+
+        launchCommand = null;
+        preStep = null;
+        if (runnerThread != null && runnerThread.isAlive()) {
+            runnerThread.interrupt();
         }
     }
 

@@ -118,7 +118,7 @@ public class DapMessage {
     }
 
     public String toJson() {
-        return JsonUtils.toJson(toMap());
+        return JsonUtils.toJsonSafe(toMap(), false);
     }
 
     public Map<String, Object> toMap() {

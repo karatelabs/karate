@@ -1,7 +1,6 @@
 package driver;
 
 import com.intuit.karate.http.HttpServer;
-import com.intuit.karate.http.RequestHandler;
 import com.intuit.karate.http.ServerConfig;
 import org.junit.jupiter.api.Test;
 
@@ -21,8 +20,7 @@ public class ServerStarter {
         ServerConfig config = new ServerConfig("src/test/java/driver/html")
                 .autoCreateSession(true)
                 .homePagePath("00");
-        RequestHandler handler = new RequestHandler(config);
-        return new HttpServer(port, handler);
+        return HttpServer.config(config).port(port).build();
     }
 
 }

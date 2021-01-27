@@ -104,6 +104,19 @@ public class FeatureResult {
         return fr;
     }
 
+    public Map<String, Object> toInfoJson() {
+        Map<String, Object> map = new HashMap();
+        map.put("name", feature.getName());
+        map.put("description", feature.getDescription());
+        map.put("prefixedPath", feature.getResource().getPrefixedPath());
+        File file = feature.getResource().getFile();
+        if (file != null) {
+            map.put("fileName", file.getName());
+            map.put("parentDir", file.getParent());
+        }
+        return map;
+    }
+
     public Map<String, Object> toSummaryJson() {
         Map<String, Object> map = new HashMap();
         map.put("failed", isFailed());

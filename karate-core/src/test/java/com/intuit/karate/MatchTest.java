@@ -95,6 +95,12 @@ class MatchTest {
         match("foobar", CONTAINS, "baz", FAILS);
         match("foobar", NOT_CONTAINS, "baz");
     }
+    
+    @Test
+    void testStringStartingWithHash() {
+        match("#bob", EQUALS, "#bob");
+        match("#bob", CONTAINS, "#bob");
+    }
 
     @Test
     void testBytes() {
@@ -121,6 +127,7 @@ class MatchTest {
         match("[1, 2, 3]", CONTAINS, "[1, 2, 4]", FAILS);
         match("[1, 2, 3]", NOT_CONTAINS, "[1, 2, 4]");
         match("[1, 2, 3]", CONTAINS_ANY, "[1, 2, 4]");
+        match("[1, 2, 3]", CONTAINS_ANY, "[1, 2, 4, 5]");
         match("[{ a: 1 }, { b: 2 }, { c: 3 }]", EQUALS, "[{ a: 1 }, { b: 2 }, { c: 3 }]");
         match("[{ a: 1 }, { b: 2 }, { c: 3 }]", EQUALS, "[{ a: 1 }, { b: 2 }, { c: 4 }]", FAILS);
         match("[{ a: 1 }, { b: 2 }, { c: 3 }]", CONTAINS, "[{ a: 1 }, { b: 2 }, { c: 3 }]");

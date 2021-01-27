@@ -929,10 +929,14 @@ public abstract class DevToolsDriver implements Driver {
                 .param("waitForDebuggerOnStart", false)
                 .param("flatten", true).send();
     }
-
+    
     public void intercept(Value value) {
         Map<String, Object> config = (Map) JsValue.toJava(value);
-        config = new Variable(config).getValue(); // ensure js is pre-processed, TODO graal
+        config = new Variable(config).getValue();
+        intercept(config);
+    }
+
+    public void intercept(Map<String, Object> config) {
         List<String> patterns = (List) config.get("patterns");
         if (patterns == null) {
             throw new RuntimeException("missing array argument 'patterns': " + config);
