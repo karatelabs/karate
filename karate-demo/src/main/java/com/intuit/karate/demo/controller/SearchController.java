@@ -70,7 +70,7 @@ public class SearchController {
                 String headerValue = headerValues.nextElement();
                 list.add(headerValue);
             }
-            map.put(headerName.toLowerCase(), list);
+            map.put(headerName, list);
         }
         return map;
     }

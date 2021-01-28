@@ -2,21 +2,15 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Match;
+import static com.intuit.karate.TestUtils.*;
 import com.intuit.karate.http.ResourceType;
+import java.io.File;
+import java.util.List;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.util.List;
-
-import static com.intuit.karate.TestUtils.match;
-import static com.intuit.karate.TestUtils.runScenario;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  *
@@ -706,7 +700,7 @@ class ScenarioRuntimeTest {
         );
         matchVar("text", "words that need to be correct");
     }
-
+    
     @Test
     void testSort() {
         run(
@@ -716,17 +710,8 @@ class ScenarioRuntimeTest {
                 "match res1 == [{ num: 1 }, { num: 2 }, { num: 3 }]",
                 "def list2 = [{ val: 'C' }, { val: 'A' }, { val: 'B' }]",
                 "def res2 = karate.sort(list2, x => x.val)",
-                "match res2 == [{ val: 'A' }, { val: 'B' }, { val: 'C' }]"
-        );
-    }
-
-    @Test
-    void testMatchXmlXpath() {
-        fail = true;
-        run(
-                "xml myXml = <root><foo>bar</foo><hello><text>hello \"world\"</text></hello><hello><text>hello \"moon\"</text></hello></root>",
-                "match myXml //myXml2/root/text == '#notnull'"
-        );
+                "match res2 == [{ val: 'A' }, { val: 'B' }, { val: 'C' }]"                
+        );        
     }
 
 }
