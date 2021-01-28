@@ -91,10 +91,12 @@ class ScenarioRuntimeTest {
         run(
                 "def foo = configUtilsJs.someText",
                 "def bar = configUtilsJs.someFun()",
-                "def res = call read('called2.feature')"
+                "def res = call read('called2.feature')",
+                "def test = configUtils.hello()"
         );
         matchVar("foo", "hello world");
         matchVar("bar", "hello world");
+        matchVar("test", "{ helloVar: 'hello world' }");
         Match.that(get("res")).contains("{ calledBar: 'hello world' }");
         System.clearProperty("karate.env");
         System.clearProperty("karate.config.dir");

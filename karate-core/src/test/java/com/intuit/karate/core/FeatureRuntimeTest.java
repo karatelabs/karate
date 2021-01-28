@@ -1,5 +1,7 @@
 package com.intuit.karate.core;
 
+import com.intuit.karate.Results;
+import com.intuit.karate.Runner;
 import com.intuit.karate.TestUtils;
 import com.intuit.karate.Match;
 import com.intuit.karate.report.ReportUtils;
@@ -207,6 +209,29 @@ class FeatureRuntimeTest {
     @Test
     void testOutlineBackground() {
         run("outline-background.feature");
-    }    
+    }
 
+
+    @Test
+    void testScenarioUsingFunctionDefinedThroughConfigJsFile() {
+        Feature feature = Feature.read("classpath:com/intuit/karate/core/test-with-js-function.feature");
+        Runner.Builder builder = Runner.builder();
+        //builder.karateEnv(env);
+        builder.configDir("src/test/java/com/intuit/karate/core");
+        builder.features(feature);
+        Results results = builder.parallel(2);
+        assertEquals(0, results.getFailCount());
+    }
+
+
+    @Test
+    void testScenarioUsingFunctionDefinedThroughConfigJsFileParallel() {
+        Feature feature = Feature.read("classpath:com/intuit/karate/core/test-with-js-function-2.feature");
+        Runner.Builder builder = Runner.builder();
+        //builder.karateEnv(env);
+        builder.configDir("src/test/java/com/intuit/karate/core");
+        builder.features(feature);
+        Results results = builder.parallel(3);
+        assertEquals(0, results.getFailCount());
+    }
 }
