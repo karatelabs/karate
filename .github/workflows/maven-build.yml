@@ -24,6 +24,6 @@ jobs:
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2        
     - name: build with maven
-      run: mvn -B clean install -P pre-release -Djavacpp.platform=linux-x86_64
+      run: mvn -B clean install -Djavacpp.platform=linux-x86_64
     - name: build and test with docker
       run: ./build-docker.sh
