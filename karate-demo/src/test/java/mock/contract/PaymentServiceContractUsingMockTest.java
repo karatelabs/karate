@@ -1,34 +1,40 @@
 package mock.contract;
 
-import com.intuit.karate.junit4.Karate;
-import com.intuit.karate.KarateOptions;
+import com.intuit.karate.Results;
+import com.intuit.karate.Runner;
 import com.intuit.karate.core.MockServer;
 import org.junit.AfterClass;
+import static org.junit.Assert.assertTrue;
 import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
+import org.junit.Test;
 
 /**
  *
  * @author pthomas3
  */
-// @RunWith(Karate.class)
-@KarateOptions(features = "classpath:mock/contract/payment-service.feature")
 public class PaymentServiceContractUsingMockTest {
 
-    private static MockServer server;
+    static MockServer server;
+    static String queueName = "DEMO.CONTRACT.MOCK";
 
     @BeforeClass
     public static void beforeClass() {
-        String queueName = "DEMO.CONTRACT.MOCK";
-        System.setProperty("karate.env", "contract");
         server = MockServer
                 .feature("classpath:mock/contract/payment-service-mock.feature")
                 .arg("queueName", queueName)
                 .http(0).build();
-        String paymentServiceUrl = "http://localhost:" + server.getPort();
-        System.setProperty("payment.service.url", paymentServiceUrl);
-        System.setProperty("shipping.queue.name", queueName);
     }
+    
+    @Test
+    public void testPaymentService() {
+        String paymentServiceUrl = "http://localhost:" + server.getPort();      
+        Results results = Runner.path("classpath:mock/contract/payment-service.feature")
+                .configDir("classpath:mock/contract")
+                .systemProperty("payment.service.url", paymentServiceUrl)
+                .systemProperty("shipping.queue.name", queueName)
+                .parallel(1);
+        assertTrue(results.getErrorMessages(), results.getFailCount() == 0);        
+    }     
 
     @AfterClass
     public static void afterClass() {

@@ -1,21 +1,22 @@
 package mock.web;
 
-import com.intuit.karate.KarateOptions;
-import com.intuit.karate.junit4.Karate;
-import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
+import com.intuit.karate.Results;
+import com.intuit.karate.Runner;
+import static org.junit.Assert.assertTrue;
+import org.junit.Test;
 
 /**
  *
  * @author pthomas3
  */
-@RunWith(Karate.class)
-@KarateOptions(features = "classpath:mock/web/cats-test.feature")
 public class CatsMockRunner {
 
-    @BeforeClass
-    public static void beforeClass() {
-        System.setProperty("karate.env", "mock");
+    @Test
+    public void testParallel() {
+        Results results = Runner.path("classpath:mock/web/cats-test.feature")
+                .karateEnv("mock")
+                .parallel(1);
+        assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
     }
 
 }

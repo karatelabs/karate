@@ -14,12 +14,12 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-class MockTest {
+class MockSslTest {
 
-    static final Logger logger = LoggerFactory.getLogger(MockTest.class);
+    static final Logger logger = LoggerFactory.getLogger(MockSslTest.class);
 
     static HttpServer startMockServer() {
-        MockServer server = MockServer.feature("classpath:com/intuit/karate/core/mock/_mock.feature").build();
+        MockServer server = MockServer.feature("classpath:com/intuit/karate/core/mock/_mock.feature").https(0).build();
         System.setProperty("karate.server.port", server.getPort() + "");
         return server;
     }
@@ -31,9 +31,10 @@ class MockTest {
 
     @Test
     void testMock() {
-        Results results = Runner.path("classpath:com/intuit/karate/core/mock")
+        Results results = Runner.path("classpath:com/intuit/karate/core/mock/hello-world.feature")
+                .systemProperty("karate.ssl", "true")
                 .configDir("classpath:com/intuit/karate/core/mock")
-                .tags("~@ignore").parallel(1);
+                .parallel(1);
         assertEquals(0, results.getFailCount(), results.getErrorMessages());
     }
 

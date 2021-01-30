@@ -720,6 +720,15 @@ class ScenarioRuntimeTest {
     }
 
     @Test
+    void testMatchXmlXpath() {
+        fail = true;
+        run(
+                "xml myXml = <root><foo>bar</foo><hello><text>hello \"world\"</text></hello><hello><text>hello \"moon\"</text></hello></root>",
+                "match myXml //myXml2/root/text == '#notnull'"
+        );
+    }
+
+    @Test
     void testcontinueOnStepFailure() {
         fail = true;
         run(

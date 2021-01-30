@@ -307,11 +307,11 @@ public class JsonUtils {
                 Iterator<Map.Entry<String, Object>> iterator = map.entrySet().iterator();
                 while (iterator.hasNext()) {
                     Map.Entry<String, Object> entry = iterator.next();
-                    String key = entry.getKey();
+                    Object key = entry.getKey(); // found a rare case where this was a boolean
                     if (pretty) {
                         pad(sb, depth + 1);
                     }
-                    sb.append('"').append(escapeValue(key)).append('"').append(':');
+                    sb.append('"').append(escapeValue(key == null ? null : key.toString())).append('"').append(':');
                     if (pretty) {
                         sb.append(' ');
                     }

@@ -2,7 +2,6 @@ package mock.proxy;
 
 import com.intuit.karate.Runner;
 import com.intuit.karate.Results;
-import com.intuit.karate.KarateOptions;
 import com.intuit.karate.core.MockServer;
 import demo.TestBase;
 import org.junit.AfterClass;
@@ -14,12 +13,9 @@ import org.junit.Test;
  *
  * @author pthomas3
  */
-@KarateOptions(tags = "~@ignore", features = {
-    "classpath:demo/cats", 
-    "classpath:demo/greeting"})
 public class DemoMockProceedRunner {
 
-    private static MockServer server;
+    static MockServer server;
 
     @BeforeClass
     public static void beforeClass() throws Exception {
@@ -37,14 +33,13 @@ public class DemoMockProceedRunner {
 
     @Test
     public void testParallel() {
-        int port = server.getPort();
-        System.setProperty("karate.env", "mock");
-        System.setProperty("demo.server.port", port + "");
-        System.setProperty("demo.server.https", "false");
-        String karateOutputPath = "target/mock-proceed";
-        Results results = Runner.parallel(getClass(), 1, karateOutputPath);
-        // DemoMockUtils.generateReport(karateOutputPath);
-        assertTrue("there are scenario failures", results.getFailCount() == 0);
+        Results results = Runner.path("classpath:demo/cats", "classpath:demo/greeting")
+                .tags("~@ignore")
+                .configDir("classpath:mock/proxy")
+                .systemProperty("demo.server.port", server.getPort() + "")
+                .systemProperty("demo.server.https", "false")
+                .parallel(1);
+        assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
     }
 
 }

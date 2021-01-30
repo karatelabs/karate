@@ -23,6 +23,9 @@
  */
 package com.intuit.karate.robot.win;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  *
  * @author pthomas3
@@ -191,6 +194,20 @@ public enum Property {
 
     private Property(int value) {
         this.value = value;
+    }
+
+    private static final Map<Integer, Property> FROM_ID;
+
+    static {
+        Property[] values = Property.values();
+        FROM_ID = new HashMap(values.length);
+        for (Property p : values) {
+            FROM_ID.put(p.value, p);
+        }
+    }
+    
+    public static Property fromId(int id) {
+        return FROM_ID.get(id);
     }
 
 }

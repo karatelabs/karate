@@ -437,7 +437,11 @@ public class ScenarioBridge implements PerfContext {
         return getEngine().runtime.featureRuntime.suite.env;
     }
 
-    public Object getInfo() {
+    public Object getFeature() {
+        return new JsMap(getEngine().runtime.featureRuntime.result.toInfoJson());
+    }
+
+    public Object getInfo() { // TODO deprecate
         return new JsMap(getEngine().runtime.getScenarioInfo());
     }
 
@@ -469,7 +473,7 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object getScenario() {
-        return JsValue.fromJava(getEngine().runtime.result.toKarateJson());
+        return new JsMap(getEngine().runtime.result.toKarateJson());
     }
 
     public Object getTags() {
@@ -662,12 +666,12 @@ public class ScenarioBridge implements PerfContext {
         return JsValue.fromJava(new ArrayList(map.values()));
     }
 
-    public MockServer start(String mock) {
-        return startInternal(Collections.singletonMap("mock", mock));
-    }
-
     public MockServer start(Value value) {
-        return startInternal(new JsValue(value).getAsMap());
+        if (value.isString()) {
+            return startInternal(Collections.singletonMap("mock", value.asString()));
+        } else {
+            return startInternal(new JsValue(value).getAsMap());
+        }
     }
 
     private MockServer startInternal(Map<String, Object> config) {
