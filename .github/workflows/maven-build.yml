@@ -25,6 +25,6 @@ jobs:
         restore-keys: ${{ runner.os }}-m2        
     - name: build with maven
       # run: mvn -B clean install -P pre-release -Djavacpp.platform=linux-x86_64
-      run: docker run -it --rm -v "$(pwd)":/src -w /src -v "$HOME/.m2":/root/.m2 maven:3-jdk-8 mvn -B clean install -P pre-release -Djavacpp.platform=linux-x86_64
+      run: docker run --rm -v "$(pwd)":/src -w /src -v "$HOME/.m2":/root/.m2 maven:3-jdk-8 mvn -B clean install -P pre-release -Djavacpp.platform=linux-x86_64
     - name: build and test with docker
       run: ./build-docker.sh
