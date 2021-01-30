@@ -19,7 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * @author pthomas3
+ *
+ *  @author pthomas3
  */
 class ScenarioRuntimeTest {
 
