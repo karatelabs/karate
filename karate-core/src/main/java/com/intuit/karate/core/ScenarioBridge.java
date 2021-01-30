@@ -666,12 +666,12 @@ public class ScenarioBridge implements PerfContext {
         return JsValue.fromJava(new ArrayList(map.values()));
     }
 
-    public MockServer start(String mock) {
-        return startInternal(Collections.singletonMap("mock", mock));
-    }
-
     public MockServer start(Value value) {
-        return startInternal(new JsValue(value).getAsMap());
+        if (value.isString()) {
+            return startInternal(Collections.singletonMap("mock", value.asString()));
+        } else {
+            return startInternal(new JsValue(value).getAsMap());
+        }
     }
 
     private MockServer startInternal(Map<String, Object> config) {
