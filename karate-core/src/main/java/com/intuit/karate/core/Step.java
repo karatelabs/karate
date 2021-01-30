@@ -26,13 +26,13 @@ package com.intuit.karate.core;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.resource.MemoryResource;
 import com.intuit.karate.resource.Resource;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- *
  * @author pthomas3
  */
 public class Step {

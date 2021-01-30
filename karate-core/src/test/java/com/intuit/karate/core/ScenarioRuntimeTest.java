@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  *
- * @author pthomas3
+ *  @author pthomas3
  */
 class ScenarioRuntimeTest {
 
@@ -727,6 +727,129 @@ class ScenarioRuntimeTest {
                 "xml myXml = <root><foo>bar</foo><hello><text>hello \"world\"</text></hello><hello><text>hello \"moon\"</text></hello></root>",
                 "match myXml //myXml2/root/text == '#notnull'"
         );
+    }
+
+    @Test
+    void testcontinueOnStepFailure() {
+        fail = true;
+        run(
+                "def var = 'foo'",
+                "configure continueOnStepFailure = true",
+                "match var == 'bar'",
+                "match var == 'pub'",
+                "match var == 'crawl'",
+                "match var == 'foo'",
+                "configure continueOnStepFailure = false",
+                "match var == 'foo'",
+                "match var == 'bar2'",
+                "match var == 'foo'"
+        );
+        // the last failed step will be show as the result failed step
+        // TODO: verify how this will look in the reports
+        assertEquals("match var == 'crawl'", sr.result.getFailedStep().getStep().getText());
+    }
+
+    @Test
+    void testcontinueOnStepFailure2() {
+        fail = true;
+        run(
+                "def var = 'foo'",
+                "configure continueOnStepFailure = { enabled: true, continueAfter: true }",
+                "match var == 'bar'",
+                "match var == 'pub'",
+                "match var == 'crawl'",
+                "match var == 'foo'",
+                "configure continueOnStepFailure = false",
+                "match var == 'foo'",
+                "match var == 'bar2'",
+                "match var == 'foo'"
+        );
+        assertEquals("match var == 'bar2'", sr.result.getFailedStep().getStep().getText());
+    }
+
+    @Test
+    void testcontinueOnStepFailure3() {
+        fail = true;
+        // bad idea to continue/ignore anything else other than match but ...
+        run(
+                "def var = 'foo'",
+                "configure continueOnStepFailure = { enabled: true, continueAfter: true, keywords: ['match', 'def'] }",
+                "match var == 'bar'",
+                "def var2 = function() { syntax error in here };",
+                "match var == 'pub'",
+                "match var == 'crawl'",
+                "match var == 'foo'",
+                "configure continueOnStepFailure = { enabled: false }",
+                "match var == 'foo'",
+                "match var == 'bar2'",
+                "match var == 'foo'"
+        );
+        assertEquals("match var == 'bar2'", sr.result.getFailedStep().getStep().getText());
+    }
+
+    @Test
+    void testcontinueOnStepFailure4() {
+        fail = true;
+        run(
+                "def var = 'foo'",
+                "configure continueOnStepFailure = true",
+                "match var == 'bar'",
+                "match var == 'pub'",
+                "match var == 'crawl'",
+                "match var == 'foo'",
+                "configure continueOnStepFailure = false",
+                "match var == 'foo'"
+        );
+        assertEquals("match var == 'crawl'", sr.result.getFailedStep().getStep().getText());
+    }
+
+    @Test
+    void testcontinueOnStepFailure5() {
+        fail = true;
+        run(
+                "def var = 'foo'",
+                "configure continueOnStepFailure = { enabled: true, continueAfter: true }",
+                "match var == 'bar'",
+                "match var == 'pub'",
+                "match var == 'crawl'",
+                "match var == 'foo'",
+                "configure continueOnStepFailure = false",
+                "match var == 'foo'",
+                "match var == 'foo'",
+                "match var == 'bar'",
+                "match var == 'skipped'"
+        );
+        // scenario will still be marked as failed (reduces non-deterministic tests and using keyword as if condition)
+        // the first failed step will be the one reported as failure
+        // but next steps after configure 'continueOnStepFailure = false' will continue to execute
+        assertEquals("match var == 'bar'", sr.result.getFailedStep().getStep().getText());
+        assertEquals("[passed] * configure continueOnStepFailure = false", sr.result.getStepResults().get(6).toString());
+        assertEquals("[passed] * match var == 'foo'", sr.result.getStepResults().get(7).toString());
+        assertEquals("[passed] * match var == 'foo'", sr.result.getStepResults().get(8).toString());
+        assertEquals("[failed] * match var == 'bar'", sr.result.getStepResults().get(9).toString());
+        assertEquals("[skipped] * match var == 'skipped'", sr.result.getStepResults().get(10).toString());
+    }
+
+    @Test
+    void testcontinueOnStepFailure6() {
+        fail = true;
+        // "continuing" on javascript line errors is not supported
+        // note the if without space after evalutes line as JS
+        run(
+                "def var = 'foo'",
+                "configure continueOnStepFailure = { enabled: true, continueAfter: true, keywords: ['match', 'eval', 'if'] }",
+                "match var == 'bar'",
+                "if(true == true) { syntax error within JS line }",
+                "match var == 'crawl'",
+                "match var == 'foo'",
+                "configure continueOnStepFailure = false",
+                "match var == 'foo'",
+                "match var == 'bar2'",
+                "match var == 'foo'"
+        );
+        // the last failed step will be show as the result failed step
+        // TODO: verify how this will look in the reports
+        assertEquals("if(true == true) { syntax error within JS line }", sr.result.getFailedStep().getStep().getText());
     }
 
 }
