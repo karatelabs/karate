@@ -96,9 +96,9 @@ public class StepRuntime {
 
     }
 
-    static class MethodMatch {
+    public static class MethodMatch {
 
-        private static Pattern METHOD_REGEX_PATTERN = Pattern.compile("([a-zA-Z_$][a-zA-Z\\d_$\\.]*)*\\.([a-zA-Z_$][a-zA-Z\\d_$]*?)\\((.*)\\)");
+        private static final Pattern METHOD_REGEX_PATTERN = Pattern.compile("([a-zA-Z_$][a-zA-Z\\d_$\\.]*)*\\.([a-zA-Z_$][a-zA-Z\\d_$]*?)\\((.*)\\)");
 
         final Method method;
         final List<String> args;
@@ -221,7 +221,6 @@ public class StepRuntime {
         PATTERNS = temp.values();
         METHOD_MATCH = findMethodsByKeyword("match");
     }
-
 
     private static List<MethodMatch> findMethodsMatching(String text) {
         List<MethodMatch> matches = new ArrayList(1);

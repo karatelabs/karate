@@ -35,8 +35,9 @@ Note that this is *not* the best example of a skeleton Java / Maven project, as 
 [`JavaApiTest.java`](src/test/java/demo/java/JavaApiTest.java) | If you need to call a Karate test from Java code you can do so using the [Java API](https://github.com/intuit/karate#java-api). This is useful in some situations, for example if you want to mix API-calls into a Selenium / WebDriver test.
 
 ## Configuration and Best Practices
-| File | Demonstrates
-----------| --------
+Some common patterns are called out and explained below.
+File | Demonstrates
+---- | ------------
 [`karate-config.js`](src/test/java/karate-config.js) | Shows how the `demoBaseUrl` property is injected into all the test scripts [on startup](https://github.com/intuit/karate#configuration). Notice how JavaScript allows you to perform simple conditional logic and string manipulation, while still being a 'devops-friendly' plain-text file. It is good practice to set the `connectTimeout` and `readTimeout` so that your tests 'fail fast' if servers don't respond. For advanced users - you can even run a 'global' init routine using [`karate.callSingle()`](https://github.com/intuit/karate#the-karate-object).
 [`karate-config-contract.js`](src/test/java/karate-config-contract.js) | When your project gets complex, you can over-ride config per environment ([`karate.env`](https://github.com/intuit/karate#configuration)). Refer to the documentation on [environment specific config](https://github.com/intuit/karate#environment-specific-config).
 [`TestBase.java`](src/test/java/demo/TestBase.java) | This is specific to Spring Boot, but this code takes care of starting the embedded app-server and dynamically chooses a free port. The chosen port value is passed to the above config routine via a Java `System.setProperty()` call.
