@@ -212,13 +212,13 @@ public class WinElement implements Element {
         return e;
     }
 
-    public Object propertyValue(String propertyName) {
+    public Object property(String propertyName) {
         Property property = Property.valueOf(propertyName);
         Variant.VARIANT variant = e.getCurrentPropertyValue(property);
         return variant.getValue();
     }
 
-    public Object propertyValue(int propertyId) {
+    public Object property(int propertyId) {
         Property property = Property.fromId(propertyId);
         Variant.VARIANT variant = e.getCurrentPropertyValue(property);
         return variant.getValue();
