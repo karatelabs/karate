@@ -1,11 +1,14 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.Match;
+import com.intuit.karate.Results;
+import com.intuit.karate.Runner;
 import com.intuit.karate.TestUtils;
 import com.intuit.karate.report.Report;
 import com.intuit.karate.report.SuiteReports;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -226,6 +229,14 @@ class FeatureRuntimeTest {
     @Test
     void testOutlineBackground() {
         run("outline-background.feature");
+    }
+
+    @Test
+    void testOutlineConfigJsParallel() {
+        Results results = Runner.path("classpath:com/intuit/karate/core/outline-config-js.feature")
+                .configDir("src/test/java/com/intuit/karate/core")
+                .parallel(2);
+        assertEquals(0, results.getFailCount());
     }
 
     @Test
