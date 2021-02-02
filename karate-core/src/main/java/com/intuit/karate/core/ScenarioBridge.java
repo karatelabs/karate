@@ -840,9 +840,11 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public File write(Object o, String path) {
-        path = getEngine().runtime.featureRuntime.suite.buildDir + File.separator + path;
+        ScenarioEngine engine = getEngine();
+        path = engine.runtime.featureRuntime.suite.buildDir + File.separator + path;
         File file = new File(path);
         FileUtils.writeToFile(file, JsValue.toBytes(o));
+        engine.logger.debug("write to file: {}", file);
         return file;
     }
 
