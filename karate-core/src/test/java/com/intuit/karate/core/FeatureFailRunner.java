@@ -61,6 +61,11 @@ class FeatureFailRunner {
         assertTrue(fr.result.isFailed());
         report();
     }
+    
+    @Test
+    void testExec() {
+        run("exec.feature");
+    }    
 
     @Test
     void testFork() {
