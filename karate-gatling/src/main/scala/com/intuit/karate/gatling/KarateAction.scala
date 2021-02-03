@@ -52,7 +52,7 @@ class KarateAction(val name: String, val tags: Seq[String], val protocol: Karate
       override def reportPerfEvent(event: PerfEvent): Unit = {
         val okOrNot = if (event.isFailed) KO else OK
         val message = if (event.getMessage == null) None else Option(event.getMessage)
-        statsEngine.logResponse(session.scenario, List.empty, event.getName, event.getStartTime, event.getEndTime, okOrNot, Option(event.getStatusCode.toString), message)
+        statsEngine.logResponse(session.scenario, session.groups, event.getName, event.getStartTime, event.getEndTime, okOrNot, Option(event.getStatusCode.toString), message)
       }
 
       override def submit(r: Runnable): Unit = Future {
