@@ -303,10 +303,16 @@ The `-d` or `--debug` option will start a debug server. See the [Debug Server wi
 
 
 ## Logging
-A default [logback configuration file](https://logback.qos.ch/manual/configuration.html) (named [`logback-netty.xml`](src/main/resources/logback-netty.xml)) is present within the stand-alone JAR. If you need to customize logging, set the system property `logback.configurationFile` to point to your custom config:
+A default [logback configuration file](https://logback.qos.ch/manual/configuration.html) (named [`logback-fatjar.xml`](../karate-core/src/main/java/logback-fatjar.xml)) is present within the stand-alone JAR.
+
+For convenience, if `logback-test.xml` or `logback.xml` exists on the [classpath](#custom-classpath) - it will be used instead.
+
+Another way to customize logging is set the system property `logback.configurationFile` to point to your custom config:
+
 ```
 java -jar -Dlogback.configurationFile=my-logback.xml karate.jar my-test.feature
 ```
+
 Here is the 'out-of-the-box' default which you can customize. Note that the default creates a folder called `target` and within it, logs will be in `karate.log`.
 
 ```xml
