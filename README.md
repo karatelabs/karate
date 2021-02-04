@@ -3897,8 +3897,7 @@ Karate has enhanced the Cucumber `Scenario Outline` as follows:
 * __Type Hints__: if the `Examples` column header has a `!` appended, each value will be evaluated as a JavaScript data-type (number, boolean, or *even* in-line JSON) - else it defaults to string.
 * __Magic Variables__: `__row` gives you the entire row as a JSON object, and `__num` gives you the row index (the first row is `0`).
 * __Auto Variables__: in addition to `__row`, each column key-value will be available as a separate [variable](#def), which greatly simplifies JSON manipulation - especially when you want to re-use JSON [files](#reading-files) containing [embedded expressions](#embedded-expressions).
-  * You can disable the "auto variables" behavior by setting the `outlineVariablesAuto` [`configure` setting](#configure) to `false`.
-* Any empty cells will result in a `null` value for that column-key
+* Any empty cells will result in a `null` value for that column-key, and this can be useful to [remove nodes](#remove-if-null) from JSON or XML documents
 
 These are best explained with [examples](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/outline.feature). You can choose between the string-placeholder style `<foo>` or *directly* refer to the [variable](#def) `foo` (or even the *whole row* JSON as `__row`) in JSON-friendly [expressions](#karate-expressions).
 
