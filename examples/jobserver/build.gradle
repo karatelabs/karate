@@ -3,12 +3,11 @@ plugins {
 }
 
 ext {
-    karateVersion = '0.9.6'
+    karateVersion = '1.0.0'
 }
 
 dependencies {
     testCompile "com.intuit.karate:karate-junit5:${karateVersion}"
-    testCompile "com.intuit.karate:karate-apache:${karateVersion}"
 }
 
 sourceSets {
@@ -34,5 +33,5 @@ repositories {
 
 task karateDebug(type: JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
-    main = 'com.intuit.karate.cli.Main'
+    main = 'com.intuit.karate.Main'
 }

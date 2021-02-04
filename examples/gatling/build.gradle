@@ -3,11 +3,10 @@ plugins {
 }
 
 ext {
-    karateVersion = '0.9.6'
+    karateVersion = '1.0.0'
 }
 
 dependencies {
-    testCompile "com.intuit.karate:karate-apache:${karateVersion}"
     testCompile "com.intuit.karate:karate-gatling:${karateVersion}"
 }
 

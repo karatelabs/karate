@@ -29,18 +29,20 @@ import com.intuit.karate.driver.DockerTarget;
 import com.intuit.karate.driver.Target;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsFunction;
-import com.intuit.karate.http.HttpLogModifier;
 import com.intuit.karate.http.Cookies;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
+import com.intuit.karate.http.HttpLogModifier;
 import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Method;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 /**
- *
  * @author pthomas3
  */
 public class Config {
@@ -88,6 +90,8 @@ public class Config {
     private Variable headers = Variable.NULL;
     private Variable cookies = Variable.NULL;
     private Variable responseHeaders = Variable.NULL;
+    private List<Method> continueOnStepFailureMethods = new ArrayList<>();
+    private boolean continueAfterContinueOnStepFailure;
 
     // retry config
     private int retryInterval = DEFAULT_RETRY_INTERVAL;
@@ -286,6 +290,34 @@ public class Config {
             case "localAddress":
                 localAddress = value.getAsString();
                 return true;
+            case "continueOnStepFailure":
+                continueOnStepFailureMethods.clear(); // clears previous configuration - in case someone is trying to chain these and forgets resetting the previous one
+
+                boolean enableContinueOnStepFailureFeature = false;
+                Boolean continueAfterIgnoredFailure = null;
+
+                List<String> stepKeywords = null;
+                if (value.isMap()) {
+                    Map<String, Object> map = value.getValue();
+                    stepKeywords = (List<String>) map.get("keywords");
+                    continueAfterIgnoredFailure = (Boolean) map.get("continueAfter");
+                    enableContinueOnStepFailureFeature = map.get("enabled") != null && (Boolean) map.get("enabled");
+                }
+
+                if (value.isTrue() || enableContinueOnStepFailureFeature) {
+                    continueOnStepFailureMethods.addAll(stepKeywords == null ? StepRuntime.METHOD_MATCH : StepRuntime.findMethodsByKeywords(stepKeywords));
+                } else {
+                    if (stepKeywords == null) {
+                        continueOnStepFailureMethods.clear();
+                    } else {
+                        continueOnStepFailureMethods.removeAll(StepRuntime.findMethodsByKeywords(stepKeywords));
+                    }
+                }
+                if (continueAfterIgnoredFailure != null) {
+                    continueAfterContinueOnStepFailure = continueAfterIgnoredFailure;
+                }
+
+                return true;
             default:
                 throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
         }
@@ -333,6 +365,8 @@ public class Config {
         responseHeaders = parent.responseHeaders;
         afterScenario = parent.afterScenario;
         afterFeature = parent.afterFeature;
+        continueOnStepFailureMethods = parent.continueOnStepFailureMethods;
+        continueAfterContinueOnStepFailure = parent.continueAfterContinueOnStepFailure;
     }
 
     public void setCookies(Variable cookies) {
@@ -531,4 +565,19 @@ public class Config {
         return callSingleCacheMinutes;
     }
 
+    public List<Method> getContinueOnStepFailureMethods() {
+        return continueOnStepFailureMethods;
+    }
+
+    public void setContinueOnStepFailureMethods(List<Method> continueOnStepFailureMethods) {
+        this.continueOnStepFailureMethods = continueOnStepFailureMethods;
+    }
+
+    public boolean isContinueAfterContinueOnStepFailure() {
+        return continueAfterContinueOnStepFailure;
+    }
+
+    public void setContinueAfterContinueOnStepFailure(boolean continueAfterContinueOnStepFailure) {
+        this.continueAfterContinueOnStepFailure = continueAfterContinueOnStepFailure;
+    }
 }

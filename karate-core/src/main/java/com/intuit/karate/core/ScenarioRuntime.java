@@ -29,6 +29,7 @@ import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.ScenarioActions;
+import com.intuit.karate.debug.DebugThread;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.StringLogAppender;
 
@@ -40,7 +41,6 @@ import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 /**
- *
  * @author pthomas3
  */
 public class ScenarioRuntime implements Runnable {
@@ -60,6 +60,7 @@ public class ScenarioRuntime implements Runnable {
     public final boolean perfMode;
     public final boolean dryRun;
     public final LogAppender logAppender;
+    public boolean ignoringFailureSteps;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
         this(featureRuntime, scenario, null);
@@ -88,12 +89,13 @@ public class ScenarioRuntime implements Runnable {
         actions = new ScenarioActions(engine);
         this.scenario = scenario;
         this.background = background; // used only to check which steps remain
-        magicVariables = initMagicVariables();      
+        magicVariables = initMagicVariables();
         result = new ScenarioResult(scenario);
         if (background != null) {
             result.addStepResults(background.result.getStepResults());
             Map<String, Variable> detached = background.engine.detachVariables();
-            engine.vars.putAll(detached);         
+            // the copy is needed to "detach" from the js context else this can fail parallel execution
+            detached.forEach((k, v) -> engine.vars.put(k, v.copy(false)));
         }
         dryRun = featureRuntime.suite.dryRun;
         tags = scenario.getTagsEffective();
@@ -103,6 +105,10 @@ public class ScenarioRuntime implements Runnable {
 
     public boolean isFailed() {
         return error != null || result.isFailed();
+    }
+
+    public boolean isIgnoringFailureSteps() {
+        return ignoringFailureSteps;
     }
 
     public Step getCurrentStep() {
@@ -355,6 +361,10 @@ public class ScenarioRuntime implements Runnable {
             }
             if (background == null) {
                 featureRuntime.suite.hooks.forEach(h -> h.beforeScenario(this));
+            } else {
+                featureRuntime.suite.hooks.stream()
+                        .filter(DebugThread.class::isInstance)
+                        .forEach(h -> h.beforeScenario(this));
             }
         }
         if (!scenario.isDynamic()) {
@@ -385,6 +395,14 @@ public class ScenarioRuntime implements Runnable {
         } finally {
             if (!scenario.isDynamic()) { // don't add "fake" scenario to feature results
                 afterRun();
+            } else {
+                // if it's a dynamic scenario running under the debugger
+                // we still want to execute the afterScenario() hook of the debugger server
+                if(!dryRun) {
+                    featureRuntime.suite.hooks.stream()
+                            .filter(DebugThread.class::isInstance)
+                            .forEach(h -> h.afterScenario(this));
+                }
             }
             if (caller.isNone()) {
                 logAppender.close(); // reclaim memory
@@ -436,14 +454,40 @@ public class ScenarioRuntime implements Runnable {
             stopped = true;
             logger.debug("abort at {}", step.getDebugInfo());
         } else if (stepResult.isFailed()) {
-            stopped = true;
-            error = stepResult.getError();
-            logError(error.getMessage());
+            if (stepResult.getMatchingMethod() != null && this.engine.getConfig().getContinueOnStepFailureMethods().contains(stepResult.getMatchingMethod().method)) {
+                stopped = false;
+                ignoringFailureSteps = true;
+                currentStepResult.setErrorIgnored(true);
+            } else {
+                stopped = true;
+            }
+
+            if (stopped && (!this.engine.getConfig().isContinueAfterContinueOnStepFailure() || !this.engine.isIgnoringStepErrors())) {
+                error = stepResult.getError();
+                logError(error.getMessage());
+            }
         } else {
             boolean hidden = reportDisabled || (step.isPrefixStar() && !step.isPrint() && !engine.getConfig().isShowAllSteps());
             currentStepResult.setHidden(hidden);
         }
         addStepLogEmbedsAndCallResults();
+
+        if (currentStepResult.isErrorIgnored()) {
+            this.engine.setFailedReason(null);
+        }
+
+        if (!this.engine.isIgnoringStepErrors() && this.isIgnoringFailureSteps()) {
+            if (this.engine.getConfig().isContinueAfterContinueOnStepFailure()) {
+                // continue execution and reset failed reason for engine to null
+                this.engine.setFailedReason(null);
+                ignoringFailureSteps = false;
+            } else {
+                // stop execution
+                // keep failed reason for scenario as the last failed step that was ignored
+                stopped = true;
+            }
+        }
+
         if (stepResult.isFailed()) {
             if (engine.driver != null) {
                 engine.driver.onFailure(currentStepResult);
@@ -481,6 +525,9 @@ public class ScenarioRuntime implements Runnable {
         String stepLog = logAppender.collect();
         if (showLog) {
             currentStepResult.appendToStepLog(stepLog);
+            if (currentStepResult.isErrorIgnored()) {
+                currentStepResult.appendToStepLog(currentStepResult.getErrorMessage());
+            }
         }
         if (callResults != null) {
             currentStepResult.addCallResults(callResults);

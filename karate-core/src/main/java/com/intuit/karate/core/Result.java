@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.Constants;
 import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.KarateException;
 
@@ -39,11 +40,14 @@ public class Result {
     private static final String FAILED = "failed";
     private static final String SKIPPED = "skipped";
 
+    private static final boolean INCLUDE_METHOD_KARATE_JSON = Boolean.parseBoolean(System.getProperty(Constants.KARATE_CONFIG_INCL_RESULT_METHOD));
+
     private final String status;
     private final long durationNanos;
     private final boolean aborted;
     private final Throwable error;
     private final boolean skipped;
+    private final StepRuntime.MethodMatch matchingMethod;
 
     public Map<String, Object> toCucumberJson() {
         Map<String, Object> map = new HashMap(error == null ? 2 : 3);
@@ -65,7 +69,14 @@ public class Result {
         if (aborted == null) {
             aborted = false;
         }
-        return new Result(status, durationNanos, error, aborted);
+        StepRuntime.MethodMatch matchingMethod = null;
+        if (INCLUDE_METHOD_KARATE_JSON) {
+            String jsonMatchingMethod = (String) map.get("matchingMethod");
+            if (jsonMatchingMethod != null) {
+                matchingMethod = StepRuntime.MethodMatch.getBySignatureAndArgs(jsonMatchingMethod);
+            }
+        }
+        return new Result(status, durationNanos, error, aborted, matchingMethod);
     }
 
     public Map<String, Object> toKarateJson() {
@@ -79,14 +90,18 @@ public class Result {
         if (aborted) {
             map.put("aborted", true);
         }
+        if (INCLUDE_METHOD_KARATE_JSON && matchingMethod != null) {
+            map.put("matchingMethod", matchingMethod.toString());
+        }
         return map;
     }
 
-    private Result(String status, long nanos, Throwable error, boolean aborted) {
+    private Result(String status, long nanos, Throwable error, boolean aborted, StepRuntime.MethodMatch matchingMethod) {
         this.status = status;
         this.durationNanos = nanos;
         this.error = error;
         this.aborted = aborted;
+        this.matchingMethod = matchingMethod;
         skipped = SKIPPED.equals(status);
     }
 
@@ -111,10 +126,17 @@ public class Result {
     }
 
     public static Result passed(long nanos) {
-        return new Result(PASSED, nanos, null, false);
+        return passed(nanos, null);
+    }
+    public static Result passed(long nanos, StepRuntime.MethodMatch matchingMethod) {
+        return new Result(PASSED, nanos, null, false, matchingMethod);
     }
 
     public static Result failed(long nanos, Throwable error, Step step) {
+        return failed(nanos, error, step, null);
+    }
+
+    public static Result failed(long nanos, Throwable error, Step step, StepRuntime.MethodMatch matchingMethod) {
         String message = error.getMessage();
         if (message == null) {
             message = error + ""; // make sure we show something meaningful
@@ -124,15 +146,19 @@ public class Result {
             new StackTraceElement("<feature>", ": " + step.getPrefix() + " " + step.getText() + " ", step.getDebugInfo(), step.getLine())
         };
         error.setStackTrace(newTrace);
-        return new Result(FAILED, nanos, error, false);
+        return new Result(FAILED, nanos, error, false, matchingMethod);
     }
 
     public static Result skipped() {
-        return new Result(SKIPPED, 0, null, false);
+        return new Result(SKIPPED, 0, null, false, null);
     }
 
     public static Result aborted(long nanos) {
-        return new Result(PASSED, nanos, null, true);
+        return aborted(nanos, null);
+    }
+
+    public static Result aborted(long nanos, StepRuntime.MethodMatch matchingMethod) {
+        return new Result(PASSED, nanos, null, true, matchingMethod);
     }
 
     public String getStatus() {
@@ -145,6 +171,10 @@ public class Result {
 
     public double getDurationMillis() {
         return ReportUtils.nanosToMillis(durationNanos);
+    }
+
+    public StepRuntime.MethodMatch getMatchingMethod() {
+        return matchingMethod;
     }
 
     @Override

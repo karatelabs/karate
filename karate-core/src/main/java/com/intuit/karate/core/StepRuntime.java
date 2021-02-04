@@ -23,23 +23,30 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.Actions;
-import com.intuit.karate.StringUtils;
+import com.intuit.karate.Json;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.KarateException;
+import com.intuit.karate.ScenarioActions;
+import com.intuit.karate.StringUtils;
 import cucumber.api.java.en.When;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.StringJoiner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
- *
  * @author pthomas3
  */
 public class StepRuntime {
@@ -53,6 +60,7 @@ public class StepRuntime {
         final String regex;
         final Method method;
         final Pattern pattern;
+        final String keyword;
 
         MethodPattern(Method method, String regex) {
             this.regex = regex;
@@ -62,6 +70,9 @@ public class StepRuntime {
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
+
+            // assuming all @When or @Action start with a ^, get the first word
+            keyword = regex.substring(1).split(" ")[0];
         }
 
         List<String> match(String text) {
@@ -85,7 +96,9 @@ public class StepRuntime {
 
     }
 
-    static class MethodMatch {
+    public static class MethodMatch {
+
+        private static final Pattern METHOD_REGEX_PATTERN = Pattern.compile("([a-zA-Z_$][a-zA-Z\\d_$\\.]*)*\\.([a-zA-Z_$][a-zA-Z\\d_$]*?)\\((.*)\\)");
 
         final Method method;
         final List<String> args;
@@ -116,35 +129,97 @@ public class StepRuntime {
             return result;
         }
 
+        public static MethodMatch getBySignatureAndArgs(String methodReference) {
+
+            String methodSignature = methodReference.substring(0, methodReference.indexOf(' '));
+            String referenceArgs = methodReference.substring(methodReference.indexOf(' ') + 1);
+            Matcher methodMatch = METHOD_REGEX_PATTERN.matcher(methodSignature);
+
+            Method method = null;
+            if (methodMatch.find()) {
+                try {
+                    String className = methodMatch.group(1);
+                    String methodName = methodMatch.group(2);
+                    String params = methodMatch.group(3);
+                    List<String> paramList = Arrays.asList(params.split(","));
+                    method = Class.forName(className).getMethod(methodName, paramList.stream().map(param -> {
+                        try {
+                            return Class.forName(param);
+                        } catch (ClassNotFoundException e) {
+                            return null;
+                        }
+                    }).filter(Objects::nonNull).toArray(Class<?>[]::new));
+                } catch (ClassNotFoundException | NoSuchMethodException e) {
+                    return null;
+                }
+            }
+
+            List<String> args = "null".equalsIgnoreCase(referenceArgs) ? null : Json.of(JsonUtils.fromJson(referenceArgs)).asList();
+            return new MethodMatch(method, args);
+        }
+
+        public Method getMethod() {
+            return method;
+        }
+
+        public List<String> getArgs() {
+            return args;
+        }
+
         @Override
         public String toString() {
-            return method + " " + args;
+            StringBuilder sb = new StringBuilder();
+            sb.append(method.getDeclaringClass().getName());
+            sb.append(".");
+            sb.append(method.getName());
+            sb.append("(");
+            StringJoiner sj = new StringJoiner(",");
+            for (Class<?> parameterType : method.getParameterTypes()) {
+                sj.add(parameterType.getTypeName());
+            }
+            sb.append(sj);
+            sb.append(")");
+
+            return sb.toString() + " " + (args == null || args.isEmpty() ? "null" : JsonUtils.toJson(args));
         }
 
     }
 
     private static final Collection<MethodPattern> PATTERNS;
+    private static final Map<String, Collection<Method>> KEYWORDS_METHODS;
+    public static final Collection<Method> METHOD_MATCH;
 
     static {
         Map<String, MethodPattern> temp = new HashMap();
         List<MethodPattern> overwrite = new ArrayList();
+        KEYWORDS_METHODS = new HashMap();
         for (Method method : ScenarioActions.class.getMethods()) {
             When when = method.getDeclaredAnnotation(When.class);
             if (when != null) {
                 String regex = when.value();
-                temp.put(regex, new MethodPattern(method, regex));
+                MethodPattern methodPattern = new MethodPattern(method, regex);
+                temp.put(regex, methodPattern);
+
+                Collection<Method> keywordMethods = KEYWORDS_METHODS.computeIfAbsent(methodPattern.keyword, k -> new HashSet<>());
+                keywordMethods.add(methodPattern.method);
             } else {
                 Action action = method.getDeclaredAnnotation(Action.class);
                 if (action != null) {
                     String regex = action.value();
-                    overwrite.add(new MethodPattern(method, regex));
+                    MethodPattern methodPattern = new MethodPattern(method, regex);
+                    overwrite.add(methodPattern);
                 }
             }
         }
+
         for (MethodPattern mp : overwrite) {
             temp.put(mp.regex, mp);
+
+            Collection<Method> keywordMethods = KEYWORDS_METHODS.computeIfAbsent(mp.keyword, k -> new HashSet<>());
+            keywordMethods.add(mp.method);
         }
         PATTERNS = temp.values();
+        METHOD_MATCH = findMethodsByKeyword("match");
     }
 
     private static List<MethodMatch> findMethodsMatching(String text) {
@@ -156,6 +231,18 @@ public class StepRuntime {
             }
         }
         return matches;
+    }
+
+    public static Collection<Method> findMethodsByKeywords(List<String> text) {
+        Collection<Method> methods = new HashSet();
+        text.forEach(m -> {
+            methods.addAll(findMethodsByKeyword(m));
+        });
+        return methods;
+    }
+
+    public static Collection<Method> findMethodsByKeyword(String text) {
+        return KEYWORDS_METHODS.get(text);
     }
 
     private static long getElapsedTimeNanos(long startTime) {
@@ -192,16 +279,16 @@ public class StepRuntime {
         try {
             match.method.invoke(actions, args);
             if (actions.isAborted()) {
-                return Result.aborted(getElapsedTimeNanos(startTime));
+                return Result.aborted(getElapsedTimeNanos(startTime), match);
             } else if (actions.isFailed()) {
-                return Result.failed(getElapsedTimeNanos(startTime), actions.getFailedReason(), step);
+                return Result.failed(getElapsedTimeNanos(startTime), actions.getFailedReason(), step, match);
             } else {
-                return Result.passed(getElapsedTimeNanos(startTime));
+                return Result.passed(getElapsedTimeNanos(startTime), match);
             }
         } catch (InvocationTargetException e) {
-            return Result.failed(getElapsedTimeNanos(startTime), e.getTargetException(), step);
+            return Result.failed(getElapsedTimeNanos(startTime), e.getTargetException(), step, match);
         } catch (Exception e) {
-            return Result.failed(getElapsedTimeNanos(startTime), e, step);
+            return Result.failed(getElapsedTimeNanos(startTime), e, step, match);
         }
     }
 

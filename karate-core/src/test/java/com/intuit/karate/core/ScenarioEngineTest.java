@@ -342,6 +342,11 @@ public class ScenarioEngineTest {
         // pojo to xml
         engine.assign(AssignType.XML, "myXml", "myPojo");
         matchEquals("myXml", "<root><foo></foo><bar>0</bar></root>");
+        assign("myXml2", "<root><foo>bar</foo><hello><text>hello \"world\"</text></hello><hello><text>hello \"moon\"</text></hello></root>");
+        matchNotEquals("myXml2/root/text", "'#notnull'");
+        matchEquals("myXml2/root/text", "'#notpresent'");
+        matchEquals("myXml2/root/text", "'#ignore'");
+        matchEquals("myXml2/root/text", "'##notnull'"); // optional parameter
     }
 
     @Test

@@ -1,18 +1,23 @@
 package com.intuit.karate.core;
 
-import com.intuit.karate.TestUtils;
 import com.intuit.karate.Match;
+import com.intuit.karate.Results;
+import com.intuit.karate.Runner;
+import com.intuit.karate.TestUtils;
 import com.intuit.karate.report.Report;
 import com.intuit.karate.report.SuiteReports;
-import java.io.File;
-import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 /**
- *
  * @author pthomas3
  */
 class FeatureRuntimeTest {
@@ -43,7 +48,7 @@ class FeatureRuntimeTest {
 
     private File report() {
         Report report = SuiteReports.DEFAULT.featureReport(fr.suite, fr.result);
-        File file = report.render("target/temp");        
+        File file = report.render("target/temp");
         logger.debug("saved report: {}", file.getAbsolutePath());
         return file;
     }
@@ -122,13 +127,13 @@ class FeatureRuntimeTest {
         matchContains(fr.result.getVariables(), "{ foo: 'hello foo' }");
         System.clearProperty("karate.env");
     }
-    
+
     @Test
     void testKarateJsGetScenario() {
         System.setProperty("karate.env", "getscenario");
         run("karate-config-getscenario.feature", "classpath:com/intuit/karate/core/");
         System.clearProperty("karate.env");
-    }    
+    }
 
     @Test
     void testCallByTag() {
@@ -220,15 +225,50 @@ class FeatureRuntimeTest {
     void testToBean() {
         run("to-bean.feature");
     }
-    
+
     @Test
     void testOutlineBackground() {
         run("outline-background.feature");
-    }  
+    }
+
+    @Test
+    void testOutlineConfigJsParallel() {
+        Results results = Runner.path("classpath:com/intuit/karate/core/outline-config-js.feature")
+                .configDir("src/test/java/com/intuit/karate/core")
+                .parallel(2);
+        assertEquals(0, results.getFailCount());
+    }
     
+//    @Test
+//    void testOutlineConfigJsCallOnceParallel() {
+//        Results results = Runner.path("classpath:com/intuit/karate/core/outline-config-js.feature")
+//                .configDir("src/test/java/com/intuit/karate/core")
+//                .karateEnv("callonce")
+//                .parallel(2);
+//        assertEquals(0, results.getFailCount());
+//    }    
+    
+    @Test
+    void testOutlineConfigJsCallSingleParallel() {
+        Results results = Runner.path("classpath:com/intuit/karate/core/outline-config-js.feature")
+                .configDir("src/test/java/com/intuit/karate/core")
+                .karateEnv("callsingle")
+                .parallel(2);
+        assertEquals(0, results.getFailCount());
+    }    
+
     @Test
     void testCallArg() {
         run("call-arg.feature");
-    }     
+    }
+
+    @Test
+    void testIgnoreStepFailure() {
+        fail = true;
+        run("ignore-step-failure.feature");
+        Report report = SuiteReports.DEFAULT.featureReport(fr.suite, fr.result);
+        report.render("target/report-test");
+        // error log will should have logs on all failures
+    }
 
 }
