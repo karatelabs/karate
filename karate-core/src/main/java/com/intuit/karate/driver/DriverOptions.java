@@ -276,7 +276,7 @@ public class DriverOptions {
         if (target != null) {
             logger.debug("custom target configured, calling start()");
             Map<String, Object> map = target.start(logger);
-            logger.debug("custom target returned options: {}", map);
+            logger.trace("custom target returned options: {}", map);
             options.putAll(map);
         }
         String type = (String) options.get("type");
