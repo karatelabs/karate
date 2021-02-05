@@ -32,6 +32,7 @@ import com.intuit.karate.http.RequestHandler;
 import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.http.SslContextFactory;
 import com.intuit.karate.job.JobExecutor;
+import com.intuit.karate.resource.ResourceUtils;
 import com.intuit.karate.shell.Command;
 import java.io.File;
 import java.lang.reflect.Method;
@@ -272,7 +273,15 @@ public class Main implements Callable<Void> {
             // ensure we init logback before anything else
             String logbackConfig = System.getProperty(LOGBACK_CONFIG);
             if (StringUtils.isBlank(logbackConfig)) {
-                System.setProperty(LOGBACK_CONFIG, "logback-fatjar.xml");
+                File logbackXml = ResourceUtils.classPathToFile("logback.xml");
+                File logbackTest = ResourceUtils.classPathToFile("logback-test.xml");
+                if (logbackTest != null) {
+                    System.setProperty(LOGBACK_CONFIG, "logback-test.xml");
+                } else if (logbackXml != null) {
+                    System.setProperty(LOGBACK_CONFIG, "logback.xml");
+                } else {
+                    System.setProperty(LOGBACK_CONFIG, "logback-fatjar.xml");
+                }
             }
         }
         resetLoggerConfig();

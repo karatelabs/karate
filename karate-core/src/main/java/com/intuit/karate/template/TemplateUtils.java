@@ -26,7 +26,6 @@ package com.intuit.karate.template;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.resource.ResourceResolver;
-import java.util.function.Supplier;
 import org.thymeleaf.context.ITemplateContext;
 import org.thymeleaf.model.IModel;
 import org.thymeleaf.model.IModelFactory;

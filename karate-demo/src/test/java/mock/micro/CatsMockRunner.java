@@ -1,27 +1,35 @@
 package mock.micro;
 
-import com.intuit.karate.junit4.Karate;
-import com.intuit.karate.KarateOptions;
+import com.intuit.karate.Results;
+import com.intuit.karate.Runner;
 import com.intuit.karate.core.MockServer;
 import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
+import static org.junit.Assert.*;
+import org.junit.Test;
 
 /**
  *
  * @author pthomas3
  */
-@RunWith(Karate.class)
-@KarateOptions(features = "classpath:mock/micro/cats.feature")
 public class CatsMockRunner {
+
+    static MockServer server;
 
     @BeforeClass
     public static void beforeClass() {
-        MockServer server = MockServer
+        server = MockServer
                 .feature("classpath:mock/micro/cats-mock.feature")
                 .arg("demoServerPort", null)
                 .http(0).build();
-        System.setProperty("karate.env", "mock");
-        System.setProperty("mock.cats.url", "http://localhost:" + server.getPort() + "/cats");
+    }
+
+    @Test
+    public void testMock() {
+        Results results = Runner.path("classpath:mock/micro/cats.feature")
+                .karateEnv("mock")
+                .systemProperty("mock.cats.url", "http://localhost:" + server.getPort() + "/cats")
+                .parallel(1);
+        assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
     }
 
 }

@@ -114,8 +114,6 @@ Most problems when using Karate with Gradle occur when "test-resources" are not 
 ## Limitations
 As of now the Gatling concept of ["throttle" and related syntax](https://gatling.io/docs/2.3/general/simulation_setup/#simulation-setup-throttling) is not supported. Most teams don't need this, but you can declare "pause" times in Karate, see [`pauseFor()`](#pausefor).
 
-Also the concept of Gatling "[groups](https://gatling.io/docs/2.3/general/scenario/#groups-definition)" is not supported where you can have sub-groups within groups. However custom grouping via the [`nameResolver`](#nameresolver) is sufficient for most teams.
-
 ## Logging
 Once you have your performance tests working, you may want to tune the logging config. Note that there are options to [reduce or completely suppress](https://github.com/intuit/karate#logging) the console logging.
 

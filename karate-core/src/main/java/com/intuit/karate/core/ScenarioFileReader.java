@@ -29,6 +29,7 @@ import com.intuit.karate.JsonUtils;
 import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 
 /**
@@ -81,7 +82,11 @@ public class ScenarioFileReader {
 
     public String toAbsolutePath(String relativePath) {
         Resource resource = toResource(relativePath);
-        return resource.getFile().getAbsolutePath();
+        try {
+            return resource.getFile().getCanonicalPath();
+        } catch (IOException e) {
+            return resource.getFile().getAbsolutePath();
+        }
     }
 
     public byte[] readFileAsBytes(String path) {

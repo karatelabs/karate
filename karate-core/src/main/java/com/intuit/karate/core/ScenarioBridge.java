@@ -154,11 +154,14 @@ public class ScenarioBridge implements PerfContext {
         return callSingle(fileName, null);
     }
 
-    private Object fromCache(Object o) throws Exception {
+    private static Object fromCache(ScenarioEngine engine, Object o) throws Exception {
         if (o instanceof Exception) {
-            getEngine().logger.warn("callSingle() cached result is an exception");
+            engine.logger.warn("callSingle() cached result is an exception");
             throw (Exception) o;
         }
+        // this HAS to be a deep copy to detach any nested JS functions
+        o = new Variable(o).copy(true).getValue();
+        engine.recurseAndAttach(o);
         return JsValue.fromJava(o);
     }
 
@@ -167,7 +170,7 @@ public class ScenarioBridge implements PerfContext {
         final Map<String, Object> CACHE = engine.runtime.featureRuntime.suite.suiteCache;
         if (CACHE.containsKey(fileName)) {
             engine.logger.trace("callSingle cache hit: {}", fileName);
-            return fromCache(CACHE.get(fileName));
+            return fromCache(engine, CACHE.get(fileName));
         }
         long startTime = System.currentTimeMillis();
         engine.logger.trace("callSingle waiting for lock: {}", fileName);
@@ -175,7 +178,7 @@ public class ScenarioBridge implements PerfContext {
             if (CACHE.containsKey(fileName)) { // retry
                 long endTime = System.currentTimeMillis() - startTime;
                 engine.logger.warn("this thread waited {} milliseconds for callSingle lock: {}", endTime, fileName);
-                return fromCache(CACHE.get(fileName));
+                return fromCache(engine, CACHE.get(fileName));
             }
             // this thread is the 'winner'
             engine.logger.info(">> lock acquired, begin callSingle: {}", fileName);
@@ -222,10 +225,11 @@ public class ScenarioBridge implements PerfContext {
                     }
                 }
                 result = resultVar.getValue();
+                engine.recurseAndDetach(result);
             }
             CACHE.put(fileName, result);
             engine.logger.info("<< lock released, cached callSingle: {}", fileName);
-            return fromCache(result);
+            return fromCache(engine, result);
         }
     }
 
@@ -666,12 +670,12 @@ public class ScenarioBridge implements PerfContext {
         return JsValue.fromJava(new ArrayList(map.values()));
     }
 
-    public MockServer start(String mock) {
-        return startInternal(Collections.singletonMap("mock", mock));
-    }
-
     public MockServer start(Value value) {
-        return startInternal(new JsValue(value).getAsMap());
+        if (value.isString()) {
+            return startInternal(Collections.singletonMap("mock", value.asString()));
+        } else {
+            return startInternal(new JsValue(value).getAsMap());
+        }
     }
 
     private MockServer startInternal(Map<String, Object> config) {
@@ -840,9 +844,11 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public File write(Object o, String path) {
-        path = getEngine().runtime.featureRuntime.suite.buildDir + File.separator + path;
+        ScenarioEngine engine = getEngine();
+        path = engine.runtime.featureRuntime.suite.buildDir + File.separator + path;
         File file = new File(path);
         FileUtils.writeToFile(file, JsValue.toBytes(o));
+        engine.logger.debug("write to file: {}", file);
         return file;
     }
 

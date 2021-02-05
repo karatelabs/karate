@@ -29,6 +29,7 @@ import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.ScenarioActions;
+import com.intuit.karate.debug.DebugThread;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.StringLogAppender;
 
@@ -93,7 +94,8 @@ public class ScenarioRuntime implements Runnable {
         if (background != null) {
             result.addStepResults(background.result.getStepResults());
             Map<String, Variable> detached = background.engine.detachVariables();
-            engine.vars.putAll(detached);
+            // the copy is needed to "detach" from the js context else this can fail parallel execution
+            detached.forEach((k, v) -> engine.vars.put(k, v.copy(false)));
         }
         dryRun = featureRuntime.suite.dryRun;
         tags = scenario.getTagsEffective();
@@ -359,6 +361,10 @@ public class ScenarioRuntime implements Runnable {
             }
             if (background == null) {
                 featureRuntime.suite.hooks.forEach(h -> h.beforeScenario(this));
+            } else {
+                featureRuntime.suite.hooks.stream()
+                        .filter(DebugThread.class::isInstance)
+                        .forEach(h -> h.beforeScenario(this));
             }
         }
         if (!scenario.isDynamic()) {
@@ -389,6 +395,14 @@ public class ScenarioRuntime implements Runnable {
         } finally {
             if (!scenario.isDynamic()) { // don't add "fake" scenario to feature results
                 afterRun();
+            } else {
+                // if it's a dynamic scenario running under the debugger
+                // we still want to execute the afterScenario() hook of the debugger server
+                if(!dryRun) {
+                    featureRuntime.suite.hooks.stream()
+                            .filter(DebugThread.class::isInstance)
+                            .forEach(h -> h.afterScenario(this));
+                }
             }
             if (caller.isNone()) {
                 logAppender.close(); // reclaim memory

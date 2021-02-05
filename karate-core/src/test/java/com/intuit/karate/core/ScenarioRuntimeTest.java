@@ -19,7 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * @author pthomas3
+ *
+ *  @author pthomas3
  */
 class ScenarioRuntimeTest {
 
@@ -723,7 +724,7 @@ class ScenarioRuntimeTest {
     void testMatchXmlXpath() {
         fail = true;
         run(
-            "xml myXml = <root><foo>bar</foo><hello><text>hello \"world\"</text></hello><hello><text>hello \"moon\"</text></hello></root>",
+                "xml myXml = <root><foo>bar</foo><hello><text>hello \"world\"</text></hello><hello><text>hello \"moon\"</text></hello></root>",
                 "match myXml //myXml2/root/text == '#notnull'"
         );
     }

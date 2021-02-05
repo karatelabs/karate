@@ -1045,7 +1045,7 @@ public class ScenarioEngine {
         return detached;
     }
 
-    private Object recurseAndAttach(Object o) {
+    protected Object recurseAndAttach(Object o) {
         if (o instanceof Value) {
             Value value = (Value) o;
             return value.canExecute() ? attach(value) : null;
@@ -1077,7 +1077,7 @@ public class ScenarioEngine {
         }
     }
 
-    private Object recurseAndDetach(Object o) {
+    protected Object recurseAndDetach(Object o) {
         if (o instanceof Value) {
             Value value = (Value) o;
             return value.canExecute() ? new JsFunction(value) : null;

@@ -187,7 +187,10 @@ public class DebugThread implements RuntimeHook, LogAppender {
     private void pushDebugFrameVariables(ScenarioRuntime context) {
         Map<String, Variable> vars = context.engine.vars.entrySet().stream()
                 .collect(Collectors.toMap(v -> v.getKey(), v -> v.getValue().copy(true)));
-        handler.FRAME_VARS.get(stack.peek()).push(vars);
+        Stack<Map<String, Variable>> stackVars = handler.FRAME_VARS.get(stack.peek());
+        if (stackVars != null) {
+            stackVars.push(vars);
+        }
     }
 
     private void popDebugFrameVariables() {

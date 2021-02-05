@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.PerfHook;
 import com.intuit.karate.Suite;

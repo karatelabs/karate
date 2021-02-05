@@ -436,6 +436,16 @@ Similarly, the "class name" is not case-sensitive. This can be useful in some ca
 
 Also see [`locateAll()`](#locateall) for ways to find the n-th control on a page that matches a locator and do something with it.
 
+### Property Value
+For Windows `Element`-s you can retrieve the value by property name or ID using the `property(key)` method:
+
+```cucumber
+* def button = locate('Close')
+* def isOffScreen = button.property('IsOffscreen')
+```
+
+The argument to `property()` can also be an integer. To see all names and id values, see [`Property`](src/main/java/com/intuit/karate/robot/win/Property.java).
+
 ### Calculator Example
 
 [Here is an example](../examples/robot-test/src/test/java/win/calc.feature) that operates the Calculator app on Windows.
