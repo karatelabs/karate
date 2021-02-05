@@ -1,6 +1,6 @@
 # <img src="karate-core/src/main/java/karate-logo.svg" height="60" width="60"/> Karate
 ## Test Automation Made `Simple.`
-[![Maven Central](https://img.shields.io/maven-central/v/com.intuit.karate/karate-core.svg)](https://search.maven.org/artifact/com.intuit.karate/karate-core) [ ![build](https://github.com/intuit/karate/workflows/maven-build/badge.svg)](https://github.com/intuit/karate/actions?query=workflow%3Amaven-build) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Support Slack](https://img.shields.io/badge/support-slack-red.svg)](https://github.com/intuit/karate/wiki/Support) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL)
+[![Maven Central](https://img.shields.io/maven-central/v/com.intuit.karate/karate-core.svg)](https://search.maven.org/artifact/com.intuit.karate/karate-core) [ ![build](https://github.com/intuit/karate/workflows/maven-build/badge.svg)](https://github.com/intuit/karate/actions?query=workflow%3Amaven-build) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Support Slack](https://img.shields.io/badge/support-wiki-red.svg)](https://github.com/intuit/karate/wiki/Support) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL)
 
 Karate is the only open-source tool to combine API test-automation, [mocks](karate-netty), [performance-testing](karate-gatling) and even [UI automation](karate-core) into a **single**, *unified* framework. The BDD syntax popularized by Cucumber is language-neutral, and easy for even non-programmers. Powerful JSON & XML assertions are built-in, and you can run tests in parallel for speed.
 
@@ -1063,6 +1063,12 @@ As a convenience, embedded expressions are supported on the Right Hand Side of a
 ```cucumber
 * def foo = 'a1'
 * match foo == '#("a" + 1)'
+```
+
+And do note that in Karate 1.0 onwards, ES6 string-interpolation within "backticks" is supported:
+
+```cucumber
+*And* param filter = `ORDER_DATE:"${todaysDate}"`
 ```
 
 ### Enclosed JavaScript
