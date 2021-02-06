@@ -34,7 +34,6 @@ import com.intuit.karate.core.SyncExecutorService;
 import com.intuit.karate.core.Tags;
 import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.job.JobManager;
-import com.intuit.karate.report.Report;
 import com.intuit.karate.report.SuiteReports;
 import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceUtils;
@@ -236,8 +235,8 @@ public class Suite implements Runnable {
                 CompletableFuture.allOf(futuresArray).join();
             }
             endTime = System.currentTimeMillis();
-        } catch (Exception e) {
-            logger.error("runner failed: " + e);
+        } catch (Throwable t) {
+            logger.error("runner failed: " + t);
         } finally {
             scenarioExecutor.shutdownNow();
             pendingTasks.shutdownNow();
@@ -271,8 +270,8 @@ public class Suite implements Runnable {
                 saveFeatureResults(fr);
                 String status = fr.isFailed() ? "fail" : "pass";
                 logger.info("<<{}>> feature {} of {} ({} remaining) {}", status, index, featuresFound, getFeaturesRemaining() - 1, fr.getFeature());
-            } catch (Exception e) {
-                logger.error("<<error>> unable to write report file(s): {} - {}", fr.getFeature(), e + "");
+            } catch (Throwable t) {
+                logger.error("<<error>> unable to write report file(s): {} - {}", fr.getFeature(), t + "");
                 fr.printStats();
             }
         } else {

@@ -198,11 +198,11 @@
                                 <configuration>
                                     <artifactSet>
                                         <includes>
-                                            <include>com.linecorp.armeria:*</include> 
-                                            <include>io.micrometer:*</include>
-                                            <include>org.reactivestreams:*</include>                                           
-                                            <include>io.netty:*</include>
+                                            <include>com.linecorp.armeria:*</include>                                    
+                                            <include>io.netty:*</include>                                            
                                             <include>org.apache.httpcomponents:*</include>
+                                            <include>org.thymeleaf:*</include>
+                                            <include>org.attoparser:*</include>
                                             <include>org.antlr:*</include>
                                             <include>io.github.classgraph:*</include>
                                         </includes>
@@ -219,7 +219,11 @@
                                         <relocation>
                                             <pattern>org.apache.http.</pattern>
                                             <shadedPattern>karate.org.apache.http.</shadedPattern>
-                                        </relocation>                                        
+                                        </relocation>
+                                        <relocation>
+                                            <pattern>org.thymeleaf.</pattern>
+                                            <shadedPattern>karate.org.thymeleaf.</shadedPattern>
+                                        </relocation>                                                                                                                    
                                         <relocation>
                                             <pattern>org.antlr.v4.</pattern>
                                             <shadedPattern>karate.org.antlr.v4.</shadedPattern>
