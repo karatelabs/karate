@@ -332,6 +332,12 @@ class MatchTest {
         match("{ }", EQUALS, "{ 'foo': '##array' }");
         match("{ 'foo': 'test', 'bar' : [ { 'bar': 'bar' } ] }", EQUALS, "{ 'foo': '#string', 'bar': '##array' }");
         match("{ 'foo': null }", EQUALS, "{ 'foo': '##array' }");
+
+        match("{ a: 1}", NOT_EQUALS, " { a: '#null' }");
+        match("{ a: 1}", NOT_EQUALS, " { a: '##null' }");
+        match("{ a: null}", NOT_EQUALS, " { a: '#notnull' }");
+        match("{ a: null}", EQUALS, " { a: '##notnull' }");
+
     }
 
 }
