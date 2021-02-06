@@ -327,38 +327,38 @@ public class MatchOperation {
                 }
                 validatorName = StringUtils.trimToNull(validatorName);
                 if (validatorName != null) {
+                    Match.Validator validator = null;
+
                     if (validatorName.startsWith("regex")) {
                         String regex = validatorName.substring(5).trim();
-                        Match.RegexValidator regexValidator = new Match.RegexValidator(regex);
-                        Match.Result mr = regexValidator.apply(actual);
-                        if (!mr.pass) {
-                            return fail(mr.message);
-                        }
+                        validator = new Match.RegexValidator(regex);
                     } else {
-                        Match.Validator validator = Match.VALIDATORS.get(validatorName);
-                        if (validator != null) {
-                            if (optional && actual.isNotPresent()) {
-                                // pass
-                            } else if (!optional && actual.isNotPresent()) {
-                                // if the element is not present the expected result can only be
-                                // the notpresent keyword, ignored or an optional comparison
-                                return expected.isNotPresent() || "#ignore".contentEquals(expected.getAsString());
-                            } else {
-                                Match.Result mr = validator.apply(actual);
-                                if (!mr.pass) {
-                                    return fail(mr.message);
-                                }
+                        validator = Match.VALIDATORS.get(validatorName);
+                    }
+
+                    if (validator != null) {
+                        if (optional && (actual.isNotPresent() || actual.isNull())) {
+                            // pass
+                        } else if (!optional && actual.isNotPresent()) {
+                            // if the element is not present the expected result can only be
+                            // the notpresent keyword, ignored or an optional comparison
+                            return expected.isNotPresent() || "#ignore".contentEquals(expected.getAsString());
+                        } else {
+                            Match.Result mr = validator.apply(actual);
+                            if (!mr.pass) {
+                                return fail(mr.message);
                             }
-                        } else { // expected is a string that happens to start with "#"
-                            String actualValue = actual.getValue();
-                            switch (type) {
-                                case CONTAINS:
-                                    return actualValue.contains(expStr);
-                                default:
-                                    return actualValue.equals(expStr);
-                            }
+                        }
+                    } else if (!validatorName.startsWith("regex")) { // expected is a string that happens to start with "#"
+                        String actualValue = actual.getValue();
+                        switch (type) {
+                            case CONTAINS:
+                                return actualValue.contains(expStr);
+                            default:
+                                return actualValue.equals(expStr);
                         }
                     }
+
                 }
                 macro = StringUtils.trimToNull(macro);
                 if (macro != null && questionPos != -1) {
