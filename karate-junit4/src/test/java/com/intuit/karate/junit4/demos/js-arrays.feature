@@ -263,7 +263,8 @@ Scenario: #null, ##null, #present and #notpresent
     * match foo == { a: '#null' }    
     * match foo == { a: '##null' }
     * match foo != { a: '#notnull' }
-    * match foo != { a: '##notnull' }
+    # optional comparison so match evalutes to true
+    * match foo == { a: '##notnull' }
     * match foo == { a: '#present' }
     * match foo == { a: '#ignore' }
     * match foo != { a: '#notpresent' }
