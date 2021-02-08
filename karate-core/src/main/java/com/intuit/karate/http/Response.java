@@ -52,7 +52,7 @@ import org.slf4j.LoggerFactory;
 public class Response implements ProxyObject {
 
     private static final Logger logger = LoggerFactory.getLogger(Response.class);
-    
+
     public static final Response OK = new Response(200);
 
     private static final String BODY = "body";
@@ -106,6 +106,12 @@ public class Response implements ProxyObject {
 
     public Map<String, List<String>> getHeaders() {
         return headers;
+    }
+
+    public Map<String, List<String>> getHeadersWithLowerCaseNames() {
+        Map<String, List<String>> map = new HashMap(headers.size());
+        headers.forEach((k, v) -> map.put(k.toLowerCase(), v));
+        return map;
     }
 
     public Map<String, Map> getCookies() {

@@ -202,7 +202,7 @@ public class Main implements Callable<Void> {
     // adds double-quotes to last positional parameter (path) in case it contains white-spaces and un-quoted
     // only if line contains just one positional parameter (path) and it is the last one in line.
     // needed for intelli-j and vs-code generated cli invocations
-    public static Main parseKarateOptionAndQuotePath(String line) {
+    public static Main parseKarateOptionsAndQuotePath(String line) {
         Matcher matcher = CLI_ARGS.matcher(line);
         if (matcher.find()) {
             String path = matcher.group(2).trim();
