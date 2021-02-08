@@ -594,7 +594,11 @@ public class ScenarioEngine {
         }
         setVariable(RESPONSE_STATUS, response.getStatus());
         setVariable(RESPONSE, body);
-        setVariable(RESPONSE_HEADERS, response.getHeaders());
+        if (config.isLowerCaseResponseHeaders()) {
+            setVariable(RESPONSE_HEADERS, response.getHeadersWithLowerCaseNames());
+        } else {
+            setVariable(RESPONSE_HEADERS, response.getHeaders());
+        }
         setHiddenVariable(RESPONSE_BYTES, bytes);
         setHiddenVariable(RESPONSE_TYPE, responseType);
         cookies = response.getCookies();
