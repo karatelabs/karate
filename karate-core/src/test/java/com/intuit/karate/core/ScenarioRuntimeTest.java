@@ -162,7 +162,7 @@ class ScenarioRuntimeTest {
                 "def fun = function(i){ if (i == 1) return null; return { index: i } }",
                 "def res = call read('called1.feature') fun"
         );
-        matchVar("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', fun: '#ignore' }]");
+        matchVar("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', fun: '#ignore', index: 0 }]");
     }
 
     @Test

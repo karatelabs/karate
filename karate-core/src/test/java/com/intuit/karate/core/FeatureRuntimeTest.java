@@ -261,6 +261,11 @@ class FeatureRuntimeTest {
     void testCallArg() {
         run("call-arg.feature");
     }
+    
+    @Test
+    void testCallArgNull() {
+        run("call-arg-null.feature");
+    }    
 
     @Test
     void testIgnoreStepFailure() {

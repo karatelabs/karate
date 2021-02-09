@@ -254,7 +254,7 @@ public class ScenarioRuntime implements Runnable {
         Map<String, Object> map = new HashMap();
         if (caller.isNone()) { // if feature called via java api
             if (caller.arg != null && caller.arg.isMap()) {
-                map.putAll(caller.arg.getValue());
+                engine.setVariables(caller.arg.getValue());
             }
         } else {
             // karate principle: parent variables are always "visible"
@@ -264,7 +264,7 @@ public class ScenarioRuntime implements Runnable {
             map.put("__arg", caller.arg);
             map.put("__loop", caller.getLoopIndex());
             if (caller.arg != null && caller.arg.isMap()) {
-                map.putAll(caller.arg.getValue());
+                engine.setVariables(caller.arg.getValue());
             }
         }
         if (scenario.isOutlineExample() && !scenario.isDynamic()) { // init examples row magic variables
