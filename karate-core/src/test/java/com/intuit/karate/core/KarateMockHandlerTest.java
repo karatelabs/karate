@@ -44,7 +44,7 @@ class KarateMockHandlerTest {
     private void matchVar(String name, Object expected) {
         match(get(name), expected);
     }
-    
+
     @Test
     void testSimpleGet() {
         background().scenario(
@@ -330,6 +330,21 @@ class KarateMockHandlerTest {
                 "method get"
         );
         matchVar("responseHeaders", "{ 'Content-Type': ['text/html'] }");
+    }
+
+    @Test
+    void testConfigureLowerCaseResponseHeaders() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def responseHeaders = { 'Content-Type': 'text/html' }",
+                "def response = ''");
+        run(
+                "configure lowerCaseResponseHeaders = true",
+                URL_STEP,
+                "path '/hello'",
+                "method get"
+        );
+        matchVar("responseHeaders", "{ 'content-type': ['text/html'] }");
     }
 
 }
