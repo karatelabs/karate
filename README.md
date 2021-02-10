@@ -1,6 +1,6 @@
 # <img src="karate-core/src/main/java/karate-logo.svg" height="60" width="60"/> Karate
 ## Test Automation Made `Simple.`
-[![GitHub Stars](https://img.shields.io/github/stars/intuit/karate?style=social)](https://github.com/intuit/karate/stargazers) [![Maven Central](https://img.shields.io/maven-central/v/com.intuit.karate/karate-core.svg)](https://search.maven.org/artifact/com.intuit.karate/karate-core) [ ![build](https://github.com/intuit/karate/workflows/maven-build/badge.svg)](https://github.com/intuit/karate/actions?query=workflow%3Amaven-build) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Support Slack](https://img.shields.io/badge/support-wiki-red.svg)](https://github.com/intuit/karate/wiki/Support) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL)
+[![Maven Central](https://img.shields.io/maven-central/v/com.intuit.karate/karate-core.svg)](https://search.maven.org/artifact/com.intuit.karate/karate-core) [ ![build](https://github.com/intuit/karate/workflows/maven-build/badge.svg)](https://github.com/intuit/karate/actions?query=workflow%3Amaven-build) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Support Slack](https://img.shields.io/badge/support-wiki-red.svg)](https://github.com/intuit/karate/wiki/Support) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL) [![GitHub Stars](https://img.shields.io/github/stars/intuit/karate?style=social)](https://github.com/intuit/karate/stargazers)
 
 Karate is the only open-source tool to combine API test-automation, [mocks](karate-netty), [performance-testing](karate-gatling) and even [UI automation](karate-core) into a **single**, *unified* framework. The BDD syntax popularized by Cucumber is language-neutral, and easy for even non-programmers. Assertions and HTML reports are built-in, and you can run tests in parallel for speed.
 
@@ -3915,7 +3915,7 @@ Scenario Outline: name is <name> and age is <age>
   * match temp == name
   * match temp == __row.name
   * def expected = __num == 0 ? 'name is Bob and age is 5' : 'name is Nyan and age is 6'
-  * match expected == karate.info.scenarioName
+  * match expected == karate.scenario.name
 
   Examples:
     | name | age |
@@ -3957,15 +3957,15 @@ If you're looking for more complex ways of naming your scenarios you can use Jav
 Scenario Outline: name is ${name.first} ${name.last} and age is ${age}
   * match name.first == "#? _ == 'Bob' || _ == 'Nyan'"
   * match name.last == "#? _ == 'Dylan' || _ == 'Cat'"
-  * match title == karate.info.scenarioName
+  * match title == karate.scenario.name
 
 Examples:
-  | name!  | age  | title |
-  | { "first": "Bob", "last": "Dylan" }  | 10 | name is Bob Dylan and age is 10 |
-  | { "first": "Nyan", "last": "Cat" }  | 5 | name is Nyan Cat and age is 5 |
+  | name!                               | age | title                           |
+  | { "first": "Bob", "last": "Dylan" } | 10  | name is Bob Dylan and age is 10 |
+  | { "first": "Nyan", "last": "Cat" }  | 5   | name is Nyan Cat and age is 5   |
 ```
 
-String interpolation will support variables in scope and/or Examples (including functions defined globally, but not functions defined in the background), operators and even the Java Interop access and access to the Karate API.
+String interpolation will support variables in scope and / or the `Examples` (including functions defined globally, but not functions defined in the background). Even Java interop and access to the [`karate` JS API](#the-karate-object) would work.
 
 For some more examples check [`test-outline-name-js.feature`](karate-core/src/test/java/com/intuit/karate/core/parser/test-outline-name-js.feature).
 
