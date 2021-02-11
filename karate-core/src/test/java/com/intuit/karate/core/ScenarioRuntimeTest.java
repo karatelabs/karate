@@ -719,13 +719,24 @@ class ScenarioRuntimeTest {
                 "match res2 == [{ val: 'A' }, { val: 'B' }, { val: 'C' }]"
         );
     }
-    
+
     @Test
     void testRange() {
         run(
-                "def list = karate.range(5, 10)",
-                "match list == [5, 6, 7, 8, 9, 10]"
-        );        
+                "def list1 = karate.range(5, 10)",
+                "match list1 == [5, 6, 7, 8, 9, 10]",
+                "def list2 = karate.range(5, 10, 2)",
+                "match list2 == [5, 7, 9]",
+                "def list3 = karate.range(10, 5, 2)",
+                "match list3 == [10, 8, 6]"
+        );
+        fail = true;
+        run(
+                "def list = karate.range(10, 5, 0)"
+        );
+        run(
+                "def list = karate.range(10, 5, -1)"
+        );
     }
 
     @Test

@@ -591,9 +591,22 @@ public class ScenarioBridge implements PerfContext {
     }
     
     public Object range(int start, int end) {
+        return range(start, end, 1);
+    }
+
+    public Object range(int start, int end, int interval) {
+        if (interval <= 0) {
+            throw new RuntimeException("interval must be a positive integer");
+        }
         List<Integer> list = new ArrayList();
-        for (int i = start; i <= end; i++) {
-            list.add(i);
+        if (start <= end) {
+            for (int i = start; i <= end; i += interval) {
+                list.add(i);
+            }
+        } else {
+            for (int i = start; i >= end; i -= interval) {
+                list.add(i);
+            }
         }
         return JsValue.fromJava(list);
     }
