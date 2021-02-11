@@ -47,7 +47,14 @@ public enum ResourceType {
     XML("application/xml", vals("xml"), vals("xml")),
     TEXT("text/plain", vals("plain"), vals("txt")),
     MULTIPART("multipart/form-data", vals("multipart"), vals()),
-    BINARY("application/octet-stream", vals("octet"), vals());
+    BINARY("application/octet-stream", vals("octet"), vals()),
+    RDFXML("application/rdf+xml", vals("xml", "rdf"), vals(".rdf")),
+    NTRIPLES("application/n-triples", vals("rdf"), vals(".nt")),
+    TURTLE("text/turtle", vals("rdf"), vals(".ttl")),
+    NQUADS("application/n-quads", vals("rdf"), vals(".nq")),
+    TRIG("application/trig", vals("rdf"), vals(".trig")),
+    N3("text/n3", vals("rdf"), vals(".n3")),
+    JSONLD("application/ld+json", vals("json", "rdf"), vals(".jsonld"));
 
     private static String[] vals(String... values) {
         return values;
@@ -112,13 +119,29 @@ public enum ResourceType {
         }
     }
 
-    public boolean isHtml() {
-        return this == HTML;
-    }
+    public boolean isHtml() { return this == HTML; }
 
     public boolean isJson() {
-        return this == JSON;
+        switch (this) {
+            case JSON:
+            case JSONLD:
+                return true;
+            default:
+                return false;
+        }
     }
+
+    public boolean isXml() {
+        switch (this) {
+            case XML:
+            case RDFXML:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public boolean isText() { return this == TEXT; }
 
     public boolean isBinary() {
         switch (this) {
