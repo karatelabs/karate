@@ -3193,6 +3193,7 @@ Operation | Description
 <a name="karate-prettyxml"><code>karate.prettyXml(value)</code></a> | return a 'pretty-printed', nicely indented string representation of the XML value, also see: [`print`](#print)
 <a name="karate-prevrequest"><code>karate.prevRequest</code></a> | for advanced users, you can inspect the *actual* HTTP request after it happens, useful if you are writing a framework over Karate, refer to this example: [`request.feature`](karate-demo/src/test/java/demo/request/request.feature)
 <a name="karate-properties"><code>karate.properties[key]</code></a> | get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
+<a name="karate-range"><code>karate.range(start, end)</code></a> | returns a JSON array of integers (inclusive)
 <a name="karate-read"><code>karate.read(filename)</code></a> | the same [`read()`](#reading-files) function - which is pre-defined even within JS blocks, so there is no need to ever do `karate.read()`, and just `read()` is sufficient
 <a name="karate-readasstring"><code>karate.readAsString(filename)</code></a> | [rarely used](#read-file-as-string), behaves exactly like [`read`](#reading-files) - but does *not* auto convert to JSON or XML
 <a name="karate-remove"><code>karate.remove(name, path)</code></a> | very rarely used - when needing to perform conditional removal of JSON keys or XML nodes. Behaves the same way as the [`remove`](#remove) keyword.

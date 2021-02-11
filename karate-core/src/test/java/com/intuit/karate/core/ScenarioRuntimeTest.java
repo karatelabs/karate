@@ -719,6 +719,14 @@ class ScenarioRuntimeTest {
                 "match res2 == [{ val: 'A' }, { val: 'B' }, { val: 'C' }]"
         );
     }
+    
+    @Test
+    void testRange() {
+        run(
+                "def list = karate.range(5, 10)",
+                "match list == [5, 6, 7, 8, 9, 10]"
+        );        
+    }
 
     @Test
     void testMatchXmlXpath() {

@@ -589,6 +589,14 @@ public class ScenarioBridge implements PerfContext {
     public void proceed(String requestUrlBase) {
         getEngine().mockProceed(requestUrlBase);
     }
+    
+    public Object range(int start, int end) {
+        List<Integer> list = new ArrayList();
+        for (int i = start; i <= end; i++) {
+            list.add(i);
+        }
+        return JsValue.fromJava(list);
+    }
 
     public Object read(String name) {
         Object result = getEngine().fileReader.readFile(name);
