@@ -218,6 +218,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 list.add(map);
             }
         });
+        Collections.sort(list, (a, b) -> ((String) a.get("name")).compareTo((String) b.get("name")));
         return list;
     }
 
