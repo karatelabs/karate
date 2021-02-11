@@ -65,21 +65,21 @@ public class ElementFinder implements Finder {
             default: // NEAR
                 return " var a = 0.381966 * i; var x = (s + a) * Math.cos(a); var y = (s + a) * Math.sin(a);";
         }
-    }        
-    
+    }
+
     public static String exitCondition(String findTag) {
         int pos = findTag.indexOf('}');
         if (pos == -1) {
             return "e.tagName == '" + findTag.toUpperCase() + "'";
         }
-        int caretPos = findTag.indexOf('^');        
+        int caretPos = findTag.indexOf('^');
         boolean contains = caretPos != -1 && caretPos < pos;
         if (!contains) {
             caretPos = 0;
         }
         String tagName = StringUtils.trimToNull(findTag.substring(caretPos + 1, pos));
         String suffix = tagName == null ? "" : " && e.tagName == '" + tagName.toUpperCase() + "'";
-        String findText = findTag.substring(pos + 1);        
+        String findText = findTag.substring(pos + 1);
         if (contains) {
             return "e.textContent.trim().includes('" + findText + "')" + suffix;
         } else {
@@ -129,6 +129,11 @@ public class ElementFinder implements Finder {
     }
 
     @Override
+    public String getValue() {
+        return find().getValue();
+    }        
+
+    @Override
     public Element clear() {
         return find().clear();
     }
@@ -141,12 +146,12 @@ public class ElementFinder implements Finder {
     @Override
     public Element select(String value) {
         return find("select").select(value);
-    }   
-    
+    }
+
     @Override
     public Element select(int index) {
         return find("select").select(index);
-    }    
+    }
 
     @Override
     public Element click() {
@@ -156,7 +161,7 @@ public class ElementFinder implements Finder {
     @Override
     public Element highlight() {
         return find().highlight();
-    }     
+    }
 
     @Override
     public Element retry() {
@@ -171,6 +176,8 @@ public class ElementFinder implements Finder {
     @Override
     public Element retry(Integer count, Integer interval) {
         return find().retry(count, interval);
-    }    
+    }
+    
+    
 
 }
