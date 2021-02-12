@@ -341,7 +341,7 @@ To use [Playwright](https://playwright.dev), you need to start a Playwright serv
 
 Or you can set up an executable that can do it and log the URL to the console when the server is ready. The websocket URL will look like this: `ws://127.0.0.1:4444/0e0bd1c0bb2d4eb550d02c91046dd6e0`.
 
-Here's a simple recipe to set up this mechanism on your local machine. NodeJS is a pre-requisite and you can choose a folder (e.g. `playwright`) for the "start scripts" to live. Within that folder, [you can run](https://playwright.dev/#?path=docs/intro.md):
+Here's a simple recipe to set up this mechanism on your local machine. NodeJS is a pre-requisite and you can choose a folder (e.g. `playwright`) for the "start scripts" to live. Within that folder, [you can run](https://playwright.dev/docs/intro#installation):
 
 ```
 npm i -D playwright
