@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.resource;
 
-import io.micrometer.core.instrument.util.StringUtils;
+import com.intuit.karate.StringUtils;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
