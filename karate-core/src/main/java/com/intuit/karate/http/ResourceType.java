@@ -90,10 +90,6 @@ public enum ResourceType {
         return extensions.length == 0 ? null : extensions[0];
     }
 
-    public boolean isStatic() {
-        return this != BINARY;
-    }
-
     public boolean isVideo() {
         switch (this) {
             case MP4:

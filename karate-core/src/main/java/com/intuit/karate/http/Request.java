@@ -288,8 +288,7 @@ public class Request implements ProxyObject {
     }
     
     public boolean isForStaticResource() {
-        ResourceType rt = getResourceType();
-        return rt == null ? false : rt.isStatic();
+        return getResourceType() != null;
     }
 
     public ResourceType getResourceType() {
