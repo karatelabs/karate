@@ -105,7 +105,6 @@ public class ServerContext implements ProxyObject {
         if (resourcePath == null) {
             if (api) {
                 String pathParam = null;
-                ResourceResolver resourceResolver = config.getResourceResolver();
                 String jsPath = path + DOT_JS;
                 resourcePath = jsPath;
                 if (!config.getJsFiles().contains(jsPath)) {
@@ -156,6 +155,9 @@ public class ServerContext implements ProxyObject {
         InputStream is = config.getResourceResolver().resolve(resource).getStream();
         String raw = FileUtils.toString(is);
         ResourceType resourceType = ResourceType.fromFileExtension(resource);
+        if (resourceType == null) {
+            return raw;
+        }
         switch (resourceType) {
             case JS:
             case JSON:

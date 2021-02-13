@@ -75,15 +75,15 @@ public enum ResourceType {
 
     public static ResourceType fromFileExtension(String path) {
         if (path == null) {
-            return BINARY;
+            return null;
         }
         int pos = path.lastIndexOf('.');
         if (pos == -1 || pos == path.length() - 1) {
-            return BINARY;
+            return null;
         }
         String extension = path.substring(pos + 1).trim().toLowerCase();
         ResourceType rt = EXTENSION_MAP.get(extension);
-        return rt == null ? BINARY : rt;
+        return rt == null ? null : rt;
     }
 
     public String getExtension() {
@@ -93,7 +93,7 @@ public enum ResourceType {
     public boolean isStatic() {
         return this != BINARY;
     }
-    
+
     public boolean isVideo() {
         switch (this) {
             case MP4:
@@ -107,7 +107,7 @@ public enum ResourceType {
         switch (this) {
             case BINARY:
             case ICO:
-            case PNG:             
+            case PNG:
             case GIF:
             case JPG:
                 return true;

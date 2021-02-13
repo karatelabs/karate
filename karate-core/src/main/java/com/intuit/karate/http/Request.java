@@ -286,6 +286,11 @@ public class Request implements ProxyObject {
             return getBodyAsString();
         }
     }
+    
+    public boolean isForStaticResource() {
+        ResourceType rt = getResourceType();
+        return rt == null ? false : rt.isStatic();
+    }
 
     public ResourceType getResourceType() {
         if (resourceType == null) {
@@ -387,7 +392,7 @@ public class Request implements ProxyObject {
             case METHOD:
                 return method;
             case BODY:
-                return getBodyConverted();
+                return JsValue.fromJava(getBodyConverted());
             case PARAM:
                 return (Function<String, String>) this::getParam;
             case JSON:

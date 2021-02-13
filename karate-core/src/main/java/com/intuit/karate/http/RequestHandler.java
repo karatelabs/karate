@@ -76,7 +76,7 @@ public class RequestHandler implements ServerHandler {
         }
         ServerContext context = contextFactory.apply(request);
         context.prepare();
-        if (request.getResourceType().isStatic()) {
+        if (request.isForStaticResource()) {
             if (logger.isDebugEnabled()) {
                 logger.debug("{}", request);
             }

@@ -41,7 +41,7 @@ public class TemplateUtils {
         // only static methods
     }
 
-    private static final String HTMX_SCRIPT_TAG = "<script src=\"https://unpkg.com/htmx.org@1.0.1\"></script>";
+    private static final String HTMX_SCRIPT_TAG = "<script src=\"https://unpkg.com/htmx.org@1.2.0\"></script>";
 
     public static IModel generateHeadScriptTag(ITemplateContext ctx) {
         IModelFactory modelFactory = ctx.getModelFactory();
