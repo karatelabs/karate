@@ -189,7 +189,7 @@ To start a mock server, the 2 mandatory arguments are the path of the feature fi
 java -jar karate.jar -m my-mock.feature -m my-2nd-mock.feature -p 8080
 ```
 
-Note that this server will be able to act as an HTTPS proxy server if needed. If you need to specify a custom certificate and key combination, see below.
+> (*This feature is not available in 1.0, and needs community contribution to revive*) Note that this server will be able to act as an HTTPS proxy server if needed. If you need to specify a custom certificate and key combination, see below.
 
 #### SSL
 For SSL, use the `-s` flag. If you don't provide a certificate and key (see next section), it will automatically create `cert.pem` and `key.pem` in the current working directory, and the next time you re-start the mock server - these will be re-used. This is convenient for web / UI developers because you then need to set the certificate 'exception' only once in the browser.
@@ -204,7 +204,7 @@ If you have a custom certificate and private-key (in PEM format) you can specify
 java -jar karate.jar -m my-mock.feature -p 8443 -s -c my-cert.crt -k my-key.key
 ```
 
-If you *don't* enable SSL, the proxy server will still be able to tunnel HTTPS traffic - and will use the certificate / key combination you specify or auto-create `cert.pem` and `key.pem` as described above.
+> (*This feature is not available in 1.0, and needs community contribution to revive*) If you *don't* enable SSL, the proxy server will still be able to tunnel HTTPS traffic - and will use the certificate / key combination you specify or auto-create `cert.pem` and `key.pem` as described above.
 
 ```
 java -jar karate.jar -m my-mock.feature -p 8090 -c my-cert.crt -k my-key.key
@@ -701,7 +701,9 @@ Scenario: pathMatches('/v1/abort')
 
 # Proxy Mode
 ## `karate.proceed()`
-It is easy to set up a Karate server to "intercept" HTTP and even HTTPS requests and then delegate them to a target server only if needed. Think of this as "[AOP](https://en.wikipedia.org/wiki/Aspect-oriented_programming)" for web services !
+It is easy to set up a Karate server to "intercept" HTTP and then delegate them to a target server only if needed. Think of this as "[AOP](https://en.wikipedia.org/wiki/Aspect-oriented_programming)" for web services !
+
+> (*Intercepting HTTPS is not possible in 1.0, and needs community contribution to revive*)
 
 If you invoke the built in Karate function `karate.proceed(url)` - Karate will make an HTTP request to the URL using the current values of the [`request`](#request) and [`requestHeaders`](#requestheaders). Since the [request](#request-handling) is *mutable* this gives rise to some very interesting possibilities. For example, you can modify the request or decide to return a response without calling a downstream service.
 
