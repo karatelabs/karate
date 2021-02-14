@@ -2942,7 +2942,13 @@ Given the examples above, it has to be said that a best practice with Karate is 
 * def fun = function(i){ return { name: 'User ' + (i + 1) } }
 * def foo = karate.repeat(3, fun)
 * match foo == [{ name: 'User 1' }, { name: 'User 2' }, { name: 'User 3' }]
+
+# generate a range of numbers as a json array
+* def foo = karate.range(4, 9)
+* match foo == [4, 5, 6, 7, 8, 9]
 ```
+
+And there's also [`karate.range()`](#karate-range) which can be useful to generate test-data.
 
 Don't forget that Karate's [data-driven testing capabilities](#data-driven-tests) can loop over arrays of JSON objects automatically.
 

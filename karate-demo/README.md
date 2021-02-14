@@ -5,7 +5,7 @@ Note that this is *not* the best example of a skeleton Java / Maven project, as 
 * the [Quickstart](https://github.com/intuit/karate#quickstart)
 * the sample [Spring Boot Example](https://github.com/intuit/karate#spring-boot-example)
 * the [examples/jobserver](../examples/jobserver) project
-* the [examples/consumer-driver-contracts](../examples/consumer-driver-contracts) project
+* the [examples/consumer-driven-contracts](../examples/consumer-driven-contracts) project
 
 | Example | Demonstrates
 ----------| --------
