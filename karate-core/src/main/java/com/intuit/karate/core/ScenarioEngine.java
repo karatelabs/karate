@@ -1561,7 +1561,29 @@ public class ScenarioEngine {
             path = nameAndPath.right;
         }
         Variable target = vars.get(name);
-        if (isDollarPrefixedJsonPath(path)) {
+        if (isXmlPath(path)) {
+            if (target == null || target.isNull()) {
+                if (viaTable) { // auto create if using set via cucumber table as a convenience
+                    Document empty = XmlUtils.newDocument();
+                    target = new Variable(empty);
+                    setVariable(name, target);
+                } else {
+                    throw new RuntimeException("variable is null or not set '" + name + "'");
+                }
+            }
+            Document doc = target.getValue();
+            if (delete) {
+                XmlUtils.removeByPath(doc, path);
+            } else if (value.isXml()) {
+                Node node = value.getValue();
+                XmlUtils.setByPath(doc, path, node);
+            } else if (value.isMap()) { // cast to xml
+                Node node = XmlUtils.fromMap(value.getValue());
+                XmlUtils.setByPath(doc, path, node);
+            } else {
+                XmlUtils.setByPath(doc, path, value.getAsString());
+            }
+        } else { // assume json-path
             if (target == null || target.isNull()) {
                 if (viaTable) { // auto create if using set via cucumber table as a convenience
                     Json json;
@@ -1587,30 +1609,6 @@ public class ScenarioEngine {
             } else {
                 json.set(path, value.<Object>getValue());
             }
-        } else if (isXmlPath(path)) {
-            if (target == null || target.isNull()) {
-                if (viaTable) { // auto create if using set via cucumber table as a convenience
-                    Document empty = XmlUtils.newDocument();
-                    target = new Variable(empty);
-                    setVariable(name, target);
-                } else {
-                    throw new RuntimeException("variable is null or not set '" + name + "'");
-                }
-            }
-            Document doc = target.getValue();
-            if (delete) {
-                XmlUtils.removeByPath(doc, path);
-            } else if (value.isXml()) {
-                Node node = value.getValue();
-                XmlUtils.setByPath(doc, path, node);
-            } else if (value.isMap()) { // cast to xml
-                Node node = XmlUtils.fromMap(value.getValue());
-                XmlUtils.setByPath(doc, path, node);
-            } else {
-                XmlUtils.setByPath(doc, path, value.getAsString());
-            }
-        } else {
-            throw new RuntimeException("unexpected path: " + path);
         }
 
     }

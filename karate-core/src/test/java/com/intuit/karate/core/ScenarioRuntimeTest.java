@@ -256,7 +256,7 @@ class ScenarioRuntimeTest {
                 "karate.setXml('fooXml', '<foo>bar</foo>')",
                 "copy baz = bar",
                 "karate.set('baz', '$.a', 1)",
-                "karate.remove('baz', '$.hello')",
+                "karate.remove('baz', 'hello')",
                 "copy bax = fooXml",
                 "karate.setXml('bax', '/foo', '<a>1</a>')",
                 "def getFoo = karate.get('foo')",

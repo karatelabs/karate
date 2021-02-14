@@ -145,5 +145,21 @@ class KarateHttpMockHandlerTest {
         );        
         matchVarContains("response", "{ 'api-key': ['some text'] }");        
     }
+    
+    @Test
+    void testKarateRemove() {
+        background().scenario(
+                "pathMatches('/hello/{id}')",
+                "def temp = { '1': 'foo', '2': 'bar' }",
+                "karate.remove('temp', pathParams.id)",
+                "def response = temp");
+        startMockServer();
+        run(
+                urlStep(),
+                "path '/hello/1'",
+                "method get"
+        );        
+        matchVarContains("response", "{ '2': 'bar' }");          
+    }
 
 }

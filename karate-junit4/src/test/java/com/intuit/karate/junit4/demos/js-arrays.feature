@@ -234,7 +234,7 @@ Scenario: remove json key using keyword
 
 Scenario: remove json key from js
     * def json = { foo: 'bar', hello: 'world' }
-    * def fun = function(){ karate.remove('json', '$.foo') }
+    * def fun = function(){ karate.remove('json', 'foo') }
     * call fun
     * match json == { hello: 'world' }
 

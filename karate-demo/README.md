@@ -3,7 +3,6 @@ This is a sample [Spring Boot](http://projects.spring.io/spring-boot/) web-appli
 
 Note that this is *not* the best example of a skeleton Java / Maven project, as it is designed to be part of the Karate code-base and act as a suite of regression tests. For a good "starter" project, please use one of these:
 * the [Quickstart](https://github.com/intuit/karate#quickstart)
-* the sample [Spring Boot Example](https://github.com/intuit/karate#spring-boot-example)
 * the [examples/jobserver](../examples/jobserver) project
 * the [examples/consumer-driven-contracts](../examples/consumer-driven-contracts) project
 

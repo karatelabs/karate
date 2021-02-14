@@ -151,7 +151,7 @@ public class Json {
     }
 
     public Json remove(String path) {
-        doc.delete(path);
+        doc.delete(prefix(path));
         return this;
     }
 
