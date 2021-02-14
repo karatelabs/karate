@@ -113,7 +113,7 @@ The [Netty](https://netty.io) based capabilities are included when you use `kara
 
 ## Consumer-Provider Example
 
-<img src="src/test/resources/karate-test-doubles.jpg" height="720px"/>
+<img src="../karate-core/src/test/resources/karate-test-doubles.jpg" height="720px"/>
 
 We use a simplified example of a Java 'consumer' which makes HTTP calls to a Payment Service (provider) where `GET`, `POST`, `PUT` and `DELETE` have been implemented. The 'provider' implements CRUD for the [`Payment.java`](../karate-demo/src/test/java/mock/contract/Payment.java) 'POJO', and the `POST` (or create) results in a message ([`Shipment.java`](../karate-demo/src/test/java/mock/contract/Shipment.java) as JSON) being placed on a queue, which the consumer is listening to.
 

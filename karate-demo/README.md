@@ -5,6 +5,7 @@ Note that this is *not* the best example of a skeleton Java / Maven project, as 
 * the [Quickstart](https://github.com/intuit/karate#quickstart)
 * the sample [Spring Boot Example](https://github.com/intuit/karate#spring-boot-example)
 * the [examples/jobserver](../examples/jobserver) project
+* the [examples/consumer-driver-contracts](../examples/consumer-driver-contracts) project
 
 | Example | Demonstrates
 ----------| --------
@@ -45,19 +46,7 @@ File | Demonstrates
 [`pom.xml`](pom.xml) | Look out for how the [`maven-surefire-plugin`](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html) can be configured to point to what is basically your 'test-suite'. You may not even need to do this if you follow the [recommended naming conventions and folder structure](https://github.com/intuit/karate#naming-conventions), and then Maven defaults would work as you would expect. Note that this demo application has many dependencies that you will *not* need for a typical Karate project.
 
 ## Gradle
-This project contains an example [`build.gradle`](build.gradle) that can be used as a reference by Gradle users who want to use the [recommended directory structure](https://github.com/intuit/karate#naming-conventions).
-
-To generate the Gradle wrapper (as is usual for Gradle):
-
-```
-gradle wrapper
-```
-
-After that use the Gradle wrapper to run the tests:
-
-```
-./gradlew test
-```
+Refer to the wiki page: [Gradle](https://github.com/intuit/karate/wiki/Gradle).
 
 ## Example Report
 > This is optional and if you use the parallel runner as described above, the JUnit XML emitted is sufficient for most CI tools (e.g. Jenkins) to generate test reports and determine whether the build passed or failed. But the advantage of the approach below is that it includes HTTP request and response logs in-line with the report (see [video](https://twitter.com/KarateDSL/status/899671441221623809)).
