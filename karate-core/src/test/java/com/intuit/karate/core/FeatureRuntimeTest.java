@@ -263,11 +263,10 @@ class FeatureRuntimeTest {
                 .path("classpath:com/intuit/karate/core/outline-config-js-2.feature",
                         "classpath:com/intuit/karate/core/outline-config-js-3.feature")
                 .configDir("src/test/java/com/intuit/karate/core")
-                .tags("@trigger-by-tag")
                 .parallel(2);
         assertEquals(0, results.getFailCount());
     }
-    
+
     @Test
     void testCallArg() {
         run("call-arg.feature");
