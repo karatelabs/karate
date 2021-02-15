@@ -258,6 +258,34 @@ class FeatureRuntimeTest {
     }    
 
     @Test
+    void testOutlineConfigJs2Parallel() {
+        Results results = Runner
+                .path("classpath:com/intuit/karate/core/outline-config-js-2.feature",
+                        "classpath:com/intuit/karate/core/outline-config-js-3.feature")
+                .configDir("src/test/java/com/intuit/karate/core")
+                .tags("@trigger-by-tag")
+                .parallel(2);
+        assertEquals(0, results.getFailCount());
+    }
+//    @Test
+//    void testOutlineConfigJsCallOnceParallel() {
+//        Results results = Runner.path("classpath:com/intuit/karate/core/outline-config-js.feature")
+//                .configDir("src/test/java/com/intuit/karate/core")
+//                .karateEnv("callonce")
+//                .parallel(2);
+//        assertEquals(0, results.getFailCount());
+//    }    
+    
+    @Test
+    void testOutlineConfigJsCallSingleParallel() {
+        Results results = Runner.path("classpath:com/intuit/karate/core/outline-config-js.feature")
+                .configDir("src/test/java/com/intuit/karate/core")
+                .karateEnv("callsingle")
+                .parallel(2);
+        assertEquals(0, results.getFailCount());
+    }    
+
+    @Test
     void testCallArg() {
         run("call-arg.feature");
     }
