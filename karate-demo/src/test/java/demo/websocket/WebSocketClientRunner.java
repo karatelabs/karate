@@ -1,8 +1,8 @@
 package demo.websocket;
 
 import com.intuit.karate.Logger;
-import com.intuit.karate.netty.WebSocketClient;
-import com.intuit.karate.netty.WebSocketOptions;
+import com.intuit.karate.http.WebSocketClient;
+import com.intuit.karate.http.WebSocketOptions;
 import demo.TestBase;
 import static org.junit.Assert.*;
 import org.junit.BeforeClass;

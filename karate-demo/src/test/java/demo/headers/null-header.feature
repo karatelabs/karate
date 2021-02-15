@@ -11,3 +11,4 @@ When method get
 Then status 200
 And match response contains { foo: ['bar'] }
 And match response !contains { blah: '#notnull' }
+And match response contains { blah: '#notpresent' }

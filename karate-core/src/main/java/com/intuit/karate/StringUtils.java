@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -56,11 +57,16 @@ public class StringUtils {
             this.right = right;
         }
 
-        @Override // only needed for unit test, so no validation and null checks
+        @Override // only needed for unit tests, so no validation and null checks
         public boolean equals(Object obj) {
             Pair o = (Pair) obj;
             return left.equals(o.left) && right.equals(o.right);
         }
+
+        @Override
+        public String toString() {
+            return left + ":" + right;
+        }                
 
     }
 
@@ -76,8 +82,8 @@ public class StringUtils {
             return addDots ? s.substring(0, length) + " ..." : s.substring(0, length);
         }
         return s;
-    }    
-    
+    }
+
     public static String trimToEmpty(String s) {
         if (s == null) {
             return EMPTY;
@@ -125,7 +131,7 @@ public class StringUtils {
         return sb.toString();
     }
 
-    public static List<String> split(String s, char delimiter) {
+    public static List<String> split(String s, char delimiter, boolean skipBackSlash) {
         int pos = s.indexOf(delimiter);
         if (pos == -1) {
             return Collections.singletonList(s);
@@ -134,7 +140,7 @@ public class StringUtils {
         int startPos = 0;
         int searchPos = 0;
         while (pos != -1) {
-            if (pos > 0 && s.charAt(pos - 1) == '\\') {
+            if (skipBackSlash && pos > 0 && s.charAt(pos - 1) == '\\') {
                 s = s.substring(0, pos - 1) + s.substring(pos);
                 searchPos = pos;
             } else {
@@ -161,7 +167,10 @@ public class StringUtils {
     }
 
     public static String toIdString(String name) {
-        return name.replaceAll("[\\s_]", "-").toLowerCase();
+        if (name == null) {
+            return "";
+        }
+        return name.replaceAll("[\\s_\\\\/]", "-").toLowerCase();
     }
 
     public static StringUtils.Pair splitByFirstLineFeed(String text) {
@@ -207,6 +216,7 @@ public class StringUtils {
         return estimate;
     }
 
+    // TODO remove js function utils
     private static final Pattern FUNCTION_PATTERN = Pattern.compile("^function[^(]*\\(");
 
     public static boolean isJavaScriptFunction(String text) {
@@ -219,6 +229,30 @@ public class StringUtils {
             return matcher.replaceFirst("function(");
         } else {
             return text;
+        }
+    }
+
+    public static <T> T getIgnoreKeyCase(Map<String, T> map, String name) {
+        if (map == null || name == null) {
+            return null;
+        }
+        for (String key : map.keySet()) {
+            if (name.equalsIgnoreCase(key)) {
+                return map.get(key);
+            }
+        }
+        return null;
+    }
+
+    public static void removeIgnoreKeyCase(Map<String, ?> map, String name) {
+        if (map == null || name == null) {
+            return;
+        }
+        for (String key : map.keySet()) {
+            if (name.equalsIgnoreCase(key)) {
+                map.remove(key);
+                return;
+            }
         }
     }
 

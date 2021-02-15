@@ -62,19 +62,30 @@ public class FileLogAppender implements LogAppender {
             throw new RuntimeException(e);
         }
     }
-
-    @Override
-    public String collect() {
+    
+    private String getBuffer(boolean resetAndClear) {
         try {
             int pos = (int) channel.position();
             ByteBuffer buf = ByteBuffer.allocate(pos - prevPos);
             channel.read(buf, prevPos);
-            prevPos = pos;
+            if (resetAndClear) {
+                prevPos = pos;
+            }
             ((Buffer) buf).flip(); // java 8 to 9 fix
             return FileUtils.toString(buf.array());
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }
+        }         
+    }
+
+    @Override
+    public String getBuffer() {
+        return getBuffer(false);
+    }   
+    
+    @Override
+    public String collect() {
+        return getBuffer(true);
     }
 
     @Override
@@ -83,7 +94,7 @@ public class FileLogAppender implements LogAppender {
             return;
         }
         try {
-            channel.write(ByteBuffer.wrap(text.getBytes(FileUtils.UTF8)));
+            channel.write(ByteBuffer.wrap(FileUtils.toBytes(text)));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

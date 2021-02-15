@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.core;
 
-import java.nio.file.Path;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -35,52 +35,48 @@ import java.util.Map;
  */
 public class Scenario {
 
-    public static final String TYPE = "scenario";
-    public static final String KEYWORD = "Scenario";
-
     private final Feature feature;
     private final FeatureSection section;
-    private final int index;
-
-    private List<Tag> tags;
+    private final int exampleIndex;
+    
     private int line;
+    private List<Tag> tags;
     private String name;
     private String description;
     private List<Step> steps;
-    private boolean outline;
     private Map<String, Object> exampleData;
-    private int exampleIndex = -1;
     private String dynamicExpression;
-    private boolean backgroundDone;
-    
-    protected Scenario() {
-        this(null, null, -1);
-    }
 
-    public Scenario(Feature feature, FeatureSection section, int index) {
+    public Scenario(Feature feature, FeatureSection section, int exampleIndex) {
         this.feature = feature;
         this.section = section;
-        this.index = index;
+        this.exampleIndex = exampleIndex;
+    }
+    
+    public boolean isEqualTo(Scenario other) {
+        return other.section.getIndex() == section.getIndex() && other.exampleIndex == exampleIndex;
     }
 
-    public String getNameForReport() {
+    public String getNameAndDescription() {
+        String temp = "";
+        if (name != null) {
+            temp = temp + name;
+        }
+        if (description != null) {
+            if (!temp.isEmpty()) {
+                temp = temp + " ";
+            }
+            temp = temp + description;
+        }
+        return temp;
+    }
+
+    public String getRefIdAndName() {
         if (name == null) {
-            return getDisplayMeta();
+            return getRefId();
         } else {
-            return getDisplayMeta() + " " + name;
+            return getRefId() + " " + name;
         }
-    }
-
-    public ScenarioInfo toInfo(Path featurePath) {
-        ScenarioInfo info = new ScenarioInfo();
-        if (featurePath != null) {
-            info.setFeatureDir(featurePath.getParent().toString());
-            info.setFeatureFileName(featurePath.getFileName().toString());
-        }
-        info.setScenarioName(name);
-        info.setScenarioDescription(description);
-        info.setScenarioType(getKeyword());
-        return info;
     }
 
     // only called for dynamic scenarios
@@ -90,11 +86,9 @@ public class Scenario {
         s.description = description;
         s.tags = tags;
         s.line = line;
-        s.exampleIndex = exampleIndex;
-        s.outline = true; // this is a dynamic scenario row
         s.steps = new ArrayList(steps.size());
         for (Step step : steps) {
-            Step temp = new Step(feature, s, step.getIndex());
+            Step temp = new Step(s, step.getIndex());
             s.steps.add(temp);
             temp.setLine(step.getLine());
             temp.setEndLine(step.getEndLine());
@@ -107,8 +101,13 @@ public class Scenario {
     }
 
     public void replace(String token, String value) {
+        if (value == null) {
+            // this can happen for a dynamic scenario outline !
+            // give up trying a cucumber-style placeholder sub
+            // user should be fine with karate-style plain-old variables
+            return;
+        }
         name = name.replace(token, value);
-        description = description.replace(token, value);
         for (Step step : steps) {
             String text = step.getText();
             step.setText(text.replace(token, value));
@@ -122,7 +121,7 @@ public class Scenario {
             }
         }
     }
-    
+
     public Step getStepByLine(int line) {
         for (Step step : getStepsIncludingBackground()) {
             if (step.getLine() == line) {
@@ -132,22 +131,22 @@ public class Scenario {
         return null;
     }
 
-    public String getDisplayMeta() {
+    public String getRefId() {
         int num = section.getIndex() + 1;
         String meta = "[" + num;
-        if (index != -1) {
-            meta = meta + "." + (index + 1);
+        if (exampleIndex != -1) {
+            meta = meta + "." + (exampleIndex + 1);
         }
         return meta + ":" + line + "]";
     }
 
+    public String getDebugInfo() {
+        return feature + ":" + line;
+    }
+
     public String getUniqueId() {
-        int num = section.getIndex() + 1;
-        String meta = "-" + num;
-        if (index != -1) {
-            meta = meta + "_" + (index + 1);
-        }
-        return meta;
+        String id = feature.getResource().getPackageQualifiedName() + "_" + (section.getIndex() + 1);
+        return exampleIndex == -1 ? id : id + "_" + (exampleIndex + 1);
     }
 
     public List<Step> getBackgroundSteps() {
@@ -163,10 +162,6 @@ public class Scenario {
         }
         temp.addAll(steps);
         return temp;
-    }
-
-    public String getKeyword() {
-        return outline ? ScenarioOutline.KEYWORD : KEYWORD;
     }
 
     private Tags tagsEffective; // cache
@@ -186,17 +181,13 @@ public class Scenario {
         return feature;
     }
 
-    public int getIndex() {
-        return index;
-    }
-
     public int getLine() {
         return line;
     }
 
     public void setLine(int line) {
         this.line = line;
-    }
+    }        
 
     public List<Tag> getTags() {
         return tags;
@@ -230,12 +221,8 @@ public class Scenario {
         this.steps = steps;
     }
 
-    public boolean isOutline() {
-        return outline;
-    }
-
-    public void setOutline(boolean outline) {
-        this.outline = outline;
+    public boolean isOutlineExample() {
+        return exampleIndex != -1;
     }
 
     public boolean isDynamic() {
@@ -250,14 +237,6 @@ public class Scenario {
         this.dynamicExpression = dynamicExpression;
     }
 
-    public boolean isBackgroundDone() {
-        return backgroundDone;
-    }
-
-    public void setBackgroundDone(boolean backgroundDone) {
-        this.backgroundDone = backgroundDone;
-    }
-
     public Map<String, Object> getExampleData() {
         return exampleData;
     }
@@ -270,13 +249,13 @@ public class Scenario {
         return exampleIndex;
     }
 
-    public void setExampleIndex(int exampleIndex) {
-        this.exampleIndex = exampleIndex;
-    }
-
     @Override
     public String toString() {
-        return feature.toString() + getDisplayMeta();
-    }        
+        return feature.toString() + getRefId();
+    }
+
+    public URI getUriToLineNumber() {
+        return URI.create(feature.getResource().getUri() + "?line=" + line);
+    }
 
 }

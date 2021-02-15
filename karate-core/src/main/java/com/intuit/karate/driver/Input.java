@@ -47,14 +47,21 @@ public class Input {
     }
 
     private void updateModifiers(char c) {
-        if (c == Key.INSTANCE.CONTROL) {
-            control = !control;
-        } else if (c == Key.INSTANCE.ALT) {
-            alt = !alt;
-        } else if (c == Key.INSTANCE.SHIFT) {
-            shift = !shift;
-        } else if (c == Key.INSTANCE.META) {
-            meta = !meta;
+        switch (c) {
+            case Keys.CONTROL:
+                control = !control;
+                break;
+            case Keys.ALT:
+                alt = !alt;
+                break;
+            case Keys.SHIFT:
+                shift = !shift;
+                break;
+            case Keys.META:
+                meta = !meta;
+                break;
+            default:
+                break;
         }
     }
 
@@ -64,7 +71,7 @@ public class Input {
         return c;
     }
 
-    public int getModifier() {
+    public int getModifierFlags() {
         int modifier = 0;
         if (control) {
             modifier += 2;

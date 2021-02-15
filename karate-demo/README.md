@@ -1,5 +1,10 @@
 # Karate Demo
-This is a sample [Spring Boot](http://projects.spring.io/spring-boot/) web-application that exposes some functionality as web-service end-points. And includes a set of Karate examples that test these services as well as demonstrate various Karate features and best-practices.
+This is a sample [Spring Boot](http://projects.spring.io/spring-boot/) web-application that exposes some functionality as web-service end-points. And includes a set of Karate examples that test these services as well as demonstrate various Karate features and best-practices. 
+
+Note that this is *not* the best example of a skeleton Java / Maven project, as it is designed to be part of the Karate code-base and act as a suite of regression tests. For a good "starter" project, please use one of these:
+* the [Quickstart](https://github.com/intuit/karate#quickstart)
+* the [examples/jobserver](../examples/jobserver) project
+* the [examples/consumer-driven-contracts](../examples/consumer-driven-contracts) project
 
 | Example | Demonstrates
 ----------| --------
@@ -27,32 +32,20 @@ This is a sample [Spring Boot](http://projects.spring.io/spring-boot/) web-appli
 [`call-once.feature`](src/test/java/demo/callonce/call-once.feature) | Cucumber has a [limitation](https://github.com/cucumber/cucumber-jvm/issues/515) where `Background` steps are re-run for every `Scenario` and even for every `Examples` row within a `Scenario Outline`. This is a problem when you have expensive and time-consuming HTTP calls in your 'set-up' routines. Fortunately you have an elegant work-around with Karate's [`callonce`](https://github.com/intuit/karate#callonce) keyword.
 [`polling.feature`](src/test/java/demo/polling/polling.feature) | [Retry support](https://github.com/intuit/karate#retry-until) is built-in to Karate, but you can also achieve this by combining JavaScript functions with a [`call` to another `*.feature` file](https://github.com/intuit/karate#calling-other-feature-files).
 [`websocket.feature`](src/test/java/demo/websocket/websocket.feature) | How to write [websocket](https://github.com/intuit/karate#websocket) tests, also see [`echo.feature`](src/test/java/demo/websocket/echo.feature).
-[`JavaApiTest.java`](src/test/java/demo/java/JavaApiTest.java) | If you need to call a Karate test from Java code you can do so using the [Java API](https://github.com/intuit/karate#java-api). This is useful in some situations, for example if you want to mix API-calls into a Selenium / WebDriver test.
+[`JavaApiTest.java`](src/test/java/demo/java/JavaApiTest.java) | If you need to call a Karate test from Java code you can do so using the [Java API](https://github.com/intuit/karate#java-api). This is useful in some situations, for example if you want to mix API-calls into a Selenium / WebDriver test. Also see [this](https://twitter.com/KarateDSL/status/1353969718730788865).
 
 ## Configuration and Best Practices
-| File | Demonstrates
-----------| --------
+Some common patterns are called out and explained below.
+File | Demonstrates
+---- | ------------
 [`karate-config.js`](src/test/java/karate-config.js) | Shows how the `demoBaseUrl` property is injected into all the test scripts [on startup](https://github.com/intuit/karate#configuration). Notice how JavaScript allows you to perform simple conditional logic and string manipulation, while still being a 'devops-friendly' plain-text file. It is good practice to set the `connectTimeout` and `readTimeout` so that your tests 'fail fast' if servers don't respond. For advanced users - you can even run a 'global' init routine using [`karate.callSingle()`](https://github.com/intuit/karate#the-karate-object).
 [`karate-config-contract.js`](src/test/java/karate-config-contract.js) | When your project gets complex, you can over-ride config per environment ([`karate.env`](https://github.com/intuit/karate#configuration)). Refer to the documentation on [environment specific config](https://github.com/intuit/karate#environment-specific-config).
 [`TestBase.java`](src/test/java/demo/TestBase.java) | This is specific to Spring Boot, but this code takes care of starting the embedded app-server and dynamically chooses a free port. The chosen port value is passed to the above config routine via a Java `System.setProperty()` call.
-[`DemoTest.java`](src/test/java/demo/DemoTest.java) | This Java class is strategically placed at the root of the [directory structure](https://github.com/intuit/karate#naming-conventions) containing `*.feature` files. Note how the `@KarateOptions` annotation allows you to skip any `*.feature` files if they have `@ignore` at the start.
-[`DemoTestParallel.java`](src/test/java/demo/DemoTestParallel.java) | Karate has a utility to [run tests in parallel](https://github.com/intuit/karate#parallel-execution) and this does not depend on JUnit, TestNG or even Maven. A JUnit XML report file and Cucumber JSON report file would be generated for each feature executed. You can easily configure your CI with the location of these files so that you get proper test-reports after a build. This is **the** recommended way of running Karate as part of an automated build or CI pipeline. Here, the (optional) third-party [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) library is being used (see details below).
+[`DemoTestParallel.java`](src/test/java/demo/DemoTestParallel.java) | Karate has a utility to [run tests in parallel](https://github.com/intuit/karate#parallel-execution) and this does not depend on JUnit, TestNG or even Maven. A Cucumber JSON report file would be generated for each feature executed. You can easily configure your CI with the location of these files so that you get proper test-reports after a build. This is **the** recommended way of running Karate as part of an automated build or CI pipeline. Here, the (optional) third-party [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) library is being used (see details below).
 [`pom.xml`](pom.xml) | Look out for how the [`maven-surefire-plugin`](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html) can be configured to point to what is basically your 'test-suite'. You may not even need to do this if you follow the [recommended naming conventions and folder structure](https://github.com/intuit/karate#naming-conventions), and then Maven defaults would work as you would expect. Note that this demo application has many dependencies that you will *not* need for a typical Karate project.
 
 ## Gradle
-This project contains an example [`build.gradle`](build.gradle) that can be used as a reference by Gradle users who want to use the [recommended directory structure](https://github.com/intuit/karate#naming-conventions).
-
-To generate the Gradle wrapper (as is usual for Gradle):
-
-```
-gradle wrapper
-```
-
-After that use the Gradle wrapper to run the tests:
-
-```
-./gradlew test
-```
+Refer to the wiki page: [Gradle](https://github.com/intuit/karate/wiki/Gradle).
 
 ## Example Report
 > This is optional and if you use the parallel runner as described above, the JUnit XML emitted is sufficient for most CI tools (e.g. Jenkins) to generate test reports and determine whether the build passed or failed. But the advantage of the approach below is that it includes HTTP request and response logs in-line with the report (see [video](https://twitter.com/KarateDSL/status/899671441221623809)).
@@ -65,7 +58,7 @@ Add the `net.masterthought:cucumber-reporting` jar as a dependency in `test` sco
 <dependency>
     <groupId>net.masterthought</groupId>
     <artifactId>cucumber-reporting</artifactId>
-    <version>3.8.0</version>
+    <version>5.3.1</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -83,11 +76,11 @@ Refer to the code in the demo: [`DemoTestParallel.java`](src/test/java/demo/Demo
 
 And here is the output, which goes into `target/cucumber-html-reports` if you follow the above steps:
 
-![Karate and Maven Cucumber Reporting](src/test/resources/karate-maven-report.jpg)
+<img src="src/test/resources/karate-maven-report.jpg" height="600px"/>
 
 This report is recommended especially because the HTTP request and response payloads are embedded. You can even see the results of [`print`](https://github.com/intuit/karate#print) statements in-line.
 
-![Report includes HTTP logs](src/test/resources/karate-maven-report-http.jpg)
+<img src="src/test/resources/karate-maven-report-http.jpg" height="600px"/>
 
 ## Code Coverage using Jacoco
 In the [`pom.xml`](pom.xml#L160), code coverage using [Jacoco](http://www.baeldung.com/jacoco) is also demonstrated. Since this is set-up as a [Maven profile](http://maven.apache.org/guides/introduction/introduction-to-profiles.html), instrumentation and code-coverage reporting would be performed only when you use the `coverage` profile. Note that code-coverage data (binary) would be saved to this file: `target/jacoco.exec`.
@@ -100,6 +93,12 @@ mvn clean test -Pcoverage
 
  And the HTML reports would be output to `target/site/jacoco/index.html`.
 
-![Jacoco Code Coverage Report](src/test/resources/karate-jacoco.jpg) 
+<img src="src/test/resources/karate-jacoco.jpg" height="300px"/>
 
 As this demo example shows - if you are able to start your app-server and run Karate tests in the same JVM process, code-coverage reports for even HTTP integration tests will be very easy to generate. This is even easier with the [karate-mock-servlet](../karate-mock-servlet) as you don't even need to boot an app-server.
+
+## Code Coverage for non-Java Projects
+This has been demonstrated for JavaScript by [Kirk Slota](https://twitter.com/kirk_slota). You can find a working sample here: [`karate-istanbul`](https://github.com/kirksl/karate-istanbul) - and you can read the [discussion at Stack Overflow](https://stackoverflow.com/q/59977566/143475) for more details.
+
+You should be able to use the same approach for other platforms. Note that there are plenty of ways to start a Karate test via the command-line, such as the [standalone JAR](https://github.com/intuit/karate/tree/master/karate-netty#standalone-jar).
+

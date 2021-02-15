@@ -3,7 +3,6 @@ Feature: cats stateful crud
   Background:
     * def uuid = function(){ return java.util.UUID.randomUUID() + '' }
     * def cats = {}
-    * def delay = function(){ java.lang.Thread.sleep(850) }
 
   Scenario: pathMatches('/cats') && methodIs('post')
     * def cat = request
@@ -20,9 +19,8 @@ Feature: cats stateful crud
     * def response = request
 
   Scenario: pathMatches('/cats/{id}') && methodIs('delete')
-    * karate.remove('cats', '$.' + pathParams.id)
-    * def response = ''
-    * def afterScenario = delay
+    * karate.remove('cats', pathParams.id)
+    * def responseDelay = 850
 
   Scenario: pathMatches('/cats/{id}')
     * def response = cats[pathParams.id]

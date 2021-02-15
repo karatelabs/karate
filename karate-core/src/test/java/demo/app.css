@@ -1,0 +1,6 @@
+body { font-family: sans-serif; } 
+table { border-collapse: collapse; } 
+table td { border: 1px solid gray; padding: 0.1em 0.2em; }
+button { font-size: medium; padding: 0.5em; margin: 0.5em; }
+.nav a { display: inline-block; padding: 0.5em; }
+.error { background-color: lightpink; }

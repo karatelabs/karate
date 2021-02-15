@@ -32,8 +32,6 @@ import java.util.List;
  */
 public class ScenarioOutline {
 
-    public static final String KEYWORD = "Scenario Outline";
-
     private final Feature feature;
     private final FeatureSection section;
 
@@ -48,15 +46,13 @@ public class ScenarioOutline {
         this.feature = feature;
         this.section = section;
     }
-    
-    public Scenario toScenario(String dynamicExpression, int exampleIndex, int line, List<Tag> tagsForExamples) {
+
+    public Scenario toScenario(String dynamicExpression, int exampleIndex, int updateLine, List<Tag> tagsForExamples) {
         Scenario s = new Scenario(feature, section, exampleIndex);
         s.setName(name);
         s.setDescription(description);
+        s.setLine(updateLine);
         s.setDynamicExpression(dynamicExpression);
-        s.setExampleIndex(exampleIndex);
-        s.setOutline(true);
-        s.setLine(line);
         if (tags != null || tagsForExamples != null) {
             List<Tag> temp = new ArrayList();
             if (tags != null) {
@@ -70,7 +66,7 @@ public class ScenarioOutline {
         List<Step> temp = new ArrayList(steps.size());
         s.setSteps(temp);
         for (Step original : steps) {
-            Step step = new Step(feature, s, original.getIndex());
+            Step step = new Step(s, original.getIndex());
             temp.add(step);
             step.setLine(original.getLine());
             step.setEndLine(original.getEndLine());
@@ -80,14 +76,15 @@ public class ScenarioOutline {
             step.setTable(original.getTable());
         }
         return s;
-    }    
+    }
 
     public List<Scenario> getScenarios() {
         List<Scenario> list = new ArrayList();
         for (ExamplesTable examples : examplesTables) {
             Table table = examples.getTable();
             if (table.isDynamic()) {
-                Scenario scenario = toScenario(table.getDynamicExpression(), -1, line, examples.getTags());
+                // technically row index 0 to denote an example (not -1)
+                Scenario scenario = toScenario(table.getDynamicExpression(), 0, table.getLineNumberForRow(0), examples.getTags());
                 list.add(scenario);
             } else {
                 int rowCount = table.getRows().size();

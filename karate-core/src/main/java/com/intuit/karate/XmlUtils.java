@@ -25,6 +25,7 @@ package com.intuit.karate;
 
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
@@ -34,7 +35,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
@@ -47,6 +47,7 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
+
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -58,7 +59,6 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 /**
- *
  * @author pthomas3
  */
 public class XmlUtils {
@@ -163,7 +163,7 @@ public class XmlUtils {
             return path;
         }
         StringBuilder sb = new StringBuilder();
-        for (String s : StringUtils.split(path, '/')) {
+        for (String s : StringUtils.split(path, '/', false)) {
             sb.append('/');
             int pos = s.lastIndexOf(':');
             if (pos == -1) {
@@ -301,7 +301,7 @@ public class XmlUtils {
         return childElementCount;
     }
 
-    private static Object getElementAsObject(Node node) {
+    private static Object getElementAsObject(Node node, boolean removeNamespace) {
         int childElementCount = getChildElementCount(node);
         if (childElementCount == 0) {
             return StringUtils.trimToNull(node.getTextContent());
@@ -314,8 +314,9 @@ public class XmlUtils {
             if (child.getNodeType() != Node.ELEMENT_NODE) {
                 continue;
             }
-            String childName = child.getNodeName();
-            Object childValue = toObject(child);
+            String childName = removeNamespace
+                    ? child.getNodeName().replaceFirst("(^.*:)", "") : child.getNodeName();
+            Object childValue = toObject(child, removeNamespace);
             // auto detect repeating elements
             if (map.containsKey(childName)) {
                 Object temp = map.get(childName);
@@ -336,18 +337,39 @@ public class XmlUtils {
     }
 
     public static Object toObject(Node node) {
+        return toObject(node, false);
+    }
+
+    public static Object toObject(Node node, boolean removeNamespace) {
         if (node.getNodeType() == Node.DOCUMENT_NODE) {
-            node = node.getFirstChild();
             Map<String, Object> map = new LinkedHashMap<>(1);
-            map.put(node.getNodeName(), toObject(node));
+            node = node.getFirstChild();
+            if (node == null) {
+                return map;
+            }
+            while (node.getNodeType() != Node.ELEMENT_NODE) { // ignore comments etc
+                node = node.getNextSibling();
+            }
+            String name = removeNamespace
+                    ? node.getNodeName().replaceFirst("(^.*:)", "") : node.getNodeName();
+            map.put(name, toObject(node, removeNamespace));
             return map;
         }
-        Object value = getElementAsObject(node);
+        Object value = getElementAsObject(node, removeNamespace);
         if (node.hasAttributes()) {
-            Map<String, Object> wrapper = new LinkedHashMap<>(2);
-            wrapper.put("_", value);
-            wrapper.put("@", getAttributes(node));
-            return wrapper;
+            Map<String, Object> attribs = getAttributes(node);
+            if (removeNamespace) {
+                attribs.keySet().removeIf(key -> "xmlns".equals(key) || key.startsWith("xmlns:"));
+            }
+            if (attribs.size() > 0) {
+                Map<String, Object> wrapper = new LinkedHashMap<>(2);
+                wrapper.put("_", value);
+                wrapper.put("@", attribs);
+                return wrapper;
+            } else {
+                //namespaces were the only attributes
+                return value;
+            }
         } else {
             return value;
         }
@@ -440,13 +462,24 @@ public class XmlUtils {
     }
 
     public static Document toXmlDoc(Object o) {
-        DocumentContext json = JsonUtils.toJsonDoc(o);
-        Object mapOrArray = json.read("$"); // for pojos will always be a map
-        return fromObject("root", mapOrArray); // keep it simple for people to write generic xpath starting with /root
+        return fromObject("root", Json.of(o).value()); // keep it simple for people to write generic xpath starting with /root
     }
 
     public static String toXml(Object o) {
         return toString(toXmlDoc(o));
+    }
+
+    public static boolean isXml(String s) {
+        if (s == null || s.isEmpty()) {
+            return false;
+        }
+        if (s.charAt(0) == ' ') {
+            s = s.trim();
+            if (s.isEmpty()) {
+                return false;
+            }
+        }
+        return s.charAt(0) == '<';
     }
 
 }

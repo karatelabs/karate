@@ -442,3 +442,63 @@ Scenario: repeated xml elements and fuzzy matching
     * match response == { response: { foo: { bar: '#[] bar.bar' } } }
     # so yes, we can express expected data in xml
     * match response == <response><foo><bar>#[] bar.bar</bar></foo></response>
+
+Scenario: matching ignores xml prefixes
+    * def search = { number: '123456', wireless: true, voip: false, tollFree: false }
+    * def xml = read('soap1.xml')
+
+    * def phoneNumberSearchOption =
+    """
+    <foo:phoneNumberSearchOption xmlns:foo="http://foo/bar">
+        <foo:searchWirelessInd>#(search.wireless)</foo:searchWirelessInd>
+        <foo:searchVoipInd>#(search.voip)</foo:searchVoipInd>
+        <foo:searchTollFreeInd>#(search.tollFree)</foo:searchTollFreeInd>
+    </foo:phoneNumberSearchOption>
+    """
+    * match xml /Envelope/Body/getAccountByPhoneNumber/phoneNumberSearchOption == phoneNumberSearchOption
+
+Scenario: xml to map conversion should ignore comments
+* def temp =
+"""
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2001-2019 3rd party which has been removed. All rights reserved. -->
+
+<!-- PRODUCTION HEADER
+     produced on:        machine of third party
+     production time:    20190912T162512,4Z
+     production module:  3rd party module
+-->
+<hello>world</hello>
+"""
+* def message = karate.xmlPath(temp, "/hello")
+* match message == "world"
+
+Scenario: xml matching involving karate-schema substitutions
+* def subSchema =
+"""
+<c>#string</c>
+"""
+* def schema =
+"""
+<root>
+  <a>#string</a>
+  <b>##(subSchema)</b>
+</root>
+"""
+* def test1 =
+"""
+<root>
+  <a>x</a>
+  <b>
+    <c>y</c>
+  </b>
+</root>
+"""
+* match test1 == schema
+* def test2 =
+"""
+<root>
+  <a>x</a>
+</root>
+"""
+* match test2 == schema

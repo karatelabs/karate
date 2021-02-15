@@ -24,14 +24,10 @@
 package com.intuit.karate.driver.chrome;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.Http;
-import com.intuit.karate.Json;
 import com.intuit.karate.LogAppender;
-import com.intuit.karate.ScriptValue;
-import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.WebDriver;
+import com.intuit.karate.http.Response;
 import java.util.Map;
 
 /**
@@ -40,47 +36,17 @@ import java.util.Map;
  */
 public class ChromeWebDriver extends WebDriver {
 
-    public ChromeWebDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
-        super(options, command, http, sessionId, windowId);
+    public ChromeWebDriver(DriverOptions options) {
+        super(options);
     }
 
-    public static ChromeWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(context, map, appender, 9515, "chromedriver");
+    public static ChromeWebDriver start(Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(map, appender, 9515, "chromedriver");
         options.arg("--port=" + options.port);
-        options.arg("--user-data-dir=" + options.workingDirPath);
-        Command command = options.startProcess();
-        String urlBase = "http://" + options.host + ":" + options.port;
-        Http http = Http.forUrl(options.driverLogger.getAppender(), urlBase);
-        String sessionId = http.path("session")
-                .post(options.getCapabilities())
-                .jsonPath("get[0] response..sessionId").asString();
-        options.driverLogger.debug("init session id: {}", sessionId);
-        http.url(urlBase + "/session/" + sessionId);
-        String windowId = http.path("window").get().jsonPath("$.value").asString();
-        options.driverLogger.debug("init window id: {}", windowId);
-        ChromeWebDriver driver = new ChromeWebDriver(options, command, http, sessionId, windowId);
-        driver.activate();
-        return driver;
-    }
-
-    @Override
-    protected String getElementKey() {
-        return "ELEMENT";
-    }
-
-    @Override
-    protected String getJsonForInput(String text) {
-        return "{ value: ['" + text + "'] }";
-    }
-
-    @Override
-    protected String getJsonForHandle(String text) {
-        return new Json().set("name", text).toString();
-    }
-
-    @Override
-    protected String getJsonForFrame(String text) {
-        return new Json().set("id.ELEMENT", text).toString();
+        if (options.userDataDir != null) {
+            options.arg("--user-data-dir=" + options.userDataDir);
+        }
+        return new ChromeWebDriver(options);
     }
 
     @Override
@@ -101,34 +67,21 @@ public class ChromeWebDriver extends WebDriver {
     }
 
     @Override
-    public void switchFrame(String locator) {
-        if (locator == null) { // reset to parent frame
-            http.path("frame", "parent").post("{}");
-            return;
-        }
-        retryIfEnabled(locator, () -> {
-            String id = elementId(locator);
-            http.path("frame").post(getJsonForFrame(id));
-            return null;
-        });
+    protected boolean isJavaScriptError(Response res) {
+        Object value = res.json().get("value");
+        return value != null && value.toString().contains("javascript error");
     }
 
     @Override
-    protected boolean isJavaScriptError(Http.Response res) {
-        ScriptValue value = res.jsonPath("$.value").value();
-        return !value.isNull() && value.getAsString().contains("javascript error");
-    }        
+    protected boolean isLocatorError(Response res) {
+        Object value = res.json().get("value");
+        return value.toString().contains("no such element");
+    }
 
     @Override
-    protected boolean isLocatorError(Http.Response res) {
-        ScriptValue value = res.jsonPath("$.value").value();
-        return value.getAsString().contains("no such element");
-    }  
-
-    @Override
-    protected boolean isCookieError(Http.Response res) {
-        ScriptValue value = res.jsonPath("$.value").value();
-        return !value.isNull() && value.getAsString().contains("unable to set cookie");
-    }        
+    protected boolean isCookieError(Response res) {
+        Object value = res.json().get("value");
+        return value != null && value.toString().contains("unable to set cookie");
+    }
 
 }

@@ -1,33 +1,39 @@
 package payment.producer.contract;
 
-import com.intuit.karate.KarateOptions;
-import com.intuit.karate.junit4.Karate;
-import payment.producer.PaymentService;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
+import com.intuit.karate.Results;
+import com.intuit.karate.Runner;
+import org.junit.jupiter.api.AfterAll;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.springframework.context.ConfigurableApplicationContext;
+import payment.producer.PaymentService;
 
 /**
  *
  * @author pthomas3
  */
-@RunWith(Karate.class)
-@KarateOptions(features = "classpath:payment/producer/contract/payment-contract.feature")
-public class PaymentContractTest {
-    
-    private static ConfigurableApplicationContext context;
-    
-    @BeforeClass
-    public static void beforeClass() {
+class PaymentContractTest {
+
+    static ConfigurableApplicationContext context;
+
+    @BeforeAll
+    static void beforeAll() {
         context = PaymentService.start();
-        String paymentServiceUrl = "http://localhost:" + PaymentService.getPort(context);
-        System.setProperty("payment.service.url", paymentServiceUrl);
     }
-    
-    @AfterClass
-    public static void afterClass() {
+
+    @Test
+    void testReal() {
+        String paymentServiceUrl = "http://localhost:" + PaymentService.getPort(context);
+        Results results = Runner.path("classpath:payment/producer/contract/payment-contract.feature")
+                .systemProperty("payment.service.url", paymentServiceUrl)
+                .parallel(1);
+        assertTrue(results.getFailCount() == 0, results.getErrorMessages());
+    }
+
+    @AfterAll
+    static void afterAll() {
         PaymentService.stop(context);
-    }    
-    
+    }
+
 }

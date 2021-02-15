@@ -1,8 +1,6 @@
 package driver.core;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.netty.FeatureServer;
-import java.io.File;
+import com.intuit.karate.core.MockServer;
 import org.junit.Test;
 
 /**
@@ -10,12 +8,11 @@ import org.junit.Test;
  * @author pthomas3
  */
 public class MockRunner {
-    
+
     @Test
     public void testStart() {
-        File file = FileUtils.getFileRelativeTo(MockRunner.class, "_mock.feature");
-        FeatureServer server = FeatureServer.start(file, 8080, false, null);    
+        MockServer server = MockServer.feature("classpath:driver/core/_mock.feature").http(8080).build();
         server.waitSync();
     }
-    
+
 }

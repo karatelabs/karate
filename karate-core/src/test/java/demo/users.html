@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Users</title>
+    <script ka:scope="global"></script>
+    <link rel="stylesheet" href="app.css" type="text/css"/>
+  </head>
+  <body>
+    <script ka:scope="global">
+      var http = context.http('https://jsonplaceholder.typicode.com/users');
+      var users = http.get().body;
+      // console.log('users', users);
+    </script>    
+    <p>Users</p>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>E-Mail</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="user: users">
+          <td th:text="user.id"></td>
+          <td th:text="user.name"></td>
+          <td th:text="user.email"></td>
+          <td th:insert="user" ka:target="this"></td>
+        </tr>
+      </tbody>
+    </table>    
+  </body>
+</html>
+
+
+
+

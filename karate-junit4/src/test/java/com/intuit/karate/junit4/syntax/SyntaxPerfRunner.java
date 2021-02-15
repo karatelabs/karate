@@ -22,6 +22,7 @@ public class SyntaxPerfRunner {
         // 25.5 seconds for git 76c92bd
         // 14.0 seconds after refactoring
         // 11.0 seconds after second wave git 20445d5
+        //  9.0 seconds on new mac 6795ae8
     }
     
     public static void main(String[] args) {

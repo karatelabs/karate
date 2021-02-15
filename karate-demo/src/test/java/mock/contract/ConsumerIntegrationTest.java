@@ -42,7 +42,7 @@ public class ConsumerIntegrationTest {
             }
         });
         synchronized(this) {
-            wait();
+            wait(10000);
         }
     }
     

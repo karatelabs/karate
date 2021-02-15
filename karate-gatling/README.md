@@ -1,5 +1,47 @@
 # Karate Gatling
 ## API Perf-Testing Made `Simple.`
+
+# Index
+
+<table>
+<tr>
+  <th>Start</th>
+  <td>
+      <a href="#maven">Maven</a>
+    | <a href="#gradle">Gradle</a>
+    | <a href="#logging">Logging</a>
+    | <a href="#limitations">Limitations</a>
+    | <a href="#usage">Usage</a>    
+  </td>
+</tr>
+<tr>
+  <th>API</th>
+  <td>
+      <a href="#karateprotocol"><code>karateProtocol()</code></a>
+    | <a href="#nameresolver"><code>nameResolver</code></a>
+    | <a href="#pausefor"><code>pauseFor()</code></a>
+    | <a href="#karatefeature"><code>karateFeature()</code></a>
+    | <a href="#tag-selector">Tag Selector</a>
+    | <a href="#ignore-tags">Ignore Tags</a>
+  </td>
+</tr>
+<tr>
+  <th>Advanced</th>
+  <td>
+      <a href="#gatling-session">Session</a>
+    | <a href="#feeders">Feeders</a>
+    | <a href="#karatecallsingle"><code>karate.callSingle()</code></a>
+    | <a href="#detecting-gatling-at-run-time">Detecting Gatling At Run Time</a>
+    | <a href="#think-time">Think Time</a>
+    | <a href="#configure-localaddress"><code>configure localAddress</code></a>
+    | <a href="#custom">Profiling Custom Java Code</a>
+    | <a href="#captureperfevent"><code>PerfContext.capturePerfEvent()</code></a>
+    | <a href="#increasing-thread-pool-size">Increasing Thread Pool Size</a>
+    | <a href="#distributed-testing">Distributed Testing</a>   
+  </td>
+</tr>
+</table>
+
 ### Capabilities
 * Re-use Karate tests as performance tests executed by [Gatling](https://gatling.io)
 * Use Gatling (and Scala) only for defining the load-model, everything else can be in Karate
@@ -65,14 +107,17 @@ It is worth calling out that in the sample project, we are perf-testing [Karate 
 
 ### Gradle
 
-For those who use [Gradle](https://gradle.org), this sample [`build.gradle`](build.gradle) provides a `gatlingRun` task that executes the Gatling test of the `karate-netty` project - which you can use as a reference. The approach is fairly simple, and does not require the use of any Gradle Gatling plugins.
+For those who use [Gradle](https://gradle.org), this sample [`build.gradle`](../examples/gatling/build.gradle) provides a `gatlingRun` task that executes the Gatling test of the `karate-netty` project - which you can use as a reference. The approach is fairly simple, and does not require the use of any Gradle Gatling plugins.
 
 Most problems when using Karate with Gradle occur when "test-resources" are not configured properly. So make sure that all your `*.js` and `*.feature` files are copied to the "resources" folder - when you build the project.
 
 ## Limitations
 As of now the Gatling concept of ["throttle" and related syntax](https://gatling.io/docs/2.3/general/simulation_setup/#simulation-setup-throttling) is not supported. Most teams don't need this, but you can declare "pause" times in Karate, see [`pauseFor()`](#pausefor).
 
-Also the concept of Gatling "[groups](https://gatling.io/docs/2.3/general/scenario/#groups-definition)" is not supported where you can have sub-groups within groups. However custom grouping via the [`nameResolver`](#nameresolver) is sufficient for most teams.
+## Logging
+Once you have your performance tests working, you may want to tune the logging config. Note that there are options to [reduce or completely suppress](https://github.com/intuit/karate#logging) the console logging.
+
+Also note that the [`logback-test.xml`](../examples/gatling/src/test/java/logback-test.xml) in the examples project uses [`<immediateFlush>false</immediateFlush>`](http://logback.qos.ch/manual/appenders.html#OutputStreamAppender).
 
 ## Usage
 
@@ -244,6 +289,8 @@ And now, whenever you need, you can add a pause between API invocations in a fea
 
 You can see how the `pause()` function can be a no-op when *not* a Gatling test, which is probably what you would do most of the time. You can have your "think-times" apply *only* when running as a load test.
 
+Refer to the main documentation on how to [achieve code re-use](https://github.com/intuit/karate/tree/develop#multiple-functions-in-one-file) if you don't want to define the `pause` function in multiple features.
+
 ## `configure localAddress`
 > This is implemented only for the `karate-apache` HTTP client. Note that the IP address needs to be [*physically assigned* to the local machine](https://www.blazemeter.com/blog/how-to-send-jmeter-requests-from-different-ips/).
 
@@ -304,9 +351,31 @@ Scenario: fifty
   * match response == { success: true }
 ```
 
-The `karate` object happens to implement the `PerfContext` interface and keeps your code simple. Note how the `myRpc` method has been implemented to accept a `Map` (auto-converted from JSON) and the `PerfContext` as arguments. 
+The `karate` object happens to implement the `PerfContext` interface and keeps your code simple. Note how the `myRpc` method has been [implemented to accept a `Map`](https://github.com/intuit/karate#calling-java) (auto-converted from JSON) and the `PerfContext` as arguments. 
 
 Like the built-in HTTP support, any test failures are automatically linked to the previous "perf event" captured.
+
+## Increasing Thread Pool Size
+The defaults should suffice most of the time, but if you see odd behavior such as freezing of a test, you can change the settings for the underlying Akka engine. A typical situation is when one of your responses takes a very long time to respond (30-60 seconds) and the system is stuck waiting for threads to be freed.
+
+Add a file called [`gatling-akka.conf`](src/test/resources/gatling-akka.conf) to the root of the classpath (typically `src/test/resources`). Here is an example:
+
+```
+akka {
+  actor {
+    default-dispatcher {
+      type = Dispatcher
+      executor = "thread-pool-executor"
+      thread-pool-executor {
+        fixed-pool-size = 100
+      }
+      throughput = 1
+    }
+  }
+}
+```
+
+So now the system can go up to 100 threads waiting for responses. You can experiment with more settings as [described here](https://doc.akka.io/docs/akka/current/typed/dispatchers.html). Of course a lot will depend on the compute resources (CPU, RAM) available on the machine on which you are running a test.
 
 ## Distributed Testing
 See wiki: [Distributed Testing](https://github.com/intuit/karate/wiki/Distributed-Testing#gatling)

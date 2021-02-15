@@ -1,0 +1,314 @@
+{
+    "line": 2,
+    "elements": [
+        {
+            "line": 5,
+            "name": "",
+            "description": "",
+            "type": "background",
+            "keyword": "Background",
+            "steps": [
+                {
+                    "name": "print 'in background'",
+                    "result": {
+                        "duration": "#number",
+                        "status": "passed"
+                    },
+                    "match": {
+                        "location": "karate",
+                        "arguments": [
+                        ]
+                    },
+                    "keyword": "*",
+                    "line": 6,
+                    "doc_string": {
+                        "content_type": "",
+                        "value": "#string",
+                        "line": 6
+                    }
+                }
+            ]
+        },
+        {
+            "line": 9,
+            "name": "hello world",
+            "description": "",
+            "id": "hello-world",
+            "type": "scenario",
+            "keyword": "Scenario",
+            "steps": [
+                {
+                    "name": "print 'before'",
+                    "result": {
+                        "duration": "#number",
+                        "status": "passed"
+                    },
+                    "match": {
+                        "location": "karate",
+                        "arguments": [
+                        ]
+                    },
+                    "keyword": "*",
+                    "line": 10,
+                    "doc_string": {
+                        "content_type": "",
+                        "value": "#string",
+                        "line": 10
+                    }
+                },
+                {
+                    "name": "call read('feature-result-called.feature')",
+                    "result": {
+                        "duration": "#number",
+                        "status": "passed"
+                    },
+                    "match": {
+                        "location": "karate",
+                        "arguments": [
+                        ]
+                    },
+                    "keyword": "*",
+                    "line": 11
+                },
+                {
+                    "name": "com\/intuit\/karate\/core\/feature-result-called.feature",
+                    "result": {
+                        "duration": 0,
+                        "status": "passed"
+                    },
+                    "match": {
+                        "location": "karate",
+                        "arguments": [
+                        ]
+                    },
+                    "keyword": "",
+                    "line": 11
+                },
+                {
+                    "name": "print 'in called'",
+                    "result": {
+                        "duration": "#number",
+                        "status": "passed"
+                    },
+                    "match": {
+                        "location": "karate",
+                        "arguments": [
+                        ]
+                    },
+                    "keyword": "> *",
+                    "line": 4,
+                    "doc_string": {
+                        "content_type": "",
+                        "value": "#string",
+                        "line": 4
+                    }
+                },
+                {
+                    "name": "karate.embed('<h1>hello world<\/h1>', 'text\/html')",
+                    "result": {
+                        "duration": "#number",
+                        "status": "passed"
+                    },
+                    "match": {
+                        "location": "karate",
+                        "arguments": [
+                        ]
+                    },
+                    "embeddings": [
+                        {
+                            "data": "PGgxPmhlbGxvIHdvcmxkPC9oMT4=",
+                            "mime_type": "text\/html"
+                        }
+                    ],
+                    "keyword": "> *",
+                    "line": 5
+                },
+                {
+                    "name": "print 'after embed'",
+                    "result": {
+                        "duration": "#number",
+                        "status": "passed"
+                    },
+                    "match": {
+                        "location": "karate",
+                        "arguments": [
+                        ]
+                    },
+                    "keyword": "> *",
+                    "line": 6,
+                    "doc_string": {
+                        "content_type": "",
+                        "value": "#string",
+                        "line": 6
+                    }
+                },
+                {
+                    "name": "print 'after'",
+                    "result": {
+                        "duration": "#number",
+                        "status": "passed"
+                    },
+                    "match": {
+                        "location": "karate",
+                        "arguments": [
+                        ]
+                    },
+                    "keyword": "*",
+                    "line": 12,
+                    "doc_string": {
+                        "content_type": "",
+                        "value": "#string",
+                        "line": 12
+                    }
+                }
+            ],
+            "tags": [
+                {
+                    "name": "@one",
+                    "line": 1
+                },
+                {
+                    "name": "@two",
+                    "line": 8
+                }
+            ]
+        },
+        {
+            "line": 5,
+            "name": "",
+            "description": "",
+            "type": "background",
+            "keyword": "Background",
+            "steps": [
+                {
+                    "name": "print 'in background'",
+                    "result": {
+                        "duration": "#number",
+                        "status": "passed"
+                    },
+                    "match": {
+                        "location": "karate",
+                        "arguments": [
+                        ]
+                    },
+                    "keyword": "*",
+                    "line": 6,
+                    "doc_string": {
+                        "content_type": "",
+                        "value": "#string",
+                        "line": 6
+                    }
+                }
+            ]
+        },
+        {
+            "line": 19,
+            "name": "hello foo",
+            "description": "",
+            "id": "hello-foo",
+            "type": "scenario",
+            "keyword": "Scenario",
+            "steps": [
+                {
+                    "name": "print 'name:', name",
+                    "result": {
+                        "duration": "#number",
+                        "status": "passed"
+                    },
+                    "match": {
+                        "location": "karate",
+                        "arguments": [
+                        ]
+                    },
+                    "keyword": "*",
+                    "line": 15,
+                    "doc_string": {
+                        "content_type": "",
+                        "value": "#string",
+                        "line": 15
+                    }
+                }
+            ],
+            "tags": [
+                {
+                    "name": "@one",
+                    "line": 1
+                }
+            ]
+        },
+        {
+            "line": 5,
+            "name": "",
+            "description": "",
+            "type": "background",
+            "keyword": "Background",
+            "steps": [
+                {
+                    "name": "print 'in background'",
+                    "result": {
+                        "duration": "#number",
+                        "status": "passed"
+                    },
+                    "match": {
+                        "location": "karate",
+                        "arguments": [
+                        ]
+                    },
+                    "keyword": "*",
+                    "line": 6,
+                    "doc_string": {
+                        "content_type": "",
+                        "value": "#string",
+                        "line": 6
+                    }
+                }
+            ]
+        },
+        {
+            "line": 20,
+            "name": "hello bar",
+            "description": "",
+            "id": "hello-bar",
+            "type": "scenario",
+            "keyword": "Scenario",
+            "steps": [
+                {
+                    "name": "print 'name:', name",
+                    "result": {
+                        "duration": "#number",
+                        "status": "passed"
+                    },
+                    "match": {
+                        "location": "karate",
+                        "arguments": [
+                        ]
+                    },
+                    "keyword": "*",
+                    "line": 15,
+                    "doc_string": {
+                        "content_type": "",
+                        "value": "#string",
+                        "line": 15
+                    }
+                }
+            ],
+            "tags": [
+                {
+                    "name": "@one",
+                    "line": 1
+                }
+            ]
+        }
+    ],
+    "name": "com\/intuit\/karate\/core\/feature-result.feature",
+    "description": "my feature\nmy description",
+    "id": "my-feature",
+    "keyword": "Feature",
+    "uri": "com\/intuit\/karate\/core\/feature-result.feature",
+    "tags": [
+        {
+            "name": "@one",
+            "line": 1
+        }
+    ]
+}

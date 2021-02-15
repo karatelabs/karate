@@ -23,6 +23,9 @@
  */
 package com.intuit.karate.driver;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  *
  * @author pthomas3
@@ -31,9 +34,13 @@ public interface Element {
 
     String getLocator(); // getter
 
-    boolean isExists(); // getter
+    boolean isPresent(); // getter
 
     boolean isEnabled(); // getter
+    
+    Map<String, Object> getPosition(); // getter
+    
+    byte[] screenshot();
 
     Element highlight();
 
@@ -60,11 +67,11 @@ public interface Element {
     Element switchFrame();
 
     Element delay(int millis);
-    
+
     Element retry();
-    
+
     Element retry(int count);
-    
+
     Element retry(Integer count, Integer interval);
 
     Element waitFor();
@@ -74,6 +81,14 @@ public interface Element {
     Element waitForText(String text);
 
     Object script(String expression);
+    
+    Element optional(String locator);
+    
+    boolean exists(String locator);
+    
+    Element locate(String locator);
+    
+    List<Element> locateAll(String locator);
 
     String getHtml(); // getter
 
@@ -86,6 +101,22 @@ public interface Element {
     String getValue(); // getter
 
     void setValue(String value); // setter
+    
+    String attribute(String name);
+    
+    String property(String name);
+    
+    Element getParent(); // getter
+    
+    Element getFirstChild(); // getter
+            
+    Element getLastChild(); // getter
+    
+    Element getPreviousSibling(); // getter
+    
+    Element getNextSibling(); // getter
+    
+    List<Element> getChildren();
     
     Finder rightOf();
     

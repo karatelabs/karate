@@ -1,4 +1,4 @@
-@ignore
+@ignore @report=false
 Feature:
 
 Scenario:

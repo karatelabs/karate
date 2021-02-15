@@ -24,12 +24,9 @@
 package com.intuit.karate.driver.safari;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.Http;
-import com.intuit.karate.JsonUtils;
 import com.intuit.karate.LogAppender;
-import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Map;
 
@@ -39,26 +36,14 @@ import java.util.Map;
  */
 public class SafariWebDriver extends WebDriver {
 
-    public SafariWebDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
-        super(options, command, http, sessionId, windowId);
+    public SafariWebDriver(DriverOptions options) {
+        super(options);
     }
 
-    public static SafariWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(context, map, appender, 5555, "safaridriver");
+    public static SafariWebDriver start(Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(map, appender, 5555, "safaridriver");
         options.arg("--port=" + options.port);
-        Command command = options.startProcess();
-        String urlBase = "http://" + options.host + ":" + options.port;
-        Http http = Http.forUrl(options.driverLogger.getAppender(), urlBase);
-        String sessionId = http.path("session")
-                .post(options.getCapabilities())
-                .jsonPath("get[0] response..sessionId").asString();
-        options.driverLogger.debug("init session id: {}", sessionId);
-        http.url(urlBase + "/session/" + sessionId);
-        String windowId = http.path("window").get().jsonPath("$.value").asString();
-        options.driverLogger.debug("init window id: {}", windowId);
-        SafariWebDriver driver = new SafariWebDriver(options, command, http, sessionId, windowId);
-        driver.activate();
-        return driver;
+        return new SafariWebDriver(options);
     }
 
     @Override
@@ -73,7 +58,7 @@ public class SafariWebDriver extends WebDriver {
             map.put("y", y < 2 ? 2 : y);
         }
         String json = JsonUtils.toJson(map);
-        http.path("window", "rect").post(json);
+        http.path("window", "rect").postJson(json);
     }    
     
     @Override

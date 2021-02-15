@@ -11,11 +11,9 @@ Scenario: json post with charset
     When method post
     Then status 200    
     And match header content-type contains 'application/json'
-    And match header content-type contains 'charset=UTF-8'
     And def response = karate.lowerCase(response)
     And def temp = response['content-type'][0]
     And match temp contains 'application/json'
-    And match temp contains 'charset=utf-8'
 
 Scenario: form post with charset
     Given path 'search', 'headers'
@@ -65,7 +63,7 @@ Scenario: json post with with unusual content-type and configure-headers
     And match temp contains 'charset=utf-8'
     And match temp contains 'ton-version=1'
 
-@apache @mock-servlet-todo
+@mock-servlet-todo
 Scenario: empty string as content-type
     Given path 'search', 'headers'
     And header Content-Type = ''

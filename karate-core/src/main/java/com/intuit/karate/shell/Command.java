@@ -29,57 +29,107 @@ import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.InputStreamReader;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.net.SocketAddress;
+import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Command extends Thread {
 
     protected static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Command.class);
 
+    private final boolean useLineFeed;
     private final File workingDir;
     private final String uniqueName;
     private final Logger logger;
     private final String[] args;
-    private final List argList;
+    private final List argList; // just for logging
     private final boolean sharedAppender;
     private final LogAppender appender;
 
-    private boolean useLineFeed;
     private Map<String, String> environment;
+    private Consumer<String> listener;
+    private Consumer<String> errorListener;
+    private boolean redirectErrorStream = true;
+    private Console sysOut;
+    private Console sysErr;
     private Process process;
     private int exitCode = -1;
+    private Exception failureReason;
+
+    private int pollAttempts = 30;
+    private int pollInterval = 250;
+
+    public void setPollAttempts(int pollAttempts) {
+        this.pollAttempts = pollAttempts;
+    }
+
+    public void setPollInterval(int pollInterval) {
+        this.pollInterval = pollInterval;
+    }
+
+    public synchronized boolean isFailed() {
+        return failureReason != null;
+    }
+
+    public Exception getFailureReason() {
+        return failureReason;
+    }
 
     public void setEnvironment(Map<String, String> environment) {
         this.environment = environment;
-    }        
+    }
 
-    public void setUseLineFeed(boolean useLineFeed) {
-        this.useLineFeed = useLineFeed;
-    }        
+    public void setListener(Consumer<String> listener) {
+        this.listener = listener;
+    }
+
+    public void setErrorListener(Consumer<String> errorListener) {
+        this.errorListener = errorListener;
+    }
+
+    public void setRedirectErrorStream(boolean redirectErrorStream) {
+        this.redirectErrorStream = redirectErrorStream;
+    }
+
+    public String getSysOut() {
+        return sysOut == null ? null : sysOut.getBuffer();
+    }
+
+    public String getSysErr() {
+        return sysErr == null ? null : sysErr.getBuffer();
+    }
 
     public static String exec(boolean useLineFeed, File workingDir, String... args) {
-        Command command = new Command(workingDir, args);
-        command.setUseLineFeed(useLineFeed);
+        Command command = new Command(useLineFeed, workingDir, args);
         command.start();
         command.waitSync();
-        return command.appender.collect();
+        return command.getSysOut();
     }
-    
+
+    private static final Pattern CLI_ARG = Pattern.compile("\"([^\"]*)\"[^\\S]|(\\S+)");
+
     public static String[] tokenize(String command) {
-        StringTokenizer st = new StringTokenizer(command);
-        String[] args = new String[st.countTokens()];
-        for (int i = 0; st.hasMoreTokens(); i++) {
-            args[i] = st.nextToken();
-        } 
-        return args;
+        List<String> args = new ArrayList();
+        Matcher m = CLI_ARG.matcher(command + " ");
+        while (m.find()) {
+            if (m.group(1) != null) {
+                args.add(m.group(1));
+            } else {
+                args.add(m.group(2));
+            }
+        }
+        return args.toArray(new String[args.size()]);
     }
 
     public static String execLine(File workingDir, String command) {
@@ -90,9 +140,26 @@ public class Command extends Thread {
         return FileUtils.getBuildDir();
     }
 
+    public static String[] prefixShellArgs(String[] args) {
+        List<String> list = new ArrayList();
+        switch (FileUtils.getOsType()) {
+            case WINDOWS:
+                list.add("cmd");
+                list.add("/c");
+                break;
+            default:
+                list.add("sh");
+                list.add("-c");
+        }
+        for (String arg : args) {
+            list.add(arg);
+        }
+        return list.toArray(new String[list.size()]);
+    }
+
     private static final Set<Integer> PORTS_IN_USE = ConcurrentHashMap.newKeySet();
 
-    public static int getFreePort(int preferred) {
+    public static synchronized int getFreePort(int preferred) {
         if (preferred != 0 && PORTS_IN_USE.contains(preferred)) {
             LOGGER.trace("preferred port {} in use (karate), will attempt to find free port ...", preferred);
             preferred = 0;
@@ -115,17 +182,47 @@ public class Command extends Thread {
         }
     }
 
+    private static void sleep(int millis) {
+        try {
+            LOGGER.trace("sleeping for millis: {}", millis);
+            Thread.sleep(millis);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public boolean waitForPort(String host, int port) {
+        int attempts = 0;
+        do {
+            SocketAddress address = new InetSocketAddress(host, port);
+            try {
+                if (isFailed()) {
+                    throw failureReason;
+                }
+                logger.debug("poll attempt #{} for port to be ready - {}:{}", attempts, host, port);
+                SocketChannel sock = SocketChannel.open(address);
+                sock.close();
+                return true;
+            } catch (Exception e) {
+                sleep(pollInterval);
+            }
+        } while (attempts++ < pollAttempts);
+        return false;
+    }
+
+    private static final int SLEEP_TIME = 2000;
+    private static final int POLL_ATTEMPTS_MAX = 30;
+
     public static boolean waitForHttp(String url) {
         int attempts = 0;
         long startTime = System.currentTimeMillis();
-        Http http = Http.forUrl(LogAppender.NO_OP, url);
+        Http http = Http.to(url);
         do {
             if (attempts > 0) {
                 LOGGER.debug("attempt #{} waiting for http to be ready at: {}", attempts, url);
             }
             try {
-                Http.Response res = http.get();
-                int status = res.status();
+                int status = http.get().getStatus();
                 if (status == 200) {
                     long elapsedTime = System.currentTimeMillis() - startTime;
                     LOGGER.debug("ready to accept http connections after {} ms - {}", elapsedTime, url);
@@ -134,25 +231,39 @@ public class Command extends Thread {
                     LOGGER.warn("http get returned non-ok status: {} - {}", status, url);
                 }
             } catch (Exception e) {
-                try {
-                    Thread.sleep(2000);
-                } catch (Exception ee) {
-                    return false;
-                }
+                sleep(SLEEP_TIME);
             }
-        } while (attempts++ < 30);
+        } while (attempts++ < POLL_ATTEMPTS_MAX);
         return false;
     }
 
+    public static boolean waitForSocket(int port) {
+        StopListenerThread waiter = new StopListenerThread(port, () -> {
+            LOGGER.info("*** exited socket wait succesfully");
+        });
+        waiter.start();
+        port = waiter.getPort();
+        System.out.println("*** waiting for socket, type the command below:\ncurl http://localhost:"
+                + port + "\nin a new terminal (or open the URL in a web-browser) to proceed ...");
+        try {
+            waiter.join();
+            return true;
+        } catch (Exception e) {
+            LOGGER.warn("*** wait thread failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
     public Command(String... args) {
-        this(null, null, null, null, args);
+        this(false, null, null, null, null, args);
     }
 
-    public Command(File workingDir, String... args) {
-        this(null, null, null, workingDir, args);
+    public Command(boolean useLineFeed, File workingDir, String... args) {
+        this(useLineFeed, null, null, null, workingDir, args);
     }
 
-    public Command(Logger logger, String uniqueName, String logFile, File workingDir, String... args) {
+    public Command(boolean useLineFeed, Logger logger, String uniqueName, String logFile, File workingDir, String... args) {
+        this.useLineFeed = useLineFeed;
         setDaemon(true);
         this.uniqueName = uniqueName == null ? System.currentTimeMillis() + "" : uniqueName;
         setName(this.uniqueName);
@@ -177,18 +288,18 @@ public class Command extends Thread {
             }
         }
     }
-    
+
     public Map<String, String> getEnvironment() {
         return environment;
     }
 
     public File getWorkingDir() {
         return workingDir;
-    }       
+    }
 
     public List getArgList() {
         return argList;
-    }       
+    }
 
     public Logger getLogger() {
         return logger;
@@ -221,13 +332,13 @@ public class Command extends Thread {
             process.destroyForcibly();
         } else {
             process.destroy();
-        }        
+        }
     }
 
     @Override
     public void run() {
         try {
-            logger.debug("command: {}", argList);
+            logger.debug("command: {}, working dir: {}", argList, workingDir);
             ProcessBuilder pb = new ProcessBuilder(args);
             if (environment != null) {
                 pb.environment().putAll(environment);
@@ -236,25 +347,28 @@ public class Command extends Thread {
             logger.trace("env PATH: {}", pb.environment().get("PATH"));
             if (workingDir != null) {
                 pb.directory(workingDir);
-            }            
-            pb.redirectErrorStream(true);
+            }
+            pb.redirectErrorStream(redirectErrorStream);
             process = pb.start();
-            BufferedReader in = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String line;
-            while ((line = in.readLine()) != null) {
-                appender.append(line);
-                logger.debug("{}", line);
-            }
+            sysOut = new Console(uniqueName + "-out", useLineFeed, process.getInputStream(), logger, appender, listener);
+            sysOut.start();
+            sysErr = new Console(uniqueName + "-err", useLineFeed, process.getErrorStream(), logger, appender, errorListener);
+            sysErr.start();
             exitCode = process.waitFor();
-            if (!sharedAppender) {
-                appender.close();
-            }
             if (exitCode == 0) {
                 LOGGER.debug("command complete, exit code: {} - {}", exitCode, argList);
             } else {
-                LOGGER.warn("exit code was non-zero: {} - {}", exitCode, argList);
+                LOGGER.warn("exit code was non-zero: {} - {} working dir: {}", exitCode, argList, workingDir);
+            }
+            // the consoles actually can take more time to flush even after the process has exited
+            sysErr.join();
+            sysOut.join();
+            LOGGER.trace("console readers complete");
+            if (!sharedAppender) {
+                appender.close();
             }
         } catch (Exception e) {
+            failureReason = e;
             LOGGER.error("command error: {} - {}", argList, e.getMessage());
         }
     }

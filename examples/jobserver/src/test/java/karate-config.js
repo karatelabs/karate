@@ -14,5 +14,6 @@ function fn() {
     } else {
         karate.configure('driver', {type: 'chrome', showDriverLog: true});
     }
+    // karate.configure('report', {showLog: false, showAllSteps: false});
     return {}
 }

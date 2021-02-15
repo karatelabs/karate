@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.function.Predicate;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -90,8 +91,7 @@ public class JobUtils {
             ZipEntry zipEntry = zis.getNextEntry();
             while (zipEntry != null) {
                 File newFile = createFile(dest, zipEntry);
-                boolean isDir = zipEntry.getName().endsWith(File.separator);
-                if (isDir) {
+                if (zipEntry.isDirectory()) {
                     newFile.mkdirs();
                 } else {
                     File parentFile = newFile.getParentFile();
@@ -122,6 +122,11 @@ public class JobUtils {
             throw new IOException("entry outside target dir: " + zipEntry.getName());
         }
         return destFile;
+    }
+
+    public static File getFirstFileMatching(File parent, Predicate<String> predicate) {
+        File[] files = parent.listFiles((f, n) -> predicate.test(n));
+        return files == null || files.length == 0 ? null : files[0];
     }
 
 }

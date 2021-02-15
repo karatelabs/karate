@@ -28,6 +28,8 @@ package com.intuit.karate;
  * @author pthomas3
  */
 public interface LogAppender {
+    
+    String getBuffer();
 
     String collect();
 
@@ -36,6 +38,11 @@ public interface LogAppender {
     void close();
 
     public static final LogAppender NO_OP = new LogAppender() {
+        @Override
+        public String getBuffer() {
+            return "";
+        }        
+        
         @Override
         public String collect() {
             return "";

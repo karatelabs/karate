@@ -16,6 +16,11 @@ public class DemoLogModifier implements HttpLogModifier {
     }
 
     @Override
+    public String uri(String uri) {
+        return uri;
+    }        
+
+    @Override
     public String header(String header, String value) {
         if (header.toLowerCase().contains("xss-protection")) {
             return "***";

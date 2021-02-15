@@ -36,21 +36,24 @@ import java.util.Map;
  */
 public class JobMessage {
 
-    public static final String KARATE_METHOD = "karate-method";
-    public static final String KARATE_JOB_ID = "karate-job-id";    
-    public static final String KARATE_EXECUTOR_ID = "karate-executor-id";
-    public static final String KARATE_CHUNK_ID = "karate-chunk-id";
-
     public final String method;
-    public final Map<String, Object> body;
 
     private String jobId;
     private String executorId;
     private String chunkId;
+    private Map<String, Object> body = new HashMap();
     private byte[] bytes;
 
     public JobMessage(String method) {
-        this(method, new HashMap());
+        this.method = method;
+    }
+
+    public Map<String, Object> getBody() {
+        return body;
+    }
+
+    public void setBody(Map<String, Object> body) {
+        this.body = body;
     }
 
     public void setBytes(byte[] bytes) {
@@ -67,7 +70,7 @@ public class JobMessage {
 
     public void setJobId(String jobId) {
         this.jobId = jobId;
-    }        
+    }
 
     public String getChunkId() {
         return chunkId;
@@ -83,18 +86,13 @@ public class JobMessage {
 
     public String getExecutorId() {
         return executorId;
-    }        
+    }
 
     public boolean is(String method) {
         return this.method.equals(method);
     }
 
-    public JobMessage(String method, Map<String, Object> body) {
-        this.method = method;
-        this.body = body;
-    }
-
-    public <T> T get(String key, Class<T> clazz) {
+    public <T> T get(String key) {
         return (T) body.get(key);
     }
 
@@ -107,11 +105,11 @@ public class JobMessage {
         for (JobCommand jc : commands) {
             list.add(jc.toMap());
         }
-        return JobMessage.this.put(key, list);
+        return put(key, list);
     }
 
     public List<JobCommand> getCommands(String key) {
-        List<Map<String, Object>> maps = get(key, List.class);
+        List<Map<String, Object>> maps = get(key);
         if (maps == null) {
             return Collections.EMPTY_LIST;
         }
@@ -129,11 +127,11 @@ public class JobMessage {
 
     public JobMessage putBase64(String key, byte[] bytes) {
         String encoded = Base64.getEncoder().encodeToString(bytes);
-        return JobMessage.this.put(key, encoded);
+        return put(key, encoded);
     }
 
     public byte[] getBase64(String key) {
-        String encoded = get(key, String.class);
+        String encoded = get(key);
         return Base64.getDecoder().decode(encoded);
     }
 
@@ -146,7 +144,7 @@ public class JobMessage {
         }
         if (executorId != null) {
             sb.append(", executorId: ").append(executorId);
-        }        
+        }
         if (chunkId != null) {
             sb.append(", chunkId: ").append(chunkId);
         }

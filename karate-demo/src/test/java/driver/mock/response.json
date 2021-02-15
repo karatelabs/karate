@@ -1,0 +1,13 @@
+{
+   "results": [
+      {
+         "name": {
+            "first": "Billie",
+            "last": "#(lastName)"
+         },
+         "picture": {
+            "large": "https://randomuser.me/api/billie.jpg"
+         }
+      }
+   ]
+}

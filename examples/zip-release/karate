@@ -1,1 +1,2 @@
+#!/bin/bash
 java -cp karate.jar:. com.intuit.karate.Main $*

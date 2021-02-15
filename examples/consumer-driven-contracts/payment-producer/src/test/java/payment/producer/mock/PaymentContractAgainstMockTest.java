@@ -1,35 +1,38 @@
 package payment.producer.mock;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.KarateOptions;
-import com.intuit.karate.junit4.Karate;
-import com.intuit.karate.netty.FeatureServer;
-import java.io.File;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
+import com.intuit.karate.Results;
+import com.intuit.karate.Runner;
+import com.intuit.karate.core.MockServer;
+import org.junit.jupiter.api.AfterAll;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 /**
  *
  * @author pthomas3
  */
-@RunWith(Karate.class)
-@KarateOptions(features = "classpath:payment/producer/contract/payment-contract.feature")
-public class PaymentContractAgainstMockTest {
-    
-    private static FeatureServer server;
-    
-    @BeforeClass
-    public static void beforeClass() {       
-        File file = FileUtils.getFileRelativeTo(PaymentContractAgainstMockTest.class, "payment-mock.feature");
-        server = FeatureServer.start(file, 0, false, null);
-        String paymentServiceUrl = "http://localhost:" + server.getPort();
-        System.setProperty("payment.service.url", paymentServiceUrl);
+class PaymentContractAgainstMockTest {
+
+    static MockServer server;
+
+    @BeforeAll
+    static void beforeAll() {
+        server = MockServer.feature("classpath:payment/producer/mock/payment-mock.feature").http(0).build();
     }
-        
-    @AfterClass
-    public static void afterClass() {
-        server.stop();        
-    }     
-    
+
+    @Test
+    void testMock() {
+        String paymentServiceUrl = "http://localhost:" + server.getPort();
+        Results results = Runner.path("classpath:payment/producer/contract/payment-contract.feature")
+                .systemProperty("payment.service.url", paymentServiceUrl)
+                .parallel(1);
+        assertTrue(results.getFailCount() == 0, results.getErrorMessages());
+    }
+
+    @AfterAll
+    static void afterAll() {
+        server.stop();
+    }
+
 }

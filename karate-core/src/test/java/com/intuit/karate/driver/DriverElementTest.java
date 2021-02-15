@@ -1,24 +1,26 @@
 package com.intuit.karate.driver;
 
-import com.intuit.karate.JsonUtils;
-import com.intuit.karate.ScriptValue;
+import com.intuit.karate.core.Variable;
 import java.util.Collections;
 import java.util.List;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public class DriverElementTest {
+class DriverElementTest {
+    
+    static final Logger logger = LoggerFactory.getLogger(DriverElementTest.class);
 
     @Test
-    public void testToJson() {
-        JsonUtils.toJsonDoc("{}");
+    void testToJson() {       
         Element de = DriverElement.locatorExists(null, "foo");
         List list = Collections.singletonList(de);
-        ScriptValue sv = new ScriptValue(list);
-        sv.getAsString();
+        Variable v = new Variable(list);
+        logger.debug("element serialized: {}", v.getAsString());
     }
 
 }

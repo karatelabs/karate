@@ -2,4 +2,5 @@
 Feature:
 
 Scenario:
-* print 'in common'
+* print 'in common with arg:', __arg
+

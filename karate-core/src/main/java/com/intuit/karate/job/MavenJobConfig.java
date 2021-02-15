@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2019 Intuit Inc.
+ * Copyright 2020 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,11 +23,19 @@
  */
 package com.intuit.karate.job;
 
+import com.intuit.karate.Constants;
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.Json;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.core.Embed;
+import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.Scenario;
-import java.util.ArrayList;
+import com.intuit.karate.core.ScenarioResult;
+import com.intuit.karate.core.ScenarioRuntime;
+import com.intuit.karate.core.StepResult;
+import com.intuit.karate.http.ResourceType;
+import java.io.File;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -35,62 +43,19 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class MavenJobConfig implements JobConfig {
-
-    private final int executorCount;
-    private final String host;
-    private final int port;
-    protected final List<String> sysPropKeys = new ArrayList(1);
-    protected final List<String> envPropKeys = new ArrayList(1);
-
-    protected String dockerImage = "ptrthomas/karate-chrome";
-
+public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
+    
     public MavenJobConfig(int executorCount, String host, int port) {
-        this.executorCount = executorCount;
-        this.host = host;
-        this.port = port;
-        sysPropKeys.add("karate.env");
+        super(executorCount, host, port);
     }
-
+    
     @Override
-    public String getExecutorCommand(String jobId, String jobUrl, int index) {
-        return "docker run --rm --cap-add=SYS_ADMIN -e KARATE_JOBURL=" + jobUrl + " " + dockerImage;
-    }
-
-    public void setDockerImage(String dockerImage) {
-        this.dockerImage = dockerImage;
-    }
-
-    public void addSysPropKey(String key) {
-        sysPropKeys.add(key);
-    }
-
-    public void addEnvPropKey(String key) {
-        envPropKeys.add(key);
-    }
-
-    @Override
-    public int getExecutorCount() {
-        return executorCount;
-    }
-
-    @Override
-    public String getHost() {
-        return host;
-    }
-
-    @Override
-    public int getPort() {
-        return port;
-    }
-
-    @Override
-    public List<JobCommand> getMainCommands(JobContext chunk) {
-        Scenario scenario = chunk.getScenario();
-        String path = scenario.getFeature().getRelativePath();
+    public List<JobCommand> getMainCommands(JobChunk<ScenarioRuntime> chunk) {
+        Scenario scenario = chunk.getValue().scenario;
+        String path = scenario.getFeature().getResource().getPrefixedPath();
         int line = scenario.getLine();
-        String temp = "mvn exec:java -Dexec.mainClass=com.intuit.karate.cli.Main -Dexec.classpathScope=test"
-                + " -Dexec.args=" + path + ":" + line;
+        String temp = "mvn exec:java -Dexec.mainClass=com.intuit.karate.Main -Dexec.classpathScope=test"
+                + " \"-Dexec.args=" + path + ":" + line + "\"";
         for (String k : sysPropKeys) {
             String v = StringUtils.trimToEmpty(System.getProperty(k));
             if (!v.isEmpty()) {
@@ -99,27 +64,41 @@ public class MavenJobConfig implements JobConfig {
         }
         return Collections.singletonList(new JobCommand(temp));
     }
-
+    
     @Override
-    public List<JobCommand> getStartupCommands() {
-        return Collections.singletonList(new JobCommand("mvn test-compile"));
-    }
-
-    @Override
-    public List<JobCommand> getShutdownCommands() {
-        return Collections.singletonList(new JobCommand("supervisorctl shutdown"));
-    }
-
-    @Override
-    public Map<String, String> getEnvironment() {
-        Map<String, String> map = new HashMap(envPropKeys.size());
-        for (String k : envPropKeys) {
-            String v = StringUtils.trimToEmpty(System.getenv(k));
-            if (!v.isEmpty()) {
-                map.put(k, v);
-            }
+    public ScenarioRuntime handleUpload(JobChunk<ScenarioRuntime> chunk, File upload) {
+        ScenarioRuntime runtime = chunk.getValue();
+        File jsonFile = JobUtils.getFirstFileMatching(upload, n -> n.endsWith(Constants.KARATE_JSON_SUFFIX));
+        if (jsonFile == null) {
+            logger.warn("no karate json found in job executor result");
+            return runtime;
         }
-        return map;
+        String json = FileUtils.toString(jsonFile);
+        Map<String, Object> map = Json.of(json).asMap();
+        FeatureResult fr = FeatureResult.fromKarateJson(runtime.featureRuntime.suite.workingDir, map);
+        if (fr.getScenarioResults().isEmpty()) {
+            logger.warn("executor feature result is empty");
+            return runtime;
+        }
+        ScenarioResult sr = fr.getScenarioResults().get(0);
+        sr.setExecutorName(chunk.getExecutorId());
+        sr.setStartTime(chunk.getStartTime());
+        sr.setEndTime(System.currentTimeMillis());
+        synchronized (runtime.featureRuntime) {
+            runtime.featureRuntime.result.addResult(sr);
+        }
+        String reportDir = runtime.featureRuntime.suite.reportDir;
+        for (File file : fr.getAllEmbedFiles()) {
+            File dest = new File(reportDir + File.separator + file.getName());
+            FileUtils.copy(file, dest);
+        }
+        File videoFile = JobUtils.getFirstFileMatching(upload, n -> n.endsWith("karate.mp4"));
+        if (videoFile != null) {
+            StepResult stepResult = sr.addFakeStepResult("[video]", null);
+            Embed embed = runtime.saveToFileAndCreateEmbed(FileUtils.toBytes(videoFile), ResourceType.MP4);
+            stepResult.addEmbed(embed);
+        }
+        return runtime;
     }
-
+    
 }

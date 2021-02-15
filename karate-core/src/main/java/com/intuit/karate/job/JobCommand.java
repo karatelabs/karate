@@ -33,18 +33,21 @@ import java.util.Map;
 public class JobCommand {
 
     private final String command;
-    private final String workingPath;
-    private final boolean background;
+
+    private String workingPath;
+    private boolean background;
 
     public JobCommand(String command) {
-        this(command, null, false);
+        this.command = command;
     }
 
-    public JobCommand(String command, String workingPath, boolean background) {
-        this.command = command;
-        this.workingPath = workingPath;
+    public void setBackground(boolean background) {
         this.background = background;
     }
+
+    public void setWorkingPath(String workingPath) {
+        this.workingPath = workingPath;
+    }        
 
     public JobCommand(Map<String, Object> map) {
         command = (String) map.get("command");

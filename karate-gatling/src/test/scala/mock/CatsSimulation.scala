@@ -10,13 +10,19 @@ class CatsSimulation extends Simulation {
 
   val protocol = karateProtocol(
     "/cats/{id}" -> Nil,
-    "/cats" ->  pauseFor("get" -> 15, "post" -> 25)
+    "/cats" -> pauseFor("get" -> 15, "post" -> 25)
   )
 
   protocol.nameResolver = (req, ctx) => req.getHeader("karate-name")
 
-  val create = scenario("create").exec(karateFeature("classpath:mock/cats-create.feature"))
-  val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature@name=delete"))
+  val create = scenario("create").exec(karateFeature("classpath:mock/cats-create.feature")).exec(session => {
+    println("*** id in gatling: " + session("id").as[String])
+    println("*** session status in gatling: " + session.status)
+    session
+  })
+  val delete = scenario("delete").group("delete cats") {
+    exec(karateFeature("classpath:mock/cats-delete.feature@name=delete"))
+  }
   val custom = scenario("custom").exec(karateFeature("classpath:mock/custom-rpc.feature"))
 
   setUp(

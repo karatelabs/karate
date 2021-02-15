@@ -1,0 +1,67 @@
+<div>
+  <script ka:scope="local">
+    _.stepId = (scenario.exampleIndex + 1) + '.' + sr.step.line;
+    if (parentId) {
+      _.stepId = parentId + '.' + _.stepId;
+    }
+    _.stepStatus = sr.result.status;    
+  </script>
+
+  <div th:each="comment: sr.step.comments" class="step-row" th:attrappend="data-parent=${parentId}">
+    <div class="step-container">
+      <div class="step-ref passed"></div>
+      <div th:each="indent: repeat(callDepth)" class="step-indent"></div>
+      <div class="step-cell comment" th:text="comment"></div>
+    </div>
+    <div class="time-cell comment"></div>            
+  </div>
+
+  <div class="step-row" th:attrappend="data-parent=${parentId}">
+    <div class="step-container" th:id="stepId">
+      <div class="step-ref" th:classappend="isBackground ? 'bg-step' : stepStatus" th:text="sr.step.line"></div>
+      <div th:each="indent: repeat(callDepth)" class="step-indent"></div>
+      <div class="step-cell" th:classappend="stepStatus">
+        <span th:text="sr.step.prefix"></span>&nbsp;<span th:text="sr.step.text"></span>
+      </div>
+    </div>
+    <div class="time-cell" th:classappend="stepStatus" th:text="Math.round(sr.result.millis)"></div>
+  </div>
+
+  <table th:if="sr.step.table">
+    <tr th:each="tableRow: sr.step.table" class="tr">      
+      <td th:each="cell: tableRow.row" class="td" th:text="cell"></td>
+    </tr>     
+  </table> 
+  
+  <div class="preformatted" th:attr="data-parent=${stepId}" th:if="sr.step.docString" th:text="sr.step.docString"></div>
+
+  <div th:each="embed: sr.embeds" class="embed" th:attr="data-parent=${stepId}" th:utext="embed.html"></div>
+
+  <div class="preformatted" th:attr="data-parent=${stepId}" th:if="sr.stepLog" th:text="sr.stepLog"></div>   
+
+  <div th:each="cr: sr.callResults">
+    <script ka:scope="local">
+      _.callStatus = cr.failed ? 'failed' : 'passed';
+      _.callName = cr.packageQualifiedName;
+      if (cr.loopIndex !== -1) {
+        _.callName = '[' + cr.loopIndex + ']' + _.callName;
+      }
+      _.callerId = stepId + '.' + (cr.loopIndex + 1) + '.call';
+    </script>    
+    <div class="step-row" th:attrappend="data-parent=${parentId}">
+      <div class="step-container" th:id="callerId">
+        <div class="step-ref" th:classappend="isBackground ? 'bg-step' : callStatus">&gt;&gt;</div>
+        <div th:each="indent: repeat(cr.callDepth)" class="step-indent"></div>
+        <div class="step-cell" th:classappend="callStatus" th:text="callName"></div>
+      </div>
+      <div class="time-cell" th:classappend="callStatus" th:text="Math.round(cr.durationMillis)"></div>
+    </div>
+    <div th:each="scenario: cr.scenarioResults">
+      <div th:each="sr: scenario.stepResults" 
+           th:with="callDepth=${cr.callDepth},parentId=${callerId},isBackground=${isBackground}"
+           th:include="karate-step.html">
+      </div>
+    </div>    
+  </div>
+
+</div>

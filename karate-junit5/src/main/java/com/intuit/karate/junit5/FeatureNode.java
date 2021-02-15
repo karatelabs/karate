@@ -23,18 +23,16 @@
  */
 package com.intuit.karate.junit5;
 
-import com.intuit.karate.CallContext;
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.core.Engine;
-import com.intuit.karate.core.ExecutionContext;
+import com.intuit.karate.Suite;
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureContext;
-import com.intuit.karate.core.FeatureExecutionUnit;
-import com.intuit.karate.core.ScenarioExecutionUnit;
-import java.io.File;
-import java.util.ArrayList;
+import com.intuit.karate.core.FeatureResult;
+import com.intuit.karate.core.FeatureRuntime;
+import com.intuit.karate.core.ScenarioIterator;
+import com.intuit.karate.core.ScenarioRuntime;
+
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DynamicTest;
 
@@ -44,48 +42,47 @@ import org.junit.jupiter.api.DynamicTest;
  */
 public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest> {
 
-    public final Feature feature;
-    public final ExecutionContext exec;
-    public final FeatureExecutionUnit featureUnit;
-    Iterator<ScenarioExecutionUnit> iterator;
+    public final List<CompletableFuture> futures;
+    public final Suite suite;
+    public final FeatureRuntime featureRuntime;
+    private final Iterator<ScenarioRuntime> scenarios;
 
-    public FeatureNode(Feature feature, String tagSelector) {
-        this.feature = feature;
-        FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
-        CallContext callContext = new CallContext(null, true);
-        exec = new ExecutionContext(null, System.currentTimeMillis(), featureContext, callContext, null, null, null);
-        featureUnit = new FeatureExecutionUnit(exec);
-        featureUnit.init();
-        List<ScenarioExecutionUnit> selected = new ArrayList();
-        for(ScenarioExecutionUnit unit : featureUnit.getScenarioExecutionUnits()) {
-            if (featureUnit.isSelected(unit)) { // tag filtering
-                selected.add(unit);
-            }
-        }
-        if (!selected.isEmpty()) { // make sure we trigger junit html report on last unit (after tag filtering)
-            selected.get(selected.size() - 1).setLast(true);
-        }        
-        iterator = selected.iterator();
+    public FeatureNode(Suite suite, List<CompletableFuture> futures, Feature feature, String tagSelector) {
+        this.suite = suite;
+        this.futures = futures;
+        featureRuntime = FeatureRuntime.of(suite, feature);
+        CompletableFuture future = new CompletableFuture();
+        futures.add(future);
+        featureRuntime.setNext(() -> future.complete(Boolean.TRUE));
+        scenarios = new ScenarioIterator(featureRuntime).filterSelected().iterator();
     }
 
     @Override
     public boolean hasNext() {
-        return iterator.hasNext();
+        return scenarios.hasNext();
     }
 
     @Override
     public DynamicTest next() {
-        ScenarioExecutionUnit unit = iterator.next();
-        return DynamicTest.dynamicTest(unit.scenario.getNameForReport(), () -> {
-            featureUnit.run(unit);
-            boolean failed = unit.result.isFailed();
-            if (unit.isLast() || failed) {
-                featureUnit.stop();
-                exec.result.printStats(null);
-                Engine.saveResultHtml(FileUtils.getBuildDir() + File.separator + "surefire-reports", exec.result, null);
+        ScenarioRuntime runtime = scenarios.next();
+        return DynamicTest.dynamicTest(runtime.scenario.getRefIdAndName(), runtime.scenario.getUriToLineNumber(), () -> {
+            if (featureRuntime.beforeHook()) { // minimal code duplication from feature-runtime
+                runtime.run();
+                featureRuntime.result.addResult(runtime.result);
+            } else {
+                runtime.logger.info("before-feature hook returned [false], aborting: ", featureRuntime);
+            }
+            boolean failed = runtime.result.isFailed();
+            if (!scenarios.hasNext()) {
+                featureRuntime.afterFeature();
+                FeatureResult result = featureRuntime.result;
+                if (!result.isEmpty()) {
+                    suite.saveFeatureResults(result);
+                }
+                saveSummaryIfAllComplete();
             }
             if (failed) {
-                Assertions.fail(unit.result.getError().getMessage());
+                Assertions.fail(runtime.result.getError().getMessage());
             }
         });
     }
@@ -93,6 +90,15 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     @Override
     public Iterator<DynamicTest> iterator() {
         return this;
+    }
+
+    private void saveSummaryIfAllComplete() {
+        for (CompletableFuture cf : futures) {
+            if (!cf.isDone()) {
+                return;
+            }
+        }
+        suite.buildResults();
     }
 
 }

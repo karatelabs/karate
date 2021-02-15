@@ -1,17 +1,17 @@
 package com.intuit.karate.driver;
 
-import org.junit.Test;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 /**
  *
  * @author pthomas3
  */
-public class KeyTest {
-    
+class KeyTest {
+
     @Test
-    public void testKey() {
+    void testKey() {
         assertTrue('a' < Key.INSTANCE.NULL);
     }
-    
+
 }

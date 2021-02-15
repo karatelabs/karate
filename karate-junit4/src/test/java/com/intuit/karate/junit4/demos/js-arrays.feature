@@ -13,18 +13,6 @@ Scenario: arrays returned from js can be modified using 'set'
     * set json[1].a = 5
     * match json == [{a: 1}, {a: 5}, {b: 3}]
 
-Scenario: json behaves like a java map within functions (will change with graal)
-    * def payload = { a: 1, b: 2 }
-    * def keys = function(o){ return o.keySet() }
-    * def values = function(o){ return o.values() }
-    * def size = function(o){ return o.size() }
-    * json result = keys(payload)
-    * match result == ['a', 'b']
-    * json result = values(payload)
-    * match result == [1, 2]
-    * def length = size(payload)
-    * match length == 2
-
 Scenario: json-path can be performed in js
     * def json = [{foo: 1}, {foo: 2}]
     * def fun = function(arg) { return karate.jsonPath(arg, '$[*].foo') }
@@ -153,11 +141,11 @@ Scenario: append
     * def fun = function(){ var x = [1, 2]; return karate.append(x, 3, 4) }
     * match fun() == [1, 2, 3, 4]
 
-Scenario: simplest way to get the size of a json object
-    * def json = { a: 1, b: 2, c: 3 }
-    * def map = karate.toBean(json, 'java.util.HashMap')
-    * def count = map.size()
-    * match count == 3
+Scenario: sort
+    * def foo = [{a: { b: 3 }}, {a: { b: 1 }}, {a: { b: 2 }}]
+    * def fun = function(x){ return x.a.b }
+    * def bar = karate.sort(foo, fun)
+    * match bar == [{a: { b: 1 }}, {a: { b: 2 }}, {a: { b: 3 }}]
 
 Scenario: get last array element (js)
     * def list = [1, 2, 3, 4]
@@ -184,12 +172,12 @@ Scenario: work around for the above
         """
     * def products = read('products.json')
     * def result = []
-    * karate.repeat(products.length, function(i){ if (hasId(products[i], 1)) result.add(products[i]) })
+    * karate.repeat(products.length, function(i){ if (hasId(products[i], 1)) result.push(products[i]) })
     * match result[*].name == ['Wotsit v1.5', 'Wotsit v2.5']
 
 Scenario: work around but using karate.filter
     * def id = 1
-    * def hasId = function(x){ return karate.jsonPath(x, '$.partIDs[?(@.id==' + id + ')]').length }
+    * def hasId = function(x){ return karate.jsonPath(x, '$.partIDs[?(@.id==' + id + ')]').length != 0 }
     * def products = read('products.json')
     * def result = karate.filter(products, hasId)
     * match result[*].name == ['Wotsit v1.5', 'Wotsit v2.5']
@@ -246,7 +234,7 @@ Scenario: remove json key using keyword
 
 Scenario: remove json key from js
     * def json = { foo: 'bar', hello: 'world' }
-    * def fun = function(){ karate.remove('json', '$.foo') }
+    * def fun = function(){ karate.remove('json', 'foo') }
     * call fun
     * match json == { hello: 'world' }
 
@@ -275,7 +263,8 @@ Scenario: #null, ##null, #present and #notpresent
     * match foo == { a: '#null' }    
     * match foo == { a: '##null' }
     * match foo != { a: '#notnull' }
-    * match foo != { a: '##notnull' }
+    # optional comparison so match evalutes to true
+    * match foo == { a: '##notnull' }
     * match foo == { a: '#present' }
     * match foo == { a: '#ignore' }
     * match foo != { a: '#notpresent' }
@@ -311,15 +300,47 @@ Scenario: comparing 2 payloads
     * def bar = { baz: 'ban', hello: 'world' }
     * match foo == bar
 
-Scenario: contains will recurse
+Scenario: [contains deep] will recurse nested json
     * def original = { a: 1, b: 2, c: 3, d: { a: 1, b: 2 } }
     * def expected = { a: 1, c: 3, d: { b: 2 } }
-    * match original contains expected
+    * match original !contains expected
+    * match original contains deep expected
 
-Scenario: contains will recurse in reverse !
+Scenario: [contains deep] will recurse nested array
+    * def original = { a: 1, arr: [ { b: 2, c: 3 }, { b: 3, c: 4 } ] }
+    * def expected = { a: 1, arr: [ { b: 2 }, { c: 4 } ] }
+    * match original !contains expected    
+    * match original contains deep expected
+
+Scenario: [contains deep] should not recurse in reverse
     * def original = { "a": { "b": { "c": { "d":1, "e":2 } } } }
     * def compared = { "a": { "b": { "c": { "d":1, "e":2, "f":3 } } } }
     * match original !contains compared
+    * match compared !contains original
+    # * match original !contains deep compared
+    * match compared contains deep original
+
+Scenario: contains deep should support multi-line / docstring r.h.s
+    * def message =
+      """
+      {
+          order_id: 5,
+          products: [
+            { product_id: 100, name: "bicycle" },
+            { product_id: 101, name: "car" }
+          ]
+      }
+      """
+    * match message contains deep
+      """
+      {
+          order_id: 5,
+          products: [
+            { product_id: 101, name: "car" },
+            { product_id: 100, name: "bicycle" }
+          ]
+      }
+      """
 
 Scenario: js eval
     * def temperature = { celsius: 100, fahrenheit: 212 }
@@ -527,19 +548,30 @@ Scenario: contains / not contains
 
 Scenario: match in js
     * def foo = { hello: 'world' }
-    * def result = karate.match(foo, { hello: '#string'} )
-    * match result == { pass: true, message: null }
-    * if (result.pass) karate.log('*** passed')
+    * def res = karate.match(foo, { hello: '#string' } )
+    * match res == { pass: true, message: null }
+    * def res = karate.match(foo, { hello: '#number' } )
+    * match res == { pass: false, message: '#notnull' }
+
+Scenario: advanced match in js
+    * def foo = { a: 1, b: 'foo' }
+    * def res = karate.match("foo contains { a: '#number' }")
+    * match res == { pass: true, message: null }
+    * def res = karate.match("foo == { a: '#number' }")
+    * match res == { pass: false, message: '#notnull' }
+    * def foo = [1, 2, 3]
+    * def res = karate.match("each foo == '#number'")
+    * match res == { pass: true, message: null }
 
 Scenario: karate.os
     * def temp = karate.os
     * print 'os:', temp
     * match temp == { type: '#string', name: '#string' }
 
-Scenario: using the java contains api (will change with graal)
+Scenario: using the js includes api
     * def allowed = ['Music', 'Entertainment', 'Documentaries', 'Family']
     * def actual = ['Entertainment', 'Family']
-    * match each actual == '#? allowed.contains(_)'
+    * match each actual == '#? allowed.includes(_)'
 
 Scenario: using the java indexOf api (will change with graal)
     * def response = [{ name: 'a' }, { name: 'b' }, { name: 'c' }]
@@ -547,9 +579,9 @@ Scenario: using the java indexOf api (will change with graal)
     * def index = names.indexOf('b')
     * match index == 1
 
-Scenario: karate.forEach() and js arguments (may change with graal)
+Scenario: karate.forEach() and js arguments
     * def vals = []
-    * def fun = function(){ karate.forEach(arguments, function(k, v){ vals.add(v) }) }
+    * def fun = function(){ karate.forEach(arguments, function(x){ vals.push(x) }) }
     * fun('a', 'b', 'c')
     * match vals == ['a', 'b', 'c']
 
@@ -570,3 +602,13 @@ Scenario: maps - karate.sizeOf() keysOf() valuesOf() appendTo()
     * def foo = { a: 1, b: 2, c: 3 }
     * match karate.sizeOf(foo) == 3
     * match karate.keysOf(foo) == ['a', 'b', 'c']
+
+Scenario: map and repeat should not mangle js arrays
+* def foo = [1, 2]
+* def fun = function(x){ return { x: x, bar: [1, 2] } }
+* def res = karate.map(foo, fun)
+* match res == [{ x: 1, bar: [1, 2]}, { x: 2, bar: [1, 2] }]
+
+* def fun = function(i){ return { foo: [1, 2]} }
+* def bar = karate.repeat(2, fun)
+* match bar == [{ foo: [1, 2] }, { foo: [1, 2] }]

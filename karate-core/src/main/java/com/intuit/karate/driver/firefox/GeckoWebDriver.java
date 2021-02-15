@@ -24,12 +24,9 @@
 package com.intuit.karate.driver.firefox;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.Http;
-import com.intuit.karate.Json;
 import com.intuit.karate.LogAppender;
-import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.Json;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Map;
 
@@ -39,31 +36,19 @@ import java.util.Map;
  */
 public class GeckoWebDriver extends WebDriver {
 
-    public GeckoWebDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
-        super(options, command, http, sessionId, windowId);
+    public GeckoWebDriver(DriverOptions options) {
+        super(options);
     }
 
-    public static GeckoWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(context, map, appender, 4444, "geckodriver");
+    public static GeckoWebDriver start(Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(map, appender, 4444, "geckodriver");
         options.arg("--port=" + options.port);
-        Command command = options.startProcess();
-        String urlBase = "http://" + options.host + ":" + options.port;
-        Http http = Http.forUrl(options.driverLogger.getAppender(), urlBase);
-        String sessionId = http.path("session")
-                .post(options.getCapabilities())
-                .jsonPath("get[0] response..sessionId").asString();
-        options.driverLogger.debug("init session id: {}", sessionId);
-        http.url(urlBase + "/session/" + sessionId);
-        String windowId = http.path("window").get().jsonPath("$.value").asString();
-        options.driverLogger.debug("init window id: {}", windowId);
-        GeckoWebDriver driver = new GeckoWebDriver(options, command, http, sessionId, windowId);
-        driver.activate();
-        return driver;
+        return new GeckoWebDriver(options);
     }
     
     @Override
     protected String getJsonForFrame(String text) {
-        return new Json().set("frameId", text).toString();
+        return Json.object().set("frameId", text).toString();
     }    
 
     @Override
@@ -81,6 +66,13 @@ public class GeckoWebDriver extends WebDriver {
                 logger.warn("native window switch failed: {}", e.getMessage());
             }
         }
-    }        
+    }
+
+    @Override
+    public void quit() {
+        // geckodriver already closes all windows on delete session
+        open = false;
+        super.quit();
+    }
 
 }

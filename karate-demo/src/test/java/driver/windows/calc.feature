@@ -1,10 +1,10 @@
 Feature:
 
   Background:
-    * configure driver = { type: 'winappdriver' }
+    * def session = { desiredCapabilities: { app: 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App' } }
 
     Scenario:
-      Given driver { app: 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App' }
+      Given driver { type: 'winappdriver', webDriverSession: '#(session)' }
       And driver.click('One')
       And driver.click('Plus')
       And driver.click('Seven')

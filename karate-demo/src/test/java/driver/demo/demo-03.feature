@@ -1,8 +1,8 @@
 Feature: 3 scenarios
 
   Background:
-    * configure driver = { type: 'chromedriver', showDriverLog: true }
-    # * configure driverTarget = { docker: 'ptrthomas/karate-chrome', showDriverLog: true }
+    # * configure driver = { type: 'chromedriver', showDriverLog: true }
+    * configure driverTarget = { docker: 'ptrthomas/karate-chrome', showDriverLog: true }
 
   Scenario: try to login to github
   and then do a google search
@@ -25,7 +25,7 @@ Feature: 3 scenarios
     When click('input[name=btnI]')
     Then waitForUrl('https://github.com/intuit/karate')
 
-    When click('{a}Find File')
+    When click('{a}Go to file')
     And def searchField = waitFor('input[name=query]')
     Then match driver.url == 'https://github.com/intuit/karate/find/master'
 

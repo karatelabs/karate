@@ -1,18 +1,18 @@
 package com.intuit.karate.driver;
 
-import org.junit.Test;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 /**
  *
  * @author pthomas3
  */
-public class ElementFinderTest {
-    
+class ElementFinderTest {
+
     @Test
-    public void testToJson() {
+    void testToJson() {
         String condition = ElementFinder.exitCondition("{^a}Foo");
         assertEquals("e.textContent.trim().includes('Foo') && e.tagName == 'A'", condition);
-    }    
-    
+    }
+
 }

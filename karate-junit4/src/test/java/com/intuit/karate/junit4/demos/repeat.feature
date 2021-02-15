@@ -7,7 +7,7 @@ Scenario: return a list
 
 Scenario: just eval
     * def foo = []
-    * def fun = function(i){ foo.add(i) }
+    * def fun = function(i){ foo.push(i) }
     * karate.repeat(5, fun)
     * match foo == [0, 1, 2, 3, 4]
 

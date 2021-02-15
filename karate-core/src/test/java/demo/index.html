@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+  <head>
+    <title>KarateJS Demo</title>
+    <script ka:scope="global"></script>
+    <link rel="stylesheet" href="app.css" type="text/css"/>  
+    <link rel="icon" href="favicon.ico">
+  </head>
+  <body>
+    <script ka:scope="global">
+      username = 'John Smith';
+      session.products = session.products || [
+        {id: 1, name: 'Apple', price: 100},
+        {id: 2, name: 'Orange', price: 200}
+      ];
+      session.suppliers = session.suppliers || [
+        {id: 1, name: 'Acme Trading', products: [1]},
+        {id: 2, name: 'Omni Consumer', products: [1, 2]}
+      ];
+      session.person = session.person || {firstName: 'Billie', lastName: 'Cat', email: 'billie@cat.com'};
+    </script>    
+    <p><a href="cats">Cats API Demo</a></p>
+    <p><a href="users">Users API Client Demo</a></p>
+    <p><a href="apidocs">API Docs Demo</a></p>
+    <p>User Name: <span th:text="username">Replace Me</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Price</th>
+          <th>Suppliers</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="prod: session.products">
+          <td th:text="prod.name">Pear</td>
+          <td th:text="prod.price">50</td>
+          <td th:insert="details" ka:target="this"></td>
+        </tr>
+      </tbody>
+    </table>
+    <div th:insert="person" ka:target="this"></div>
+  </body>
+</html>

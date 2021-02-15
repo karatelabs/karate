@@ -38,7 +38,7 @@ Scenario: test scenario overrides tag
 @tagdemo
 Scenario Outline: examples partitioned by tag
     * def vals = karate.tagValues
-    * match vals.region[0] == '<expected>'
+    * match vals.region[0] == expected
 
     @region=US
     Examples:

@@ -68,7 +68,7 @@ public class ParserErrorListener implements ANTLRErrorListener {
 
     @Override
     public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line, int position, String message, RecognitionException e) {
-        logger.error("syntax error: {}", message);
+        // logger.error("syntax error: {}", message);
         this.message = message;
         this.line = line;
         this.position = position;

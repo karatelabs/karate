@@ -1,4 +1,3 @@
-@apache
 Feature: test url-encoded form-field submissions
 
 Scenario: should be able to over-ride the content-type

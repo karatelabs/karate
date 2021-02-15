@@ -23,8 +23,10 @@
  */
 package mock.jersey;
 
-import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.mock.servlet.MockHttpClient;
+import com.intuit.karate.core.ScenarioEngine;
+import com.intuit.karate.http.HttpClient;
+import com.intuit.karate.http.HttpClientFactory;
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
@@ -39,43 +41,28 @@ import org.springframework.mock.web.MockServletContext;
  *
  * @author pthomas3
  */
-public class MockJerseyServlet extends MockHttpClient {
+public class MockJerseyServlet implements HttpClientFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(MockJerseyServlet.class);
 
     private final Servlet servlet;
     private final ServletContext servletContext;
 
-    /**
-     * this zero-arg constructor will be invoked if you use the 'configure
-     * httpClientClass' option refer to the MockJerseyServletFactory for how you
-     * can construct this manually and have full control over
-     * dependency-injection specific to your environment
-     *
-     * @throws Exception
-     */
-    public MockJerseyServlet() throws Exception {
-        logger.info("auto construction of mock http servlet");
+    public MockJerseyServlet() {
         ServletConfig servletConfig = new MockServletConfig();
         servletContext = new MockServletContext();
         ResourceConfig resourceConfig = new ResourceConfig(HelloResource.class);
         servlet = new ServletContainer(resourceConfig);
-        servlet.init(servletConfig);
-    }
-
-    public MockJerseyServlet(Servlet servlet, ServletContext servletContext) {
-        this.servlet = servlet;
-        this.servletContext = servletContext;
-    }
-
-    @Override
-    protected Servlet getServlet(HttpRequestBuilder request) {
-        return servlet;
+        try {
+            servlet.init(servletConfig);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
-    protected ServletContext getServletContext() {
-        return servletContext;
+    public HttpClient create(ScenarioEngine engine) {
+        return new MockHttpClient(engine, servlet, servletContext);
     }
 
 }

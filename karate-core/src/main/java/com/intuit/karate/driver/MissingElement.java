@@ -23,6 +23,10 @@
  */
 package com.intuit.karate.driver;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
 /**
  *
  * @author pthomas3
@@ -43,13 +47,23 @@ public class MissingElement implements Element {
     }
 
     @Override
-    public boolean isExists() {
+    public boolean isPresent() {
         return false;
     }
 
     @Override
     public boolean isEnabled() {
-        return true; // hmm
+        return false;
+    }
+
+    @Override
+    public Map<String, Object> getPosition() {
+        return null;
+    }
+
+    @Override
+    public byte[] screenshot() {
+        return null;
     }
 
     @Override
@@ -132,7 +146,7 @@ public class MissingElement implements Element {
     public Element retry(Integer count, Integer interval) {
         return this;
     }
-    
+
     @Override
     public Element waitFor() {
         return this;
@@ -150,6 +164,36 @@ public class MissingElement implements Element {
 
     @Override
     public Object script(String expression) {
+        return null;
+    }
+
+    @Override
+    public Element optional(String locator) {
+        return this;
+    }
+
+    @Override
+    public boolean exists(String locator) {
+        return false;
+    }
+
+    @Override
+    public Element locate(String locator) {
+        return this;
+    }
+
+    @Override
+    public List<Element> locateAll(String locator) {
+        return Collections.EMPTY_LIST;
+    }
+
+    @Override
+    public String attribute(String name) {
+        return null;
+    }
+
+    @Override
+    public String property(String name) {
         return null;
     }
 
@@ -184,28 +228,58 @@ public class MissingElement implements Element {
     }
 
     @Override
+    public Element getParent() {
+        return this;
+    }
+
+    @Override
+    public List<Element> getChildren() {
+        return Collections.EMPTY_LIST;
+    }
+
+    @Override
+    public Element getFirstChild() {
+        return this;
+    }
+
+    @Override
+    public Element getLastChild() {
+        return this;
+    }
+
+    @Override
+    public Element getPreviousSibling() {
+        return this;
+    }
+
+    @Override
+    public Element getNextSibling() {
+        return this;
+    }
+
+    @Override
     public Finder rightOf() {
-        return null;
+        return new MissingFinder(this);
     }
 
     @Override
     public Finder leftOf() {
-        return null;
+        return new MissingFinder(this);
     }
 
     @Override
     public Finder above() {
-        return null;
+        return new MissingFinder(this);
     }
 
     @Override
     public Finder below() {
-        return null;
+        return new MissingFinder(this);
     }
 
     @Override
     public Finder near() {
-        return null;
+        return new MissingFinder(this);
     }
 
 }

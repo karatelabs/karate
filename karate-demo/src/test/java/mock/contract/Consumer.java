@@ -77,6 +77,7 @@ public class Consumer {
     }
 
     public void stopQueueConsumer() {
+        queueConsumer.setMessageListener(null);
         queueConsumer.stop();
     }
 

@@ -1,0 +1,6 @@
+<div>
+  <script ka:scope="local">
+    _.childVar = 'called_' + item;
+  </script>  
+  <div th:id="'called_' + item" th:text="childVar"></div>
+</div>

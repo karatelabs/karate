@@ -18,7 +18,9 @@ class CatsKarateSimulation extends Simulation {
   protocol.nameResolver = (req, ctx) => req.getHeader("karate-name")
 
   val create = scenario("create").feed(feeder).exec(karateFeature("classpath:mock/cats-create.feature"))
-  val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature@name=delete"))
+  val delete = scenario("delete").group("delete cats") {
+    exec(karateFeature("classpath:mock/cats-delete.feature@name=delete"))
+  }
   val custom = scenario("custom").exec(karateFeature("classpath:mock/custom-rpc.feature"))
 
   setUp(

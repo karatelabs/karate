@@ -1,5 +1,5 @@
 dev:
-mvn versions:set -DnewVersion=1.0.0
+mvn versions:set -DnewVersion=2.0.0
 mvn versions:commit
 (edit examples/jobserver/pom.xml)
 (edit examples/gatling/pom.xml)
@@ -8,36 +8,31 @@ main:
 mvn versions:set -DnewVersion=@@@
 (edit archetype karate.version)
 (edit README.md maven 5 places)
-(edit karate-gatling/build.gradle 1 place)
-(edit examples/jobserver/pom.xml)
-(edit examples/gatling/pom.xml)
+
+(edit examples/gatling/build.gradle)
+(edit examples/jobserver/build.gradle)
+(edit examples/*/pom.xml)
 mvn versions:commit
 mvn clean deploy -P pre-release,release
 
 jar:
-cd karate-netty
-mvn install -P fatjar
+mvn clean package -P fatjar -f karate-core/pom.xml
 https://bintray.com/ptrthomas/karate
+(upload to github release notes)
 
-edit-wiki:
-https://github.com/intuit/karate/wiki/ZIP-Release
+robot:
+mvn package -P fatjar -f karate-robot/pom.xml
+https://bintray.com/ptrthomas/karate
+(upload to github release notes)
 
 docker:
-(double check if the below pom files are updated for the version
-(edit examples/jobserver/pom.xml)
-(edit examples/gatling/pom.xml)
 make sure docker is started and is running !
-cd karate-docker/karate-chrome
-rm -rf target
-./build.sh
+rm -rf ~/.m2/repository/com/intuit/karate
+rm -rf karate-docker/karate-chrome/target
+mvn clean install -P pre-release -DskipTests
+./build-docker.sh
+
 docker tag karate-chrome ptrthomas/karate-chrome:latest
-
-(run WebDockerJobRunner to test that docker chrome is ok locally)
-
 docker tag karate-chrome ptrthomas/karate-chrome:@@@
-docker push ptrthomas/karate-chrome
 
-misc-examples:
-update https://github.com/ptrthomas/karate-gatling-demo
-update https://github.com/ptrthomas/payment-service
-update https://github.com/ptrthomas/karate-sikulix-demo
+docker push ptrthomas/karate-chrome

@@ -6,10 +6,11 @@ Background:
 Scenario: pathMatches('/payments') && methodIs('post')
     * karate.proceed(paymentServiceUrl)
     # example of adding delay via a post-processing hook
-    # * def afterScenario = function(){ karate.log('sleeping ..'); java.lang.Thread.sleep(3000); }
+    * def responseDelay = 3000
 
 Scenario: pathMatches('/payments')
     * karate.proceed(paymentServiceUrl)
+    * def responseDelay = 200 + Math.random() * 400
 
 Scenario: pathMatches('/payments/{id}') && methodIs('delete')
     * karate.proceed(paymentServiceUrl)

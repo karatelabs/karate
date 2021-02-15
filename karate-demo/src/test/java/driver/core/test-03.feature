@@ -2,6 +2,7 @@ Feature: parallel testing demo - single node using docker
 
   Background:
     * configure driverTarget = { docker: 'ptrthomas/karate-chrome' }
+    # * configure driver = { type: 'chrome', start: false }
 
   Scenario: attempt github login
     * driver 'https://github.com/login'
@@ -14,7 +15,7 @@ Feature: parallel testing demo - single node using docker
     Given driver 'https://google.com'
     And input("input[name=q]", 'karate dsl')
     When submit().click("input[name=btnI]")
-    Then match driver.url == 'https://github.com/intuit/karate'
+    Then waitForUrl('https://github.com/intuit/karate')
 
   Scenario: test automation tool challenge
     * driver 'https://semantic-ui.com/modules/dropdown.html'

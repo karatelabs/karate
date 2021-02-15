@@ -23,39 +23,35 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Http;
+import com.intuit.karate.KarateException;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
-import com.intuit.karate.core.Embed;
-import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.driver.android.AndroidDriver;
+import com.intuit.karate.driver.appium.AndroidDriver;
 import com.intuit.karate.driver.chrome.Chrome;
 import com.intuit.karate.driver.chrome.ChromeWebDriver;
-import com.intuit.karate.driver.edge.EdgeDevToolsDriver;
-import com.intuit.karate.driver.edge.MicrosoftWebDriver;
+import com.intuit.karate.driver.microsoft.EdgeChromium;
+import com.intuit.karate.driver.microsoft.IeWebDriver;
+import com.intuit.karate.driver.microsoft.MsWebDriver;
 import com.intuit.karate.driver.firefox.GeckoWebDriver;
-import com.intuit.karate.driver.ios.IosDriver;
+import com.intuit.karate.driver.appium.IosDriver;
+import com.intuit.karate.driver.microsoft.MsEdgeDriver;
 import com.intuit.karate.driver.safari.SafariWebDriver;
-import com.intuit.karate.driver.windows.WinAppDriver;
+import com.intuit.karate.driver.microsoft.WinAppDriver;
+import com.intuit.karate.driver.playwright.PlaywrightDriver;
+import com.intuit.karate.core.Config;
+import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.shell.Command;
 
 import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.Method;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -65,12 +61,10 @@ import java.util.function.Supplier;
  */
 public class DriverOptions {
 
-    // 15 seconds, as of now this is only used by the chrome / CDP reply timeout
-    public static final long DEFAULT_TIMEOUT = 15 * 1000;
-
     public final Map<String, Object> options;
-    public final long timeout;
+    public final int timeout;
     public final boolean start;
+    public final boolean stop;
     public final String executable;
     public final String type;
     public final int port;
@@ -86,16 +80,26 @@ public class DriverOptions {
     public final Logger driverLogger;
     public final String uniqueName;
     public final File workingDir;
-    public final String workingDirPath;
+    public final String userAgent;
+    public final String userDataDir;
     public final String processLogFile;
     public final int maxPayloadSize;
     public final List<String> addOptions;
-    public final List<String> args = new ArrayList();
-    public final Map<String, Object> proxy;
+    public final List<String> args = new ArrayList<>();
+    public final String webDriverUrl;
+    public final String webDriverPath;
+    public final Map<String, Object> webDriverSession;
+    public final Map<String, Object> httpConfig;
     public final Target target;
     public final String beforeStart;
     public final String afterStop;
     public final String videoFile;
+    public final boolean highlight;
+    public final int highlightDuration;
+    public final String attach;
+    public final boolean screenshotOnFailure;
+    public final String playwrightUrl;
+    public final Map<String, Object> playwrightOptions;
 
     // mutable during a test
     private boolean retryEnabled;
@@ -103,8 +107,7 @@ public class DriverOptions {
     private Integer retryCount = null;
     private String preSubmitHash = null;
 
-    // mutable when we return from called features
-    private ScenarioContext context;
+    private Integer timeoutOverride;
 
     public static final String SCROLL_JS_FUNCTION = "function(e){ var d = window.getComputedStyle(e).display;"
             + " while(d == 'none'){ e = e.parentElement; d = window.getComputedStyle(e).display }"
@@ -113,14 +116,6 @@ public class DriverOptions {
     public static final String KARATE_REF_GENERATOR = "function(e){"
             + " if (!document._karate) document._karate = { seq: (new Date()).getTime() };"
             + " var ref = 'ref' + document._karate.seq++; document._karate[ref] = e; return ref }";
-
-    public void setContext(ScenarioContext context) {
-        this.context = context;
-    }
-
-    public ScenarioContext getContext() {
-        return context;
-    }
 
     public boolean isRetryEnabled() {
         return retryEnabled;
@@ -139,15 +134,15 @@ public class DriverOptions {
         return temp == null ? defaultValue : temp;
     }
 
-    public DriverOptions(ScenarioContext context, Map<String, Object> options, LogAppender appender, int defaultPort, String defaultExecutable) {
-        this.context = context;
+    public DriverOptions(Map<String, Object> options, LogAppender appender, int defaultPort, String defaultExecutable) {
         this.options = options;
         this.appender = appender;
         logger = new Logger(getClass());
         logger.setAppender(appender);
-        timeout = get("timeout", DEFAULT_TIMEOUT);
+        timeout = get("timeout", Config.DEFAULT_TIMEOUT);
         type = get("type", null);
         start = get("start", true);
+        stop = get("stop", true);
         executable = get("executable", defaultExecutable);
         headless = get("headless", false);
         showProcessLog = get("showProcessLog", false);
@@ -164,23 +159,51 @@ public class DriverOptions {
                 args.add(executable);
             }
         }
-        workingDir = new File(FileUtils.getBuildDir() + File.separator + uniqueName);
-        workingDirPath = workingDir.getAbsolutePath();
-        processLogFile = workingDir.getPath() + File.separator + type + ".log";
+        userAgent = get("userAgent", null);
+        if (options.containsKey("userDataDir")) {
+            String temp = get("userDataDir", null);
+            if (temp != null) {
+                workingDir = new File(temp);
+                userDataDir = workingDir.getAbsolutePath();
+            } else { // special case allow user-specified null
+                userDataDir = null;
+                workingDir = null;
+            }
+        } else {
+            workingDir = new File(FileUtils.getBuildDir() + File.separator + uniqueName);
+            userDataDir = workingDir.getAbsolutePath();
+        }
+        if (workingDir == null) {
+            processLogFile = FileUtils.getBuildDir() + File.separator + uniqueName + ".log";
+        } else {
+            processLogFile = workingDir.getPath() + File.separator + type + ".log";
+        }
         maxPayloadSize = get("maxPayloadSize", 4194304);
         target = get("target", null);
         host = get("host", "localhost");
-        proxy = get("proxy", null);
+        webDriverUrl = get("webDriverUrl", null);
+        webDriverPath = get("webDriverPath", null);
+        webDriverSession = get("webDriverSession", null);
+        httpConfig = get("httpConfig", null);
         beforeStart = get("beforeStart", null);
         afterStop = get("afterStop", null);
         videoFile = get("videoFile", null);
         pollAttempts = get("pollAttempts", 20);
         pollInterval = get("pollInterval", 250);
-        // do this last to ensure things like logger, start-flag and all are set
+        highlight = get("highlight", false);
+        highlightDuration = get("highlightDuration", Config.DEFAULT_HIGHLIGHT_DURATION);
+        attach = get("attach", null);
+        screenshotOnFailure = get("screenshotOnFailure", true);
+        playwrightUrl = get("playwrightUrl", null);
+        playwrightOptions = get("playwrightOptions", null);
+        // do this last to ensure things like logger, start-flag, webDriverUrl etc. are set
         port = resolvePort(defaultPort);
     }
 
     private int resolvePort(int defaultPort) {
+        if (webDriverUrl != null) {
+            return 0;
+        }
         int preferredPort = get("port", defaultPort);
         if (start) {
             int freePort = Command.getFreePort(preferredPort);
@@ -192,11 +215,35 @@ public class DriverOptions {
         return preferredPort;
     }
 
+    public Http getHttp() {
+        Http http = Http.to(getUrlBase());
+        http.setAppender(driverLogger.getAppender());
+        if (httpConfig != null) {
+            http.configure(httpConfig);
+        }
+        return http;
+    }
+
+    private String getUrlBase() {
+        if (webDriverUrl != null) {
+            return webDriverUrl;
+        }
+        String urlBase = "http://" + host + ":" + port;
+        if (webDriverPath != null) {
+            return urlBase + webDriverPath;
+        }
+        return urlBase;
+    }
+
     public void arg(String arg) {
         args.add(arg);
     }
 
     public Command startProcess() {
+        return startProcess(null);
+    }
+
+    public Command startProcess(Consumer<String> listener) {
         if (beforeStart != null) {
             Command.execLine(null, beforeStart);
         }
@@ -207,21 +254,29 @@ public class DriverOptions {
             if (addOptions != null) {
                 args.addAll(addOptions);
             }
-            command = new Command(processLogger, uniqueName, processLogFile, workingDir, args.toArray(new String[]{}));
+            command = new Command(false, processLogger, uniqueName, processLogFile, workingDir, args.toArray(new String[args.size()]));
+            if (listener != null) {
+                command.setListener(listener);
+            }
+            command.setPollAttempts(pollAttempts);
+            command.setPollInterval(pollInterval);
             command.start();
         }
-        // try to wait for a slow booting browser / driver process
-        waitForPort(host, port);
+        if (command != null) { // wait for a slow booting browser / driver process
+            command.waitForPort(host, port);
+            if (command.isFailed()) {
+                throw new KarateException("start failed", command.getFailureReason());
+            }
+        }
         return command;
     }
 
-    public static Driver start(ScenarioContext context, Map<String, Object> options, LogAppender appender) {
+    public static Driver start(Map<String, Object> options, Logger logger, LogAppender appender) { // TODO unify logger
         Target target = (Target) options.get("target");
-        Logger logger = context.logger;
         if (target != null) {
             logger.debug("custom target configured, calling start()");
             Map<String, Object> map = target.start(logger);
-            logger.debug("custom target returned options: {}", map);
+            logger.trace("custom target returned options: {}", map);
             options.putAll(map);
         }
         String type = (String) options.get("type");
@@ -233,62 +288,83 @@ public class DriverOptions {
         try { // to make troubleshooting errors easier
             switch (type) {
                 case "chrome":
-                    return Chrome.start(context, options, appender);
+                    return Chrome.start(options, appender);
                 case "msedge":
-                    return EdgeDevToolsDriver.start(context, options, appender);
+                    return EdgeChromium.start(options, appender);
                 case "chromedriver":
-                    return ChromeWebDriver.start(context, options, appender);
+                    return ChromeWebDriver.start(options, appender);
                 case "geckodriver":
-                    return GeckoWebDriver.start(context, options, appender);
+                    return GeckoWebDriver.start(options, appender);
                 case "safaridriver":
-                    return SafariWebDriver.start(context, options, appender);
+                    return SafariWebDriver.start(options, appender);
+                case "msedgedriver":
+                    return MsEdgeDriver.start(options, appender);
                 case "mswebdriver":
-                    return MicrosoftWebDriver.start(context, options, appender);
+                    return MsWebDriver.start(options, appender);
+                case "iedriver":
+                    return IeWebDriver.start(options, appender);
                 case "winappdriver":
-                    return WinAppDriver.start(context, options, appender);
+                    return WinAppDriver.start(options, appender);
                 case "android":
-                    return AndroidDriver.start(context, options, appender);
+                    return AndroidDriver.start(options, appender);
                 case "ios":
-                    return IosDriver.start(context, options, appender);
+                    return IosDriver.start(options, appender);
+                case "playwright":
+                    return PlaywrightDriver.start(options, appender);
                 default:
                     logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
                     options.put("type", "chrome");
-                    return Chrome.start(context, options, appender);
+                    return Chrome.start(options, appender);
             }
         } catch (Exception e) {
             String message = "driver config / start failed: " + e.getMessage() + ", options: " + options;
-            logger.error(message);
+            logger.error(message, e);
             if (target != null) {
                 target.stop(logger);
             }
             throw new RuntimeException(message, e);
         }
     }
-    
-    private Map<String, Object> getCapabilities(String browserName) {
-        Map<String, Object> map = new LinkedHashMap();
-        map.put("browserName", browserName);
-        if (proxy != null) {
-            map.put("proxy", proxy);
+
+    private Map<String, Object> getSession(String browserName) {
+        Map<String, Object> session = webDriverSession;
+        if (session == null) {
+            session = new HashMap();
         }
-        return Collections.singletonMap("capabilities", map);
+        Map<String, Object> capabilities = (Map) session.get("capabilities");
+        if (capabilities == null) {
+            capabilities = (Map) session.get("desiredCapabilities");
+        }
+        if (capabilities == null) {
+            capabilities = new HashMap();
+            session.put("capabilities", capabilities);
+            Map<String, Object> alwaysMatch = new HashMap();
+            capabilities.put("alwaysMatch", alwaysMatch);
+            alwaysMatch.put("browserName", browserName);
+        }
+        return session;
     }
 
-    public Map<String, Object> getCapabilities() {
+    // TODO abstract as method per implementation
+    public Map<String, Object> getWebDriverSessionPayload() {
         switch (type) {
             case "chromedriver":
-                return getCapabilities("Chrome");
+                return getSession("chrome");
             case "geckodriver":
-                return getCapabilities("Firefox");
+                return getSession("firefox");
             case "safaridriver":
-                return getCapabilities("Safari");
+                return getSession("safari");
+            case "msedgedriver":
             case "mswebdriver":
-                return getCapabilities("Edge");
+                return getSession("edge");
+            case "iedriver":
+                return getSession("internet explorer");
             default:
-                return null;
+                // else user has to specify full payload via webDriverSession
+                return getSession(type);
         }
     }
-    
+
     public static String preProcessWildCard(String locator) {
         boolean contains;
         String tag, prefix, text;
@@ -338,7 +414,13 @@ public class DriverOptions {
         return "/(" + xpath + ")[" + index + "]";
     }
 
-    public String selector(String locator) {
+    private static final String DOCUMENT = "document";
+
+    public static String selector(String locator) {
+        return selector(locator, DOCUMENT);
+    }
+
+    public static String selector(String locator, String contextNode) {
         if (locator.startsWith("(")) {
             return locator; // pure js !
         }
@@ -349,9 +431,20 @@ public class DriverOptions {
             if (locator.startsWith("/(")) {
                 locator = locator.substring(1); // hack for wildcard with index (see preProcessWildCard last line)
             }
-            return "document.evaluate(\"" + locator + "\", document, null, 9, null).singleNodeValue";
+            return "document.evaluate(\"" + locator + "\", " + contextNode + ", null, 9, null).singleNodeValue";
         }
-        return "document.querySelector(\"" + locator + "\")";
+        return contextNode + ".querySelector(\"" + locator + "\")";
+    }
+
+    public void setTimeout(Integer timeout) {
+        this.timeoutOverride = timeout;
+    }
+
+    public int getTimeout() {
+        if (timeoutOverride != null) {
+            return timeoutOverride;
+        }
+        return timeout;
     }
 
     public void setRetryInterval(Integer retryInterval) {
@@ -362,10 +455,11 @@ public class DriverOptions {
         if (retryInterval != null) {
             return retryInterval;
         }
-        if (context == null) {
+        ScenarioEngine engine = ScenarioEngine.get();
+        if (engine == null) {
             return Config.DEFAULT_RETRY_INTERVAL;
         } else {
-            return context.getConfig().getRetryInterval();
+            return engine.getConfig().getRetryInterval();
         }
     }
 
@@ -373,14 +467,15 @@ public class DriverOptions {
         if (retryCount != null) {
             return retryCount;
         }
-        if (context == null) {
+        ScenarioEngine engine = ScenarioEngine.get();
+        if (engine == null) {
             return Config.DEFAULT_RETRY_COUNT;
         } else {
-            return context.getConfig().getRetryCount();
+            return ScenarioEngine.get().getConfig().getRetryCount();
         }
     }
 
-    public <T> T retry(Supplier<T> action, Predicate<T> condition, String logDescription) {
+    public <T> T retry(Supplier<T> action, Predicate<T> condition, String logDescription, boolean failWithException) {
         long startTime = System.currentTimeMillis();
         int count = 0, max = getRetryCount();
         T result;
@@ -395,7 +490,11 @@ public class DriverOptions {
         } while (!success && count++ < max);
         if (!success) {
             long elapsedTime = System.currentTimeMillis() - startTime;
-            logger.warn("failed after {} retries and {} milliseconds", (count - 1), elapsedTime);
+            String message = logDescription + ": failed after " + (count - 1) + " retries and " + elapsedTime + " milliseconds";
+            logger.warn(message);
+            if (failWithException) {
+                throw new RuntimeException(message);
+            }
         }
         return result;
     }
@@ -406,19 +505,23 @@ public class DriverOptions {
 
     private static final String HIGHLIGHT_FN = "function(e){ var old = e.getAttribute('style');"
             + " e.setAttribute('style', 'background: yellow; border: 2px solid red;');"
-            + " setTimeout(function(){ e.setAttribute('style', old) }, 3000) }";
+            + " setTimeout(function(){ e.setAttribute('style', old) }, %d) }";
 
-    public String highlight(String locator) {
+    private static String highlightFn(int millis) {
+        return String.format(HIGHLIGHT_FN, millis);
+    }
+
+    public String highlight(String locator, int millis) {
         String e = selector(locator);
-        String temp = "var e = " + e + "; var fun = " + HIGHLIGHT_FN + "; fun(e)";
+        String temp = "var e = " + e + "; var fun = " + highlightFn(millis) + "; fun(e)";
         return wrapInFunctionInvoke(temp);
     }
 
-    public String highlightAll(String locator) {
-        return scriptAllSelector(locator, HIGHLIGHT_FN);
+    public String highlightAll(String locator, int millis) {
+        return scriptAllSelector(locator, highlightFn(millis));
     }
 
-    public String optionSelector(String id, String text) {
+    public String optionSelector(String locator, String text) {
         boolean textEquals = text.startsWith("{}");
         boolean textContains = text.startsWith("{^}");
         String condition;
@@ -428,7 +531,7 @@ public class DriverOptions {
         } else {
             condition = "e.options[i].value === t";
         }
-        String e = selector(id);
+        String e = selector(locator);
         String temp = "var e = " + e + "; var t = \"" + text + "\";"
                 + " for (var i = 0; i < e.options.length; ++i)"
                 + " if (" + condition + ") { e.options[i].selected = true; e.dispatchEvent(new Event('change')) }";
@@ -449,20 +552,30 @@ public class DriverOptions {
     }
 
     public String scriptSelector(String locator, String expression) {
-        String temp = "var fun = " + fun(expression) + "; var e = " + selector(locator) + "; return fun(e)";
+        return scriptSelector(locator, expression, DOCUMENT);
+    }
+
+    public String scriptSelector(String locator, String expression, String contextNode) {
+        String temp = "var fun = " + fun(expression) + "; var e = " + selector(locator, contextNode) + "; return fun(e)";
         return wrapInFunctionInvoke(temp);
     }
 
     public String scriptAllSelector(String locator, String expression) {
+        return scriptAllSelector(locator, expression, DOCUMENT);
+    }
+
+    // the difference here from selector() is the use of querySelectorAll()
+    // how the loop for XPath results has to be handled
+    public String scriptAllSelector(String locator, String expression, String contextNode) {
         if (locator.startsWith("{")) {
             locator = preProcessWildCard(locator);
         }
         boolean isXpath = locator.startsWith("/");
         String selector;
-        if (isXpath) {
-            selector = "document.evaluate(\"" + locator + "\", document, null, 5, null)";
+        if (isXpath) { // XPathResult.ORDERED_NODE_ITERATOR_TYPE = 5
+            selector = "document.evaluate(\"" + locator + "\", " + contextNode + ", null, 5, null)";
         } else {
-            selector = "document.querySelectorAll(\"" + locator + "\")";
+            selector = contextNode + ".querySelectorAll(\"" + locator + "\")";
         }
         String temp = "var res = []; var fun = " + fun(expression) + "; var es = " + selector + "; ";
         if (isXpath) {
@@ -489,20 +602,11 @@ public class DriverOptions {
         }
     }
 
-    private boolean waitForPort(String host, int port) {
-        int attempts = 0;
-        do {
-            SocketAddress address = new InetSocketAddress(host, port);
-            try {
-                processLogger.debug("poll attempt #{} for port to be ready - {}:{}", attempts, host, port);
-                SocketChannel sock = SocketChannel.open(address);
-                sock.close();
-                return true;
-            } catch (IOException e) {
-                sleep(pollInterval);
-            }
-        } while (attempts++ < pollAttempts);
-        return false;
+    public static String getPositionJs(String locator) {
+        String temp = "var r = " + selector(locator, DOCUMENT) + ".getBoundingClientRect();"
+                + " var dx = window.scrollX; var dy = window.scrollY;"
+                + " return { x: r.x + dx, y: r.y + dy, width: r.width + dx, height: r.height + dy }";
+        return wrapInFunctionInvoke(temp);
     }
 
     public Map<String, Object> newMapWithSelectedKeys(Map<String, Object> map, String... keys) {
@@ -514,31 +618,6 @@ public class DriverOptions {
             }
         }
         return out;
-    }
-
-    public String removeProtocol(String url) {
-        int pos = url.indexOf("://");
-        return pos == -1 ? url : url.substring(pos + 3);
-    }
-
-    public void embedPngImage(byte[] bytes) {
-        if (context != null) { // can be null if chrome java api
-            context.embed(bytes, "image/png");
-        }
-    }
-
-    public void embedContent(Embed embed) {
-        if (context != null) {
-            context.embed(embed);
-        }
-    }
-
-    public static final Set<String> DRIVER_METHOD_NAMES = new HashSet();
-
-    static {
-        for (Method m : Driver.class.getDeclaredMethods()) {
-            DRIVER_METHOD_NAMES.add(m.getName());
-        }
     }
 
     public void disableRetry() {
@@ -566,7 +645,7 @@ public class DriverOptions {
     }
 
     public String waitForUrl(Driver driver, String expected) {
-        return retry(() -> driver.getUrl(), url -> url.contains(expected), "waitForUrl");
+        return retry(() -> driver.getUrl(), url -> url.contains(expected), "waitForUrl", true);
     }
 
     public Element waitForAny(Driver driver, String... locators) {
@@ -593,8 +672,8 @@ public class DriverOptions {
             return DriverElement.locatorExists(driver, locators[0]);
         }
         for (String locator : locators) {
-            Element temp = driver.exists(locator);
-            if (temp.isExists()) {
+            Element temp = driver.optional(locator);
+            if (temp.isPresent()) {
                 return temp;
             }
         }
@@ -602,7 +681,7 @@ public class DriverOptions {
         throw new RuntimeException("unexpected wait failure for locators: " + list);
     }
 
-    public Element exists(Driver driver, String locator) {
+    public Element optional(Driver driver, String locator) {
         String js = selector(locator);
         String evalJs = js + " != null";
         Object o = driver.script(evalJs);

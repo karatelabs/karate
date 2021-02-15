@@ -1,0 +1,152 @@
+name: Make the release
+on:
+  workflow_dispatch:
+    inputs:
+      newMasterVersion:
+        description: 'The new version to set in master branch'
+        required: true
+
+env:
+  MAVEN_CLI_OPTS: ${{ '-Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn' }}
+
+jobs:
+  maven-package:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Install xmlstarlet
+        run: sudo apt install xmlstarlet
+      -
+        name: Checkout master
+        uses: actions/checkout@v2
+        with:
+          ref : master
+      -
+        name: Setup Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 8
+      -
+        name: Generate Maven settings.xml file
+        uses: s4u/maven-settings-action@v2.1.1
+        with:
+          servers: '[{"id": "ossrh", "username": "${{ secrets.SERVERUSERNAME }}", "password": "${{ secrets.SERVERPASSWORD }}"}]'
+          sonatypeSnapshots: true
+          githubServer: true
+          override: true
+      -
+        name: Set release version
+        run: |
+          KARATE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          mvn ${{ env.MAVEN_CLI_OPTS }} versions:set -DnewVersion=${{ github.event.inputs.newMasterVersion }}
+          xmlstarlet ed -L -N N="http://maven.apache.org/POM/4.0.0"  -u "/N:project//N:properties/N:karate.version" -v ${{ github.event.inputs.newMasterVersion }} examples/jobserver/pom.xml
+          sed -i "s/karateVersion = '.*'/karateVersion = '${{ github.event.inputs.newMasterVersion }}'/" examples/jobserver/build.gradle
+          xmlstarlet ed -L -N N="http://maven.apache.org/POM/4.0.0" -u "/N:project//N:properties/N:karate.version" -v ${{ github.event.inputs.newMasterVersion }} examples/gatling/pom.xml
+          sed -i "s/karateVersion = '.*'/karateVersion = '${{ github.event.inputs.newMasterVersion }}'/" examples/gatling/build.gradle
+          xmlstarlet ed -L -N N="http://maven.apache.org/POM/4.0.0" -u "/N:project//N:properties/N:karate.version" -v ${{ github.event.inputs.newMasterVersion }} examples/consumer-driven-contracts/pom.xml
+          xmlstarlet ed -L -N N="http://maven.apache.org/POM/4.0.0" -u "/N:project//N:properties/N:karate.version" -v ${{ github.event.inputs.newMasterVersion }} examples/mobile-test/pom.xml
+          xmlstarlet ed -L -N N="http://maven.apache.org/POM/4.0.0" -u "/N:project//N:properties/N:karate.version" -v ${{ github.event.inputs.newMasterVersion }} examples/mock-servlet/pom.xml
+          xmlstarlet ed -L -N N="http://maven.apache.org/POM/4.0.0" -u "/N:project//N:properties/N:karate.version" -v ${{ github.event.inputs.newMasterVersion }} examples/robot-test/pom.xml
+          xmlstarlet ed -L -N N="http://maven.apache.org/POM/4.0.0" -u "/N:project//N:properties/N:karate.version" -v ${{ github.event.inputs.newMasterVersion }} examples/ui-test/pom.xml
+          xmlstarlet ed -L -N N="http://maven.apache.org/POM/4.0.0" -u "/N:project//N:properties/N:karate.version" -v ${{ github.event.inputs.newMasterVersion }} karate-archetype/src/main/resources/archetype-resources/pom.xml
+          sed -i "s/${KARATE_VERSION}/${{ github.event.inputs.newMasterVersion }}/" README.md
+          mvn ${{ env.MAVEN_CLI_OPTS }} versions:commit
+      -
+        name: Main packages Maven deploy
+        run: |
+          mvn ${{ env.MAVEN_CLI_OPTS }} clean install -P pre-release,release -Dgpg.skip
+          mvn -f examples/jobserver/pom.xml test-compile exec:java -Dexec.mainClass=common.Main -Dexec.classpathScope=test
+          mvn -f examples/gatling/pom.xml test
+      -
+        name: Netty deploy
+        run: |
+          cd karate-netty
+          mvn ${{ env.MAVEN_CLI_OPTS }} install -P fatjar
+          cd ..
+      -
+        name: Robot deploy
+        run: |
+          cd karate-robot
+          mvn ${{ env.MAVEN_CLI_OPTS }} install -P fatjar
+          cd ..
+      -
+        name: Commit changes after the new version
+        uses: stefanzweifel/git-auto-commit-action@v4.7.2
+        with:
+          commit_message: Release ${{ github.event.inputs.newMasterVersion }}
+          commit_user_name: ptrthomas
+          commit_user_email: peter_thomas@intuit.com
+          commit_author: Peter Thomas <peter_thomas@intuit.com>
+      -
+        name: Get new commit SHA
+        run: |
+          NEW_COMMIT_ID=$(git rev-parse --verify HEAD)
+          echo "::set-env name=NEW_COMMIT_ID::$NEW_COMMIT_ID"
+      -
+        name: Create Release
+        id: create_release
+        uses: actions/create-release@v1.1.4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.event.inputs.newMasterVersion }}
+          release_name: v${{ github.event.inputs.newMasterVersion }}
+          commitish: ${{ env.NEW_COMMIT_ID }}
+          draft: true
+          prerelease: false
+      -
+        name: Upload Netty Release Asset
+        id: upload-netty-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path: ./karate-netty/target/karate-${{ github.event.inputs.newMasterVersion }}.zip
+          asset_name: karate-${{ github.event.inputs.newMasterVersion }}.zip
+          asset_content_type: application/zip
+      -
+        name: Upload Robot Release Asset
+        id: upload-robot-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path: ./karate-robot/target/karate-robot-${{ github.event.inputs.newMasterVersion }}.jar
+          asset_name: karate-robot-${{ github.event.inputs.newMasterVersion }}.jar
+          asset_content_type: application/java-archive
+      -
+        name: Prepare Docker Build
+        run: |
+          mkdir -p karate-docker/karate-chrome/target/repository
+          mvn  ${{ env.MAVEN_CLI_OPTS }} -Dmaven.repo.local=karate-docker/karate-chrome/target/repository clean install -DskipTests -P pre-release -Djavacpp.platform=linux-x86_64
+          mvn  ${{ env.MAVEN_CLI_OPTS }} -Dmaven.repo.local=karate-docker/karate-chrome/target/repository -f karate-netty/pom.xml install -DskipTests -P fatjar
+          cp karate-netty/target/karate-${{ github.event.inputs.newMasterVersion }}.jar karate-docker/karate-chrome/target/karate.jar
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      -
+        name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      -
+        name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          context: ./karate-docker/karate-chrome/
+          file: ./karate-docker/karate-chrome/Dockerfile
+          tags: |
+            karate-chrome
+            ptrthomas/karate-chrome:latest
+            ptrthomas/karate-chrome:${{ github.event.inputs.newMasterVersion }}
+      -
+        name: Image digest
+        run: echo ${{ steps.docker_build.outputs.digest }}

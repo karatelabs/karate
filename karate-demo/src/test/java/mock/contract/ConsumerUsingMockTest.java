@@ -1,14 +1,13 @@
 package mock.contract;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.netty.FeatureServer;
-import java.io.File;
-import java.util.Collections;
+import com.intuit.karate.core.MockServer;
 import org.junit.AfterClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.junit.BeforeClass;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -16,14 +15,18 @@ import org.junit.BeforeClass;
  */
 public class ConsumerUsingMockTest {
     
-    private static FeatureServer server;
+    private static final Logger logger = LoggerFactory.getLogger(ConsumerUsingMockTest.class);
+    
+    private static MockServer server;
     private static Consumer consumer;
     
     @BeforeClass
     public static void beforeClass() {
         String queueName = "DEMO.MOCK";
-        File file = FileUtils.getFileRelativeTo(ConsumerUsingMockTest.class, "payment-service-mock.feature");
-        server = FeatureServer.start(file, 0, false, Collections.singletonMap("queueName", queueName));
+        server = MockServer
+                .feature("classpath:mock/contract/payment-service-mock.feature")
+                .arg("queueName", queueName)
+                .http(0).build();          
         String paymentServiceUrl = "http://localhost:" + server.getPort();
         consumer = new Consumer(paymentServiceUrl, queueName);        
     }    
@@ -46,7 +49,7 @@ public class ConsumerUsingMockTest {
             }
         });
         synchronized(this) {
-            wait();
+            wait(10000);
         }       
     }
     

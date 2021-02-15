@@ -2,7 +2,7 @@ Feature: demo of data-driven unit-testing
 
   Background:
     * def FB = Java.type('com.intuit.karate.demo.util.FizzBuzz')
-    * def fb = function(n){ return FB.process(n) }
+    * def fb = n => FB.process(n)
 
   Scenario: simple assertions
     * match fb(1) == '1'
@@ -10,7 +10,7 @@ Feature: demo of data-driven unit-testing
     * match fb(5) == 'Buzz'
     * match fb(15) == 'FizzBuzz'
 
-  Scenario Outline: data-driven assertions
+  Scenario Outline: data-driven assertions: ${val}
     * match fb(val) == expected
 
     Examples:

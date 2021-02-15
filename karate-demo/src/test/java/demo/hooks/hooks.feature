@@ -16,7 +16,6 @@ Background:
 #   - featureDir
 #   - featureFileName
 #   - scenarioName
-#   - scenarioType (either 'Scenario' or 'Scenario Outline')
 #   - scenarioDescription
 #   - errorMessage (will be not-null if the Scenario failed)
 
@@ -24,7 +23,7 @@ Background:
 """
 function(){
   var info = karate.info; 
-  karate.log('after', info.scenarioType + ':', info.scenarioName);
+  karate.log('after scenario:', info.scenarioName);
   karate.call('after-scenario.feature', { caller: info.featureFileName });
 }
 """
