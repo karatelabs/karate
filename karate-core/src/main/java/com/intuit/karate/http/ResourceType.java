@@ -164,6 +164,9 @@ public enum ResourceType {
         }
         ct = ct.toLowerCase();
         for (ResourceType rt : ResourceType.values()) {
+            if (ct.equals(rt.contentType)) {
+                return rt;
+            }
             for (String like : rt.contentLike) {
                 if (ct.contains(like)) {
                     return rt;
