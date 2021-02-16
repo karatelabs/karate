@@ -149,7 +149,7 @@ public class Response implements ProxyObject {
             return body;
         }
         try {
-            return JsValue.fromBytes(body, false);
+            return JsValue.fromBytes(body, false, rt);
         } catch (Exception e) {
             logger.trace("failed to auto-convert response: {}", e);
             return getBodyAsString();

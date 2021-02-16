@@ -579,7 +579,7 @@ public class ScenarioEngine {
             body = bytes;
         } else {
             try {
-                body = JsValue.fromBytes(bytes, true);
+                body = JsValue.fromBytes(bytes, true, resourceType);
             } catch (Exception e) {
                 body = FileUtils.toString(bytes);
                 logger.warn("auto-conversion of response failed: {}", e.getMessage());
