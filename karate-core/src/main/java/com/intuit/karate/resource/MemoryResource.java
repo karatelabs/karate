@@ -24,6 +24,7 @@
 package com.intuit.karate.resource;
 
 import com.intuit.karate.FileUtils;
+
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;

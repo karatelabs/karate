@@ -28,6 +28,9 @@ import com.intuit.karate.core.Feature;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ResourceList;
 import io.github.classgraph.ScanResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -45,8 +48,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -90,41 +91,11 @@ public class ResourceUtils {
         return features;
     }
 
-    private static final ScanResult SCAN_RESULT = new ClassGraph().acceptPaths("/").scan();
+    static final ScanResult SCAN_RESULT = new ClassGraph().acceptPaths("/").scan();
 
     public static Resource getResource(File workingDir, String path) {
-        if (path.startsWith("classpath:")) {
-            path = removePrefix(path);
-            File file = classPathToFile(path);
-            if (file != null) {
-                return new FileResource(file, true, path);
-            }
-            List<Resource> resources = new ArrayList<>();
-            ResourceList rl = SCAN_RESULT.getResourcesWithPath(path);
-            if (rl == null) {
-                rl = ResourceList.emptyList();
-            }
-            rl.forEachByteArrayIgnoringIOException((res, bytes) -> {
-                URI uri = res.getURI();
-                if ("file".equals(uri.getScheme())) {
-                    File found = Paths.get(uri).toFile();
-                    resources.add(new FileResource(found, true, res.getPath()));
-                } else {
-                    resources.add(new JarResource(bytes, res.getPath(), uri));
-                }
-            });
-            if (resources.isEmpty()) {
-                throw new RuntimeException("not found: " + path);
-            }
-            return resources.get(0);
-        } else {
-            File file = new File(removePrefix(path));
-            if (!file.exists()) {
-                throw new RuntimeException("not found: " + path);
-            }
-            Path relativePath = workingDir.toPath().relativize(file.getAbsoluteFile().toPath());
-            return new FileResource(file, false, relativePath.toString());
-        }
+
+        return ResourceLoaderRegistry.getResource(workingDir, path);
     }
 
     public static Collection<Resource> findResourcesByExtension(File workingDir, String extension, String path) {
