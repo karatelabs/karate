@@ -1675,7 +1675,7 @@ The above would result in a URL like: `http://myhost/mypath?someKey=hello&anothe
 
 Multi-value params are also supported:
 ```cucumber
-* param myParam = 'foo', 'bar'
+* param myParam = ['foo', 'bar']
 ```
 
 You can also use JSON to set multiple query-parameters in one-line using [`params`](#params) and this is especially useful for dynamic data-driven testing.
@@ -1717,7 +1717,7 @@ If you need headers to be dynamically generated for each HTTP request, use a Jav
 
 Multi-value headers (though rarely used in the wild) are also supported:
 ```cucumber
-* header myHeader = 'foo', 'bar'
+* header myHeader = ['foo', 'bar']
 ```
 
 Also look at the [`headers`](#headers) keyword which uses JSON and makes some kinds of dynamic data-driven testing easier.
@@ -1758,7 +1758,7 @@ A good example of the use of `form field` for a typical sign-in flow is this OAu
 
 Multi-values are supported the way you would expect (e.g. for simulating check-boxes and multi-selects):
 ```cucumber
-* form field selected = 'apple', 'orange'
+* form field selected = ['apple', 'orange']
 ```
 
 You can also dynamically set multiple fields in one step using the [`form fields`](#form-fields) keyword.
