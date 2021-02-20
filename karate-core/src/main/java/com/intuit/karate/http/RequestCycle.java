@@ -25,7 +25,6 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.template.TemplateEngineContext;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -62,7 +61,6 @@ public class RequestCycle {
     private final JsEngine engine;
 
     private JsEngine localEngine;
-    private TemplateEngineContext engineContext;
     private Session session;
     private Response response;
     private ServerContext context;

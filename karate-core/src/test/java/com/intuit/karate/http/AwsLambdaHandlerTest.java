@@ -2,6 +2,7 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Json;
+import com.intuit.karate.Match;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -102,5 +103,25 @@ class AwsLambdaHandlerTest {
         init(false);
         testApiInternal();
     }
+    
+    void testCatsInternal() {
+        Map<String, Object> res = handleAsMap("cats.json");
+        Json body = Json.of(res.get("body"));
+        Match.that(body.asMap()).isEqualTo("{ name: 'Billie', id: '#number' }");
+        Integer status = (Integer) res.get("statusCode");
+        assertEquals(200, status);
+    }
+    
+    @Test
+    void testCatsClassPath() {
+        init(true);
+        testCatsInternal();
+    }    
+    
+    @Test
+    void testCatsFileSystem() {
+        init(false);
+        testCatsInternal();
+    }     
 
 }

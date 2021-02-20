@@ -52,7 +52,7 @@ import org.slf4j.LoggerFactory;
 public class Response implements ProxyObject {
 
     private static final Logger logger = LoggerFactory.getLogger(Response.class);
-    
+
     public static final Response OK = new Response(200);
 
     private static final String BODY = "body";
@@ -108,6 +108,12 @@ public class Response implements ProxyObject {
         return headers;
     }
 
+    public Map<String, List<String>> getHeadersWithLowerCaseNames() {
+        Map<String, List<String>> map = new HashMap(headers.size());
+        headers.forEach((k, v) -> map.put(k.toLowerCase(), v));
+        return map;
+    }
+
     public Map<String, Map> getCookies() {
         List<String> values = getHeaderValues(HttpConstants.HDR_SET_COOKIE);
         if (values == null) {
@@ -143,7 +149,7 @@ public class Response implements ProxyObject {
             return body;
         }
         try {
-            return JsValue.fromBytes(body, false);
+            return JsValue.fromBytes(body, false, rt);
         } catch (Exception e) {
             logger.trace("failed to auto-convert response: {}", e);
             return getBodyAsString();

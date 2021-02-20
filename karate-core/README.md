@@ -215,7 +215,9 @@ To understand how Karate compares to other UI automation frameworks, this articl
   * wait for an element to [be ready](#waitfor)
   * [compose functions](#function-composition) for elegant *custom* "wait" logic
   * assert on tabular [results in the HTML](#scriptall)
-* [Example 3](../karate-demo/src/test/java/driver/core/test-01.feature) - which is a single script that exercises *all* capabilities of Karate Driver, so is a handy reference
+* [Example 3](../karate-e2e-tests/src/test/java/driver/00.feature) - which is a single modular script that exercises *all* capabilities of Karate Driver
+  * a handy reference that can give you ideas on how to structure your tests
+  * run as part of Karate's [regression suite](https://stackoverflow.com/a/66005331/143475) via GitHub Actions
 
 ## Windows
 * [Example](../karate-demo/src/test/java/driver/windows/calc.feature) - but also see the [`karate-robot`](https://github.com/intuit/karate/tree/master/karate-robot) for an alternative approach.
@@ -339,7 +341,7 @@ To use [Playwright](https://playwright.dev), you need to start a Playwright serv
 
 Or you can set up an executable that can do it and log the URL to the console when the server is ready. The websocket URL will look like this: `ws://127.0.0.1:4444/0e0bd1c0bb2d4eb550d02c91046dd6e0`.
 
-Here's a simple recipe to set up this mechanism on your local machine. NodeJS is a pre-requisite and you can choose a folder (e.g. `playwright`) for the "start scripts" to live. Within that folder, [you can run](https://playwright.dev/#?path=docs/intro.md):
+Here's a simple recipe to set up this mechanism on your local machine. NodeJS is a pre-requisite and you can choose a folder (e.g. `playwright`) for the "start scripts" to live. Within that folder, [you can run](https://playwright.dev/docs/intro#installation):
 
 ```
 npm i -D playwright
@@ -752,6 +754,8 @@ Get the current URL / address for matching. Example:
 Then match driver.url == webUrlBase + '/page-02'
 ```
 
+Note that if you do this as soon as you navigate to a new page, there is a chance that this returns the old / stale URL. To avoid "flaky" tests, use [`waitForUrl()`](#waitforurl)
+
 This can also be used as a "setter" to navigate to a new URL *during* a test. But always use the [`driver`](#driver) keyword when you *start* a test and you can choose to prefer that shorter form in general.
 
 ```cucumber
@@ -848,7 +852,9 @@ You can even mix this into [`mouse()`](#mouse) actions.
 For some SPAs (Single Page Applications) the detection of a "page load" may be difficult because page-navigation (and the browser history) is taken over by JavaScript. In such cases, you can always fall-back to a [`waitForUrl()`](#waitforurl) or a more generic [`waitFor()`](#waitfor).
 
 ### `waitForUrl()` instead of `submit()`
-Sometimes, because of an HTTP re-direct, it can be difficult for Karate to detect a page URL change, or it will be detected too soon, causing your test to fail. In such cases, you can use `waitForUrl()`. For convenience, it will do a string *contains* match (not an exact match) so you don't need to worry about `http` vs `https` for example. Just supply a portion of the URL you are expecting. As another convenience, it will return a string which is the *actual* URL in case you need to use it for further actions in the test script.
+Sometimes, because of an HTTP re-direct, it can be difficult for Karate to detect a page URL change, or it will be detected too soon, causing your test to fail. In such cases, you can use [`waitForUrl()`](#waitforurl). 
+
+Note that it uses a string "contains" match, so you just need to supply a portion of the URL you are expecting.
 
 So instead of this, which uses [`submit()`](#submit):
 
@@ -1036,9 +1042,19 @@ And match enabled('#eg01DisabledId') == false
 Also see [`waitUntil()`](#waituntil) for an example of how to wait *until* an element is "enabled" or until any other element property becomes the target value.
 
 ## `waitForUrl()`
-Very handy for waiting for an expected URL change *and* asserting if it happened. See [`waitForUrl()` instead of `submit()`](#waitforurl-instead-of-submit).
+Very handy for waiting for an expected URL change *and* asserting if it happened.
 
-Also see [waits](#wait-api).
+For convenience, it will do a string contains match (not an exact match) so you don't need to worry about `http` vs `https` for example. It will also return a string which is the *actual* URL in case you need to use it for further actions in the test script.
+
+```cucumber
+# note that you don't need the full url
+* waitForUrl('/some/path')
+
+# if you want to get the actual url for later use
+* def actualUrl = waitForUrl('/some/path')
+```
+
+See [`waitForUrl()` instead of `submit()`](#waitforurl-instead-of-submit). Also see [waits](#wait-api).
 
 ## `waitForText()`
 This is just a convenience short-cut for `waitUntil(locator, "_.textContent.includes('" + expected + "')")` since it is so frequently needed. Note the use of the JavaScript [`String.includes()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/includes) function to do a *text contains* match for convenience. The need to "wait until some text appears" is so common, and with this - you don't need to worry about dealing with white-space such as line-feeds and invisible tab characters.

@@ -157,7 +157,7 @@ public class JsonUtils {
         return (T) fromJson(s, clazz.getName());
     }
 
-    public static Map<String, Object> fromYaml(String raw) {
+    public static Object fromYaml(String raw) {
         Yaml yaml = new Yaml(new SafeConstructor());
         return yaml.load(raw);
     }

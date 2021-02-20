@@ -30,12 +30,12 @@
         <dependency>
             <groupId>org.thymeleaf</groupId>
             <artifactId>thymeleaf</artifactId>
-            <version>3.0.11.RELEASE</version>
+            <version>3.0.12.RELEASE</version>
         </dependency>    
         <dependency>
             <groupId>com.linecorp.armeria</groupId>
             <artifactId>armeria</artifactId>
-            <version>1.3.0</version>
+            <version>1.4.0</version>
         </dependency>              
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
@@ -198,12 +198,16 @@
                                 <configuration>
                                     <artifactSet>
                                         <includes>
-                                            <include>com.linecorp.armeria:*</include> 
+                                            <include>com.linecorp.armeria:*</include>
+                                            <!-- next 2 needed for armeria at runtime -->
                                             <include>io.micrometer:*</include>
-                                            <include>org.reactivestreams:*</include>                                           
-                                            <include>io.netty:*</include>
-                                            <include>io.netty.incubator:*</include>
+                                            <include>org.reactivestreams:*</include>                                  
+                                            <include>io.netty:*</include>                                       
                                             <include>org.apache.httpcomponents:*</include>
+                                            <include>org.thymeleaf:*</include>
+                                            <!-- next 2 needed for thymeleaf at runtime -->
+                                            <include>org.attoparser:*</include>
+                                            <include>org.unbescape:*</include>
                                             <include>org.antlr:*</include>
                                             <include>io.github.classgraph:*</include>
                                         </includes>
@@ -220,7 +224,11 @@
                                         <relocation>
                                             <pattern>org.apache.http.</pattern>
                                             <shadedPattern>karate.org.apache.http.</shadedPattern>
-                                        </relocation>                                        
+                                        </relocation>
+                                        <relocation>
+                                            <pattern>org.thymeleaf.</pattern>
+                                            <shadedPattern>karate.org.thymeleaf.</shadedPattern>
+                                        </relocation>                                                                                                                    
                                         <relocation>
                                             <pattern>org.antlr.v4.</pattern>
                                             <shadedPattern>karate.org.antlr.v4.</shadedPattern>
@@ -234,17 +242,11 @@
                                             <shadedPattern>karate.nonapi.io.github.classgraph.</shadedPattern>
                                         </relocation>                                                                                                                      
                                     </relocations>
-                                    <filters>
-                                        <filter>
-                                            <artifact>io.netty.incubator:netty-incubator-transport-native-io_uring</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/native/libnetty_transport_native_io_uring_x86_64.so</exclude>                                                                                                                                           
-                                            </excludes>
-                                        </filter>                                        
+                                    <filters>                                                                             
                                         <filter>
                                             <artifact>io.netty:netty-transport-native-epoll</artifact>
                                             <excludes>
-                                                <exclude>META-INF/native/libnetty_transport_native_epoll_x86_64.so</exclude>                                                                                                                                           
+                                                <exclude>META-INF/native/libnetty_transport_native_epoll_x86_64.so</exclude>                                                                                                                    
                                             </excludes>
                                         </filter>
                                         <filter>
@@ -260,10 +262,6 @@
                                     <transformers>
                                         <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                             <mainClass>com.intuit.karate.Main</mainClass>
-                                        </transformer> 
-                                        <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
-                                            <resource>META-INF/native/libkarate_netty_transport_native_io_uring_x86_64.so</resource>
-                                            <file>target/shade/META-INF/native/libnetty_transport_native_io_uring_x86_64.so</file>
                                         </transformer>                                                                                
                                         <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
                                             <resource>META-INF/native/libkarate_netty_transport_native_epoll_x86_64.so</resource>

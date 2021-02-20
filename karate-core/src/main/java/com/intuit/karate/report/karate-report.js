@@ -3,9 +3,9 @@ window.onload = function () {
     var id = this.id;
     var children = $("[data-parent='" + id + "']");
     if (children.length > 0) {
-      children.hide();
+      children.hide('fast');
       $(this).wrap("<a href='javascript:void(0)'></a>").click(function () {
-        children.toggle();
+        children.toggle('fast');
       });
     }
   });

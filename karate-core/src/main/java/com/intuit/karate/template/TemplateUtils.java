@@ -26,7 +26,6 @@ package com.intuit.karate.template;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.resource.ResourceResolver;
-import java.util.function.Supplier;
 import org.thymeleaf.context.ITemplateContext;
 import org.thymeleaf.model.IModel;
 import org.thymeleaf.model.IModelFactory;
@@ -42,7 +41,7 @@ public class TemplateUtils {
         // only static methods
     }
 
-    private static final String HTMX_SCRIPT_TAG = "<script src=\"https://unpkg.com/htmx.org@1.0.1\"></script>";
+    private static final String HTMX_SCRIPT_TAG = "<script src=\"https://unpkg.com/htmx.org@1.2.0\"></script>";
 
     public static IModel generateHeadScriptTag(ITemplateContext ctx) {
         IModelFactory modelFactory = ctx.getModelFactory();

@@ -23,8 +23,7 @@ Scenario: pathMatches('/payments/{id}') && methodIs('put')
     * def response = request
 
 Scenario: pathMatches('/payments/{id}') && methodIs('delete')
-    * karate.remove('payments', '$.' + pathParams.id)
-    * def response = ''
+    * karate.remove('payments', pathParams.id)
 
 Scenario: pathMatches('/payments/{id}')
     * def response = payments[pathParams.id]

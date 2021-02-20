@@ -61,7 +61,7 @@ public class StringLogAppender implements LogAppender {
     
     @Override
     public void close() {
-        sb.setLength(0);
+        // don't dispose of buffer it can be collected later
     }    
     
 }

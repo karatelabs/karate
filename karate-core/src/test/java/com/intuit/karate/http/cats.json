@@ -1,0 +1,8 @@
+{
+    "path": "/api/cats",
+    "isBase64Encoded": false,
+    "multiValueQueryStringParameters": null,
+    "multiValueHeaders": { "Content-Type": ["application/x-www-form-urlencoded"] },
+    "httpMethod": "POST",
+    "body": "{\"name\":\"Billie\"}"
+}

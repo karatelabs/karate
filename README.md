@@ -1,12 +1,12 @@
 # <img src="karate-core/src/main/java/karate-logo.svg" height="60" width="60"/> Karate
 ## Test Automation Made `Simple.`
-[![Maven Central](https://img.shields.io/maven-central/v/com.intuit.karate/karate-core.svg)](https://search.maven.org/artifact/com.intuit.karate/karate-core) [ ![build](https://github.com/intuit/karate/workflows/maven-build/badge.svg)](https://github.com/intuit/karate/actions?query=workflow%3Amaven-build) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Support Slack](https://img.shields.io/badge/support-slack-red.svg)](https://github.com/intuit/karate/wiki/Support) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL)
+[![Maven Central](https://img.shields.io/maven-central/v/com.intuit.karate/karate-core.svg)](https://search.maven.org/artifact/com.intuit.karate/karate-core) [ ![build](https://github.com/intuit/karate/workflows/maven-build/badge.svg)](https://github.com/intuit/karate/actions?query=workflow%3Amaven-build) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Support Slack](https://img.shields.io/badge/support-wiki-red.svg)](https://github.com/intuit/karate/wiki/Support) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL) [![GitHub Stars](https://img.shields.io/github/stars/intuit/karate?style=social)](https://github.com/intuit/karate/stargazers)
 
-Karate is the only open-source tool to combine API test-automation, [mocks](karate-netty), [performance-testing](karate-gatling) and even [UI automation](karate-core) into a **single**, *unified* framework. The BDD syntax popularized by Cucumber is language-neutral, and easy for even non-programmers. Powerful JSON & XML assertions are built-in, and you can run tests in parallel for speed.
+Karate is the only open-source tool to combine API test-automation, [mocks](karate-netty), [performance-testing](karate-gatling) and even [UI automation](karate-core) into a **single**, *unified* framework. The BDD syntax popularized by Cucumber is language-neutral, and easy for even non-programmers. Assertions and HTML reports are built-in, and you can run tests in parallel for speed.
 
-Test execution and report generation feels like any standard Java project. But there's also a [stand-alone executable](karate-netty#standalone-jar) for teams not comfortable with Java. You don't have to compile code. Just write tests in a **simple**, *readable* syntax - carefully designed for HTTP, JSON, GraphQL and XML. And you can mix API and [UI test-automation](karate-core) within the same test script.
+There's also a cross-platform [stand-alone executable](karate-netty#standalone-jar) for teams not comfortable with Java. You don't have to compile code. Just write tests in a **simple**, *readable* syntax - carefully designed for HTTP, JSON, GraphQL and XML. And you can mix API and [UI test-automation](karate-core) within the same test script.
 
-There's also a [Java API](#java-api) for those who prefer to programmatically integrate Karate's rich automation and data-assertion capabilities.
+A [Java API](#java-api) also exists for those who prefer to programmatically integrate Karate's rich automation and data-assertion capabilities.
 
 ## Hello World
 
@@ -1065,6 +1065,12 @@ As a convenience, embedded expressions are supported on the Right Hand Side of a
 * match foo == '#("a" + 1)'
 ```
 
+And do note that in Karate 1.0 onwards, ES6 string-interpolation within "backticks" is supported:
+
+```cucumber
+*And* param filter = `ORDER_DATE:"${todaysDate}"`
+```
+
 ### Enclosed JavaScript
 An alternative to embedded expressions (for JSON only) is to enclose the entire payload within parentheses - which tells Karate to evaluate it as pure JavaScript. This can be a lot simpler than embedded expressions in many cases, and JavaScript programmers will feel right at home.
 
@@ -1669,7 +1675,7 @@ The above would result in a URL like: `http://myhost/mypath?someKey=hello&anothe
 
 Multi-value params are also supported:
 ```cucumber
-* param myParam = 'foo', 'bar'
+* param myParam = ['foo', 'bar']
 ```
 
 You can also use JSON to set multiple query-parameters in one-line using [`params`](#params) and this is especially useful for dynamic data-driven testing.
@@ -1711,7 +1717,7 @@ If you need headers to be dynamically generated for each HTTP request, use a Jav
 
 Multi-value headers (though rarely used in the wild) are also supported:
 ```cucumber
-* header myHeader = 'foo', 'bar'
+* header myHeader = ['foo', 'bar']
 ```
 
 Also look at the [`headers`](#headers) keyword which uses JSON and makes some kinds of dynamic data-driven testing easier.
@@ -1752,7 +1758,7 @@ A good example of the use of `form field` for a typical sign-in flow is this OAu
 
 Multi-values are supported the way you would expect (e.g. for simulating check-boxes and multi-selects):
 ```cucumber
-* form field selected = 'apple', 'orange'
+* form field selected = ['apple', 'orange']
 ```
 
 You can also dynamically set multiple fields in one step using the [`form fields`](#form-fields) keyword.
@@ -2936,7 +2942,13 @@ Given the examples above, it has to be said that a best practice with Karate is 
 * def fun = function(i){ return { name: 'User ' + (i + 1) } }
 * def foo = karate.repeat(3, fun)
 * match foo == [{ name: 'User 1' }, { name: 'User 2' }, { name: 'User 3' }]
+
+# generate a range of numbers as a json array
+* def foo = karate.range(4, 9)
+* match foo == [4, 5, 6, 7, 8, 9]
 ```
+
+And there's also [`karate.range()`](#karate-range) which can be useful to generate test-data.
 
 Don't forget that Karate's [data-driven testing capabilities](#data-driven-tests) can loop over arrays of JSON objects automatically.
 
@@ -3187,6 +3199,7 @@ Operation | Description
 <a name="karate-prettyxml"><code>karate.prettyXml(value)</code></a> | return a 'pretty-printed', nicely indented string representation of the XML value, also see: [`print`](#print)
 <a name="karate-prevrequest"><code>karate.prevRequest</code></a> | for advanced users, you can inspect the *actual* HTTP request after it happens, useful if you are writing a framework over Karate, refer to this example: [`request.feature`](karate-demo/src/test/java/demo/request/request.feature)
 <a name="karate-properties"><code>karate.properties[key]</code></a> | get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
+<a name="karate-range"><code>karate.range(start, end, [interval])</code></a> | returns a JSON array of integers (inclusive), the optional third argument must be a positive integer and defaults to 1, and if start < end the order of values is reversed
 <a name="karate-read"><code>karate.read(filename)</code></a> | the same [`read()`](#reading-files) function - which is pre-defined even within JS blocks, so there is no need to ever do `karate.read()`, and just `read()` is sufficient
 <a name="karate-readasstring"><code>karate.readAsString(filename)</code></a> | [rarely used](#read-file-as-string), behaves exactly like [`read`](#reading-files) - but does *not* auto convert to JSON or XML
 <a name="karate-remove"><code>karate.remove(name, path)</code></a> | very rarely used - when needing to perform conditional removal of JSON keys or XML nodes. Behaves the same way as the [`remove`](#remove) keyword.
@@ -3482,6 +3495,8 @@ This is how it can be called from a test-script via [JavaScript](#javascript-fun
 
 Note that JSON gets auto-converted to `Map` (or `List`) when making the cross-over to Java. Refer to the [`cats-java.feature`](karate-demo/src/test/java/demo/java/cats-java.feature) demo for an example.
 
+> An additional-level of auto-conversion happens when objects cross the boundary between JS and Java. In the rare case that you need to mutate a `Map` or `List` returned from Java but while still within a JS block, use [`karate.toJson()`](#karate-tojson) to convert.
+
 Another example is [`dogs.feature`](karate-demo/src/test/java/demo/dogs/dogs.feature) -  which actually makes JDBC (database) calls, and since the data returned from the Java code is JSON, the last section of the test is able to use [`match`](#match) *very* effectively for data assertions.
 
 A great example of how you can extend Karate, even bypass the HTTP client but still use Karate's test-automation effectively, is this [gRPC](https://grpc.io) example by [@thinkerou](https://github.com/thinkerou): [`karate-grpc`](https://github.com/thinkerou/karate-grpc). And you can even handle asynchronous flows such as [listening to message-queues](#async).
@@ -3562,7 +3577,7 @@ This is __very__ convenient especially if you are calling a method on a variable
 # use dynamic path expressions to mutate json
 * json[key] = 2
 * match json == { a: 1, b: 2 }
-* karate.remove('json', '$.' + key)
+* karate.remove('json', key)
 * match json == { a: 1 }
 * karate.set('json', '$.c[]', { d: 'e' })
 * match json == { a: 1, c: [{ d: 'e' }] }
@@ -3895,8 +3910,7 @@ Karate has enhanced the Cucumber `Scenario Outline` as follows:
 * __Type Hints__: if the `Examples` column header has a `!` appended, each value will be evaluated as a JavaScript data-type (number, boolean, or *even* in-line JSON) - else it defaults to string.
 * __Magic Variables__: `__row` gives you the entire row as a JSON object, and `__num` gives you the row index (the first row is `0`).
 * __Auto Variables__: in addition to `__row`, each column key-value will be available as a separate [variable](#def), which greatly simplifies JSON manipulation - especially when you want to re-use JSON [files](#reading-files) containing [embedded expressions](#embedded-expressions).
-  * You can disable the "auto variables" behavior by setting the `outlineVariablesAuto` [`configure` setting](#configure) to `false`.
-* Any empty cells will result in a `null` value for that column-key
+* Any empty cells will result in a `null` value for that column-key, and this can be useful to [remove nodes](#remove-if-null) from JSON or XML documents
 
 These are best explained with [examples](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/outline.feature). You can choose between the string-placeholder style `<foo>` or *directly* refer to the [variable](#def) `foo` (or even the *whole row* JSON as `__row`) in JSON-friendly [expressions](#karate-expressions).
 
@@ -3908,7 +3922,7 @@ Scenario Outline: name is <name> and age is <age>
   * match temp == name
   * match temp == __row.name
   * def expected = __num == 0 ? 'name is Bob and age is 5' : 'name is Nyan and age is 6'
-  * match expected == karate.info.scenarioName
+  * match expected == karate.scenario.name
 
   Examples:
     | name | age |
@@ -3950,15 +3964,15 @@ If you're looking for more complex ways of naming your scenarios you can use Jav
 Scenario Outline: name is ${name.first} ${name.last} and age is ${age}
   * match name.first == "#? _ == 'Bob' || _ == 'Nyan'"
   * match name.last == "#? _ == 'Dylan' || _ == 'Cat'"
-  * match title == karate.info.scenarioName
+  * match title == karate.scenario.name
 
 Examples:
-  | name!  | age  | title |
-  | { "first": "Bob", "last": "Dylan" }  | 10 | name is Bob Dylan and age is 10 |
-  | { "first": "Nyan", "last": "Cat" }  | 5 | name is Nyan Cat and age is 5 |
+  | name!                               | age | title                           |
+  | { "first": "Bob", "last": "Dylan" } | 10  | name is Bob Dylan and age is 10 |
+  | { "first": "Nyan", "last": "Cat" }  | 5   | name is Nyan Cat and age is 5   |
 ```
 
-String interpolation will support variables in scope and/or Examples (including functions defined globally, but not functions defined in the background), operators and even the Java Interop access and access to the Karate API.
+String interpolation will support variables in scope and / or the `Examples` (including functions defined globally, but not functions defined in the background). Even Java interop and access to the [`karate` JS API](#the-karate-object) would work.
 
 For some more examples check [`test-outline-name-js.feature`](karate-core/src/test/java/com/intuit/karate/core/parser/test-outline-name-js.feature).
 

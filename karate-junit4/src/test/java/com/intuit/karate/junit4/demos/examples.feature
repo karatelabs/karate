@@ -159,7 +159,7 @@ karate.set('temp', squares);
 # use dynamic path expressions to mutate json
 * json[key] = 2
 * match json == { a: 1, b: 2 }
-* karate.remove('json', '$.' + key)
+* karate.remove('json', key)
 * match json == { a: 1 }
 * karate.set('json', '$.c[]', { d: 'e' })
 * match json == { a: 1, c: [{ d: 'e' }] }

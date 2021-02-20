@@ -36,6 +36,8 @@ public interface Finder {
     Element select(int index);
 
     Element click();
+    
+    String getValue();
 
     Element clear();
 

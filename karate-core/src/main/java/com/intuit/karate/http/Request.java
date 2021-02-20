@@ -280,11 +280,15 @@ public class Request implements ProxyObject {
             return body;
         }
         try {
-            return JsValue.fromBytes(body, false);
+            return JsValue.fromBytes(body, false, rt);
         } catch (Exception e) {
             logger.trace("failed to auto-convert response: {}", e);
             return getBodyAsString();
         }
+    }
+    
+    public boolean isForStaticResource() {
+        return getResourceType() != null;
     }
 
     public ResourceType getResourceType() {
@@ -387,7 +391,7 @@ public class Request implements ProxyObject {
             case METHOD:
                 return method;
             case BODY:
-                return getBodyConverted();
+                return JsValue.fromJava(getBodyConverted());
             case PARAM:
                 return (Function<String, String>) this::getParam;
             case JSON:
