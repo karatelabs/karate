@@ -104,7 +104,7 @@ public class HttpRequest {
     public byte[] getBody() {
         return body;
     }
-    
+
     public String getBodyAsString() {
         return FileUtils.toString(body);
     }
@@ -115,14 +115,27 @@ public class HttpRequest {
 
     public String getBodyForDisplay() {
         return bodyForDisplay;
-    }    
-    
+    }
+
     public void setBodyForDisplay(String bodyForDisplay) {
         this.bodyForDisplay = bodyForDisplay;
-    }        
+    }
 
     public List<String> getHeaderValues(String name) { // TOTO optimize
         return StringUtils.getIgnoreKeyCase(headers, name);
+    }
+
+    public void removeHeader(String name) {
+        if (headers == null) {
+            return;
+        }
+        for (String key : headers.keySet()) {
+            if (key.equalsIgnoreCase(name)) {
+                name = key;
+                break;
+            }
+        }
+        headers.remove(name);
     }
 
     public String getHeader(String name) {

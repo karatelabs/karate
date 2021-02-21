@@ -161,5 +161,21 @@ class KarateHttpMockHandlerTest {
         );        
         matchVarContains("response", "{ '2': 'bar' }");          
     }
+    
+    @Test
+    void testTransferEncoding() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = request");
+        startMockServer();
+        run(
+                urlStep(),
+                "path '/hello'",
+                "header Transfer-Encoding = 'chunked'",
+                "request { foo: 'bar' }",
+                "method post"
+        );        
+        matchVarContains("response", "{ foo: 'bar' }");         
+    }
 
 }

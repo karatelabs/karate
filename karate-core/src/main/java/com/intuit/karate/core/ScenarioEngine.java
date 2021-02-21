@@ -59,6 +59,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.http.client.ClientProtocolException;
 
 /**
  *
