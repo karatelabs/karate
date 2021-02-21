@@ -450,6 +450,10 @@ public class ScenarioBridge implements PerfContext {
         return new JsMap(getEngine().runtime.getScenarioInfo());
     }
 
+    public Logger getLogger() {
+        return getEngine().logger;
+    }
+
     public Object getOs() {
         String name = FileUtils.getOsName();
         String type = FileUtils.getOsType(name).toString().toLowerCase();
@@ -511,11 +515,6 @@ public class ScenarioBridge implements PerfContext {
         if (engine.getConfig().isPrintEnabled()) {
             engine.logger.info("{}", new LogWrapper(values));
         }
-    }
-
-    public Logger getLogger() {
-        ScenarioEngine engine = getEngine();
-        return engine.logger;
     }
 
     public Object lowerCase(Object o) {
@@ -595,7 +594,7 @@ public class ScenarioBridge implements PerfContext {
     public void proceed(String requestUrlBase) {
         getEngine().mockProceed(requestUrlBase);
     }
-    
+
     public Object range(int start, int end) {
         return range(start, end, 1);
     }
