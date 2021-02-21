@@ -45,7 +45,8 @@ public class HttpConstants {
     public static final String HDR_SET_COOKIE = "Set-Cookie";
     public static final String HDR_CONTENT_TYPE = "Content-Type";
     public static final String HDR_LOCATION = "Location";
-    public static final String HDR_CONTENT_LENGTH = "Content-Length";   
+    public static final String HDR_CONTENT_LENGTH = "Content-Length";
+    public static final String HDR_TRANSFER_ENCODING = "Transfer-Encoding";
     public static final String HDR_ACCEPT = "Accept";
     public static final String HDR_ALLOW = "Allow";    
 

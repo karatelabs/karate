@@ -103,7 +103,7 @@ public class IdeMain {
         } else {
             nameTemp = null;
         }
-        Main options = Main.parseKarateOptionAndQuotePath(line);
+        Main options = Main.parseKarateOptionsAndQuotePath(line);
         options.setName(nameTemp);
         return options;
     }

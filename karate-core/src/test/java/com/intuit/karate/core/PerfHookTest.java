@@ -110,7 +110,7 @@ class PerfHookTest {
         assertEquals(featureResult.getScenarioCount(), 1);
         assertEquals(featureResult.getPassedCount(), 0);
         assertEquals(featureResult.getFailedCount(), 1);
-        match(featureResult.getVariables(), "{ configSource: 'normal' }");
+        match(featureResult.getVariables(), "{ configSource: 'normal', functionFromKarateBase: '#notnull' }");
     }
 
     @Test

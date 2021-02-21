@@ -146,23 +146,23 @@ class ScenarioRuntimeTest {
                 "def b = 'bar'",
                 "def res = call read('called1.feature')"
         );
-        matchVar("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal' }");
+        matchVar("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', functionFromKarateBase: '#notnull' }");
         run(
                 "def b = 'bar'",
                 "def res = call read('called1.feature') { foo: 'bar' }"
         );
-        matchVar("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal' }");
+        matchVar("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', functionFromKarateBase: '#notnull' }");
         run(
                 "def b = 'bar'",
                 "def res = call read('called1.feature') [{ foo: 'bar' }]"
         );
-        matchVar("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal' }]");
+        matchVar("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', functionFromKarateBase: '#notnull' }]");
         run(
                 "def b = 'bar'",
                 "def fun = function(i){ if (i == 1) return null; return { index: i } }",
                 "def res = call read('called1.feature') fun"
         );
-        matchVar("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', fun: '#ignore' }]");
+        matchVar("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', functionFromKarateBase: '#notnull', fun: '#ignore', index: 0 }]");
     }
 
     @Test
@@ -221,7 +221,7 @@ class ScenarioRuntimeTest {
         run(
                 "def res = karate.call('called1.feature')"
         );
-        matchVar("res", "{ a: 1, foo: { hello: 'world' }, configSource: 'normal' }");
+        matchVar("res", "{ a: 1, foo: { hello: 'world' }, configSource: 'normal', functionFromKarateBase: '#notnull' }");
     }
 
     @Test
@@ -256,7 +256,7 @@ class ScenarioRuntimeTest {
                 "karate.setXml('fooXml', '<foo>bar</foo>')",
                 "copy baz = bar",
                 "karate.set('baz', '$.a', 1)",
-                "karate.remove('baz', '$.hello')",
+                "karate.remove('baz', 'hello')",
                 "copy bax = fooXml",
                 "karate.setXml('bax', '/foo', '<a>1</a>')",
                 "def getFoo = karate.get('foo')",
@@ -717,6 +717,25 @@ class ScenarioRuntimeTest {
                 "def list2 = [{ val: 'C' }, { val: 'A' }, { val: 'B' }]",
                 "def res2 = karate.sort(list2, x => x.val)",
                 "match res2 == [{ val: 'A' }, { val: 'B' }, { val: 'C' }]"
+        );
+    }
+
+    @Test
+    void testRange() {
+        run(
+                "def list1 = karate.range(5, 10)",
+                "match list1 == [5, 6, 7, 8, 9, 10]",
+                "def list2 = karate.range(5, 10, 2)",
+                "match list2 == [5, 7, 9]",
+                "def list3 = karate.range(10, 5, 2)",
+                "match list3 == [10, 8, 6]"
+        );
+        fail = true;
+        run(
+                "def list = karate.range(10, 5, 0)"
+        );
+        run(
+                "def list = karate.range(10, 5, -1)"
         );
     }
 

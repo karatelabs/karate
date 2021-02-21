@@ -32,6 +32,7 @@ import com.intuit.karate.http.RequestHandler;
 import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.http.SslContextFactory;
 import com.intuit.karate.job.JobExecutor;
+import com.intuit.karate.resource.ResourceUtils;
 import com.intuit.karate.shell.Command;
 import java.io.File;
 import java.lang.reflect.Method;
@@ -201,7 +202,7 @@ public class Main implements Callable<Void> {
     // adds double-quotes to last positional parameter (path) in case it contains white-spaces and un-quoted
     // only if line contains just one positional parameter (path) and it is the last one in line.
     // needed for intelli-j and vs-code generated cli invocations
-    public static Main parseKarateOptionAndQuotePath(String line) {
+    public static Main parseKarateOptionsAndQuotePath(String line) {
         Matcher matcher = CLI_ARGS.matcher(line);
         if (matcher.find()) {
             String path = matcher.group(2).trim();
@@ -272,7 +273,15 @@ public class Main implements Callable<Void> {
             // ensure we init logback before anything else
             String logbackConfig = System.getProperty(LOGBACK_CONFIG);
             if (StringUtils.isBlank(logbackConfig)) {
-                System.setProperty(LOGBACK_CONFIG, "logback-fatjar.xml");
+                File logbackXml = ResourceUtils.classPathToFile("logback.xml");
+                File logbackTest = ResourceUtils.classPathToFile("logback-test.xml");
+                if (logbackTest != null) {
+                    System.setProperty(LOGBACK_CONFIG, "logback-test.xml");
+                } else if (logbackXml != null) {
+                    System.setProperty(LOGBACK_CONFIG, "logback.xml");
+                } else {
+                    System.setProperty(LOGBACK_CONFIG, "logback-fatjar.xml");
+                }
             }
         }
         resetLoggerConfig();

@@ -234,7 +234,7 @@ Scenario: remove json key using keyword
 
 Scenario: remove json key from js
     * def json = { foo: 'bar', hello: 'world' }
-    * def fun = function(){ karate.remove('json', '$.foo') }
+    * def fun = function(){ karate.remove('json', 'foo') }
     * call fun
     * match json == { hello: 'world' }
 
@@ -263,7 +263,8 @@ Scenario: #null, ##null, #present and #notpresent
     * match foo == { a: '#null' }    
     * match foo == { a: '##null' }
     * match foo != { a: '#notnull' }
-    * match foo != { a: '##notnull' }
+    # optional comparison so match evalutes to true
+    * match foo == { a: '##notnull' }
     * match foo == { a: '#present' }
     * match foo == { a: '#ignore' }
     * match foo != { a: '#notpresent' }

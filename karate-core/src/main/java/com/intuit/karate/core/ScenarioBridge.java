@@ -27,6 +27,9 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.KarateException;
+import com.intuit.karate.Logger;
+import com.intuit.karate.Match;
+import com.intuit.karate.MatchStep;
 import com.intuit.karate.PerfContext;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
@@ -39,8 +42,6 @@ import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.WebSocketClient;
 import com.intuit.karate.http.WebSocketOptions;
-import com.intuit.karate.Match;
-import com.intuit.karate.MatchStep;
 import com.intuit.karate.shell.Command;
 import java.io.File;
 import java.util.ArrayList;
@@ -154,11 +155,14 @@ public class ScenarioBridge implements PerfContext {
         return callSingle(fileName, null);
     }
 
-    private Object fromCache(Object o) throws Exception {
+    private static Object fromCache(ScenarioEngine engine, Object o) throws Exception {
         if (o instanceof Exception) {
-            getEngine().logger.warn("callSingle() cached result is an exception");
+            engine.logger.warn("callSingle() cached result is an exception");
             throw (Exception) o;
         }
+        // this HAS to be a deep copy to detach any nested JS functions
+        o = new Variable(o).copy(true).getValue();
+        engine.recurseAndAttach(o);
         return JsValue.fromJava(o);
     }
 
@@ -167,7 +171,7 @@ public class ScenarioBridge implements PerfContext {
         final Map<String, Object> CACHE = engine.runtime.featureRuntime.suite.suiteCache;
         if (CACHE.containsKey(fileName)) {
             engine.logger.trace("callSingle cache hit: {}", fileName);
-            return fromCache(CACHE.get(fileName));
+            return fromCache(engine, CACHE.get(fileName));
         }
         long startTime = System.currentTimeMillis();
         engine.logger.trace("callSingle waiting for lock: {}", fileName);
@@ -175,7 +179,7 @@ public class ScenarioBridge implements PerfContext {
             if (CACHE.containsKey(fileName)) { // retry
                 long endTime = System.currentTimeMillis() - startTime;
                 engine.logger.warn("this thread waited {} milliseconds for callSingle lock: {}", endTime, fileName);
-                return fromCache(CACHE.get(fileName));
+                return fromCache(engine, CACHE.get(fileName));
             }
             // this thread is the 'winner'
             engine.logger.info(">> lock acquired, begin callSingle: {}", fileName);
@@ -222,10 +226,11 @@ public class ScenarioBridge implements PerfContext {
                     }
                 }
                 result = resultVar.getValue();
+                engine.recurseAndDetach(result);
             }
             CACHE.put(fileName, result);
             engine.logger.info("<< lock released, cached callSingle: {}", fileName);
-            return fromCache(result);
+            return fromCache(engine, result);
         }
     }
 
@@ -445,6 +450,10 @@ public class ScenarioBridge implements PerfContext {
         return new JsMap(getEngine().runtime.getScenarioInfo());
     }
 
+    public Logger getLogger() {
+        return getEngine().logger;
+    }
+
     public Object getOs() {
         String name = FileUtils.getOsName();
         String type = FileUtils.getOsType(name).toString().toLowerCase();
@@ -584,6 +593,27 @@ public class ScenarioBridge implements PerfContext {
 
     public void proceed(String requestUrlBase) {
         getEngine().mockProceed(requestUrlBase);
+    }
+
+    public Object range(int start, int end) {
+        return range(start, end, 1);
+    }
+
+    public Object range(int start, int end, int interval) {
+        if (interval <= 0) {
+            throw new RuntimeException("interval must be a positive integer");
+        }
+        List<Integer> list = new ArrayList();
+        if (start <= end) {
+            for (int i = start; i <= end; i += interval) {
+                list.add(i);
+            }
+        } else {
+            for (int i = start; i >= end; i -= interval) {
+                list.add(i);
+            }
+        }
+        return JsValue.fromJava(list);
     }
 
     public Object read(String name) {
@@ -840,9 +870,11 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public File write(Object o, String path) {
-        path = getEngine().runtime.featureRuntime.suite.buildDir + File.separator + path;
+        ScenarioEngine engine = getEngine();
+        path = engine.runtime.featureRuntime.suite.buildDir + File.separator + path;
         File file = new File(path);
         FileUtils.writeToFile(file, JsValue.toBytes(o));
+        engine.logger.debug("write to file: {}", file);
         return file;
     }
 

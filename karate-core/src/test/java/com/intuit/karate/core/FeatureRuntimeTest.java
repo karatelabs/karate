@@ -92,20 +92,20 @@ class FeatureRuntimeTest {
     @Test
     void testTags() {
         run("tags.feature");
-        match(fr.result.getVariables(), "{ configSource: 'normal', tagNames: ['two=foo,bar', 'one'], tagValues: { one: [], two: ['foo', 'bar'] } }");
+        match(fr.result.getVariables(), "{ configSource: 'normal', functionFromKarateBase: '#notnull', tagNames: ['two=foo,bar', 'one'], tagValues: { one: [], two: ['foo', 'bar'] } }");
     }
 
     @Test
     void testAbort() {
         run("abort.feature");
-        match(fr.result.getVariables(), "{ configSource: 'normal', before: true }");
+        match(fr.result.getVariables(), "{ configSource: 'normal', functionFromKarateBase: '#notnull', before: true }");
     }
 
     @Test
     void testFailApi() {
         fail = true;
         run("fail-api.feature");
-        match(fr.result.getVariables(), "{ configSource: 'normal', before: true }");
+        match(fr.result.getVariables(), "{ configSource: 'normal', functionFromKarateBase: '#notnull', before: true }");
     }
 
     @Test
@@ -238,11 +238,34 @@ class FeatureRuntimeTest {
                 .parallel(2);
         assertEquals(0, results.getFailCount());
     }
+    
+//    @Test
+//    void testOutlineConfigJsCallOnceParallel() {
+//        Results results = Runner.path("classpath:com/intuit/karate/core/outline-config-js.feature")
+//                .configDir("src/test/java/com/intuit/karate/core")
+//                .karateEnv("callonce")
+//                .parallel(2);
+//        assertEquals(0, results.getFailCount());
+//    }    
+    
+    @Test
+    void testOutlineConfigJsCallSingleParallel() {
+        Results results = Runner.path("classpath:com/intuit/karate/core/outline-config-js.feature")
+                .configDir("src/test/java/com/intuit/karate/core")
+                .karateEnv("callsingle")
+                .parallel(2);
+        assertEquals(0, results.getFailCount());
+    }    
 
     @Test
     void testCallArg() {
         run("call-arg.feature");
     }
+    
+    @Test
+    void testCallArgNull() {
+        run("call-arg-null.feature");
+    }    
 
     @Test
     void testIgnoreStepFailure() {

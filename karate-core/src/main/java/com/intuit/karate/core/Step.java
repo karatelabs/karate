@@ -112,13 +112,17 @@ public class Step {
             endLine = line;
         }
         step.setEndLine(endLine);
-        step.setComments((List) map.get("comments"));
+        if(map.get("comments") instanceof List) {
+            step.setComments((List) map.get("comments"));
+        }
         step.setPrefix((String) map.get("prefix"));
         step.setText((String) map.get("text"));
         step.setDocString((String) map.get("docString"));
-        List<Map<String, Object>> table = (List) map.get("table");
-        if (table != null) {
-            step.setTable(Table.fromKarateJson(table));
+        if(map.get("table") instanceof List) {
+            List<Map<String, Object>> table = (List) map.get("table");
+            if (table != null) {
+                step.setTable(Table.fromKarateJson(table));
+            }
         }
         return step;
     }

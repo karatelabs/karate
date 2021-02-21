@@ -130,7 +130,7 @@ public class HttpLogger {
         } else {
             Object converted = request.getBodyForDisplay();
             if (converted == null) {
-                converted = JsValue.fromBytes(request.getBody(), false);
+                converted = JsValue.fromBytes(request.getBody(), false, rt);
             }
             logBody(config, requestModifier, sb, uri, converted, true);
         }

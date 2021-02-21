@@ -579,7 +579,7 @@ public class ScenarioEngine {
             body = bytes;
         } else {
             try {
-                body = JsValue.fromBytes(bytes, true);
+                body = JsValue.fromBytes(bytes, true, resourceType);
             } catch (Exception e) {
                 body = FileUtils.toString(bytes);
                 logger.warn("auto-conversion of response failed: {}", e.getMessage());
@@ -594,7 +594,11 @@ public class ScenarioEngine {
         }
         setVariable(RESPONSE_STATUS, response.getStatus());
         setVariable(RESPONSE, body);
-        setVariable(RESPONSE_HEADERS, response.getHeaders());
+        if (config.isLowerCaseResponseHeaders()) {
+            setVariable(RESPONSE_HEADERS, response.getHeadersWithLowerCaseNames());
+        } else {
+            setVariable(RESPONSE_HEADERS, response.getHeaders());
+        }
         setHiddenVariable(RESPONSE_BYTES, bytes);
         setHiddenVariable(RESPONSE_TYPE, responseType);
         cookies = response.getCookies();
@@ -1045,7 +1049,7 @@ public class ScenarioEngine {
         return detached;
     }
 
-    private Object recurseAndAttach(Object o) {
+    protected Object recurseAndAttach(Object o) {
         if (o instanceof Value) {
             Value value = (Value) o;
             return value.canExecute() ? attach(value) : null;
@@ -1077,7 +1081,7 @@ public class ScenarioEngine {
         }
     }
 
-    private Object recurseAndDetach(Object o) {
+    protected Object recurseAndDetach(Object o) {
         if (o instanceof Value) {
             Value value = (Value) o;
             return value.canExecute() ? new JsFunction(value) : null;
@@ -1557,7 +1561,29 @@ public class ScenarioEngine {
             path = nameAndPath.right;
         }
         Variable target = vars.get(name);
-        if (isDollarPrefixedJsonPath(path)) {
+        if (isXmlPath(path)) {
+            if (target == null || target.isNull()) {
+                if (viaTable) { // auto create if using set via cucumber table as a convenience
+                    Document empty = XmlUtils.newDocument();
+                    target = new Variable(empty);
+                    setVariable(name, target);
+                } else {
+                    throw new RuntimeException("variable is null or not set '" + name + "'");
+                }
+            }
+            Document doc = target.getValue();
+            if (delete) {
+                XmlUtils.removeByPath(doc, path);
+            } else if (value.isXml()) {
+                Node node = value.getValue();
+                XmlUtils.setByPath(doc, path, node);
+            } else if (value.isMap()) { // cast to xml
+                Node node = XmlUtils.fromMap(value.getValue());
+                XmlUtils.setByPath(doc, path, node);
+            } else {
+                XmlUtils.setByPath(doc, path, value.getAsString());
+            }
+        } else { // assume json-path
             if (target == null || target.isNull()) {
                 if (viaTable) { // auto create if using set via cucumber table as a convenience
                     Json json;
@@ -1583,30 +1609,6 @@ public class ScenarioEngine {
             } else {
                 json.set(path, value.<Object>getValue());
             }
-        } else if (isXmlPath(path)) {
-            if (target == null || target.isNull()) {
-                if (viaTable) { // auto create if using set via cucumber table as a convenience
-                    Document empty = XmlUtils.newDocument();
-                    target = new Variable(empty);
-                    setVariable(name, target);
-                } else {
-                    throw new RuntimeException("variable is null or not set '" + name + "'");
-                }
-            }
-            Document doc = target.getValue();
-            if (delete) {
-                XmlUtils.removeByPath(doc, path);
-            } else if (value.isXml()) {
-                Node node = value.getValue();
-                XmlUtils.setByPath(doc, path, node);
-            } else if (value.isMap()) { // cast to xml
-                Node node = XmlUtils.fromMap(value.getValue());
-                XmlUtils.setByPath(doc, path, node);
-            } else {
-                XmlUtils.setByPath(doc, path, value.getAsString());
-            }
-        } else {
-            throw new RuntimeException("unexpected path: " + path);
         }
 
     }
@@ -1899,7 +1901,7 @@ public class ScenarioEngine {
             // we clone result (and config) here, to snapshot state at the point the callonce was invoked
             // this prevents the state from being clobbered by the subsequent steps of this
             // first scenario that is about to use the result
-            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? copyVariables(false) : null;
+            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? detachVariables() : null;
             Config clonedConfig = new Config(config);
             clonedConfig.detach();
             result = new ScenarioCall.Result(resultValue.copy(false), clonedConfig, clonedVars);

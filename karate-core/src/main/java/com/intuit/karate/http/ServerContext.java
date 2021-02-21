@@ -105,7 +105,6 @@ public class ServerContext implements ProxyObject {
         if (resourcePath == null) {
             if (api) {
                 String pathParam = null;
-                ResourceResolver resourceResolver = config.getResourceResolver();
                 String jsPath = path + DOT_JS;
                 resourcePath = jsPath;
                 if (!config.getJsFiles().contains(jsPath)) {
@@ -156,6 +155,9 @@ public class ServerContext implements ProxyObject {
         InputStream is = config.getResourceResolver().resolve(resource).getStream();
         String raw = FileUtils.toString(is);
         ResourceType resourceType = ResourceType.fromFileExtension(resource);
+        if (resourceType == null) {
+            return raw;
+        }
         switch (resourceType) {
             case JS:
             case JSON:
@@ -236,7 +238,7 @@ public class ServerContext implements ProxyObject {
     }
     
     private static final Supplier<String> UUID_FUNCTION = () -> java.util.UUID.randomUUID().toString();
-    private final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s, false);
+    private final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s, false, null);
     private final Methods.FunVar HTTP_FUNCTION; // set in constructor
     
     private final Consumer<String> SWITCH_FUNCTION = s -> {

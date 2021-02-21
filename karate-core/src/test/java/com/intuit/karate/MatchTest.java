@@ -296,4 +296,48 @@ class MatchTest {
         Match.that("{ a: 1, b: 2, c: { d: 3, e: 4} }").containsDeep("{ b: 2, c: { e: 4 } }");
     }
 
+    @Test
+    void testOptional() {
+        match("{ number: '1234' }", EQUALS, "{ number: '##regex \\\\d+' }");
+        match("{ }", EQUALS, "{ number: '##regex \\\\d+' }");
+        match("{ 'foo': 'bar' }", EQUALS, "{ foo: '#string', number: '##regex \\\\d+' }");
+        match("{ number: null }", EQUALS, "{ number: '##regex \\\\d+' }");
+
+        match("{ number: 1234 }", EQUALS, "{ number: '##number' }");
+        match("{ }", EQUALS, "{ number: '##number' }");
+        match("{ 'foo': 'bar' }", EQUALS, "{ foo: '#string', number: '##number' }");
+        match("{ number: null }", EQUALS, "{ number: '##number' }");
+
+        match("{ 'foo': 'bar' }", EQUALS, "{ 'foo': '##string' }");
+        match("{ }", EQUALS, "{ foo: '##string' }");
+        match("{ 'foo': 'bar' }", EQUALS, "{ 'foo': '#string', 'bar': '##string' }");
+        match("{ 'foo': null }", EQUALS, "{ 'foo': '##string' }");
+
+        match("{ 'foo': 'a9f7a56b-8d5c-455c-9d13-808461d17b91' }", EQUALS, "{ 'foo': '##uuid' }");
+        match("{ }", EQUALS, "{ foo: '##uuid' }");
+        match("{ 'foo': 'bar' }", EQUALS, "{ 'foo': '#string', 'bar': '##uuid' }");
+        match("{ 'foo': null }", EQUALS, "{ 'foo': '##uuid' }");
+
+        match("{ 'foo': true }", EQUALS, "{ 'foo': '##boolean' }");
+        match("{ }", EQUALS, "{ foo: '##string' }");
+        match("{ 'foo': 'bar' }", EQUALS, "{ 'foo': '#string', 'bar': '##boolean' }");
+        match("{ 'foo': null }", EQUALS, "{ 'foo': '##boolean' }");
+
+        match("{ 'foo': { 'bar': 'bar' } }", EQUALS, "{ 'foo': '##object' }");
+        match("{ }", EQUALS, "{ foo: '##object' }");
+        match("{ 'foo': 'test', 'bar': { 'bar': 'bar' } }", EQUALS, "{ 'foo': '#string', 'bar': '##object' }");
+        match("{ 'foo': null }", EQUALS, "{ 'foo': '##object' }");
+
+        match("{ 'foo': [ { 'bar': 'bar' }] }", EQUALS, "{ 'foo': '##array' }");
+        match("{ }", EQUALS, "{ 'foo': '##array' }");
+        match("{ 'foo': 'test', 'bar' : [ { 'bar': 'bar' } ] }", EQUALS, "{ 'foo': '#string', 'bar': '##array' }");
+        match("{ 'foo': null }", EQUALS, "{ 'foo': '##array' }");
+
+        match("{ a: 1}", NOT_EQUALS, " { a: '#null' }");
+        match("{ a: 1}", NOT_EQUALS, " { a: '##null' }");
+        match("{ a: null}", NOT_EQUALS, " { a: '#notnull' }");
+        match("{ a: null}", EQUALS, " { a: '##notnull' }");
+
+    }
+
 }
