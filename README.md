@@ -746,6 +746,8 @@ Or another option is to use a [`ThresholdFilter`](http://logback.qos.ch/manual/f
   </appender>
 ```
 
+If you want to exclude the logs from your CI/CD pipeline but keep them in the execution of your users in their locals you can configure your logback using [Janino](http://logback.qos.ch/manual/configuration.html#conditional). In such cases it might be desirable to have your tests using `karate.logger.debug('your additional info')` instead of the `print` keyword so you can keep logs in your pipeline in INFO.
+
 For suppressing sensitive information such as secrets and passwords from the log, see [Log Masking](#log-masking).
 
 # Configuration
@@ -3189,6 +3191,7 @@ Operation | Description
 <a name="karate-jsonpath"><code>karate.jsonPath(json, expression)</code></a> | brings the power of [JsonPath](https://github.com/json-path/JsonPath) into JavaScript, and you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
 <a name="karate-keysof"><code>karate.keysOf(object)</code></a> | returns only the keys of a map-like object
 <a name="karate-log"><code>karate.log(... args)</code></a> | log to the same logger (and log file) being used by the parent process, logging can be suppressed with [`configure printEnabled`](#configure) set to `false`, and just like [`print`](#print) - use comma-separated values to "pretty print" JSON or XML
+<a name="karate-logger-debug"><code>karate.logger.debug(... args)</code></a> | access to the Karate logger directly and log in debug. Might be desirable instead of `karate.log` or `print` when looking to reduce the logs in console in your CI/CD pipeline but still retain the information for reports. See [Logging](#logging) for additional details. 
 <a name="karate-lowercase"><code>karate.lowerCase(object)</code></a> | useful to brute-force all keys and values in a JSON or XML payload to lower-case, useful in some cases, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/lower-case.feature)
 <a name="karate-map"><code>karate.map(list, function)</code></a> | functional-style 'map' operation useful to transform list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index])
 <a name="karate-mapwithkey"><code>karate.mapWithKey(list, string)</code></a> | convenient for the common case of transforming an array of primitives into an array of objects, see [JSON transforms](#json-transforms)
