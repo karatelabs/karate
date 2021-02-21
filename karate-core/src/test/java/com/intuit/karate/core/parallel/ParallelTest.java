@@ -34,6 +34,17 @@ class ParallelTest {
                 .systemProperty("server.port", server.getPort() + "")
                 .parallel(3);
         assertEquals(0, results.getFailCount(), results.getErrorMessages());
-    }    
-    
+    }
+
+    @Test
+    void testParallelOutlineScenarios() {
+        Results results = Runner
+                .path("classpath:com/intuit/karate/core/parallel/parallel-outline-1.feature",
+                        "classpath:com/intuit/karate/core/parallel/parallel-outline-2.feature")
+                .configDir("classpath:com/intuit/karate/core/parallel")
+                .parallel(3);
+        assertEquals(2, results.getFeaturesPassed());
+        assertEquals(8, results.getScenariosPassed());
+        assertEquals(0, results.getFailCount());
+    }
 }
