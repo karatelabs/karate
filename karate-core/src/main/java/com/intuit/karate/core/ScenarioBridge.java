@@ -449,9 +449,14 @@ public class ScenarioBridge implements PerfContext {
     public Object getInfo() { // TODO deprecate
         return new JsMap(getEngine().runtime.getScenarioInfo());
     }
+    
+    private LogFacade logFacade;
 
-    public Logger getLogger() {
-        return getEngine().logger;
+    public Object getLogger() {
+        if (logFacade == null) {
+            logFacade = new LogFacade();
+        }
+        return logFacade;
     }
 
     public Object getOs() {
@@ -910,6 +915,38 @@ public class ScenarioBridge implements PerfContext {
             }
             return sb.toString();
         }
+
+    }
+
+    public static class LogFacade {
+
+        private static Logger getLogger() {
+            return ScenarioEngine.get().logger;
+        }
+
+        private static String wrap(Value... values) {
+            return new LogWrapper(values).toString();
+        }
+
+        public void debug(Value... values) {
+            getLogger().debug(wrap(values));
+        }
+
+        public void info(Value... values) {
+            getLogger().info(wrap(values));
+        }
+
+        public void trace(Value... values) {
+            getLogger().trace(wrap(values));
+        }
+
+        public void warn(Value... values) {
+            getLogger().warn(wrap(values));
+        }
+        
+        public void error(Value... values) {
+            getLogger().error(wrap(values));
+        }        
 
     }
 
