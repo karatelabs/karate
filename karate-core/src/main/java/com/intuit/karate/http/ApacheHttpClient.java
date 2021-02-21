@@ -51,8 +51,10 @@ import org.apache.http.HttpMessage;
 import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.entity.EntityBuilder;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.URIBuilder;
@@ -62,7 +64,6 @@ import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustAllStrategy;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
-import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -89,7 +90,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         logger = engine.logger;
         httpLogger = new HttpLogger(logger);
         configure(engine.getConfig());
-    }  
+    }
 
     private void configure(Config config) {
         clientBuilder = HttpClientBuilder.create();
@@ -202,11 +203,27 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     public Response invoke(HttpRequest request) {
         this.request = request;
         RequestBuilder requestBuilder = RequestBuilder.create(request.getMethod()).setUri(request.getUrl());
+        if (request.getBody() != null) {            
+            EntityBuilder entityBuilder = EntityBuilder.create().setBinary(request.getBody());
+            List<String> transferEncoding = request.getHeaderValues(HttpConstants.HDR_TRANSFER_ENCODING);
+            if (transferEncoding != null) {
+                for (String te : transferEncoding) {
+                    if (te == null) {
+                        continue;
+                    }
+                    if (te.contains("chunked")) { // can be comma delimited as per spec
+                        entityBuilder.chunked();
+                    }
+                    if (te.contains("gzip")) {
+                        entityBuilder.gzipCompress();
+                    }
+                }
+                request.removeHeader(HttpConstants.HDR_TRANSFER_ENCODING);
+            }
+            requestBuilder.setEntity(entityBuilder.build());
+        }
         if (request.getHeaders() != null) {
             request.getHeaders().forEach((k, vals) -> vals.forEach(v -> requestBuilder.addHeader(k, v)));
-        }
-        if (request.getBody() != null) {
-            requestBuilder.setEntity(new ByteArrayEntity(request.getBody()));
         }
         CloseableHttpClient client = clientBuilder.build();
         CloseableHttpResponse httpResponse;
@@ -222,7 +239,11 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             }
             request.setEndTimeMillis(System.currentTimeMillis());
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            if (e instanceof ClientProtocolException && e.getCause() != null) { // better error message                
+                throw new RuntimeException(e.getCause());
+            } else {
+                throw new RuntimeException(e);
+            }
         }
         Map<String, List<String>> headers = toHeaders(httpResponse);
         Response response = new Response(httpResponse.getStatusLine().getStatusCode(), headers, bytes);

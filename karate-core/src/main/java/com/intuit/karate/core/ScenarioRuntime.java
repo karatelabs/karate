@@ -271,8 +271,7 @@ public class ScenarioRuntime implements Runnable {
             Map<String, Object> exampleData = scenario.getExampleData();
             exampleData.forEach((k, v) -> map.put(k, v));
             map.put("__row", exampleData);
-            map.put("__num", scenario.getExampleIndex());
-            // TODO breaking change configure outlineVariablesAuto deprecated          
+            map.put("__num", scenario.getExampleIndex());         
         }
         return map;
     }

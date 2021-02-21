@@ -189,14 +189,15 @@ class KarateMockHandlerTest {
     void testResponseContentTypeForJson() {
         background().scenario(
                 "pathMatches('/hello')",
-                "def response = { foo: 'bar'}");
+                "def responseHeaders = { 'Content-Type': 'application/json' }",
+                "def response = '{ \"foo\": \"bar\"}'");
         run(
                 URL_STEP,
                 "path '/hello'",
                 "method get",
                 "match responseHeaders == { 'Content-Type': ['application/json'] }",
                 "match header content-type == 'application/json'",
-                "match header content-type contains 'json'"
+                "match responseType == 'json'"
         );
     }
 
@@ -345,6 +346,82 @@ class KarateMockHandlerTest {
                 "method get"
         );
         matchVar("responseHeaders", "{ 'content-type': ['text/html'] }");
+    }
+
+    @Test
+    void testResponseContentTypeForXml() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def responseHeaders = { 'Content-Type': 'application/xml' }",
+                "def response = '<hello>world</hello>'");
+        run(
+                URL_STEP,
+                "path '/hello'",
+                "method get",
+                "match header content-type == 'application/xml'",
+                "match responseType == 'xml'",
+                "match response.hello == 'world'"
+        );
+    }
+
+    @Test
+    void testResponseAutoConversionForXmlAsPlainText() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = '<hello>world</hello>'");
+        run(
+                URL_STEP,
+                "path '/hello'",
+                "method get",
+                "match header content-type == 'text/plain'",
+                "match responseType == 'xml'",
+                "match response.hello == 'world'"
+        );
+    }
+
+    @Test
+    void testResponseAutoConversionForJsonAsPlainText() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = '{ \"foo\": \"bar\"}'");
+        run(
+                URL_STEP,
+                "path '/hello'",
+                "method get",
+                "match header content-type == 'text/plain'",
+                "match responseType == 'json'",
+                "match response.foo == 'bar'"
+        );
+    }
+
+    @Test
+    void testResponseAutoConversionForTextWithTags() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = '<http://example.org/#hello> a <http://example.org/#greeting> .'");
+        run(
+                URL_STEP,
+                "path '/hello'",
+                "method get",
+                "match header content-type == 'text/plain'",
+                "match responseType == 'string'",
+                "match response == '<http://example.org/#hello> a <http://example.org/#greeting> .'"
+        );
+    }
+    @Test
+    void testResponseContentTypeForNonXmlWithTags() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def responseHeaders = { 'Content-Type': 'text/turtle' }",
+                "def response = '<http://example.org/#hello> a <http://example.org/#greeting> .'");
+        run(
+                URL_STEP,
+                "path '/hello'",
+                "method get",
+                "match header content-type == 'text/turtle'",
+                "match responseType == 'string'",
+                "match response == '<http://example.org/#hello> a <http://example.org/#greeting> .'"
+        );
     }
 
 }

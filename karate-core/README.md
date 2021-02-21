@@ -754,6 +754,8 @@ Get the current URL / address for matching. Example:
 Then match driver.url == webUrlBase + '/page-02'
 ```
 
+Note that if you do this as soon as you navigate to a new page, there is a chance that this returns the old / stale URL. To avoid "flaky" tests, use [`waitForUrl()`](#waitforurl)
+
 This can also be used as a "setter" to navigate to a new URL *during* a test. But always use the [`driver`](#driver) keyword when you *start* a test and you can choose to prefer that shorter form in general.
 
 ```cucumber
@@ -850,7 +852,9 @@ You can even mix this into [`mouse()`](#mouse) actions.
 For some SPAs (Single Page Applications) the detection of a "page load" may be difficult because page-navigation (and the browser history) is taken over by JavaScript. In such cases, you can always fall-back to a [`waitForUrl()`](#waitforurl) or a more generic [`waitFor()`](#waitfor).
 
 ### `waitForUrl()` instead of `submit()`
-Sometimes, because of an HTTP re-direct, it can be difficult for Karate to detect a page URL change, or it will be detected too soon, causing your test to fail. In such cases, you can use `waitForUrl()`. For convenience, it will do a string *contains* match (not an exact match) so you don't need to worry about `http` vs `https` for example. Just supply a portion of the URL you are expecting. As another convenience, it will return a string which is the *actual* URL in case you need to use it for further actions in the test script.
+Sometimes, because of an HTTP re-direct, it can be difficult for Karate to detect a page URL change, or it will be detected too soon, causing your test to fail. In such cases, you can use [`waitForUrl()`](#waitforurl). 
+
+Note that it uses a string "contains" match, so you just need to supply a portion of the URL you are expecting.
 
 So instead of this, which uses [`submit()`](#submit):
 
@@ -1038,9 +1042,19 @@ And match enabled('#eg01DisabledId') == false
 Also see [`waitUntil()`](#waituntil) for an example of how to wait *until* an element is "enabled" or until any other element property becomes the target value.
 
 ## `waitForUrl()`
-Very handy for waiting for an expected URL change *and* asserting if it happened. See [`waitForUrl()` instead of `submit()`](#waitforurl-instead-of-submit).
+Very handy for waiting for an expected URL change *and* asserting if it happened.
 
-Also see [waits](#wait-api).
+For convenience, it will do a string contains match (not an exact match) so you don't need to worry about `http` vs `https` for example. It will also return a string which is the *actual* URL in case you need to use it for further actions in the test script.
+
+```cucumber
+# note that you don't need the full url
+* waitForUrl('/some/path')
+
+# if you want to get the actual url for later use
+* def actualUrl = waitForUrl('/some/path')
+```
+
+See [`waitForUrl()` instead of `submit()`](#waitforurl-instead-of-submit). Also see [waits](#wait-api).
 
 ## `waitForText()`
 This is just a convenience short-cut for `waitUntil(locator, "_.textContent.includes('" + expected + "')")` since it is so frequently needed. Note the use of the JavaScript [`String.includes()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/includes) function to do a *text contains* match for convenience. The need to "wait until some text appears" is so common, and with this - you don't need to worry about dealing with white-space such as line-feeds and invisible tab characters.

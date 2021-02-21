@@ -579,7 +579,7 @@ public class ScenarioEngine {
             body = bytes;
         } else {
             try {
-                body = JsValue.fromBytes(bytes, true);
+                body = JsValue.fromBytes(bytes, true, resourceType);
             } catch (Exception e) {
                 body = FileUtils.toString(bytes);
                 logger.warn("auto-conversion of response failed: {}", e.getMessage());
@@ -1901,7 +1901,7 @@ public class ScenarioEngine {
             // we clone result (and config) here, to snapshot state at the point the callonce was invoked
             // this prevents the state from being clobbered by the subsequent steps of this
             // first scenario that is about to use the result
-            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? copyVariables(false) : null;
+            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? detachVariables() : null;
             Config clonedConfig = new Config(config);
             clonedConfig.detach();
             result = new ScenarioCall.Result(resultValue.copy(false), clonedConfig, clonedVars);

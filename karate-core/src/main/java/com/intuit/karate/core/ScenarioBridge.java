@@ -27,6 +27,9 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.KarateException;
+import com.intuit.karate.Logger;
+import com.intuit.karate.Match;
+import com.intuit.karate.MatchStep;
 import com.intuit.karate.PerfContext;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
@@ -39,8 +42,6 @@ import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.WebSocketClient;
 import com.intuit.karate.http.WebSocketOptions;
-import com.intuit.karate.Match;
-import com.intuit.karate.MatchStep;
 import com.intuit.karate.shell.Command;
 import java.io.File;
 import java.util.ArrayList;
@@ -449,6 +450,10 @@ public class ScenarioBridge implements PerfContext {
         return new JsMap(getEngine().runtime.getScenarioInfo());
     }
 
+    public Logger getLogger() {
+        return getEngine().logger;
+    }
+
     public Object getOs() {
         String name = FileUtils.getOsName();
         String type = FileUtils.getOsType(name).toString().toLowerCase();
@@ -589,7 +594,7 @@ public class ScenarioBridge implements PerfContext {
     public void proceed(String requestUrlBase) {
         getEngine().mockProceed(requestUrlBase);
     }
-    
+
     public Object range(int start, int end) {
         return range(start, end, 1);
     }

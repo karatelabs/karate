@@ -26,6 +26,7 @@ package com.intuit.karate.graal;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.http.ResourceType;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -241,17 +242,20 @@ public class JsValue {
         }
     }
 
-    public static Object fromBytes(byte[] bytes, boolean jsonStrict) {
+    public static Object fromBytes(byte[] bytes, boolean jsonStrict, ResourceType resourceType) {
         if (bytes == null) {
             return null;
         }
         String raw = FileUtils.toString(bytes);
-        return fromString(raw, jsonStrict);
+        return fromString(raw, jsonStrict, resourceType);
     }
 
-    public static Object fromString(String raw, boolean jsonStrict) {
+    public static Object fromString(String raw, boolean jsonStrict, ResourceType resourceType) {
         String trimmed = raw.trim();
         if (trimmed.isEmpty()) {
+            return raw;
+        }
+        if (resourceType != null && !resourceType.isJson() && !resourceType.isXml() && !resourceType.isText()) {
             return raw;
         }
         switch (trimmed.charAt(0)) {
@@ -267,7 +271,7 @@ public class JsValue {
 
     public static Object fromStringSafe(String raw) {
         try {
-            return fromString(raw, false);
+            return fromString(raw, false, null);
         } catch (Exception e) {
             logger.trace("failed to auto convert: {}", e + "");
             return raw;
