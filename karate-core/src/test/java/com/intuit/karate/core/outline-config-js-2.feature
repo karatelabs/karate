@@ -6,8 +6,7 @@ Background:
  * def data = [ { name: 'value1' }, { name: 'value2' }, { name: 'value3' }, { name: 'value4' } ]
 
 Scenario Outline:
- * print 'b'
- * print baseHelper.doSomething(data)
+ * match functionFromKarateBase() == 'fromKarateBase'
 
  Examples:
   | data |
