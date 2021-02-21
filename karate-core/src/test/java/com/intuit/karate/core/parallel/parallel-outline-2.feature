@@ -1,4 +1,4 @@
-Feature: function from global config
+Feature:
 
 Background:
   * def data = [ { name: 'value1' }, { name: 'value2' }, { name: 'value3' }, { name: 'value4' } ]
