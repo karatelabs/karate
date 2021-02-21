@@ -579,7 +579,6 @@ class ScenarioRuntimeTest {
                 "def max = 12",
                 "match date == { month: '#? _ >= min && _ <= max' }"
         );
-        assertFalse(sr.isFailed());
     }
 
     @Test
@@ -588,7 +587,6 @@ class ScenarioRuntimeTest {
                 "bytes data = read('karate-logo.png')",
                 "match data == read('karate-logo.png')"
         );
-        assertFalse(sr.isFailed());
     }
 
     @Test
@@ -598,7 +596,6 @@ class ScenarioRuntimeTest {
                 "def actual = [{a: 1, b: 2}, {a: 2, b: 4}]",
                 "match each actual == expected"
         );
-        assertFalse(sr.isFailed());
     }
 
     @Test
@@ -609,7 +606,6 @@ class ScenarioRuntimeTest {
                 "def bar = 'test'",
                 "match actual == expected"
         );
-        assertFalse(sr.isFailed());
     }
 
     @Test
@@ -619,7 +615,6 @@ class ScenarioRuntimeTest {
                 "match each actual == { a: '#number', b: '#(_$.a * 2)' }",
                 "def res = { b: '#(_$.a * 2)' }"
         );
-        assertFalse(sr.isFailed());
         matchVar("res", "{ b: '#string' }");
     }
 
@@ -629,9 +624,15 @@ class ScenarioRuntimeTest {
                 "def temperature = { celsius: 100, fahrenheit: 212 }",
                 "match temperature contains { fahrenheit: '#($.celsius * 1.8 + 32)' }"
         );
-        assertFalse(sr.isFailed());
     }
 
+    @Test
+    void testMatchContainsArrayOnLhs() {
+        run(
+                "match ['foo', 'bar'] contains 'foo'"
+        );     
+    }
+    
     @Test
     void testMatchSchema() {
         run(
@@ -642,7 +643,6 @@ class ScenarioRuntimeTest {
                 "def response2 = { id: '123', name: 'foo', dog: { id: '456', color: 'brown' } }",
                 "match response2 == schema"
         );
-        assertFalse(sr.isFailed());
     }
 
     @Test
@@ -651,7 +651,6 @@ class ScenarioRuntimeTest {
                 "def response = { odds: [1, 2], count: 2 }",
                 "match response == { odds: '#[$.count]', count: '#number' }"
         );
-        assertFalse(sr.isFailed());
     }
 
     @Test

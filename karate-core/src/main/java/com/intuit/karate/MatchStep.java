@@ -98,6 +98,10 @@ public class MatchStep {
         String lhs = raw.substring(0, lhsEndPos).trim();
         if (leftParenPos == -1) {
             leftParenPos = lhs.indexOf('[');
+            if (leftParenPos == 0) { // json array
+                spacePos = -1; // just use lhs
+                lhs = "(" + lhs + ")";
+            }
         }
         if (spacePos != -1 && (leftParenPos > spacePos || leftParenPos == -1)) {
             name = lhs.substring(0, spacePos);
