@@ -59,7 +59,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.http.client.ClientProtocolException;
 
 /**
  *
@@ -1902,7 +1901,7 @@ public class ScenarioEngine {
             // we clone result (and config) here, to snapshot state at the point the callonce was invoked
             // this prevents the state from being clobbered by the subsequent steps of this
             // first scenario that is about to use the result
-            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? copyVariables(false) : null;
+            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? detachVariables() : null;
             Config clonedConfig = new Config(config);
             clonedConfig.detach();
             result = new ScenarioCall.Result(resultValue.copy(false), clonedConfig, clonedVars);
