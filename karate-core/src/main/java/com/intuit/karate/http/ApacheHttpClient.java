@@ -37,11 +37,8 @@ import java.net.ProxySelector;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.security.KeyStore;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -53,6 +50,7 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.entity.EntityBuilder;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.URIBuilder;
@@ -62,7 +60,6 @@ import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustAllStrategy;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
-import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -202,11 +199,11 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     public Response invoke(HttpRequest request) {
         this.request = request;
         RequestBuilder requestBuilder = RequestBuilder.create(request.getMethod()).setUri(request.getUrl());
+        if (request.getBody() != null) {
+            requestBuilder.setEntity(buildEntity(request));
+        }
         if (request.getHeaders() != null) {
             request.getHeaders().forEach((k, vals) -> vals.forEach(v -> requestBuilder.addHeader(k, v)));
-        }
-        if (request.getBody() != null) {
-            requestBuilder.setEntity(new ByteArrayEntity(request.getBody()));
         }
         CloseableHttpClient client = clientBuilder.build();
         CloseableHttpResponse httpResponse;
@@ -250,6 +247,55 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             map.put(name, list);
         }
         return map;
+    }
+
+    private static HttpEntity buildEntity(HttpRequest request) {
+        EntityBuilder entityBuilder = EntityBuilder.create().setBinary(request.getBody());
+        // strip managed `Transfer-Encoding` header values to avoid `org.apache.http.client.ClientProtocolException`
+        if (stripTransferEncodingHeaders(request, "chunked")) {
+            entityBuilder.chunked();
+        }
+        if (stripTransferEncodingHeaders(request, "gzip")) {
+            entityBuilder.gzipCompress();
+        }
+        return entityBuilder.build();
+    }
+
+    private static boolean stripTransferEncodingHeaders(HttpRequest request, String valueToStrip) {
+        if (request.getHeaders() == null || request.getBody() == null) {
+            return false;
+        }
+        // find `Transfer-Encoding` headers containing valueToStrip
+        List<Map.Entry<String, List<String>>> transferEncodingHeaders = request.getHeaders().entrySet().stream().
+                filter(entry -> "Transfer-Encoding".equalsIgnoreCase(entry.getKey())).
+                filter(entry -> entry.getValue() != null && !entry.getValue().isEmpty()).
+                filter(entry -> entry.getValue().stream().anyMatch(s -> s.toLowerCase().contains(valueToStrip))).
+                collect(Collectors.toList());
+        if (transferEncodingHeaders.isEmpty()) {
+            return false;
+        }
+        // strip valueToStrip from headers
+        transferEncodingHeaders.forEach(transferEncodingHeader -> {
+            request.getHeaders().put(transferEncodingHeader.getKey(), transferEncodingHeader.getValue().stream().
+                    map(transferEncodingValues -> {
+                        if (transferEncodingValues == null) {
+                            return "";
+                        }
+                        if (!transferEncodingValues.toLowerCase().contains(valueToStrip)) {
+                            return transferEncodingValues;
+                        }
+                        // `Transfer-Encoding` values may be comma-separated -> carefully remove only desired values
+                        return Arrays.stream(transferEncodingValues.split(",")).
+                                filter(s -> !s.toLowerCase().contains(valueToStrip)).
+                                collect(Collectors.joining(","));
+                    }).
+                    filter(transferEncodingValues -> !transferEncodingValues.trim().isEmpty()).
+                    collect(Collectors.toList())
+            );
+            // cleanup empty header values (e.g. `Transfer-Encoding: chunked` becomes `Transfer-Encoding: `)
+            request.getHeaders().values().removeIf(headerValues -> headerValues == null || headerValues.size() == 0);
+        });
+        return true;
     }
 
 }
