@@ -27,6 +27,9 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.KarateException;
+import com.intuit.karate.Logger;
+import com.intuit.karate.Match;
+import com.intuit.karate.MatchStep;
 import com.intuit.karate.PerfContext;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
@@ -39,8 +42,6 @@ import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.WebSocketClient;
 import com.intuit.karate.http.WebSocketOptions;
-import com.intuit.karate.Match;
-import com.intuit.karate.MatchStep;
 import com.intuit.karate.shell.Command;
 import java.io.File;
 import java.util.ArrayList;
@@ -510,6 +511,11 @@ public class ScenarioBridge implements PerfContext {
         if (engine.getConfig().isPrintEnabled()) {
             engine.logger.info("{}", new LogWrapper(values));
         }
+    }
+
+    public Logger getLogger() {
+        ScenarioEngine engine = getEngine();
+        return engine.logger;
     }
 
     public Object lowerCase(Object o) {
