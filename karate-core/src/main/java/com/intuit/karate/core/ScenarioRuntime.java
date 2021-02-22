@@ -355,8 +355,12 @@ public class ScenarioRuntime implements Runnable {
             if (caller.isNone() && !caller.isKarateConfigDisabled()) {
                 // evaluate config js, variables above will apply !
                 evalConfigJs(featureRuntime.suite.karateBase, "karate-base.js");
-                evalConfigJs(featureRuntime.suite.karateConfig, "karate-config.js");
-                evalConfigJs(featureRuntime.suite.karateConfigEnv, "karate-config-" + featureRuntime.suite.env + ".js");
+                if (!configFailed) {
+                    evalConfigJs(featureRuntime.suite.karateConfig, "karate-config.js");
+                }
+                if (!configFailed) {
+                    evalConfigJs(featureRuntime.suite.karateConfigEnv, "karate-config-" + featureRuntime.suite.env + ".js");
+                }
             }
             if (background == null) {
                 featureRuntime.suite.hooks.forEach(h -> h.beforeScenario(this));
