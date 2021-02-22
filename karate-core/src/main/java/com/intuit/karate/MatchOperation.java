@@ -239,6 +239,9 @@ public class MatchOperation {
 
     private boolean macroEqualsExpected(String expStr) {
         boolean optional = expStr.startsWith("##");
+        if (optional && actual.isNull()) { // exit early
+            return true;
+        }
         int minLength = optional ? 3 : 2;
         if (expStr.length() > minLength) {
             String macro = expStr.substring(minLength - 1);
