@@ -134,6 +134,13 @@ class FeatureRuntimeTest {
         run("karate-config-getscenario.feature", "classpath:com/intuit/karate/core/");
         System.clearProperty("karate.env");
     }
+    
+    @Test
+    void testKarateJsFromKarateBase() {
+        System.setProperty("karate.env", "frombase");
+        run("karate-config-frombase.feature", "classpath:com/intuit/karate/core/");
+        System.clearProperty("karate.env");
+    }    
 
     @Test
     void testCallByTag() {
