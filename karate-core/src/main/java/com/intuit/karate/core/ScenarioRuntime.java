@@ -271,13 +271,13 @@ public class ScenarioRuntime implements Runnable {
             Map<String, Object> exampleData = scenario.getExampleData();
             exampleData.forEach((k, v) -> map.put(k, v));
             map.put("__row", exampleData);
-            map.put("__num", scenario.getExampleIndex());         
+            map.put("__num", scenario.getExampleIndex());
         }
         return map;
     }
 
     private void evalConfigJs(String js, String displayName) {
-        if (js == null) {
+        if (js == null || configFailed) {
             return;
         }
         Variable fun = engine.evalJs("(" + js + ")");
@@ -355,12 +355,8 @@ public class ScenarioRuntime implements Runnable {
             if (caller.isNone() && !caller.isKarateConfigDisabled()) {
                 // evaluate config js, variables above will apply !
                 evalConfigJs(featureRuntime.suite.karateBase, "karate-base.js");
-                if (!configFailed) {
-                    evalConfigJs(featureRuntime.suite.karateConfig, "karate-config.js");
-                }
-                if (!configFailed) {
-                    evalConfigJs(featureRuntime.suite.karateConfigEnv, "karate-config-" + featureRuntime.suite.env + ".js");
-                }
+                evalConfigJs(featureRuntime.suite.karateConfig, "karate-config.js");
+                evalConfigJs(featureRuntime.suite.karateConfigEnv, "karate-config-" + featureRuntime.suite.env + ".js");
             }
             if (background == null) {
                 featureRuntime.suite.hooks.forEach(h -> h.beforeScenario(this));
@@ -401,7 +397,7 @@ public class ScenarioRuntime implements Runnable {
             } else {
                 // if it's a dynamic scenario running under the debugger
                 // we still want to execute the afterScenario() hook of the debugger server
-                if(!dryRun) {
+                if (!dryRun) {
                     featureRuntime.suite.hooks.stream()
                             .filter(DebugThread.class::isInstance)
                             .forEach(h -> h.afterScenario(this));
