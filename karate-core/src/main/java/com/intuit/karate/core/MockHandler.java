@@ -70,7 +70,7 @@ public class MockHandler implements ServerHandler {
     private final ScenarioRuntime runtime; // holds global config and vars
     private final Map<String, Variable> globals;
     private final boolean corsEnabled;
-
+    
     protected static final ThreadLocal<Request> LOCAL_REQUEST = new ThreadLocal<Request>();
 
     public MockHandler(Feature feature) {
@@ -93,16 +93,22 @@ public class MockHandler implements ServerHandler {
         runtime.engine.setVariable(ACCEPT_CONTAINS, (Function<String, Boolean>) this::acceptContains);
         runtime.engine.setVariable(HEADER_CONTAINS, (BiFunction<String, String, Boolean>) this::headerContains);
         runtime.engine.setVariable(BODY_PATH, (Function<String, Object>) this::bodyPath);
-        runtime.engine.init();
+        runtime.engine.init();        
         if (feature.isBackgroundPresent()) {
-            ScenarioEngine.set(runtime.engine);
-            for (Step step : feature.getBackground().getSteps()) {
-                Result result = StepRuntime.execute(step, runtime.actions);
-                if (result.isFailed()) {
-                    String message = "mock-server background failed - " + feature + ":" + step.getLine();
-                    runtime.logger.error(message);
-                    throw new KarateException(message, result.getError());
+            // if we are within a scenario already e.g. karate.start(), preserve context
+            ScenarioEngine prevEngine = ScenarioEngine.get();
+            try {                
+                ScenarioEngine.set(runtime.engine);
+                for (Step step : feature.getBackground().getSteps()) {
+                    Result result = StepRuntime.execute(step, runtime.actions);
+                    if (result.isFailed()) {
+                        String message = "mock-server background failed - " + feature + ":" + step.getLine();
+                        runtime.logger.error(message);
+                        throw new KarateException(message, result.getError());
+                    }
                 }
+            } finally {
+                ScenarioEngine.set(prevEngine);
             }
         }
         corsEnabled = runtime.engine.getConfig().isCorsEnabled();
