@@ -143,7 +143,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#responseheaders"><code>responseHeaders</code></a>
     | <a href="#responsecookies"><code>responseCookies</code></a>
     | <a href="#responsetime"><code>responseTime</code></a>
-    | <a href="#responsetype"><code>responseType</code></a>
+    | <a href="#responsetype"><code>responseType</code></a>4
     | <a href="#requesttimestamp"><code>requestTimeStamp</code></a>
   </td>
 </tr>
@@ -3095,6 +3095,20 @@ You would normally only need to use the [`status`](#status) keyword.  But if you
 # check if the response status is either of two values
 Then assert responseStatus == 200 || responseStatus == 204
 ```
+
+Note that [`match`](#match) can give you some extra readable options:
+
+```cucumber
+* match [200, 201, 204] contains responseStatus
+
+# this may be sufficient to check a range of values
+* assert responseStatus >= 200
+* assert responseStatus < 300
+
+# but using karate.range() you can even do this !
+* match karate.range(200, 299) contains responseStatus
+```
+
 ## `responseTime`
 The response time (in milliseconds) for the current [`response`](#response) would be available in a variable called `responseTime`. You can use this to assert that it was returned within the expected time like so:
 ```cucumber
