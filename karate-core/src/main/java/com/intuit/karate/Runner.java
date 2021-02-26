@@ -67,7 +67,7 @@ public class Runner {
     }
 
     public static Map<String, Object> runFeature(String path, Map<String, Object> vars, boolean evalKarateConfig) {
-        Feature feature = Feature.read(path);
+        Feature feature = FileUtils.parseFeatureAndCallTag(path);
         return runFeature(feature, vars, evalKarateConfig);
     }
 
