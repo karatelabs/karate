@@ -72,8 +72,11 @@ public class Main implements Callable<Void> {
     @Option(names = {"-p", "--port"}, description = "server port (default 8080)")
     int port = 8080;
 
+    @Option(names = {"-W", "--watch"}, description = "watch (and hot-reload) mock server file for changes")
+    boolean watch;    
+
     @Option(names = {"-S", "--serve"}, description = "app server using --workdir (experimental)")
-    boolean serve;
+     boolean serve;
 
     @Option(names = {"-s", "--ssl"}, description = "use ssl / https, will use '"
             + SslContextFactory.DEFAULT_CERT_NAME + "' and '" + SslContextFactory.DEFAULT_KEY_NAME
@@ -357,7 +360,7 @@ public class Main implements Callable<Void> {
             HttpServer server = HttpServer
                     .handler(handler)
                     .port(port)
-                    .corsEnabled(true)
+                    .corsEnabled(true)                    
                     .build();
             server.waitSync();
             return null;
@@ -375,7 +378,11 @@ public class Main implements Callable<Void> {
         if (env != null) { // some advanced mocks may want karate.env
             System.setProperty(Constants.KARATE_ENV, env);
         }
-        MockServer.Builder builder = MockServer.feature(mock).certFile(cert).keyFile(key);
+        MockServer.Builder builder = MockServer
+                .feature(mock)
+                .certFile(cert)
+                .keyFile(key)
+                .watch(watch);
         if (ssl) {
             builder.https(port);
         } else {

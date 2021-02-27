@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  */
 public class HttpServer {
 
-    private static final Logger logger = LoggerFactory.getLogger(HttpServer.class);
+    protected static final Logger logger = LoggerFactory.getLogger(HttpServer.class);
 
     private final Server server;
     private final CompletableFuture<Void> future;
