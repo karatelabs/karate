@@ -143,7 +143,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#responseheaders"><code>responseHeaders</code></a>
     | <a href="#responsecookies"><code>responseCookies</code></a>
     | <a href="#responsetime"><code>responseTime</code></a>
-    | <a href="#responsetype"><code>responseType</code></a>4
+    | <a href="#responsetype"><code>responseType</code></a>
     | <a href="#requesttimestamp"><code>requestTimeStamp</code></a>
   </td>
 </tr>
