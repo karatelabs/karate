@@ -27,6 +27,8 @@ import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
+import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.Response;
 
 /**
  *
@@ -65,6 +67,14 @@ public interface RuntimeHook {
     }
 
     default void afterStep(StepResult result, ScenarioRuntime sr) {
+        
+    }
+    
+    default void beforeHttpCall(HttpRequest request, ScenarioRuntime sr) {
+        
+    }
+    
+    default void afterHttpCall(HttpRequest request, Response response, ScenarioRuntime sr) {
         
     }
 
