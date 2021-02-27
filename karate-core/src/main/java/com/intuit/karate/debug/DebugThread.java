@@ -24,7 +24,6 @@
 package com.intuit.karate.debug;
 
 import com.intuit.karate.LogAppender;
-import com.intuit.karate.Suite;
 import com.intuit.karate.core.*;
 import com.intuit.karate.RuntimeHook;
 
@@ -262,26 +261,6 @@ public class DebugThread implements RuntimeHook, LogAppender {
 
     @Override
     public void close() {
-
-    }
-
-    @Override
-    public boolean beforeFeature(FeatureRuntime fr) {
-        return true;
-    }
-
-    @Override
-    public void afterFeature(FeatureRuntime fr) {
-
-    }
-
-    @Override
-    public void beforeSuite(Suite sr) {
-
-    }
-
-    @Override
-    public void afterSuite(Suite sr) {
 
     }
 

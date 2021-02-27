@@ -36,20 +36,36 @@ public interface RuntimeHook {
 
     // return false if the scenario / item should be excluded from the test-run
     // throw RuntimeException (any) to abort    
-    boolean beforeScenario(ScenarioRuntime sr);
+    default boolean beforeScenario(ScenarioRuntime sr) {
+        return true;
+    }
 
-    void afterScenario(ScenarioRuntime sr);
+    default void afterScenario(ScenarioRuntime sr) {
 
-    boolean beforeFeature(FeatureRuntime fr);
+    }
 
-    void afterFeature(FeatureRuntime fr);
+    default boolean beforeFeature(FeatureRuntime fr) {
+        return true;
+    }
 
-    void beforeSuite(Suite suite);
+    default void afterFeature(FeatureRuntime fr) {
 
-    void afterSuite(Suite suite);
+    }
 
-    boolean beforeStep(Step step, ScenarioRuntime sr);
+    default void beforeSuite(Suite suite) {
 
-    void afterStep(StepResult result, ScenarioRuntime sr);
+    }
+
+    default void afterSuite(Suite suite) {
+        
+    }
+
+    default boolean beforeStep(Step step, ScenarioRuntime sr) {
+        return true;
+    }
+
+    default void afterStep(StepResult result, ScenarioRuntime sr) {
+        
+    }
 
 }

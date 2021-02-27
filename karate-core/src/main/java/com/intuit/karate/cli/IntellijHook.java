@@ -28,8 +28,6 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.Suite;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.Scenario;
-import com.intuit.karate.core.Step;
-import com.intuit.karate.core.StepResult;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.ScenarioRuntime;
 import java.text.SimpleDateFormat;
@@ -44,21 +42,6 @@ public class IntellijHook implements RuntimeHook {
     @Override
     public void beforeSuite(Suite suite) {
         log(String.format(TEMPLATE_ENTER_THE_MATRIX, getCurrentTime()));
-    }
-
-    @Override
-    public void afterSuite(Suite suite) {
-
-    }
-
-    @Override
-    public boolean beforeStep(Step step, ScenarioRuntime sr) {
-        return true;
-    }
-
-    @Override
-    public void afterStep(StepResult result, ScenarioRuntime sr) {
-
     }
 
     @Override

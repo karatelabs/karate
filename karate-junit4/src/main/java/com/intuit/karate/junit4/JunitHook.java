@@ -23,11 +23,7 @@
  */
 package com.intuit.karate.junit4;
 
-import com.intuit.karate.Suite;
 import com.intuit.karate.core.Scenario;
-import com.intuit.karate.core.Step;
-import com.intuit.karate.core.StepResult;
-import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.core.ScenarioRuntime;
 import org.junit.runner.Description;
@@ -72,36 +68,6 @@ public class JunitHook implements RuntimeHook {
         // apparently this method should be always called
         // even if fireTestFailure was called
         notifier.fireTestFinished(scenarioDescription);
-    }
-
-    @Override
-    public boolean beforeFeature(FeatureRuntime fr) {
-        return true;
-    }
-
-    @Override
-    public void afterFeature(FeatureRuntime fr) {
-
-    }
-
-    @Override
-    public void beforeSuite(Suite suite) {
-
-    }
-
-    @Override
-    public void afterSuite(Suite suite) {
-
-    }
-
-    @Override
-    public boolean beforeStep(Step step, ScenarioRuntime sr) {
-        return true;
-    }
-
-    @Override
-    public void afterStep(StepResult result, ScenarioRuntime sr) {
-
     }
 
 }
