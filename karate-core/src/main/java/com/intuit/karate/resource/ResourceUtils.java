@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -258,9 +259,18 @@ public class ResourceUtils {
         }
         try {
             return Paths.get(url.toURI()).toFile();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        } catch (URISyntaxException e) {
+            return null;
         }
+    }
+    
+    public static File classPathOrFile(String path) {
+        File temp = classPathToFile(path);
+        if (temp != null) {
+            return temp;
+        }
+        temp = new File(path);
+        return temp.exists() ? temp : null;
     }
 
     public static Set<String> findJsFilesInDirectory(File dir) {

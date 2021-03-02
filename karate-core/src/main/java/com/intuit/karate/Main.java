@@ -276,8 +276,8 @@ public class Main implements Callable<Void> {
             // ensure we init logback before anything else
             String logbackConfig = System.getProperty(LOGBACK_CONFIG);
             if (StringUtils.isBlank(logbackConfig)) {
-                File logbackXml = ResourceUtils.classPathToFile("logback.xml");
-                File logbackTest = ResourceUtils.classPathToFile("logback-test.xml");
+                File logbackXml = ResourceUtils.classPathOrFile("logback.xml");
+                File logbackTest = ResourceUtils.classPathOrFile("logback-test.xml");
                 if (logbackTest != null) {
                     System.setProperty(LOGBACK_CONFIG, "logback-test.xml");
                 } else if (logbackXml != null) {

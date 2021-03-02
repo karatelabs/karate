@@ -117,6 +117,15 @@ public class Suite implements Runnable {
         return new Suite(Runner.builder().forTempUse());
     }
 
+    public static Suite forMockUse(Feature feature) {
+        Runner.Builder builder = Runner.builder().forTempUse();
+        File featureDir = feature.getResource().getFile();
+        if (featureDir != null) {
+            builder.workingDir(featureDir.getAbsoluteFile().getParentFile());
+        }
+        return new Suite(builder);
+    }
+
     public Suite() {
         this(Runner.builder());
     }
@@ -136,12 +145,12 @@ public class Suite implements Runnable {
             tagSelector = null;
             threadCount = -1;
             timeoutMinutes = -1;
-            hooks = null;
+            hooks = Collections.EMPTY_LIST;
             features = null;
             featuresFound = -1;
             futures = null;
             featureResultFiles = null;
-            workingDir = FileUtils.WORKING_DIR;
+            workingDir = rb.workingDir == null ? FileUtils.WORKING_DIR : rb.workingDir;
             buildDir = FileUtils.getBuildDir();
             reportDir = null;
             karateBase = null;
