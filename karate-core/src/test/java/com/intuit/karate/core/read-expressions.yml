@@ -1,0 +1,6 @@
+- item:
+    foo: '#(foo)'
+    nested:
+      # this is a comment
+      bar: '#(bar)'
+      notfound: '#(baz)'

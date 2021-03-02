@@ -1,0 +1,11 @@
+[
+  {
+    "item": {
+      "foo": "#(foo)",
+      "nested": {
+        "bar": "#(bar)",
+        "notfound": "#(baz)"
+      }
+    }
+  }
+]

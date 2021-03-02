@@ -120,6 +120,21 @@ class ScenarioRuntimeTest {
     }
 
     @Test
+    void testReadFilesWithExpressions() {
+        run(
+                "def foo = 'fooValue'",
+                "def bar = 'barValue'",
+                "def dataFromYml = read('read-expressions.yml')",
+                "def dataFromJson = read('read-expressions.json')"
+        );
+        Variable dataFromYml = sr.engine.vars.get("dataFromYml");
+        Variable dataFromJson = sr.engine.vars.get("dataFromJson");
+        assertEquals(dataFromYml.getAsString(), dataFromJson.getAsString());
+        assertEquals(dataFromYml.getAsString(), "[{\"item\":{\"foo\":\"fooValue\",\"nested\":{\"bar\":\"barValue\",\"notfound\":\"#(baz)\"}}}]");
+        assertEquals(dataFromJson.getAsString(), "[{\"item\":{\"foo\":\"fooValue\",\"nested\":{\"bar\":\"barValue\",\"notfound\":\"#(baz)\"}}}]");
+    }
+
+    @Test
     void testCallJsFunction() {
         run(
                 "def fun = function(a){ return a + 1 }",
