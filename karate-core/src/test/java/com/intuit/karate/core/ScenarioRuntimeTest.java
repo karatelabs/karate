@@ -128,7 +128,7 @@ class ScenarioRuntimeTest {
                 "def dataFromJson = read('read-expressions.json')"
         );
         Variable dataFromYml = sr.engine.vars.get("dataFromYml");
-        Variable dataFromJson = sr.engine.vars.get("dataFromYml");
+        Variable dataFromJson = sr.engine.vars.get("dataFromJson");
         assertEquals(dataFromYml.getAsString(), dataFromJson.getAsString());
         assertEquals(dataFromYml.getAsString(), "[{\"item\":{\"foo\":\"fooValue\",\"nested\":{\"bar\":\"barValue\",\"notfound\":\"#(baz)\"}}}]");
         assertEquals(dataFromJson.getAsString(), "[{\"item\":{\"foo\":\"fooValue\",\"nested\":{\"bar\":\"barValue\",\"notfound\":\"#(baz)\"}}}]");
