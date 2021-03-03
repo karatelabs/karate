@@ -213,7 +213,7 @@ And to run scenarios tagged `foo` AND `bar`
 ```
 
 ### Karate Variables
-On the Scala side, after a `scenario` involving a [`karateFeature()`](#karatefeature) completes, the Karate variables that were part of the feature will be added to the [Gatling session](https://gatling.io/docs/current/session/session_api/).
+On the Scala side, after a `scenario` involving a [`karateFeature()`](#karatefeature) completes, the Karate variables that were part of the feature will be added to the [Gatling session](#gatling-session).
 
 This is rarely needed - but useful when you want to pass data across feature files or do some assertions on the Gatling side. Here is an [example](src/test/scala/mock/CatsSimulation.scala):
 
