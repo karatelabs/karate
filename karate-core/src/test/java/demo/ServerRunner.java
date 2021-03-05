@@ -11,7 +11,7 @@ class ServerRunner {
 
     @Test
     void testServer() {
-        HttpServer.configRoot("src/test/java/demo")
+        HttpServer.root("src/test/java/demo")
                 .port(8080)
                 .corsEnabled(true)
                 .build().waitSync();

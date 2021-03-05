@@ -11,7 +11,7 @@ class ServerRunner {
 
     @Test
     void testServer() {
-        HttpServer.configRoot("src/test/java/todomvc").port(8080).build().waitSync();
+        HttpServer.root("src/test/java/todomvc").port(8080).build().waitSync();
     }
 
 }

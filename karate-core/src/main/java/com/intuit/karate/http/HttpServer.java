@@ -97,7 +97,7 @@ public class HttpServer {
         return new Builder().handler(handler);
     }
 
-    public static Builder configRoot(String root) {
+    public static Builder root(String root) {
         return config(new ServerConfig(root));
     }
 
