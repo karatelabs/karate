@@ -253,6 +253,9 @@ public class ScenarioEngine {
         }
         Variable v = afterFeature ? config.getAfterFeature() : config.getAfterScenario();
         if (v.isJsOrJavaFunction()) {
+            if (afterFeature) {
+                ScenarioEngine.set(this); // for any bridge / js to work
+            }
             try {
                 executeFunction(v);
             } catch (Exception e) {
