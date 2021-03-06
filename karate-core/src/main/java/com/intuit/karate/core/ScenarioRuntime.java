@@ -119,6 +119,10 @@ public class ScenarioRuntime implements Runnable {
         return stopped;
     }
 
+    public boolean isDynamicBackground() {
+        return this.scenario.isDynamic() && this.background == null;
+    }
+
     public String getEmbedFileName(ResourceType resourceType) {
         String extension = resourceType == null ? null : resourceType.getExtension();
         return scenario.getUniqueId() + "_" + System.currentTimeMillis() + (extension == null ? "" : "." + extension);
@@ -358,12 +362,15 @@ public class ScenarioRuntime implements Runnable {
                 evalConfigJs(featureRuntime.suite.karateConfig, "karate-config.js");
                 evalConfigJs(featureRuntime.suite.karateConfigEnv, "karate-config-" + featureRuntime.suite.env + ".js");
             }
-            if (background == null || scenario.isOutlineExample()) {
+            if (this.isDynamicBackground()) {
+                featureRuntime.suite.hooks.forEach(h -> h.beforeBackground(this));
+                if (featureRuntime.suite.debugMode) {
+                    featureRuntime.suite.hooks.stream()
+                            .filter(DebugThread.class::isInstance)
+                            .forEach(h -> h.beforeScenario(this));
+                }
+            } else if (background == null || (scenario.isDynamic() && !this.isDynamicBackground())) {
                 featureRuntime.suite.hooks.forEach(h -> h.beforeScenario(this));
-            } else if (featureRuntime.suite.debugMode) {
-                featureRuntime.suite.hooks.stream()
-                        .filter(DebugThread.class::isInstance)
-                        .forEach(h -> h.beforeScenario(this));
             }
         }
         if (!scenario.isDynamic()) {
@@ -374,6 +381,7 @@ public class ScenarioRuntime implements Runnable {
 
     @Override
     public void run() {
+        boolean reRun = false;
         try { // make sure we call afterRun() even on crashes
             // and operate countdown latches, else we may hang the parallel runner
             if (steps == null) {
@@ -381,6 +389,7 @@ public class ScenarioRuntime implements Runnable {
             }
             int count = steps.size();
             int index = 0;
+            reRun = stepIndex >= count;
             while ((index = nextStepIndex()) < count) {
                 currentStep = steps.get(index);
                 execute(currentStep);
@@ -392,15 +401,21 @@ public class ScenarioRuntime implements Runnable {
             logError("scenario [run] failed\n" + e.getMessage());
             currentStepResult = result.addFakeStepResult("scenario [run] failed", e);
         } finally {
-            if (!scenario.isDynamic()) { // don't add "fake" scenario to feature results
-                afterRun();
-            } else if (featureRuntime.suite.debugMode) {
+            if (this.isDynamicBackground() && !reRun) {
+                featureRuntime.suite.hooks.forEach(h -> h.afterBackground(this));
                 // if it's a dynamic scenario running under the debugger
                 // we still want to execute the afterScenario() hook of the debugger server
-                featureRuntime.suite.hooks.stream()
-                        .filter(DebugThread.class::isInstance)
-                        .forEach(h -> h.afterScenario(this));
+                // in the background section
+                if (featureRuntime.suite.debugMode) {
+                    // allow debugging background section
+                    featureRuntime.suite.hooks.stream()
+                            .filter(DebugThread.class::isInstance)
+                            .forEach(h -> h.afterScenario(this));
+                }
+            } else if (!this.isDynamicBackground()) { // don't add "fake" scenario to feature results
+                afterRun();
             }
+
             if (caller.isNone()) {
                 logAppender.close(); // reclaim memory
             }

@@ -119,6 +119,7 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
             }
             final int rowIndex = index++;
             Variable rowValue;
+            boolean lastExample = false;
             if (expressionValue.isJsOrJavaFunction()) {
                 try {
                     rowValue = ScenarioEngine.get().executeFunction(expressionValue, rowIndex);
@@ -134,6 +135,8 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                 if (rowIndex >= list.size()) {
                     currentScenario = null;
                     return tryAdvance(action);
+                } else if (rowIndex == (list.size() - 1)) {
+                    lastExample = true;
                 }
                 rowValue = new Variable(list.get(rowIndex));
             }
@@ -141,6 +144,7 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                 Scenario dynamic = currentScenario.copy(rowIndex); // this will set exampleIndex
                 Map<String, Object> map = rowValue.getValue();
                 dynamic.setExampleData(map); // and here we set exampleData
+                dynamic.setLastExample(lastExample); // override as it's calculated in runtime
                 map.forEach((k, v) -> {
                     Variable var = new Variable(v);
                     dynamic.replace("<" + k + ">", var.getAsString());

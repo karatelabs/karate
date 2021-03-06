@@ -46,6 +46,7 @@ public class Scenario {
     private List<Step> steps;
     private Map<String, Object> exampleData;
     private String dynamicExpression;
+    private boolean lastExample; // always false, unless it's a Scenario Outline
 
     public Scenario(Feature feature, FeatureSection section, int exampleIndex) {
         this.feature = feature;
@@ -86,6 +87,7 @@ public class Scenario {
         s.description = description;
         s.tags = tags;
         s.line = line;
+        s.dynamicExpression = dynamicExpression;
         s.steps = new ArrayList(steps.size());
         for (Step step : steps) {
             Step temp = new Step(s, step.getIndex());
@@ -247,6 +249,18 @@ public class Scenario {
 
     public int getExampleIndex() {
         return exampleIndex;
+    }
+
+    public boolean isLastExample() {
+        return this.lastExample;
+    }
+
+    public void setLastExample(boolean lastExample) {
+        this.lastExample = lastExample;
+    }
+
+    public boolean isFirstExample() {
+        return exampleIndex == 0;
     }
 
     @Override
