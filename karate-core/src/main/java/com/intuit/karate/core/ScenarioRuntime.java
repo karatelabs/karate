@@ -358,9 +358,9 @@ public class ScenarioRuntime implements Runnable {
                 evalConfigJs(featureRuntime.suite.karateConfig, "karate-config.js");
                 evalConfigJs(featureRuntime.suite.karateConfigEnv, "karate-config-" + featureRuntime.suite.env + ".js");
             }
-            if (background == null) {
+            if (background == null || scenario.isOutlineExample()) {
                 featureRuntime.suite.hooks.forEach(h -> h.beforeScenario(this));
-            } else {
+            } else if (featureRuntime.suite.debugMode) {
                 featureRuntime.suite.hooks.stream()
                         .filter(DebugThread.class::isInstance)
                         .forEach(h -> h.beforeScenario(this));
@@ -394,14 +394,12 @@ public class ScenarioRuntime implements Runnable {
         } finally {
             if (!scenario.isDynamic()) { // don't add "fake" scenario to feature results
                 afterRun();
-            } else {
+            } else if (featureRuntime.suite.debugMode) {
                 // if it's a dynamic scenario running under the debugger
                 // we still want to execute the afterScenario() hook of the debugger server
-                if (!dryRun) {
-                    featureRuntime.suite.hooks.stream()
-                            .filter(DebugThread.class::isInstance)
-                            .forEach(h -> h.afterScenario(this));
-                }
+                featureRuntime.suite.hooks.stream()
+                        .filter(DebugThread.class::isInstance)
+                        .forEach(h -> h.afterScenario(this));
             }
             if (caller.isNone()) {
                 logAppender.close(); // reclaim memory
