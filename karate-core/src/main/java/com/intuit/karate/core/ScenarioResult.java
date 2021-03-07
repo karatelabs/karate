@@ -150,7 +150,6 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         scenario.setName((String) map.get("name"));
         scenario.setDescription((String) map.get("description"));
         scenario.setLine((Integer) map.get("line"));
-        scenario.setLastExample((boolean) map.get("lastExample"));
         scenario.setExampleData((Map) map.get("exampleData"));
         ScenarioResult sr = new ScenarioResult(scenario);
         String executorName = (String) map.get("executorName");
@@ -196,7 +195,6 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         //======================================================================
         map.put("sectionIndex", scenario.getSection().getIndex());
         map.put("exampleIndex", scenario.getExampleIndex());
-        map.put("lastExample", scenario.isLastExample());
         Map<String, Object> exampleData = scenario.getExampleData();
         if (exampleData != null) {
             map.put("exampleData", exampleData);

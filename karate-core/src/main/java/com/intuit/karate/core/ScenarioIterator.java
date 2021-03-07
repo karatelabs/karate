@@ -89,6 +89,10 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
             }
         }
         if (currentScenario.isDynamic()) {
+            // if it's a dynamic scenario, the normal Feature flow is not followed and background
+            // is evaluated first, so let's run the beforeFeature() hook
+
+
             if (background == null) {
                 background = new ScenarioRuntime(featureRuntime, currentScenario);
                 if (background.selectedForExecution) {
@@ -144,7 +148,6 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                 Scenario dynamic = currentScenario.copy(rowIndex); // this will set exampleIndex
                 Map<String, Object> map = rowValue.getValue();
                 dynamic.setExampleData(map); // and here we set exampleData
-                dynamic.setLastExample(lastExample); // override as it's calculated in runtime
                 map.forEach((k, v) -> {
                     Variable var = new Variable(v);
                     dynamic.replace("<" + k + ">", var.getAsString());

@@ -92,7 +92,6 @@ public class ScenarioOutline {
                     int exampleIndex = i - 1; // next line will set exampleIndex on scenario
                     Scenario scenario = toScenario(null, exampleIndex, table.getLineNumberForRow(i), examples.getTags());
                     scenario.setExampleData(table.getExampleData(exampleIndex)); // and we set exampleData here
-                    scenario.setLastExample(i == (rowCount - 1 ));
                     list.add(scenario);
                     for (String key : table.getKeys()) {
                         scenario.replace("<" + key + ">", table.getValueAsString(key, i));

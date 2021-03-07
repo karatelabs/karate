@@ -158,7 +158,11 @@ public class FeatureRuntime implements Runnable {
         if (processor != null) {
             processor.execute();
         } else {
-            scenarios.forEachRemaining(this::processScenario);
+            if (!beforeHook()) {
+                logger.info("before-feature hook returned [false], aborting: {}", this);
+            } else {
+                scenarios.forEachRemaining(this::processScenario);
+            }
             afterFeature();
         }
     }
@@ -166,9 +170,7 @@ public class FeatureRuntime implements Runnable {
     private ScenarioRuntime lastExecutedScenario;
     
     private void processScenario(ScenarioRuntime sr) {
-        if (!beforeHook()) {
-            logger.info("before-feature hook returned [false], aborting: {}", this);
-        } else {
+        if (beforeHook()) {
             lastExecutedScenario = sr;
             if (suite.jobManager != null) {
                 CompletableFuture future = suite.jobManager.addChunk(sr);
