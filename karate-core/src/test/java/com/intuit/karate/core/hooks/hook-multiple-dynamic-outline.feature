@@ -1,3 +1,4 @@
+@tagged
 Feature: Test Hook Feature
 
 Background:

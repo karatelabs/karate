@@ -70,7 +70,7 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                 if (sections.hasNext()) {
                     FeatureSection section = sections.next();
                     if (section.isOutline()) {
-                        scenarios = section.getScenarioOutline().getScenarios().iterator();
+                        scenarios = section.getScenarioOutline().getScenarios(featureRuntime).iterator();
                     } else {
                         scenarios = Collections.singletonList(section.getScenario()).iterator();
                     }
@@ -123,7 +123,6 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
             }
             final int rowIndex = index++;
             Variable rowValue;
-            boolean lastExample = false;
             if (expressionValue.isJsOrJavaFunction()) {
                 try {
                     rowValue = ScenarioEngine.get().executeFunction(expressionValue, rowIndex);
@@ -139,8 +138,6 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                 if (rowIndex >= list.size()) {
                     currentScenario = null;
                     return tryAdvance(action);
-                } else if (rowIndex == (list.size() - 1)) {
-                    lastExample = true;
                 }
                 rowValue = new Variable(list.get(rowIndex));
             }

@@ -2,6 +2,7 @@ package com.intuit.karate.core.parser;
 
 import com.intuit.karate.Runner;
 import com.intuit.karate.Suite;
+import com.intuit.karate.core.ScenarioOutline;
 import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
@@ -226,4 +227,58 @@ class FeatureParserTest {
         assertEquals("another line", scenario.getDescription());
     }
 
+    @Test
+    void testScenariOutlineReadWithoutTags() {
+        Feature feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-dynamic.feature");
+        Runner.Builder builder = Runner.builder();
+        builder.tags("@a-tag");
+        FeatureRuntime fr = FeatureRuntime.of(new Suite(builder), feature);
+        ScenarioOutline outline = feature.getSection(0).getScenarioOutline();
+
+        assertEquals(1, outline.getScenarios(fr).size());
+
+        feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-name.feature");
+        fr = FeatureRuntime.of(new Suite(builder), feature);
+        outline = feature.getSection(0).getScenarioOutline();
+        assertEquals(2, outline.getScenarios(fr).size());
+
+        // using a tag that does not exist in the Examples Tables
+        // should use the default / no tag Table
+        feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-examples-tags.feature");
+        fr = FeatureRuntime.of(new Suite(builder), feature);
+        outline = feature.getSection(0).getScenarioOutline();
+        assertEquals(4, outline.getScenarios(fr).size());
+
+        builder = Runner.builder();
+        builder.tags("@three-examples");
+        feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-examples-tags.feature");
+        fr = FeatureRuntime.of(new Suite(builder), feature);
+        outline = feature.getSection(0).getScenarioOutline();
+        assertEquals(3, outline.getScenarios(fr).size());
+
+        builder = Runner.builder();
+        builder.tags("@two-examples");
+        feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-examples-tags.feature");
+        fr = FeatureRuntime.of(new Suite(builder), feature);
+        outline = feature.getSection(0).getScenarioOutline();
+        assertEquals(3, outline.getScenarios(fr).size());
+
+        // no tags
+        builder = Runner.builder();
+        feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-examples-tags.feature");
+        fr = FeatureRuntime.of(new Suite(builder), feature);
+        outline = feature.getSection(0).getScenarioOutline();
+        assertEquals(4, outline.getScenarios(fr).size());
+
+        // not the @two-examples Examples Table so will use all the other example tables
+        builder = Runner.builder();
+        builder.tags("~@two-examples");
+        feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-examples-tags.feature");
+        fr = FeatureRuntime.of(new Suite(builder), feature);
+        outline = feature.getSection(0).getScenarioOutline();
+        assertEquals(7, outline.getScenarios(fr).size());
+
+
+        System.out.println();
+    }
 }

@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- *
  * @author pthomas3
  */
 public class ScenarioOutline {
@@ -79,22 +78,54 @@ public class ScenarioOutline {
     }
 
     public List<Scenario> getScenarios() {
+        return this.getScenarios(null);
+    }
+
+    public List<Scenario> getScenarios(FeatureRuntime fr) {
         List<Scenario> list = new ArrayList();
+        boolean atLeastOneExampleTagged = examplesTables.stream().anyMatch(t -> !t.getTags().isEmpty());
+        boolean atLeastOneExampleTableMatchTag = examplesTables.stream().anyMatch(t -> !t.getTags().isEmpty()
+                && Tags.merge(t.getTags()).evaluate(fr.suite.tagSelector));
         for (ExamplesTable examples : examplesTables) {
-            Table table = examples.getTable();
-            if (table.isDynamic()) {
-                // technically row index 0 to denote an example (not -1)
-                Scenario scenario = toScenario(table.getDynamicExpression(), 0, table.getLineNumberForRow(0), examples.getTags());
-                list.add(scenario);
+            boolean selectedForExecution = false;
+            if (fr != null) {
+                // getting examples in the context of an execution
+                if (atLeastOneExampleTagged) {
+                    // if the examples do not have any tagged example, do not worry about selecting
+                    Tags tableTags = Tags.merge(examples.getTags());
+                    if (fr.suite.tagSelector != null && atLeastOneExampleTableMatchTag) {
+                        boolean executeForTable = tableTags.evaluate(fr.suite.tagSelector);
+                        if (executeForTable) {
+                            selectedForExecution = true;
+                        }
+                    } else if (examples.getTags().isEmpty()) {
+                        // if there are tagged Examples but none match,
+                        // only the non-tagged Examples should be processed
+                        selectedForExecution = true;
+                    }
+                } else {
+                    selectedForExecution = true;
+                }
             } else {
-                int rowCount = table.getRows().size();
-                for (int i = 1; i < rowCount; i++) { // don't include header row
-                    int exampleIndex = i - 1; // next line will set exampleIndex on scenario
-                    Scenario scenario = toScenario(null, exampleIndex, table.getLineNumberForRow(i), examples.getTags());
-                    scenario.setExampleData(table.getExampleData(exampleIndex)); // and we set exampleData here
+                selectedForExecution = true;
+            }
+
+            if (selectedForExecution) {
+                Table table = examples.getTable();
+                if (table.isDynamic()) {
+                    // technically row index 0 to denote an example (not -1)
+                    Scenario scenario = toScenario(table.getDynamicExpression(), 0, table.getLineNumberForRow(0), examples.getTags());
                     list.add(scenario);
-                    for (String key : table.getKeys()) {
-                        scenario.replace("<" + key + ">", table.getValueAsString(key, i));
+                } else {
+                    int rowCount = table.getRows().size();
+                    for (int i = 1; i < rowCount; i++) { // don't include header row
+                        int exampleIndex = i - 1; // next line will set exampleIndex on scenario
+                        Scenario scenario = toScenario(null, exampleIndex, table.getLineNumberForRow(i), examples.getTags());
+                        scenario.setExampleData(table.getExampleData(exampleIndex)); // and we set exampleData here
+                        list.add(scenario);
+                        for (String key : table.getKeys()) {
+                            scenario.replace("<" + key + ">", table.getValueAsString(key, i));
+                        }
                     }
                 }
             }

@@ -35,6 +35,57 @@ public class HooksTest {
     }
 
     @Test
+    void testMultipleDynamicOutlineMultipleTablesHook() {
+        TestRuntimeHook testRuntimeHook = new TestRuntimeHook();
+        Results results = Runner.path("classpath:com/intuit/karate/core/hooks/hook-multiple-dynamic-outline.feature")
+                .hook(testRuntimeHook)
+                .configDir("classpath:com/intuit/karate/core/hooks")
+                .parallel(1);
+        assertEquals(0, results.getFailCount());
+
+        assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("beforeSuite").get("suite"));
+        assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("afterSuite").get("suite"));
+
+        assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("beforeFeature").values().stream().mapToInt(Integer::intValue).sum());
+        assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("afterFeature").values().stream().mapToInt(Integer::intValue).sum());
+
+        assertEquals(3, testRuntimeHook.getRuntimeHookTracker().get("beforeBackground").values().stream().mapToInt(Integer::intValue).sum());
+        assertEquals(3, testRuntimeHook.getRuntimeHookTracker().get("afterBackground").values().stream().mapToInt(Integer::intValue).sum());
+
+        assertEquals(8, testRuntimeHook.getRuntimeHookTracker().get("beforeScenario").values().stream().mapToInt(Integer::intValue).sum());
+        assertEquals(8, testRuntimeHook.getRuntimeHookTracker().get("afterScenario").values().stream().mapToInt(Integer::intValue).sum());
+
+        assertTrue(testRuntimeHook.getRuntimeHookTracker().get("beforeStep").values().stream().mapToInt(Integer::intValue).sum() > 0);
+        assertTrue(testRuntimeHook.getRuntimeHookTracker().get("afterStep").values().stream().mapToInt(Integer::intValue).sum() > 0);
+    }
+
+    @Test
+    void testMultipleDynamicOutlineMultipleTablesTagSelectHook() {
+        TestRuntimeHook testRuntimeHook = new TestRuntimeHook();
+        Results results = Runner.path("classpath:com/intuit/karate/core/hooks/hook-multiple-dynamic-outline.feature")
+                .hook(testRuntimeHook)
+                .tags("@tagged")
+                .configDir("classpath:com/intuit/karate/core/hooks")
+                .parallel(1);
+        assertEquals(0, results.getFailCount());
+
+        assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("beforeSuite").get("suite"));
+        assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("afterSuite").get("suite"));
+
+        assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("beforeFeature").values().stream().mapToInt(Integer::intValue).sum());
+        assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("afterFeature").values().stream().mapToInt(Integer::intValue).sum());
+
+        assertEquals(2, testRuntimeHook.getRuntimeHookTracker().get("beforeBackground").values().stream().mapToInt(Integer::intValue).sum());
+        assertEquals(2, testRuntimeHook.getRuntimeHookTracker().get("afterBackground").values().stream().mapToInt(Integer::intValue).sum());
+
+        assertEquals(5, testRuntimeHook.getRuntimeHookTracker().get("beforeScenario").values().stream().mapToInt(Integer::intValue).sum());
+        assertEquals(5, testRuntimeHook.getRuntimeHookTracker().get("afterScenario").values().stream().mapToInt(Integer::intValue).sum());
+
+        assertTrue(testRuntimeHook.getRuntimeHookTracker().get("beforeStep").values().stream().mapToInt(Integer::intValue).sum() > 0);
+        assertTrue(testRuntimeHook.getRuntimeHookTracker().get("afterStep").values().stream().mapToInt(Integer::intValue).sum() > 0);
+    }
+
+    @Test
     void testDynamicOutlineHookNoStepExecution() {
         NoStepTestRuntimeHook testRuntimeHook = new NoStepTestRuntimeHook();
         Results results = Runner.path("classpath:com/intuit/karate/core/hooks/hook-dynamic-outline.feature")
