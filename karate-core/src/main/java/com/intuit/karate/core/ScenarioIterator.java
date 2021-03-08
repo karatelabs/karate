@@ -89,10 +89,6 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
             }
         }
         if (currentScenario.isDynamic()) {
-            // if it's a dynamic scenario, the normal Feature flow is not followed and background
-            // is evaluated first, so let's run the beforeFeature() hook
-
-
             if (background == null) {
                 background = new ScenarioRuntime(featureRuntime, currentScenario);
                 if (background.selectedForExecution) {
