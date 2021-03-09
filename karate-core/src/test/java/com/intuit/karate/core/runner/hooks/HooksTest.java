@@ -12,7 +12,7 @@ public class HooksTest {
     @Test
     void testDynamicOutlineHook() {
         TestRuntimeHook testRuntimeHook = new TestRuntimeHook();
-        Results results = Runner.path("classpath:com/intuit/karate/core/hooks/hook-dynamic-outline.feature")
+        Results results = Runner.path("classpath:com/intuit/karate/core/runner/hooks/hook-dynamic-outline.feature")
                 .hook(testRuntimeHook)
                 .configDir("classpath:com/intuit/karate/core/hooks")
                 .parallel(1);
@@ -37,7 +37,7 @@ public class HooksTest {
     @Test
     void testMultipleDynamicOutlineMultipleTablesHook() {
         TestRuntimeHook testRuntimeHook = new TestRuntimeHook();
-        Results results = Runner.path("classpath:com/intuit/karate/core/hooks/hook-multiple-dynamic-outline.feature")
+        Results results = Runner.path("classpath:com/intuit/karate/core/runner/hooks/hook-multiple-dynamic-outline.feature")
                 .hook(testRuntimeHook)
                 .configDir("classpath:com/intuit/karate/core/hooks")
                 .parallel(1);
@@ -62,7 +62,7 @@ public class HooksTest {
     @Test
     void testMultipleDynamicOutlineMultipleTablesTagSelectHook() {
         TestRuntimeHook testRuntimeHook = new TestRuntimeHook();
-        Results results = Runner.path("classpath:com/intuit/karate/core/hooks/hook-multiple-dynamic-outline.feature")
+        Results results = Runner.path("classpath:com/intuit/karate/core/runner/hooks/hook-multiple-dynamic-outline.feature")
                 .hook(testRuntimeHook)
                 .tags("@tagged")
                 .configDir("classpath:com/intuit/karate/core/hooks")
@@ -99,7 +99,7 @@ public class HooksTest {
     @Test
     void testDynamicOutlineHookNoStepExecution() {
         NoStepTestRuntimeHook testRuntimeHook = new NoStepTestRuntimeHook();
-        Results results = Runner.path("classpath:com/intuit/karate/core/hooks/hook-dynamic-outline.feature")
+        Results results = Runner.path("classpath:com/intuit/karate/core/runner/hooks/hook-dynamic-outline.feature")
                 .hook(testRuntimeHook)
                 .configDir("classpath:com/intuit/karate/core/hooks")
                 .parallel(1);
@@ -128,7 +128,7 @@ public class HooksTest {
     @Test
     void testDynamicOutlineHookNoScenarioExecution() {
         NoScenarioTestRuntimeHook testRuntimeHook = new NoScenarioTestRuntimeHook();
-        Results results = Runner.path("classpath:com/intuit/karate/core/hooks/hook-dynamic-outline.feature")
+        Results results = Runner.path("classpath:com/intuit/karate/core/runner/hooks/hook-dynamic-outline.feature")
                 .hook(testRuntimeHook)
                 .configDir("classpath:com/intuit/karate/core/hooks")
                 .parallel(1);
@@ -154,7 +154,7 @@ public class HooksTest {
     @Test
     void testDynamicOutlineHookNoFeatureExecution() {
         NoFeatureTestRuntimeHook testRuntimeHook = new NoFeatureTestRuntimeHook();
-        Results results = Runner.path("classpath:com/intuit/karate/core/hooks/hook-dynamic-outline.feature")
+        Results results = Runner.path("classpath:com/intuit/karate/core/runner/hooks/hook-dynamic-outline.feature")
                 .hook(testRuntimeHook)
                 .configDir("classpath:com/intuit/karate/core/hooks")
                 .parallel(1);
@@ -180,7 +180,7 @@ public class HooksTest {
     @Test
     void testOutlineHookNoStepExecutionWithoutError() {
         NoStepTestRuntimeHook testRuntimeHook = new NoStepTestRuntimeHook();
-        Results results = Runner.path("classpath:com/intuit/karate/core/hooks/hook-outline.feature")
+        Results results = Runner.path("classpath:com/intuit/karate/core/runner/hooks/hook-outline.feature")
                 .hook(testRuntimeHook)
                 .configDir("classpath:com/intuit/karate/core/hooks")
                 .parallel(1);
@@ -209,7 +209,7 @@ public class HooksTest {
     @Test
     void testOutlineHook() {
         TestRuntimeHook testRuntimeHook = new TestRuntimeHook();
-        Results results = Runner.path("classpath:com/intuit/karate/core/hooks/hook-outline.feature")
+        Results results = Runner.path("classpath:com/intuit/karate/core/runner/hooks/hook-outline.feature")
                 .hook(testRuntimeHook)
                 .configDir("classpath:com/intuit/karate/core/hooks")
                 .parallel(1);
@@ -235,7 +235,7 @@ public class HooksTest {
     @Test
     void testScenarioHook() {
         TestRuntimeHook testRuntimeHook = new TestRuntimeHook();
-        Results results = Runner.path("classpath:com/intuit/karate/core/hooks/hook-scenario.feature")
+        Results results = Runner.path("classpath:com/intuit/karate/core/runner/hooks/hook-scenario.feature")
                 .hook(testRuntimeHook)
                 .configDir("classpath:com/intuit/karate/core/hooks")
                 .parallel(1);
