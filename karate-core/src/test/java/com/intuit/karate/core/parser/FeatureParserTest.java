@@ -243,11 +243,13 @@ class FeatureParserTest {
         assertEquals(2, outline.getScenarios(fr).size());
 
         // using a tag that does not exist in the Examples Tables
-        // should use the default / no tag Table
+        // should not select anything
+        builder = Runner.builder();
+        builder.tags("@tag-not-present");
         feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-examples-tags.feature");
         fr = FeatureRuntime.of(new Suite(builder), feature);
         outline = feature.getSection(0).getScenarioOutline();
-        assertEquals(4, outline.getScenarios(fr).size());
+        assertEquals(0, outline.getScenarios(fr).size());
 
         builder = Runner.builder();
         builder.tags("@three-examples");
@@ -263,12 +265,13 @@ class FeatureParserTest {
         outline = feature.getSection(0).getScenarioOutline();
         assertEquals(3, outline.getScenarios(fr).size());
 
-        // no tags
+        // no tag selector
+        // bring all example tables
         builder = Runner.builder();
         feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-examples-tags.feature");
         fr = FeatureRuntime.of(new Suite(builder), feature);
         outline = feature.getSection(0).getScenarioOutline();
-        assertEquals(4, outline.getScenarios(fr).size());
+        assertEquals(10, outline.getScenarios(fr).size());
 
         // not the @two-examples Examples Table so will use all the other example tables
         builder = Runner.builder();
