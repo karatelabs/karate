@@ -1,4 +1,4 @@
-package com.intuit.karate.core.hooks;
+package com.intuit.karate.core.runner.hooks;
 
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.Suite;
