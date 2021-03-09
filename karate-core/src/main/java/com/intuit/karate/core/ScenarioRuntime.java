@@ -271,7 +271,7 @@ public class ScenarioRuntime implements Runnable {
                 engine.setVariables(caller.arg.getValue());
             }
         }
-        if (scenario.isOutlineExample() && !scenario.isDynamic()) { // init examples row magic variables
+        if (scenario.isOutlineExample() && !this.isDynamicBackground()) { // init examples row magic variables
             Map<String, Object> exampleData = scenario.getExampleData();
             exampleData.forEach((k, v) -> map.put(k, v));
             map.put("__row", exampleData);
@@ -346,7 +346,7 @@ public class ScenarioRuntime implements Runnable {
     //==========================================================================
     //
     public void beforeRun() {
-        if (scenario.isDynamic()) {
+        if (this.isDynamicBackground()) {
             steps = scenario.getBackgroundSteps();
         } else {
             steps = background == null ? scenario.getStepsIncludingBackground() : scenario.getSteps();
@@ -373,7 +373,7 @@ public class ScenarioRuntime implements Runnable {
                 featureRuntime.suite.hooks.forEach(h -> h.beforeScenario(this));
             }
         }
-        if (!scenario.isDynamic()) {
+        if (!this.isDynamicBackground()) {
             // don't evaluate names when running the background section
             evaluateScenarioName();
         }
