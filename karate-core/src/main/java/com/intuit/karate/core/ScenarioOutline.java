@@ -83,27 +83,15 @@ public class ScenarioOutline {
 
     public List<Scenario> getScenarios(FeatureRuntime fr) {
         List<Scenario> list = new ArrayList();
-        boolean atLeastOneExampleTagged = examplesTables.stream().anyMatch(t -> !t.getTags().isEmpty());
-        boolean atLeastOneExampleTableMatchTag = examplesTables.stream().anyMatch(t -> !t.getTags().isEmpty()
-                && Tags.merge(t.getTags()).evaluate(fr.suite.tagSelector));
+        boolean examplesHaveTags = examplesTables.stream().anyMatch(t -> !t.getTags().isEmpty());
         for (ExamplesTable examples : examplesTables) {
             boolean selectedForExecution = false;
-            if (fr != null) {
+            if (fr != null && examplesHaveTags) {
                 // getting examples in the context of an execution
-                if (atLeastOneExampleTagged) {
-                    // if the examples do not have any tagged example, do not worry about selecting
-                    Tags tableTags = Tags.merge(examples.getTags());
-                    if (fr.suite.tagSelector != null && atLeastOneExampleTableMatchTag) {
-                        boolean executeForTable = tableTags.evaluate(fr.suite.tagSelector);
-                        if (executeForTable) {
-                            selectedForExecution = true;
-                        }
-                    } else if (examples.getTags().isEmpty()) {
-                        // if there are tagged Examples but none match,
-                        // only the non-tagged Examples should be processed
-                        selectedForExecution = true;
-                    }
-                } else {
+                // if the examples do not have any tagged example, do not worry about selecting
+                Tags tableTags = Tags.merge(examples.getTags());
+                boolean executeForTable = tableTags.evaluate(fr.suite.tagSelector);
+                if (executeForTable) {
                     selectedForExecution = true;
                 }
             } else {

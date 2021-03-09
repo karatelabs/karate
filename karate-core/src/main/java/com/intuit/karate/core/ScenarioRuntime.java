@@ -369,7 +369,7 @@ public class ScenarioRuntime implements Runnable {
                             .filter(DebugThread.class::isInstance)
                             .forEach(h -> h.beforeScenario(this));
                 }
-            } else if (background == null || (scenario.isDynamic() && !this.isDynamicBackground())) {
+            } else {
                 featureRuntime.suite.hooks.forEach(h -> h.beforeScenario(this));
             }
         }

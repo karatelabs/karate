@@ -3814,6 +3814,8 @@ Scenario Outline: examples partitioned by tag
     | GB       |
 ```
 
+Note that if you tag an Example Tables, whichever tag selector is used whil running your Features will be applied towards selecting the appropriate Examples Table. There is no concept of defaulting (i.e. if doesn't match, default to table without the tag) so if you want that concept feel free to use the negative form of a tag selector `~@region=GB`.
+
 ## Dynamic Port Numbers
 In situations where you start an (embedded) application server as part of the test set-up phase, a typical challenge is that the HTTP port may be determined at run-time. So how can you get this value injected into the Karate configuration ?
 
