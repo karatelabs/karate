@@ -101,6 +101,7 @@ public class MockServer extends HttpServer {
 
         public MockServer build() {
             ServerBuilder sb = Server.builder();
+            sb.requestTimeoutMillis(0);
             if (ssl) {
                 sb.https(port);
                 SslContextFactory factory = new SslContextFactory();

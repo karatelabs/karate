@@ -66,6 +66,7 @@ public class HttpServer {
 
         public HttpServer build() {
             ServerBuilder sb = Server.builder();
+            sb.requestTimeoutMillis(0);
             sb.http(port);
             HttpService service = new HttpServerHandler(handler);
             if (corsEnabled) {
