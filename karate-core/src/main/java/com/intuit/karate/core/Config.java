@@ -208,6 +208,7 @@ public class Config {
                 if (value.isMap()) {
                     Map<String, Object> map = value.getValue();
                     if (map.containsKey("docker")) {
+                        // todo add the working dir here
                         driverTarget = new DockerTarget(map);
                     } else {
                         throw new RuntimeException("bad driverTarget config, expected key 'docker': " + map);

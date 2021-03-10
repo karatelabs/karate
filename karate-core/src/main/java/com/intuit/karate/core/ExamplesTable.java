@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -38,6 +39,7 @@ public class ExamplesTable {
     public ExamplesTable(ScenarioOutline outline, Table table) {
         this.outline = outline;
         this.table = table;
+        this.tags = new ArrayList();
     }
 
     public ScenarioOutline getOutline() {
