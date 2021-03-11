@@ -26,6 +26,11 @@ package com.intuit.karate.junit5;
 import com.intuit.karate.Runner;
 import com.intuit.karate.Suite;
 import com.intuit.karate.core.Feature;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.DynamicContainer;
+import org.junit.jupiter.api.DynamicNode;
+import org.junit.jupiter.api.TestFactory;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -34,11 +39,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.DynamicContainer;
-import org.junit.jupiter.api.DynamicNode;
-import org.junit.jupiter.api.TestFactory;
 
 public class Karate implements Iterable<DynamicNode> {
 
@@ -54,6 +54,18 @@ public class Karate implements Iterable<DynamicNode> {
     // short cut for new Karate().feature()
     public static Karate run(String... paths) {
         return new Karate().feature(paths);
+    }
+
+    public Karate karateEnv(String env) {
+
+        builder.karateEnv(env);
+        return this;
+    }
+
+    public Karate systemProperty(String key, String value) {
+
+        builder.systemProperty(key, value);
+        return this;
     }
 
     public Karate relativeTo(Class clazz) {
