@@ -92,20 +92,20 @@ class FeatureRuntimeTest {
     @Test
     void testTags() {
         run("tags.feature");
-        match(fr.result.getVariables(), "{ configSource: 'normal', tagNames: ['two=foo,bar', 'one'], tagValues: { one: [], two: ['foo', 'bar'] } }");
+        match(fr.result.getVariables(), "{ configSource: 'normal', functionFromKarateBase: '#notnull', tagNames: ['two=foo,bar', 'one'], tagValues: { one: [], two: ['foo', 'bar'] } }");
     }
 
     @Test
     void testAbort() {
         run("abort.feature");
-        match(fr.result.getVariables(), "{ configSource: 'normal', before: true }");
+        match(fr.result.getVariables(), "{ configSource: 'normal', functionFromKarateBase: '#notnull', before: true }");
     }
 
     @Test
     void testFailApi() {
         fail = true;
         run("fail-api.feature");
-        match(fr.result.getVariables(), "{ configSource: 'normal', before: true }");
+        match(fr.result.getVariables(), "{ configSource: 'normal', functionFromKarateBase: '#notnull', before: true }");
     }
 
     @Test
@@ -134,6 +134,13 @@ class FeatureRuntimeTest {
         run("karate-config-getscenario.feature", "classpath:com/intuit/karate/core/");
         System.clearProperty("karate.env");
     }
+    
+    @Test
+    void testKarateJsFromKarateBase() {
+        System.setProperty("karate.env", "frombase");
+        run("karate-config-frombase.feature", "classpath:com/intuit/karate/core/");
+        System.clearProperty("karate.env");
+    }    
 
     @Test
     void testCallByTag() {

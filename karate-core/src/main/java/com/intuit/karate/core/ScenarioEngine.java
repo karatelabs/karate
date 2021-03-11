@@ -29,6 +29,7 @@ import com.intuit.karate.JsonUtils;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.Logger;
 import com.intuit.karate.Match;
+import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.driver.Driver;
@@ -97,6 +98,7 @@ public class ScenarioEngine {
 
     private final Function<String, Object> readFunction;
     private final ScenarioBridge bridge;
+    private final Collection<RuntimeHook> hooks;
 
     private boolean aborted;
     private Throwable failedReason;
@@ -111,6 +113,7 @@ public class ScenarioEngine {
     public ScenarioEngine(Config config, ScenarioRuntime runtime, Map<String, Variable> vars, Logger logger) {
         this.config = config;
         this.runtime = runtime;
+        hooks = runtime.featureRuntime.suite.hooks;
         fileReader = new ScenarioFileReader(this, runtime.featureRuntime);
         readFunction = s -> JsValue.fromJava(fileReader.readFile(s));
         bridge = new ScenarioBridge();
@@ -250,6 +253,9 @@ public class ScenarioEngine {
         }
         Variable v = afterFeature ? config.getAfterFeature() : config.getAfterScenario();
         if (v.isJsOrJavaFunction()) {
+            if (afterFeature) {
+                ScenarioEngine.set(this); // for any bridge / js to work
+            }
             try {
                 executeFunction(v);
             } catch (Exception e) {
@@ -545,7 +551,7 @@ public class ScenarioEngine {
         if (config.getHeaders().isJsOrJavaFunction()) {
             headers = getOrEvalAsMap(config.getHeaders(), requestBuilder.build());
         } else {
-            headers = getOrEvalAsMap(config.getHeaders()); // avoid an extre http request build
+            headers = getOrEvalAsMap(config.getHeaders()); // avoid an extra http request build
         }
         if (headers != null) {
             requestBuilder.headers(headers);
@@ -556,7 +562,10 @@ public class ScenarioEngine {
             perfEventName = runtime.featureRuntime.perfHook.getPerfEventName(request, runtime);
         }
         long startTime = System.currentTimeMillis();
-        request.setStartTimeMillis(startTime);
+        request.setStartTimeMillis(startTime); // this may be fine-adjusted by actual http client
+        if (hooks != null) {
+            hooks.forEach(h -> h.beforeHttpCall(request, runtime));
+        }
         try {
             response = requestBuilder.client.invoke(request);
         } catch (Exception e) {
@@ -570,6 +579,9 @@ public class ScenarioEngine {
             }
             throw new KarateException(message, e);
         }
+        if (hooks != null) {
+            hooks.forEach(h -> h.afterHttpCall(request, response, runtime));
+        }        
         byte[] bytes = response.getBody();
         Object body;
         String responseType;
@@ -579,7 +591,7 @@ public class ScenarioEngine {
             body = bytes;
         } else {
             try {
-                body = JsValue.fromBytes(bytes, true);
+                body = JsValue.fromBytes(bytes, true, resourceType);
             } catch (Exception e) {
                 body = FileUtils.toString(bytes);
                 logger.warn("auto-conversion of response failed: {}", e.getMessage());
@@ -1901,7 +1913,7 @@ public class ScenarioEngine {
             // we clone result (and config) here, to snapshot state at the point the callonce was invoked
             // this prevents the state from being clobbered by the subsequent steps of this
             // first scenario that is about to use the result
-            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? copyVariables(false) : null;
+            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? detachVariables() : null;
             Config clonedConfig = new Config(config);
             clonedConfig.detach();
             result = new ScenarioCall.Result(resultValue.copy(false), clonedConfig, clonedVars);

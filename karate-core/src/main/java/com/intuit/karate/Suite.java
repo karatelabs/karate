@@ -68,6 +68,7 @@ public class Suite implements Runnable {
     public final String env;
     public final String tagSelector;
     public final boolean dryRun;
+    public final boolean debugMode;
     public final File workingDir;
     public final String buildDir;
     public final String reportDir;
@@ -124,6 +125,7 @@ public class Suite implements Runnable {
     public Suite(Runner.Builder rb) {
         if (rb.forTempUse) {
             dryRun = false;
+            debugMode = false;
             backupReportDir = false;
             outputHtmlReport = false;
             outputCucumberJson = false;
@@ -136,7 +138,7 @@ public class Suite implements Runnable {
             tagSelector = null;
             threadCount = -1;
             timeoutMinutes = -1;
-            hooks = null;
+            hooks = Collections.EMPTY_LIST;
             features = null;
             featuresFound = -1;
             futures = null;
@@ -162,6 +164,7 @@ public class Suite implements Runnable {
             outputCucumberJson = rb.outputCucumberJson;
             outputJunitXml = rb.outputJunitXml;
             dryRun = rb.dryRun;
+            debugMode = rb.debugMode;
             classLoader = rb.classLoader;
             clientFactory = rb.clientFactory;
             env = rb.env;

@@ -16,24 +16,24 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 class ParallelTest {
-    
+
     static final Logger logger = LoggerFactory.getLogger(ParallelTest.class);
-    
+
     static HttpServer server;
 
     @BeforeAll
     static void beforeAll() {
         MockHandler mock = new MockHandler(Feature.read("classpath:com/intuit/karate/core/parallel/mock.feature"));
         server = HttpServer.handler(mock).build();
-    }    
+    }
 
     @Test
     void testParallel() {
-        Results results = Runner.path("classpath:com/intuit/karate/core/parallel/test.feature")
+        Results results = Runner.path("classpath:com/intuit/karate/core/parallel/parallel.feature")
                 .configDir("classpath:com/intuit/karate/core/parallel")
                 .systemProperty("server.port", server.getPort() + "")
                 .parallel(3);
         assertEquals(0, results.getFailCount(), results.getErrorMessages());
-    }    
-    
+    }
+
 }

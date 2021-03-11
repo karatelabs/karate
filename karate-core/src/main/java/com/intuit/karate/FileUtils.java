@@ -154,14 +154,15 @@ public class FileUtils {
 
     public static void writeToFile(File file, byte[] data) {
         try {
-            if (file.getParentFile() != null) {
-                file.getParentFile().mkdirs();
+            File parent = file.getAbsoluteFile().getParentFile();
+            if (!parent.exists()) {
+                parent.mkdirs();
             }
             // try with resources, so will be closed automatically
             try (FileOutputStream fos = new FileOutputStream(file)) {
-                fos.write(data);                
+                fos.write(data);
             }
-        } catch (IOException e) {
+        } catch (IOException e) {            
             throw new RuntimeException(e);
         }
     }

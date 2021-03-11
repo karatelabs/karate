@@ -95,7 +95,7 @@ class MatchTest {
         match("foobar", CONTAINS, "baz", FAILS);
         match("foobar", NOT_CONTAINS, "baz");
     }
-    
+
     @Test
     void testStringStartingWithHash() {
         match("#bob", EQUALS, "#bob");
@@ -190,6 +190,13 @@ class MatchTest {
         JsEngine.global().put("schema", map);
         match("[{ a: 1 }, { a: 2 }]", EQUALS, "#[] schema");
         match("{ a: 'x', b: { c: 'y' } }", EQUALS, "{ a: '#string', b: { c: '#string' } }");
+    }
+
+    @Test
+    void testSchemaOptionalObject() {
+        Json part = Json.of("{ bar: '#string' }");
+        JsEngine.global().put("part", part.asMap());
+        match("{ foo: null }", EQUALS, "{ foo: '##(bar)' }");
     }
 
     @Test

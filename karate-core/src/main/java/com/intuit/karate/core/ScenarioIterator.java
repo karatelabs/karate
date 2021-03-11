@@ -70,7 +70,7 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                 if (sections.hasNext()) {
                     FeatureSection section = sections.next();
                     if (section.isOutline()) {
-                        scenarios = section.getScenarioOutline().getScenarios().iterator();
+                        scenarios = section.getScenarioOutline().getScenarios(featureRuntime).iterator();
                     } else {
                         scenarios = Collections.singletonList(section.getScenario()).iterator();
                     }
@@ -91,7 +91,9 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
         if (currentScenario.isDynamic()) {
             if (background == null) {
                 background = new ScenarioRuntime(featureRuntime, currentScenario);
-                background.run();
+                if (background.selectedForExecution) {
+                    background.run();
+                }
                 if (background.result.isFailed()) { // karate-config.js || background failed
                     currentScenario = null;
                     action.accept(background);

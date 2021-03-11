@@ -27,6 +27,9 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.KarateException;
+import com.intuit.karate.Logger;
+import com.intuit.karate.Match;
+import com.intuit.karate.MatchStep;
 import com.intuit.karate.PerfContext;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
@@ -39,8 +42,6 @@ import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.WebSocketClient;
 import com.intuit.karate.http.WebSocketOptions;
-import com.intuit.karate.Match;
-import com.intuit.karate.MatchStep;
 import com.intuit.karate.shell.Command;
 import java.io.File;
 import java.util.ArrayList;
@@ -448,6 +449,15 @@ public class ScenarioBridge implements PerfContext {
     public Object getInfo() { // TODO deprecate
         return new JsMap(getEngine().runtime.getScenarioInfo());
     }
+    
+    private LogFacade logFacade;
+
+    public Object getLogger() {
+        if (logFacade == null) {
+            logFacade = new LogFacade();
+        }
+        return logFacade;
+    }
 
     public Object getOs() {
         String name = FileUtils.getOsName();
@@ -589,7 +599,7 @@ public class ScenarioBridge implements PerfContext {
     public void proceed(String requestUrlBase) {
         getEngine().mockProceed(requestUrlBase);
     }
-    
+
     public Object range(int start, int end) {
         return range(start, end, 1);
     }
@@ -905,6 +915,38 @@ public class ScenarioBridge implements PerfContext {
             }
             return sb.toString();
         }
+
+    }
+
+    public static class LogFacade {
+
+        private static Logger getLogger() {
+            return ScenarioEngine.get().logger;
+        }
+
+        private static String wrap(Value... values) {
+            return new LogWrapper(values).toString();
+        }
+
+        public void debug(Value... values) {
+            getLogger().debug(wrap(values));
+        }
+
+        public void info(Value... values) {
+            getLogger().info(wrap(values));
+        }
+
+        public void trace(Value... values) {
+            getLogger().trace(wrap(values));
+        }
+
+        public void warn(Value... values) {
+            getLogger().warn(wrap(values));
+        }
+        
+        public void error(Value... values) {
+            getLogger().error(wrap(values));
+        }        
 
     }
 

@@ -24,6 +24,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.Constants;
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.resource.FileResource;
 import com.intuit.karate.resource.Resource;
@@ -54,7 +55,7 @@ public class Feature {
     private int callLine = -1;
 
     public static Feature read(String path) {
-        return read(ResourceUtils.getResource(new File(""), path));
+        return read(ResourceUtils.getResource(FileUtils.WORKING_DIR, path));
     }
 
     public static Feature read(File file) {

@@ -130,7 +130,11 @@ public class HttpLogger {
         } else {
             Object converted = request.getBodyForDisplay();
             if (converted == null) {
-                converted = JsValue.fromBytes(request.getBody(), false);
+                try {
+                    converted = JsValue.fromBytes(request.getBody(), true, rt);
+                } catch (Throwable t) {
+                    converted = request.getBodyAsString();
+                }
             }
             logBody(config, requestModifier, sb, uri, converted, true);
         }
@@ -151,7 +155,13 @@ public class HttpLogger {
         if (rt == null || rt.isBinary()) {
             // don't log body
         } else {
-            logBody(config, responseModifier, sb, uri, response.getBodyConverted(), false);
+            Object converted;
+            try {
+                converted = JsValue.fromBytes(response.getBody(), true, rt);
+            } catch (Throwable t) {
+                converted = response.getBodyAsString();
+            }
+            logBody(config, responseModifier, sb, uri, converted, false);
         }
         logger.debug("{}", sb);
     }

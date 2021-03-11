@@ -86,6 +86,7 @@ public class Scenario {
         s.description = description;
         s.tags = tags;
         s.line = line;
+        s.dynamicExpression = dynamicExpression;
         s.steps = new ArrayList(steps.size());
         for (Step step : steps) {
             Step temp = new Step(s, step.getIndex());

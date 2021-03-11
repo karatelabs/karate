@@ -746,6 +746,8 @@ Or another option is to use a [`ThresholdFilter`](http://logback.qos.ch/manual/f
   </appender>
 ```
 
+If you want to exclude the logs from your CI/CD pipeline but keep them in the execution of your users in their locals you can configure your logback using [Janino](http://logback.qos.ch/manual/configuration.html#conditional). In such cases it might be desirable to have your tests using `karate.logger.debug('your additional info')` instead of the `print` keyword so you can keep logs in your pipeline in INFO.
+
 For suppressing sensitive information such as secrets and passwords from the log, see [Log Masking](#log-masking).
 
 # Configuration
@@ -1504,13 +1506,13 @@ As per the JSON spec, all numeric values are treated as doubles, so for integers
 * string json = { bar: '#(~~foo)' }
 * match json == '{"bar":10}'
 
-# unfortunately JS math always results in a double
-* def foo = 10
-* string json = { bar: '#(1 * foo)' }
+# JS math can introduce a decimal point in some cases
+* def foo = 100
+* string json = { bar: '#(foo * 0.1)' }
 * match json == '{"bar":10.0}'
 
 # but you can easily coerce to an integer if needed
-* string json = { bar: '#(~~(1 * foo))' }
+* string json = { bar: '#(~~(foo * 0.1))' }
 * match json == '{"bar":10}'
 ```
 
@@ -1675,7 +1677,7 @@ The above would result in a URL like: `http://myhost/mypath?someKey=hello&anothe
 
 Multi-value params are also supported:
 ```cucumber
-* param myParam = 'foo', 'bar'
+* param myParam = ['foo', 'bar']
 ```
 
 You can also use JSON to set multiple query-parameters in one-line using [`params`](#params) and this is especially useful for dynamic data-driven testing.
@@ -1717,7 +1719,7 @@ If you need headers to be dynamically generated for each HTTP request, use a Jav
 
 Multi-value headers (though rarely used in the wild) are also supported:
 ```cucumber
-* header myHeader = 'foo', 'bar'
+* header myHeader = ['foo', 'bar']
 ```
 
 Also look at the [`headers`](#headers) keyword which uses JSON and makes some kinds of dynamic data-driven testing easier.
@@ -1758,7 +1760,7 @@ A good example of the use of `form field` for a typical sign-in flow is this OAu
 
 Multi-values are supported the way you would expect (e.g. for simulating check-boxes and multi-selects):
 ```cucumber
-* form field selected = 'apple', 'orange'
+* form field selected = ['apple', 'orange']
 ```
 
 You can also dynamically set multiple fields in one step using the [`form fields`](#form-fields) keyword.
@@ -3093,6 +3095,20 @@ You would normally only need to use the [`status`](#status) keyword.  But if you
 # check if the response status is either of two values
 Then assert responseStatus == 200 || responseStatus == 204
 ```
+
+Note that [`match`](#match) can give you some extra readable options:
+
+```cucumber
+* match [200, 201, 204] contains responseStatus
+
+# this may be sufficient to check a range of values
+* assert responseStatus >= 200
+* assert responseStatus < 300
+
+# but using karate.range() you can even do this !
+* match karate.range(200, 299) contains responseStatus
+```
+
 ## `responseTime`
 The response time (in milliseconds) for the current [`response`](#response) would be available in a variable called `responseTime`. You can use this to assert that it was returned within the expected time like so:
 ```cucumber
@@ -3189,6 +3205,7 @@ Operation | Description
 <a name="karate-jsonpath"><code>karate.jsonPath(json, expression)</code></a> | brings the power of [JsonPath](https://github.com/json-path/JsonPath) into JavaScript, and you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
 <a name="karate-keysof"><code>karate.keysOf(object)</code></a> | returns only the keys of a map-like object
 <a name="karate-log"><code>karate.log(... args)</code></a> | log to the same logger (and log file) being used by the parent process, logging can be suppressed with [`configure printEnabled`](#configure) set to `false`, and just like [`print`](#print) - use comma-separated values to "pretty print" JSON or XML
+<a name="karate-logger-debug"><code>karate.logger.debug(... args)</code></a> | access to the Karate logger directly and log in debug. Might be desirable instead of `karate.log` or `print` when looking to reduce the logs in console in your CI/CD pipeline but still retain the information for reports. See [Logging](#logging) for additional details. 
 <a name="karate-lowercase"><code>karate.lowerCase(object)</code></a> | useful to brute-force all keys and values in a JSON or XML payload to lower-case, useful in some cases, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/lower-case.feature)
 <a name="karate-map"><code>karate.map(list, function)</code></a> | functional-style 'map' operation useful to transform list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index])
 <a name="karate-mapwithkey"><code>karate.mapWithKey(list, string)</code></a> | convenient for the common case of transforming an array of primitives into an array of objects, see [JSON transforms](#json-transforms)
@@ -3509,7 +3526,7 @@ First the JavaScript file, `basic-auth.js`:
 function fn(creds) {
   var temp = creds.username + ':' + creds.password;
   var Base64 = Java.type('java.util.Base64');
-  var encoded = Base64.getEncoder().encodeToString(temp.bytes);
+  var encoded = Base64.getEncoder().encodeToString(temp.getBytes());
   return 'Basic ' + encoded;
 }
 ```
@@ -3796,6 +3813,8 @@ Scenario Outline: examples partitioned by tag
     | expected |
     | GB       |
 ```
+
+Note that if you tag `Examples` like this, and if a tag selector is used when running a given `Feature` - only the `Examples` that match the tag selector will be executed. There is no concept of a "default" where for e.g. if there is no matching tag - that the `Examples` without a tag will be executed. But note that you can use the negative form of a tag selector: `~@region=GB`.
 
 ## Dynamic Port Numbers
 In situations where you start an (embedded) application server as part of the test set-up phase, a typical challenge is that the HTTP port may be determined at run-time. So how can you get this value injected into the Karate configuration ?

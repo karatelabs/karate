@@ -69,7 +69,9 @@ public class ScenarioFileReader {
             return JsonUtils.fromCsv(contents);
         } else if (isYamlFile(text)) {
             String contents = readFileAsString(text);
-            return JsonUtils.fromYaml(contents);
+            Object asJson = JsonUtils.fromYaml(contents);
+            Variable temp = engine.evalKarateExpression(JsonUtils.toJson(asJson));
+            return temp.getValue();
         } else {
             InputStream is = readFileAsStream(text);
             return FileUtils.toBytes(is); // TODO stream

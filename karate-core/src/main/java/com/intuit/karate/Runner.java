@@ -67,7 +67,7 @@ public class Runner {
     }
 
     public static Map<String, Object> runFeature(String path, Map<String, Object> vars, boolean evalKarateConfig) {
-        Feature feature = Feature.read(path);
+        Feature feature = FileUtils.parseFeatureAndCallTag(path);
         return runFeature(feature, vars, evalKarateConfig);
     }
 
@@ -185,6 +185,7 @@ public class Runner {
         boolean outputJunitXml;
         boolean outputCucumberJson;
         boolean dryRun;
+        boolean debugMode;
         Map<String, String> systemProperties;
         Map<String, Object> suiteCache;
         SuiteReports suiteReports;
@@ -485,6 +486,11 @@ public class Runner {
             dryRun = value;
             return this;
         }
+        
+        public Builder debugMode(boolean value) {
+            debugMode = value;
+            return this;
+        }        
 
         public Builder suiteCache(Map<String, Object> value) {
             suiteCache = value;

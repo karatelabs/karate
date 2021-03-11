@@ -5,6 +5,7 @@ import static com.intuit.karate.TestUtils.runScenario;
 import com.intuit.karate.http.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -160,6 +161,39 @@ class KarateHttpMockHandlerTest {
                 "method get"
         );        
         matchVarContains("response", "{ '2': 'bar' }");          
+    }
+    
+    @Test
+    void testTransferEncoding() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = request");
+        startMockServer();
+        run(
+                urlStep(),
+                "path '/hello'",
+                "header Transfer-Encoding = 'chunked'",
+                "request { foo: 'bar' }",
+                "method post"
+        );        
+        matchVarContains("response", "{ foo: 'bar' }");         
+    }
+    
+    @Test
+    void testMalformedMockResponse() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = '{ \"id\" \"123\" }'");
+        startMockServer();
+        run(
+                urlStep(),
+                "path '/hello'",
+                "method get",
+                "match response == '{ \"id\" \"123\" }'",
+                "match responseType == 'string'"
+        );        
+        Object response = get("response");
+        assertEquals(response, "{ \"id\" \"123\" }");
     }
 
 }

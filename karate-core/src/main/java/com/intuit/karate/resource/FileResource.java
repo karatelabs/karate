@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.resource;
 
-import com.intuit.karate.StringUtils;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -87,8 +86,7 @@ public class FileResource implements Resource {
         } else {
             childPath = relativePath.substring(0, pos) + File.separator + path;
         }
-        String parentPath = file.getParent();
-        File child = new File(StringUtils.isBlank(parentPath) ? path : parentPath + File.separator + path);
+        File child = new File(file.getAbsoluteFile().getParent() + File.separator + path);
         return new FileResource(child, classPath, childPath);
     }
 

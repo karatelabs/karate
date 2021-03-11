@@ -120,6 +120,21 @@ class ScenarioRuntimeTest {
     }
 
     @Test
+    void testReadFilesWithExpressions() {
+        run(
+                "def foo = 'fooValue'",
+                "def bar = 'barValue'",
+                "def dataFromYml = read('read-expressions.yml')",
+                "def dataFromJson = read('read-expressions.json')"
+        );
+        Variable dataFromYml = sr.engine.vars.get("dataFromYml");
+        Variable dataFromJson = sr.engine.vars.get("dataFromJson");
+        assertEquals(dataFromYml.getAsString(), dataFromJson.getAsString());
+        assertEquals(dataFromYml.getAsString(), "[{\"item\":{\"foo\":\"fooValue\",\"nested\":{\"bar\":\"barValue\",\"notfound\":\"#(baz)\"}}}]");
+        assertEquals(dataFromJson.getAsString(), "[{\"item\":{\"foo\":\"fooValue\",\"nested\":{\"bar\":\"barValue\",\"notfound\":\"#(baz)\"}}}]");
+    }
+
+    @Test
     void testCallJsFunction() {
         run(
                 "def fun = function(a){ return a + 1 }",
@@ -146,23 +161,23 @@ class ScenarioRuntimeTest {
                 "def b = 'bar'",
                 "def res = call read('called1.feature')"
         );
-        matchVar("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal' }");
+        matchVar("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', functionFromKarateBase: '#notnull' }");
         run(
                 "def b = 'bar'",
                 "def res = call read('called1.feature') { foo: 'bar' }"
         );
-        matchVar("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal' }");
+        matchVar("res", "{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', functionFromKarateBase: '#notnull' }");
         run(
                 "def b = 'bar'",
                 "def res = call read('called1.feature') [{ foo: 'bar' }]"
         );
-        matchVar("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal' }]");
+        matchVar("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', functionFromKarateBase: '#notnull' }]");
         run(
                 "def b = 'bar'",
                 "def fun = function(i){ if (i == 1) return null; return { index: i } }",
                 "def res = call read('called1.feature') fun"
         );
-        matchVar("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', fun: '#ignore', index: 0 }]");
+        matchVar("res", "[{ a: 1, b: 'bar', foo: { hello: 'world' }, configSource: 'normal', functionFromKarateBase: '#notnull', fun: '#ignore', index: 0 }]");
     }
 
     @Test
@@ -221,7 +236,7 @@ class ScenarioRuntimeTest {
         run(
                 "def res = karate.call('called1.feature')"
         );
-        matchVar("res", "{ a: 1, foo: { hello: 'world' }, configSource: 'normal' }");
+        matchVar("res", "{ a: 1, foo: { hello: 'world' }, configSource: 'normal', functionFromKarateBase: '#notnull' }");
     }
 
     @Test
@@ -579,7 +594,6 @@ class ScenarioRuntimeTest {
                 "def max = 12",
                 "match date == { month: '#? _ >= min && _ <= max' }"
         );
-        assertFalse(sr.isFailed());
     }
 
     @Test
@@ -588,7 +602,6 @@ class ScenarioRuntimeTest {
                 "bytes data = read('karate-logo.png')",
                 "match data == read('karate-logo.png')"
         );
-        assertFalse(sr.isFailed());
     }
 
     @Test
@@ -598,7 +611,6 @@ class ScenarioRuntimeTest {
                 "def actual = [{a: 1, b: 2}, {a: 2, b: 4}]",
                 "match each actual == expected"
         );
-        assertFalse(sr.isFailed());
     }
 
     @Test
@@ -609,7 +621,6 @@ class ScenarioRuntimeTest {
                 "def bar = 'test'",
                 "match actual == expected"
         );
-        assertFalse(sr.isFailed());
     }
 
     @Test
@@ -619,7 +630,6 @@ class ScenarioRuntimeTest {
                 "match each actual == { a: '#number', b: '#(_$.a * 2)' }",
                 "def res = { b: '#(_$.a * 2)' }"
         );
-        assertFalse(sr.isFailed());
         matchVar("res", "{ b: '#string' }");
     }
 
@@ -629,9 +639,15 @@ class ScenarioRuntimeTest {
                 "def temperature = { celsius: 100, fahrenheit: 212 }",
                 "match temperature contains { fahrenheit: '#($.celsius * 1.8 + 32)' }"
         );
-        assertFalse(sr.isFailed());
     }
 
+    @Test
+    void testMatchContainsArrayOnLhs() {
+        run(
+                "match ['foo', 'bar'] contains 'foo'"
+        );     
+    }
+    
     @Test
     void testMatchSchema() {
         run(
@@ -642,7 +658,6 @@ class ScenarioRuntimeTest {
                 "def response2 = { id: '123', name: 'foo', dog: { id: '456', color: 'brown' } }",
                 "match response2 == schema"
         );
-        assertFalse(sr.isFailed());
     }
 
     @Test
@@ -651,7 +666,6 @@ class ScenarioRuntimeTest {
                 "def response = { odds: [1, 2], count: 2 }",
                 "match response == { odds: '#[$.count]', count: '#number' }"
         );
-        assertFalse(sr.isFailed());
     }
 
     @Test

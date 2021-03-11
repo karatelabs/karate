@@ -209,13 +209,13 @@ Scenario: js and numbers - float vs int
     * string json = { bar: '#(~~foo)' }
     * match json == '{"bar":10}'
 
-    # unfortunately JS math always results in a double
-    * def foo = 10
-    * string json = { bar: '#(1 * foo)' }
-    * match json == '{"bar":10}'
+    # JS math can introduce a decimal point in some cases
+    * def foo = 100
+    * string json = { bar: '#(foo * 0.1)' }
+    * match json == '{"bar":10.0}'
 
     # but you can easily coerce to an integer if needed
-    * string json = { bar: '#(~~(1 * foo))' }
+    * string json = { bar: '#(~~(foo * 0.1))' }
     * match json == '{"bar":10}'
 
 Scenario: large numbers in json - use java BigDecimal

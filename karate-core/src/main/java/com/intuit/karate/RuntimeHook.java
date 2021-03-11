@@ -27,6 +27,8 @@ import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
+import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.Response;
 
 /**
  *
@@ -36,20 +38,55 @@ public interface RuntimeHook {
 
     // return false if the scenario / item should be excluded from the test-run
     // throw RuntimeException (any) to abort    
-    boolean beforeScenario(ScenarioRuntime sr);
+    default boolean beforeScenario(ScenarioRuntime sr) {
+        return true;
+    }
 
-    void afterScenario(ScenarioRuntime sr);
+    default void afterScenario(ScenarioRuntime sr) {
 
-    boolean beforeFeature(FeatureRuntime fr);
+    }
 
-    void afterFeature(FeatureRuntime fr);
+    default boolean beforeFeature(FeatureRuntime fr) {
+        return true;
+    }
 
-    void beforeSuite(Suite suite);
+    default void afterFeature(FeatureRuntime fr) {
 
-    void afterSuite(Suite suite);
+    }
 
-    boolean beforeStep(Step step, ScenarioRuntime sr);
+    default void beforeSuite(Suite suite) {
 
-    void afterStep(StepResult result, ScenarioRuntime sr);
+    }
+
+    default void afterSuite(Suite suite) {
+        
+    }
+
+    default boolean beforeStep(Step step, ScenarioRuntime sr) {
+        return true;
+    }
+
+    default void afterStep(StepResult result, ScenarioRuntime sr) {
+        
+    }
+
+    // applicable only for Dynamic Scenario Outlines which have the need
+    // to run background sections before executing the individual scenarios
+    // to calculate the Examples table
+    default void beforeBackground(ScenarioRuntime sr) {
+
+    }
+
+    default void afterBackground(ScenarioRuntime sr) {
+
+    }
+
+    default void beforeHttpCall(HttpRequest request, ScenarioRuntime sr) {
+        
+    }
+    
+    default void afterHttpCall(HttpRequest request, Response response, ScenarioRuntime sr) {
+        
+    }
 
 }

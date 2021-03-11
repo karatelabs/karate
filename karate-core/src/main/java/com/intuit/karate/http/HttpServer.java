@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  */
 public class HttpServer {
 
-    private static final Logger logger = LoggerFactory.getLogger(HttpServer.class);
+    protected static final Logger logger = LoggerFactory.getLogger(HttpServer.class);
 
     private final Server server;
     private final CompletableFuture<Void> future;
@@ -66,6 +66,7 @@ public class HttpServer {
 
         public HttpServer build() {
             ServerBuilder sb = Server.builder();
+            sb.requestTimeoutMillis(0);
             sb.http(port);
             HttpService service = new HttpServerHandler(handler);
             if (corsEnabled) {
@@ -97,7 +98,7 @@ public class HttpServer {
         return new Builder().handler(handler);
     }
 
-    public static Builder configRoot(String root) {
+    public static Builder root(String root) {
         return config(new ServerConfig(root));
     }
 

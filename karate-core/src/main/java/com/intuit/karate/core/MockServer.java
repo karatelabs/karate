@@ -25,11 +25,13 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.http.HttpServer;
 import com.intuit.karate.http.HttpServerHandler;
+import com.intuit.karate.http.Request;
+import com.intuit.karate.http.Response;
+import com.intuit.karate.http.ServerHandler;
 import com.intuit.karate.http.SslContextFactory;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
-import com.linecorp.armeria.server.cors.CorsService;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
@@ -53,10 +55,15 @@ public class MockServer extends HttpServer {
         final Feature feature;
         int port;
         boolean ssl;
-        boolean corsEnabled;
+        boolean watch;
         File certFile;
         File keyFile;
         Map<String, Object> args;
+        
+        public Builder watch(boolean value) {
+            watch = value;
+            return this;
+        }
 
         public Builder http(int value) {
             port = value;
@@ -94,6 +101,7 @@ public class MockServer extends HttpServer {
 
         public MockServer build() {
             ServerBuilder sb = Server.builder();
+            sb.requestTimeoutMillis(0);
             if (ssl) {
                 sb.https(port);
                 SslContextFactory factory = new SslContextFactory();
@@ -104,17 +112,46 @@ public class MockServer extends HttpServer {
             } else {
                 sb.http(port);
             }
-            MockHandler mockHandler = new MockHandler(feature, args);
-            HttpService service = new HttpServerHandler(mockHandler);
-            if (corsEnabled) {
-                service = service.decorate(CorsService.builderForAnyOrigin().newDecorator());
-            }
+            ServerHandler handler = watch ? new ReloadingMockHandler(feature, args) : new MockHandler(feature, args);
+            HttpService service = new HttpServerHandler(handler);
             sb.service("prefix:/", service);
             return new MockServer(sb);
         }
 
     }
+    
+    private static class ReloadingMockHandler implements ServerHandler {
+                
+        private final Map<String, Object> args;
+        private MockHandler handler;
+        private final File file;
+        private long lastModified;
 
+        public ReloadingMockHandler(Feature feature, Map<String, Object> args) {
+            file = feature.getResource().getFile();
+            if (file != null) {
+                lastModified = file.lastModified();
+                logger.debug("watch mode init - last modified: {}", lastModified);
+            }
+            this.args = args;
+            handler = new MockHandler(feature, args);
+            
+        }                
+
+        @Override
+        public Response handle(Request request) {
+            if (file != null) {              
+                if (file.lastModified() > lastModified) {
+                    logger.info("watch mode - reloading file");
+                    lastModified = file.lastModified();
+                    handler = new MockHandler(Feature.read(file), args);
+                }
+            }
+            return handler.handle(request);
+        }
+        
+    }
+  
     public static Builder feature(String path) {
         return new Builder(Feature.read(path));
     }
