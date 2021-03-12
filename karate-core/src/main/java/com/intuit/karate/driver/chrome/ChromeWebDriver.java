@@ -24,7 +24,7 @@
 package com.intuit.karate.driver.chrome;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.LogAppender;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.WebDriver;
 import com.intuit.karate.http.Response;
@@ -40,8 +40,8 @@ public class ChromeWebDriver extends WebDriver {
         super(options);
     }
 
-    public static ChromeWebDriver start(Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(map, appender, 9515, "chromedriver");
+    public static ChromeWebDriver start(Map<String, Object> map, ScenarioRuntime sr) {
+        DriverOptions options = new DriverOptions(map, sr, 9515, "chromedriver");
         options.arg("--port=" + options.port);
         if (options.userDataDir != null) {
             options.arg("--user-data-dir=" + options.userDataDir);

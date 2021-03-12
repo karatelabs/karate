@@ -23,8 +23,8 @@
  */
 package com.intuit.karate.driver.microsoft;
 
-import com.intuit.karate.LogAppender;
 import com.intuit.karate.Json;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.driver.DriverElement;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Element;
@@ -41,8 +41,8 @@ public class WinAppDriver extends WebDriver {
         super(options);
     }
 
-    public static WinAppDriver start(Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(map, appender, 4727, 
+    public static WinAppDriver start(Map<String, Object> map, ScenarioRuntime sr) {
+        DriverOptions options = new DriverOptions(map, sr, 4727, 
                 "C:/Program Files (x86)/Windows Application Driver/WinAppDriver");
         options.arg(options.port + "");
         return new WinAppDriver(options);

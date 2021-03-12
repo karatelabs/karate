@@ -25,7 +25,7 @@ package com.intuit.karate.driver.chrome;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
-import com.intuit.karate.LogAppender;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
@@ -49,8 +49,8 @@ public class Chrome extends DevToolsDriver {
         super(options, command, webSocketUrl);
     }
 
-    public static Chrome start(Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(map, appender, 9222,
+    public static Chrome start(Map<String, Object> map, ScenarioRuntime sr) {
+        DriverOptions options = new DriverOptions(map, sr, 9222,
                 FileUtils.isOsWindows() ? DEFAULT_PATH_WIN : FileUtils.isOsMacOsX() ? DEFAULT_PATH_MAC : DEFAULT_PATH_LINUX);
         options.arg("--remote-debugging-port=" + options.port);
         options.arg("--no-first-run");

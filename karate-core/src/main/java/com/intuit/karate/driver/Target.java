@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.Logger;
+import com.intuit.karate.core.ScenarioRuntime;
 import java.util.Map;
 
 /**
@@ -32,8 +32,8 @@ import java.util.Map;
  */
 public interface Target {        
     
-    Map<String, Object> start(Logger logger);
+    Map<String, Object> start(ScenarioRuntime sr);
     
-    Map<String, Object> stop(Logger logger);
+    Map<String, Object> stop(ScenarioRuntime sr);
     
 }

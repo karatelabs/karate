@@ -23,8 +23,8 @@
  */
 package com.intuit.karate.driver.microsoft;
 
-import com.intuit.karate.LogAppender;
 import com.intuit.karate.Json;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Map;
@@ -39,8 +39,8 @@ public class MsWebDriver extends WebDriver {
         super(options);
     }
 
-    public static MsWebDriver start(Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(map, appender, 17556, "MicrosoftWebDriver");
+    public static MsWebDriver start(Map<String, Object> map, ScenarioRuntime sr) {
+        DriverOptions options = new DriverOptions(map, sr, 17556, "MicrosoftWebDriver");
         options.arg("--port=" + options.port);
         return new MsWebDriver(options);
     }

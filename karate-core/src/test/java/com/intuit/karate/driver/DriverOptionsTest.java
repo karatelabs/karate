@@ -1,5 +1,6 @@
 package com.intuit.karate.driver;
 
+import com.intuit.karate.TestUtils;
 import java.util.Collections;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,7 @@ class DriverOptionsTest {
 
     @Test
     void testRetry() {
-        DriverOptions options = new DriverOptions(Collections.EMPTY_MAP, null, 0, null);
+        DriverOptions options = new DriverOptions(Collections.EMPTY_MAP, TestUtils.runtime(), 0, null);
         options.retry(() -> 1, x -> x < 5, "not 5", false);
     }
 

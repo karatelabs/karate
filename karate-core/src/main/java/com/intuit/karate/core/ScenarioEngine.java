@@ -854,7 +854,7 @@ public class ScenarioEngine {
             if (v.isMap()) {
                 options.putAll(v.getValue());
             }
-            setDriver(DriverOptions.start(options, logger, runtime.getLogAppender()));
+            setDriver(DriverOptions.start(options, runtime));
         }
         if (v.isString()) {
             driver.setUrl(v.getAsString());
@@ -934,7 +934,7 @@ public class ScenarioEngine {
                 }
                 if (options.target != null) {
                     logger.debug("custom target configured, attempting stop()");
-                    Map<String, Object> map = options.target.stop(logger);
+                    Map<String, Object> map = options.target.stop(runtime);
                     String video = (String) map.get("video");
                     embedVideo(video);
                 } else {

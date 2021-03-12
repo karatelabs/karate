@@ -136,10 +136,6 @@ public class Command extends Thread {
         return exec(false, workingDir, tokenize(command));
     }
 
-    public static String getBuildDir() {
-        return FileUtils.getBuildDir();
-    }
-
     public static String[] prefixShellArgs(String[] args) {
         List<String> list = new ArrayList();
         switch (FileUtils.getOsType()) {

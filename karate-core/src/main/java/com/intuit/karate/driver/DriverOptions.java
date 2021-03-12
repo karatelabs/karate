@@ -42,6 +42,7 @@ import com.intuit.karate.driver.microsoft.WinAppDriver;
 import com.intuit.karate.driver.playwright.PlaywrightDriver;
 import com.intuit.karate.core.Config;
 import com.intuit.karate.core.ScenarioEngine;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.shell.Command;
 
 import java.io.File;
@@ -134,9 +135,9 @@ public class DriverOptions {
         return temp == null ? defaultValue : temp;
     }
 
-    public DriverOptions(Map<String, Object> options, LogAppender appender, int defaultPort, String defaultExecutable) {
+    public DriverOptions(Map<String, Object> options, ScenarioRuntime sr, int defaultPort, String defaultExecutable) {
         this.options = options;
-        this.appender = appender;
+        this.appender = sr.logAppender;
         logger = new Logger(getClass());
         logger.setAppender(appender);
         timeout = get("timeout", Config.DEFAULT_TIMEOUT);
@@ -271,56 +272,56 @@ public class DriverOptions {
         return command;
     }
 
-    public static Driver start(Map<String, Object> options, Logger logger, LogAppender appender) { // TODO unify logger
+    public static Driver start(Map<String, Object> options, ScenarioRuntime sr) { // TODO unify logger
         Target target = (Target) options.get("target");
         if (target != null) {
-            logger.debug("custom target configured, calling start()");
-            Map<String, Object> map = target.start(logger);
-            logger.trace("custom target returned options: {}", map);
+            sr.logger.debug("custom target configured, calling start()");
+            Map<String, Object> map = target.start(sr);
+            sr.logger.trace("custom target returned options: {}", map);
             options.putAll(map);
         }
         String type = (String) options.get("type");
         if (type == null) {
-            logger.warn("type was null, defaulting to 'chrome'");
+            sr.logger.warn("type was null, defaulting to 'chrome'");
             type = "chrome";
             options.put("type", type);
         }
         try { // to make troubleshooting errors easier
             switch (type) {
                 case "chrome":
-                    return Chrome.start(options, appender);
+                    return Chrome.start(options, sr);
                 case "msedge":
-                    return EdgeChromium.start(options, appender);
+                    return EdgeChromium.start(options, sr);
                 case "chromedriver":
-                    return ChromeWebDriver.start(options, appender);
+                    return ChromeWebDriver.start(options, sr);
                 case "geckodriver":
-                    return GeckoWebDriver.start(options, appender);
+                    return GeckoWebDriver.start(options, sr);
                 case "safaridriver":
-                    return SafariWebDriver.start(options, appender);
+                    return SafariWebDriver.start(options, sr);
                 case "msedgedriver":
-                    return MsEdgeDriver.start(options, appender);
+                    return MsEdgeDriver.start(options, sr);
                 case "mswebdriver":
-                    return MsWebDriver.start(options, appender);
+                    return MsWebDriver.start(options, sr);
                 case "iedriver":
-                    return IeWebDriver.start(options, appender);
+                    return IeWebDriver.start(options, sr);
                 case "winappdriver":
-                    return WinAppDriver.start(options, appender);
+                    return WinAppDriver.start(options, sr);
                 case "android":
-                    return AndroidDriver.start(options, appender);
+                    return AndroidDriver.start(options, sr);
                 case "ios":
-                    return IosDriver.start(options, appender);
+                    return IosDriver.start(options, sr);
                 case "playwright":
-                    return PlaywrightDriver.start(options, appender);
+                    return PlaywrightDriver.start(options, sr);
                 default:
-                    logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
+                    sr.logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
                     options.put("type", "chrome");
-                    return Chrome.start(options, appender);
+                    return Chrome.start(options, sr);
             }
         } catch (Exception e) {
             String message = "driver config / start failed: " + e.getMessage() + ", options: " + options;
-            logger.error(message, e);
+            sr.logger.error(message, e);
             if (target != null) {
-                target.stop(logger);
+                target.stop(sr);
             }
             throw new RuntimeException(message, e);
         }

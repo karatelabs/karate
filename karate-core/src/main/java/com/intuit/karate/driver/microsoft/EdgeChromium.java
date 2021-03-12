@@ -25,7 +25,7 @@ package com.intuit.karate.driver.microsoft;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
-import com.intuit.karate.LogAppender;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.http.Response;
@@ -50,11 +50,11 @@ public class EdgeChromium extends DevToolsDriver {
         super(options, command, webSocketUrl);
     }
 
-    public static EdgeChromium start(Map<String, Object> map, LogAppender appender) {
+    public static EdgeChromium start(Map<String, Object> map, ScenarioRuntime sr) {
         if (!FileUtils.isOsWindows() && !FileUtils.isOsMacOsX()) {
             throw new UnsupportedOperationException("edge browser is not yet available on linux!");
         }
-        DriverOptions options = new DriverOptions(map, appender, 9222,
+        DriverOptions options = new DriverOptions(map, sr, 9222,
                 FileUtils.isOsWindows() ? DEFAULT_PATH_WIN : FileUtils.isOsMacOsX() ? DEFAULT_PATH_MAC : DEFAULT_PATH_LINUX);
         options.arg("--remote-debugging-port=" + options.port);
         options.arg("--no-first-run");

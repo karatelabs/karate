@@ -29,6 +29,7 @@ import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.ScenarioActions;
+import com.intuit.karate.Suite;
 import com.intuit.karate.debug.DebugThread;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.StringLogAppender;

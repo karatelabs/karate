@@ -24,8 +24,8 @@
 package com.intuit.karate.driver.firefox;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.LogAppender;
 import com.intuit.karate.Json;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Map;
@@ -40,8 +40,8 @@ public class GeckoWebDriver extends WebDriver {
         super(options);
     }
 
-    public static GeckoWebDriver start(Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(map, appender, 4444, "geckodriver");
+    public static GeckoWebDriver start(Map<String, Object> map, ScenarioRuntime sr) {
+        DriverOptions options = new DriverOptions(map, sr, 4444, "geckodriver");
         options.arg("--port=" + options.port);
         return new GeckoWebDriver(options);
     }

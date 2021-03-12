@@ -23,8 +23,6 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.LogAppender;
-import com.intuit.karate.Logger;
 import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.Plugin;
 import com.intuit.karate.core.Config;
@@ -52,10 +50,9 @@ public interface Driver extends Plugin {
     }
 
     public static Driver start(Map<String, Object> options) {
-        Logger logger = new Logger();
         ScenarioRuntime runtime = FeatureRuntime.forTempUse().scenarios.next();
         ScenarioEngine.set(runtime.engine);
-        return DriverOptions.start(options, logger, LogAppender.NO_OP);
+        return DriverOptions.start(options, runtime);
     }
 
     @AutoDef
