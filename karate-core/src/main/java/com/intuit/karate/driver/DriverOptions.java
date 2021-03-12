@@ -171,11 +171,11 @@ public class DriverOptions {
                 workingDir = null;
             }
         } else {
-            workingDir = new File(FileUtils.getBuildDir() + File.separator + uniqueName);
+            workingDir = new File(sr.featureRuntime.suite.buildDir + File.separator + uniqueName);
             userDataDir = workingDir.getAbsolutePath();
         }
         if (workingDir == null) {
-            processLogFile = FileUtils.getBuildDir() + File.separator + uniqueName + ".log";
+            processLogFile = sr.featureRuntime.suite.buildDir + File.separator + uniqueName + ".log";
         } else {
             processLogFile = workingDir.getPath() + File.separator + type + ".log";
         }
