@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.LogAppender;
