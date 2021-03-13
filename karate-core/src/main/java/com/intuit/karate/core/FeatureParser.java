@@ -126,7 +126,7 @@ public class FeatureParser extends KarateParserBaseListener {
         return new Table(rows, lineNumbers);
     }
     
-    private static final String TRIPLE_QUOTES = "\"\"\"";
+    public static final String TRIPLE_QUOTES = "\"\"\"";
     
     private static int indexOfFirstText(String s) {
         int pos = 0;
