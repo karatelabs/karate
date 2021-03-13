@@ -20,6 +20,12 @@ class SampleTest {
     }
     
     @Karate.Test
+    Karate testSystemProperty() {
+        return Karate.run("classpath:karate/tags.feature")
+                .tags("@second").systemProperty("foo", "bar");
+    }    
+    
+    @Karate.Test
     Karate testAll() {
         return Karate.run().relativeTo(getClass());
     }    
