@@ -463,12 +463,17 @@ class SampleTest {
     }
 
     @Karate.Test
-    Karate testFullPath() {
-        return Karate.run("classpath:karate/tags.feature").tags("@first");
+    Karate testSystemProperty() {
+        return Karate.run("classpath:karate/tags.feature")
+                .tags("@second")
+                .karateEnv("e2e")
+                .systemProperty("foo", "bar");
     }
 
 }
 ```
+
+Note that more "builder" methods are available from the [`Runner.Builder`](#junit-4-parallel-execution) class such as `reportDir()` etc.
 
 You should be able to right-click and run a single method using your IDE - which should be sufficient when you are in development mode. But to be able to run JUnit 5 tests from the command-line, you need to ensure that the latest version of the [maven-surefire-plugin](https://maven.apache.org/surefire/maven-surefire-plugin/examples/junit-platform.html) is present in your project `pom.xml` (within the `<build>/<plugins>` section):
 

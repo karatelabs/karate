@@ -457,9 +457,10 @@ public class Runner {
             return (T) this;
         }
 
-        public T threads(int value) {
+        // don't allow junit 5 builder to run in parallel
+        public Builder threads(int value) {
             threadCount = value;
-            return (T) this;
+            return this;
         }
 
         public T outputHtmlReport(boolean value) {

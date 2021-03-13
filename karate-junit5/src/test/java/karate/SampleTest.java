@@ -22,7 +22,9 @@ class SampleTest {
     @Karate.Test
     Karate testSystemProperty() {
         return Karate.run("classpath:karate/tags.feature")
-                .tags("@second").systemProperty("foo", "bar");
+                .tags("@second")
+                .karateEnv("e2e")
+                .systemProperty("foo", "bar");
     }    
     
     @Karate.Test
