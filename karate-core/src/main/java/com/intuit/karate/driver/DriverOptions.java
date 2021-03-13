@@ -428,8 +428,12 @@ public class DriverOptions {
             locator = preProcessWildCard(locator);
         }
         if (locator.startsWith("/")) { // XPathResult.FIRST_ORDERED_NODE_TYPE = 9
-            if (locator.startsWith("/(")) {
-                locator = locator.substring(1); // hack for wildcard with index (see preProcessWildCard last line)
+            if (locator.startsWith("/(")) { // hack for wildcard with index (see preProcessWildCard last line)
+                if (DOCUMENT.equals(contextNode)) {
+                    locator = locator.substring(1);
+                } else {
+                    locator = "(." + locator.substring(2);
+                }                 
             } else if (!DOCUMENT.equals(contextNode)) {
                 locator = "." + locator; // evaluate relative to this node not root
             }
