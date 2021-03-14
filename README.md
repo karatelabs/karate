@@ -42,7 +42,8 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#ide-support">IDE Support</a>    
     | <a href="#tags">Tags / Grouping</a>
     | <a href="#parallel-execution">Parallel Execution</a>
-    | <a href="#java-api">Java API</a>    
+    | <a href="#java-api">Java API</a> 
+    | <a href="#jbang">jbang</a>    
   </td>
 </tr>
 <tr>
@@ -103,7 +104,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#eval"><code>eval</code></a>
     | <a href="#listen"><code>listen</code></a>    
     | <a href="#reading-files"><code>read()</code></a>
-    | <a href="#the-karate-object"><code>karate</code> API</a>  
+    | <a href="#the-karate-object"><code>karate</code> JS API</a>  
   </td>
 </tr>
 <tr>
@@ -3840,6 +3841,36 @@ Karate has a [set of Java API-s](https://twitter.com/KarateDSL/status/1353969718
 * [`Driver`](karate-core/src/main/java/com/intuit/karate/driver/Driver.java) - perform [web-browser automation](https://github.com/intuit/karate/tree/master/karate-core)
 
 Do note that if you choose the Java API, you will naturally lose some of the test-automation framework benefits such as HTML reports, parallel execution and [JavaScript](#the-karate-object) / [configuration](#configuration). You may have to rely on unit-testing frameworks or integrate additional dependencies.
+
+### jbang
+[jbang](https://www.jbang.dev) is a great way for you to install and execute scripts that use Karate's Java API on any machine with minimal setup. Note that jbang has a very interesting "[Zero Install](https://github.com/jbangdev/jbang#zero-install)" option - which opens up a lot of automation possibilities.
+
+Here below is an example jbang script that uses the Karate Java API to do some useful work:
+
+> please replace `X.Y.Z` with the latest / version you intend to use
+
+```java
+///usr/bin/env jbang "$0" "$@" ; exit $?
+//DEPS com.intuit.karate:karate-core:X.Y.Z
+
+import com.intuit.karate.*;
+import java.util.List;
+
+public class javadsl {
+
+    public static void main(String[] args) {
+        List users = Http.to("https://jsonplaceholder.typicode.com/users")
+                .get().json().asList();
+        Match.that(users.get(0)).contains("{ name: 'Leanne Graham' }");
+        String city = Json.of(users).get("$[0].address.city");
+        Match.that("Gwenborough").isEqualTo(city);
+        System.out.println("\n*** second user: " + Json.of(users.get(1)).toString());
+    }
+
+}
+```
+
+Read the documentation of the [stand-alone JAR](https://github.com/intuit/karate/tree/master/karate-netty#jbang) for more - such as how you can even install custom command-line applications using jbang !
 
 ### Invoking feature files using the Java API
 It is also possible to invoke a feature file via a Java API which can be useful in some test-automation situations.

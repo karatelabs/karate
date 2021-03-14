@@ -9,6 +9,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
   <th>Start</th>
   <td>
       <a href="#standalone-jar">Standalone JAR</a>
+    | <a href="#jbang">jbang</a>
     | <a href="#downloading">Downloading</a>
     | <a href="#quick-start">Quick Start</a>
     | <a href="#usage">Usage</a>
@@ -99,6 +100,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 * Easily integrate messaging or async flows using Java-interop if required
 * Enables consumer or even UI dev teams to work in parallel as the provider service is being developed
 * [Stand-alone executable JAR](#standalone-jar) (50 MB) which only requires a JRE to run, ideal for web-developers or anyone who needs to quickly experiment with services.
+* Single-step install option via [jbang](#jbang) - which even takes care of installing a Java runtime if required
 * Built-in [CORS](#configure-cors) support for the ease of web-dev teams using the mock service
 * Option to use an existing certificate and private-key for server-side SSL - making it easier for UI dev / browser consumers in some situations
 * Configure a 'global' response header routine, ideal for browser consumers to add headers common for *all* responses - yet dynamic if needed
@@ -163,23 +165,12 @@ The only pre-requisite is the [Java Runtime Environment](http://www.oracle.com/t
 ## jbang
 Note that you can install applications based on Karate using [`jbang`](https://www.jbang.dev). For example, here is a recipe to install the Karate "standalone JAR" experience, given this file called `karate.java`:
 
-```java
-///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS com.intuit.karate:karate-core:1.0.0
-
-public class karate {
-
-  public static void main(String[] args) {
-      com.intuit.karate.Main.main(args);
-  }
-
-}
-```
-
 With jbang installed, you can do this:
 
+> please replace `X.Y.Z` with the latest / version of Karate you intend to use
+
 ```
- jbang app install --name karate karate.java 
+ jbang app install --name karate com.intuit.karate:karate-core:X.Y.Z
 ```
 
 And now the command `karate` will be available in your terminal (after opening a new one or having re-loaded environment settings).
@@ -189,6 +180,8 @@ Which would make using Karate as easy as this !
 ```
 karate -h
 ```
+
+But it is a good starting point for you to script complex automation, using the [Java API](https://github.com/intuit/karate#java-api) that Karate makes available.
 
 ## Downloading
 Note that the [ZIP Release](#quick-start) is recommended for those new to Karate - or who don't have much programming experience. If you are just looking for the single JAR file or executable, please read on.
