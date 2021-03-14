@@ -11,6 +11,7 @@
       <a href="https://github.com/intuit/karate/wiki/ZIP-Release">ZIP Release</a>
     | <a href="#maven">Maven</a>
     | <a href="https://github.com/intuit/karate/wiki/Karate-Robot-Windows-Install-Guide">Windows Install Guide</a>
+    | <a href="#jbang">jbang</a>
     | <a href="#debugging">Debugging</a>
     | <a href="https://github.com/intuit/karate#index">Karate - Main Index</a>
   </td>
@@ -138,6 +139,11 @@ Add this to the `<dependencies>`:
 ```
 
 This may result in a few large JAR files getting downloaded by default because of the [`javacpp-presets`](https://github.com/bytedeco/javacpp-presets) dependency. But you can narrow down to what is sufficient for your OS by [following these instructions](https://github.com/bytedeco/javacpp-presets/wiki/Reducing-the-Number-of-Dependencies).
+
+## jbang
+This is an interesting option to create scripts using the underlying Java API directly and even make them local executables. Refer to the [main documentation](https://github.com/intuit/karate#java-api) for more.
+
+Note that starting an instance of the Windows Robot using Java is easy, just call the static `start(Map)` method on [`WinRobot`](src/main/java/com/intuit/karate/robot/win/WinRobot.java).
 
 ## Debugging
 This is one of the highlights of Karate's capabilities. You can see a video of it in action [here](https://twitter.com/ptrthomas/status/1261183808985948160).

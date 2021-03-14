@@ -163,14 +163,14 @@ If you think about it, all the above are *sufficient* to implement *any* micro-s
 The only pre-requisite is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the JDK / Java Development Kit. At least Java 8 is required, and there's a good chance you already have it installed. You can confirm this by typing `java -version` on the command line.
 
 ## jbang
-Note that you can install applications based on Karate using [`jbang`](https://www.jbang.dev). For example, here is a recipe to install the Karate "standalone JAR" experience, given this file called `karate.java`:
+Note that you can install applications based on Karate using [`jbang`](https://www.jbang.dev).
 
 With jbang installed, you can do this:
 
-> please replace `X.Y.Z` with the latest / version of Karate you intend to use
+> please replace `LATEST` with the exact / version of Karate you intend to use if applicable
 
 ```
- jbang app install --name karate com.intuit.karate:karate-core:X.Y.Z
+ jbang app install --name karate com.intuit.karate:karate-core:LATEST
 ```
 
 And now the command `karate` will be available in your terminal (after opening a new one or having re-loaded environment settings).
@@ -181,7 +181,13 @@ Which would make using Karate as easy as this !
 karate -h
 ```
 
-But it is a good starting point for you to script complex automation, using the [Java API](https://github.com/intuit/karate#java-api) that Karate makes available.
+You can script complex automation, using the [Java API](https://github.com/intuit/karate#java-api) that Karate makes available. So if you have a file called `myscript.java` written in jbang, you can install it as a system-wide command called `myscript` like this:
+
+```
+ jbang app install --name myscript myscript.java
+```
+
+Refer to the [jbang documentation](https://github.com/jbangdev/jbang) for more options.
 
 ## Downloading
 Note that the [ZIP Release](#quick-start) is recommended for those new to Karate - or who don't have much programming experience. If you are just looking for the single JAR file or executable, please read on.

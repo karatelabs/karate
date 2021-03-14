@@ -24,6 +24,8 @@
 package com.intuit.karate.robot.win;
 
 import com.intuit.karate.core.AutoDef;
+import com.intuit.karate.core.FeatureRuntime;
+import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.Location;
 import com.intuit.karate.robot.Robot;
@@ -54,6 +56,12 @@ public class WinRobot extends RobotBase {
 
     public WinRobot(ScenarioRuntime runtime, Map<String, Object> options) {
         super(runtime, options);
+    }
+    
+    public static WinRobot start(Map<String, Object> options) {
+        ScenarioRuntime runtime = FeatureRuntime.forTempUse().scenarios.next();
+        ScenarioEngine.set(runtime.engine);
+        return new WinRobot(runtime, options);
     }
 
     @Override

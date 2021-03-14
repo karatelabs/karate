@@ -3847,11 +3847,11 @@ Do note that if you choose the Java API, you will naturally lose some of the tes
 
 Here below is an example jbang script that uses the Karate Java API to do some useful work:
 
-> please replace `X.Y.Z` with the latest / version you intend to use
+> please replace `LATEST` with the exact version of Karate you intend to use if applicable
 
 ```java
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS com.intuit.karate:karate-core:X.Y.Z
+//DEPS com.intuit.karate:karate-core:LATEST
 
 import com.intuit.karate.*;
 import java.util.List;
