@@ -160,17 +160,21 @@ If you think about it, all the above are *sufficient* to implement *any* micro-s
 # Standalone JAR
 *All* of Karate (core API testing, parallel-runner / HTML reports, the debugger-UI, mocks and web / UI automation) is available as a *single*, executable JAR file. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE. And there is a [Visual Studio Code plugin](https://marketplace.visualstudio.com/items?itemName=kirkslota.karate-runner) that supports the Karate standalone JAR.
 
-The only pre-requisite is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the JDK / Java Development Kit. At least Java 8 is required, and there's a good chance you already have it installed. You can confirm this by typing `java -version` on the command line.
-
 ## jbang
-Note that you can install applications based on Karate using [`jbang`](https://www.jbang.dev).
+Note that you can easily run Karate or even install applications based on Karate using [`jbang`](https://www.jbang.dev). It will take care of setting up a local Java runtime, which is really convenient. Note that jbang itself is super-easy to install and there is even a "[Zero Install](https://github.com/jbangdev/jbang#zero-install)" option.
 
-With jbang installed, you can do this:
-
-> please replace `LATEST` with the exact / version of Karate you intend to use if applicable
+With jbang installed, you can do this (since a [`jbang-catalog.json`](https://github.com/jbangdev/jbang#implicit-alias-catalogs) is present within the Karate GitHub repository):
 
 ```
- jbang app install --name karate com.intuit.karate:karate-core:LATEST
+jbang karate@intuit/karate -h
+```
+
+What's *really* interesting is that you can install `karate` as a local command-line application !
+
+> please replace `RELEASE` with the exact / version of Karate you intend to use if applicable
+
+```
+ jbang app install --name karate com.intuit.karate:karate-core:RELEASE
 ```
 
 And now the command `karate` will be available in your terminal (after opening a new one or having re-loaded environment settings).
@@ -194,10 +198,7 @@ Note that the [ZIP Release](#quick-start) is recommended for those new to Karate
 
 > Tip: Rename the file to `karate.jar` to make the [commands](#usage) easier to type !
 
-Look for the file with the name: `karate-<version>.jar`:
-
-* Option 1: Download from Bintray: [https://dl.bintray.com/ptrthomas/karate/](https://dl.bintray.com/ptrthomas/karate/)
-* Option 2: Look for the [latest release](https://github.com/intuit/karate/releases) on GitHub and scroll down to find the "Assets"
+Look for the [latest release](https://github.com/intuit/karate/releases) on GitHub and scroll down to find the "Assets". And look for the file with the name: `karate-<version>.jar`:
 
 ## Quick Start
 Just use the [ZIP release](https://github.com/intuit/karate/wiki/ZIP-Release) and follow the insructions under the heading: [API Mocks](https://github.com/intuit/karate/wiki/ZIP-Release#api-mocks).

@@ -12,17 +12,16 @@ mvn versions:set -DnewVersion=@@@
 (edit examples/gatling/build.gradle)
 (edit examples/jobserver/build.gradle)
 (edit examples/*/pom.xml)
+(edit jbang-catalog.json)
 mvn versions:commit
 mvn clean deploy -P pre-release,release
 
 jar:
 mvn clean package -P fatjar -f karate-core/pom.xml
-https://bintray.com/ptrthomas/karate
 (upload to github release notes)
 
 robot:
 mvn package -P fatjar -f karate-robot/pom.xml
-https://bintray.com/ptrthomas/karate
 (upload to github release notes)
 
 docker:
