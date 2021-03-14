@@ -165,13 +165,13 @@ Note that you can install applications based on Karate using [`jbang`](https://w
 
 ```java
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS com.intuit.karate:karate-core:0.9.9.RC4
+//DEPS com.intuit.karate:karate-core:1.0.0
 
 public class karate {
 
-    public static void main(String[] args) {
-		com.intuit.karate.Main.main(args);
-    }
+  public static void main(String[] args) {
+      com.intuit.karate.Main.main(args);
+  }
 
 }
 ```
@@ -184,7 +184,8 @@ With jbang installed, you can do this:
 
 And now the command `karate` will be available in your terminal (after opening a new one or having re-loaded environment settings).
 
-Which would make using Karate as easy as this:
+Which would make using Karate as easy as this !
+
 ```
 karate -h
 ```
