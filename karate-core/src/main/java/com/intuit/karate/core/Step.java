@@ -49,7 +49,7 @@ public class Step {
     private String docString;
     private Table table;
 
-    private static final List<String> PREFIXES = Arrays.asList("*", "Given", "When", "Then", "And", "But");
+    public static final List<String> PREFIXES = Arrays.asList("*", "Given", "When", "Then", "And", "But");
 
     public void parseAndUpdateFrom(String text) {
         final String stepText = text.trim();

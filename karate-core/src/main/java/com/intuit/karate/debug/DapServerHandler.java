@@ -103,7 +103,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         return null;
     }
 
-    protected boolean isBreakpoint(Step step, int line) {
+    protected boolean isBreakpoint(Step step, int line, ScenarioRuntime context) {
         Feature feature = step.getFeature();
         File file = feature.getResource().getFile();
         if (file == null) {
@@ -120,7 +120,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         if (sb == null) {
             return false;
         }
-        return sb.isBreakpoint(line);
+        return sb.isBreakpoint(line, context);
     }
 
     protected String normalizePath(String path) {
@@ -339,12 +339,16 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 } else {
                     ScenarioEngine.set(evalContext.engine);
                     evaluatePreStep(evalContext);
+                    Throwable engineFailedReason = evalContext.engine.getFailedReason();
+                    evalContext.engine.setFailedReason(null);
+                    // TODO: candidate to evaluate several steps in a scenario fashion
                     Result evalResult = evalContext.evalAsStep(expression);
                     if (evalResult.isFailed()) {
                         result = "[error] " + evalResult.getError().getMessage();
                     } else {
                         result = "[done]";
                     }
+                    evalContext.engine.setFailedReason(engineFailedReason); // reset engine failed reason to original failure status
                 }
                 ctx.write(response(req)
                         .body("result", result)
