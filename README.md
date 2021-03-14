@@ -11,7 +11,7 @@ There's also a cross-platform [stand-alone executable](karate-netty#standalone-j
 A [Java API](#java-api) also exists for those who prefer to programmatically integrate Karate's rich automation and data-assertion capabilities.
 
 ## Hello World
-
+### For API Testing
 <a href="https://gist.github.com/ptrthomas/d5a2d9e15d0b07e4f1b46f692a599f93"><img src="karate-demo/src/test/resources/karate-hello-world.jpg" height="400" /></a>
 
 > If you are familiar with Cucumber / Gherkin, the [*big difference*](#cucumber-vs-karate) here is that you **don't** need to write extra "glue" code or Java "step definitions" !
@@ -269,7 +269,7 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 You can find a lot more references, tutorials and blog-posts [in the wiki](https://github.com/intuit/karate/wiki/Community-News). Karate also has a dedicated "tag", and a very active and supportive community at [Stack Overflow](https://stackoverflow.com/questions/tagged/karate) - where you can get support and ask questions.
 
 # Getting Started
-If you are a Java developer - Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 (at least version 1.8.0_112 or greater) and then either [Maven](http://maven.apache.org), [Gradle](https://gradle.org), [Eclipse](#eclipse-quickstart) or [IntelliJ](https://github.com/intuit/karate/wiki/IDE-Support#intellij-community-edition) to be installed. Note that Karate works fine on OpenJDK. Any Java version from 8-12 is supported.
+If you are a Java developer - Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 and then either [Maven](http://maven.apache.org), [Gradle](https://gradle.org), [Eclipse](#eclipse-quickstart) or [IntelliJ](https://github.com/intuit/karate/wiki/IDE-Support#intellij-community-edition) to be installed. Note that Karate works fine on OpenJDK. Any Java version from 8-12 is supported.
 
 If you are new to programming or test-automation, refer to this video for [getting started with just the (free) IntelliJ Community Edition](https://youtu.be/W-af7Cd8cMc). Other options are the [quickstart](#quickstart) or the [standalone executable](karate-netty#standalone-jar).
 
@@ -3987,7 +3987,7 @@ Scenario Outline: inline json
 
 For another example, see: [`examples.feature`](karate-demo/src/test/java/demo/outline/examples.feature).
 
-If you're looking for more complex ways of naming your scenarios you can use JavaScript String interpolation by and include placeholders in your scenario name.
+If you're looking for more complex ways of dynamically naming your scenarios you can use JS string interpolation by including placeholders in your scenario name.
 
 ```cucumber
 Scenario Outline: name is ${name.first} ${name.last} and age is ${age}

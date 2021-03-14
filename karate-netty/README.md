@@ -158,7 +158,36 @@ If you think about it, all the above are *sufficient* to implement *any* micro-s
 # Standalone JAR
 *All* of Karate (core API testing, parallel-runner / HTML reports, the debugger-UI, mocks and web / UI automation) is available as a *single*, executable JAR file. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE. And there is a [Visual Studio Code plugin](https://marketplace.visualstudio.com/items?itemName=kirkslota.karate-runner) that supports the Karate standalone JAR.
 
-The only pre-requisite is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the JDK / Java Development Kit. At least version 1.8.0_112 or greater is required, and there's a good chance you already have Java installed. Check by typing `java -version` on the command line.
+The only pre-requisite is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the JDK / Java Development Kit. At least Java 8 is required, and there's a good chance you already have it installed. You can confirm this by typing `java -version` on the command line.
+
+## jbang
+Note that you can install applications based on Karate using [`jbang`](https://www.jbang.dev). For example, here is a recipe to install the Karate "standalone JAR" experience, given this file called `karate.java`:
+
+```java
+///usr/bin/env jbang "$0" "$@" ; exit $?
+//DEPS com.intuit.karate:karate-core:0.9.9.RC4
+
+public class karate {
+
+    public static void main(String[] args) {
+		com.intuit.karate.Main.main(args);
+    }
+
+}
+```
+
+With jbang installed, you can do this:
+
+```
+ jbang app install --name karate karate.java 
+```
+
+And now the command `karate` will be available in your terminal (after opening a new one or having re-loaded environment settings).
+
+Which would make using Karate as easy as this:
+```
+karate -h
+```
 
 ## Downloading
 Note that the [ZIP Release](#quick-start) is recommended for those new to Karate - or who don't have much programming experience. If you are just looking for the single JAR file or executable, please read on.
@@ -189,7 +218,7 @@ To start a mock server, the 2 mandatory arguments are the path of the feature fi
 java -jar karate.jar -m my-mock.feature -m my-2nd-mock.feature -p 8080
 ```
 
-> (*This feature is not available in 1.0, and needs community contribution to revive*) Note that this server will be able to act as an HTTPS proxy server if needed. If you need to specify a custom certificate and key combination, see below.
+> Acting as an HTTP proxy server is not possible in 1.0 (it used to be possible in the past), and needs [community contribution](https://github.com/line/armeria/issues/3168) to revive.
 
 #### SSL
 For SSL, use the `-s` flag. If you don't provide a certificate and key (see next section), it will automatically create `cert.pem` and `key.pem` in the current working directory, and the next time you re-start the mock server - these will be re-used. This is convenient for web / UI developers because you then need to set the certificate 'exception' only once in the browser.
@@ -204,11 +233,8 @@ If you have a custom certificate and private-key (in PEM format) you can specify
 java -jar karate.jar -m my-mock.feature -p 8443 -s -c my-cert.crt -k my-key.key
 ```
 
-> (*This feature is not available in 1.0, and needs community contribution to revive*) If you *don't* enable SSL, the proxy server will still be able to tunnel HTTPS traffic - and will use the certificate / key combination you specify or auto-create `cert.pem` and `key.pem` as described above.
-
-```
-java -jar karate.jar -m my-mock.feature -p 8090 -c my-cert.crt -k my-key.key
-```
+#### Hot Reload
+You can hot-reload a mock feature file for changes by adding the -W or --watch option.
 
 ### Running Tests
 Convenient to run standard [Karate](https://github.com/intuit/karate) tests on the command-line without needing to mess around with Java or the IDE ! Great for demos or exploratory testing. Even HTML reports are generated !
@@ -305,7 +331,7 @@ The `-d` or `--debug` option will start a debug server. See the [Debug Server wi
 ## Logging
 A default [logback configuration file](https://logback.qos.ch/manual/configuration.html) (named [`logback-fatjar.xml`](../karate-core/src/main/java/logback-fatjar.xml)) is present within the stand-alone JAR.
 
-For convenience, if `logback-test.xml` or `logback.xml` exists on the [classpath](#custom-classpath) - it will be used instead.
+For convenience, if `logback-test.xml` or `logback.xml` exists on the root of the [classpath](#custom-classpath) (or the root of the working directory) - it will be used instead.
 
 Another way to customize logging is set the system property `logback.configurationFile` to point to your custom config:
 
