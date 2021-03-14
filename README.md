@@ -3845,7 +3845,7 @@ Do note that if you choose the Java API, you will naturally lose some of the tes
 ### jbang
 [jbang](https://www.jbang.dev) is a great way for you to install and execute scripts that use Karate's Java API on any machine with minimal setup. Note that jbang has a very interesting "[Zero Install](https://github.com/jbangdev/jbang#zero-install)" option - which opens up a lot of automation possibilities.
 
-Here below is an example jbang script that uses the Karate Java API to do some useful work:
+Here below is an example jbang script that uses the Karate [Java API](#java-api) to do some useful work:
 
 > please replace `RELEASE` with the exact version of Karate you intend to use if applicable
 
@@ -3870,7 +3870,7 @@ public class javadsl {
 }
 ```
 
-Read the documentation of the [stand-alone JAR](https://github.com/intuit/karate/tree/master/karate-netty#jbang) for more - such as how you can even install custom command-line applications using jbang !
+Read the documentation of the [stand-alone JAR](karate-netty#jbang) for more - such as how you can even install custom command-line applications using jbang !
 
 ### Invoking feature files using the Java API
 It is also possible to invoke a feature file via a Java API which can be useful in some test-automation situations.

@@ -194,6 +194,8 @@ You can script complex automation, using the [Java API](https://github.com/intui
 Refer to the [jbang documentation](https://github.com/jbangdev/jbang) for more options.
 
 ## Downloading
+The only pre-requisite (if not using [jbang](#jbang))is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the full-blown JDK / Java Development Kit. At least Java 8 is required, and there's a good chance you already have it installed. You can confirm this by typing `java -version` on the command line.
+
 Note that the [ZIP Release](#quick-start) is recommended for those new to Karate - or who don't have much programming experience. If you are just looking for the single JAR file or executable, please read on.
 
 > Tip: Rename the file to `karate.jar` to make the [commands](#usage) easier to type !
