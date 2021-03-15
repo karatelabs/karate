@@ -161,7 +161,7 @@ If you think about it, all the above are *sufficient* to implement *any* micro-s
 *All* of Karate (core API testing, parallel-runner / HTML reports, the debugger-UI, mocks and web / UI automation) is available as a *single*, executable JAR file. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE. And there is a [Visual Studio Code plugin](https://marketplace.visualstudio.com/items?itemName=kirkslota.karate-runner) that supports the Karate standalone JAR.
 
 ## jbang
-Note that you can easily run Karate or even install applications based on Karate using [`jbang`](https://www.jbang.dev). It will take care of setting up a local Java runtime, which is really convenient. Note that jbang itself is super-easy to install and there is even a "[Zero Install](https://github.com/jbangdev/jbang#zero-install)" option.
+Note that you can easily run Karate or even install applications based on Karate using [`jbang`](https://www.jbang.dev). It will take care of setting up a local Java runtime, which is really convenient. Note that jbang itself is [super-easy to install](https://github.com/jbangdev/jbang#installation) and there is even a "[Zero Install](https://github.com/jbangdev/jbang#zero-install)" option.
 
 With jbang installed, you can do this (since a [`jbang-catalog.json`](https://github.com/jbangdev/jbang#implicit-alias-catalogs) is present within the Karate GitHub repository):
 
@@ -185,7 +185,7 @@ Which would make using Karate as easy as this !
 karate -h
 ```
 
-You can script complex automation, using the [Java API](https://github.com/intuit/karate#java-api) that Karate makes available. So if you have a file called `myscript.java` written in jbang, you can install it as a system-wide command called `myscript` like this:
+You can script complex automation, using the [Java API](https://github.com/intuit/karate#java-api) that Karate makes available. So if you have a file called `myscript.java` written as a jbang script, you can install it as a system-wide command called `myscript` like this:
 
 ```
  jbang app install --name myscript myscript.java
@@ -194,7 +194,7 @@ You can script complex automation, using the [Java API](https://github.com/intui
 Refer to the [jbang documentation](https://github.com/jbangdev/jbang) for more options.
 
 ## Downloading
-The only pre-requisite (if not using [jbang](#jbang))is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the full-blown JDK / Java Development Kit. At least Java 8 is required, and there's a good chance you already have it installed. You can confirm this by typing `java -version` on the command line.
+The only pre-requisite (if not using [jbang](#jbang)) is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the full-blown JDK (Java Development Kit). At least Java 8 is required, and there's a good chance you already have it installed. You can confirm this by typing `java -version` on the command line.
 
 Note that the [ZIP Release](#quick-start) is recommended for those new to Karate - or who don't have much programming experience. If you are just looking for the single JAR file or executable, please read on.
 

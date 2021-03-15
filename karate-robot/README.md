@@ -143,7 +143,7 @@ This may result in a few large JAR files getting downloaded by default because o
 ## jbang
 This is an interesting option to create scripts using the underlying Java API directly and even make them local executables. Refer to the [main documentation](https://github.com/intuit/karate#java-api) for more.
 
-Note that starting an instance of the Windows Robot using Java is easy, just call the static `start(Map)` method on [`WinRobot`](src/main/java/com/intuit/karate/robot/win/WinRobot.java).
+Note that starting an instance of the Windows Robot using Java is easy, just call the static `start(Map)` method on the [`WinRobot`](src/main/java/com/intuit/karate/robot/win/WinRobot.java) class.
 
 ## Debugging
 This is one of the highlights of Karate's capabilities. You can see a video of it in action [here](https://twitter.com/ptrthomas/status/1261183808985948160).

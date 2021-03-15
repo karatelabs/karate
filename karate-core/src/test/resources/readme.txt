@@ -1,13 +1,11 @@
 dev:
 mvn versions:set -DnewVersion=2.0.0
 mvn versions:commit
-(edit examples/jobserver/pom.xml)
-(edit examples/gatling/pom.xml)
 
 main:
 mvn versions:set -DnewVersion=@@@
 (edit archetype karate.version)
-(edit README.md maven 5 places)
+(edit README.md maven 3 places)
 
 (edit examples/gatling/build.gradle)
 (edit examples/jobserver/build.gradle)
