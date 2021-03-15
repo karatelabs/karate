@@ -24,21 +24,14 @@
 package com.intuit.karate.debug;
 
 import com.intuit.karate.LogAppender;
-import com.intuit.karate.Results;
-import com.intuit.karate.core.ExecutionContext;
-import com.intuit.karate.core.ExecutionHook;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.PerfEvent;
-import com.intuit.karate.core.Scenario;
-import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.core.ScenarioResult;
-import com.intuit.karate.core.Step;
-import com.intuit.karate.core.StepResult;
-import com.intuit.karate.http.HttpRequestBuilder;
+import com.intuit.karate.core.*;
+import com.intuit.karate.RuntimeHook;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Stack;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +39,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class DebugThread implements ExecutionHook, LogAppender {
+public class DebugThread implements RuntimeHook, LogAppender {
 
     private static final Logger logger = LoggerFactory.getLogger(DebugThread.class);
 
@@ -99,11 +92,11 @@ public class DebugThread implements ExecutionHook, LogAppender {
         // if we reached here - we have "resumed"
         // the stepBack logic is a little faulty and can only be called BEFORE beforeStep() (yes 2 befores)
         if (stepBack) { // don't clear flag yet !
-            getContext().getExecutionUnit().stepBack();
+            getContext().stepBack();
             return false; // abort and do not execute step !
         }
         if (stopped) {
-            getContext().getExecutionUnit().stepReset();
+            getContext().stepReset();
             return false;
         }
         return true;
@@ -120,29 +113,30 @@ public class DebugThread implements ExecutionHook, LogAppender {
     }
 
     @Override
-    public boolean beforeScenario(Scenario scenario, ScenarioContext context) {
+    public boolean beforeScenario(ScenarioRuntime context) {
         long frameId = handler.nextFrameId();
         stack.push(frameId);
         handler.FRAMES.put(frameId, context);
-        if (context.callDepth == 0) {
+        handler.FRAME_VARS.put(frameId, new Stack<>());
+        if (context.caller.depth == 0) {
             handler.THREADS.put(id, this);
         }
-        appender = context.appender;
+        appender = context.getLogAppender();
         context.logger.setAppender(this); // wrap       
         return true;
     }
 
     @Override
-    public void afterScenario(ScenarioResult result, ScenarioContext context) {
+    public void afterScenario(ScenarioRuntime context) {
         stack.pop();
-        if (context.callDepth == 0) {
+        if (context.caller.depth == 0) {
             handler.THREADS.remove(id);
         }
         context.logger.setAppender(appender); // unwrap        
     }
 
     @Override
-    public boolean beforeStep(Step step, ScenarioContext context) {
+    public boolean beforeStep(Step step, ScenarioRuntime context) {
         if (interrupted) {
             return false;
         }
@@ -153,11 +147,11 @@ public class DebugThread implements ExecutionHook, LogAppender {
             errored = false; // clear the flag else the debugger will never move past this step
             if (isStepMode()) {
                 // allow user to skip this step even if it is broken
-                context.getExecutionUnit().stepProceed();
+                context.stepProceed();
                 return false;
             } else {
                 // rewind and stop so that user can re-try this step after hot-fixing it
-                context.getExecutionUnit().stepReset();
+                context.stepReset();
                 return false;               
             }
         } else if (stepBack) {
@@ -170,7 +164,7 @@ public class DebugThread implements ExecutionHook, LogAppender {
             return stop("step");
         } else {
             int line = step.getLine();
-            if (handler.isBreakpoint(step, line)) {
+            if (handler.isBreakpoint(step, line, context)) {
                 return stop("breakpoint");
             } else {
                 return true;
@@ -179,17 +173,30 @@ public class DebugThread implements ExecutionHook, LogAppender {
     }
 
     @Override
-    public void afterStep(StepResult result, ScenarioContext context) {
+    public void afterStep(StepResult result, ScenarioRuntime context) {
         if (result.getResult().isFailed()) {
             String errorMessage = result.getErrorMessage();
-            getContext().getExecutionUnit().stepReset();
             handler.output("*** step failed: " + errorMessage + "\n");
             stop("exception", errorMessage);
             errored = true;
         }
+        pushDebugFrameVariables(context);
     }
 
-    protected ScenarioContext getContext() {
+    private void pushDebugFrameVariables(ScenarioRuntime context) {
+        Map<String, Variable> vars = context.engine.vars.entrySet().stream()
+                .collect(Collectors.toMap(v -> v.getKey(), v -> v.getValue().copy(true)));
+        Stack<Map<String, Variable>> stackVars = handler.FRAME_VARS.get(stack.peek());
+        if (stackVars != null) {
+            stackVars.push(vars);
+        }
+    }
+
+    private void popDebugFrameVariables() {
+        handler.FRAME_VARS.get(stack.peek()).pop();
+    }
+
+    private ScenarioRuntime getContext() {
         return handler.FRAMES.get(stack.peek());
     }
 
@@ -223,6 +230,7 @@ public class DebugThread implements ExecutionHook, LogAppender {
     }
 
     protected DebugThread stepBack() {
+        popDebugFrameVariables();
         stepBack = true;
         return this;
     }
@@ -253,36 +261,6 @@ public class DebugThread implements ExecutionHook, LogAppender {
 
     @Override
     public void close() {
-
-    }
-
-    @Override
-    public boolean beforeFeature(Feature feature, ExecutionContext context) {
-        return true;
-    }
-
-    @Override
-    public void afterFeature(FeatureResult result, ExecutionContext context) {
-
-    }
-
-    @Override
-    public void beforeAll(Results results) {
-
-    }
-
-    @Override
-    public void afterAll(Results results) {
-
-    }
-
-    @Override
-    public String getPerfEventName(HttpRequestBuilder req, ScenarioContext context) {
-        return null;
-    }
-
-    @Override
-    public void reportPerfEvent(PerfEvent event) {
 
     }
 

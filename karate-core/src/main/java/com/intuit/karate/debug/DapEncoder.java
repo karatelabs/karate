@@ -23,10 +23,10 @@
  */
 package com.intuit.karate.debug;
 
-import com.intuit.karate.FileUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,8 +39,8 @@ public class DapEncoder extends MessageToMessageEncoder<DapMessage> {
 
     private static final Logger logger = LoggerFactory.getLogger(DapEncoder.class);
 
-    private static final byte[] CONTENT_LENGTH_COLON = "Content-Length: ".getBytes(FileUtils.UTF8);
-    private static final byte[] CRLFCRLF = "\r\n\r\n".getBytes(FileUtils.UTF8);
+    private static final byte[] CONTENT_LENGTH_COLON = "Content-Length: ".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] CRLFCRLF = "\r\n\r\n".getBytes(StandardCharsets.UTF_8);
 
     @Override
     protected void encode(ChannelHandlerContext ctx, DapMessage dm, List<Object> out) throws Exception {
@@ -49,9 +49,9 @@ public class DapEncoder extends MessageToMessageEncoder<DapMessage> {
             logger.trace("<< {}", msg);
         }
         ByteBuf buf = ctx.alloc().buffer();
-        byte[] bytes = msg.getBytes(FileUtils.UTF8);
+        byte[] bytes = msg.getBytes(StandardCharsets.UTF_8);
         buf.writeBytes(CONTENT_LENGTH_COLON);
-        buf.writeCharSequence(bytes.length + "", FileUtils.UTF8);
+        buf.writeCharSequence(bytes.length + "", StandardCharsets.UTF_8);
         buf.writeBytes(CRLFCRLF);
         buf.writeBytes(bytes);
         out.add(buf);

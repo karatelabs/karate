@@ -24,8 +24,7 @@
 package com.intuit.karate.driver.microsoft;
 
 import com.intuit.karate.Json;
-import com.intuit.karate.LogAppender;
-import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Map;
@@ -40,15 +39,15 @@ public class MsWebDriver extends WebDriver {
         super(options);
     }
 
-    public static MsWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(context, map, appender, 17556, "MicrosoftWebDriver");
+    public static MsWebDriver start(Map<String, Object> map, ScenarioRuntime sr) {
+        DriverOptions options = new DriverOptions(map, sr, 17556, "MicrosoftWebDriver");
         options.arg("--port=" + options.port);
         return new MsWebDriver(options);
     }
 
     @Override
     protected String getJsonForInput(String text) {
-        return new Json().set("keysToSend[0]", text).toString();
+        return Json.object().set("keysToSend[0]", text).toString();
     }
 
     @Override

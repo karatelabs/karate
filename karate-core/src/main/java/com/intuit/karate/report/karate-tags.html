@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+    <link rel="stylesheet" href="res/bootstrap.min.css" type="text/css"/>
+    <link rel="stylesheet" href="res/karate-report.css" type="text/css"/>
+    <link rel="shortcut icon" href="favicon.ico"/>
+    <script type="text/javascript" src="res/jquery.min.js"></script>
+    <script type="text/javascript" src="res/jquery.tablesorter.min.js"></script>
+    <script type="text/javascript" src="res/bootstrap.min.js"></script>
+    <script type="text/javascript" src="res/karate-report.js"></script>
+    <title>Karate Tags Report</title>  
+  </head>
+  <body>   
+    <div id="root-container">
+      <div id="leftnav">
+        <script ka:scope="global">
+          var reportMeta = {
+            passedCount: results.tagKeysPassed,
+            failedCount: results.tagKeysFailed,
+            reportType: 'Tags',
+            reportDate: results.resultDate
+          };
+        </script>        
+        <div th:replace="karate-leftnav.html"></div>
+      </div>
+      <div id="content">
+        <div class="page-heading alert alert-primary">
+          <a href="karate-summary.html">Summary</a>
+        </div>       
+        <table class="tags-table table table-sm ">
+          <thead>
+            <tr>
+              <th class="feature-cell">Feature</th>
+              <th th:each="tagKey: results.tagKeys" th:text="tagKey" th:classapend="results.failedTagKeys.contains(tagKey) ? 'failed' : 'passed'"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:each="ft: results.featureTags" th:classappend="ft.featureSummary.failed ? 'failed' : 'passed'">
+              <td class="feature-cell">
+                <a th:href="ft.featureSummary.packageQualifiedName + '.html'" th:text="ft.featureSummary.relativePath"></a>
+              </td>
+              <td th:each="tagKey: results.tagKeys" 
+                  th:text="ft.tagKeys.contains(tagKey) ? 'X' : ''"
+                  th:classapend="ft.failedTagKeys.contains(tagKey) ? 'failed' : 'passed'"></td>
+            </tr>            
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </body>
+</html>
+

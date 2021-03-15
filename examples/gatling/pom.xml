@@ -11,16 +11,11 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.8</java.version>
         <maven.compiler.version>3.6.0</maven.compiler.version>
-        <karate.version>0.9.6</karate.version>
-        <gatling.plugin.version>3.0.2</gatling.plugin.version>
+        <karate.version>1.0.0</karate.version>
+        <gatling.plugin.version>3.1.1</gatling.plugin.version>
     </properties>    
 
     <dependencies>
-        <dependency>
-            <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-apache</artifactId>
-            <version>${karate.version}</version>
-        </dependency>            
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-gatling</artifactId>

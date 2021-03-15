@@ -23,112 +23,32 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.Resource;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.exception.KarateException;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.RuleContext;
-import org.antlr.v4.runtime.Token;
+import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  *
  * @author pthomas3
  */
 public class FeatureParser extends KarateParserBaseListener {
-
+    
     private static final Logger logger = LoggerFactory.getLogger(FeatureParser.class);
-
+    
     private final ParserErrorListener errorListener = new ParserErrorListener();
-
     private final Feature feature;
-
-    private static final List<String> PREFIXES = Arrays.asList("*", "Given", "When", "Then", "And", "But");
-
-    public static Feature parse(String relativePath) {
-        ClassLoader cl = Thread.currentThread().getContextClassLoader();
-        Path path = FileUtils.fromRelativeClassPath(relativePath, cl);
-        return parse(new Resource(path, relativePath, -1));
-    }
-
-    public static Feature parse(File file) {
-        return parse(new Resource(file.toPath()));
-    }
-
-    public static Feature parse(Resource resource) {
-        return new FeatureParser(resource).feature;
-    }
-
-    public static Feature parseText(Feature old, String text) {
-        Feature feature = old == null ? new Feature(null) : new Feature(old.getResource());
-        feature = new FeatureParser(feature, FileUtils.toInputStream(text)).feature;
-        if (old != null) {
-            feature.setCallTag(old.getCallTag());
-        }
-        feature.setLines(StringUtils.toStringLines(text));
-        return feature;
-    }
-
-    public static void updateStepFromText(Step step, String text) throws Exception {
-        Feature feature = new Feature(step.getFeature().getResource());
-        final String stepText = text.trim();
-        boolean hasPrefix = PREFIXES.stream().anyMatch(prefixValue -> stepText.startsWith(prefixValue));
-        // to avoid parser considering text without prefix as Scenario comments/Doc-string
-        if (!hasPrefix) {
-            text = "* " + stepText;
-        }
-        text = "Feature:\nScenario:\n" + text;
-        FeatureParser fp = new FeatureParser(feature, FileUtils.toInputStream(text));
-        if (fp.errorListener.isFail()) {
-            throw new KarateException(fp.errorListener.getMessage());
-        }
-        feature = fp.feature;
-        Step temp = feature.getStep(0, -1, 0);
-        if (temp == null) {
-            throw new KarateException("invalid expression: " + text);
-        }
-        step.setPrefix(temp.getPrefix());
-        step.setText(temp.getText());
-        step.setDocString(temp.getDocString());
-        step.setTable(temp.getTable());
-    }
-
-    private static InputStream toStream(File file) {
-        try {
-            return new FileInputStream(file);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private FeatureParser(File file, String relativePath, ClassLoader cl) {
-        this(new Feature(new Resource(file, relativePath)), toStream(file));
-    }
-
-    private FeatureParser(Resource resource) {
-        this(new Feature(resource), resource.getStream());
-    }
-
     private final CommonTokenStream tokenStream;
-
+    
     private FeatureParser(Feature feature, InputStream is) {
         this.feature = feature;
         CharStream stream;
@@ -147,13 +67,17 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         ParseTreeWalker walker = new ParseTreeWalker();
         walker.walk(this, tree);
-        if (errorListener.isFail()) {
-            String errorMessage = errorListener.getMessage();
+    }
+    
+    protected static void parse(Feature feature) {
+        FeatureParser fp = new FeatureParser(feature, feature.getResource().getStream());
+        if (fp.errorListener.isFail()) {
+            String errorMessage = fp.errorListener.getMessage();
             logger.error("not a valid feature file: {} - {}", feature.getResource().getRelativePath(), errorMessage);
             throw new RuntimeException(errorMessage);
         }
     }
-
+    
     private static int getActualLine(TerminalNode node) {
         int count = 0;
         for (char c : node.getText().toCharArray()) {
@@ -165,7 +89,7 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         return node.getSymbol().getLine() + count;
     }
-
+    
     private static List<Tag> toTags(int line, List<TerminalNode> nodes) {
         List<Tag> tags = new ArrayList();
         for (TerminalNode node : nodes) {
@@ -180,7 +104,7 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         return tags;
     }
-
+    
     private static Table toTable(KarateParser.TableContext ctx) {
         List<TerminalNode> nodes = ctx.TABLE_ROW();
         int rowCount = nodes.size();
@@ -201,9 +125,9 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         return new Table(rows, lineNumbers);
     }
-
-    private static final String TRIPLE_QUOTES = "\"\"\"";
-
+    
+    public static final String TRIPLE_QUOTES = "\"\"\"";
+    
     private static int indexOfFirstText(String s) {
         int pos = 0;
         for (char c : s.toCharArray()) {
@@ -214,7 +138,7 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         return 0; // defensive coding
     }
-
+    
     private static String fixDocString(String temp) {
         int quotePos = temp.indexOf(TRIPLE_QUOTES);
         int endPos = temp.lastIndexOf(TRIPLE_QUOTES);
@@ -240,7 +164,7 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         return sb.toString().trim();
     }
-
+    
     private List<String> collectComments(ParserRuleContext prc) {
         List<Token> tokens = tokenStream.getHiddenTokensToLeft(prc.start.getTokenIndex());
         if (tokens == null) {
@@ -252,12 +176,12 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         return comments;
     }
-
+    
     private List<Step> toSteps(Scenario scenario, List<KarateParser.StepContext> list) {
         List<Step> steps = new ArrayList(list.size());
         int index = 0;
         for (KarateParser.StepContext sc : list) {
-            Step step = new Step(feature, scenario, index++);
+            Step step = scenario == null ? new Step(feature, index++) : new Step(scenario, index++);
             step.setComments(collectComments(sc));
             steps.add(step);
             int stepLine = sc.line().getStart().getLine();
@@ -278,7 +202,7 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         return steps;
     }
-
+    
     @Override
     public void enterFeatureHeader(KarateParser.FeatureHeaderContext ctx) {
         if (ctx.featureTags() != null) {
@@ -293,7 +217,7 @@ public class FeatureParser extends KarateParserBaseListener {
             }
         }
     }
-
+    
     @Override
     public void enterBackground(KarateParser.BackgroundContext ctx) {
         Background background = new Background();
@@ -307,14 +231,14 @@ public class FeatureParser extends KarateParserBaseListener {
             logger.trace("background steps: {}", steps);
         }
     }
-
+    
     @Override
     public void enterScenario(KarateParser.ScenarioContext ctx) {
         FeatureSection section = new FeatureSection();
         Scenario scenario = new Scenario(feature, section, -1);
+        scenario.setLine(getActualLine(ctx.SCENARIO()));
         section.setScenario(scenario);
         feature.addSection(section);
-        scenario.setLine(getActualLine(ctx.SCENARIO()));
         if (ctx.tags() != null) {
             scenario.setTags(toTags(-1, ctx.tags().TAGS()));
         }
@@ -329,14 +253,14 @@ public class FeatureParser extends KarateParserBaseListener {
             logger.trace("scenario steps: {}", steps);
         }
     }
-
+    
     @Override
     public void enterScenarioOutline(KarateParser.ScenarioOutlineContext ctx) {
         FeatureSection section = new FeatureSection();
         ScenarioOutline outline = new ScenarioOutline(feature, section);
+        outline.setLine(getActualLine(ctx.SCENARIO_OUTLINE()));
         section.setScenarioOutline(outline);
         feature.addSection(section);
-        outline.setLine(getActualLine(ctx.SCENARIO_OUTLINE()));
         if (ctx.tags() != null) {
             outline.setTags(toTags(-1, ctx.tags().TAGS()));
         }
@@ -365,5 +289,5 @@ public class FeatureParser extends KarateParserBaseListener {
             }
         }
     }
-
+    
 }

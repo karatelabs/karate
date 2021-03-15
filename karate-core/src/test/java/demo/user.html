@@ -1,0 +1,13 @@
+<script ka:scope="global">
+  var userId = ~~request.param('id');
+  if (userId) {
+    var http = context.http('https://jsonplaceholder.typicode.com/users/' + userId);
+    var user = http.get().body;
+    context.switch('apidocs');
+  }
+</script>
+<a th:unless="userId" ka:get="this" ka:vals="id:user.id" href="#">(more)</a>
+<ul th:if="userId">
+  <li th:text="user.phone"></li>
+  <li th:text="user.website"></li>
+</ul>

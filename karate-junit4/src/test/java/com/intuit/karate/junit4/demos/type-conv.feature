@@ -63,12 +63,12 @@ Scenario: string to xml
     * xml xmlVar = strVar
     * match xmlVar == <root><foo>bar</foo></root>
 
-Scenario: xml to string (incorrect)
+Scenario: xml to string (improved in 1.0)
     * def xmlVar = <root><foo>bar</foo></root>
     # the parentheses forces evaluation as javascript and converts the xml to a map
     * string strVar = (xmlVar)
-    # because of karate's internal map-like default representation, this happens. see 'xmlstring' below
-    * match strVar == '{"root":{"foo":"bar"}}'
+    # karate auto detects xml when needed
+    * match strVar == '<root><foo>bar</foo></root>'
 
 Scenario: xml to string
     * def xmlVar = <root><foo>bar</foo></root>
@@ -122,15 +122,9 @@ Scenario: xml with namespaces
     * match jsonVar $..ns2:foo.@ contains only { fizz: 'buzz', ping: 'pong' }
     * match each jsonVar $..ns2:foo.@ contains { ping: 'pong' }
 
-Scenario: json to java map - useful in some situations
-    here we want to get the "first key" out of a given json
+Scenario: get the "first key" out of a given json
     * def response = { "key1": { "a" : 1 }, "key2" : { "b": 1 } }
-    * def map = karate.toBean(response, 'java.util.LinkedHashMap')
-    * def first = map.keySet().iterator().next()
-    * match first == 'key1'
-    # short cut for the above
-    * def map = karate.toMap(response)
-    * def first = map.keySet().iterator().next()
+    * def first = karate.keysOf(response)[0]
     * match first == 'key1'
 
 Scenario: java pojo to json
@@ -152,32 +146,29 @@ Scenario: java pojo to xml
 
 Scenario: parsing json, xml or string
     * def temp = karate.fromString('{ "foo": "bar" }')
-    * assert temp.json
-    * match temp.value == { foo: 'bar' }
+    * match karate.typeOf(temp) == 'map'
+    * match temp == { foo: 'bar' }
     * def temp = karate.fromString('<foo>bar</foo>')
-    * assert temp.xml
-    * match temp.value == <foo>bar</foo>
+    * match karate.typeOf(temp) == 'xml'
+    * match temp == <foo>bar</foo>
     * def temp = karate.fromString('random text')
-    * assert temp.string
-    * match temp.value == 'random text'
+    * match karate.typeOf(temp) == 'string'
+    * match temp == 'random text'
 
 Scenario: parsing json, xml or string within a js block (use asMap)   
     * eval
     """
     var temp = karate.fromString('{ "foo": "bar" }');
-    if (!temp.json) karate.fail('expected json');
-    var val = temp.asMap;
-    var res = karate.match(val, { foo: 'bar' });
+    if (karate.typeOf(temp) != 'map') karate.fail('expected map');
+    var res = karate.match(temp, { foo: 'bar' });
     if (!res.pass) karate.fail(res.message);
     """
 
 Scenario: inspecting an arbitrary object
     * def foo = { foo: 'bar' }
-    * def temp = karate.fromObject(foo)
-    * assert temp.mapLike
+    * match karate.typeOf(foo) == 'map'
     * def foo = ['foo', 'bar']
-    * def temp = karate.fromObject(foo)
-    * assert temp.listLike
+    * match karate.typeOf(foo) == 'list'
 
 Scenario: json manipulation using string-replace
     * def data =
@@ -205,10 +196,10 @@ Scenario: json path on a string should auto-convert
 Scenario: js and numbers - float vs int
     * def foo = '10'
     * string json = { bar: '#(1 * foo)' }
-    * match json == '{"bar":10.0}'
+    * match json == '{"bar":10}'
 
     * string json = { bar: '#(parseInt(foo))' }
-    * match json == '{"bar":10.0}'
+    * match json == '{"bar":10}'
 
     * def foo = 10
     * string json = { bar: '#(foo)' }
@@ -218,13 +209,13 @@ Scenario: js and numbers - float vs int
     * string json = { bar: '#(~~foo)' }
     * match json == '{"bar":10}'
 
-    # unfortunately JS math always results in a double
-    * def foo = 10
-    * string json = { bar: '#(1 * foo)' }
+    # JS math can introduce a decimal point in some cases
+    * def foo = 100
+    * string json = { bar: '#(foo * 0.1)' }
     * match json == '{"bar":10.0}'
 
     # but you can easily coerce to an integer if needed
-    * string json = { bar: '#(~~(1 * foo))' }
+    * string json = { bar: '#(~~(foo * 0.1))' }
     * match json == '{"bar":10}'
 
 Scenario: large numbers in json - use java BigDecimal

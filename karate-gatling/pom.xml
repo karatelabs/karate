@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.intuit.karate</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>0.9.6</version>
+        <version>1.0.0</version>
     </parent>
     <artifactId>karate-gatling</artifactId>
     <packaging>jar</packaging>
@@ -19,20 +19,14 @@
         <dependency>
             <groupId>io.gatling.highcharts</groupId>
             <artifactId>gatling-charts-highcharts</artifactId>
-            <version>3.0.2</version>
+            <version>3.5.0</version>
         </dependency>
         <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
-            <version>2.12.3</version>
+            <version>2.13.3</version>
             <scope>provided</scope>            
-        </dependency>
-        <dependency>
-            <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-netty</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>                
+        </dependency>               
     </dependencies>
 
     <build>
@@ -54,7 +48,7 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>3.4.4</version>
+                <version>4.4.0</version>
                 <executions>
                     <execution>
                         <goals>
@@ -79,7 +73,7 @@
             <plugin>
                 <groupId>io.gatling</groupId>
                 <artifactId>gatling-maven-plugin</artifactId>
-                <version>3.0.1</version>
+                <version>3.1.1</version>
                 <configuration>
                     <disableCompiler>true</disableCompiler>
                     <skip>${skipTests}</skip>

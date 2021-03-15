@@ -19,7 +19,7 @@ Scenario: create cat
     * def contentType = temp.headers['Content-Type'][0]
     * match contentType contains 'application/json'
     * match contentType contains 'charset=UTF-8'
-    * def requestUri = temp.uri
+    * def requestUri = temp.url
     * match requestUri == demoBaseUrl + '/cats?foo=bar'
     # this will be of java type byte[]
     * def requestBody = temp.body

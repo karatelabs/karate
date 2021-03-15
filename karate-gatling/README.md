@@ -114,8 +114,6 @@ Most problems when using Karate with Gradle occur when "test-resources" are not 
 ## Limitations
 As of now the Gatling concept of ["throttle" and related syntax](https://gatling.io/docs/2.3/general/simulation_setup/#simulation-setup-throttling) is not supported. Most teams don't need this, but you can declare "pause" times in Karate, see [`pauseFor()`](#pausefor).
 
-Also the concept of Gatling "[groups](https://gatling.io/docs/2.3/general/scenario/#groups-definition)" is not supported where you can have sub-groups within groups. However custom grouping via the [`nameResolver`](#nameresolver) is sufficient for most teams.
-
 ## Logging
 Once you have your performance tests working, you may want to tune the logging config. Note that there are options to [reduce or completely suppress](https://github.com/intuit/karate#logging) the console logging.
 
@@ -214,8 +212,23 @@ And to run scenarios tagged `foo` AND `bar`
   val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature", "@foo", "@bar"))
 ```
 
+### Karate Variables
+On the Scala side, after a `scenario` involving a [`karateFeature()`](#karatefeature) completes, the Karate variables that were part of the feature will be added to the [Gatling session](#gatling-session).
+
+This is rarely needed - but useful when you want to pass data across feature files or do some assertions on the Gatling side. Here is an [example](src/test/scala/mock/CatsSimulation.scala):
+
+```scala
+val create = scenario("create").exec(karateFeature("classpath:mock/cats-create.feature")).exec(session => {
+    println("*** id in gatling: " + session("id").as[String])
+    println("*** session status in gatling: " + session.status)
+    session
+  })
+```
+
+Here above, the variable `id` that was defined (using `def`) in the [Karate feature](src/test/scala/mock/cats-create.feature) - is being retrieved on the Gatling side using the Scala API.
+
 ### Gatling Session
-The Gatling session attributes and `userId` would be available in a Karate variable under the name-space `__gatling`. So you can refer to the user-id for the thread as follows:
+The [Gatling session](https://gatling.io/docs/current/session/session_api/) attributes and `userId` would be available in a Karate variable under the name-space `__gatling`. So you can refer to the user-id for the thread as follows:
 
 ```cucumber
 * print 'gatling userId:', __gatling.userId

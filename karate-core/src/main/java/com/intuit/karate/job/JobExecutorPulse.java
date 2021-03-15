@@ -39,7 +39,7 @@ public class JobExecutorPulse extends TimerTask {
 
     public JobExecutorPulse(JobExecutor executor) {
         this.executor = executor;
-        http = Http.forUrl(executor.appender, executor.serverUrl);
+        http = Http.to(executor.serverUrl);
     }
 
     public void start() {
@@ -49,12 +49,11 @@ public class JobExecutorPulse extends TimerTask {
 
     @Override
     public void run() {
-        String chunkId = executor.chunkId;
         JobMessage jm = new JobMessage("heartbeat");
-        jm.setChunkId(chunkId);
-        String jobId = executor.jobId;
-        String executorId = executor.executorId;        
-        JobExecutor.invokeServer(http, jobId, executorId, jm);
+        jm.setJobId(executor.jobId);
+        jm.setExecutorId(executor.executorId);
+        jm.setChunkId(executor.chunkId.get());
+        JobExecutor.invokeServer(http, jm);
     }
 
 }

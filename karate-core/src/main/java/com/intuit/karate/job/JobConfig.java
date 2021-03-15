@@ -23,26 +23,27 @@
  */
 package com.intuit.karate.job;
 
-import com.intuit.karate.shell.Command;
+import com.intuit.karate.Constants;
+import com.intuit.karate.FileUtils;
+import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
  *
  * @author pthomas3
  */
-public interface JobConfig {
+public interface JobConfig<T> {
 
     String getHost();
 
     int getPort();
-    
+
     int getExecutorCount();
-    
+
+    T handleUpload(JobChunk<T> chunk, File file);
+
     default int getTimeoutMinutes() {
         return -1;
     }
@@ -51,28 +52,15 @@ public interface JobConfig {
         return "";
     }
 
-    default String getUploadDir() {
-        return null;
+    default String getExecutorDir() {
+        return FileUtils.getBuildDir() + File.separator + Constants.KARATE_REPORTS;
     }
 
-    String getExecutorCommand(String jobId, String jobUrl, int index);
+    String getExecutorCommand(String jobId, String jobUrl, int index);    
 
-    default void startExecutors(String jobId, String jobUrl) throws Exception {
-        int count = getExecutorCount();
-        if (count <= 0) {
-            return;
-        }
-        ExecutorService executor = Executors.newFixedThreadPool(count);
-        for (int i = 0; i < count; i++) {
-            int index = i;
-            executor.submit(() -> Command.execLine(null, getExecutorCommand(jobId, jobUrl, index)));
-        }
-        executor.shutdown();
-        int timeout = getTimeoutMinutes();
-        if (timeout > 0) {
-            executor.awaitTermination(timeout, TimeUnit.MINUTES);
-        }
-    }
+    void onStart(String jobId, String jobUrl);
+
+    void onStop();
 
     Map<String, String> getEnvironment();
 
@@ -82,13 +70,17 @@ public interface JobConfig {
         return Collections.EMPTY_LIST;
     }
 
-    List<JobCommand> getMainCommands(JobContext jc);
+    List<JobCommand> getMainCommands(JobChunk<T> jc);
 
-    default List<JobCommand> getPreCommands(JobContext jc) {
+    default List<JobCommand> getPreCommands(JobChunk<T> jc) {
         return Collections.EMPTY_LIST;
     }
 
-    default List<JobCommand> getPostCommands(JobContext jc) {
+    default List<JobCommand> getPostCommands(JobChunk<T> jc) {
+        return Collections.EMPTY_LIST;
+    }
+
+    default List<T> getInitialChunks() {
         return Collections.EMPTY_LIST;
     }
 

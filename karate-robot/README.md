@@ -11,6 +11,7 @@
       <a href="https://github.com/intuit/karate/wiki/ZIP-Release">ZIP Release</a>
     | <a href="#maven">Maven</a>
     | <a href="https://github.com/intuit/karate/wiki/Karate-Robot-Windows-Install-Guide">Windows Install Guide</a>
+    | <a href="#jbang">jbang</a>
     | <a href="#debugging">Debugging</a>
     | <a href="https://github.com/intuit/karate#index">Karate - Main Index</a>
   </td>
@@ -138,6 +139,11 @@ Add this to the `<dependencies>`:
 ```
 
 This may result in a few large JAR files getting downloaded by default because of the [`javacpp-presets`](https://github.com/bytedeco/javacpp-presets) dependency. But you can narrow down to what is sufficient for your OS by [following these instructions](https://github.com/bytedeco/javacpp-presets/wiki/Reducing-the-Number-of-Dependencies).
+
+## jbang
+This is an interesting option to create scripts using the underlying Java API directly and even make them local executables. Refer to the [main documentation](https://github.com/intuit/karate#java-api) for more.
+
+Note that starting an instance of the Windows Robot using Java is easy, just call the static `start(Map)` method on the [`WinRobot`](src/main/java/com/intuit/karate/robot/win/WinRobot.java) class.
 
 ## Debugging
 This is one of the highlights of Karate's capabilities. You can see a video of it in action [here](https://twitter.com/ptrthomas/status/1261183808985948160).
@@ -435,6 +441,16 @@ The [control "type"](https://docs.microsoft.com/en-us/windows/win32/winauto/uiau
 Similarly, the "class name" is not case-sensitive. This can be useful in some cases, for example in Delphi you can use values such as `TScrollBox` and `TEdit`.
 
 Also see [`locateAll()`](#locateall) for ways to find the n-th control on a page that matches a locator and do something with it.
+
+### Property Value
+For Windows `Element`-s you can retrieve the value by property name or ID using the `property(key)` method:
+
+```cucumber
+* def button = locate('Close')
+* def isOffScreen = button.property('IsOffscreen')
+```
+
+The argument to `property()` can also be an integer. To see all names and id values, see [`Property`](src/main/java/com/intuit/karate/robot/win/Property.java).
 
 ### Calculator Example
 

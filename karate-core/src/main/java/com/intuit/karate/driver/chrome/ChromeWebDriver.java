@@ -24,12 +24,10 @@
 package com.intuit.karate.driver.chrome;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.Http;
-import com.intuit.karate.LogAppender;
-import com.intuit.karate.ScriptValue;
-import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.WebDriver;
+import com.intuit.karate.http.Response;
 import java.util.Map;
 
 /**
@@ -42,8 +40,8 @@ public class ChromeWebDriver extends WebDriver {
         super(options);
     }
 
-    public static ChromeWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
-        DriverOptions options = new DriverOptions(context, map, appender, 9515, "chromedriver");
+    public static ChromeWebDriver start(Map<String, Object> map, ScenarioRuntime sr) {
+        DriverOptions options = new DriverOptions(map, sr, 9515, "chromedriver");
         options.arg("--port=" + options.port);
         if (options.userDataDir != null) {
             options.arg("--user-data-dir=" + options.userDataDir);
@@ -69,21 +67,21 @@ public class ChromeWebDriver extends WebDriver {
     }
 
     @Override
-    protected boolean isJavaScriptError(Http.Response res) {
-        ScriptValue value = res.jsonPath("$.value").value();
-        return !value.isNull() && value.getAsString().contains("javascript error");
+    protected boolean isJavaScriptError(Response res) {
+        Object value = res.json().get("value");
+        return value != null && value.toString().contains("javascript error");
     }
 
     @Override
-    protected boolean isLocatorError(Http.Response res) {
-        ScriptValue value = res.jsonPath("$.value").value();
-        return value.getAsString().contains("no such element");
+    protected boolean isLocatorError(Response res) {
+        Object value = res.json().get("value");
+        return value.toString().contains("no such element");
     }
 
     @Override
-    protected boolean isCookieError(Http.Response res) {
-        ScriptValue value = res.jsonPath("$.value").value();
-        return !value.isNull() && value.getAsString().contains("unable to set cookie");
+    protected boolean isCookieError(Response res) {
+        Object value = res.json().get("value");
+        return value != null && value.toString().contains("unable to set cookie");
     }
 
 }

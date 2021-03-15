@@ -23,8 +23,11 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.StringUtils;
+import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,71 +36,28 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class ScenarioResult {
+public class ScenarioResult implements Comparable<ScenarioResult> {
 
-    private List<StepResult> stepResults = new ArrayList();
+    private final List<StepResult> stepResults = new ArrayList();
     private final Scenario scenario;
 
     private StepResult failedStep;
 
-    private String threadName;
+    private String executorName;
     private long startTime;
     private long endTime;
     private long durationNanos;
 
-    private Map<String, Object> backgroundJson;
-    private Map<String, Object> json;
-
-    public void reset() {
-        stepResults = new ArrayList();
-        failedStep = null;
-    }
-
-    public void appendEmbed(Embed embed) {
-        if (json != null) {
-            List<Map<String, Object>> steps = (List) json.get("steps");
-            if (steps == null || steps.isEmpty()) {
-                return;
-            }
-            Map<String, Object> map = steps.get(steps.size() - 1);
-            List<Map<String, Object>> embedList = (List) map.get("embeddings");
-            if (embedList == null) {
-                embedList = new ArrayList();
-                map.put("embeddings", embedList);
-            }
-            embedList.add(embed.toMap());
-        } else {
-            getLastStepResult().addEmbed(embed);
+    @Override
+    public int compareTo(ScenarioResult sr) {
+        if (sr == null) {
+            return 1;
         }
-    }
-
-    public StepResult getLastStepResult() {
-        if (stepResults.isEmpty()) {
-            return null;
+        int delta = scenario.getLine() - sr.scenario.getLine();
+        if (delta != 0) {
+            return delta;
         }
-        return stepResults.get(stepResults.size() - 1);
-    }
-
-    public StepResult getStepResult(int index) {
-        if (stepResults.size() > index) {
-            return stepResults.get(index);
-        } else {
-            return null;
-        }
-    }
-
-    public void setStepResult(int index, StepResult sr) {
-        if (sr.getResult().isFailed()) {
-            failedStep = sr;
-        }
-        if (stepResults.size() > index) {
-            stepResults.set(index, sr);
-        } else {
-            for (int i = stepResults.size(); i < index; i++) {
-                stepResults.add(null);
-            }
-            stepResults.add(sr);
-        }
+        return scenario.getExampleIndex() - sr.scenario.getExampleIndex();
     }
 
     public String getFailureMessageForDisplay() {
@@ -110,13 +70,24 @@ public class ScenarioResult {
         return featureName + ":" + step.getLine() + " " + step.getText();
     }
 
-    public void addError(String message, Throwable error) {
-        Step step = new Step(scenario.getFeature(), scenario, -1);
+    public StepResult addFakeStepResult(String message, Throwable error) {
+        Step step = new Step(scenario, -1);
         step.setLine(scenario.getLine());
         step.setPrefix("*");
         step.setText(message);
-        StepResult sr = new StepResult(step, Result.failed(0, error, step), null, null, null);
+        Result result = error == null ? Result.passed(0) : Result.failed(0, error, step);
+        StepResult sr = new StepResult(step, result);
+        if (error != null) {
+            sr.setStepLog(error.getMessage());
+        }
         addStepResult(sr);
+        return sr;
+    }
+
+    public void addStepResults(List<StepResult> value) {
+        if (value != null) {
+            value.forEach(this::addStepResult);
+        }
     }
 
     public void addStepResult(StepResult stepResult) {
@@ -131,16 +102,16 @@ public class ScenarioResult {
     private static void recurse(List<Map> list, StepResult stepResult, int depth) {
         if (stepResult.getCallResults() != null) {
             for (FeatureResult fr : stepResult.getCallResults()) {
-                Step call = new Step(stepResult.getStep().getFeature(), stepResult.getStep().getScenario(), -1);
+                Step call = new Step(stepResult.getStep().getFeature(), -1);
                 call.setLine(stepResult.getStep().getLine());
                 call.setPrefix(StringUtils.repeat('>', depth));
-                call.setText(fr.getCallName());
+                call.setText(fr.getCallNameForReport());
                 call.setDocString(fr.getCallArgPretty());
-                StepResult callResult = new StepResult(call, Result.passed(0), null, null, null);
+                StepResult callResult = new StepResult(call, Result.passed(0));
                 callResult.setHidden(stepResult.isHidden());
-                list.add(callResult.toMap());
+                list.add(callResult.toCucumberJson());
                 for (StepResult sr : fr.getAllScenarioStepResultsNotHidden()) {
-                    Map<String, Object> map = sr.toMap();
+                    Map<String, Object> map = sr.toCucumberJson();
                     String temp = (String) map.get("keyword");
                     map.put("keyword", StringUtils.repeat('>', depth + 1) + ' ' + temp);
                     list.add(map);
@@ -157,17 +128,116 @@ public class ScenarioResult {
                 continue;
             }
             if (background == stepResult.getStep().isBackground()) {
-                list.add(stepResult.toMap());
+                list.add(stepResult.toCucumberJson());
                 recurse(list, stepResult, 0);
             }
         }
         return list;
     }
 
-    public Map<String, Object> backgroundToMap() {
-        if (backgroundJson != null) {
-            return backgroundJson;
+    public static ScenarioResult fromKarateJson(File workingDir, Feature feature, Map<String, Object> map) {
+        int sectionIndex = (Integer) map.get("sectionIndex");
+        int exampleIndex = (Integer) map.get("exampleIndex");
+        FeatureSection section = feature.getSection(sectionIndex);
+        Scenario scenario = new Scenario(feature, section, exampleIndex);
+        if (section.isOutline()) {
+            scenario.setTags(section.getScenarioOutline().getTags());
+            scenario.setDescription(section.getScenarioOutline().getDescription());
+        } else {
+            scenario.setTags(section.getScenario().getTags());
+            scenario.setDescription(section.getScenario().getDescription());
         }
+        scenario.setName((String) map.get("name"));
+        scenario.setDescription((String) map.get("description"));
+        scenario.setLine((Integer) map.get("line"));
+        scenario.setExampleData((Map) map.get("exampleData"));
+        ScenarioResult sr = new ScenarioResult(scenario);
+        String executorName = (String) map.get("executorName");
+        Number startTime = (Number) map.get("startTime");
+        Number endTime = (Number) map.get("endTime");
+        sr.setExecutorName(executorName);
+        if (startTime != null) {
+            sr.setStartTime(startTime.longValue());
+        }
+        if (endTime != null) {
+            sr.setEndTime(endTime.longValue());
+        }
+        List<Map<String, Object>> list = (List) map.get("stepResults");
+        if (list != null) {
+            List<Step> steps = new ArrayList(list.size());
+            for (Map<String, Object> stepResultMap : list) {
+                StepResult stepResult = StepResult.fromKarateJson(workingDir, scenario, stepResultMap);
+                sr.addStepResult(stepResult);
+                Step step = stepResult.getStep();
+                if (!step.isBackground() && step.getLine() != -1) {
+                    steps.add(step);
+                }
+            }
+            scenario.setSteps(steps);
+        }
+        return sr;
+    }
+
+    public Map<String, Object> toKarateJson() {
+        Map<String, Object> map = new HashMap();
+        // these first few are only for the ease of reports
+        // note that they are not involved in the reverse fromKarateJson()
+        map.put("durationMillis", getDurationMillis());
+        List<String> tags = scenario.getTagsEffective().getTags();
+        if (tags != null && !tags.isEmpty()) {
+            map.put("tags", tags);
+        }
+        map.put("failed", isFailed());
+        map.put("refId", scenario.getRefId());
+        if (isFailed()) {
+            map.put("error", getErrorMessage());
+        }
+        //======================================================================
+        map.put("sectionIndex", scenario.getSection().getIndex());
+        map.put("exampleIndex", scenario.getExampleIndex());
+        Map<String, Object> exampleData = scenario.getExampleData();
+        if (exampleData != null) {
+            map.put("exampleData", exampleData);
+        }
+        map.put("name", scenario.getName());
+        map.put("description", scenario.getDescription());
+        map.put("line", scenario.getLine());
+        map.put("executorName", executorName);
+        map.put("startTime", startTime);
+        map.put("endTime", endTime);
+        List<Map<String, Object>> list = new ArrayList(stepResults.size());
+        map.put("stepResults", list);
+        for (StepResult sr : stepResults) {
+            list.add(sr.toKarateJson());
+        }
+        return map;
+    }
+
+    public Map<String, Object> toCucumberJson() {
+        Map<String, Object> map = new HashMap();
+        map.put("name", scenario.getName());
+        map.put("steps", getStepResults(false));
+        map.put("line", scenario.getLine());
+        map.put("id", StringUtils.toIdString(scenario.getName()));
+        map.put("description", scenario.getDescription());
+        map.put("type", "scenario");
+        map.put("keyword", "Scenario");
+        map.put("tags", tagsToCucumberJson(scenario.getTagsEffective().getOriginal()));
+        return map;
+    }
+
+    public static List<Map> tagsToCucumberJson(Collection<Tag> tags) {
+        List<Map> list = new ArrayList(tags.size());
+        for (Tag tag : tags) {
+            Map<String, Object> tagMap = new HashMap(2);
+            tagMap.put("line", tag.getLine());
+            tagMap.put("name", '@' + tag.getText());
+            list.add(tagMap);
+        }
+        return list;
+    }
+
+    public Map<String, Object> backgroundToCucumberJson() {
         if (!scenario.getFeature().isBackgroundPresent()) {
             return null;
         }
@@ -181,57 +251,8 @@ public class ScenarioResult {
         return map;
     }
 
-    public Map<String, Object> toMap() {
-        if (json != null) {
-            return json;
-        }
-        Map<String, Object> map = new HashMap();
-        map.put("name", scenario.getName());
-        map.put("steps", getStepResults(false));
-        map.put("line", scenario.getLine());
-        map.put("id", StringUtils.toIdString(scenario.getName()));
-        map.put("description", scenario.getDescription());
-        map.put("type", Scenario.TYPE);
-        map.put("keyword", scenario.getKeyword());
-        if (scenario.getTags() != null) {
-            map.put("tags", Tags.toResultList(scenario.getTags()));
-        }
-        return map;
-    }
-
-    public ScenarioResult(Scenario scenario, List<StepResult> stepResults) {
+    public ScenarioResult(Scenario scenario) {
         this.scenario = scenario;
-        if (stepResults != null) {
-            this.stepResults.addAll(stepResults);
-        }
-    }
-
-    private void addStepsFromJson(Map<String, Object> parentJson) {
-        if (parentJson == null) {
-            return;
-        }
-        List<Map<String, Object>> list = (List) parentJson.get("steps");
-        if (list == null) {
-            return;
-        }
-        for (Map<String, Object> stepMap : list) {
-            addStepResult(new StepResult(stepMap));
-        }
-    }
-
-    // for converting cucumber-json to result server-executor mode
-    public ScenarioResult(Scenario scenario, List<Map<String, Object>> jsonList, boolean dummy) {
-        this.scenario = scenario;
-        if (jsonList != null && !jsonList.isEmpty()) {
-            if (jsonList.size() > 1) {
-                backgroundJson = jsonList.get(0);
-                json = jsonList.get(1);
-            } else {
-                json = jsonList.get(0);
-            }
-            addStepsFromJson(backgroundJson);
-            addStepsFromJson(json);
-        }
     }
 
     public Scenario getScenario() {
@@ -265,20 +286,24 @@ public class ScenarioResult {
         return failedStep == null ? null : failedStep.getResult().getError();
     }
 
+    public String getErrorMessage() {
+        return failedStep == null ? null : failedStep.getResult().getErrorMessage();
+    }
+
     public long getDurationNanos() {
         return durationNanos;
     }
-    
-    public double getDurationMillis() {
-        return Engine.nanosToMillis(durationNanos);
-    }    
 
-    public String getThreadName() {
-        return threadName;
+    public double getDurationMillis() {
+        return ReportUtils.nanosToMillis(durationNanos);
     }
 
-    public void setThreadName(String threadName) {
-        this.threadName = threadName;
+    public String getExecutorName() {
+        return executorName;
+    }
+
+    public void setExecutorName(String executorName) {
+        this.executorName = executorName;
     }
 
     public long getStartTime() {
@@ -295,6 +320,11 @@ public class ScenarioResult {
 
     public void setEndTime(long endTime) {
         this.endTime = endTime;
+    }
+
+    @Override
+    public String toString() {
+        return failedStep == null ? scenario.toString() : failedStep + "";
     }
 
 }

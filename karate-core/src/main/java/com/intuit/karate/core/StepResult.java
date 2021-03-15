@@ -23,6 +23,9 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.Json;
+import com.intuit.karate.StringUtils;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -39,15 +42,13 @@ public class StepResult {
 
     private final Step step;
     private final Result result;
-    private final List<FeatureResult> callResults;
-    
-    private boolean hidden;
-    private boolean showLog = true;
-    private List<Embed> embeds;
-    private String stepLog;
 
-    // short cut to re-use when converting from json
-    private Map<String, Object> json;
+    private boolean hidden;
+    private List<Embed> embeds;
+    private List<FeatureResult> callResults;
+    private String stepLog;
+    private boolean errorIgnored = false;
+    private Throwable failedReason;
 
     public String getErrorMessage() {
         if (result == null) {
@@ -67,21 +68,85 @@ public class StepResult {
         stepLog = stepLog + log;
     }
 
-    static {
-        DUMMY_MATCH = new HashMap(2);
-        DUMMY_MATCH.put("location", "karate");
-        DUMMY_MATCH.put("arguments", Collections.EMPTY_LIST);
+    public void setStepLog(String stepLog) {
+        this.stepLog = stepLog;
     }
 
-    private static Map<String, Object> docStringToMap(int line, String text) {
-        Map<String, Object> map = new HashMap(3);
-        map.put("content_type", "");
-        map.put("line", line);
-        map.put("value", text);
+    public void setCallResults(List<FeatureResult> callResults) {
+        this.callResults = callResults;
+    }
+
+    public void addEmbeds(List<Embed> value) {
+        if (value != null) {
+            if (embeds == null) {
+                embeds = new ArrayList();
+            }
+            embeds.addAll(value);
+        }
+    }
+
+    public void setCallResultsFromKarateJson(File workingDir, List<Map<String, Object>> list) {
+        if (list != null) {
+            callResults = new ArrayList(list.size());
+            for (Map<String, Object> map : list) {
+                FeatureResult fr = FeatureResult.fromKarateJson(workingDir, map);
+                callResults.add(fr);
+            }
+        }
+    }
+
+    public static StepResult fromKarateJson(File workingDir, Scenario scenario, Map<String, Object> map) {
+        Map<String, Object> stepMap = (Map) map.get("step");
+        Step step = Step.fromKarateJson(scenario, stepMap);
+        Result result = Result.fromKarateJson((Map) map.get("result"));
+        StepResult sr = new StepResult(step, result);
+        Boolean hidden = (Boolean) map.get("hidden");
+        if (hidden != null) {
+            sr.setHidden(hidden);
+        }
+        String stepLog = (String) map.get("stepLog");
+        sr.setStepLog(stepLog);
+        List<Map<String, Object>> embedsList = (List) map.get("embeds");
+        if (embedsList != null) {
+            List<Embed> embeds = new ArrayList(embedsList.size());
+            for (Map<String, Object> embedMap : embedsList) {
+                Embed embed = Embed.fromKarateJson(embedMap);
+                embeds.add(embed);
+            }
+            sr.addEmbeds(embeds);
+        }
+        sr.setCallResultsFromKarateJson(workingDir, (List) map.get("callResults"));
+        return sr;
+    }
+
+    public Map<String, Object> toKarateJson() {
+        Map<String, Object> map = new HashMap();
+        map.put("step", step.toKarateJson());
+        map.put("result", result.toKarateJson());
+        if (hidden) {
+            map.put("hidden", hidden);
+        }
+        if (!StringUtils.isBlank(stepLog)) {
+            map.put("stepLog", stepLog);
+        }
+        if (embeds != null && !embeds.isEmpty()) {
+            List<Map<String, Object>> list = new ArrayList(embeds.size());
+            map.put("embeds", list);
+            for (Embed embed : embeds) {
+                list.add(embed.toKarateJson());
+            }
+        }
+        if (callResults != null && !callResults.isEmpty()) {
+            List<Map<String, Object>> list = new ArrayList(callResults.size());
+            map.put("callResults", list);
+            for (FeatureResult fr : callResults) {
+                list.add(Json.of(fr.toKarateJson()).asMap());
+            }
+        }
         return map;
     }
-    
-    private static List<Map> tableToMap(Table table) {
+
+    private static List<Map> tableToCucumberJson(Table table) {
         List<List<String>> rows = table.getRows();
         List<Map> list = new ArrayList(rows.size());
         int count = rows.size();
@@ -95,41 +160,25 @@ public class StepResult {
         return list;
     }
 
-    public StepResult(Map<String, Object> map) {
-        json = map;
-        step = new Step();
-        step.setLine((Integer) map.get("line"));
-        step.setPrefix((String) map.get("prefix"));
-        step.setText((String) map.get("name"));
-        result = new Result((Map) map.get("result"));
-        callResults = null;
-    }
-
-    public Map<String, Object> toMap() {
-        if (json != null) {
-            return json;
-        }
+    public Map<String, Object> toCucumberJson() {
         Map<String, Object> map = new HashMap(8);
         map.put("line", step.getLine());
         map.put("keyword", step.getPrefix());
         map.put("name", step.getText());
-        map.put("result", result.toMap());
+        map.put("result", result.toCucumberJson());
         map.put("match", DUMMY_MATCH);
         StringBuilder sb = new StringBuilder();
         if (step.getDocString() != null) {
             sb.append(step.getDocString());
         }
-        if (stepLog != null && showLog) {
-            if (sb.length() > 0) {
-                sb.append('\n');
-            }
+        if (stepLog != null) {
             sb.append(stepLog);
         }
         if (sb.length() > 0) {
-            map.put("doc_string", docStringToMap(step.getLine(), sb.toString()));
+            map.put("doc_string", docStringToCucumberJson(step.getLine(), sb.toString()));
         }
         if (step.getTable() != null) {
-            map.put("rows", tableToMap(step.getTable()));
+            map.put("rows", tableToCucumberJson(step.getTable()));
         }
         if (embeds != null) {
             List<Map> embedList = new ArrayList(embeds.size());
@@ -141,32 +190,39 @@ public class StepResult {
         return map;
     }
 
+    static {
+        DUMMY_MATCH = new HashMap(2);
+        DUMMY_MATCH.put("location", "karate");
+        DUMMY_MATCH.put("arguments", Collections.EMPTY_LIST);
+    }
+
+    private static Map<String, Object> docStringToCucumberJson(int line, String text) {
+        Map<String, Object> map = new HashMap(3);
+        map.put("content_type", "");
+        map.put("line", line);
+        map.put("value", text);
+        return map;
+    }
+
     public void setHidden(boolean hidden) {
         this.hidden = hidden;
-    }        
+    }
 
     public boolean isHidden() {
         return hidden;
     }
 
-    public boolean isShowLog() {
-        return showLog;
+    public boolean isWithCallResults() {
+        return callResults != null && !callResults.isEmpty();
     }
-
-    public void setShowLog(boolean showLog) {
-        this.showLog = showLog;
-    }        
 
     public boolean isStopped() {
         return result.isFailed() || result.isAborted();
     }
 
-    public StepResult(Step step, Result result, String stepLog, List<Embed> embeds, List<FeatureResult> callResults) {
+    public StepResult(Step step, Result result) {
         this.step = step;
         this.result = result;
-        this.stepLog = stepLog;
-        this.embeds = embeds;
-        this.callResults = callResults;
     }
 
     public Step getStep() {
@@ -192,8 +248,36 @@ public class StepResult {
         embeds.add(embed);
     }
 
+    public void addCallResults(List<FeatureResult> values) {
+        if (callResults == null) {
+            callResults = new ArrayList();
+        }
+        callResults.addAll(values);
+    }
+
     public List<FeatureResult> getCallResults() {
         return callResults;
+    }
+
+    public boolean isErrorIgnored() {
+        return errorIgnored;
+    }
+
+    public void setErrorIgnored(boolean errorIgnored) {
+        this.errorIgnored = errorIgnored;
+    }
+
+    public Throwable getFailedReason() {
+        return failedReason;
+    }
+
+    public void setFailedReason(Throwable failedReason) {
+        this.failedReason = failedReason;
+    }
+
+    @Override
+    public String toString() {
+        return "[" + result + "] " + step;
     }
 
 }

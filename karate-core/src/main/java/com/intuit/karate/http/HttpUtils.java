@@ -1,30 +1,38 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.ScriptValue;
-import com.intuit.karate.ScriptValue.Type;
 import com.intuit.karate.StringUtils;
-import org.glassfish.jersey.uri.internal.UriTemplateParser;
+import com.intuit.karate.shell.Command;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFutureListener;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpMessage;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.ssl.util.SelfSignedCertificate;
+import java.io.File;
+import java.io.FileInputStream;
+import java.net.URI;
 
-import static com.intuit.karate.http.HttpClient.*;
-import java.io.InputStream;
-import java.net.HttpCookie;
 import java.nio.charset.Charset;
 import java.security.KeyStore;
-import java.util.Arrays;
-import java.util.Collection;
+import java.security.Security;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -32,61 +40,10 @@ import java.util.stream.Stream;
  */
 public class HttpUtils {
 
-    public static final String HEADER_CONTENT_TYPE = "Content-Type";
-    public static final String HEADER_CONTENT_LENGTH = "Content-Length";
-    public static final String HEADER_ACCEPT = "Accept";
-    public static final String HEADER_ALLOW = "Allow";
-    public static final String HEADER_AC_ALLOW_ORIGIN = "Access-Control-Allow-Origin";
-    public static final String HEADER_AC_ALLOW_METHODS = "Access-Control-Allow-Methods";
-    public static final String HEADER_AC_REQUEST_HEADERS = "Access-Control-Request-Headers";
-    public static final String HEADER_AC_ALLOW_HEADERS = "Access-Control-Allow-Headers";
-
-    public static final String CHARSET = "charset";
-
-    private static final String[] PRINTABLES = {"json", "xml", "text", "urlencoded", "html"};
-
-    public static final Set<String> HTTP_METHODS
-            = Stream.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD", "CONNECT", "TRACE")
-                    .collect(Collectors.toSet());
-
-    public static final List<Integer> DEFAULT_PATH_SCORE = Collections.unmodifiableList(Arrays.asList(0, 0, 0));
-    private static final Map<String, UriTemplateParser> TEMPLATE_PARSER_CACHE = new ConcurrentHashMap<>();
+    private static final Logger logger = LoggerFactory.getLogger(HttpUtils.class);
 
     private HttpUtils() {
         // only static methods
-    }
-
-    public static KeyStore getKeyStore(ScenarioContext context, String trustStoreFile, String password, String type) {
-        if (trustStoreFile == null) {
-            return null;
-        }
-        char[] passwordChars = password == null ? null : password.toCharArray();
-        if (type == null) {
-            type = KeyStore.getDefaultType();
-        }
-        try {
-            KeyStore keyStore = KeyStore.getInstance(type);
-            InputStream is = FileUtils.readFileAsStream(trustStoreFile, context);
-            keyStore.load(is, passwordChars);
-            context.logger.debug("key store key count for {}: {}", trustStoreFile, keyStore.size());
-            return keyStore;
-        } catch (Exception e) {
-            context.logger.error("key store init failed: {}", e.getMessage());
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static boolean isPrintable(String mediaType) {
-        if (mediaType == null) {
-            return false;
-        }
-        String type = mediaType.toLowerCase();
-        for (String temp : PRINTABLES) {
-            if (type.contains(temp)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     public static Charset parseContentTypeCharset(String mimeType) {
@@ -94,7 +51,7 @@ public class HttpUtils {
         if (map == null) {
             return null;
         }
-        String cs = map.get(CHARSET);
+        String cs = map.get("charset");
         if (cs == null) {
             return null;
         }
@@ -121,75 +78,33 @@ public class HttpUtils {
         return map;
     }
 
-    public static String getContentType(ScriptValue sv) {
-        if (sv.isStream()) {
-            return APPLICATION_OCTET_STREAM;
-        } else if (sv.getType() == Type.XML) {
-            return APPLICATION_XML;
-        } else if (sv.isJsonLike()) {
-            return APPLICATION_JSON;
-        } else {
-            return TEXT_PLAIN;
-        }
-    }
-
-    public static Map<String, Cookie> parseCookieHeaderString(String header) {
-        List<HttpCookie> list = HttpCookie.parse(header);
-        Map<String, Cookie> map = new HashMap(list.size());
-        list.forEach((hc) -> {
-            String name = hc.getName();
-            Cookie c = new Cookie(name, hc.getValue());
-            c.putIfValueNotNull(Cookie.DOMAIN, hc.getDomain());
-            c.putIfValueNotNull(Cookie.PATH, hc.getPath());
-            c.putIfValueNotNull(Cookie.VERSION, hc.getVersion() + "");
-            c.putIfValueNotNull(Cookie.MAX_AGE, hc.getMaxAge() + "");
-            c.putIfValueNotNull(Cookie.SECURE, hc.getSecure() + "");
-            map.put(name, c);
-        });
-        return map;
-    }
-
-    public static String createCookieHeaderValue(Collection<Cookie> cookies) {
-        return cookies.stream()
-                .map((c) -> c.getName() + "=" + c.getValue())
-                .collect(Collectors.joining("; "));
-    }
-
     public static Map<String, String> parseUriPattern(String pattern, String url) {
-        pattern = normaliseUriPath(pattern);
-        url = normaliseUriPath(url);
-        if (!pattern.contains("{") || !pattern.contains("}")) {
-            return url.equals(pattern) ? Collections.emptyMap() : null;
+        int qpos = url.indexOf('?');
+        if (qpos != -1) {
+            url = url.substring(0, qpos);
         }
-        UriTemplateParser templateParser = getUriParserForPattern(pattern);
-        Matcher urlMatcher = templateParser.getPattern().matcher(url);
-        if (urlMatcher.matches()) {
-            if (templateParser.getGroupIndexes().length == 0) {
-                return Collections.emptyMap();
+        List<String> leftList = StringUtils.split(pattern, '/', false);
+        List<String> rightList = StringUtils.split(url, '/', false);
+        int leftSize = leftList.size();
+        int rightSize = rightList.size();
+        if (rightSize != leftSize) {
+            return null;
+        }
+        Map<String, String> map = new LinkedHashMap(leftSize);
+        for (int i = 0; i < leftSize; i++) {
+            String left = leftList.get(i);
+            String right = rightList.get(i);
+            if (left.equals(right)) {
+                continue;
             }
-            Map<String, String> pathParams = new LinkedHashMap<>();
-            int index = 0;
-            for (String name : templateParser.getNames()) {
-                String value = urlMatcher.group(templateParser.getGroupIndexes()[index]);
-                if (name == null || pathParams.containsKey(name)) {
-                    pathParams.put(name + "@" + (index + 1), value);
-                } else {
-                    pathParams.put(name, value);
-                }
-                index++;
+            if (left.startsWith("{") && left.endsWith("}")) {
+                left = left.substring(1, left.length() - 1);
+                map.put(left, right);
+            } else {
+                return null; // match failed
             }
-            return pathParams;
         }
-        return null;
-    }
-
-    private static UriTemplateParser getUriParserForPattern(String pattern) {
-        pattern = pattern.replaceAll("\\{}", "{ignored}"); //JAX-RS doesn't like params with no names - so we give it one
-        UriTemplateParser templateParser = TEMPLATE_PARSER_CACHE.get(pattern);
-        if (templateParser == null) {
-            TEMPLATE_PARSER_CACHE.put(pattern, (templateParser = new UriTemplateParser(pattern)));
-        }
-        return templateParser;
+        return map;
     }
 
     public static final String normaliseUriPath(String uri) {
@@ -203,75 +118,137 @@ public class HttpUtils {
         return uri;
     }
 
-    /**
-     * *
-     * Calculates path scores List(3) by using JAX-RS path matching logic:
-     * <ol>
-     * <li>number of literal characters</li>
-     * <li>>path params without regex expression</li>
-     * <li>path params with regex expression</li>
-     * </ol>
-     *
-     */
-    public static List<Integer> calculatePathMatchScore(String path) {
-        path = normaliseUriPath(path);
-        UriTemplateParser templateParser = getUriParserForPattern(path);
-
-        int pathScore = templateParser.getNumberOfLiteralCharacters();
-        int paramScore = templateParser.getNumberOfRegexGroups() - templateParser.getNumberOfExplicitRegexes();
-        int regexScore = templateParser.getNumberOfExplicitRegexes();
-
-        List<Integer> scores = Arrays.asList(pathScore, paramScore, regexScore);
-        return scores;
-    }
-
-    private static final AtomicInteger BOUNDARY_COUNTER = new AtomicInteger();
-
-    public static String generateMimeBoundaryMarker() {;
-        StringBuilder sb = new StringBuilder("boundary_");
-        sb.append(BOUNDARY_COUNTER.incrementAndGet()).append('_');
-        sb.append(System.currentTimeMillis());
-        return sb.toString();
-    }
-
-    public static String multiPartToString(List<MultiPartItem> items, String boundary) {
-        StringBuilder sb = new StringBuilder();
-        boolean firstItem = true;
-        for (MultiPartItem item : items) {
-            if (firstItem) {
-                firstItem = false;
-                sb.append("--");
-            } else {
-                sb.append("\r\n--");
-            }
-            sb.append(boundary);
-            sb.append("\r\n");
-            ScriptValue sv = item.getValue();
-            String contentType = getContentType(sv);
-            sb.append("Content-Type: ").append(contentType);
-            sb.append("\r\n");
-            String name = item.getName();
-            if (name != null) {
-                sb.append("Content-Disposition: form-data");
-                if (item.getFilename() != null) {
-                    sb.append("; filename=\"").append(item.getFilename()).append("\"");
-                }
-                sb.append("; name=\"").append(name).append("\"");
-                sb.append("\r\n");
-            }
-            sb.append("\r\n");
-            if (sv.getType() == Type.INPUT_STREAM) {
-                InputStream is = sv.getValue(InputStream.class);
-                String bytes = FileUtils.toString(is);
-                sb.append(bytes);
-            } else {
-                sb.append(sv.getAsString());
-            }
+    public static StringUtils.Pair parseUriIntoUrlBaseAndPath(String rawUri) {
+        int pos = rawUri.indexOf('/');
+        if (pos == -1) {
+            return StringUtils.pair(null, "");
         }
-        sb.append("\r\n--");
-        sb.append(boundary);
-        sb.append("--\r\n");
-        return sb.toString();
+        URI uri;
+        try {
+            uri = new URI(rawUri);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        if (uri.getHost() == null) {
+            return StringUtils.pair(null, rawUri);
+        }
+        String path = uri.getRawPath();
+        pos = rawUri.lastIndexOf(path); // edge case that path is just "/"
+        String urlBase = rawUri.substring(0, pos);
+        return StringUtils.pair(urlBase, rawUri.substring(pos));
+    }
+
+    //==========================================================================
+    //
+    public static void flushAndClose(Channel ch) {
+        if (ch != null && ch.isActive()) {
+            ch.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+        }
+    }
+
+    public static void createSelfSignedCertificate(File cert, File key) {
+        try {
+            SelfSignedCertificate ssc = new SelfSignedCertificate();
+            FileUtils.copy(ssc.certificate(), cert);
+            FileUtils.copy(ssc.privateKey(), key);
+        } catch (Exception e) {
+            throw new RuntimeException();
+        }
+    }
+    
+    private static final String PROXY_ALIAS = "karate-proxy";
+    private static final String KEYSTORE_PASSWORD = "karate-secret";
+    private static final String KEYSTORE_FILENAME = PROXY_ALIAS + ".jks";    
+
+    public static SSLContext getSslContext(File keyStoreFile) {
+        keyStoreFile = initKeyStore(keyStoreFile);
+        String algorithm = Security.getProperty("ssl.KeyManagerFactory.algorithm");
+        if (algorithm == null) {
+            algorithm = "SunX509";
+        }
+        try {
+            KeyStore ks = KeyStore.getInstance("JKS");
+            ks.load(new FileInputStream(keyStoreFile), KEYSTORE_PASSWORD.toCharArray());
+            TrustManager[] trustManagers = new TrustManager[]{LenientTrustManager.INSTANCE};
+            KeyManagerFactory kmf = KeyManagerFactory.getInstance(algorithm);
+            kmf.init(ks, KEYSTORE_PASSWORD.toCharArray());
+            KeyManager[] keyManagers = kmf.getKeyManagers();
+            SSLContext ctx = SSLContext.getInstance("TLS");
+            ctx.init(keyManagers, trustManagers, null);
+            return ctx;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static File initKeyStore(File keyStoreFile) {
+        if (keyStoreFile == null) {
+            keyStoreFile = new File(KEYSTORE_FILENAME);
+        }
+        if (keyStoreFile.exists()) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("keystore file already exists: {}", keyStoreFile);
+            }
+            return keyStoreFile;
+        }
+        File parentFile = keyStoreFile.getParentFile();
+        if (parentFile != null) {
+            parentFile.mkdirs();
+        }
+        Command.exec(false, parentFile, "keytool", "-genkey", "-alias", PROXY_ALIAS, "-keysize",
+                "4096", "-validity", "36500", "-keyalg", "RSA", "-dname",
+                "CN=" + PROXY_ALIAS, "-keypass", KEYSTORE_PASSWORD, "-storepass",
+                KEYSTORE_PASSWORD, "-keystore", keyStoreFile.getName());
+        Command.exec(false, parentFile, "keytool", "-exportcert", "-alias", PROXY_ALIAS, "-keystore",
+                keyStoreFile.getName(), "-storepass", KEYSTORE_PASSWORD, "-file", keyStoreFile.getName() + ".der");
+        return keyStoreFile;
+    }
+
+    public static FullHttpResponse createResponse(int status, String body) {
+        return createResponse(HttpResponseStatus.valueOf(status), body);
+    }
+
+    public static FullHttpResponse createResponse(HttpResponseStatus status, String body) {
+        byte[] bytes = FileUtils.toBytes(body);
+        ByteBuf bodyBuf = Unpooled.copiedBuffer(bytes);
+        DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, bodyBuf);
+        response.headers().set(HttpHeaderNames.CONTENT_LENGTH, bytes.length);
+        return response;
+    }
+
+    public static FullHttpResponse transform(FullHttpResponse original, String body) {
+        FullHttpResponse response = createResponse(original.status(), body);
+        response.headers().set(original.headers());
+        return response;
+    }
+
+    private static final HttpResponseStatus CONNECTION_ESTABLISHED = new HttpResponseStatus(200, "Connection established");
+
+    public static final FullHttpResponse connectionEstablished() {
+        return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, CONNECTION_ESTABLISHED);
+    }
+
+    public static void fixHeadersForProxy(HttpRequest request) {
+        String adjustedUri = ProxyContext.removeHostColonPort(request.uri());
+        request.setUri(adjustedUri);
+        request.headers().remove(HttpHeaderNames.CONNECTION);
+        // addViaHeader(request, PROXY_ALIAS);
+    }
+
+    public static void addViaHeader(HttpMessage msg, String alias) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(msg.protocolVersion().majorVersion()).append('.');
+        sb.append(msg.protocolVersion().minorVersion()).append(' ');
+        sb.append(alias);
+        List<String> list;
+        if (msg.headers().contains(HttpHeaderNames.VIA)) {
+            List<String> existing = msg.headers().getAll(HttpHeaderNames.VIA);
+            list = new ArrayList(existing);
+            list.add(sb.toString());
+        } else {
+            list = Collections.singletonList(sb.toString());
+        }
+        msg.headers().set(HttpHeaderNames.VIA, list);
     }
 
 }

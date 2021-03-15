@@ -34,9 +34,13 @@ import java.util.Map;
  */
 public interface Plugin {
 
-    void setContext(ScenarioContext context);
+    void onFailure(StepResult stepResult);
 
     Map<String, Object> afterScenario();
+
+    default ScenarioRuntime getRuntime() {
+        return ScenarioEngine.get().runtime;
+    }
 
     List<String> methodNames();
 

@@ -31,8 +31,6 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 import java.io.File;
 import java.net.InetSocketAddress;
 import org.slf4j.Logger;
@@ -51,9 +49,14 @@ public class DapServer {
     private final Channel channel;
     private final String host;
     private final int port;
+    private final boolean exitAfterDisconnect;
     
     public int getPort() {
         return port;
+    }
+
+    public boolean exitAfterDisconnect() {
+        return exitAfterDisconnect;
     }
 
     public void waitSync() {
@@ -70,10 +73,15 @@ public class DapServer {
         workerGroup.shutdownGracefully();
         logger.info("stop: shutdown complete");
     }    
-    
+
     public DapServer(int requestedPort) {
+        this(requestedPort, true);
+    }
+
+    public DapServer(int requestedPort, boolean exitAfterDisconnect) {
         bossGroup = new NioEventLoopGroup(1);
         workerGroup = new NioEventLoopGroup();
+        this.exitAfterDisconnect = exitAfterDisconnect;
         try {
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup)

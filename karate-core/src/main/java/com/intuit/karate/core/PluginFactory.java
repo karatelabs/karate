@@ -31,6 +31,6 @@ import java.util.Map;
  */
 public interface PluginFactory {
     
-    Plugin create(ScenarioContext context, Map<String, Object> options);
+    Plugin create(ScenarioRuntime runtime, Map<String, Object> options);
     
 }

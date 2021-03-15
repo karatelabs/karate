@@ -212,6 +212,18 @@ public class WinElement implements Element {
         return e;
     }
 
+    public Object property(String propertyName) {
+        Property property = Property.valueOf(propertyName);
+        Variant.VARIANT variant = e.getCurrentPropertyValue(property);
+        return variant.getValue();
+    }
+
+    public Object property(int propertyId) {
+        Property property = Property.fromId(propertyId);
+        Variant.VARIANT variant = e.getCurrentPropertyValue(property);
+        return variant.getValue();
+    }
+
     @Override
     public String getDebugString() {
         if (!e.isValid()) {

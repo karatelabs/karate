@@ -15,24 +15,32 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.8</java.version>
-        <maven.compiler.version>3.6.0</maven.compiler.version>
-        <spring.boot.version>2.2.0.RELEASE</spring.boot.version>
-        <karate.version>0.9.6</karate.version>
+        <maven.compiler.version>3.8.1</maven.compiler.version>
+        <maven.surefire.version>2.22.2</maven.surefire.version>
+        <spring.boot.version>2.3.4.RELEASE</spring.boot.version>
+        <junit5.version>5.7.0</junit5.version>
+        <karate.version>1.0.0</karate.version>
     </properties>    
 
     <dependencies>
         <dependency>
             <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-apache</artifactId>
-            <version>${karate.version}</version>
-            <!-- <scope>test</scope> not ideal but our consumer depends on some karate utils -->
-        </dependency>        
-        <dependency>
-            <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-junit4</artifactId>
+            <artifactId>karate-core</artifactId>
             <version>${karate.version}</version>
             <scope>test</scope>
-        </dependency>             
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit5.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>${junit5.version}</version>
+            <scope>test</scope>
+        </dependency>                   
     </dependencies>
 
     <build>
@@ -55,7 +63,15 @@
                     <target>${java.version}</target>
                     <compilerArgument>-Werror</compilerArgument>
                 </configuration>
-            </plugin>                  
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven.surefire.version}</version>
+                <configuration>
+                    <argLine>-Dfile.encoding=UTF-8</argLine>
+                </configuration>
+            </plugin>                              
         </plugins>        
     </build>
     

@@ -169,7 +169,7 @@ public class MissingElement implements Element {
 
     @Override
     public Element optional(String locator) {
-        return this;
+        return new MissingElement(driver, locator);
     }
 
     @Override
@@ -179,7 +179,7 @@ public class MissingElement implements Element {
 
     @Override
     public Element locate(String locator) {
-        return this;
+        return new MissingElement(driver, locator);
     }
 
     @Override

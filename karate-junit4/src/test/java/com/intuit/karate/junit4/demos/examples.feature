@@ -21,7 +21,7 @@ Then match cat..name == ['Billie', 'Bob', 'Wild']
 Then match each cat.kittens contains { id: '#number' }
 Then match each cat.kittens == { id: '#notnull', name: '#regex [A-Z][a-z]+' }
 
-* def isLessThanFifty = function(x) { return x < 50 } // >
+* def isLessThanFifty = function(x) { return x < 50 }
 Then match each cat.kittens contains { id: '#? isLessThanFifty(_)' }
 
 * def expected = [{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob' }]
@@ -159,7 +159,7 @@ karate.set('temp', squares);
 # use dynamic path expressions to mutate json
 * json[key] = 2
 * match json == { a: 1, b: 2 }
-* karate.remove('json', '$.' + key)
+* karate.remove('json', key)
 * match json == { a: 1 }
 * karate.set('json', '$.c[]', { d: 'e' })
 * match json == { a: 1, c: [{ d: 'e' }] }

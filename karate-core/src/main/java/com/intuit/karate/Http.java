@@ -23,10 +23,10 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.ScenarioContext;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import com.intuit.karate.core.ScenarioEngine;
+import com.intuit.karate.core.Variable;
+import com.intuit.karate.http.HttpRequestBuilder;
+import com.intuit.karate.http.Response;
 import java.util.Map;
 
 /**
@@ -35,123 +35,82 @@ import java.util.Map;
  */
 public class Http {
 
-    private final Match match;
     public final String urlBase;
+    private final ScenarioEngine engine;
+    private final HttpRequestBuilder builder;
 
-    public class Response {
-
-        public int status() {
-            return match.get("responseStatus").asInt();
-        }
-
-        public Match body() {
-            return match.get("response");
-        }
-        
-        public Match bodyBytes() {
-            return match.eval("responseBytes");
-        }        
-        
-        public Match jsonPath(String exp) {
-            return body().jsonPath(exp);
-        }
-        
-        public String header(String name) {
-            Map<String, Object> map = match.get("responseHeaders").asMap();
-            List<String> headers = (List) map.get(name);
-            if (headers != null && !headers.isEmpty()) {
-                return headers.get(0);
-            }
-            return null;
-        }
-
+    public static Http to(String url) {
+        return new Http(url);
     }
 
-    private Http(Match match, String urlBase) {
-        this.match = match;
+    public void setAppender(LogAppender appender) {
+        engine.logger.setAppender(appender);
+    }
+
+    private Http(String urlBase) {
         this.urlBase = urlBase;
+        engine = ScenarioEngine.forTempUse();
+        builder = engine.getRequestBuilder();
+        builder.url(urlBase);
     }
 
     public Http url(String url) {
-        if (url.startsWith("/") && urlBase != null) {
-            url = urlBase + url;
-        }
-        match.context.url(Match.quote(url));
+        builder.url(url);
         return this;
     }
 
     public Http path(String... paths) {
-        List<String> list = new ArrayList(paths.length);
-        for (String p : paths) {
-            list.add(Match.quote(p));
-        }
-        match.context.path(list);
-        return this;
-    }
-    
-    public Http header(String name, String value) {
-        match.context.header(name, Collections.singletonList(Match.quote(value)));
+        builder.paths(paths);
         return this;
     }
 
-    private Response handleError() {
-        Response res = new Response();
-        int code = res.status();
-        if (code >= 400) {
-            match.context.logger.warn("http response code: {}, response: {}, request: {}",
-                    code, res.body().asString(), match.context.getPrevRequest());
+    public Http header(String name, String value) {
+        builder.header(name, value);
+        return this;
+    }
+
+    public Response method(String method, Object body) {
+        if (body != null) {
+            builder.body(body);
         }
-        return res;
+        builder.method(method);
+        Response response = engine.httpInvoke();
+        if (response.getStatus() >= 400) {
+            engine.logger.warn("http response code: {}, response: {}, request: {}",
+                    response.getStatus(), response.getBodyAsString(), engine.getRequest());
+        }
+        return response;
+    }
+
+    public Response method(String method) {
+        return method(method, null);
     }
 
     public Response get() {
-        match.context.method("get");
-        return handleError();
+        return method("get");
     }
 
-    public Response post(String body) {
-        return post(new Json(body));
-    }
-    
-    public Response post(byte[] bytes) {
-        return post(new ScriptValue(bytes));
+    public Response postJson(String body) {
+        Json json = Json.of(body);
+        return post(json.value());
     }
 
-    public Response post(Map<String, Object> body) {
-        return post(new Json(body));
-    }
-
-    public Response post(ScriptValue body) {
-        match.context.request(body);
-        match.context.method("post");
-        return handleError();
-    }
-
-    public Response post(Json json) { // avoid extra eval
-        return post(json.getValue());
+    public Response post(Object body) {
+        return method("post", body instanceof Json ? ((Json) body).value() : body);
     }
 
     public Response delete() {
-        match.context.method("delete");
-        return handleError();
+        return method("delete");
     }
 
-    public static Http forUrl(LogAppender appender, String url) {
-        Http http = new Http(Match.forHttp(appender), url);
-        return http.url(url);
+    public Http configure(String key, Object value) {
+        engine.configure(key, new Variable(value));
+        return this;
     }
-    
-    public static Http forUrl(ScenarioContext context, String url) {
-        Http http = new Http(Match.forHttp(context), url);
-        return http.url(url);
-    }    
 
-    public Match config(String key, String value) {
-        return match.config(key, value);
-    }
-    
-    public Match config(Map<String, Object> config) {
-        return match.config(config);
+    public Http configure(Map<String, Object> map) {
+        map.forEach((k, v) -> configure(k, v));
+        return this;
     }
 
 }

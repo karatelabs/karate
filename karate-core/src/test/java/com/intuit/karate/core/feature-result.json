@@ -1,0 +1,270 @@
+{
+    "scenarioResults": [
+        {
+            "stepResults": [
+                {
+                    "result": {
+                        "nanos": "#number",
+                        "millis": "#number",
+                        "status": "passed"
+                    },
+                    "step": {
+                        "background": true,
+                        "line": 6,
+                        "prefix": "*",
+                        "index": 0,
+                        "text": "print 'in background'"
+                    },
+                    "stepLog": "#string"
+                },
+                {
+                    "result": {
+                        "nanos": "#number",
+                        "millis": "#number",
+                        "status": "passed"
+                    },
+                    "step": {
+                        "line": 10,
+                        "prefix": "*",
+                        "index": 0,
+                        "text": "print 'before'"
+                    },
+                    "stepLog": "#string"
+                },
+                {
+                    "result": {
+                        "nanos": "#number",
+                        "millis": "#number",
+                        "status": "passed"
+                    },
+                    "step": {
+                        "line": 11,
+                        "prefix": "*",
+                        "index": 1,
+                        "text": "call read('feature-result-called.feature')"
+                    },
+                    "callResults": [
+                        {
+                            "scenarioResults": [
+                                {
+                                    "stepResults": [
+                                        {
+                                            "result": {
+                                                "nanos": "#number",
+                                                "millis": "#number",
+                                                "status": "passed"
+                                            },
+                                            "step": {
+                                                "line": 4,
+                                                "prefix": "*",
+                                                "index": 0,
+                                                "text": "print 'in called'"
+                                            },
+                                            "stepLog": "#string"
+                                        },
+                                        {
+                                            "result": {
+                                                "nanos": "#number",
+                                                "millis": "#number",
+                                                "status": "passed"
+                                            },
+                                            "step": {
+                                                "line": 5,
+                                                "prefix": "*",
+                                                "index": 1,
+                                                "text": "karate.embed('<h1>hello world<\/h1>', 'text\/html')"
+                                            },
+                                            "embeds": [
+                                                {
+                                                    "file": "#string",
+                                                    "resourceType": "HTML",
+                                                    "html": "<h1>hello world<\/h1>"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "result": {
+                                                "nanos": "#number",
+                                                "millis": "#number",
+                                                "status": "passed"
+                                            },
+                                            "step": {
+                                                "line": 6,
+                                                "prefix": "*",
+                                                "index": 2,
+                                                "text": "print 'after embed'"
+                                            },
+                                            "stepLog": "#string"
+                                        }
+                                    ],
+                                    "executorName": "main",
+                                    "name": "",
+                                    "description": "",
+                                    "line": 3,
+                                    "sectionIndex": 0,
+                                    "startTime": "#number",
+                                    "endTime": "#number",
+                                    "exampleIndex": -1,
+                                    "refId": "[1:3]",
+                                    "durationMillis": "#number",
+                                    "failed": false
+                                }
+                            ],
+                            "prefixedPath": "classpath:com\/intuit\/karate\/core\/feature-result-called.feature",
+                            "relativePath": "com\/intuit\/karate\/core\/feature-result-called.feature",
+                            "packageQualifiedName": "com.intuit.karate.core.feature-result-called",
+                            "name": "",
+                            "description": "",
+                            "durationMillis": "#number",
+                            "resultDate": "#string",
+                            "passedCount": 1,
+                            "failedCount": 0,
+                            "callDepth": 1,
+                            "loopIndex": -1
+                        }
+                    ]
+                },
+                {
+                    "result": {
+                        "nanos": "#number",
+                        "millis": "#number",
+                        "status": "passed"
+                    },
+                    "step": {
+                        "line": 12,
+                        "prefix": "*",
+                        "index": 2,
+                        "text": "print 'after'"
+                    },
+                    "stepLog": "#string"
+                }
+            ],
+            "executorName": "main",
+            "name": "hello world",
+            "description": "",
+            "line": 9,
+            "sectionIndex": 0,
+            "startTime": "#number",
+            "endTime": "#number",
+            "exampleIndex": -1,
+            "refId": "[1:9]",
+            "durationMillis": "#number",
+            "failed": false,
+            "tags": [
+                "one",
+                "two"
+            ]            
+        },
+        {
+            "stepResults": [
+                {
+                    "result": {
+                        "nanos": "#number",
+                        "millis": "#number",
+                        "status": "passed"
+                    },
+                    "step": {
+                        "background": true,
+                        "line": 6,
+                        "prefix": "*",
+                        "index": 0,
+                        "text": "print 'in background'"
+                    },
+                    "stepLog": "#string"
+                },
+                {
+                    "result": {
+                        "nanos": "#number",
+                        "millis": "#number",
+                        "status": "passed"
+                    },
+                    "step": {
+                        "line": 15,
+                        "prefix": "*",
+                        "index": 0,
+                        "text": "print 'name:', name"
+                    },
+                    "stepLog": "#string"
+                }
+            ],
+            "executorName": "main",
+            "name": "hello foo",
+            "description": "",
+            "line": 19,
+            "sectionIndex": 1,
+            "startTime": "#number",
+            "endTime": "#number",
+            "exampleIndex": 0,
+            "refId": "[2.1:19]",
+            "durationMillis": "#number",
+            "failed": false,
+            "tags": [
+                "one"
+            ],
+            "exampleData": {
+                "name": "foo"
+            }
+        },
+        {
+            "stepResults": [
+                {
+                    "result": {
+                        "nanos": "#number",
+                        "millis": "#number",
+                        "status": "passed"
+                    },
+                    "step": {
+                        "background": true,
+                        "line": 6,
+                        "prefix": "*",
+                        "index": 0,
+                        "text": "print 'in background'"
+                    },
+                    "stepLog": "#string"
+                },
+                {
+                    "result": {
+                        "nanos": "#number",
+                        "millis": "#number",
+                        "status": "passed"
+                    },
+                    "step": {
+                        "line": 15,
+                        "prefix": "*",
+                        "index": 0,
+                        "text": "print 'name:', name"
+                    },
+                    "stepLog": "#string"
+                }
+            ],
+            "executorName": "#string",
+            "name": "hello bar",
+            "description": "",
+            "line": 20,
+            "sectionIndex": 1,
+            "startTime": "#number",
+            "endTime": "#number",
+            "exampleIndex": 1,
+            "refId": "[2.2:20]",
+            "durationMillis": "#number",
+            "failed": false,
+            "tags": [
+                "one"
+            ],
+            "exampleData": {
+                "name": "bar"
+            }            
+        }
+    ],
+    "prefixedPath": "classpath:com\/intuit\/karate\/core\/feature-result.feature",
+    "relativePath": "com\/intuit\/karate\/core\/feature-result.feature",
+    "packageQualifiedName": "com.intuit.karate.core.feature-result",
+    "name": "my feature",
+    "description": "my description",
+    "durationMillis": "#number",
+    "resultDate": "#string",
+    "passedCount": 3,
+    "failedCount": 0,
+    "callDepth": 0,
+    "loopIndex": -1
+}

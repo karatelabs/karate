@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+    <link rel="stylesheet" href="res/bootstrap.min.css" type="text/css"/>
+    <link rel="stylesheet" href="res/karate-report.css" type="text/css"/>
+    <link rel="shortcut icon" href="favicon.ico"/>
+    <script type="text/javascript" src="res/jquery.min.js"></script>
+    <script type="text/javascript" src="res/jquery.tablesorter.min.js"></script>
+    <script type="text/javascript" src="res/bootstrap.min.js"></script>
+    <script type="text/javascript" src="res/karate-report.js"></script>
+    <title th:text="results.packageQualifiedName"></title>  
+  </head>
+  <body>   
+    <div id="root-container">
+      <div id="leftnav">
+        <script ka:scope="global">
+          var reportMeta = {
+            passedCount: results.passedCount,
+            failedCount: results.failedCount,
+            reportType: 'Scenarios',
+            reportDate: results.resultDate
+          };
+          var repeat = n => Array.from({length: n}, (v, k) => k);
+        </script>        
+        <div th:replace="karate-leftnav.html"></div>
+        <div class="nav-container">
+          <div class="nav-item" th:each="scenario: results.scenarioResults" th:classappend="scenario.failed ? 'failed' : 'passed'">
+            <a th:href="'#' + scenario.refId"><span th:text="scenario.refId"></span> <span th:text="scenario.name"></span></a>
+          </div>
+        </div>
+      </div>
+      <div id="content">
+        <div class="page-heading alert alert-primary">
+          <a href="karate-summary.html">Summary</a><span class="feature-label">|</span>
+          <a href="karate-tags.html">Tags</a><span class="feature-label">|</span>
+          <span class="feature-label">Feature:</span>
+          <span class="feature-path" th:text="results.relativePath"></span><span class="feature-label">|</span>
+          <span class="feature-name" th:text="results.name"></span>
+          <span class="feature-description" th:text="results.description"></span>
+        </div>
+        <div th:each="scenario: results.scenarioResults" class="scenario">
+          <div class="scenario-heading" th:id="scenario.refId">
+            <div class="heading-container">
+              <div class="scenario-tags">
+                <a class="badge badge-primary" href="karate-tags.html" th:each="tag: scenario.tags" th:text="tag"></a>
+              </div>
+              <div class="scenario-keyword">
+                Scenario: <span th:text="scenario.refId"></span>
+                <span class="scenario-name" th:text="scenario.name"></span>
+                <span th:text="scenario.description"></span>
+              </div>
+            </div>
+            <div class="scenario-time" th:classappend="scenario.failed ? 'failed' : 'passed'">
+              <span>ms:</span>&nbsp;<span th:text="Math.round(scenario.durationMillis)"></span>
+            </div>
+          </div>
+          <div th:if="scenario.stepResults[0].step.background" class="step-row">
+            <div class="step-container" th:id="scenario.refId + 'bg'">
+              <div class="step-ref bg-step">&gt;&gt;</div>
+              <div class="step-cell passed">Background:</div>
+            </div>
+            <div class="time-cell passed"></div>
+          </div>
+          <div th:each="sr: scenario.stepResults"               
+               th:attrappend="data-parent=${sr.step.background ? scenario.refId + 'bg' : null}"
+               th:with="callDepth=${0},parentId=${null},isBackground=${sr.step.background}"
+               th:include="karate-step.html">
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+

@@ -23,16 +23,17 @@
  */
 package com.intuit.karate.robot;
 
-import com.intuit.karate.Config;
-import com.intuit.karate.FileUtils;
+import com.intuit.karate.core.Config;
 import com.intuit.karate.Logger;
-import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Plugin;
-import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.core.ScriptBridge;
 import com.intuit.karate.driver.Keys;
-import com.intuit.karate.exception.KarateException;
+import com.intuit.karate.KarateException;
+import com.intuit.karate.core.ScenarioEngine;
+import com.intuit.karate.core.ScenarioRuntime;
+import com.intuit.karate.core.StepResult;
+import com.intuit.karate.core.Variable;
+import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.Command;
 import java.awt.Dimension;
 import java.awt.MouseInfo;
@@ -63,17 +64,16 @@ public abstract class RobotBase implements Robot, Plugin {
     public final Map<String, Object> options;
 
     public final boolean autoClose;
+    public final boolean screenshotOnFailure;
     public final int autoDelay;
     public final Region screen;
     public final String tessData;
     public final String tessLang;
 
-    protected ScriptBridge bridge;
-
     // mutables
     private String basePath;
     protected Command command;
-    protected ScenarioContext context;
+    protected ScenarioEngine engine;
     protected Logger logger;
     protected Element currentWindow;
 
@@ -112,11 +112,11 @@ public abstract class RobotBase implements Robot, Plugin {
     }
 
     private int getRetryCount() {
-        return retryCountOverride == null ? context.getConfig().getRetryCount() : retryCountOverride;
+        return retryCountOverride == null ? engine.getConfig().getRetryCount() : retryCountOverride;
     }
 
     private int getRetryInterval() {
-        return retryIntervalOverride == null ? context.getConfig().getRetryInterval() : retryIntervalOverride;
+        return retryIntervalOverride == null ? engine.getConfig().getRetryInterval() : retryIntervalOverride;
     }
 
     private <T> T get(String key, T defaultValue) {
@@ -124,14 +124,13 @@ public abstract class RobotBase implements Robot, Plugin {
         return temp == null ? defaultValue : temp;
     }
 
-    public RobotBase(ScenarioContext context) {
-        this(context, Collections.EMPTY_MAP);
+    public RobotBase(ScenarioRuntime runtime) {
+        this(runtime, Collections.EMPTY_MAP);
     }
 
-    public RobotBase(ScenarioContext context, Map<String, Object> options) {
-        this.context = context;
-        this.logger = context.logger;
-        bridge = context.bindings.bridge;
+    public RobotBase(ScenarioRuntime runtime, Map<String, Object> options) {
+        this.engine = runtime.engine;
+        this.logger = runtime.logger;
         try {
             this.options = options;
             basePath = get("basePath", null);
@@ -148,6 +147,7 @@ public abstract class RobotBase implements Robot, Plugin {
             robot.setAutoDelay(autoDelay);
             robot.setAutoWaitForIdle(true);
             //==================================================================
+            screenshotOnFailure = get("screenshotOnFailure", true);
             autoClose = get("autoClose", true);
             boolean attach = get("attach", true);
             String window = get("window", null);
@@ -157,13 +157,13 @@ public abstract class RobotBase implements Robot, Plugin {
             if (currentWindow != null && attach) {
                 logger.debug("window found, will re-use: {}", window);
             } else {
-                ScriptValue sv = new ScriptValue(options.get("fork"));
-                if (sv.isString()) {
-                    command = bridge.fork(sv.getAsString());
-                } else if (sv.isListLike()) {
-                    command = bridge.fork(sv.getAsList());
-                } else if (sv.isMapLike()) {
-                    command = bridge.fork(sv.getAsMap());
+                Variable v = new Variable(options.get("fork"));
+                if (v.isString()) {
+                    command = engine.fork(true, v.getAsString());
+                } else if (v.isList()) {
+                    command = engine.fork(true, v.<List>getValue());
+                } else if (v.isMap()) {
+                    command = engine.fork(true, v.<Map>getValue());
                 }
                 if (command != null) {
                     delay(500); // give process time to start
@@ -222,13 +222,15 @@ public abstract class RobotBase implements Robot, Plugin {
             String slash = basePath.endsWith(":") ? "" : "/";
             path = basePath + slash + path;
         }
-        ScriptValue sv = FileUtils.readFile(path, context);
-        return sv.getAsByteArray();
+        return engine.fileReader.readFileAsBytes(path);
     }
 
     @Override
-    public void setContext(ScenarioContext context) {
-        this.context = context;
+    public void onFailure(StepResult stepResult) {
+        if (screenshotOnFailure && !stepResult.isWithCallResults()) {
+            byte[] bytes = screenshot();
+            
+        }
     }
 
     @Override
@@ -268,11 +270,11 @@ public abstract class RobotBase implements Robot, Plugin {
     public Robot click() {
         return click(1);
     }
-    
+
     @Override
     public Robot rightClick() {
         return click(3);
-    }    
+    }
 
     @Override
     public Robot click(int num) {
@@ -411,7 +413,7 @@ public abstract class RobotBase implements Robot, Plugin {
     public byte[] screenshot(Region region) {
         BufferedImage image = region.capture();
         byte[] bytes = OpenCvUtils.toBytes(image);
-        context.embed(bytes, "image/png");
+        getRuntime().embed(bytes, ResourceType.PNG);
         return bytes;
     }
 

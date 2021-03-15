@@ -5,6 +5,7 @@ target/
 .settings
 .classpath
 .vscode
+.java-version
 *.iml
 build/
 bin/
@@ -18,9 +19,9 @@ karate-demo/activemq-data/
 karate-demo/*.pem
 karate-demo/*.jks
 karate-demo/*.der
-karate-netty/*.pem
-karate-netty/*.jks
-karate-netty/*.der
+karate-core/*.pem
+karate-core/*.jks
+karate-core/*.der
 karate-robot/tessdata
 karate-junit4/src/test/java/com/intuit/karate/junit4/dev
 karate-robot/src/test/java/robot/dev

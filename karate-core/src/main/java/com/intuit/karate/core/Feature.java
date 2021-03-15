@@ -23,15 +23,15 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.Logger;
-import com.intuit.karate.Resource;
-import com.intuit.karate.Script;
-import com.intuit.karate.ScriptValue;
+import com.intuit.karate.Constants;
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
-import java.nio.file.Path;
+import com.intuit.karate.resource.FileResource;
+import com.intuit.karate.resource.Resource;
+import com.intuit.karate.resource.ResourceUtils;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  *
@@ -50,14 +50,38 @@ public class Feature {
     private Background background;
     private List<FeatureSection> sections = new ArrayList();
 
-    private List<String> lines;
-
     private String callTag;
     private String callName;
     private int callLine = -1;
 
-    public Feature(Resource resource) {
+    public static Feature read(String path) {
+        return read(ResourceUtils.getResource(FileUtils.WORKING_DIR, path));
+    }
+
+    public static Feature read(File file) {
+        return read(new FileResource(file));
+    }
+
+    public static Feature read(Resource resource) {
+        Feature feature = new Feature(resource);
+        FeatureParser.parse(feature);
+        return feature;
+    }
+
+    private Feature(Resource resource) {
         this.resource = resource;
+    }
+
+    public Resource getResource() {
+        return resource;
+    }
+
+    public String getPackageQualifiedName() {
+        return resource.getPackageQualifiedName();
+    }
+
+    public String getKarateJsonFileName() {
+        return getPackageQualifiedName() + Constants.KARATE_JSON_SUFFIX;
     }
 
     public boolean isBackgroundPresent() {
@@ -99,66 +123,6 @@ public class Feature {
         return null;
     }
 
-    public List<ScenarioExecutionUnit> getScenarioExecutionUnits(ExecutionContext exec) {
-        List<ScenarioExecutionUnit> units = new ArrayList();
-        for (FeatureSection section : sections) {
-            if (section.isOutline()) {
-                for (Scenario scenario : section.getScenarioOutline().getScenarios()) {
-                    if (scenario.isDynamic()) {
-                        if (!FeatureExecutionUnit.isSelected(exec.featureContext, scenario, new Logger())) { // throwaway logger
-                            continue;
-                        }
-                        ScenarioExecutionUnit bgUnit = new ScenarioExecutionUnit(scenario, null, exec);
-                        bgUnit.run();
-                        ScenarioContext bgContext = bgUnit.getContext();
-                        if (bgContext == null || bgUnit.isStopped()) { // karate-config.js || background failed
-                            units.add(bgUnit); // exit early
-                            continue;
-                        }
-                        String expression = scenario.getDynamicExpression();
-                        ScriptValue listValue;
-                        try {
-                            listValue = Script.evalKarateExpression(expression, bgContext);
-                        } catch (Exception e) {
-                            String message = "dynamic expression evaluation failed: " + expression;
-                            bgUnit.result.addError(message, e);
-                            units.add(bgUnit); // exit early
-                            continue;
-                        }
-                        if (listValue.isListLike()) {
-                            List list = listValue.getAsList();
-                            int count = list.size();
-                            for (int i = 0; i < count; i++) {
-                                ScriptValue rowValue = new ScriptValue(list.get(i));
-                                if (rowValue.isMapLike()) {
-                                    Scenario dynamic = scenario.copy(i); // this will set exampleIndex
-                                    dynamic.setBackgroundDone(true);
-                                    Map<String, Object> map = rowValue.getAsMap();
-                                    dynamic.setExampleData(map); // and here we set exampleData
-                                    map.forEach((k, v) -> {
-                                        ScriptValue sv = new ScriptValue(v);
-                                        dynamic.replace("<" + k + ">", sv.getAsString());
-                                    });
-                                    ScenarioExecutionUnit unit = new ScenarioExecutionUnit(dynamic, bgUnit.result.getStepResults(), exec, bgContext);
-                                    units.add(unit);
-                                } else {
-                                    bgContext.logger.warn("ignoring dynamic expression list item {}, not map-like: {}", i, rowValue);
-                                }
-                            }
-                        } else {
-                            bgContext.logger.warn("ignoring dynamic expression, did not evaluate to list: {} - {}", expression, listValue);
-                        }
-                    } else {
-                        units.add(new ScenarioExecutionUnit(scenario, null, exec));
-                    }
-                }
-            } else {
-                units.add(new ScenarioExecutionUnit(section.getScenario(), null, exec));
-            }
-        }
-        return units;
-    }
-
     public void addSection(FeatureSection section) {
         section.setIndex(sections.size());
         sections.add(section);
@@ -168,74 +132,22 @@ public class Feature {
         return sections.get(sectionIndex);
     }
 
-    public Scenario getScenario(int sectionIndex, int scenarioIndex) {
+    public Scenario getScenario(int sectionIndex, int exampleIndex) {
         FeatureSection section = getSection(sectionIndex);
-        if (scenarioIndex == -1) {
+        if (exampleIndex == -1) {
             return section.getScenario();
         }
         ScenarioOutline outline = section.getScenarioOutline();
-        return outline.getScenarios().get(scenarioIndex);
+        return outline.getScenarios().get(exampleIndex);
     }
 
-    public Step getStep(int sectionIndex, int scenarioIndex, int stepIndex) {
-        Scenario scenario = getScenario(sectionIndex, scenarioIndex);
+    public Step getStep(int sectionIndex, int exampleIndex, int stepIndex) {
+        Scenario scenario = getScenario(sectionIndex, exampleIndex);
         List<Step> steps = scenario.getSteps();
         if (stepIndex == -1 || steps.isEmpty() || steps.size() <= stepIndex) {
             return null;
         }
         return steps.get(stepIndex);
-    }
-
-    public Feature replaceStep(Step step, String text) {
-        return replaceLines(step.getLine(), step.getEndLine(), text);
-    }
-
-    public Feature replaceLines(int start, int end, String text) {
-        for (int i = start - 1; i < end - 1; i++) {
-            lines.remove(start);
-        }
-        lines.set(start - 1, text);
-        return replaceText(getText());
-    }
-
-    public Feature addLine(int index, String line) {
-        lines.add(index, line);
-        return replaceText(getText());
-    }
-
-    public String getText() {
-        initLines();
-        return joinLines();
-    }
-
-    public void initLines() {
-        if (lines == null) {
-            if (resource != null) {
-                lines = StringUtils.toStringLines(resource.getAsString());
-            }
-        }
-    }
-
-    public String joinLines(int startLine, int endLine) {
-        initLines();
-        StringBuilder sb = new StringBuilder();
-        if (endLine > lines.size()) {
-            endLine = lines.size();
-        }
-        for (int i = startLine; i < endLine; i++) {
-            String temp = lines.get(i);
-            sb.append(temp).append("\n");
-        }
-        return sb.toString();
-    }
-
-    public String joinLines() {
-        int lineCount = lines.size();
-        return joinLines(0, lineCount);
-    }
-
-    public Feature replaceText(String text) {
-        return FeatureParser.parseText(this, text);
     }
 
     public String getCallTag() {
@@ -260,26 +172,6 @@ public class Feature {
 
     public void setCallLine(int callLine) {
         this.callLine = callLine;
-    }
-
-    public List<String> getLines() {
-        return lines;
-    }
-
-    public void setLines(List<String> lines) {
-        this.lines = lines;
-    }
-
-    public Resource getResource() {
-        return resource;
-    }
-
-    public Path getPath() {
-        return resource == null ? null : resource.getPath();
-    }
-
-    public String getRelativePath() {
-        return resource == null ? null : resource.getRelativePath();
     }
 
     public int getLine() {

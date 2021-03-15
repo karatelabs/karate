@@ -38,19 +38,19 @@ public class StringLogAppender implements LogAppender {
     public StringLogAppender(boolean useLineFeed) {
         this.useLineFeed = useLineFeed;
     }
-
+    
     @Override
     public String getBuffer() {
         return sb.toString();
-    }        
-
+    }    
+    
     @Override
     public String collect() {
         String temp = sb.toString();
         sb.setLength(0);
         return temp;
     }
-
+    
     @Override
     public void append(String text) {
         sb.append(text);
@@ -58,10 +58,10 @@ public class StringLogAppender implements LogAppender {
             sb.append('\n');
         }
     }
-
+    
     @Override
     public void close() {
-        
-    }        
+        // don't dispose of buffer it can be collected later
+    }    
     
 }

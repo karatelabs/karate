@@ -24,7 +24,7 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.Json;
-import com.intuit.karate.ScriptValue;
+import com.intuit.karate.core.Variable;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -46,9 +46,9 @@ public class DevToolsMessage {
     private Integer id;
     private String sessionId;
     private final String method;
-    private Map<String, Object> params;
+    private Json params;
     private Map<String, Object> error;
-    private ScriptValue result;
+    private Variable result;
     private Integer timeout;
 
     public Integer getId() {
@@ -83,30 +83,21 @@ public class DevToolsMessage {
         return method.equals(this.method);
     }
 
-    public <T> T get(String path, Class<T> clazz) {
+    public <T> T getParam(String path) {
         if (params == null) {
             return null;
         }
-        Json json = new Json(params);
         try {
-            return json.get(path, clazz);
+            return params.get(path);
         } catch (Exception e) {
             if (logger.isTraceEnabled()) {
-                logger.trace("json-path evaluation failed: {}", e.getMessage());
+                logger.trace("get param - json path failed: {} - {}", path, params);
             }
             return null;
         }
     }
 
-    public Map<String, Object> getParams() {
-        return params;
-    }
-
-    public void setParams(Map<String, Object> params) {
-        this.params = params;
-    }  
-
-    public ScriptValue getResult() {
+    public Variable getResult() {
         return result;
     }
 
@@ -114,11 +105,11 @@ public class DevToolsMessage {
         if (result == null) {
             return null;
         }
-        Json json = new Json(result.getValue());
+        Json json = Json.of(result.getValue());
         return json.get(path, clazz);
     }
 
-    public void setResult(ScriptValue result) {
+    public void setResult(Variable result) {
         this.result = result;
     }
 
@@ -136,25 +127,18 @@ public class DevToolsMessage {
         if (error != null) {
             return true;
         }
-        if (result == null || !result.isMapLike()) {
+        if (result == null || !result.isMap()) {
             return false;
         }
-        String resultError = (String) result.getAsMap().get("subtype");
+        String resultError = (String) result.<Map>getValue().get("subtype");
         return "error".equals(resultError);
     }
 
-    public ScriptValue getResult(String key) {
-        if (result == null || !result.isMapLike()) {
+    public Variable getResult(String key) {
+        if (result == null || !result.isMap()) {
             return null;
         }
-        return new ScriptValue(result.getAsMap().get(key));
-    }
-
-    public ScriptValue getParam(String key) {
-        if (params == null) {
-            return ScriptValue.NULL;
-        }
-        return new ScriptValue(params.get(key));
+        return new Variable(result.<Map>getValue().get(key));
     }
 
     public DevToolsMessage(DevToolsDriver driver, String method) {
@@ -168,54 +152,54 @@ public class DevToolsMessage {
         this.driver = driver;
         id = (Integer) map.get("id");
         method = (String) map.get("method");
-        params = (Map) map.get("params");
-        Map temp = (Map) map.get("result");
+        Map temp = (Map) map.get("params");
+        if (temp != null) {
+            params = Json.of(temp);
+        }
+        temp = (Map) map.get("result");
         if (temp != null) {
             if (temp.containsKey("result")) {
                 Object inner = temp.get("result");
                 if (inner instanceof List) {
-                    result = new ScriptValue(toMap((List) inner));
+                    result = new Variable(toMap((List) inner));
                 } else {
                     Map innerMap = (Map) inner;
                     String subtype = (String) innerMap.get("subtype");
                     if ("error".equals(subtype) || innerMap.containsKey("objectId")) {
-                        result = new ScriptValue(innerMap);
+                        result = new Variable(innerMap);
                     } else { // Runtime.evaluate "returnByValue" is true
-                        result = new ScriptValue(innerMap.get("value"));
+                        result = new Variable(innerMap.get("value"));
                     }
                 }
             } else {
-                result = new ScriptValue(temp);
+                result = new Variable(temp);
             }
         }
         error = (Map) map.get("error");
     }
 
-    public DevToolsMessage param(String key, Object value) {
+    public DevToolsMessage param(String path, Object value) {
         if (params == null) {
-            params = new LinkedHashMap();
+            params = Json.object();
         }
-        params.put(key, value);
+        params.set(path, value);
         return this;
     }
 
-    public DevToolsMessage params(Map<String, Object> params) {
-        this.params = params;
+    public DevToolsMessage params(Map<String, Object> map) {
+        this.params = Json.of(map);
         return this;
     }
 
     public Map<String, Object> toMap() {
-        Map<String, Object> map = new HashMap(4);
+        Map<String, Object> map = new LinkedHashMap(4);
         map.put("id", id);
         if (sessionId != null) {
             map.put("sessionId", sessionId);
         }
         map.put("method", method);
         if (params != null) {
-            map.put("params", params);
-        }
-        if (result != null) {
-            map.put("result", result);
+            map.put("params", params.value());
         }
         return map;
     }

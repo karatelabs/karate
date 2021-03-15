@@ -1,0 +1,41 @@
+<script ka:scope="global">
+  var person = session.person;
+  var edit = request.param('edit') === 'true'
+  if (request.post) {
+    person.firstName = request.param('firstName');
+    person.lastName = request.param('lastName');
+    person.email = request.param('email');
+  }
+  var errors = {person: {}};
+  if (!person.firstName || person.firstName.length === 0) {
+    errors.person.firstName = 'should not be empty';
+    edit = true;
+  }
+</script>
+
+<div th:unless="edit">
+  <div><label>First Name</label>: <span th:text="person.firstName">Joe</span></div>
+  <div><label>Last Name</label>: <span th:text="person.lastName">Blow</span></div>
+  <div><label>Email</label>: <span th:text="person.email">joe@blow.com</span></div>
+  <button ka:get="this" ka:vals="edit:true">
+    Click To Edit
+  </button>
+</div>
+
+<form th:if="edit" ka:post="this">
+  <div th:classappend="errors.person.firstName ? 'error' : null">
+    <label>First Name</label>
+    <input type="text" name="firstName" th:value="person.firstName">
+    <span th:text="errors.person.firstName"></span>
+  </div>
+  <div>
+    <label>Last Name</label>
+    <input type="text" name="lastName" th:value="person.lastName">    
+  </div>
+  <div>
+    <label>Email address</label>
+    <input type="email" name="email" th:value="person.email">    
+  </div>
+  <button>Submit</button>
+  <button ka:get="this">Cancel</button>
+</form>

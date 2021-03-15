@@ -1,0 +1,11 @@
+<script ka:scope="global">
+  var productId = ~~request.param('id');
+  if (productId) {
+    var prod = session.products.find(x => x.id === productId);
+    var found = session.suppliers.filter(x => x.products.includes(productId));
+  }
+</script>
+<a th:unless="productId" ka:get="this" ka:vals="id:prod.id" href="#">(more)</a>
+<p th:if="productId" th:each="supplier: found">
+  <span th:text="supplier.name">Acme Novelties</span>
+</p>

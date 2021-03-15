@@ -43,6 +43,6 @@ RUN chmod +x /entrypoint.sh
 EXPOSE 5900 9222
 
 ADD target/karate.jar /
-ADD target/repository /root/.m2/repository
+ADD target/repository /usr/share/maven/ref/repository
 
 CMD ["/bin/bash", "/entrypoint.sh"]

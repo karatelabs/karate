@@ -26,6 +26,7 @@ package com.intuit.karate.driver;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.shell.Command;
 import java.io.File;
 import java.util.Collections;
@@ -91,12 +92,12 @@ public class DockerTarget implements Target {
     }
 
     @Override
-    public Map<String, Object> start(Logger logger) {
+    public Map<String, Object> start(ScenarioRuntime sr) {
         if (command == null) {
             throw new RuntimeException("docker target command (function) not set");
         }
         if (imageId != null && pull) {
-            logger.debug("attempting to pull docker image: {}", imageId);
+            sr.logger.debug("attempting to pull docker image: {}", imageId);
             Command.execLine(null, "docker pull " + imageId);
         }
         int port = Command.getFreePort(0);
@@ -111,26 +112,29 @@ public class DockerTarget implements Target {
         Command.waitForHttp("http://127.0.0.1:" + port + "/json");
         return map;
     }
+    
+    
 
     @Override
-    public Map<String, Object> stop(Logger logger) {
+    public Map<String, Object> stop(ScenarioRuntime sr) {
         Command.execLine(null, "docker stop " + containerId);
         if (!karateChrome) { // no video
             Command.execLine(null, "docker rm " + containerId);
             return Collections.EMPTY_MAP;
         }        
         String shortName = containerId.contains("_") ? containerId : StringUtils.truncate(containerId, 12, false);
-        String dirName = "karate-chrome_" + shortName;
-        String resultsDir = Command.getBuildDir() + File.separator + dirName;
+        String dirName = "karate-chrome_" + shortName;    
+        String buildDir = sr.featureRuntime.suite.buildDir;
+        String resultsDir = buildDir + File.separator + dirName;
         Command.execLine(null, "docker cp " + containerId + ":/tmp " + resultsDir);
         Command.execLine(null, "docker rm " + containerId);
         String video = resultsDir + File.separator + "karate.mp4";
         File file = new File(video);
         if (!file.exists()) {
-            logger.warn("video file missing: {}", file);
+            sr.logger.warn("video file missing: {}", file);
             return Collections.EMPTY_MAP;
         }
-        File copy = new File(Command.getBuildDir() + File.separator + dirName + ".mp4");
+        File copy = new File(buildDir + File.separator + dirName + ".mp4");
         FileUtils.copy(file, copy);
         return Collections.singletonMap("video", "../" + copy.getName());
     }

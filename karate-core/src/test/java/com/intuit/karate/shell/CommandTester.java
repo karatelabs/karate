@@ -1,6 +1,6 @@
 package com.intuit.karate.shell;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -8,13 +8,13 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class CommandTester {
-    
-    private static final Logger logger = LoggerFactory.getLogger(CommandTester.class);
-    
+class CommandTester {
+
+    static final Logger logger = LoggerFactory.getLogger(CommandTester.class);
+
     @Test
-    public void testWaitForKeyboard() {
+    void testWaitForKeyboard() {
         Command.waitForSocket(0);
     }
-    
+
 }

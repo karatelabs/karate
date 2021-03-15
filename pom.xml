@@ -4,7 +4,7 @@
 
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-parent</artifactId>
-    <version>0.9.6</version>
+    <version>1.0.0</version>
     <packaging>pom</packaging>
     
     <name>${project.artifactId}</name>
@@ -34,41 +34,28 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.8</java.version>
-        <maven.compiler.version>3.6.0</maven.compiler.version>
+        <maven.compiler.version>3.8.1</maven.compiler.version>
         <maven.surefire.version>2.22.2</maven.surefire.version>
-        <maven.shade.version>3.2.1</maven.shade.version>
-        <junit.version>4.12</junit.version>
-        <javafx.controls.version>13-ea+12</javafx.controls.version>
-        <nexus.staging.plugin.version>1.6.7</nexus.staging.plugin.version>
-        <spring.version>4.3.8.RELEASE</spring.version>
-        <spring.boot.version>1.5.16.RELEASE</spring.boot.version>
-        <jacoco.plugin.version>0.7.9</jacoco.plugin.version>        
-        <cucumber.reporting.version>3.8.0</cucumber.reporting.version>
+        <maven.shade.version>3.2.4</maven.shade.version>
+        <junit.version>4.13.1</junit.version>
+        <junit5.version>5.7.0</junit5.version>
+        <nexus.staging.plugin.version>1.6.8</nexus.staging.plugin.version>
+        <spring.version>5.2.9.RELEASE</spring.version>
+        <spring.boot.version>2.3.4.RELEASE</spring.boot.version>
+        <jacoco.plugin.version>0.7.9</jacoco.plugin.version>
     </properties>
 
     <modules>
-        <module>karate-core</module>        
-        <module>karate-apache</module>
+        <module>karate-core</module>
         <module>karate-junit4</module>
-        <module>karate-junit5</module>        
-        <module>karate-netty</module>
-        <module>karate-gatling</module>             
+        <module>karate-junit5</module>
         <module>karate-demo</module>
-        <module>karate-robot</module>
+        <module>karate-gatling</module>
         <module>karate-mock-servlet</module>
-        <module>karate-jersey</module>    
-        <module>karate-archetype</module>    
+        <module>karate-robot</module>        
+        <module>karate-e2e-tests</module>
+        <module>karate-archetype</module>
     </modules>
-
-    <dependencies>
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <!-- if we change this, also update jcl-over-slf4j in karate-apache -->
-            <version>1.2.3</version> 
-            <scope>runtime</scope>
-        </dependency>         		
-    </dependencies>
 
     <build>       
         <plugins>
@@ -90,7 +77,20 @@
                 <configuration>
                     <argLine>-Dfile.encoding=UTF-8</argLine>
                 </configuration>
-            </plugin>                                                
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>2.2.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>                                                          
         </plugins>
     </build>
     
@@ -99,19 +99,6 @@
             <id>release</id>
             <build>
                 <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-source-plugin</artifactId>
-                        <version>2.2.1</version>
-                        <executions>
-                            <execution>
-                                <id>attach-sources</id>
-                                <goals>
-                                    <goal>jar-no-fork</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>

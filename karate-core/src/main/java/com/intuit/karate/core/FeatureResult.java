@@ -23,66 +23,147 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.JsonUtils;
-import com.intuit.karate.Results;
-import com.intuit.karate.ScriptValueMap;
+import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.exception.KarateException;
-import com.jayway.jsonpath.JsonPath;
+import com.intuit.karate.JsonUtils;
+import com.intuit.karate.KarateException;
+import com.intuit.karate.resource.Resource;
+import com.intuit.karate.resource.ResourceUtils;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
 /**
  *
  * @author pthomas3
  */
 public class FeatureResult {
 
-    private final Results results;
-    private final Feature feature;    
-    private final List<ScenarioResult> scenarioResults = new ArrayList();
+    private final Feature feature;
+    private final List<ScenarioResult> scenarioResults = new ArrayList<>();
 
+    private String resultDate;
     private String displayName; // mutable for users who want to customize
-    private int scenarioCount;
-    private int failedCount;
-    private List<Throwable> errors;
-    private double durationMillis;
 
-    private ScriptValueMap resultVars;
+    private Map<String, Object> resultVariables;
     private Map<String, Object> callArg;
-    private int loopIndex;
+    private int loopIndex = -1;
+    private int callDepth;
 
-    public void printStats(String reportPath) {
-        String featureName = feature.getRelativePath();
+    public FeatureResult(Feature feature) {
+        this.feature = feature;
+        displayName = feature.getResource().getRelativePath();
+    }
+
+    public void printStats() {
+        String featureName = feature.getResource().getPrefixedPath();
         if (feature.getCallLine() != -1) {
             featureName = featureName + ":" + feature.getCallLine();
         }
         StringBuilder sb = new StringBuilder();
         sb.append("---------------------------------------------------------\n");
         sb.append("feature: ").append(featureName).append('\n');
-        if (reportPath != null) {
-            sb.append("report: ").append(reportPath).append('\n');
-        }
-        sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", scenarioCount, getPassedCount(), failedCount, durationMillis / 1000));
-        sb.append("---------------------------------------------------------");
+        sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", getScenarioCount(), getPassedCount(), getFailedCount(), getDurationMillis() / 1000));
+        sb.append("---------------------------------------------------------\n");
         System.out.println(sb);
     }
 
-    public Map<String, Object> toMap() {
-        Map<String, Object> map = new HashMap(8);
-        List<Map> list = new ArrayList(scenarioResults.size());
-        map.put("elements", list);
-        for (ScenarioResult re : scenarioResults) {
-            Map<String, Object> backgroundMap = re.backgroundToMap();
-            if (backgroundMap != null) {
-                list.add(backgroundMap);
+    public List<File> getAllEmbedFiles() {
+        List<File> files = new ArrayList();
+        for (ScenarioResult sr : scenarioResults) {
+            for (StepResult stepResult : sr.getStepResults()) {
+                if (stepResult.getEmbeds() != null) {
+                    for (Embed embed : stepResult.getEmbeds()) {
+                        files.add(embed.getFile());
+                    }
+                }
             }
-            list.add(re.toMap());
         }
+        return files;
+    }
+
+    public static FeatureResult fromKarateJson(File workingDir, Map<String, Object> map) {
+        String featurePath = (String) map.get("prefixedPath");
+        Resource resource = ResourceUtils.getResource(workingDir, featurePath);
+        Feature feature = Feature.read(resource);
+        FeatureResult fr = new FeatureResult(feature);
+        fr.callArg = (Map) map.get("callArg");
+        fr.loopIndex = (Integer) map.get("loopIndex");
+        fr.resultDate = (String) map.get("resultDate");
+        fr.callDepth = (Integer) map.get("callDepth");
+        List<Map<String, Object>> list = (List) map.get("scenarioResults");
+        if (list != null) {
+            for (Map<String, Object> srMap : list) {
+                ScenarioResult sr = ScenarioResult.fromKarateJson(workingDir, feature, srMap);
+                fr.addResult(sr);
+            }
+        }
+        return fr;
+    }
+
+    public Map<String, Object> toInfoJson() {
+        Map<String, Object> map = new HashMap();
+        map.put("name", feature.getName());
+        map.put("description", feature.getDescription());
+        map.put("prefixedPath", feature.getResource().getPrefixedPath());
+        File file = feature.getResource().getFile();
+        if (file != null) {
+            map.put("fileName", file.getName());
+            map.put("parentDir", file.getParent());
+        }
+        return map;
+    }
+
+    public Map<String, Object> toSummaryJson() {
+        Map<String, Object> map = new HashMap();
+        map.put("failed", isFailed());
+        map.put("name", feature.getName());
+        map.put("description", feature.getDescription());
+        map.put("durationMillis", getDurationMillis());
+        map.put("passedCount", getPassedCount());
+        map.put("failedCount", getFailedCount());
+        map.put("scenarioCount", getScenarioCount());
+        map.put("packageQualifiedName", feature.getPackageQualifiedName());
+        map.put("relativePath", feature.getResource().getRelativePath());
+        return map;
+    }
+
+    public Map<String, Object> toKarateJson() {
+        Map<String, Object> map = new HashMap();
+        // these first few are only for the ease of reports
+        // note that they are not involved in the reverse fromKarateJson()
+        map.put("name", feature.getName());
+        map.put("description", feature.getDescription());
+        map.put("durationMillis", getDurationMillis());
+        map.put("passedCount", getPassedCount());
+        map.put("failedCount", getFailedCount());
+        map.put("packageQualifiedName", feature.getPackageQualifiedName());
+        map.put("relativePath", feature.getResource().getRelativePath());
+        //======================================================================
+        if (resultDate == null) {
+            resultDate = ReportUtils.getDateString();
+        }
+        map.put("resultDate", resultDate);
+        map.put("prefixedPath", feature.getResource().getPrefixedPath());
+        List<Map<String, Object>> list = new ArrayList(scenarioResults.size());
+        map.put("scenarioResults", list);
+        for (ScenarioResult sr : scenarioResults) {
+            list.add(sr.toKarateJson());
+        }
+        if (callArg != null) {
+            String json = JsonUtils.toJsonSafe(callArg, false);
+            map.put("callArg", JsonUtils.fromJson(json));
+        }
+        map.put("loopIndex", loopIndex);
+        map.put("callDepth", callDepth);
+        return map;
+    }
+
+    public Map<String, Object> toCucumberJson() {
+        Map<String, Object> map = new HashMap();
         map.put("keyword", Feature.KEYWORD);
         map.put("line", feature.getLine());
         map.put("uri", displayName);
@@ -94,7 +175,16 @@ public class FeatureResult {
         }
         map.put("description", temp.trim());
         if (feature.getTags() != null) {
-            map.put("tags", Tags.toResultList(feature.getTags()));
+            map.put("tags", ScenarioResult.tagsToCucumberJson(feature.getTags()));
+        }
+        List<Map<String, Object>> list = new ArrayList(scenarioResults.size());
+        map.put("elements", list);
+        for (ScenarioResult sr : scenarioResults) {
+            Map<String, Object> backgroundMap = sr.backgroundToCucumberJson();
+            if (backgroundMap != null) {
+                list.add(backgroundMap);
+            }
+            list.add(sr.toCucumberJson());
         }
         return map;
     }
@@ -107,61 +197,31 @@ public class FeatureResult {
         return list;
     }
 
-    public Results getResults() {
-        return results;
-    }
-
-    public FeatureResult(Results results, Feature feature) {
-        this.results = results;
-        this.feature = feature;
-        displayName = FileUtils.removePrefix(feature.getRelativePath());
-    }
-
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
-    }        
+    }
 
     public Feature getFeature() {
         return feature;
     }
 
-    public String getPackageQualifiedName() {
-        return feature.getResource().getPackageQualifiedName();
-    }
-
-    public String getDisplayUri() {
+    public String getDisplayName() {
         return displayName;
     }
 
-    public KarateException getErrorsCombined() {
-        if (errors == null) {
-            return null;
-        }
+    public KarateException getErrorMessagesCombined() {
+        List<String> errors = getErrors();
         if (errors.size() == 1) {
-            Throwable error = errors.get(0);
-            if (error instanceof KarateException) {
-                return (KarateException) error;
-            } else {
-                return new KarateException("call failed", error);
-            }
+            return new KarateException(errors.get(0));
         }
         return new KarateException(getErrorMessages());
     }
 
     public String getErrorMessages() {
-        StringBuilder sb = new StringBuilder();
-        Iterator<Throwable> iterator = errors.iterator();
-        while (iterator.hasNext()) {
-            Throwable error = iterator.next();
-            sb.append(error.getMessage());
-            if (iterator.hasNext()) {
-                sb.append('\n');
-            }
-        }
-        return sb.toString();
+        return StringUtils.join(getErrors(), '\n');
     }
 
-    public String getCallName() {
+    public String getCallNameForReport() {
         String append = loopIndex == -1 ? "" : "[" + loopIndex + "] ";
         return append + displayName;
     }
@@ -171,11 +231,14 @@ public class FeatureResult {
             return null;
         }
         try {
-            Map temp = JsonUtils.removeCyclicReferences(callArg);
-            return JsonUtils.toPrettyJsonString(JsonPath.parse(temp));
+            return JsonUtils.toJsonSafe(callArg, true);
         } catch (Throwable t) {
             return "#error: " + t.getMessage();
         }
+    }
+
+    public void setCallDepth(int callDepth) {
+        this.callDepth = callDepth;
     }
 
     public Map<String, Object> getCallArg() {
@@ -195,71 +258,66 @@ public class FeatureResult {
     }
 
     public double getDurationMillis() {
-        return durationMillis;
+        long durationNanos = 0;
+        for (ScenarioResult sr : scenarioResults) {
+            durationNanos += sr.getDurationNanos();
+        }
+        return ReportUtils.nanosToMillis(durationNanos);
     }
 
     public int getFailedCount() {
-        return failedCount;
+        return getErrors().size();
     }
-    
+
     public boolean isEmpty() {
-        return scenarioCount == 0;
+        return scenarioResults.isEmpty();
     }
 
     public int getScenarioCount() {
-        return scenarioCount;
+        return scenarioResults.size();
     }
-    
+
     public int getPassedCount() {
-        return scenarioCount - failedCount;
+        return getScenarioCount() - getFailedCount();
     }
 
     public boolean isFailed() {
-        return errors != null && !errors.isEmpty();
+        return getFailedCount() > 0;
     }
 
-    public List<Throwable> getErrors() {
+    public List<String> getErrors() {
+        List<String> errors = new ArrayList();
+        for (ScenarioResult sr : scenarioResults) {
+            if (sr.isFailed()) {
+                errors.add(sr.getErrorMessage());
+            }
+        }
         return errors;
-    }
-
-    public Map<String, Object> getResultAsPrimitiveMap() {
-        if (resultVars == null) {
-            return Collections.EMPTY_MAP;
-        }
-        return resultVars.toPrimitiveMap();
-    }
-
-    public void setResultVars(ScriptValueMap resultVars) {
-        this.resultVars = resultVars;
-    }
-
-    private void addError(Throwable error) {
-        failedCount++;
-        if (errors == null) {
-            errors = new ArrayList();
-        }
-        errors.add(error);
     }
 
     public void addResult(ScenarioResult result) {
         scenarioResults.add(result);
-        durationMillis += Engine.nanosToMillis(result.getDurationNanos());
-        scenarioCount++;
-        if (result.isFailed()) {
-            Scenario scenario = result.getScenario();
-            if (scenario.isOutline()) {
-                Throwable error = result.getError();
-                Throwable copy = new KarateException(scenario.getDisplayMeta() + " " + error.getMessage());
-                copy.setStackTrace(error.getStackTrace());
-                addError(copy);
-            } else {
-                addError(result.getError());
-            }
-        }
+    }
+
+    public void setVariables(Map<String, Object> resultVariables) {
+        this.resultVariables = resultVariables;
+    }
+
+    public Map<String, Object> getVariables() {
+        return resultVariables;
+    }
+
+    public void sortScenarioResults() {
+        Collections.sort(scenarioResults);
     }
 
     public List<ScenarioResult> getScenarioResults() {
         return scenarioResults;
+    }
+
+    @Override
+    public String toString() {
+        return displayName;
     }
 
 }

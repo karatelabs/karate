@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.intuit.karate</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>0.9.6</version>
+        <version>1.0.0</version>
     </parent>
     <artifactId>karate-robot</artifactId>
     <packaging>jar</packaging>  
@@ -85,13 +85,7 @@
             <groupId>org.bytedeco</groupId>
             <artifactId>ffmpeg-platform</artifactId>
             <version>${ffmpeg.version}-${javacpp.version}</version>          
-        </dependency>                 
-        <dependency>
-            <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-apache</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>         
+        </dependency>      
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-junit4</artifactId>

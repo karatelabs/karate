@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.robot;
 
-import com.intuit.karate.Config;
+import com.intuit.karate.core.Config;
 import java.util.List;
 import java.util.Map;
 

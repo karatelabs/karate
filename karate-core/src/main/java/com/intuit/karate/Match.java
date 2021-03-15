@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2020 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,14 +23,18 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.MatchType;
-import com.intuit.karate.core.FeatureContext;
-import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.exception.KarateException;
-import com.intuit.karate.http.DummyHttpClient;
+import com.intuit.karate.graal.JsEngine;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import net.minidev.json.JSONValue;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.w3c.dom.Node;
 
 /**
  *
@@ -38,230 +42,408 @@ import net.minidev.json.JSONValue;
  */
 public class Match {
 
-    protected final ScenarioContext context;
-    private ScriptValue prevValue = ScriptValue.NULL;
+    public static enum Type {
 
-    public static Match forHttp(LogAppender appender) {
-        return new Match(appender, null);
-    }  
+        EQUALS,
+        NOT_EQUALS,
+        CONTAINS,
+        NOT_CONTAINS,
+        CONTAINS_ONLY,
+        CONTAINS_ANY,
+        CONTAINS_DEEP,
+        CONTAINS_ANY_DEEP,
+        EACH_EQUALS,
+        EACH_NOT_EQUALS,
+        EACH_CONTAINS,
+        EACH_NOT_CONTAINS,
+        EACH_CONTAINS_ONLY,
+        EACH_CONTAINS_ANY,
+        EACH_CONTAINS_DEEP
 
-    public static Match forHttp(ScenarioContext context) {
-        return new Match(context);
-    }     
-    
-    public Match(String exp) {
-        this(null, exp);
     }
 
-    public Match() {
-        this(null, null);
+    static final Result PASS = new Result(true, null);
+
+    static Result fail(String message) {
+        return new Result(false, message);
     }
 
-    public void clear() {
-        prevValue = ScriptValue.NULL;
+    interface Validator extends Function<Value, Result> {
+        //
     }
 
-    public static Match init(Object o) {
-        Match match = new Match(null, null);
-        match.prevValue = new ScriptValue(o);
-        return match;
-    }
-    
-    private Match(ScenarioContext context) {
-        this.context = context;
+    static class RegexValidator implements Validator {
+
+        private final Pattern pattern;
+
+        public RegexValidator(String regex) {
+            regex = StringUtils.trimToEmpty(regex);
+            pattern = Pattern.compile(regex);
+        }
+
+        @Override
+        public Result apply(Value v) {
+            if (!v.isString()) {
+                return fail("not a string");
+            }
+            String strValue = v.getValue();
+            Matcher matcher = pattern.matcher(strValue);
+            return matcher.matches() ? PASS : fail("regex match failed");
+        }
+
     }
 
-    private Match(LogAppender appender, String exp) {
-        FeatureContext featureContext = FeatureContext.forEnv();
-        String httpClass = appender == null ? DummyHttpClient.class.getName() : null;
-        CallContext callContext = new CallContext(null, null, 0, null, -1, false, false,
-                httpClass, null, null, false);
-        context = new ScenarioContext(featureContext, callContext, null, appender);
-        if (exp != null) {
-            prevValue = Script.evalKarateExpression(exp, context);
-            if (prevValue.isMapLike()) {
-                putAll(prevValue.evalAsMap(context));
+    static final Map<String, Validator> VALIDATORS = new HashMap(11);
+
+    static {
+        VALIDATORS.put("array", v -> v.isList() ? PASS : fail("not an array or list"));
+        VALIDATORS.put("boolean", v -> v.isBoolean() ? PASS : fail("not a boolean"));
+        VALIDATORS.put("ignore", v -> PASS);
+        VALIDATORS.put("notnull", v -> v.isNull() ? fail("null") : PASS);
+        VALIDATORS.put("null", v -> v.isNull() ? PASS : fail("not null"));
+        VALIDATORS.put("number", v -> v.isNumber() ? PASS : fail("not a number"));
+        VALIDATORS.put("object", v -> v.isMap() ? PASS : fail("not an object or map"));
+        VALIDATORS.put("present", v -> v.isNotPresent() ? fail("not present") : PASS);
+        VALIDATORS.put("notpresent", v -> v.isNotPresent() ? PASS : fail("present"));
+        VALIDATORS.put("string", v -> v.isNotPresent() ? fail("not present") : v.isString() ? PASS : fail("not a string"));
+        VALIDATORS.put("uuid", v -> {
+            if (!v.isString()) {
+                return fail("not a string");
+            }
+            try {
+                UUID.fromString(v.getValue());
+                return PASS;
+            } catch (Exception e) {
+                return fail("not a valid uuid");
+            }
+        });
+    }
+
+    public static class Result {
+
+        public final String message;
+        public final boolean pass;
+
+        private Result(boolean pass, String message) {
+            this.pass = pass;
+            this.message = message;
+        }
+
+        @Override
+        public String toString() {
+            return pass ? "[pass]" : message;
+        }
+
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new HashMap(2);
+            map.put("pass", pass);
+            map.put("message", message);
+            return map;
+        }
+
+    }
+
+    static class Context {
+
+        final JsEngine JS;
+        final MatchOperation root;
+        final int depth;
+        final boolean xml;
+        final String path;
+        final String name;
+        final int index;
+
+        Context(JsEngine js, MatchOperation root, boolean xml, int depth, String path, String name, int index) {
+            this.JS = js;
+            this.root = root;
+            this.xml = xml;
+            this.depth = depth;
+            this.path = path;
+            this.name = name;
+            this.index = index;
+        }
+
+        Context descend(String name) {
+            if (xml) {
+                String childPath = path.endsWith("/@") ? path + name : (depth == 0 ? "" : path) + "/" + name;
+                return new Context(JS, root, xml, depth + 1, childPath, name, -1);
+            } else {
+                boolean needsQuotes = name.indexOf('-') != -1 || name.indexOf(' ') != -1 || name.indexOf('.') != -1;
+                String childPath = needsQuotes ? path + "['" + name + "']" : path + '.' + name;
+                return new Context(JS, root, xml, depth + 1, childPath, name, -1);
             }
         }
+
+        Context descend(int index) {
+            if (xml) {
+                return new Context(JS, root, xml, depth + 1, path + "[" + (index + 1) + "]", name, index);
+            } else {
+                return new Context(JS, root, xml, depth + 1, path + "[" + index + "]", name, index);
+            }
+        }
+
     }
 
-    private void handleFailure(AssertionResult ar) {
-        if (!ar.pass) {
-            context.logger.error("{}", ar);
-            throw new KarateException(ar.message);
+    static enum ValueType {
+        NULL,
+        BOOLEAN,
+        NUMBER,
+        STRING,
+        BYTES,
+        LIST,
+        MAP,
+        XML,
+        OTHER
+    }
+
+    public static class Value {
+
+        final ValueType type;
+        final boolean exceptionOnMatchFailure;
+
+        private final Object value;
+
+        Value(Object value) {
+            this(value, false);
+        }
+
+        Value(Object value, boolean exceptionOnMatchFailure) {
+            this.value = value;
+            this.exceptionOnMatchFailure = exceptionOnMatchFailure;
+            if (value == null) {
+                type = ValueType.NULL;
+            } else if (value instanceof Node) {
+                type = ValueType.XML;
+            } else if (value instanceof List) {
+                type = ValueType.LIST;
+            } else if (value instanceof Map) {
+                type = ValueType.MAP;
+            } else if (value instanceof String) {
+                type = ValueType.STRING;
+            } else if (Number.class.isAssignableFrom(value.getClass())) {
+                type = ValueType.NUMBER;
+            } else if (Boolean.class.equals(value.getClass())) {
+                type = ValueType.BOOLEAN;
+            } else if (value instanceof byte[]) {
+                type = ValueType.BYTES;
+            } else {
+                type = ValueType.OTHER;
+            }
+        }
+
+        public boolean isBoolean() {
+            return type == ValueType.BOOLEAN;
+        }
+
+        public boolean isNumber() {
+            return type == ValueType.NUMBER;
+        }
+
+        public boolean isString() {
+            return type == ValueType.STRING;
+        }
+
+        public boolean isNull() {
+            return type == ValueType.NULL;
+        }
+
+        public boolean isMap() {
+            return type == ValueType.MAP;
+        }
+
+        public boolean isList() {
+            return type == ValueType.LIST;
+        }
+
+        public boolean isXml() {
+            return type == ValueType.XML;
+        }
+
+        boolean isNotPresent() {
+            return "#notpresent".equals(value);
+        }
+
+        boolean isMapOrListOrXml() {
+            switch (type) {
+                case MAP:
+                case LIST:
+                case XML:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public <T> T getValue() {
+            return (T) value;
+        }
+
+        String getWithinSingleQuotesIfString() {
+            if (type == ValueType.STRING) {
+                return "'" + value + "'";
+            } else {
+                return getAsString();
+            }
+        }
+
+        public String getAsString() {
+            switch (type) {
+                case LIST:
+                case MAP:
+                    return JsonUtils.toJsonSafe(value, false);
+                case XML:
+                    return XmlUtils.toString(getValue());
+                default:
+                    return value + "";
+            }
+        }
+
+        String getAsXmlString() {
+            if (type == ValueType.MAP) {
+                Node node = XmlUtils.fromMap(getValue());
+                return XmlUtils.toString(node);
+            } else {
+                return getAsString();
+            }
+        }
+
+        Value getSortedLike(Value other) {
+            if (isMap() && other.isMap()) {
+                Map<String, Object> reference = other.getValue();
+                Map<String, Object> source = getValue();
+                Set<String> remainder = new LinkedHashSet(source.keySet());
+                Map<String, Object> result = new LinkedHashMap(source.size());
+                reference.keySet().forEach(key -> {
+                    if (source.containsKey(key)) {
+                        result.put(key, source.get(key));
+                        remainder.remove(key);
+                    }
+                });
+                for (String key : remainder) {
+                    result.put(key, source.get(key));
+                }
+                return new Value(result, other.exceptionOnMatchFailure);
+            } else {
+                return this;
+            }
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("[type: ").append(type);
+            sb.append(", value: ").append(value);
+            sb.append("]");
+            return sb.toString();
+        }
+
+        public Result is(Type matchType, Object expected) {
+            MatchOperation mo = new MatchOperation(matchType, this, new Value(parseIfJsonOrXmlString(expected), exceptionOnMatchFailure));
+            mo.execute();
+            if (mo.pass) {
+                return Match.PASS;
+            } else {
+                if (exceptionOnMatchFailure) {
+                    throw new RuntimeException(mo.getFailureReasons());
+                }
+                return Match.fail(mo.getFailureReasons());
+            }
+        }
+
+        //======================================================================
+        //
+        public Result isEqualTo(Object expected) {
+            return is(Type.EQUALS, expected);
+        }
+
+        public Result contains(Object expected) {
+            return is(Type.CONTAINS, expected);
+        }
+
+        public Result containsDeep(Object expected) {
+            return is(Type.CONTAINS_DEEP, expected);
+        }
+
+        public Result containsOnly(Object expected) {
+            return is(Type.CONTAINS_ONLY, expected);
+        }
+
+        public Result containsAny(Object expected) {
+            return is(Type.CONTAINS_ANY, expected);
+        }
+
+        public Result isNotEqualTo(Object expected) {
+            return is(Type.NOT_EQUALS, expected);
+        }
+
+        public Result isNotContaining(Object expected) {
+            return is(Type.NOT_CONTAINS, expected);
+        }
+
+        public Result isEachEqualTo(Object expected) {
+            return is(Type.EACH_EQUALS, expected);
+        }
+
+        public Result isEachNotEqualTo(Object expected) {
+            return is(Type.EACH_NOT_EQUALS, expected);
+        }
+
+        public Result isEachContaining(Object expected) {
+            return is(Type.EACH_CONTAINS, expected);
+        }
+
+        public Result isEachNotContaining(Object expected) {
+            return is(Type.EACH_NOT_CONTAINS, expected);
+        }
+
+        public Result isEachContainingDeep(Object expected) {
+            return is(Type.EACH_CONTAINS_DEEP, expected);
+        }
+
+        public Result isEachContainingOnly(Object expected) {
+            return is(Type.EACH_CONTAINS_ONLY, expected);
+        }
+
+        public Result isEachContainingAny(Object expected) {
+            return is(Type.EACH_CONTAINS_ANY, expected);
+        }
+
+    }
+
+    public static Result execute(JsEngine js, Type matchType, Object actual, Object expected) {
+        MatchOperation mo = new MatchOperation(js, matchType, new Value(actual), new Value(expected));
+        mo.execute();
+        if (mo.pass) {
+            return PASS;
+        } else {
+            return fail(mo.getFailureReasons());
         }
     }
 
-    public Match text(String name, String exp) {
-        prevValue = Script.assign(AssignType.TEXT, name, exp, context, false);
-        return this;
-    }
-
-    public Match putAll(Map<String, Object> map) {
-        if (map != null) {
-            map.forEach((k, v) -> context.vars.put(k, v));
+    public static Object parseIfJsonOrXmlString(Object o) {
+        if (o instanceof String) {
+            String s = (String) o;
+            if (s.isEmpty()) {
+                return o;
+            } else if (JsonUtils.isJson(s)) {
+                return Json.of(s).value();
+            } else if (XmlUtils.isXml(s)) {
+                return XmlUtils.toXmlDoc(s);
+            } else {
+                if (s.charAt(0) == '\\') {
+                    return s.substring(1);
+                }
+            }
         }
-        return this;
+        return o;
     }
 
-    public Match eval(String exp) {
-        prevValue = Script.evalKarateExpression(exp, context);
-        return this;
+    public static Value evaluate(Object actual) {
+        return new Value(parseIfJsonOrXmlString(actual), false);
     }
 
-    public Match def(String name, String exp) {
-        prevValue = Script.assign(AssignType.AUTO, name, exp, context, false);
-        return this;
-    }
-
-    public Match def(String name, Object o) {
-        prevValue = context.vars.put(name, o);
-        return this;
-    }
-    
-    public Match get(String key) {
-        prevValue = context.vars.get(key);
-        return this;
-    }
-
-    public Match jsonPath(String exp) {
-        prevValue = Script.evalKarateExpression(exp, context);
-        return this;
-    }  
-
-    public ScriptValue value() {
-        return prevValue;
-    }
-
-    public boolean isBooleanTrue() {
-        return prevValue.isBooleanTrue();
-    }
-
-    public String asString() {
-        return prevValue.getAsString();
-    }
-    
-    public int asInt() {
-        return prevValue.getAsInt();
-    }    
-
-    public <T> T asType(Class<T> clazz) {
-        return prevValue.getValue(clazz);
-    }
-
-    public Map<String, Object> asMap(String exp) {
-        eval(exp);
-        return prevValue.getAsMap();
-    }
-
-    public Map<String, Object> asMap() {
-        return prevValue == null ? null : prevValue.getAsMap();
-    }
-
-    public String asJson() {
-        return JsonUtils.toJson(prevValue.getAsMap());
-    }
-
-    public Map<String, Object> allAsMap() {
-        return context.vars.toPrimitiveMap();
-    }
-
-    public ScriptValueMap vars() {
-        return context.vars;
-    }
-
-    public String allAsJson() {
-        return JsonUtils.toJson(context.vars.toPrimitiveMap());
-    }
-
-    public List<Object> asList(String exp) {
-        eval(exp);
-        return prevValue.getAsList();
-    }
-
-    public List asList() {
-        return prevValue.getAsList();
-    }
-
-    public Match equalsText(String exp) {
-        return matchText(exp, MatchType.EQUALS);
-    }
-
-    public static String quote(String exp) {
-        return exp == null ? "null" : "\"" + JSONValue.escape(exp) + "\"";
-    }
-
-    public Match matchText(String exp, MatchType matchType) {
-        return match(quote(exp), matchType);
-    }
-
-    private Match match(String exp, MatchType matchType) {
-        AssertionResult result = Script.matchScriptValue(matchType, prevValue, "$", exp, context);
-        handleFailure(result);
-        return this;
-    }
-
-    public Match equals(String exp) {
-        return match(exp, MatchType.EQUALS);
-    }
-
-    public Match contains(String exp) {
-        return match(exp, MatchType.CONTAINS);
-    }
-
-    // ideally 'equals' but conflicts with Java
-    public Match equalsObject(Object o) {
-        return match(o, MatchType.EQUALS);
-    }
-
-    public Match contains(Object o) {
-        return match(o, MatchType.CONTAINS);
-    }
-
-    private Match match(Object o, MatchType matchType) {
-        Script.matchNestedObject('.', "$", matchType,
-                prevValue.getValue(), null, null, o, context);
-        return this;
-    }
-
-    // static ==================================================================
-    //
-    public static Match equals(Object o, String exp) {
-        return match(o, exp, MatchType.EQUALS);
-    }
-
-    public static Match equalsText(Object o, String exp) {
-        return matchText(o, exp, MatchType.EQUALS);
-    }
-
-    public static Match contains(Object o, String exp) {
-        return match(o, exp, MatchType.CONTAINS);
-    }
-
-    public static Match containsText(Object o, String exp) {
-        return matchText(o, exp, MatchType.CONTAINS);
-    }
-
-    private static Match match(Object o, String exp, MatchType matchType) {
-        Match m = new Match();
-        m.prevValue = new ScriptValue(o);
-        return m.match(exp, matchType);
-    }
-
-    private static Match matchText(Object o, String exp, MatchType matchType) {
-        Match m = new Match();
-        m.prevValue = new ScriptValue(o);
-        return m.matchText(exp, matchType);
-    }
-
-    public Match config(String key, String value) {
-        context.configure(key, value);
-        return this;
-    }
-    
-    public Match config(Map<String, Object> config) {
-        config.forEach((k, v) -> context.configure(k, new ScriptValue(v)));
-        return this;
+    public static Value that(Object actual) {
+        return new Value(parseIfJsonOrXmlString(actual), true);
     }
 
 }

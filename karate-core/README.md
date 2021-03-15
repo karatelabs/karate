@@ -25,6 +25,7 @@
     | <a href="#configure-drivertarget"><code>configure driverTarget</code></a>
     | <a href="#karate-chrome">Docker / <code>karate-chrome</code></a>
     | <a href="#driver-types">Driver Types</a> 
+    | <a href="#playwright">Playwright</a> 
     | <a href="#timeout"><code>timeout()</code></a>
     | <a href="#driversessionid"><code>driver.sessionId</code></a>
   </td>
@@ -88,6 +89,7 @@
     | <a href="#close"><code>close()</code></a>    
     | <a href="#drivertitle"><code>driver.title</code></a>
     | <a href="#screenshot"><code>screenshot()</code></a>    
+    | <a href="#pdf"><code>pdf()</code></a>    
   </td>
 </tr>
 <tr>
@@ -156,7 +158,8 @@
     | <a href="#driverscreenshotfull"><code>driver.screenshotFull()</code></a>
     | <a href="#driverintercept"><code>driver.intercept()</code></a>
     | <a href="#driverinputfile"><code>driver.inputFile()</code></a>
-    | <a href="#driveremulatedevice"><code>driver.emulateDevice()</code></a> 
+    | <a href="#driveremulatedevice"><code>driver.emulateDevice()</code></a>
+    | <a href="#scriptawait"><code>driver.scriptAwait()</code></a> 
   </td> 
 </tr>
 <tr>
@@ -175,17 +178,19 @@
 * Simple, clean syntax that is well suited for people new to programming or test-automation
 * All-in-one framework that includes [parallel-execution](https://github.com/intuit/karate#parallel-execution), [HTML reports](https://github.com/intuit/karate#junit-html-report), [environment-switching](https://github.com/intuit/karate#switching-the-environment), and [CI integration](https://github.com/intuit/karate#test-reports)
 * Cross-platform - with even the option to run as a programming-language *neutral* [stand-alone executable](https://github.com/intuit/karate/wiki/ZIP-Release)
-* No need to learn complicated programming concepts such as "callbacks" "`await`" and "promises"
+* No need to learn complicated programming concepts such as "callbacks", "`async` / `await`" and "promises"
 * Option to use [wildcard](#wildcard-locators) and ["friendly" locators](#friendly-locators) without needing to inspect the HTML-page source, CSS, or internal XPath structure
 * Chrome-native automation using the [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) (equivalent to [Puppeteer](https://pptr.dev))
 * [W3C WebDriver](https://w3c.github.io/webdriver/) support built-in, which can also use [remote / grid providers](https://twitter.com/ptrthomas/status/1222790566598991873)
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
+* [Playwright](https://playwright.dev) support (experimental) for even more cross-browser and headless options, that can connect to a server or Docker container using the Playwright wire-protocol
 * [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI environment or [Docker](#configure-drivertarget) - without needing a "master node" or "grid"
 * You can even run tests in parallel across [different machines](#distributed-testing) - and Karate will aggregate the results
 * Embed [video-recordings of tests](#karate-chrome) into the HTML report from a Docker container
 * Windows [Desktop application automation](https://twitter.com/KarateDSL/status/1052432964804640768) using the Microsoft [WinAppDriver](https://github.com/Microsoft/WinAppDriver)
 * [Android and iOS mobile support](https://github.com/intuit/karate/issues/743) via [Appium](http://appium.io)
 * Seamlessly mix API and UI tests within the same script, for example [sign-in using an API](https://github.com/intuit/karate#http-basic-authentication-example) and speed-up your tests
+* [Intercept HTTP requests](#intercepting-http-requests) made by the browser and re-use [Karate mocks](https://github.com/intuit/karate/tree/master/karate-netty) to stub / modify server responses and even replace HTML content
 * Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI assertions
 * Simple [retry](#retry) and [wait](#wait-api) strategy, no need to graduate from any test-automation university to understand the difference between "implicit waits", "explicit waits" and "fluent waits" :)
 * Simpler, [elegant, and *DRY* alternative](#locator-lookup) to the so-called "Page Object Model" pattern
@@ -210,7 +215,9 @@ To understand how Karate compares to other UI automation frameworks, this articl
   * wait for an element to [be ready](#waitfor)
   * [compose functions](#function-composition) for elegant *custom* "wait" logic
   * assert on tabular [results in the HTML](#scriptall)
-* [Example 3](../karate-demo/src/test/java/driver/core/test-01.feature) - which is a single script that exercises *all* capabilities of Karate Driver, so is a handy reference
+* [Example 3](../karate-e2e-tests/src/test/java/driver/00.feature) - which is a single modular script that exercises *all* capabilities of Karate Driver
+  * a handy reference that can give you ideas on how to structure your tests
+  * run as part of Karate's [regression suite](https://stackoverflow.com/a/66005331/143475) via GitHub Actions
 
 ## Windows
 * [Example](../karate-demo/src/test/java/driver/windows/calc.feature) - but also see the [`karate-robot`](https://github.com/intuit/karate/tree/master/karate-robot) for an alternative approach.
@@ -254,6 +261,7 @@ key | description
 `type` | see [driver types](#driver-types)
 `executable` | if present, Karate will attempt to invoke this, if not in the system [`PATH`](https://www.java.com/en/download/help/path.xml), you can use a full-path instead of just the name of the executable. batch files should also work
 `start` | default `true`, Karate will attempt to start the `executable` - and if the `executable` is not defined, Karate will even try to assume the default for the OS in use
+`stop` | optional, defaults to `true` *very* rarely needed, only in cases where you want the browser to remain open after your tests have completed, typically when you write a custom [`Target`](#custom-target)
 `port` | optional, and Karate would choose the "traditional" port for the given `type`
 `host` | optional, will default to `localhost` and you normally never need to change this
 `pollAttempts` | optional, will default to `20`, you normally never need to change this (and changing `pollInterval` is preferred), and this is the number of attempts Karate will make to wait for the `port` to be ready and accepting connections before proceeding
@@ -267,6 +275,8 @@ key | description
 `videoFile` | default `null`, the path to the video file that will be added to the end of the test report, if it does not exist, it will be ignored
 `httpConfig` | optional, and typically only used for remote WebDriver usage where the HTTP client [configuration](https://github.com/intuit/karate#configure) needs to be tweaked, e.g. `{ readTimeout: 120000 }` (also see `timeout` below)
 `timeout` | default `30000`,  amount of time (in milliseconds) that type `chrome` will wait for an operation that takes time (typically navigating to a new page) - and as a convenience for WebDriver, this will be equivalent to setting the `readTimeout` for the `httpConfig` (see above) - also see [`timeout()`](#timeout)
+`playwrightUrl` | only applies for `{ type: 'playwright', start: false }`, the [Playwright](https://playwright.dev) wire-protocol (websockets) server URL, also see [`playwrightOptions`](#playwrightoptions)
+`playwrightOptions` | optional, see [`playwrightOptions`](#playwrightoptions)
 `webDriverUrl` | see [`webDriverUrl`](#webdriverurl)
 `webDriverSession` | see [`webDriverSession`](#webdriversession)
 `webDriverPath` | optional, and rarely used only in case you need to append a path such as `/wd/hub` - typically needed for Appium (or a Selenium Grid) on `localhost`, where `host`, `port` / `executable` etc. are involved.
@@ -326,15 +336,77 @@ Note that some capabilities such as "headless" may be possible via the command-l
 
 Also see [`driver.sessionId`](#driversessionid).
 
+### Playwright
+To use [Playwright](https://playwright.dev), you need to start a Playwright server. If you have one pre-started, you need to use the [`playwrightUrl`](#configure-driver) driver config.
+
+Or you can set up an executable that can do it and log the URL to the console when the server is ready. The websocket URL will look like this: `ws://127.0.0.1:4444/0e0bd1c0bb2d4eb550d02c91046dd6e0`.
+
+Here's a simple recipe to set up this mechanism on your local machine. NodeJS is a pre-requisite and you can choose a folder (e.g. `playwright`) for the "start scripts" to live. Within that folder, [you can run](https://playwright.dev/docs/intro#installation):
+
+```
+npm i -D playwright
+```
+
+Now create a file called `playwright/server.js` with the following code:
+
+```js
+const playwright = require('playwright');
+
+const port = process.argv[2] || 4444;
+const browserType = process.argv[3] || 'chromium';
+const headless = process.argv[4] == 'true';
+console.log('using port:', port, 'browser:', browserType, 'headless:', headless);
+
+const serverPromise = playwright[browserType].launchServer({ headless: headless, port: port });
+serverPromise.then(bs => console.log(bs.wsEndpoint()));
+```
+
+The main thing here is that the server URL should be logged to the console when it starts. Karate will scan the log for any string that starts with `ws://` and kick things off from there.
+
+Also Karate will call the executable with three arguments in this order:
+* `port`
+* `browserType`
+* `headless`
+
+So this is how you can communicate your cross-browser config from your Karate test to the executable.
+
+The final piece of the puzzle is to set up a batch file to start the server:
+
+```bash
+#!/bin/bash
+exec node /some/path/playwright/server.js $*
+```
+
+The [`exec`](http://veithen.io/2014/11/16/sigterm-propagation.html) is important here so that Karate can stop the `node` process cleanly.
+
+Now you can use the path of the batch file in the driver `executable` config.
+
+```cucumber
+* configure driver = { type: 'playwright', executable: 'path/to/start-server' }
+```
+
+For convenience, Karate assumes by default that the executable name is `playwright` and that it exists in the System [`PATH`](https://www.java.com/en/download/help/path.xml). Make sure that the batch file is made executable depending on your OS.
+
+Based on the above details, you should be able to come up with a custom strategy to connect Karate to Playwright. And you can consider a [`driverTarget`](#custom-target) approach for complex needs such as using a Docker container for CI.
+
+### `playwrightOptions`
+When using [Playwright](#playwright) you can omit this in which case Karate will default to Chrome (within Playwright) and the default browser window size.
+
+This can take the following keys:
+* `browserType` - defaults to `chromium`, can be set to the other [types that Playwright supports](https://playwright.dev/docs/core-concepts#browser), e.g. `firefox` and `webkit`
+* `context` - JSON which will be passed as the argument of the Playwright [`browser.newContext()`](https://playwright.dev/docs/api/class-browser#browsernewcontextoptions) call, needed typically to set the page dimensions
+
+Note that there is a top-level config flag for `headless` mode. The default is: `* configure driver = { headless: false }`
+
 ## `configure driverTarget`
 The [`configure driver`](#configure-driver) options are fine for testing on "`localhost`" and when not in `headless` mode. But when the time comes for running your web-UI automation tests on a continuous integration server, things get interesting. To support all the various options such as Docker, headless Chrome, cloud-providers etc., Karate introduces the concept of a pluggable [`Target`](src/main/java/com/intuit/karate/driver/Target.java) where you just have to implement two methods:
 
 ```java
 public interface Target {        
     
-    Map<String, Object> start(com.intuit.karate.Logger logger);
+    Map<String, Object> start(com.intuit.karate.core.ScenarioRuntime sr);
     
-    Map<String, Object> stop(com.intuit.karate.Logger logger);
+    Map<String, Object> stop(com.intuit.karate.core.ScenarioRuntime sr);
     
 }
 ```
@@ -343,7 +415,7 @@ public interface Target {
 
 * `stop()`: Karate will call this method at the end of every top-level `Scenario` (that has not been `call`-ed by another `Scenario`).
 
-If you use the provided `Logger` instance in your `Target` code, any logging you perform will nicely appear in-line with test-steps in the HTML report, which is great for troubleshooting or debugging tests.
+If you use the provided `ScenarioRuntime.logger` instance in your `Target` code, any logging you perform will nicely appear in-line with test-steps in the HTML report, which is great for troubleshooting or debugging tests.
 
 Combined with Docker, headless Chrome and Karate's [parallel-execution capabilities](https://github.com/intuit/karate#parallel-execution) - this simple `start()` and `stop()` lifecycle can effectively run web UI automation tests in parallel on a single node.
 
@@ -432,14 +504,15 @@ The recommendation is that you prefer `chrome` for development, and once you hav
 
 type | default port | default executable | description
 ---- | ------------ | ------------------ | -----------
-[`chrome`](https://chromedevtools.github.io/devtools-protocol/) | 9222 | mac: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`<br/>win: `C:/Program Files (x86)/Google/Chrome/Application/chrome.exe` | "native" Chrome automation via the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/)
+[`chrome`](https://chromedevtools.github.io/devtools-protocol/) | 9222 | mac: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` <br/>win: `C:/Program Files (x86)/Google/Chrome/Application/chrome.exe` | "native" Chrome automation via the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/)
+[`playwright`](https://playwright.dev) | 4444 | `playwright` | see [`playwrightOptions`](#playwrightoptions) and [Playwright](#playwright)
+[`msedge`](https://docs.microsoft.com/en-us/microsoft-edge/) | 9222 | mac: `/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge` <br/>win: `C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe` | the new Chromium based Microsoft Edge, using the [DevTools protocol](https://docs.microsoft.com/en-us/microsoft-edge/devtools-protocol-chromium)
 [`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) | 9515 | `chromedriver` | W3C Chrome Driver
 [`geckodriver`](https://github.com/mozilla/geckodriver) | 4444 | `geckodriver` | W3C Gecko Driver (Firefox)
 [`safaridriver`](https://webkit.org/blog/6900/webdriver-support-in-safari-10/) | 5555 | `safaridriver` | W3C Safari Driver
 [`msedgedriver`](https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/) | 9515 | `msedgedriver` | W3C Microsoft Edge WebDriver (the new one based on Chromium), also see [`webDriverSession`](#webdriversession)
 [`mswebdriver`](https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/) | 17556 | `MicrosoftWebDriver` | Microsoft Edge "Legacy" WebDriver
 [`iedriver`](https://github.com/SeleniumHQ/selenium/wiki/InternetExplorerDriver) | 5555 | `IEDriverServer` | IE (11 only) Driver
-[`msedge`](https://docs.microsoft.com/en-us/microsoft-edge/devtools-protocol/) | 9222 | `MicrosoftEdge` | *very* experimental - using the DevTools protocol
 [`winappdriver`](https://github.com/Microsoft/WinAppDriver) | 4727 | `C:/Program Files (x86)/Windows Application Driver/WinAppDriver` | Windows Desktop automation, similar to Appium
 [`android`](https://github.com/appium/appium/) | 4723 | `appium` | android automation via [Appium](https://github.com/appium/appium/)
 [`ios`](https://github.com/appium/appium/) | 4723 |`appium` | iOS automation via [Appium](https://github.com/appium/appium/)
@@ -681,6 +754,8 @@ Get the current URL / address for matching. Example:
 Then match driver.url == webUrlBase + '/page-02'
 ```
 
+Note that if you do this as soon as you navigate to a new page, there is a chance that this returns the old / stale URL. To avoid "flaky" tests, use [`waitForUrl()`](#waitforurl)
+
 This can also be used as a "setter" to navigate to a new URL *during* a test. But always use the [`driver`](#driver) keyword when you *start* a test and you can choose to prefer that shorter form in general.
 
 ```cucumber
@@ -777,7 +852,9 @@ You can even mix this into [`mouse()`](#mouse) actions.
 For some SPAs (Single Page Applications) the detection of a "page load" may be difficult because page-navigation (and the browser history) is taken over by JavaScript. In such cases, you can always fall-back to a [`waitForUrl()`](#waitforurl) or a more generic [`waitFor()`](#waitfor).
 
 ### `waitForUrl()` instead of `submit()`
-Sometimes, because of an HTTP re-direct, it can be difficult for Karate to detect a page URL change, or it will be detected too soon, causing your test to fail. In such cases, you can use `waitForUrl()`. For convenience, it will do a string *contains* match (not an exact match) so you don't need to worry about `http` vs `https` for example. Just supply a portion of the URL you are expecting. As another convenience, it will return a string which is the *actual* URL in case you need to use it for further actions in the test script.
+Sometimes, because of an HTTP re-direct, it can be difficult for Karate to detect a page URL change, or it will be detected too soon, causing your test to fail. In such cases, you can use [`waitForUrl()`](#waitforurl). 
+
+Note that it uses a string "contains" match, so you just need to supply a portion of the URL you are expecting.
 
 So instead of this, which uses [`submit()`](#submit):
 
@@ -965,9 +1042,19 @@ And match enabled('#eg01DisabledId') == false
 Also see [`waitUntil()`](#waituntil) for an example of how to wait *until* an element is "enabled" or until any other element property becomes the target value.
 
 ## `waitForUrl()`
-Very handy for waiting for an expected URL change *and* asserting if it happened. See [`waitForUrl()` instead of `submit()`](#waitforurl-instead-of-submit).
+Very handy for waiting for an expected URL change *and* asserting if it happened.
 
-Also see [waits](#wait-api).
+For convenience, it will do a string contains match (not an exact match) so you don't need to worry about `http` vs `https` for example. It will also return a string which is the *actual* URL in case you need to use it for further actions in the test script.
+
+```cucumber
+# note that you don't need the full url
+* waitForUrl('/some/path')
+
+# if you want to get the actual url for later use
+* def actualUrl = waitForUrl('/some/path')
+```
+
+See [`waitForUrl()` instead of `submit()`](#waitforurl-instead-of-submit). Also see [waits](#wait-api).
 
 ## `waitForText()`
 This is just a convenience short-cut for `waitUntil(locator, "_.textContent.includes('" + expected + "')")` since it is so frequently needed. Note the use of the JavaScript [`String.includes()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/includes) function to do a *text contains* match for convenience. The need to "wait until some text appears" is so common, and with this - you don't need to worry about dealing with white-space such as line-feeds and invisible tab characters.
@@ -1274,6 +1361,13 @@ See [Function Composition](#function-composition) for another good example. Also
 
 See also [`locateAll()` with filter](#locateall-with-filter).
 
+## `driver.scriptAwait()`
+Only supported for `type: 'chrome'` - this will wait for a JS promise to resolve and then return the result as a JSON object. Here is an [example](../karate-e2e-tests/src/test/java/axe/axe.feature):
+
+```cucumber
+* def axeResponse = driver.scriptAwait('axe.run()')
+```
+
 ## `locate()`
 Rarely used, but when you want to just instantiate an [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instance, typically when you are writing custom re-usable functions, or using an element as a "waypoint" to access other elements in a large, complex "tree".
 
@@ -1397,6 +1491,14 @@ Then match driver.cookies == '#[0]'
 ## `dialog()`
 There are two forms. The first takes a single boolean argument - whether to "accept" or "cancel". The second form has an additional string argument which is the text to enter for cases where the dialog is expecting user input.
 
+```cucumber
+# cancel
+* dialog(false)
+
+# enter text and accept
+* dialog(true, 'some text')
+```
+
 Also works as a "getter" to retrieve the text of the currently visible dialog:
 
 ```cucumber
@@ -1458,6 +1560,14 @@ If you want to disable the "auto-embedding" into the HTML report, pass an additi
 * screenshot(false)
 # or
 * screenshot('#someDiv', false)
+```
+
+## `pdf()`
+To create paginated pdf document from the page loaded.
+
+```cucumber
+* def pdfDoc = pdf({'orientation': 'landscape'})
+* karate.write(pdfDoc, "pdfDoc.pdf")
 ```
 
 ## `highlight()`
@@ -1815,9 +1925,6 @@ For more control or custom options, the `start()` method takes a `Map<String, Ob
 
 ## `driver.screenshotFull()`
 Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api). This will snapshot the entire page, not just what is visible in the viewport.
-
-## `driver.pdf()`
-Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api).
 
 # Proxy
 For driver type [`chrome`](#driver-types), you can use the `addOption` key to pass command-line options that [Chrome supports](https://www.linuxbabe.com/desktop-linux/configure-proxy-chromium-google-chrome-command-line):

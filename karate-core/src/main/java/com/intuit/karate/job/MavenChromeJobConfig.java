@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.job;
 
+import com.intuit.karate.StringUtils;
+import com.intuit.karate.core.ScenarioRuntime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,10 +34,10 @@ import java.util.List;
  * @author pthomas3
  */
 public class MavenChromeJobConfig extends MavenJobConfig {
-    
+
     private int width = 1280;
     private int height = 720;
-    
+
     public MavenChromeJobConfig(int executorCount, String host, int port) {
         super(executorCount, host, port);
     }
@@ -46,25 +48,26 @@ public class MavenChromeJobConfig extends MavenJobConfig {
 
     public void setHeight(int height) {
         this.height = height;
-    }        
+    }
 
     @Override
     public String getExecutorCommand(String jobId, String jobUrl, int index) {
-        return "docker run --rm --cap-add=SYS_ADMIN -e KARATE_JOBURL=" + jobUrl
-                                + " -e KARATE_WIDTH=" + width + " -e KARATE_HEIGHT=" + height
-                                + " " + dockerImage;
-    }        
+        String extra = StringUtils.isBlank(addOptions) ? "" : " " + addOptions;
+        return "docker run --rm --cap-add=SYS_ADMIN -e KARATE_JOBURL=" + jobUrl + extra
+                + " -e KARATE_WIDTH=" + width + " -e KARATE_HEIGHT=" + height
+                + " " + dockerImage;
+    }
 
     @Override
-    public List<JobCommand> getPreCommands(JobContext jc) {
+    public List<JobCommand> getPreCommands(JobChunk<ScenarioRuntime> jc) {
         return Collections.singletonList(new JobCommand("supervisorctl start ffmpeg"));
     }
 
     @Override
-    public List<JobCommand> getPostCommands(JobContext jc) {
+    public List<JobCommand> getPostCommands(JobChunk<ScenarioRuntime> jc) {
         List<JobCommand> list = new ArrayList();
         list.add(new JobCommand("supervisorctl stop ffmpeg"));
-        list.add(new JobCommand("mv /tmp/karate.mp4 " + jc.getUploadDir()));
+        list.add(new JobCommand("mv /tmp/karate.mp4 " + jc.getExecutorDir()));
         return list;
     }
 

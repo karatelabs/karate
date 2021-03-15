@@ -94,7 +94,7 @@ public class FileLogAppender implements LogAppender {
             return;
         }
         try {
-            channel.write(ByteBuffer.wrap(text.getBytes(FileUtils.UTF8)));
+            channel.write(ByteBuffer.wrap(FileUtils.toBytes(text)));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

@@ -24,11 +24,12 @@
 package com.intuit.karate.robot.mac;
 
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.ImageElement;
 import com.intuit.karate.robot.RobotBase;
 import com.intuit.karate.robot.Window;
+import com.intuit.karate.core.ScenarioEngine;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.shell.Command;
 import java.util.Collections;
 import java.util.List;
@@ -41,8 +42,8 @@ import java.util.function.Predicate;
  */
 public class MacRobot extends RobotBase {
 
-    public MacRobot(ScenarioContext context, Map<String, Object> options) {
-        super(context, options);
+    public MacRobot(ScenarioRuntime runtime, Map<String, Object> options) {
+        super(runtime, options);
     }
 
     @Override

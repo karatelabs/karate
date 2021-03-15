@@ -1,0 +1,20 @@
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Rule</th>
+      <th>Impact</th>
+      <th>Target</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr th:each="v: axeResponse.violations">
+      <td><a th:href="v.helpUrl" th:text="v.help" target="_blank"></a></td>
+      <td th:text="v.impact"></td>
+      <td>
+        <ul>
+          <li th:each="node: v.nodes" th:text="node.target"></li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>

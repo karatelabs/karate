@@ -23,22 +23,16 @@
  */
 package com.intuit.karate.junit4;
 
-import com.intuit.karate.Resource;
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.RunnerOptions;
+import com.intuit.karate.Runner;
+import com.intuit.karate.Suite;
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.HtmlFeatureReport;
-import com.intuit.karate.core.HtmlSummaryReport;
-import com.intuit.karate.core.Tags;
-import java.io.File;
+import com.intuit.karate.core.FeatureRuntime;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.internal.runners.statements.RunBefores;
 import org.junit.runner.Description;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
@@ -56,93 +50,69 @@ public class Karate extends ParentRunner<Feature> {
 
     private static final Logger logger = LoggerFactory.getLogger(Karate.class);
 
-    private final List<Feature> children;
-    private final Map<String, FeatureInfo> featureMap;
-    private final String tagSelector;
-    private final HtmlSummaryReport summary;
-    private final String targetDir;
+    private final Class annotatedClass;
+    private final JunitHook hook;
+    private final List<Feature> features;
+
+    private Suite suite; // lazy-init so that karate.env is resolved correctly
 
     public Karate(Class<?> clazz) throws InitializationError, IOException {
         super(clazz);
+        this.annotatedClass = clazz;
         List<FrameworkMethod> testMethods = getTestClass().getAnnotatedMethods(Test.class);
         if (!testMethods.isEmpty()) {
             logger.warn("WARNING: there are methods annotated with '@Test', they will NOT be run when using '@RunWith(Karate.class)'");
         }
-        RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(null, null, clazz);
-        List<Resource> resources = FileUtils.scanForFeatureFiles(options.getFeatures(), clazz.getClassLoader());
-        children = new ArrayList(resources.size());
-        featureMap = new HashMap(resources.size());
-        for (Resource resource : resources) {
-            Feature feature = FeatureParser.parse(resource);
-            feature.setCallName(options.getName());
-            feature.setCallLine(resource.getLine());
-            children.add(feature);
-        }
-        tagSelector = Tags.fromKarateOptionsTags(options.getTags());
-        summary = new HtmlSummaryReport();
-        targetDir = FileUtils.getBuildDir() + File.separator + "surefire-reports";
+        hook = new JunitHook();
+        Runner.Builder rb = Runner.builder().fromKarateAnnotation(clazz);
+        features = rb.resolveAll();
+    }
+
+    @Override
+    protected Statement withBeforeClasses(Statement statement) {
+        List<FrameworkMethod> befores = getTestClass().getAnnotatedMethods(BeforeClass.class);
+        Statement main = new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                Runner.Builder rb = Runner.builder().fromKarateAnnotation(annotatedClass);
+                rb.hook(hook);
+                rb.features(features);
+                suite = new Suite(rb);
+                statement.evaluate();
+            }
+        };
+        return befores.isEmpty() ? main : new RunBefores(main, befores, null);
     }
 
     @Override
     public List<Feature> getChildren() {
-        return children;
-    }
-
-    private static final Statement NO_OP = new Statement() {
-        @Override
-        public void evaluate() throws Throwable {
-        }
-    };
-
-    private boolean beforeClassDone;
-
-    @Override
-    protected Statement withBeforeClasses(Statement statement) {
-        if (!beforeClassDone) {
-            return super.withBeforeClasses(statement);
-        } else {
-            return statement;
-        }
+        return features;
     }
 
     @Override
     protected Description describeChild(Feature feature) {
-        if (!beforeClassDone) {
-            try {
-                Statement statement = withBeforeClasses(NO_OP);
-                statement.evaluate();
-                beforeClassDone = true;
-            } catch (Throwable e) {
-                throw new RuntimeException(e);
-            }
-        }
-        String relativePath = feature.getRelativePath();
-        // for whatever reason the junit 4 lifecycle can call describeChild() multiple times
-        FeatureInfo info = featureMap.get(relativePath);
-        if (info == null) {
-            info = new FeatureInfo(feature, tagSelector);
-            featureMap.put(relativePath, info);
-        }
-        return info.description;
+        return Description.createSuiteDescription(feature.getNameForReport(), feature.getResource().getPackageQualifiedName());
     }
 
     @Override
     protected void runChild(Feature feature, RunNotifier notifier) {
-        FeatureInfo info = featureMap.get(feature.getRelativePath());
-        info.setNotifier(notifier);
-        info.unit.run();
-        FeatureResult result = info.exec.result;
+        hook.setNotifier(notifier);
+        FeatureRuntime fr = FeatureRuntime.of(suite, feature);
+        fr.run();
+        FeatureResult result = fr.result;
         if (!result.isEmpty()) {
-            result.printStats(null);
-            HtmlFeatureReport.saveFeatureResult(targetDir, result);
-            summary.addFeatureResult(result);
+            suite.saveFeatureResults(result);
         }
     }
 
     @Override
     public void run(RunNotifier notifier) {
         super.run(notifier);
-        summary.save(targetDir);
+        if (suite == null) {
+            logger.warn("no feature files scanned");
+        } else {
+            suite.buildResults();
+        }
     }
 
 }

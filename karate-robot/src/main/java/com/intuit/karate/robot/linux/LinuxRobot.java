@@ -24,11 +24,11 @@
 package com.intuit.karate.robot.linux;
 
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.ImageElement;
 import com.intuit.karate.robot.RobotBase;
 import com.intuit.karate.robot.Window;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.shell.Command;
 import java.util.Collections;
 import java.util.List;
@@ -41,8 +41,8 @@ import java.util.function.Predicate;
  */
 public class LinuxRobot extends RobotBase {
 
-    public LinuxRobot(ScenarioContext context, Map<String, Object> options) {
-        super(context, options);
+    public LinuxRobot(ScenarioRuntime runtime, Map<String, Object> options) {
+        super(runtime, options);
     }
 
     @Override
@@ -77,7 +77,7 @@ public class LinuxRobot extends RobotBase {
     @Override
     public List<Element> locateAllInternal(Element searchRoot, String locator) {
         throw new UnsupportedOperationException("not supported yet.");
-    }       
+    }
 
     @Override
     public Element locateInternal(Element root, String locator) {
@@ -97,6 +97,6 @@ public class LinuxRobot extends RobotBase {
     @Override
     public List<Window> getAllWindows() {
         throw new UnsupportedOperationException("not supported yet.");
-    }        
+    }
 
 }

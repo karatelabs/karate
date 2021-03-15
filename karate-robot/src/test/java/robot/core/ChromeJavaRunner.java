@@ -1,13 +1,12 @@
 package robot.core;
 
-import com.intuit.karate.CallContext;
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.core.FeatureContext;
-import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.Suite;
+import com.intuit.karate.core.Feature;
 import com.intuit.karate.driver.Keys;
 import com.intuit.karate.robot.RobotBase;
 import com.intuit.karate.robot.RobotFactory;
-import java.nio.file.Path;
+import com.intuit.karate.core.FeatureRuntime;
+import com.intuit.karate.core.ScenarioRuntime;
 import org.junit.Test;
 
 /**
@@ -17,11 +16,10 @@ import org.junit.Test;
 public class ChromeJavaRunner {
 
     public static RobotBase getRobot() {
-        Path featureDir = FileUtils.getPathContaining(ChromeJavaRunner.class);
-        FeatureContext featureContext = FeatureContext.forWorkingDir("dev", featureDir.toFile());
-        CallContext callContext = new CallContext(null, true);
-        ScenarioContext context = new ScenarioContext(featureContext, callContext, null, null);
-        return (RobotBase) new RobotFactory().create(context, null);
+        Feature feature = Feature.read("classpath:robot/core/dummy.feature");
+        FeatureRuntime fr = FeatureRuntime.of(new Suite(), feature);
+        ScenarioRuntime sr = fr.scenarios.next();
+        return (RobotBase) new RobotFactory().create(sr, null);
     }
 
     @Test

@@ -4,12 +4,9 @@ Scenario Outline: <type>
   * def webUrlBase = karate.properties['web.url.base']
   * configure driver = { type: '#(type)', showDriverLog: true, showProcessLog: true }
 
-  * driver webUrlBase + '/page-03'
-  * match driver.cookies == '#[]'
-  * def temp = locate('#eg01Data1')
-  * temp.parent.highlight()
-  * def list = temp.parent.children
-  * list[3].highlight()
+  When driver webUrlBase + '/page-02'
+  * def list = scriptAll('div#eg01 div', '_.textContent', function(x){ return x.contains('data2') })
+
 
 Examples:
 | type         |
@@ -17,3 +14,4 @@ Examples:
 #| chromedriver |
 #| geckodriver  |
 #| safaridriver |
+#| playwright |

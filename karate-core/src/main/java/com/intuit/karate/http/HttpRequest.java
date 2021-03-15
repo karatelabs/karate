@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2020 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,84 +24,65 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.core.Engine;
+import com.intuit.karate.StringUtils;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * this is only for capturing what was actually sent on the wire, read-only
  *
  * @author pthomas3
  */
 public class HttpRequest {
 
-    private String requestId;
-    private long startTime;
-    private long endTime;
-    private double responseTime;
-    private String urlBase; // used in mock since uri may start with '/'
-    private String uri; // will be full uri including query string
+    private long startTimeMillis;
+    private long endTimeMillis;
+    private String url;
     private String method;
-    private MultiValuedMap headers = new MultiValuedMap();
-    private MultiValuedMap params; // only used in mock
+    private Map<String, List<String>> headers;
     private byte[] body;
+    private String bodyForDisplay;
 
-    private long startTimeNanos;
-
-    public long getStartTime() {
-        return startTime;
+    public void putHeader(String name, String... values) {
+        putHeader(name, Arrays.asList(values));
     }
 
-    public void startTimer() {
-        startTime = System.currentTimeMillis();
-        startTimeNanos = System.nanoTime();
-    }
-
-    public long getEndTime() {
-        return endTime;
-    }
-
-    public double getResponseTime() {
-        return responseTime;
-    }
-
-    public String getResponseTimeFormatted() {
-        return String.format("%.2f", responseTime);
-    }
-
-    public void stopTimer() {
-        responseTime = Engine.nanosToMillis(System.nanoTime() - startTimeNanos);
-        endTime = startTime + Math.round(responseTime);
-    }
-
-    public String getUrlBase() {
-        return urlBase;
-    }
-
-    public void setUrlBase(String urlBase) {
-        this.urlBase = urlBase;
-    }
-
-    public void addHeader(String key, String value) {
-        headers.add(key, value);
-    }
-
-    public void putHeader(String key, List<String> values) {
-        headers.put(key, values);
-    }
-
-    public void setParams(MultiValuedMap params) {
-        this.params = params;
-    }
-
-    public MultiValuedMap getParams() {
-        return params;
-    }
-
-    public void putParam(String key, List<String> values) {
-        if (params == null) {
-            params = new MultiValuedMap();
+    public void putHeader(String name, List<String> values) {
+        if (headers == null) {
+            headers = new HashMap();
         }
-        params.put(key, values);
+        for (String key : headers.keySet()) {
+            if (key.equalsIgnoreCase(name)) {
+                name = key;
+                break;
+            }
+        }
+        headers.put(name, values);
+    }
+
+    public long getStartTimeMillis() {
+        return startTimeMillis;
+    }
+
+    public void setStartTimeMillis(long startTimeMillis) {
+        this.startTimeMillis = startTimeMillis;
+    }
+
+    public long getEndTimeMillis() {
+        return endTimeMillis;
+    }
+
+    public void setEndTimeMillis(long endTimeMillis) {
+        this.endTimeMillis = endTimeMillis;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
     }
 
     public String getMethod() {
@@ -112,27 +93,11 @@ public class HttpRequest {
         this.method = method;
     }
 
-    public String getUri() {
-        return uri;
-    }
-
-    public void setUri(String uri) {
-        this.uri = uri;
-    }
-
-    public String getRequestId(){
-        return requestId;
-    }
-
-    public void setRequestId(String requestId) {
-        this.requestId = requestId;
-    }
-
-    public MultiValuedMap getHeaders() {
+    public Map<String, List<String>> getHeaders() {
         return headers;
     }
 
-    public void setHeaders(MultiValuedMap headers) {
+    public void setHeaders(Map<String, List<String>> headers) {
         this.headers = headers;
     }
 
@@ -140,20 +105,59 @@ public class HttpRequest {
         return body;
     }
 
+    public String getBodyAsString() {
+        return FileUtils.toString(body);
+    }
+
     public void setBody(byte[] body) {
         this.body = body;
     }
 
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("[method: ").append(method);
-        sb.append(", responseTime: ").append(responseTime);
-        if (body != null) {
-            sb.append(", body: ").append(FileUtils.toString(body));
+    public String getBodyForDisplay() {
+        return bodyForDisplay;
+    }
+
+    public void setBodyForDisplay(String bodyForDisplay) {
+        this.bodyForDisplay = bodyForDisplay;
+    }
+
+    public List<String> getHeaderValues(String name) { // TOTO optimize
+        return StringUtils.getIgnoreKeyCase(headers, name);
+    }
+
+    public void removeHeader(String name) {
+        if (headers == null) {
+            return;
         }
-        sb.append("]");
-        return sb.toString();        
-    }    
-    
+        for (String key : headers.keySet()) {
+            if (key.equalsIgnoreCase(name)) {
+                name = key;
+                break;
+            }
+        }
+        headers.remove(name);
+    }
+
+    public String getHeader(String name) {
+        List<String> values = getHeaderValues(name);
+        return values == null || values.isEmpty() ? null : values.get(0);
+    }
+
+    public String getContentType() {
+        return getHeader(HttpConstants.HDR_CONTENT_TYPE);
+    }
+
+    public void setContentType(String contentType) {
+        putHeader(HttpConstants.HDR_CONTENT_TYPE, contentType);
+    }
+
+    public Request toRequest() {
+        Request request = new Request();
+        request.setMethod(method);
+        request.setUrl(url);
+        request.setHeaders(headers);
+        request.setBody(body);
+        return request;
+    }
+
 }

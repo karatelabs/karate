@@ -41,7 +41,11 @@ public class Keys {
     public static Integer code(char c) {
         return CODES.get(c);
     }
-
+    
+    public static String keyValue(char c) {
+        return VALUES.get(c);
+    }
+ 
     public static boolean isNormal(char c) {
         return c < NULL;
     }
@@ -123,63 +127,67 @@ public class Keys {
     public static final char META = '\uE03D';
 
     private static final Map<Character, Integer> CODES = new HashMap();
+    private static final Map<Character, String> VALUES = new HashMap();
+    
+    private static void put(char c, int code, String value) {
+        CODES.put(c, code);
+        VALUES.put(c, value);
+    }
 
     static {
-        CODES.put(CANCEL, 3);
-        CODES.put(BACK_SPACE, 8);
-        CODES.put(TAB, 9);
-        CODES.put(CLEAR, 12);
-        CODES.put(NULL, 12); // same as clear
-        CODES.put(RETURN, 13); // same as enter
-        CODES.put(ENTER, 13);
-        CODES.put(SHIFT, 16);
-        CODES.put(CONTROL, 17);
-        CODES.put(ALT, 18);
-        CODES.put(PAUSE, 19);
-        CODES.put(ESCAPE, 27);
-        CODES.put(SPACE, 32);
-        CODES.put(PAGE_UP, 33);
-        CODES.put(PAGE_DOWN, 34);
-        CODES.put(END, 35);
-        CODES.put(HOME, 36);
-        CODES.put(LEFT, 37);
-        CODES.put(UP, 38);
-        CODES.put(RIGHT, 39);
-        CODES.put(DOWN, 40);
-        CODES.put(SEMICOLON, 59);
-        CODES.put(EQUALS, 61);
-        CODES.put(NUMPAD0, 96);
-        CODES.put(NUMPAD1, 97);
-        CODES.put(NUMPAD2, 98);
-        CODES.put(NUMPAD3, 99);
-        CODES.put(NUMPAD4, 100);
-        CODES.put(NUMPAD5, 101);
-        CODES.put(NUMPAD6, 102);
-        CODES.put(NUMPAD7, 103);
-        CODES.put(NUMPAD8, 104);
-        CODES.put(NUMPAD9, 105);
-        CODES.put(MULTIPLY, 106);
-        CODES.put(ADD, 107);
-        CODES.put(SEPARATOR, 108);
-        CODES.put(SUBTRACT, 109);
-        CODES.put(DECIMAL, 110);
-        CODES.put(DIVIDE, 111);
-        CODES.put(F1, 112);
-        CODES.put(F2, 113);
-        CODES.put(F3, 114);
-        CODES.put(F4, 115);
-        CODES.put(F5, 116);
-        CODES.put(F6, 117);
-        CODES.put(F7, 118);
-        CODES.put(F8, 119);
-        CODES.put(F9, 120);
-        CODES.put(F10, 121);
-        CODES.put(F11, 122);
-        CODES.put(F12, 123);
-        CODES.put(DELETE, 127);
-        CODES.put(INSERT, 155);
-        CODES.put(HELP, 156);
-        CODES.put(META, 157);
+        put(CANCEL, 3, "Cancel");
+        put(BACK_SPACE, 8, "Backspace");
+        put(TAB, 9, "Tab");
+        put(CLEAR, 12, "Clear");
+        put(NULL, 12, "Clear"); // same as clear
+        put(RETURN, 13, "Enter"); // same as enter
+        put(ENTER, 13, "Enter");
+        put(SHIFT, 16, "Shift");
+        put(CONTROL, 17, "Control");
+        put(ALT, 18, "Alt");
+        put(PAUSE, 19, "Pause");
+        put(ESCAPE, 27, "Escape");
+        put(SPACE, 32, " ");
+        put(PAGE_UP, 33, "PageUp");
+        put(PAGE_DOWN, 34, "PageDown");
+        put(END, 35, "End");
+        put(HOME, 36, "Home");
+        put(LEFT, 37, "ArrowLeft");
+        put(UP, 38, "ArrowUp");
+        put(RIGHT, 39, "ArrowRight");
+        put(DOWN, 40, "ArrowDown");
+        put(NUMPAD0, 96, "0");
+        put(NUMPAD1, 97, "1");
+        put(NUMPAD2, 98, "2");
+        put(NUMPAD3, 99, "3");
+        put(NUMPAD4, 100, "4");
+        put(NUMPAD5, 101, "5");
+        put(NUMPAD6, 102, "6");
+        put(NUMPAD7, 103, "7");
+        put(NUMPAD8, 104, "8");
+        put(NUMPAD9, 105, "9");
+        put(MULTIPLY, 106, "Multiply");
+        put(ADD, 107, "Add");
+        put(SEPARATOR, 108, "Separator");
+        put(SUBTRACT, 109, "Subtract");
+        put(DECIMAL, 110, "Decimal");
+        put(DIVIDE, 111, "Divide");
+        put(F1, 112, "F1");
+        put(F2, 113, "F2");
+        put(F3, 114, "F3");
+        put(F4, 115, "F4");
+        put(F5, 116, "F5");
+        put(F6, 117, "F6");
+        put(F7, 118, "F7");
+        put(F8, 119, "F8");
+        put(F9, 120, "F9");
+        put(F10, 121, "F10");
+        put(F11, 122, "F11");
+        put(F12, 123, "F12");
+        put(DELETE, 127, "Delete");
+        put(INSERT, 155, "Insert");
+        put(HELP, 156, "Help");
+        put(META, 157, "Meta");       
         //======================================================================
         CODES.put(' ', 32);
         CODES.put(',', 44);
@@ -245,6 +253,7 @@ public class Keys {
         CODES.put('+', 521);
         CODES.put(')', 522);
         CODES.put('_', 523);
+        
     }
 
 }

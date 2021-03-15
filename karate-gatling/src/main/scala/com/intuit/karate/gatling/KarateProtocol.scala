@@ -1,9 +1,8 @@
 package com.intuit.karate.gatling
 
 import akka.actor.ActorSystem
-import com.intuit.karate.core.ScenarioContext
-import com.intuit.karate.http.{HttpRequestBuilder, HttpUtils}
-import com.intuit.karate.netty.NettyUtils
+import com.intuit.karate.http.{HttpUtils, HttpRequest}
+import com.intuit.karate.core.ScenarioRuntime
 import io.gatling.core.CoreComponents
 import io.gatling.core.config.GatlingConfiguration
 import io.gatling.core.protocol.{Protocol, ProtocolComponents, ProtocolKey}
@@ -17,12 +16,12 @@ class KarateProtocol(val uriPatterns: Map[String, Seq[MethodPause]]) extends Pro
     val methodPause = uriPatterns.getOrElse(requestName, Nil).find(mp => method.equalsIgnoreCase(mp.method))
     if (methodPause.isDefined) methodPause.get.pause else 0
   }
-  val defaultNameResolver = (req: HttpRequestBuilder, ctx: ScenarioContext) => {
-    val pathPair = NettyUtils.parseUriIntoUrlBaseAndPath(req.getUrlAndPath)
+  val defaultNameResolver = (req: HttpRequest, ctx: ScenarioRuntime) => {
+    val pathPair = HttpUtils.parseUriIntoUrlBaseAndPath(req.getUrl)
     val matchedUri = pathMatches(pathPair.right)
     if (matchedUri.isDefined) matchedUri.get else pathPair.right
   }
-  var nameResolver: (HttpRequestBuilder, ScenarioContext) => String = (req, ctx) => null
+  var nameResolver: (HttpRequest, ScenarioRuntime) => String = (req, ctx) => null
 }
 
 object KarateProtocol {
@@ -35,6 +34,6 @@ object KarateProtocol {
 }
 
 case class KarateComponents(val protocol: KarateProtocol, val system: ActorSystem) extends ProtocolComponents {
-  override def onStart: Session => Session = ProtocolComponents.NoopOnStart
+  override def onStart: Session => Session = Session.Identity
   override def onExit: Session => Unit = ProtocolComponents.NoopOnExit
 }

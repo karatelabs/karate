@@ -56,6 +56,11 @@ public class MissingFinder implements Finder {
     }
 
     @Override
+    public String getValue() {
+        return element.getValue();
+    }        
+
+    @Override
     public Element clear() {
         return element;
     }

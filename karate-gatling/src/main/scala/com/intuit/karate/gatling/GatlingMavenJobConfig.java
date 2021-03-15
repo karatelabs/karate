@@ -23,10 +23,15 @@
  */
 package com.intuit.karate.gatling;
 
+import com.intuit.karate.Constants;
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.job.JobChunk;
 import com.intuit.karate.job.JobCommand;
-import com.intuit.karate.job.JobContext;
-import com.intuit.karate.job.MavenJobConfig;
+import com.intuit.karate.job.JobConfigBase;
+import com.intuit.karate.job.JobUtils;
+import java.io.File;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -34,20 +39,53 @@ import java.util.List;
  *
  * @author pthomas3
  */
-public class GatlingMavenJobConfig extends MavenJobConfig {
-    
+public class GatlingMavenJobConfig extends JobConfigBase<Integer> {
+
     private String mainCommand = "mvn gatling:test";
-    
+    private String buildDir = FileUtils.getBuildDir();
+    private String reportDir = Constants.KARATE_REPORTS;
+    private String executorDir = buildDir + File.separator + "gatling";
+
     public GatlingMavenJobConfig(int executorCount, String host, int port) {
         super(executorCount, host, port);
-    }    
+    }
+
+    @Override
+    public List<Integer> getInitialChunks() {
+        int count = getExecutorCount();
+        if (count < 1) {
+            throw new RuntimeException("executor count should be greater than zero");
+        }
+        List<Integer> list = new ArrayList(count);
+        for (int i = 0; i < count; i++) {
+            list.add(i);
+        }
+        return list;
+    }
 
     public void setMainCommand(String mainCommand) {
         this.mainCommand = mainCommand;
-    }        
+    }
 
     @Override
-    public List<JobCommand> getMainCommands(JobContext chunk) {
+    public String getExecutorDir() {
+        return executorDir;
+    }
+
+    public void setExecutorDir(String executorDir) {
+        this.executorDir = executorDir;
+    }
+
+    public void setReportDir(String reportDir) {
+        this.reportDir = reportDir;
+    }
+
+    public void setBuildDir(String buildDir) {
+        this.buildDir = buildDir;
+    }
+
+    @Override
+    public List<JobCommand> getMainCommands(JobChunk jc) {
         String temp = mainCommand;
         for (String k : sysPropKeys) {
             String v = StringUtils.trimToEmpty(System.getProperty(k));
@@ -55,7 +93,34 @@ public class GatlingMavenJobConfig extends MavenJobConfig {
                 temp = temp + " -D" + k + "=" + v;
             }
         }
-        return Collections.singletonList(new JobCommand(temp));        
-    }        
-    
+        return Collections.singletonList(new JobCommand(temp));
+    }
+
+    @Override
+    public Integer handleUpload(JobChunk<Integer> jc, File upload) {
+        String karateLog = upload.getPath() + File.separator + "karate.log";
+        File karateLogFile = new File(karateLog);
+        if (karateLogFile.exists()) {
+            karateLogFile.renameTo(new File(karateLog + ".txt"));
+        }
+        String gatlingReportDir = buildDir + File.separator + reportDir;
+        new File(gatlingReportDir).mkdirs();
+        File[] dirs = upload.listFiles();
+        for (File dir : dirs) {
+            if (dir.isDirectory()) {
+                File file = JobUtils.getFirstFileMatching(dir, n -> n.endsWith("simulation.log"));
+                if (file != null) {
+                    FileUtils.copy(file, new File(gatlingReportDir + File.separator + "simulation_" + jc.getId() + ".log"));
+                }
+            }
+        }
+        return jc.getValue();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        io.gatling.app.Gatling.main(new String[]{"-ro", reportDir, "-rf", buildDir});
+    }
+
 }

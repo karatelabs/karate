@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.intuit.karate</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>0.9.6</version>
+        <version>1.0.0</version>
     </parent>
     
     <artifactId>karate-mock-servlet</artifactId>
@@ -15,11 +15,10 @@
         <jersey.version>2.26-b07</jersey.version>
     </properties>
 
-    <dependencies>
-    
+    <dependencies>    
         <dependency>
             <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-apache</artifactId>
+            <artifactId>karate-core</artifactId>
             <version>${project.version}</version>
         </dependency>        
         <dependency>
@@ -37,8 +36,7 @@
             <artifactId>javax.servlet-api</artifactId>
             <version>3.0.1</version>
             <scope>provided</scope>
-        </dependency>
-        
+        </dependency>        
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-junit4</artifactId>
@@ -56,15 +54,13 @@
             <artifactId>jersey-hk2</artifactId>
             <version>${jersey.version}</version>
             <scope>test</scope>            
-        </dependency>
-        
+        </dependency>        
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-demo</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
-        </dependency>               
-        
+        </dependency>        
     </dependencies>
 
     <build>

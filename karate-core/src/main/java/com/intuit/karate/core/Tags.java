@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2018 Intuit Inc.
+ * Copyright 2020 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,11 +23,11 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.ScriptBindings;
-import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.graal.Methods;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -36,8 +36,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.script.Bindings;
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import java.util.function.Function;
+import org.graalvm.polyglot.Value;
 
 /**
  *
@@ -50,7 +50,6 @@ public class Tags implements Iterable<Tag> {
     private final Collection<Tag> original;
     private final List<String> tags;
     private Map<String, List<String>> tagValues;
-    private final Bindings bindings;
 
     @Override
     public Iterator<Tag> iterator() {
@@ -66,36 +65,39 @@ public class Tags implements Iterable<Tag> {
             this.values = values == null ? Collections.EMPTY_LIST : values;
             isPresent = !this.values.isEmpty();
         }
-        
+
         public boolean isPresent() {
             return isPresent;
         }
-        
-        public boolean isAnyOf(String ... args) {
-            for (String s : args) {
-                if (values.contains(s)) {
+
+        public boolean isAnyOf(Object... args) {
+            for (Object o : args) {
+                if (values.contains(o.toString())) {
                     return true;
                 }
             }
             return false;
         }
-        
-        public boolean isAllOf(String ... args) {
-            return values.containsAll(Arrays.asList(args));
+
+        public boolean isAllOf(Object... args) {
+            List list = new ArrayList(args.length);
+            for (Object o : args) {
+                list.add(o.toString());
+            }
+            return values.containsAll(list);
         }
-        
-        public boolean isOnly(String ... args) {
+
+        public boolean isOnly(Object... args) {
             return isAllOf(args) && args.length == values.size();
         }
-        
-        public boolean isEach(ScriptObjectMirror som) {
-            if (!som.isFunction()) {
+
+        public boolean isEach(Value v) {
+            if (!v.canExecute()) {
                 return false;
-            }            
+            }
             for (String s : values) {
-                Object o = som.call(som, s);
-                ScriptValue sv = new ScriptValue(o);
-                if (!sv.isBooleanTrue()) {
+                JsValue jv = new JsValue(v.execute(s));
+                if (!jv.isTrue()) {
                     return false;
                 }
             }
@@ -114,34 +116,6 @@ public class Tags implements Iterable<Tag> {
         return new Tags(tags);
     }
 
-    public boolean evaluate(String tagSelector) {
-        if (tagSelector == null) {
-            return true;
-        }
-        ScriptValue sv = ScriptBindings.eval(tagSelector, bindings);
-        return sv.isBooleanTrue();
-    }
-
-    public boolean contains(String tagText) {
-        return tags.contains(removeTagPrefix(tagText));
-    }
-
-    public List<String> getTags() {
-        return tags;
-    }
-    
-    public Collection<String> getTagKeys() {
-        return tagValues.keySet();
-    }
-
-    public Map<String, List<String>> getTagValues() {
-        return tagValues;
-    }
-
-    public Collection<Tag> getOriginal() {
-        return original;
-    }        
-
     public Tags(Collection<Tag> in) {
         if (in == null) {
             original = Collections.EMPTY_LIST;
@@ -155,16 +129,61 @@ public class Tags implements Iterable<Tag> {
                 tagValues.put(tag.getName(), tag.getValues());
             }
         }
-        bindings = ScriptBindings.createBindings();
-        bindings.put("bridge", this);
-        ScriptValue anyOfFun = ScriptBindings.eval("function(){ return bridge.anyOf(arguments) }", bindings);
-        ScriptValue allOfFun = ScriptBindings.eval("function(){ return bridge.allOf(arguments) }", bindings);
-        ScriptValue notFun = ScriptBindings.eval("function(){ return bridge.not(arguments) }", bindings);
-        ScriptValue valuesForFun = ScriptBindings.eval("function(s){ return bridge.valuesFor(s) }", bindings);
-        bindings.put("anyOf", anyOfFun.getValue());
-        bindings.put("allOf", allOfFun.getValue());
-        bindings.put("not", notFun.getValue());
-        bindings.put("valuesFor", valuesForFun.getValue());
+    }
+
+    public boolean evaluate(String tagSelector) {
+        if (tagSelector == null) {
+            return true;
+        }
+        JsEngine je = JsEngine.global();
+        je.put("anyOf", (Methods.FunVar) this::anyOf);
+        je.put("allOf", (Methods.FunVar) this::allOf);
+        je.put("not", (Methods.FunVar) this::not);
+        je.put("valuesFor", (Function<String, Values>) this::valuesFor);
+        JsValue jv = je.eval(tagSelector);
+        return jv.isTrue();
+    }
+
+    public boolean anyOf(Object... values) {
+        for (String s : removeTagPrefixes(values)) {
+            if (tags.contains(s)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean allOf(Object... values) {
+        return tags.containsAll(removeTagPrefixes(values));
+    }
+
+    public boolean not(Object... values) {
+        return !anyOf(values);
+    }
+
+    public Values valuesFor(String name) {
+        List<String> list = tagValues.get(removeTagPrefix(name));
+        return new Values(list);
+    }
+
+    public boolean contains(String tagText) {
+        return tags.contains(removeTagPrefix(tagText));
+    }
+
+    public List<String> getTags() {
+        return tags;
+    }
+
+    public Collection<String> getTagKeys() {
+        return tagValues.keySet();
+    }
+
+    public Map<String, List<String>> getTagValues() {
+        return tagValues;
+    }
+
+    public Collection<Tag> getOriginal() {
+        return original;
     }
 
     private static String removeTagPrefix(String s) {
@@ -175,55 +194,21 @@ public class Tags implements Iterable<Tag> {
         }
     }
 
-    private static Collection<String> removeTagPrefix(Collection<Object> c) {
-        List<String> list = new ArrayList(c.size());
-        for (Object o : c) {
-            String s = o.toString();
-            list.add(removeTagPrefix(s));
+    private static Collection<String> removeTagPrefixes(Object... values) {
+        List<String> list = new ArrayList(values.length);
+        for (Object o : values) {
+            list.add(removeTagPrefix(o.toString()));
         }
         return list;
     }
 
-    public boolean anyOf(ScriptObjectMirror som) {
-        for (String s : removeTagPrefix(som.values())) {
-            if (tags.contains(s)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public boolean allOf(ScriptObjectMirror som) {
-        return tags.containsAll(removeTagPrefix(som.values()));
-    }
-
-    public boolean not(ScriptObjectMirror som) {
-        return !anyOf(som);
-    }
-
-    public Values valuesFor(String name) {
-        List<String> list = tagValues.get(removeTagPrefix(name));
-        return new Values(list);
-    }
-
-    public static List<Map> toResultList(List<Tag> tags) {
-        List<Map> list = new ArrayList(tags.size());
-        for (Tag tag : tags) {
-            Map<String, Object> tagMap = new HashMap(2);
-            tagMap.put("line", tag.getLine());
-            tagMap.put("name", '@' + tag.getText());
-            list.add(tagMap);
-        }
-        return list;
-    }
-    
     public static String fromKarateOptionsTags(List<String> tags) {
         if (tags == null || tags.isEmpty()) {
             return null;
         }
         return fromKarateOptionsTags(tags.toArray(new String[]{}));
-    }    
-    
+    }
+
     public static String fromKarateOptionsTags(String... tags) {
         if (tags == null || tags.length == 0) {
             return null;
@@ -252,6 +237,6 @@ public class Tags implements Iterable<Tag> {
             }
         }
         return sb.toString();
-    }    
+    }
 
 }

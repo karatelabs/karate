@@ -23,11 +23,12 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.Script;
-import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.JsonUtils;
+import com.intuit.karate.graal.JsEngine;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -109,6 +110,28 @@ public class Table {
         return rows.get(row).get(col.index);
     }
 
+    public static Table fromKarateJson(List<Map<String, Object>> tableRows) {
+        List<List<String>> rows = new ArrayList(tableRows.size());
+        List<Integer> lines = new ArrayList(tableRows.size());
+        for (Map<String, Object> row : tableRows) {
+            rows.add((List) row.get("row"));
+            lines.add((Integer) row.get("line"));
+        }
+        return new Table(rows, lines);
+    }
+    
+    public List<Map<String, Object>> toKarateJson() {
+        int count = rows.size();
+        List<Map<String, Object>> list = new ArrayList(count);
+        for (int i = 0; i < count; i++) {
+            Map<String, Object> map = new HashMap(2);
+            list.add(map);
+            map.put("row", rows.get(i));
+            map.put("line", lineNumbers.get(i));            
+        }
+        return list;
+    }
+
     public Table(List<List<String>> rows, List<Integer> lineNumbers) {
         this.rows = rows;
         this.lineNumbers = lineNumbers;
@@ -156,10 +179,10 @@ public class Table {
         try {
             switch (col.type) {
                 case EVALUATED:
-                    if (Script.isJson(raw)) {
+                    if (JsonUtils.isJson(raw)) {
                         raw = '(' + raw + ')';
                     }
-                    return ScriptBindings.eval(raw, null).getValue();
+                    return JsEngine.evalGlobal(raw).getValue();
                 default:
                     if (StringUtils.isBlank(raw)) {
                         return null;

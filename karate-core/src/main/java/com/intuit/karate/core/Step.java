@@ -23,17 +23,22 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.StringUtils;
+import com.intuit.karate.KarateException;
+import com.intuit.karate.resource.MemoryResource;
+import com.intuit.karate.resource.Resource;
+
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- *
  * @author pthomas3
  */
 public class Step {
 
     private final Feature feature;
-    private final Scenario scenario;
+    private final Scenario scenario; // can be  null for background !!
     private final int index;
 
     private int line;
@@ -44,12 +49,29 @@ public class Step {
     private String docString;
     private Table table;
 
-    public String getDebugInfo() {
-        String message = "feature: " + feature.getRelativePath();
-        if (!isBackground()) {
-            message = message + ", scenario: " + StringUtils.trimToNull(scenario.getName());
+    public static final List<String> PREFIXES = Arrays.asList("*", "Given", "When", "Then", "And", "But");
+
+    public void parseAndUpdateFrom(String text) {
+        final String stepText = text.trim();
+        boolean hasPrefix = PREFIXES.stream().anyMatch(prefixValue -> stepText.startsWith(prefixValue));
+        // to avoid parser considering text without prefix as scenario comments / doc-string
+        if (!hasPrefix) {
+            text = "* " + stepText;
         }
-        return message + ", line: " + line;
+        Resource resource = new MemoryResource(scenario.getFeature().getResource().getFile(), "Feature:\nScenario:\n" + text);
+        Feature tempFeature = Feature.read(resource);
+        Step tempStep = tempFeature.getStep(0, -1, 0);
+        if (tempStep == null) {
+            throw new KarateException("invalid expression: " + text);
+        }
+        this.prefix = tempStep.prefix;
+        this.text = tempStep.text;
+        this.docString = tempStep.docString;
+        this.table = tempStep.table;
+    }
+
+    public String getDebugInfo() {
+        return feature + ":" + line;
     }
 
     public boolean isPrint() {
@@ -60,14 +82,73 @@ public class Step {
         return "*".equals(prefix);
     }
 
-    protected Step() {
-        this(null, null, -1);
+    public Feature getFeature() {
+        return feature;
     }
 
-    public Step(Feature feature, Scenario scenario, int index) {
+    public Step(Feature feature, int index) {
         this.feature = feature;
-        this.scenario = scenario;
+        this.scenario = null;
         this.index = index;
+    }
+
+    public Step(Scenario scenario, int index) {
+        this.scenario = scenario;
+        this.feature = scenario.getFeature();
+        this.index = index;
+    }
+
+    public static Step fromKarateJson(Scenario scenario, Map<String, Object> map) {
+        int index = (Integer) map.get("index");
+        Boolean background = (Boolean) map.get("background");
+        if (background == null) {
+            background = false;
+        }
+        Step step = background ? new Step(scenario.getFeature(), index) : new Step(scenario, index);
+        int line = (Integer) map.get("line");
+        step.setLine(line);
+        Integer endLine = (Integer) map.get("endLine");
+        if (endLine == null) {
+            endLine = line;
+        }
+        step.setEndLine(endLine);
+        if(map.get("comments") instanceof List) {
+            step.setComments((List) map.get("comments"));
+        }
+        step.setPrefix((String) map.get("prefix"));
+        step.setText((String) map.get("text"));
+        step.setDocString((String) map.get("docString"));
+        if(map.get("table") instanceof List) {
+            List<Map<String, Object>> table = (List) map.get("table");
+            if (table != null) {
+                step.setTable(Table.fromKarateJson(table));
+            }
+        }
+        return step;
+    }
+
+    public Map<String, Object> toKarateJson() {
+        Map<String, Object> map = new HashMap();
+        if (isBackground()) {
+            map.put("background", true);
+        }
+        map.put("index", index);
+        map.put("line", line);
+        if (endLine != line) {
+            map.put("endLine", endLine);
+        }
+        if (comments != null && !comments.isEmpty()) {
+            map.put("comments", comments);
+        }
+        map.put("prefix", prefix);
+        map.put("text", text);
+        if (docString != null) {
+            map.put("docString", docString);
+        }
+        if (table != null) {
+            map.put("table", table.toKarateJson());
+        }
+        return map;
     }
 
     public boolean isBackground() {
@@ -75,15 +156,7 @@ public class Step {
     }
 
     public boolean isOutline() {
-        return scenario != null && scenario.isOutline();
-    }
-
-    public Feature getFeature() {
-        return feature;
-    }
-
-    public Scenario getScenario() {
-        return scenario;
+        return scenario != null && scenario.isOutlineExample();
     }
 
     public int getIndex() {
@@ -148,7 +221,7 @@ public class Step {
 
     public void setComments(List<String> comments) {
         this.comments = comments;
-    }    
+    }
 
     @Override
     public String toString() {

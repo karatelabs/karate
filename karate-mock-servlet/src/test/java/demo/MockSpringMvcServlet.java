@@ -23,16 +23,16 @@
  */
 package demo;
 
-import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.mock.servlet.MockHttpClient;
-
-import javax.servlet.Servlet;
+import com.intuit.karate.core.ScenarioEngine;
+import com.intuit.karate.http.HttpClient;
+import com.intuit.karate.http.HttpClientFactory;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.springframework.boot.autoconfigure.web.WebMvcProperties;
+import org.springframework.boot.autoconfigure.web.servlet.WebMvcProperties;
 import org.springframework.mock.web.MockServletConfig;
 import org.springframework.mock.web.MockServletContext;
 import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
@@ -42,67 +42,39 @@ import org.springframework.web.servlet.DispatcherServlet;
  *
  * @author pthomas3
  */
-public class MockSpringMvcServlet extends MockHttpClient {
-    
+public class MockSpringMvcServlet implements HttpClientFactory {
+
     private static final Logger logger = LoggerFactory.getLogger(MockSpringMvcServlet.class);
 
-    private final Servlet servlet;
     private final ServletContext servletContext;
+    private final DispatcherServlet servlet;
 
-    public MockSpringMvcServlet(Servlet servlet, ServletContext servletContext) {
-        this.servlet = servlet;
-        this.servletContext = servletContext;
-    }
-
-    @Override
-    protected Servlet getServlet(HttpRequestBuilder request) {
-        return servlet;
-    }
-
-    @Override
-    protected ServletContext getServletContext() {
-        return servletContext;
-    }
-
-    private static final ServletContext SERVLET_CONTEXT = new MockServletContext();
-    private static final Servlet SERVLET;
-
-    static {
-        SERVLET = initServlet();
-    }
-
-    private static Servlet initServlet() {
+    public MockSpringMvcServlet() {
+        servletContext = new MockServletContext();
         AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
         context.register(MockDemoConfig.class);
-        context.setServletContext(SERVLET_CONTEXT);
-        DispatcherServlet servlet = new DispatcherServlet(context);
+        context.setServletContext(servletContext);
+        servlet = new DispatcherServlet(context);
         ServletConfig servletConfig = new MockServletConfig();
         try {
             servlet.init(servletConfig);
-            customize(servlet);
+            // if you want things like error handling, encoding etc to work exactly as the "real" spring DispatcherServlet
+            // you may need to add filters and beans to make some tests pass
+            // this may not be worth it, so alternatively use tags to exclude those tests from your local mock-servlet based tests
+            // note that this code below e.g. the WebMvcProperties depends on spring-boot 1.5X            
+            WebMvcProperties mvcProperties = servlet.getWebApplicationContext().getBean(WebMvcProperties.class);
+            servlet.setThrowExceptionIfNoHandlerFound(mvcProperties.isThrowExceptionIfNoHandlerFound());
+            servlet.setDispatchOptionsRequest(mvcProperties.isDispatchOptionsRequest());
+            servlet.setDispatchTraceRequest(mvcProperties.isDispatchTraceRequest());
         } catch (Exception e) {
             logger.error("init failed: {}", e.getMessage());
             throw new RuntimeException(e);
         }
-        return servlet;
     }
 
-    // if you want things like error handling, encoding etc to work exactly as the "real" spring DispatcherServlet
-    // you may need to add filters and beans to make some tests pass
-    // this may not be worth it, so alternatively use tags to exclude those tests from your local mock-servlet based tests
-    // note that this code below e.g. the WebMvcProperties depends on spring-boot 1.5X
-    private static void customize(Servlet servlet) {
-        if (servlet instanceof DispatcherServlet) {
-            DispatcherServlet dispatcherServlet = (DispatcherServlet) servlet;
-            WebMvcProperties mvcProperties = dispatcherServlet.getWebApplicationContext().getBean(WebMvcProperties.class);
-            dispatcherServlet.setThrowExceptionIfNoHandlerFound(mvcProperties.isThrowExceptionIfNoHandlerFound());
-            dispatcherServlet.setDispatchOptionsRequest(mvcProperties.isDispatchOptionsRequest());
-            dispatcherServlet.setDispatchTraceRequest(mvcProperties.isDispatchTraceRequest());
-        }
-    }
-
-    public static MockSpringMvcServlet getMock() {
-        return new MockSpringMvcServlet(SERVLET, SERVLET_CONTEXT);
+    @Override
+    public HttpClient create(ScenarioEngine engine) {
+        return new MockHttpClient(engine, servlet, servletContext);
     }
 
 }

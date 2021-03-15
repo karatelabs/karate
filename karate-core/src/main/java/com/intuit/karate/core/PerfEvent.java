@@ -28,15 +28,15 @@ package com.intuit.karate.core;
  * @author pthomas3
  */
 public class PerfEvent {
-    
+
     private final String name;
-    private final long startTime;   
+    private final long startTime;
     private final long endTime;
     private final int statusCode;
-    
-    private boolean failed;    
+
+    private boolean failed;
     private String message;
-        
+
     public PerfEvent(long startTime, long endTime, String name, int statusCode) {
         this.name = name;
         this.startTime = startTime;
@@ -50,15 +50,15 @@ public class PerfEvent {
 
     public long getStartTime() {
         return startTime;
-    }        
+    }
 
     public long getEndTime() {
         return endTime;
     }
-    
+
     public int getStatusCode() {
         return statusCode;
-    }    
+    }
 
     public boolean isFailed() {
         return failed;
@@ -75,5 +75,16 @@ public class PerfEvent {
     public void setMessage(String message) {
         this.message = message;
     }
-    
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[name: ").append(name);
+        sb.append(", startTime: ").append(startTime);
+        sb.append(", endTime: ").append(endTime);
+        sb.append(", statusCode: ").append(statusCode);
+        sb.append("]");
+        return sb.toString();
+    }
+
 }

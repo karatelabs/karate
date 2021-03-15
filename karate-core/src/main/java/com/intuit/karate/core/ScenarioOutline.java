@@ -27,12 +27,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- *
  * @author pthomas3
  */
 public class ScenarioOutline {
-
-    public static final String KEYWORD = "Scenario Outline";
 
     private final Feature feature;
     private final FeatureSection section;
@@ -48,15 +45,13 @@ public class ScenarioOutline {
         this.feature = feature;
         this.section = section;
     }
-    
-    public Scenario toScenario(String dynamicExpression, int exampleIndex, int line, List<Tag> tagsForExamples) {
+
+    public Scenario toScenario(String dynamicExpression, int exampleIndex, int updateLine, List<Tag> tagsForExamples) {
         Scenario s = new Scenario(feature, section, exampleIndex);
         s.setName(name);
         s.setDescription(description);
+        s.setLine(updateLine);
         s.setDynamicExpression(dynamicExpression);
-        s.setExampleIndex(exampleIndex);
-        s.setOutline(true);
-        s.setLine(line);
         if (tags != null || tagsForExamples != null) {
             List<Tag> temp = new ArrayList();
             if (tags != null) {
@@ -70,7 +65,7 @@ public class ScenarioOutline {
         List<Step> temp = new ArrayList(steps.size());
         s.setSteps(temp);
         for (Step original : steps) {
-            Step step = new Step(feature, s, original.getIndex());
+            Step step = new Step(s, original.getIndex());
             temp.add(step);
             step.setLine(original.getLine());
             step.setEndLine(original.getEndLine());
@@ -80,24 +75,45 @@ public class ScenarioOutline {
             step.setTable(original.getTable());
         }
         return s;
-    }    
+    }
 
     public List<Scenario> getScenarios() {
+        return this.getScenarios(null);
+    }
+
+    public List<Scenario> getScenarios(FeatureRuntime fr) {
         List<Scenario> list = new ArrayList();
+        boolean examplesHaveTags = examplesTables.stream().anyMatch(t -> !t.getTags().isEmpty());
         for (ExamplesTable examples : examplesTables) {
-            Table table = examples.getTable();
-            if (table.isDynamic()) {
-                Scenario scenario = toScenario(table.getDynamicExpression(), -1, line, examples.getTags());
-                list.add(scenario);
+            boolean selectedForExecution = false;
+            if (fr != null && examplesHaveTags) {
+                // getting examples in the context of an execution
+                // if the examples do not have any tagged example, do not worry about selecting
+                Tags tableTags = Tags.merge(examples.getTags());
+                boolean executeForTable = tableTags.evaluate(fr.suite.tagSelector);
+                if (executeForTable) {
+                    selectedForExecution = true;
+                }
             } else {
-                int rowCount = table.getRows().size();
-                for (int i = 1; i < rowCount; i++) { // don't include header row
-                    int exampleIndex = i - 1; // next line will set exampleIndex on scenario
-                    Scenario scenario = toScenario(null, exampleIndex, table.getLineNumberForRow(i), examples.getTags());
-                    scenario.setExampleData(table.getExampleData(exampleIndex)); // and we set exampleData here
+                selectedForExecution = true;
+            }
+
+            if (selectedForExecution) {
+                Table table = examples.getTable();
+                if (table.isDynamic()) {
+                    // technically row index 0 to denote an example (not -1)
+                    Scenario scenario = toScenario(table.getDynamicExpression(), 0, table.getLineNumberForRow(0), examples.getTags());
                     list.add(scenario);
-                    for (String key : table.getKeys()) {
-                        scenario.replace("<" + key + ">", table.getValueAsString(key, i));
+                } else {
+                    int rowCount = table.getRows().size();
+                    for (int i = 1; i < rowCount; i++) { // don't include header row
+                        int exampleIndex = i - 1; // next line will set exampleIndex on scenario
+                        Scenario scenario = toScenario(null, exampleIndex, table.getLineNumberForRow(i), examples.getTags());
+                        scenario.setExampleData(table.getExampleData(exampleIndex)); // and we set exampleData here
+                        list.add(scenario);
+                        for (String key : table.getKeys()) {
+                            scenario.replace("<" + key + ">", table.getValueAsString(key, i));
+                        }
                     }
                 }
             }

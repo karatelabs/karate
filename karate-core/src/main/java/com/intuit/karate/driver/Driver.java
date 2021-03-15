@@ -23,10 +23,15 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.Config;
 import com.intuit.karate.core.AutoDef;
 import com.intuit.karate.core.Plugin;
-import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.core.Config;
+import com.intuit.karate.core.FeatureRuntime;
+import com.intuit.karate.core.ScenarioEngine;
+import com.intuit.karate.core.ScenarioRuntime;
+import com.intuit.karate.core.StepResult;
+import com.intuit.karate.http.ResourceType;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -39,6 +44,16 @@ import java.util.function.Supplier;
  * @author pthomas3
  */
 public interface Driver extends Plugin {
+
+    public static Driver start(String browserType) {
+        return start(Collections.singletonMap("type", browserType));
+    }
+
+    public static Driver start(Map<String, Object> options) {
+        ScenarioRuntime runtime = FeatureRuntime.forTempUse().scenarios.next();
+        ScenarioEngine.set(runtime.engine);
+        return DriverOptions.start(options, runtime);
+    }
 
     @AutoDef
     void activate();
@@ -94,7 +109,7 @@ public interface Driver extends Plugin {
 
     List<String> getPages(); // getter
 
-    String getDialog(); // getter
+    String getDialogText(); // getter
 
     @AutoDef
     byte[] screenshot(boolean embed);
@@ -106,6 +121,12 @@ public interface Driver extends Plugin {
 
     @AutoDef
     Map<String, Object> cookie(String name);
+
+    @AutoDef
+    default void setCookies(List<Map<String, Object>> cookies) {
+        System.out.println("got this cookie: " + cookies);
+        cookies.forEach(c -> cookie(c));
+    }
 
     @AutoDef
     void cookie(Map<String, Object> cookie);
@@ -436,6 +457,9 @@ public interface Driver extends Plugin {
         return after;
     }
 
+    @AutoDef
+    public byte[] pdf(Map<String, Object> options);
+
     // for internal use ========================================================
     //        
     boolean isTerminated();
@@ -454,13 +478,16 @@ public interface Driver extends Plugin {
     }
 
     @Override
-    default void setContext(ScenarioContext context) {
-        getOptions().setContext(context);
+    default Map<String, Object> afterScenario() {
+        return Collections.EMPTY_MAP; // TODO
     }
 
     @Override
-    default Map<String, Object> afterScenario() {
-        return Collections.EMPTY_MAP; // TODO
+    public default void onFailure(StepResult stepResult) {
+        if (getOptions().screenshotOnFailure && !stepResult.isWithCallResults()) {
+            byte[] bytes = screenshot(false);
+            getRuntime().embed(bytes, ResourceType.PNG);
+        }
     }
 
 }

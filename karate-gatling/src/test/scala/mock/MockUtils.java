@@ -1,11 +1,8 @@
 package mock;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.PerfContext;
-import com.intuit.karate.netty.FeatureServer;
+import com.intuit.karate.core.MockServer;
 
-
-import java.io.File;
 import java.util.Collections;
 import java.util.Map;
 
@@ -20,8 +17,7 @@ public class MockUtils {
     }
     
     public static void startServer(int port) {
-        File file = FileUtils.getFileRelativeTo(MockUtils.class, "mock.feature");
-        FeatureServer server = FeatureServer.start(file, port, false, null);
+        MockServer server = MockServer.feature("classpath:mock/mock.feature").http(port).build();
         System.setProperty("mock.port", server.getPort() + "");        
     }
 

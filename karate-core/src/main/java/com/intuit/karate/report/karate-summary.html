@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+    <link rel="stylesheet" href="res/bootstrap.min.css" type="text/css"/>
+    <link rel="stylesheet" href="res/karate-report.css" type="text/css"/>
+    <link rel="shortcut icon" href="favicon.ico"/>
+    <script type="text/javascript" src="res/jquery.min.js"></script>
+    <script type="text/javascript" src="res/jquery.tablesorter.min.js"></script>
+    <script type="text/javascript" src="res/bootstrap.min.js"></script>
+    <script type="text/javascript" src="res/karate-report.js"></script>
+    <title>Karate Summary Report</title>  
+  </head>
+  <body>   
+    <div id="root-container">
+      <div id="leftnav">
+        <script ka:scope="global">
+          var reportMeta = {
+            passedCount: results.featuresPassed,
+            failedCount: results.featuresFailed,
+            reportType: 'Features',
+            reportDate: results.resultDate
+          };
+        </script>        
+        <div th:replace="karate-leftnav.html"></div>
+      </div>
+      <div id="content">
+        <div class="page-heading alert alert-primary">
+          <a href="karate-tags.html">Tags</a>
+        </div>       
+        <table class="features-table table table-sm">
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>Title</th>
+              <th class="num">Passed</th>
+              <th class="num">Failed</th>
+              <th class="num">Scenarios</th>
+              <th class="num">Time (ms)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:each="fr: results.featureSummary" th:classappend="fr.failed ? 'failed' : 'passed'">              
+              <td>
+                <a th:href="fr.packageQualifiedName + '.html'" th:text="fr.relativePath"></a>
+              </td>
+              <td th:title="fr.description" th:text="fr.name"></td>
+              <td class="num" th:text="fr.passedCount"></td>
+              <td class="num" th:text="fr.failedCount"></td>
+              <td class="num" th:text="fr.scenarioCount"></td>
+              <td class="num" th:text="Math.round(fr.durationMillis)"></td>            
+            </tr>            
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </body>
+</html>
+
