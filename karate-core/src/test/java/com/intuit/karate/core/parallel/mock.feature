@@ -9,5 +9,8 @@ Scenario: pathMatches('/two')
 Scenario: pathMatches('/three')
 * def response = ({ three: requestHeaders['test-id'][0] })
 
-Scenario: pathMatches('/config')
-* def response = { message: 'hello world' }
+Scenario: pathMatches('/fromconfig')
+* def response = { message: 'from config' }
+
+Scenario: pathMatches('/fromfeature')
+* def response = { message: 'from feature' }

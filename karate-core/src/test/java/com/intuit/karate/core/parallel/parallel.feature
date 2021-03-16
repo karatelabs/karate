@@ -1,9 +1,9 @@
 Feature:
 
 Background:
-* match message == 'hello world'
+* match message == 'from config'
 * callonce read('common.feature')
-* match fromCommon == 'hello common'
+* match message == 'from common'
 * url serverUrl
 
 Scenario: one
@@ -11,6 +11,8 @@ Scenario: one
 * method get
 * status 200
 * match response == { one: '#string' }
+* def result = karate.callSingle('call-single-from-feature.feature')
+* match result.response == { message: 'from feature' }
 
 Scenario: two
 * path 'two'
