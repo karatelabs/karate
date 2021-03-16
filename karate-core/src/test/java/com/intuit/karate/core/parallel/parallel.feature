@@ -1,7 +1,9 @@
 Feature:
 
 Background:
+* match message == 'hello world'
 * callonce read('common.feature')
+* match fromCommon == 'hello common'
 * url serverUrl
 
 Scenario: one
