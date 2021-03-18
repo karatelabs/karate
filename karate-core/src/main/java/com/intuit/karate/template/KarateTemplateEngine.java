@@ -97,7 +97,7 @@ public class KarateTemplateEngine {
             }
         } catch (Exception e) {
             // make thymeleaf errors easier to troubleshoot from the logs
-            while (e.getCause() != null && e instanceof Exception) {
+            while (e.getCause() instanceof Exception) {
                 e = (Exception) e.getCause();
                 if (e instanceof TemplateProcessingException) {
                     logger.error("{}", e.getMessage()); // will print line and col numbers
