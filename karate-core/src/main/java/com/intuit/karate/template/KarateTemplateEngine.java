@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.template;
 
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.http.RequestCycle;
 import java.io.IOException;
@@ -40,6 +41,7 @@ import org.thymeleaf.dialect.IDialect;
 import org.thymeleaf.engine.TemplateData;
 import org.thymeleaf.engine.TemplateManager;
 import org.thymeleaf.exceptions.TemplateOutputException;
+import org.thymeleaf.exceptions.TemplateProcessingException;
 import org.thymeleaf.templatemode.TemplateMode;
 import org.thymeleaf.templateresolver.ITemplateResolver;
 import org.thymeleaf.util.FastStringWriter;
@@ -49,12 +51,12 @@ import org.thymeleaf.util.FastStringWriter;
  * @author pthomas3
  */
 public class KarateTemplateEngine {
-
+    
     private static final Logger logger = LoggerFactory.getLogger(KarateTemplateEngine.class);
-
+    
     private final StandardEngineContextFactory standardFactory;
     private final TemplateEngine wrapped;
-
+    
     public KarateTemplateEngine(JsEngine je, IDialect... dialects) {
         standardFactory = new StandardEngineContextFactory();
         wrapped = new TemplateEngine();
@@ -68,22 +70,22 @@ public class KarateTemplateEngine {
             wrapped.addDialect(dialect);
         }
     }
-
+    
     public void setTemplateResolver(ITemplateResolver templateResolver) {
         wrapped.setTemplateResolver(templateResolver);
     }
-
+    
     public String process(String template) {
         return process(template, TemplateContext.LOCALE_US);
     }
-
+    
     public String process(String template, IContext context) {
         TemplateSpec templateSpec = new TemplateSpec(template, TemplateMode.HTML);
         Writer stringWriter = new FastStringWriter(100);
         process(templateSpec, context, stringWriter);
         return stringWriter.toString();
     }
-
+    
     public void process(TemplateSpec templateSpec, IContext context, Writer writer) {
         try {
             TemplateManager templateManager = wrapped.getConfiguration().getTemplateManager();
@@ -94,9 +96,22 @@ public class KarateTemplateEngine {
                 throw new TemplateOutputException("error flushing output writer", templateSpec.getTemplate(), -1, -1, e);
             }
         } catch (Exception e) {
-            logger.error("{}", e.getMessage());
-            throw e;
+            // make thymeleaf errors easier to troubleshoot from the logs
+            while (e.getCause() != null && e instanceof Exception) {
+                e = (Exception) e.getCause();
+                if (e instanceof TemplateProcessingException) {
+                    logger.error("{}", e.getMessage()); // will print line and col numbers
+                    if (e.getCause() != null) { // typically the js error
+                        logger.error("{}", e.getCause().getMessage());
+                    }
+                    break;
+                }
+            }
+            if (logger.isTraceEnabled()) {
+                logger.trace("{}", StringUtils.throwableToString(e));
+            }
+            throw new RuntimeException(e);
         }
     }
-
+    
 }
