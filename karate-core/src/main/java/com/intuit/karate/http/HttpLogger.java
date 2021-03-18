@@ -27,6 +27,7 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.core.Config;
 import com.intuit.karate.core.Variable;
+
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -124,10 +125,10 @@ public class HttpLogger {
         sb.append("request:\n").append(requestCount).append(" > ")
                 .append(request.getMethod()).append(' ').append(maskedUri);
         logHeaders(requestCount, " > ", sb, requestModifier, request.getHeaders());
-        ResourceType rt = ResourceType.fromContentType(request.getContentType());
-        if (rt == null || rt.isBinary()) {
-            // don't log body
-        } else {
+        String contentType = request.getContentType();
+        ResourceType rt = ResourceType.fromContentType(contentType);
+        if ((contentType != null && contentType.contains("application/x-www-form-urlencoded")) || (rt != null && !rt.isBinary())) {
+            // log body
             Object converted = request.getBodyForDisplay();
             if (converted == null) {
                 try {
@@ -165,5 +166,4 @@ public class HttpLogger {
         }
         logger.debug("{}", sb);
     }
-
 }
