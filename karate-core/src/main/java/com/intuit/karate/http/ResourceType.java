@@ -47,6 +47,7 @@ public enum ResourceType {
     XML("application/xml", vals("xml"), vals("xml")),
     TEXT("text/plain", vals("plain"), vals("txt")),
     MULTIPART("multipart/form-data", vals("multipart"), vals()),
+    URLENCODED("application/x-www-form-urlencoded", vals("urlencoded"), vals()),
     BINARY("application/octet-stream", vals("octet"), vals()),
     RDFXML("application/rdf+xml", vals("xml", "rdf"), vals(".rdf")),
     NTRIPLES("application/n-triples", vals("rdf"), vals(".nt")),
