@@ -67,7 +67,7 @@
                     <encoding>UTF-8</encoding>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
-                    <compilerArgument>-Werror</compilerArgument>
+                    <!-- <compilerArgument>-Werror</compilerArgument> -->
                 </configuration>
             </plugin>
             <plugin>
