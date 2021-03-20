@@ -48,7 +48,7 @@ File | Demonstrates
 Refer to the wiki page: [Gradle](https://github.com/intuit/karate/wiki/Gradle).
 
 ## Example Report
-> This is optional and if you use the parallel runner as described above, the JUnit XML emitted is sufficient for most CI tools (e.g. Jenkins) to generate test reports and determine whether the build passed or failed. But the advantage of the approach below is that it includes HTTP request and response logs in-line with the report (see [video](https://twitter.com/KarateDSL/status/899671441221623809)).
+This is optional because Karate's native HTML reports should serve all your needs. But you can ask Karate to emit the "Cucumber JSON" report data format, which can be consumed by third-party utilities in the Cucumber ecosystem.
 
 Since the [maven-cucumber-reporting](https://github.com/damianszczepanik/maven-cucumber-reporting) plugin [has an issue](https://github.com/damianszczepanik/maven-cucumber-reporting/issues/61#issuecomment-310815425) where reports will not be generated if the build fails, we recommend that you directly use the [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) library programmatically in combination with the [Karate parallel runner](https://github.com/intuit/karate#parallel-execution). Here is how:
 
@@ -72,15 +72,11 @@ log4j.appender.CONSOLE.layout = org.apache.log4j.PatternLayout
 ```
 
 ### Generate Report
-Refer to the code in the demo: [`DemoTestParallel.java`](src/test/java/demo/DemoTestParallel.java#L43), specifically the `generateReport()` method.
+Refer to the code in the demo: [`DemoTestParallel.java`](src/test/java/demo/DemoTestParallel.java#L43), specifically the `generateReport()` method. Note that [`outputCucumberJson(true)`](https://github.com/intuit/karate#parallel-execution) is called on the `Runner` "builder".
 
 And here is the output, which goes into `target/cucumber-html-reports` if you follow the above steps:
 
 <img src="src/test/resources/karate-maven-report.jpg" height="600px"/>
-
-This report is recommended especially because the HTTP request and response payloads are embedded. You can even see the results of [`print`](https://github.com/intuit/karate#print) statements in-line.
-
-<img src="src/test/resources/karate-maven-report-http.jpg" height="600px"/>
 
 ## Code Coverage using Jacoco
 In the [`pom.xml`](pom.xml#L160), code coverage using [Jacoco](http://www.baeldung.com/jacoco) is also demonstrated. Since this is set-up as a [Maven profile](http://maven.apache.org/guides/introduction/introduction-to-profiles.html), instrumentation and code-coverage reporting would be performed only when you use the `coverage` profile. Note that code-coverage data (binary) would be saved to this file: `target/jacoco.exec`.
