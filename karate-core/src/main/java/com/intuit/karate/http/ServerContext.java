@@ -162,11 +162,15 @@ public class ServerContext implements ProxyObject {
     public Object read(String resource) {
         String raw = readAsString(resource);
         ResourceType resourceType = ResourceType.fromFileExtension(resource);
-        return JsValue.fromString(raw, false, resourceType);
+        if (resourceType == ResourceType.JS) {
+            return eval(raw);
+        } else {
+            return JsValue.fromString(raw, false, resourceType);
+        }
     }
 
     public Object eval(String source) {
-        return RequestCycle.get().getLocalEngine().evalForValue("(" + source + ")");
+        return RequestCycle.get().getEngine().evalForValue(source);
     }
 
     public String toJson(Object o) {

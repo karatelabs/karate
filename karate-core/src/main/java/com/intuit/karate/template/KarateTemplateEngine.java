@@ -51,12 +51,12 @@ import org.thymeleaf.util.FastStringWriter;
  * @author pthomas3
  */
 public class KarateTemplateEngine {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(KarateTemplateEngine.class);
-    
+
     private final StandardEngineContextFactory standardFactory;
     private final TemplateEngine wrapped;
-    
+
     public KarateTemplateEngine(JsEngine je, IDialect... dialects) {
         standardFactory = new StandardEngineContextFactory();
         wrapped = new TemplateEngine();
@@ -70,22 +70,22 @@ public class KarateTemplateEngine {
             wrapped.addDialect(dialect);
         }
     }
-    
+
     public void setTemplateResolver(ITemplateResolver templateResolver) {
         wrapped.setTemplateResolver(templateResolver);
     }
-    
+
     public String process(String template) {
         return process(template, TemplateContext.LOCALE_US);
     }
-    
+
     public String process(String template, IContext context) {
         TemplateSpec templateSpec = new TemplateSpec(template, TemplateMode.HTML);
         Writer stringWriter = new FastStringWriter(100);
         process(templateSpec, context, stringWriter);
         return stringWriter.toString();
     }
-    
+
     public void process(TemplateSpec templateSpec, IContext context, Writer writer) {
         try {
             TemplateManager templateManager = wrapped.getConfiguration().getTemplateManager();
@@ -113,5 +113,5 @@ public class KarateTemplateEngine {
             throw new RuntimeException(e);
         }
     }
-    
+
 }
