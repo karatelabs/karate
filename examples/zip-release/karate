@@ -1,2 +1,2 @@
 #!/bin/bash
-java -cp karate.jar:. com.intuit.karate.Main $*
+java -cp "$(dirname "$0")/karate.jar":. com.intuit.karate.Main "$@"
