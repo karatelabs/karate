@@ -1,3 +1,6 @@
 function fn() {
-  return { serverUrl: 'http://localhost:' + karate.properties['server.port'] };
+  return {
+    serverUrl: 'http://localhost:' + karate.properties['server.port'],
+    slowServerUrl: 'http://localhost:' + karate.properties['slowServerPort']
+    };
 }
