@@ -42,7 +42,7 @@ class JsEngineTest {
         assertTrue(v.isFunction());
         JsValue res = v.invoke();
         assertTrue(res.isArray());
-        assertEquals("[\"a\",\"b\",\"c\"]", res.toJson());
+        assertEquals("[\"a\",\"b\",\"c\"]", res.toJsonOrXmlString(false));
         assertEquals("function(){ return ['a', 'b', 'c'] }", v.toString());
     }
 
@@ -52,7 +52,7 @@ class JsEngineTest {
         assertTrue(v.isFunction());
         JsValue res = v.invoke();
         assertTrue(res.isArray());
-        assertEquals("[\"a\",\"b\",\"c\"]", res.toJson());
+        assertEquals("[\"a\",\"b\",\"c\"]", res.toJsonOrXmlString(false));
         assertEquals("() => ['a', 'b', 'c']", v.toString());
     }
 
@@ -89,7 +89,7 @@ class JsEngineTest {
         assertTrue(v.isFunction());
         JsValue res = v.invoke(1);
         assertTrue(res.isArray());
-        assertEquals("[1,1]", res.toJson());
+        assertEquals("[1,1]", res.toJsonOrXmlString(false));
         assertEquals("x => [x, x]", v.toString());
     }
 
