@@ -1,6 +1,8 @@
-# <img src="karate-core/src/main/java/karate-logo.svg" height="60" width="60"/> Karate
+# Karate
 ## Test Automation Made `Simple.`
 [![Maven Central](https://img.shields.io/maven-central/v/com.intuit.karate/karate-core.svg)](https://search.maven.org/artifact/com.intuit.karate/karate-core) [ ![build](https://github.com/intuit/karate/workflows/maven-build/badge.svg)](https://github.com/intuit/karate/actions?query=workflow%3Amaven-build) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Support Slack](https://img.shields.io/badge/support-wiki-red.svg)](https://github.com/intuit/karate/wiki/Support) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL) [![GitHub Stars](https://img.shields.io/github/stars/intuit/karate?style=social)](https://github.com/intuit/karate/stargazers)
+
+<a><img src="karate-core/src/test/resources/karate-map.jpg" height="650" /></a>
 
 Karate is the only open-source tool to combine API test-automation, [mocks](karate-netty), [performance-testing](karate-gatling) and even [UI automation](karate-core) into a **single**, *unified* framework. The BDD syntax popularized by Cucumber is language-neutral, and easy for even non-programmers. Assertions and HTML reports are built-in, and you can run tests in parallel for speed.
 
@@ -9,7 +11,7 @@ There's also a cross-platform [stand-alone executable](karate-netty#standalone-j
 A [Java API](#java-api) also exists for those who prefer to programmatically integrate Karate's rich automation and data-assertion capabilities.
 
 ## Hello World
-
+### For API Testing
 <a href="https://gist.github.com/ptrthomas/d5a2d9e15d0b07e4f1b46f692a599f93"><img src="karate-demo/src/test/resources/karate-hello-world.jpg" height="400" /></a>
 
 > If you are familiar with Cucumber / Gherkin, the [*big difference*](#cucumber-vs-karate) here is that you **don't** need to write extra "glue" code or Java "step definitions" !
@@ -40,7 +42,8 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#ide-support">IDE Support</a>    
     | <a href="#tags">Tags / Grouping</a>
     | <a href="#parallel-execution">Parallel Execution</a>
-    | <a href="#java-api">Java API</a>    
+    | <a href="#java-api">Java API</a> 
+    | <a href="#jbang">jbang</a>    
   </td>
 </tr>
 <tr>
@@ -101,7 +104,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#eval"><code>eval</code></a>
     | <a href="#listen"><code>listen</code></a>    
     | <a href="#reading-files"><code>read()</code></a>
-    | <a href="#the-karate-object"><code>karate</code> API</a>  
+    | <a href="#the-karate-object"><code>karate</code> JS API</a>  
   </td>
 </tr>
 <tr>
@@ -267,7 +270,7 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 You can find a lot more references, tutorials and blog-posts [in the wiki](https://github.com/intuit/karate/wiki/Community-News). Karate also has a dedicated "tag", and a very active and supportive community at [Stack Overflow](https://stackoverflow.com/questions/tagged/karate) - where you can get support and ask questions.
 
 # Getting Started
-If you are a Java developer - Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 (at least version 1.8.0_112 or greater) and then either [Maven](http://maven.apache.org), [Gradle](https://gradle.org), [Eclipse](#eclipse-quickstart) or [IntelliJ](https://github.com/intuit/karate/wiki/IDE-Support#intellij-community-edition) to be installed. Note that Karate works fine on OpenJDK. Any Java version from 8-12 is supported.
+If you are a Java developer - Karate requires at least [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 and then either [Maven](http://maven.apache.org), [Gradle](https://gradle.org), [Eclipse](#eclipse-quickstart) or [IntelliJ](https://github.com/intuit/karate/wiki/IDE-Support#intellij-community-edition) to be installed. Note that Karate works fine on OpenJDK.
 
 If you are new to programming or test-automation, refer to this video for [getting started with just the (free) IntelliJ Community Edition](https://youtu.be/W-af7Cd8cMc). Other options are the [quickstart](#quickstart) or the [standalone executable](karate-netty#standalone-jar).
 
@@ -359,6 +362,9 @@ sourceSets {
 With the above in place, you don't have to keep switching between your `src/test/java` and `src/test/resources` folders, you can have all your test-code and artifacts under `src/test/java` and everything will work as expected.
 
 Once you get used to this, you may even start wondering why projects need a `src/test/resources` folder at all !
+
+### Spring Boot Example
+[Soumendra Daas](https://twitter.com/sdaas) has created a nice example and guide that you can use as a reference here: [`hello-karate`](https://github.com/Sdaas/hello-karate). This demonstrates a Java Maven + JUnit 5 project set up to test a [Spring Boot](http://projects.spring.io/spring-boot/) app.
 
 ## Naming Conventions
 Since these are tests and not production Java code, you don't need to be bound by the `com.mycompany.foo.bar` convention and the un-necessary explosion of sub-folders that ensues. We suggest that you have a folder hierarchy only one or two levels deep - where the folder names clearly identify which 'resource', 'entity' or API is the web-service under test.
@@ -463,12 +469,17 @@ class SampleTest {
     }
 
     @Karate.Test
-    Karate testFullPath() {
-        return Karate.run("classpath:karate/tags.feature").tags("@first");
+    Karate testSystemProperty() {
+        return Karate.run("classpath:karate/tags.feature")
+                .tags("@second")
+                .karateEnv("e2e")
+                .systemProperty("foo", "bar");
     }
 
 }
 ```
+
+Note that more "builder" methods are available from the [`Runner.Builder`](#junit-4-parallel-execution) class such as `reportDir()` etc.
 
 You should be able to right-click and run a single method using your IDE - which should be sufficient when you are in development mode. But to be able to run JUnit 5 tests from the command-line, you need to ensure that the latest version of the [maven-surefire-plugin](https://maven.apache.org/surefire/maven-surefire-plugin/examples/junit-platform.html) is present in your project `pom.xml` (within the `<build>/<plugins>` section):
 
@@ -588,7 +599,7 @@ test {
 }
 ```
 
-The big drawback of the approach above is that you cannot run tests in parallel. The recommended approach for Karate reporting in a Continuous Integration set-up is described in the next section which focuses on generating the [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) format that most CI tools can consume. The [Cucumber JSON format](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) is also emitted, which gives you plenty of options for generating pretty reports using third-party maven plugins.
+The big drawback of the approach above is that you cannot run tests in parallel. The recommended approach for Karate reporting in a Continuous Integration set-up is described in the next section which can generate the [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) format that most CI tools can consume. The [Cucumber JSON format](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) can be also emitted, which gives you plenty of options for generating pretty reports using third-party maven plugins.
 
 And most importantly - you can run tests in parallel without having to depend on third-party hacks that introduce code-generation and config 'bloat' into your `pom.xml` or `build.gradle`.
 
@@ -666,7 +677,7 @@ scenarios:  145 | passed:   145 | failed: 0
 
 The parallel runner will always run `Feature`-s in parallel. Karate will also run `Scenario`-s in parallel by default. So if you have a `Feature` with multiple `Scenario`-s in it - they will execute in parallel, and even each `Examples` row in a `Scenario Outline` will do so ! 
 
-A `timeline.html` file will also be saved to the report output directory mentioned above (`target/karate-reports` by default) - which is useful for visually verifying or troubleshooting the effectiveness of the test-run ([see video](https://twitter.com/KarateDSL/status/1049321708241317888)).
+A `karate-timeline.html` file will also be saved to the report output directory mentioned above (`target/karate-reports` by default) - which is useful for visually verifying or troubleshooting the effectiveness of the test-run ([see video](https://twitter.com/KarateDSL/status/1049321708241317888)).
 
 ### `@parallel=false`
 In rare cases you may want to suppress the default of `Scenario`-s executing in parallel and the special [`tag`](#tags) `@parallel=false` can be used. If you place it above the [`Feature`](#script-structure) keyword, it will apply to all `Scenario`-s. And if you just want one or two `Scenario`-s to NOT run in parallel, you can place this tag above only *those* `Scenario`-s. See [example](karate-demo/src/test/java/demo/encoding/encoding.feature).
@@ -681,10 +692,6 @@ The [Karate Demo](karate-demo) has a working example of the recommended parallel
 For example, here below is an actual report generated by the [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) open-source library.  
 
 <img src="karate-demo/src/test/resources/karate-maven-report.jpg" height="600px"/>
-
-This report is recommended especially because Karate's integration includes the HTTP request and response logs [in-line with the test report](https://twitter.com/KarateDSL/status/899671441221623809), which is extremely useful for troubleshooting test failures.
-
-<img src="karate-demo/src/test/resources/karate-maven-report-http.jpg" height="600px"/>
 
 The demo also features [code-coverage using Jacoco](karate-demo#code-coverage-using-jacoco), and some tips for even non-Java back-ends. Some third-party report-server solutions integrate with Karate such as [ReportPortal.io](https://github.com/reportportal/agent-java-karate).
 
@@ -3831,6 +3838,36 @@ Karate has a [set of Java API-s](https://twitter.com/KarateDSL/status/1353969718
 
 Do note that if you choose the Java API, you will naturally lose some of the test-automation framework benefits such as HTML reports, parallel execution and [JavaScript](#the-karate-object) / [configuration](#configuration). You may have to rely on unit-testing frameworks or integrate additional dependencies.
 
+### jbang
+[jbang](https://www.jbang.dev) is a great way for you to install and execute scripts that use Karate's Java API on any machine with minimal setup.  Note that jbang itself is [super-easy to install](https://github.com/jbangdev/jbang#installation) and there is even a "[Zero Install](https://github.com/jbangdev/jbang#zero-install)" option.
+
+Here below is an example jbang script that uses the Karate [Java API](#java-api) to do some useful work:
+
+> please replace `RELEASE` with the exact version of Karate you intend to use if applicable
+
+```java
+///usr/bin/env jbang "$0" "$@" ; exit $?
+//DEPS com.intuit.karate:karate-core:RELEASE
+
+import com.intuit.karate.*;
+import java.util.List;
+
+public class javadsl {
+
+    public static void main(String[] args) {
+        List users = Http.to("https://jsonplaceholder.typicode.com/users")
+                .get().json().asList();
+        Match.that(users.get(0)).contains("{ name: 'Leanne Graham' }");
+        String city = Json.of(users).get("$[0].address.city");
+        Match.that("Gwenborough").isEqualTo(city);
+        System.out.println("\n*** second user: " + Json.of(users.get(1)).toString());
+    }
+
+}
+```
+
+Read the documentation of the [stand-alone JAR](karate-netty#jbang) for more - such as how you can even install custom command-line applications using jbang !
+
 ### Invoking feature files using the Java API
 It is also possible to invoke a feature file via a Java API which can be useful in some test-automation situations.
 
@@ -3977,7 +4014,7 @@ Scenario Outline: inline json
 
 For another example, see: [`examples.feature`](karate-demo/src/test/java/demo/outline/examples.feature).
 
-If you're looking for more complex ways of naming your scenarios you can use JavaScript String interpolation by and include placeholders in your scenario name.
+If you're looking for more complex ways of dynamically naming your scenarios you can use JS string interpolation by including placeholders in your scenario name.
 
 ```cucumber
 Scenario Outline: name is ${name.first} ${name.last} and age is ${age}

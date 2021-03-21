@@ -160,7 +160,7 @@ public class Runner {
 
     //==========================================================================
     //
-    public static class Builder {
+    public static class Builder<T extends Builder> {
 
         ClassLoader classLoader;
         Class optionsClass;
@@ -304,53 +304,53 @@ public class Runner {
             return features;
         }
 
-        protected Builder forTempUse() {
+        protected T forTempUse() {
             forTempUse = true;
-            return this;
+            return (T) this;
         }
 
         //======================================================================
         //
-        public Builder configDir(String dir) {
+        public T configDir(String dir) {
             this.configDir = dir;
-            return this;
+            return (T) this;
         }
 
-        public Builder karateEnv(String env) {
+        public T karateEnv(String env) {
             this.env = env;
-            return this;
+            return (T) this;
         }
 
-        public Builder systemProperty(String key, String value) {
+        public T systemProperty(String key, String value) {
             if (systemProperties == null) {
                 systemProperties = new HashMap();
             }
             systemProperties.put(key, value);
-            return this;
+            return (T) this;
         }
 
-        public Builder workingDir(File value) {
+        public T workingDir(File value) {
             if (value != null) {
                 this.workingDir = value;
             }
-            return this;
+            return (T) this;
         }
 
-        public Builder buildDir(String value) {
+        public T buildDir(String value) {
             if (value != null) {
                 this.buildDir = value;
             }
-            return this;
+            return (T) this;
         }
 
-        public Builder classLoader(ClassLoader value) {
+        public T classLoader(ClassLoader value) {
             classLoader = value;
-            return this;
+            return (T) this;
         }
 
-        public Builder relativeTo(Class clazz) {
+        public T relativeTo(Class clazz) {
             relativeTo = "classpath:" + ResourceUtils.toPathFromClassPathRoot(clazz);
-            return this;
+            return (T) this;
         }
 
         /**
@@ -358,7 +358,7 @@ public class Runner {
          * @deprecated
          */
         @Deprecated
-        public Builder fromKarateAnnotation(Class<?> clazz) {
+        public T fromKarateAnnotation(Class<?> clazz) {
             KarateOptions ko = clazz.getAnnotation(KarateOptions.class);
             if (ko != null) {
                 LOGGER.warn("the @KarateOptions annotation is deprecated, please use Runner.builder()");
@@ -372,134 +372,135 @@ public class Runner {
             return relativeTo(clazz);
         }
 
-        public Builder path(String... value) {
+        public T path(String... value) {
             path(Arrays.asList(value));
-            return this;
+            return (T) this;
         }
 
-        public Builder path(List<String> value) {
+        public T path(List<String> value) {
             if (value != null) {
                 if (paths == null) {
                     paths = new ArrayList();
                 }
                 paths.addAll(value);
             }
-            return this;
+            return (T) this;
         }
 
-        public Builder tags(List<String> value) {
+        public T tags(List<String> value) {
             if (value != null) {
                 if (tags == null) {
                     tags = new ArrayList();
                 }
                 tags.addAll(value);
             }
-            return this;
+            return (T) this;
         }
 
-        public Builder tags(String... tags) {
+        public T tags(String... tags) {
             tags(Arrays.asList(tags));
-            return this;
+            return (T) this;
         }
 
-        public Builder features(Collection<Feature> value) {
+        public T features(Collection<Feature> value) {
             if (value != null) {
                 if (features == null) {
                     features = new ArrayList();
                 }
                 features.addAll(value);
             }
-            return this;
+            return (T) this;
         }
 
-        public Builder features(Feature... value) {
+        public T features(Feature... value) {
             return features(Arrays.asList(value));
         }
 
-        public Builder reportDir(String value) {
+        public T reportDir(String value) {
             if (value != null) {
                 this.reportDir = value;
             }
-            return this;
+            return (T) this;
         }
 
-        public Builder scenarioName(String name) {
+        public T scenarioName(String name) {
             this.scenarioName = name;
-            return this;
+            return (T) this;
         }
 
-        public Builder timeoutMinutes(int timeoutMinutes) {
+        public T timeoutMinutes(int timeoutMinutes) {
             this.timeoutMinutes = timeoutMinutes;
-            return this;
+            return (T) this;
         }
 
-        public Builder hook(RuntimeHook hook) {
+        public T hook(RuntimeHook hook) {
             if (hook != null) {
                 hooks.add(hook);
             }
-            return this;
+            return (T) this;
         }
 
-        public Builder hooks(Collection<RuntimeHook> hooks) {
+        public T hooks(Collection<RuntimeHook> hooks) {
             if (hooks != null) {
                 this.hooks.addAll(hooks);
             }
-            return this;
+            return (T) this;
         }
 
-        public Builder hookFactory(RuntimeHookFactory hookFactory) {
+        public T hookFactory(RuntimeHookFactory hookFactory) {
             this.hookFactory = hookFactory;
-            return this;
+            return (T) this;
         }
 
-        public Builder clientFactory(HttpClientFactory clientFactory) {
+        public T clientFactory(HttpClientFactory clientFactory) {
             this.clientFactory = clientFactory;
-            return this;
+            return (T) this;
         }
 
+        // don't allow junit 5 builder to run in parallel
         public Builder threads(int value) {
             threadCount = value;
             return this;
         }
 
-        public Builder outputHtmlReport(boolean value) {
+        public T outputHtmlReport(boolean value) {
             outputHtmlReport = value;
-            return this;
+            return (T) this;
         }
         
-        public Builder backupReportDir(boolean value) {
+        public T backupReportDir(boolean value) {
             backupReportDir = value;
-            return this;
+            return (T) this;
         }        
 
-        public Builder outputCucumberJson(boolean value) {
+        public T outputCucumberJson(boolean value) {
             outputCucumberJson = value;
-            return this;
+            return (T) this;
         }
 
-        public Builder outputJunitXml(boolean value) {
+        public T outputJunitXml(boolean value) {
             outputJunitXml = value;
-            return this;
+            return (T) this;
         }
 
-        public Builder dryRun(boolean value) {
+        public T dryRun(boolean value) {
             dryRun = value;
-            return this;
+            return (T) this;
         }
         
-        public Builder debugMode(boolean value) {
+        public T debugMode(boolean value) {
             debugMode = value;
-            return this;
+            return (T) this;
         }        
 
-        public Builder suiteCache(Map<String, Object> value) {
+        public T suiteCache(Map<String, Object> value) {
             suiteCache = value;
-            return this;
+            return (T) this;
         }
         
-        public Builder suiteReports(SuiteReports value) {
+        public T suiteReports(SuiteReports value) {
             suiteReports = value;
-            return this;
+            return (T) this;
         }
 
         public Results jobManager(JobConfig value) {

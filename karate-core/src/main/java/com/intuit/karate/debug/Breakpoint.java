@@ -23,6 +23,9 @@
  */
 package com.intuit.karate.debug;
 
+import com.intuit.karate.core.FeatureParser;
+import com.intuit.karate.core.Step;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -37,11 +40,35 @@ public class Breakpoint {
     public final int id;
     public final int line;
     public final boolean verified;
+    public final String condition;
     
     public Breakpoint(Map<String, Object> map) {
         id = ++nextId;
-        line = (Integer) map.get("line");        
+        line = (Integer) map.get("line");
         verified = true;
+
+        String breakpointCondition = (String) map.get("condition");
+        if (breakpointCondition != null) {
+            // remove Cucumber prefix
+            String conditionText = breakpointCondition.trim();
+            for (String prefix : Step.PREFIXES) {
+                if (conditionText.startsWith(prefix)) {
+                    conditionText = conditionText.substring(prefix.length());
+                    break;
+                }
+            }
+            conditionText = conditionText.trim();
+
+            // if docstring to get the syntax highlight, remove the triple quotes
+            if (conditionText.startsWith(FeatureParser.TRIPLE_QUOTES) && conditionText.endsWith(FeatureParser.TRIPLE_QUOTES)) {
+                conditionText = conditionText.substring(FeatureParser.TRIPLE_QUOTES.length());
+                conditionText = conditionText.substring(0, (conditionText.length() - FeatureParser.TRIPLE_QUOTES.length()));
+            }
+            condition = conditionText.trim();
+        } else {
+            condition = null;
+        }
+
     }
 
     public int getId() {

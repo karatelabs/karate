@@ -9,6 +9,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
   <th>Start</th>
   <td>
       <a href="#standalone-jar">Standalone JAR</a>
+    | <a href="#jbang">jbang</a>
     | <a href="#downloading">Downloading</a>
     | <a href="#quick-start">Quick Start</a>
     | <a href="#usage">Usage</a>
@@ -99,6 +100,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 * Easily integrate messaging or async flows using Java-interop if required
 * Enables consumer or even UI dev teams to work in parallel as the provider service is being developed
 * [Stand-alone executable JAR](#standalone-jar) (50 MB) which only requires a JRE to run, ideal for web-developers or anyone who needs to quickly experiment with services.
+* Single-step install option via [jbang](#jbang) - which even takes care of installing a Java runtime if required
 * Built-in [CORS](#configure-cors) support for the ease of web-dev teams using the mock service
 * Option to use an existing certificate and private-key for server-side SSL - making it easier for UI dev / browser consumers in some situations
 * Configure a 'global' response header routine, ideal for browser consumers to add headers common for *all* responses - yet dynamic if needed
@@ -158,17 +160,47 @@ If you think about it, all the above are *sufficient* to implement *any* micro-s
 # Standalone JAR
 *All* of Karate (core API testing, parallel-runner / HTML reports, the debugger-UI, mocks and web / UI automation) is available as a *single*, executable JAR file. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE. And there is a [Visual Studio Code plugin](https://marketplace.visualstudio.com/items?itemName=kirkslota.karate-runner) that supports the Karate standalone JAR.
 
-The only pre-requisite is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the JDK / Java Development Kit. At least version 1.8.0_112 or greater is required, and there's a good chance you already have Java installed. Check by typing `java -version` on the command line.
+## jbang
+Note that you can easily run Karate or even install applications based on Karate using [`jbang`](https://www.jbang.dev). It will take care of setting up a local Java runtime, which is really convenient. Note that jbang itself is [super-easy to install](https://github.com/jbangdev/jbang#installation) and there is even a "[Zero Install](https://github.com/jbangdev/jbang#zero-install)" option.
+
+With jbang installed, you can do this (since a [`jbang-catalog.json`](https://github.com/jbangdev/jbang#implicit-alias-catalogs) is present within the Karate GitHub repository):
+
+```
+jbang karate@intuit/karate -h
+```
+
+What's *really* interesting is that you can install `karate` as a local command-line application !
+
+> please replace `RELEASE` with the exact / version of Karate you intend to use if applicable
+
+```
+ jbang app install --name karate com.intuit.karate:karate-core:RELEASE
+```
+
+And now the command `karate` will be available in your terminal (after opening a new one or having re-loaded environment settings).
+
+Which would make using Karate as easy as this !
+
+```
+karate -h
+```
+
+You can script complex automation, using the [Java API](https://github.com/intuit/karate#java-api) that Karate makes available. So if you have a file called `myscript.java` written as a jbang script, you can install it as a system-wide command called `myscript` like this:
+
+```
+ jbang app install --name myscript myscript.java
+```
+
+Refer to the [jbang documentation](https://github.com/jbangdev/jbang) for more options.
 
 ## Downloading
+The only pre-requisite (if not using [jbang](#jbang)) is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the full-blown JDK (Java Development Kit). At least Java 8 is required, and there's a good chance you already have it installed. You can confirm this by typing `java -version` on the command line.
+
 Note that the [ZIP Release](#quick-start) is recommended for those new to Karate - or who don't have much programming experience. If you are just looking for the single JAR file or executable, please read on.
 
 > Tip: Rename the file to `karate.jar` to make the [commands](#usage) easier to type !
 
-Look for the file with the name: `karate-<version>.jar`:
-
-* Option 1: Download from Bintray: [https://dl.bintray.com/ptrthomas/karate/](https://dl.bintray.com/ptrthomas/karate/)
-* Option 2: Look for the [latest release](https://github.com/intuit/karate/releases) on GitHub and scroll down to find the "Assets"
+Look for the [latest release](https://github.com/intuit/karate/releases) on GitHub and scroll down to find the "Assets". And look for the file with the name: `karate-<version>.jar`:
 
 ## Quick Start
 Just use the [ZIP release](https://github.com/intuit/karate/wiki/ZIP-Release) and follow the insructions under the heading: [API Mocks](https://github.com/intuit/karate/wiki/ZIP-Release#api-mocks).
@@ -189,7 +221,7 @@ To start a mock server, the 2 mandatory arguments are the path of the feature fi
 java -jar karate.jar -m my-mock.feature -m my-2nd-mock.feature -p 8080
 ```
 
-> (*This feature is not available in 1.0, and needs community contribution to revive*) Note that this server will be able to act as an HTTPS proxy server if needed. If you need to specify a custom certificate and key combination, see below.
+> Acting as an HTTP proxy server is not possible in 1.0 (it used to be possible in the past), and needs [community contribution](https://github.com/line/armeria/issues/3168) to revive.
 
 #### SSL
 For SSL, use the `-s` flag. If you don't provide a certificate and key (see next section), it will automatically create `cert.pem` and `key.pem` in the current working directory, and the next time you re-start the mock server - these will be re-used. This is convenient for web / UI developers because you then need to set the certificate 'exception' only once in the browser.
@@ -204,11 +236,8 @@ If you have a custom certificate and private-key (in PEM format) you can specify
 java -jar karate.jar -m my-mock.feature -p 8443 -s -c my-cert.crt -k my-key.key
 ```
 
-> (*This feature is not available in 1.0, and needs community contribution to revive*) If you *don't* enable SSL, the proxy server will still be able to tunnel HTTPS traffic - and will use the certificate / key combination you specify or auto-create `cert.pem` and `key.pem` as described above.
-
-```
-java -jar karate.jar -m my-mock.feature -p 8090 -c my-cert.crt -k my-key.key
-```
+#### Hot Reload
+You can hot-reload a mock feature file for changes by adding the -W or --watch option.
 
 ### Running Tests
 Convenient to run standard [Karate](https://github.com/intuit/karate) tests on the command-line without needing to mess around with Java or the IDE ! Great for demos or exploratory testing. Even HTML reports are generated !
@@ -305,7 +334,7 @@ The `-d` or `--debug` option will start a debug server. See the [Debug Server wi
 ## Logging
 A default [logback configuration file](https://logback.qos.ch/manual/configuration.html) (named [`logback-fatjar.xml`](../karate-core/src/main/java/logback-fatjar.xml)) is present within the stand-alone JAR.
 
-For convenience, if `logback-test.xml` or `logback.xml` exists on the [classpath](#custom-classpath) - it will be used instead.
+For convenience, if `logback-test.xml` or `logback.xml` exists on the root of the [classpath](#custom-classpath) (or the root of the working directory) - it will be used instead.
 
 Another way to customize logging is set the system property `logback.configurationFile` to point to your custom config:
 

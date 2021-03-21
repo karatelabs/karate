@@ -59,8 +59,6 @@ public class RequestCycle {
     }
 
     private final JsEngine engine;
-
-    private JsEngine localEngine;
     private Session session;
     private Response response;
     private ServerContext context;
@@ -86,14 +84,6 @@ public class RequestCycle {
         }
         JsEngine.remove();
         THREAD_LOCAL.remove();
-    }
-
-    public JsEngine getLocalEngine() {
-        return localEngine;
-    }
-
-    public void setLocalEngine(JsEngine localEngine) {
-        this.localEngine = localEngine;
     }
 
     public Session getSession() {

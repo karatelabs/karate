@@ -1286,7 +1286,7 @@ public class ScenarioEngine {
         name = StringUtils.trimToEmpty(name);
         validateVariableName(name); // always validate when gherkin
         if (vars.containsKey(name)) {
-            logger.warn("over-writing existing variable '{}' with new value: {}", name, exp);
+            logger.debug("over-writing existing variable '{}' with new value: {}", name, exp);
         }
         if (assignType == AssignType.TEXT) {
             setVariable(name, exp);

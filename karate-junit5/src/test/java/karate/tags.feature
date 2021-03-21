@@ -7,3 +7,4 @@ Scenario: first
 @second
 Scenario: second
   * print 'second'
+  * print 'system property foo:', karate.properties['foo']

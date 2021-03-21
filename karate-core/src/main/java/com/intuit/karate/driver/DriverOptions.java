@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.LogAppender;
@@ -429,8 +428,14 @@ public class DriverOptions {
             locator = preProcessWildCard(locator);
         }
         if (locator.startsWith("/")) { // XPathResult.FIRST_ORDERED_NODE_TYPE = 9
-            if (locator.startsWith("/(")) {
-                locator = locator.substring(1); // hack for wildcard with index (see preProcessWildCard last line)
+            if (locator.startsWith("/(")) { // hack for wildcard with index (see preProcessWildCard last line)
+                if (DOCUMENT.equals(contextNode)) {
+                    locator = locator.substring(1);
+                } else {
+                    locator = "(." + locator.substring(2);
+                }                 
+            } else if (!DOCUMENT.equals(contextNode)) {
+                locator = "." + locator; // evaluate relative to this node not root
             }
             return "document.evaluate(\"" + locator + "\", " + contextNode + ", null, 9, null).singleNodeValue";
         }

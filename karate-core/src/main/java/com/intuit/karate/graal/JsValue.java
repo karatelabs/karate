@@ -169,8 +169,8 @@ public class JsValue {
         return original.toString();
     }
     
-    public String toJson() {
-        return toString(value);
+    public String toJsonOrXmlString(boolean pretty) {
+        return toString(value, pretty);
     }
 
     public String getAsString() {
@@ -211,15 +211,19 @@ public class JsValue {
     public static byte[] toBytes(Value v) {
         return toBytes(toJava(v));
     }
-
+    
     public static String toString(Object o) {
+        return toString(o, false);
+    }
+
+    public static String toString(Object o, boolean pretty) {
         if (o == null) {
             return null;
         }
         if (o instanceof Map || o instanceof List) {
-            return JsonUtils.toJson(o);
+            return JsonUtils.toJson(o, pretty);
         } else if (o instanceof Node) {
-            return XmlUtils.toString((Node) o);
+            return XmlUtils.toString((Node) o, pretty);
         } else if (o instanceof byte[]) {
             return FileUtils.toString((byte[]) o);
         } else {

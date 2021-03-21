@@ -128,7 +128,7 @@ public class HttpLogger {
         if (rt == null || rt.isBinary()) {
             // don't log body
         } else {
-            Object converted = request.getBodyForDisplay();
+            Object converted = rt == ResourceType.URLENCODED ? null : request.getBodyForDisplay();
             if (converted == null) {
                 try {
                     converted = JsValue.fromBytes(request.getBody(), true, rt);

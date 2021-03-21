@@ -164,7 +164,7 @@ public class DebugThread implements RuntimeHook, LogAppender {
             return stop("step");
         } else {
             int line = step.getLine();
-            if (handler.isBreakpoint(step, line)) {
+            if (handler.isBreakpoint(step, line, context)) {
                 return stop("breakpoint");
             } else {
                 return true;

@@ -24,7 +24,6 @@
 package com.intuit.karate.template;
 
 import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.http.RequestCycle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.context.ITemplateContext;
@@ -53,7 +52,7 @@ public class KaHxValsAttrProcessor extends AbstractAttributeTagProcessor {
         if (!jv.isObject()) {
             logger.warn("value did not evaluate to json: {}", av);
         } else {
-            sh.setAttribute("hx-vals", jv.toJson(), AttributeValueQuotes.SINGLE);
+            sh.setAttribute("hx-vals", jv.toJsonOrXmlString(false), AttributeValueQuotes.SINGLE);
         }
     }
 

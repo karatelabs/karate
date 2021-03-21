@@ -40,7 +40,7 @@ import org.junit.jupiter.api.DynamicContainer;
 import org.junit.jupiter.api.DynamicNode;
 import org.junit.jupiter.api.TestFactory;
 
-public class Karate implements Iterable<DynamicNode> {
+public class Karate extends Runner.Builder<Karate> implements Iterable<DynamicNode> {
 
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
@@ -49,35 +49,14 @@ public class Karate implements Iterable<DynamicNode> {
 
     }
 
-    private final Runner.Builder builder = Runner.builder();
-
-    // short cut for new Karate().feature()
+    // short cut for new Karate().path()
     public static Karate run(String... paths) {
-        return new Karate().feature(paths);
-    }
-
-    public Karate relativeTo(Class clazz) {
-        builder.relativeTo(clazz);
-        return this;
-    }
-
-    public Karate feature(String... paths) {
-        builder.path(paths);
-        return this;
-    }
-
-    public Karate tags(String... tags) {
-        builder.tags(tags);
-        return this;
-    }
-
-    public Runner.Builder builder() {
-        return builder;
+        return new Karate().path(paths);
     }
 
     @Override
     public Iterator<DynamicNode> iterator() {
-        Suite suite = new Suite(builder);
+        Suite suite = new Suite(this);
         List<DynamicNode> list = new ArrayList();
         List<CompletableFuture> futures = new ArrayList();
         for (Feature feature : suite.features) {
@@ -87,7 +66,7 @@ public class Karate implements Iterable<DynamicNode> {
             list.add(node);
         }
         if (list.isEmpty()) {
-            Assertions.fail("no features or scenarios found: " + builder);
+            Assertions.fail("no features or scenarios found: " + this);
         }
         return list.iterator();
     }

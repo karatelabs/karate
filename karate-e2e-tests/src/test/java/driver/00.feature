@@ -29,3 +29,6 @@ Scenario:
 
 # switchFrame()
 * call read('08.feature')
+
+# friendly locators
+* call read('09.feature')

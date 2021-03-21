@@ -24,7 +24,9 @@
 package com.intuit.karate;
 
 import java.io.BufferedReader;
+import java.io.PrintWriter;
 import java.io.StringReader;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -66,7 +68,7 @@ public class StringUtils {
         @Override
         public String toString() {
             return left + ":" + right;
-        }                
+        }
 
     }
 
@@ -254,6 +256,13 @@ public class StringUtils {
                 return;
             }
         }
+    }
+
+    public static String throwableToString(Throwable t) {
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        t.printStackTrace(pw);
+        return sw.toString();
     }
 
 }
