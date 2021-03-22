@@ -43,6 +43,8 @@ import java.util.Set;
  */
 public class MatchOperation {
 
+    public static final String REGEX = "regex";
+
     final Match.Context context;
     final Match.Type type;
     final Match.Value actual;
@@ -317,7 +319,8 @@ public class MatchOperation {
             } else { // '#? _ != 0' | '#string' | '#number? _ > 0'
                 int questionPos = macro.indexOf('?');
                 String validatorName = null;
-                if (questionPos != -1) {
+                // in case of regex we don't want to remove the '?'
+                if (questionPos != -1 && !macro.startsWith(REGEX)) {
                     validatorName = macro.substring(0, questionPos);
                     if (macro.length() > questionPos + 1) {
                         macro = StringUtils.trimToEmpty(macro.substring(questionPos + 1));
@@ -332,7 +335,7 @@ public class MatchOperation {
                 if (validatorName != null) {
                     Match.Validator validator = null;
 
-                    if (validatorName.startsWith("regex")) {
+                    if (validatorName.startsWith(REGEX)) {
                         String regex = validatorName.substring(5).trim();
                         validator = new Match.RegexValidator(regex);
                     } else {
@@ -352,7 +355,7 @@ public class MatchOperation {
                                 return fail(mr.message);
                             }
                         }
-                    } else if (!validatorName.startsWith("regex")) { // expected is a string that happens to start with "#"
+                    } else if (!validatorName.startsWith(REGEX)) { // expected is a string that happens to start with "#"
                         String actualValue = actual.getValue();
                         switch (type) {
                             case CONTAINS:
