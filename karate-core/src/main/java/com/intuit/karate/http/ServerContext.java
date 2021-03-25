@@ -176,7 +176,7 @@ public class ServerContext implements ProxyObject {
 
     public Object evalWith(String source, Object o) {
         Value value = Value.asValue(o);
-        return RequestCycle.get().getEngine().evalLocal(true, source, value);
+        return RequestCycle.get().getEngine().evalWith(true, source, value);
     }
 
     public String toJson(Object o) {

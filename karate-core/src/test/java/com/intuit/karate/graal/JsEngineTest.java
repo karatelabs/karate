@@ -210,7 +210,7 @@ class JsEngineTest {
         Map<String, Object> map = new HashMap();
         map.put("a", 1);
         map.put("b", 2);
-        Value result = je.evalLocal(true, "a + b", map);
+        Value result = je.evalWith(true, "a + b", map);
         assertEquals(result.asInt(), 3);        
     }
 
