@@ -26,7 +26,10 @@ package com.intuit.karate.graal;
 import com.intuit.karate.FileUtils;
 import java.io.File;
 import java.io.InputStream;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Engine;
 import org.graalvm.polyglot.Value;
@@ -144,10 +147,10 @@ public class JsEngine {
             put(key, JsValue.toJava(v));
         }
     }
-    
+
     public Value attachSource(CharSequence source) {
         Value value = evalForValue("(" + source + ")");
-        return attach(value);        
+        return attach(value);
     }
 
     public Value attach(Value function) {
@@ -166,6 +169,30 @@ public class JsEngine {
         }
         Value result = function.execute(args);
         return new JsValue(result);
+    }
+
+    public Value evalLocal(boolean returnValue, String src, Value value) {
+        return evalLocal(returnValue, src, value.getMemberKeys(), value::getMember);
+    }
+
+    public Value evalLocal(boolean returnValue, String src, Map<String, Object> variables) {
+        return evalLocal(returnValue, src, variables.keySet(), variables::get);
+    }
+
+    public Value evalLocal(boolean returnValue, String src, Set<String> names, Function<String, Object> getVariable) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("(function(x){ ");
+        Map<String, Object> arg = new HashMap(names.size());
+        for (String name : names) {
+            sb.append("let ").append(name).append(" = x.").append(name).append("; ");
+            arg.put(name, getVariable.apply(name));
+        }
+        if (returnValue) {
+            sb.append("return ");
+        }
+        sb.append(src).append(" })");
+        Value function = evalForValue(sb.toString());
+        return function.execute(JsValue.fromJava(arg));
     }
 
     @Override
