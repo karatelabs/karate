@@ -79,7 +79,7 @@ public class TemplateEngineContext implements IEngineContext {
     }
 
     public JsValue evalLocal(String src, boolean returnValue) {
-        Value value = jsEngine.evalWith(returnValue, src, getVariableNames(), this::getVariable);
+        Value value = jsEngine.evalWith(getVariableNames(), this::getVariable, src, returnValue);
         return new JsValue(value);
     }
 

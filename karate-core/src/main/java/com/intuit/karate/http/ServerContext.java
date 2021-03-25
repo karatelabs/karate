@@ -174,9 +174,9 @@ public class ServerContext implements ProxyObject {
         return RequestCycle.get().getEngine().evalForValue(source);
     }
 
-    public Object evalWith(String source, Object o) {
+    public Object evalWith(Object o, String source) {
         Value value = Value.asValue(o);
-        return RequestCycle.get().getEngine().evalWith(true, source, value);
+        return RequestCycle.get().getEngine().evalWith(value, source, true);
     }
 
     public String toJson(Object o) {
@@ -291,7 +291,7 @@ public class ServerContext implements ProxyObject {
             case EVAL:
                 return (Function<String, Object>) this::eval;
             case EVAL_WITH:
-                return (BiFunction<String, Object, Object>) this::evalWith;
+                return (BiFunction<Object, String, Object>) this::evalWith;
             case UUID:
                 return UUID_FUNCTION;
             case TO_JSON:

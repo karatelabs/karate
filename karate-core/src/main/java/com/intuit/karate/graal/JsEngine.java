@@ -171,15 +171,15 @@ public class JsEngine {
         return new JsValue(result);
     }
 
-    public Value evalWith(boolean returnValue, String src, Value value) {
-        return evalWith(returnValue, src, value.getMemberKeys(), value::getMember);
+    public Value evalWith(Value value, String src, boolean returnValue) {
+        return evalWith(value.getMemberKeys(), value::getMember, src, returnValue);
     }
 
-    public Value evalWith(boolean returnValue, String src, Map<String, Object> variables) {
-        return evalWith(returnValue, src, variables.keySet(), variables::get);
+    public Value evalWith(Map<String, Object> variables, String src, boolean returnValue) {
+        return evalWith(variables.keySet(), variables::get, src, returnValue);
     }
 
-    public Value evalWith(boolean returnValue, String src, Set<String> names, Function<String, Object> getVariable) {
+    public Value evalWith(Set<String> names, Function<String, Object> getVariable, String src, boolean returnValue) {
         StringBuilder sb = new StringBuilder();
         sb.append("(function(x){ ");
         Map<String, Object> arg = new HashMap(names.size());
