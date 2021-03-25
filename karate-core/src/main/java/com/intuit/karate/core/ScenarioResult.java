@@ -221,7 +221,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         map.put("id", StringUtils.toIdString(scenario.getName()));
         map.put("description", scenario.getDescription());
         map.put("type", "scenario");
-        map.put("keyword", "Scenario");
+        map.put("keyword", scenario.isOutlineExample() ? "Scenario Outline" : "Scenario");
         map.put("tags", tagsToCucumberJson(scenario.getTagsEffective().getOriginal()));
         return map;
     }
