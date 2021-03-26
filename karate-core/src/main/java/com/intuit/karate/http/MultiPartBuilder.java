@@ -184,15 +184,15 @@ public class MultiPartBuilder {
             contentTypeHeader = request.headers().get(HttpConstants.HDR_CONTENT_TYPE);
             // logger.debug("content type header: {}", contentTypeHeader);
             ByteBuf content;
-            if (multipart) {
+            if (request instanceof FullHttpRequest) {
+                FullHttpRequest fullRequest = (FullHttpRequest) request;
+                content = fullRequest.content();
+            } else {
                 content = Unpooled.buffer();
                 HttpContent data;
                 while ((data = encoder.readChunk(ByteBufAllocator.DEFAULT)) != null) {
                     content.writeBytes(data.content());
                 }
-            } else {
-                FullHttpRequest fullRequest = (FullHttpRequest) request;
-                content = fullRequest.content();
             }
             byte[] bytes = new byte[content.readableBytes()];
             content.readBytes(bytes);
