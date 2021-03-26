@@ -104,7 +104,7 @@ public class HttpRequestBuilder implements ProxyObject {
     }
 
     public HttpRequestBuilder reset() {
-        // url and headersFactory will be retained
+        // url will be retained
         method = null;
         paths = null;
         params = null;
@@ -114,6 +114,20 @@ public class HttpRequestBuilder implements ProxyObject {
         cookies = null;
         retryUntil = null;
         return this;
+    }
+    
+    public HttpRequestBuilder copy() {
+        HttpRequestBuilder hrb = new HttpRequestBuilder(client);
+        hrb.url = url;
+        hrb.method = method;
+        hrb.paths = paths;
+        hrb.params = params;
+        hrb.headers = headers;
+        hrb.multiPart = multiPart;
+        hrb.body = body;
+        hrb.cookies = cookies;
+        hrb.retryUntil = retryUntil;
+        return hrb;
     }
 
     public Response invoke(String method) {

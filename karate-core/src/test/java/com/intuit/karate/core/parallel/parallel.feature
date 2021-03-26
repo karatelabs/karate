@@ -1,10 +1,11 @@
 Feature:
 
 Background:
+# background http builder should work even if a callonce follows
+* url serverUrl
 * match message == 'from config'
 * callonce read('common.feature')
 * match message == 'from common'
-* url serverUrl
 
 Scenario: one
 * path 'one'
