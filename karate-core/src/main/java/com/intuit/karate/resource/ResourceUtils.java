@@ -91,7 +91,7 @@ public class ResourceUtils {
         return features;
     }
 
-    private static final ScanResult SCAN_RESULT = new ClassGraph().acceptPaths("/").scan();
+    private static final ScanResult SCAN_RESULT = new ClassGraph().acceptPaths("/").scan(1);
 
     public static Resource getResource(File workingDir, String path) {
         if (path.startsWith("classpath:")) {
@@ -101,19 +101,21 @@ public class ResourceUtils {
                 return new FileResource(file, true, path);
             }
             List<Resource> resources = new ArrayList<>();
-            ResourceList rl = SCAN_RESULT.getResourcesWithPath(path);
-            if (rl == null) {
-                rl = ResourceList.emptyList();
-            }
-            rl.forEachByteArrayIgnoringIOException((res, bytes) -> {
-                URI uri = res.getURI();
-                if ("file".equals(uri.getScheme())) {
-                    File found = Paths.get(uri).toFile();
-                    resources.add(new FileResource(found, true, res.getPath()));
-                } else {
-                    resources.add(new JarResource(bytes, res.getPath(), uri));
+            synchronized (SCAN_RESULT) {
+                ResourceList rl = SCAN_RESULT.getResourcesWithPath(path);
+                if (rl == null) {
+                    rl = ResourceList.emptyList();
                 }
-            });
+                rl.forEachByteArrayIgnoringIOException((res, bytes) -> {
+                    URI uri = res.getURI();
+                    if ("file".equals(uri.getScheme())) {
+                        File found = Paths.get(uri).toFile();
+                        resources.add(new FileResource(found, true, res.getPath()));
+                    } else {
+                        resources.add(new JarResource(bytes, res.getPath(), uri));
+                    }
+                });
+            }
             if (resources.isEmpty()) {
                 throw new RuntimeException("not found: " + path);
             }
