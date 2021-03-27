@@ -8,8 +8,7 @@ import java.io.StringWriter;
 
 public class ExceptionUtils {
 
-    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(FileUtils.class);
-
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ExceptionUtils.class);
 
     public static String getStackTraceAsString(final Throwable throwable) {
         try(final StringWriter sw = new StringWriter();
@@ -17,6 +16,7 @@ public class ExceptionUtils {
             throwable.printStackTrace(pw);
             return sw.getBuffer().toString();
         } catch (IOException ex) {
+            LOGGER.error("IO Exception getting the exception stacktrace as string.", ex);
             return null;
         }
     }
