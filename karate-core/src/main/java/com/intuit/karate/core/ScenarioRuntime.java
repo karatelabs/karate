@@ -91,6 +91,8 @@ public class ScenarioRuntime implements Runnable {
         this.scenario = scenario;
         this.background = background; // used only to check which steps remain
         magicVariables = initMagicVariables();
+        this.engine.recurseAndDetach(magicVariables);
+        this.engine.recurseAndDetach(caller.arg);
         result = new ScenarioResult(scenario);
         if (background != null) {
             result.addStepResults(background.result.getStepResults());
@@ -268,9 +270,6 @@ public class ScenarioRuntime implements Runnable {
             map.putAll(caller.parentRuntime.magicVariables);
             map.put("__arg", caller.arg);
             map.put("__loop", caller.getLoopIndex());
-            if (caller.arg != null && caller.arg.isMap()) {
-                engine.setVariables(caller.arg.getValue());
-            }
         }
         if (scenario.isOutlineExample() && !this.isDynamicBackground()) { // init examples row magic variables
             Map<String, Object> exampleData = scenario.getExampleData();
@@ -354,6 +353,16 @@ public class ScenarioRuntime implements Runnable {
         }
         ScenarioEngine.set(engine);
         engine.init();
+        Object attachResult = engine.recurseAndAttach(caller.arg);
+        if (caller.arg != null && caller.arg.isMap()) {
+            if (attachResult != null) {
+                // if there's a re-attach result map, the original map was a PolyglotMap
+                // and its context cannot be re-shared
+                engine.setVariables((Map<String, Object>) attachResult);
+            } else {
+                engine.setVariables(caller.arg.getValue());
+            }
+        }
         result.setExecutorName(Thread.currentThread().getName());
         result.setStartTime(System.currentTimeMillis());
         if (!dryRun) {

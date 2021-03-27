@@ -38,12 +38,25 @@ import com.intuit.karate.driver.Key;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.http.*;
+import com.intuit.karate.http.ArmeriaHttpClient;
+import com.intuit.karate.http.Cookies;
+import com.intuit.karate.http.HttpClient;
+import com.intuit.karate.http.HttpConstants;
+import com.intuit.karate.http.HttpLogger;
+import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.HttpRequestBuilder;
+import com.intuit.karate.http.Request;
+import com.intuit.karate.http.ResourceType;
+import com.intuit.karate.http.Response;
+import com.intuit.karate.http.WebSocketClient;
+import com.intuit.karate.http.WebSocketOptions;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateUtils;
 import com.jayway.jsonpath.PathNotFoundException;
+import org.graalvm.polyglot.SourceSection;
 import org.graalvm.polyglot.Value;
+import org.graalvm.polyglot.proxy.ProxyObject;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
@@ -53,7 +66,17 @@ import org.w3c.dom.NodeList;
 import java.io.File;
 import java.io.InputStream;
 import java.security.KeyStore;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
@@ -996,6 +1019,7 @@ public class ScenarioEngine {
     public void init() { // not in constructor because it has to be on Runnable.run() thread 
         JS = JsEngine.local();
         logger.trace("js context: {}", JS);
+        recurseAndAttach(runtime.magicVariables);
         runtime.magicVariables.forEach((k, v) -> setHiddenVariable(k, v));
         attachVariables(); // re-hydrate any functions from caller or background
         setHiddenVariable(KARATE, bridge);
@@ -1024,7 +1048,13 @@ public class ScenarioEngine {
                     break;
                 case MAP:
                 case LIST:
-                    recurseAndAttach(v.getValue());
+                    Object attachResult = recurseAndAttach(v.getValue());
+                    if (attachResult != null) {
+                        // if a list or map is returned it means either a PolyglotMap or PolyglotList
+                        // were being attached thus we re-hydrated those into Java Map or List
+                        // to avoid Graal context sharing restrictions
+                        vars.put(k, new Variable(attachResult));
+                    }
                     break;
                 case OTHER:
                     if (v.isJsFunctionWrapper()) {
@@ -1061,33 +1091,65 @@ public class ScenarioEngine {
         return detached;
     }
 
+    /**
+     * Note that if there is a possibility of the root object passed into this method being a PolyglotMap or PolyglotList
+     * a new Map/List instance will be produced thus the result of this method should be re-used.
+     *
+     * Typically this is used in scenarios where the "root" object is a host Map/List attached to the Scenario Engine (vars) or
+     * magicVariables etc.
+     *
+     * Any non-function values of the Map/List are still stored in that map/list by reference so the concept of context share
+     * from Karate is maintained.
+     *
+     * @param o
+     * @return
+     */
     protected Object recurseAndAttach(Object o) {
         if (o instanceof Value) {
             Value value = (Value) o;
             return value.canExecute() ? attach(value) : null;
+        } else if (o instanceof Function && this.JS != null) {
+            // if it's a function get it's polyglot value and attach it to the engine
+            // re-hydrating if needed
+            Value value = Value.asValue(o);
+            return value.canExecute() ? attach(Value.asValue(o)) : null;
+        } else if (o instanceof SourceSection && this.JS != null) {
+            SourceSection sourceSection = (SourceSection) o;
+            return this.JS.evalForValue("(" + sourceSection.getCharacters() + ")");
         } else if (o instanceof JsFunction) {
             JsFunction jf = (JsFunction) o;
             return attachSource(jf.source);
         } else if (o instanceof List) {
             List list = (List) o;
             int count = list.size();
+            boolean isHostList = Value.asValue(list).isHostObject();
+            List rehydratedList = Arrays.asList(new Object[count]); // fixed-size list, will replicate non-host list
             for (int i = 0; i < count; i++) {
                 Object child = list.get(i);
                 Object result = recurseAndAttach(child);
-                if (result != null) {
+                if (isHostList && result != null) {
                     list.set(i, result);
+                } else {
+                    rehydratedList.set(i, result != null ? result : child);
                 }
             }
-            return null;
+            return isHostList ? null : rehydratedList;
         } else if (o instanceof Map) {
             Map<String, Object> map = (Map) o;
+            Map<String, Object> rehydratedMap = new HashMap<>();
+            boolean isHostMap = Value.asValue(map).isHostObject();
+
             map.forEach((k, v) -> {
                 Object result = recurseAndAttach(v);
-                if (result != null) {
+                if (isHostMap && result != null) {
                     map.put(k, result);
+                } else {
+                    rehydratedMap.put(k, result != null ? result : v);
                 }
             });
-            return null;
+            return isHostMap ? null : rehydratedMap;
+        } else if (o instanceof Variable) {
+            return recurseAndAttach(((Variable) o).getValue());
         } else {
             return null;
         }
@@ -1097,6 +1159,14 @@ public class ScenarioEngine {
         if (o instanceof Value) {
             Value value = (Value) o;
             return value.canExecute() ? new JsFunction(value) : null;
+        } else if (o instanceof Function) {
+            // if it's a function it might have come from Graal JS engine
+            // calling Java/Karate thus it's not wrapped in Value
+            // but rather it's a Polyglot Function (tuffle api)
+            //return Value.asValue(o);
+            //Value value = Value.asValue(o);
+            //return value.canExecute() ? new JsFunction(value) : null;
+            return Value.asValue(o).getSourceLocation();
         } else if (o instanceof List) {
             List list = (List) o;
             int count = list.size();
@@ -1110,13 +1180,20 @@ public class ScenarioEngine {
             return null;
         } else if (o instanceof Map) {
             Map<String, Object> map = (Map) o;
+            ProxyObject mapProxy = ProxyObject.fromMap(map);
             map.forEach((k, v) -> {
                 Object result = recurseAndDetach(v);
                 if (result != null) {
-                    map.put(k, result);
+                    if (result instanceof Value) {
+                        mapProxy.putMember(k, (Value)result);
+                    } else {
+                        map.put(k, result);
+                    }
                 }
             });
             return null;
+        } else if (o instanceof Variable) {
+            return recurseAndDetach(((Variable) o).getValue());
         } else {
             return null;
         }
@@ -1210,6 +1287,10 @@ public class ScenarioEngine {
         Variable v;
         if (value instanceof Variable) {
             v = (Variable) value;
+        } else if (value instanceof Function && this.JS != null) {
+            // if it's a function get it's polyglot value and attach it to the engine
+            // re-hydrating if needed
+            v = new Variable(this.JS.attach(Value.asValue(value)));
         } else {
             v = new Variable(value);
         }
@@ -1852,8 +1933,8 @@ public class ScenarioEngine {
                 return arg == null ? executeFunction(called) : executeFunction(called, new Object[]{arg.getValue()});
             case FEATURE:
                 Variable res = callFeature(called.getValue(), arg, -1, sharedScope);
-                recurseAndAttach(res.getValue()); // will always be a map, we update entries within
-                return res;
+                Object attachResult = recurseAndAttach(res.getValue()); // will always be a map, we update entries within
+                return attachResult == null ? res : new Variable(attachResult);
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);
         }

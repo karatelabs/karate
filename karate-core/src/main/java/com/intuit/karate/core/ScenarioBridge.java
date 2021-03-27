@@ -162,8 +162,8 @@ public class ScenarioBridge implements PerfContext {
         }
         // this HAS to be a deep copy to detach any nested JS functions
         o = new Variable(o).copy(true).getValue();
-        engine.recurseAndAttach(o);
-        return JsValue.fromJava(o);
+        Object attachResult = engine.recurseAndAttach(o);
+        return JsValue.fromJava(attachResult == null ? o : attachResult);
     }
 
     public Object callSingle(String fileName, Object arg) throws Exception {

@@ -131,7 +131,7 @@ public class JsEngine {
 
     public JsValue get(String key) {
         Value value = bindings.getMember(key);
-        return new JsValue(value);
+        return value != null ? new JsValue(value) : null;
     }
 
     public void putValue(String key, Value v) {

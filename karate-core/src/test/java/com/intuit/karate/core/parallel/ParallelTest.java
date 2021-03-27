@@ -88,7 +88,7 @@ class ParallelTest {
             assertFalse(errorMessage.contains("org.graalvm.polyglot.PolyglotException: Multi threaded access requested"));
         });
 
-        // another ugly scary Graal exception - don't get it!
+        // another ugly scary Graal exception to be afraid of
         results.getErrors().forEach(errorMessage -> {
             assertFalse(errorMessage.matches("org\\.graalvm\\.polyglot\\.PolyglotException: The value 'DynamicObject<JSFunction>@.*' cannot be passed from one context to another\\. The current context is.*and the argument value originates from context .*"));
         });
@@ -102,7 +102,7 @@ class ParallelTest {
                 Arguments.of("callsingle", 14),
                 Arguments.of("callsingle-api-call", 14),
                 Arguments.of("callsingle-slow-api-call", 14),
-                Arguments.of("callsingle-reuse-variable-outside-scope", 0),
+                Arguments.of("callsingle-reuse-variable-outside-scope", 0), // it is supposed to fail - testing that no weird access to parent Graal context was introduced
                 Arguments.of("callsingle-reuse-other-feature-result", 14),
                 Arguments.of("callsingle-reuse-other-feature-result-2", 14)
 

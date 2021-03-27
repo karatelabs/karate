@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.ExceptionUtils;
 import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.StringUtils;
 import java.io.File;
@@ -78,7 +79,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         Result result = error == null ? Result.passed(0) : Result.failed(0, error, step);
         StepResult sr = new StepResult(step, result);
         if (error != null) {
-            sr.setStepLog(error.getMessage());
+            sr.setStepLog(error.getMessage() + "\n" + ExceptionUtils.getStackTraceAsString(error));
         }
         addStepResult(sr);
         return sr;
