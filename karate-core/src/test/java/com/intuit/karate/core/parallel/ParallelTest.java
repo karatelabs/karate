@@ -26,15 +26,11 @@ class ParallelTest {
     static final Logger logger = LoggerFactory.getLogger(ParallelTest.class);
 
     static HttpServer server;
-    static HttpServer slowServer;
 
     @BeforeAll
     static void beforeAll() {
         MockHandler mock = new MockHandler(Feature.read("classpath:com/intuit/karate/core/parallel/mock.feature"));
         server = HttpServer.handler(mock).build();
-
-        MockHandler slowMock = new MockHandler(Feature.read("classpath:com/intuit/karate/core/parallel/slow-mock.feature"));
-        slowServer = HttpServer.handler(slowMock).build();
     }
 
     @Test
@@ -51,14 +47,13 @@ class ParallelTest {
         // karate.callSingle() in karate-config-csfail.js
         // result of callSingle() will fail
         // test if anything with with Graal JS engine ...
-        Results results = Runner.path("classpath:com/intuit/karate/core/parallel")//.path("classpath:com/intuit/karate/core/parallel/parallel.feature")
+        Results results = Runner.path("classpath:com/intuit/karate/core/parallel")
                 .configDir("classpath:com/intuit/karate/core/parallel")
                 .karateEnv("csfail")
                 .tags("~@ignore")
                 .systemProperty("server.port", server.getPort() + "")
                 .parallel(3);
 
-        System.out.println();
         assertEquals(0, results.getScenariosPassed(), results.getErrorMessages());
         results.getErrors().forEach(errorMessage -> {
             assertFalse(errorMessage.contains("org.graalvm.polyglot.PolyglotException: Multi threaded access requested"));
@@ -80,7 +75,6 @@ class ParallelTest {
                 .karateEnv(karateConfigEnvFile)
                 .tags("~@ignore")
                 .systemProperty("server.port", server.getPort() + "")
-                .systemProperty("slowServerPort", slowServer.getPort() + "")
                 .parallel(3);
 
         // regardless, never get the evil Multi thread access exception from GraalVM!
@@ -99,14 +93,8 @@ class ParallelTest {
 
     private static Stream<Arguments> parallelCallSingleTestParams() {
         return Stream.of(
-                Arguments.of("callsingle", 14),
-                Arguments.of("callsingle-api-call", 14),
-                Arguments.of("callsingle-slow-api-call", 14),
-                Arguments.of("callsingle-reuse-variable-outside-scope", 0), // it is supposed to fail - testing that no weird access to parent Graal context was introduced
                 Arguments.of("callsingle-reuse-other-feature-result", 14),
                 Arguments.of("callsingle-reuse-other-feature-result-2", 14)
-
-                //callsingle-reuse-multiple-features
         );
     }
 }
