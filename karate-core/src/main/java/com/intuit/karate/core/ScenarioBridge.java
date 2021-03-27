@@ -211,7 +211,6 @@ public class ScenarioBridge implements PerfContext {
                 if (arg == null || arg.isNull()) {
                     argVar = null;
                 } else {
-                    engine.recurseAndAttach(arg);
                     argVar = new Variable(arg);
                 }
                 Variable resultVar;

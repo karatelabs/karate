@@ -267,7 +267,7 @@ public class ScenarioRuntime implements Runnable {
             // so we inject the parent magic variables
             // but they will be over-written by what is local to this scenario
             map.putAll(caller.parentRuntime.magicVariables);
-            map.put("__arg", caller.arg);
+            map.put("__arg", caller.arg == null ? null : caller.arg.getValue());
             map.put("__loop", caller.getLoopIndex());
             if (caller.arg != null && caller.arg.isMap()) {
                 engine.setVariables(caller.arg.getValue());

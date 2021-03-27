@@ -581,7 +581,7 @@ public class ScenarioEngine {
         }
         if (hooks != null) {
             hooks.forEach(h -> h.afterHttpCall(request, response, runtime));
-        }        
+        }
         byte[] bytes = response.getBody();
         Object body;
         String responseType;
@@ -996,7 +996,12 @@ public class ScenarioEngine {
     public void init() { // not in constructor because it has to be on Runnable.run() thread 
         JS = JsEngine.local();
         logger.trace("js context: {}", JS);
-        runtime.magicVariables.forEach((k, v) -> setHiddenVariable(k, v));
+        runtime.magicVariables.forEach((k, v) -> {
+            // even hidden variables may need pre-processing
+            // for e.g. the __arg may contain functions that originated in a different js context
+            recurseAndAttach(v);
+            setHiddenVariable(k, v);
+        });
         attachVariables(); // re-hydrate any functions from caller or background
         setHiddenVariable(KARATE, bridge);
         setHiddenVariable(READ, readFunction);
