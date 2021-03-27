@@ -6,6 +6,7 @@ Background:
 * match message == 'from config'
 * callonce read('common.feature')
 * match message == 'from common'
+* match message2 == 'fromCallSingleFromConfig2'
 
 Scenario: one
 * path 'one'

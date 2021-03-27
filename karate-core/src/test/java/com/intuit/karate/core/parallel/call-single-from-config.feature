@@ -6,3 +6,5 @@ Scenario:
 * method get
 * status 200
 * match response == { message: 'from config' }
+
+* def functionFromCallSingleFromConfig = function(){ return 'resultFromFunctionFromCallSingleFromConfig' }
