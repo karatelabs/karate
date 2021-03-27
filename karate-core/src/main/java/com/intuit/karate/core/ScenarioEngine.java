@@ -310,7 +310,7 @@ public class ScenarioEngine {
 
     // http ====================================================================
     //
-    private HttpRequestBuilder requestBuilder; // see init() method
+    protected HttpRequestBuilder requestBuilder; // see init() method
     private HttpRequest request;
     private Response response;
     private Config config;
@@ -1025,7 +1025,11 @@ public class ScenarioEngine {
         setHiddenVariable(KARATE, bridge);
         setHiddenVariable(READ, readFunction);
         HttpClient client = runtime.featureRuntime.suite.clientFactory.create(this);
-        requestBuilder = new HttpRequestBuilder(client);
+        // edge case: can be set by dynamic scenario outline background
+        // or be left as-is because a callonce triggered init()
+        if (requestBuilder == null) {
+            requestBuilder = new HttpRequestBuilder(client);
+        }
         // TODO improve life cycle and concept of shared objects
         if (!runtime.caller.isNone()) {
             ScenarioEngine caller = runtime.caller.parentRuntime.engine;
@@ -1956,7 +1960,7 @@ public class ScenarioEngine {
         return result;
     }
 
-    private Variable result(ScenarioCall.Result result, boolean sharedScope) {
+    private Variable callOnceResult(ScenarioCall.Result result, boolean sharedScope) {
         if (sharedScope) { // if shared scope
             vars.clear(); // clean slate
             vars.putAll(copy(result.vars, false)); // clone for safety     
@@ -1977,7 +1981,7 @@ public class ScenarioEngine {
         ScenarioCall.Result result = CACHE.get(cacheKey);
         if (result != null) {
             logger.trace("callonce cache hit for: {}", cacheKey);
-            return result(result, sharedScope);
+            return callOnceResult(result, sharedScope);
         }
         long startTime = System.currentTimeMillis();
         logger.trace("callonce waiting for lock: {}", cacheKey);
@@ -1986,7 +1990,7 @@ public class ScenarioEngine {
             if (result != null) {
                 long endTime = System.currentTimeMillis() - startTime;
                 logger.warn("this thread waited {} milliseconds for callonce lock: {}", endTime, cacheKey);
-                return result(result, sharedScope);
+                return callOnceResult(result, sharedScope);
             }
             // this thread is the 'winner'
             logger.info(">> lock acquired, begin callonce: {}", cacheKey);

@@ -207,7 +207,7 @@
             "description": "",
             "id": "hello-foo",
             "type": "scenario",
-            "keyword": "Scenario",
+            "keyword": "Scenario Outline",
             "steps": [
                 {
                     "name": "print 'name:', name",
@@ -270,7 +270,7 @@
             "description": "",
             "id": "hello-bar",
             "type": "scenario",
-            "keyword": "Scenario",
+            "keyword": "Scenario Outline",
             "steps": [
                 {
                     "name": "print 'name:', name",

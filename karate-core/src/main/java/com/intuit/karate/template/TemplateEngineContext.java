@@ -78,22 +78,9 @@ public class TemplateEngineContext implements IEngineContext {
         return jsEngine.eval(src);
     }
 
-    public JsValue eval(String src, boolean returnValue) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("(function(x){ ");
-        Set<String> names = getVariableNames();
-        Map<String, Object> arg = new HashMap(names.size());
-        for (String name : getVariableNames()) {
-            sb.append("let ").append(name).append(" = x.").append(name).append("; ");
-            arg.put(name, getVariable(name));
-        }
-        if (returnValue) {
-            sb.append("return ");
-        }
-        sb.append(src).append(" })");
-        Value function = jsEngine.evalForValue(sb.toString());
-        Value result = function.execute(JsValue.fromJava(arg));
-        return new JsValue(result);
+    public JsValue evalLocal(String src, boolean returnValue) {
+        Value value = jsEngine.evalWith(getVariableNames(), this::getVariable, src, returnValue);
+        return new JsValue(value);
     }
 
     @Override

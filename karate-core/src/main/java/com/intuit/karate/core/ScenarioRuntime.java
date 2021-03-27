@@ -96,9 +96,10 @@ public class ScenarioRuntime implements Runnable {
         result = new ScenarioResult(scenario);
         if (background != null) {
             result.addStepResults(background.result.getStepResults());
-            Map<String, Variable> detached = background.engine.detachVariables();
+            Map<String, Variable> detached = background.engine.detachVariables();            
             // the copy is needed to "detach" from the js context else this can fail parallel execution
             detached.forEach((k, v) -> engine.vars.put(k, v.copy(false)));
+            engine.requestBuilder = background.engine.requestBuilder.copy();
         }
         dryRun = featureRuntime.suite.dryRun;
         tags = scenario.getTagsEffective();

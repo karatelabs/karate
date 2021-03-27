@@ -35,49 +35,37 @@ import com.intuit.karate.core.TimelineResults;
  */
 public interface SuiteReports {
 
-    Report featureReport(Suite suite, FeatureResult featureResult);
+    default Report featureReport(Suite suite, FeatureResult featureResult) {
+        return Report.template("karate-feature.html")
+                .reportDir(suite.reportDir)
+                .reportFileName(featureResult.getFeature().getPackageQualifiedName() + ".html")
+                .variable("results", featureResult.toKarateJson())
+                .build();
+    }
 
-    Report tagsReport(Suite suite, TagResults tagResults);
+    default Report tagsReport(Suite suite, TagResults tagResults) {
+        return Report.template("karate-tags.html")
+                .reportDir(suite.reportDir)
+                .variable("results", tagResults.toKarateJson())
+                .build();
+    }
 
-    Report timelineReport(Suite suite, TimelineResults timelineResults);
+    default Report timelineReport(Suite suite, TimelineResults timelineResults) {
+        return Report.template("karate-timeline.html")
+                .reportDir(suite.reportDir)
+                .variable("results", timelineResults.toKarateJson())
+                .build();
+    }
 
-    Report summaryReport(Suite suite, Results results);
+    default Report summaryReport(Suite suite, Results results) {
+        return Report.template("karate-summary.html")
+                .reportDir(suite.reportDir)
+                .variable("results", results.toKarateJson())
+                .build();
+    }
 
     public static final SuiteReports DEFAULT = new SuiteReports() {
-
-        @Override
-        public Report featureReport(Suite suite, FeatureResult fr) {
-            return Report.template("karate-feature.html")
-                    .reportDir(suite.reportDir)
-                    .reportFileName(fr.getFeature().getPackageQualifiedName() + ".html")
-                    .variable("results", fr.toKarateJson())
-                    .build();
-        }
-
-        @Override
-        public Report tagsReport(Suite suite, TagResults tr) {
-            return Report.template("karate-tags.html")
-                    .reportDir(suite.reportDir)
-                    .variable("results", tr.toKarateJson())
-                    .build();
-        }
-
-        @Override
-        public Report timelineReport(Suite suite, TimelineResults tr) {
-            return Report.template("karate-timeline.html")
-                    .reportDir(suite.reportDir)
-                    .variable("results", tr.toKarateJson())
-                    .build();
-        }
-
-        @Override
-        public Report summaryReport(Suite suite, Results results) {
-            return Report.template("karate-summary.html")
-                    .reportDir(suite.reportDir)
-                    .variable("results", results.toKarateJson())
-                    .build();
-        }
-
+        // defaults
     };
 
 }

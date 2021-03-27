@@ -4,6 +4,8 @@
     <title>Test</title>  
   </head>
   <body>
+    <script ka:src="local.js" ka:scope="local"></script>
+    <script ka:src="global.js"></script>
     <div th:each="item: ['one', 'two']">  
       <script ka:scope="local">
         _.childVar = 'js_' + item;

@@ -57,6 +57,7 @@ public class ServerContext implements ProxyObject {
     private static final String READ = "read";
     private static final String READ_AS_STRING = "readAsString";
     private static final String EVAL = "eval";
+    private static final String EVAL_WITH = "evalWith";
     private static final String UUID = "uuid";
     private static final String REMOVE = "remove";
     private static final String SWITCH = "switch";
@@ -69,7 +70,7 @@ public class ServerContext implements ProxyObject {
     private static final String FROM_JSON = "fromJson";
 
     private static final String[] KEYS = new String[]{
-        READ, READ_AS_STRING, EVAL, UUID, REMOVE, SWITCH, AJAX, HTTP, TRIGGER, AFTER_SETTLE, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
+        READ, READ_AS_STRING, EVAL, EVAL_WITH, UUID, REMOVE, SWITCH, AJAX, HTTP, TRIGGER, AFTER_SETTLE, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -173,15 +174,20 @@ public class ServerContext implements ProxyObject {
         return RequestCycle.get().getEngine().evalForValue(source);
     }
 
+    public Object evalWith(Object o, String source) {
+        Value value = Value.asValue(o);
+        return RequestCycle.get().getEngine().evalWith(value, source, true);
+    }
+
     public String toJson(Object o) {
         Value value = Value.asValue(o);
         return new JsValue(value).toJsonOrXmlString(false);
     }
-    
+
     public String toJsonPretty(Object o) {
         Value value = Value.asValue(o);
         return new JsValue(value).toJsonOrXmlString(true);
-    }    
+    }
 
     public ServerConfig getConfig() {
         return config;
@@ -283,13 +289,15 @@ public class ServerContext implements ProxyObject {
             case READ_AS_STRING:
                 return (Function<String, String>) this::readAsString;
             case EVAL:
-                return (Function<String, Object>) this::eval;                
+                return (Function<String, Object>) this::eval;
+            case EVAL_WITH:
+                return (BiFunction<Object, String, Object>) this::evalWith;
             case UUID:
                 return UUID_FUNCTION;
             case TO_JSON:
                 return (Function<Object, String>) this::toJson;
             case TO_JSON_PRETTY:
-                return (Function<Object, String>) this::toJsonPretty;                
+                return (Function<Object, String>) this::toJsonPretty;
             case FROM_JSON:
                 return FROM_JSON_FUNCTION;
             case REMOVE:

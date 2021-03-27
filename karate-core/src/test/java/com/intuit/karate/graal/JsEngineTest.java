@@ -205,4 +205,13 @@ class JsEngineTest {
         assertEquals(result.asInt(), 3);
     }
 
+    @Test
+    void testEvalLocal() {
+        Map<String, Object> map = new HashMap();
+        map.put("a", 1);
+        map.put("b", 2);
+        Value result = je.evalWith(map, "a + b", true);
+        assertEquals(result.asInt(), 3);
+    }
+
 }

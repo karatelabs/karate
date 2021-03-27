@@ -304,6 +304,13 @@ class MatchTest {
     }
 
     @Test
+    void testRegex() {
+        match("{ number: '/en/search?q=test' }", EQUALS, "{ number: '#regex /\\\\w{2}/search\\\\?q=(.*)+' }");
+        match("{ number: '/us/search?q=test' }", EQUALS, "{ number: '#regex /\\\\w{2}/search\\\\?q=(.*)+' }");
+        match("{ number: '/en/search?q=test+whatever' }", EQUALS, "{ number: '#regex /\\\\w{2}/search\\\\?q=(.*)+' }");
+    }
+
+    @Test
     void testOptional() {
         match("{ number: '1234' }", EQUALS, "{ number: '##regex \\\\d+' }");
         match("{ }", EQUALS, "{ number: '##regex \\\\d+' }");

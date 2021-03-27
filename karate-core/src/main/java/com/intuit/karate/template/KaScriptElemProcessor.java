@@ -42,16 +42,18 @@ import org.thymeleaf.templatemode.TemplateMode;
 public class KaScriptElemProcessor extends AbstractElementModelProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(KaScriptElemProcessor.class);
+    
+    protected static final String SCOPE = "scope";
 
     public KaScriptElemProcessor(String dialectPrefix) {
-        super(TemplateMode.HTML, dialectPrefix, "script", false, "scope", true, 1000);
+        super(TemplateMode.HTML, dialectPrefix, "script", false, SCOPE, true, 1000);
     }
 
     @Override
     protected void doProcess(ITemplateContext ctx, IModel model, IElementModelStructureHandler sh) {        
         int depth = ctx.getElementStack().size();
         IProcessableElementTag tag = ctx.getElementStack().get(depth - 1);
-        String scope = tag.getAttributeValue(getDialectPrefix(), "lang");
+        String scope = tag.getAttributeValue(getDialectPrefix(), SCOPE);
         int n = model.size();
         boolean isHead = TemplateUtils.hasAncestorElement(ctx, "head");
         IModel headModel = null;
@@ -61,7 +63,7 @@ public class KaScriptElemProcessor extends AbstractElementModelProcessor {
                 String text = StringUtils.trimToNull(((IText) event).getText());
                 if (text != null) {
                     if ("local".equals(scope)) {
-                        TemplateEngineContext.get().eval(text, false);
+                        TemplateEngineContext.get().evalLocal(text, false);
                     } else {
                         TemplateEngineContext.get().evalGlobal(text);
                     }
