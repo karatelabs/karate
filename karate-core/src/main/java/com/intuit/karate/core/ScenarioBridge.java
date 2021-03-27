@@ -151,11 +151,7 @@ public class ScenarioBridge implements PerfContext {
         return JsValue.fromJava(result.getValue());
     }
 
-    public Object callSingle(String fileName) throws Exception {
-        return callSingle(fileName, null);
-    }
-
-    private static Object fromCache(ScenarioEngine engine, Object o) throws Exception {
+    private static Object callSingleResult(ScenarioEngine engine, Object o) throws Exception {
         if (o instanceof Exception) {
             engine.logger.warn("callSingle() cached result is an exception");
             throw (Exception) o;
@@ -166,12 +162,16 @@ public class ScenarioBridge implements PerfContext {
         return JsValue.fromJava(o);
     }
 
-    public Object callSingle(String fileName, Object arg) throws Exception {
+    public Object callSingle(String fileName) throws Exception {
+        return callSingle(fileName, null);
+    }
+
+    public Object callSingle(String fileName, Value arg) throws Exception {
         ScenarioEngine engine = getEngine();
         final Map<String, Object> CACHE = engine.runtime.featureRuntime.suite.suiteCache;
         if (CACHE.containsKey(fileName)) {
             engine.logger.trace("callSingle cache hit: {}", fileName);
-            return fromCache(engine, CACHE.get(fileName));
+            return callSingleResult(engine, CACHE.get(fileName));
         }
         long startTime = System.currentTimeMillis();
         engine.logger.trace("callSingle waiting for lock: {}", fileName);
@@ -179,7 +179,7 @@ public class ScenarioBridge implements PerfContext {
             if (CACHE.containsKey(fileName)) { // retry
                 long endTime = System.currentTimeMillis() - startTime;
                 engine.logger.warn("this thread waited {} milliseconds for callSingle lock: {}", endTime, fileName);
-                return fromCache(engine, CACHE.get(fileName));
+                return callSingleResult(engine, CACHE.get(fileName));
             }
             // this thread is the 'winner'
             engine.logger.info(">> lock acquired, begin callSingle: {}", fileName);
@@ -207,7 +207,13 @@ public class ScenarioBridge implements PerfContext {
             }
             if (result == null) {
                 Variable called = new Variable(read(fileName));
-                Variable argVar = arg == null ? null : new Variable(arg);
+                Variable argVar;
+                if (arg == null || arg.isNull()) {
+                    argVar = null;
+                } else {
+                    engine.recurseAndAttach(arg);
+                    argVar = new Variable(arg);
+                }
                 Variable resultVar;
                 try {
                     resultVar = engine.call(called, argVar, false);
@@ -230,7 +236,7 @@ public class ScenarioBridge implements PerfContext {
             }
             CACHE.put(fileName, result);
             engine.logger.info("<< lock released, cached callSingle: {}", fileName);
-            return fromCache(engine, result);
+            return callSingleResult(engine, result);
         }
     }
 
@@ -449,7 +455,7 @@ public class ScenarioBridge implements PerfContext {
     public Object getInfo() { // TODO deprecate
         return new JsMap(getEngine().runtime.getScenarioInfo());
     }
-    
+
     private LogFacade logFacade;
 
     public Object getLogger() {
@@ -943,10 +949,10 @@ public class ScenarioBridge implements PerfContext {
         public void warn(Value... values) {
             getLogger().warn(wrap(values));
         }
-        
+
         public void error(Value... values) {
             getLogger().error(wrap(values));
-        }        
+        }
 
     }
 
