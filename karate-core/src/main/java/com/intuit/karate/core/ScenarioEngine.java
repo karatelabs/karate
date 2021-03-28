@@ -1131,6 +1131,37 @@ public class ScenarioEngine {
         }
     }
 
+    protected Object recurseAndAttachAndDeepClone(Object o) {
+        if (o instanceof Value) {
+            Value value = (Value) o;
+            try {
+                if (value.canExecute()) { // should never happen after a proper detach and WILL fail
+                    return attach(value);
+                }
+            } catch (Exception e) {
+                logger.error("failed to re-attach graal value: {}", e.getMessage());
+                return null;
+            }
+            o = JsValue.toJava(value);
+        }
+        if (o instanceof JsFunction) {
+            JsFunction jf = (JsFunction) o;
+            return attachSource(jf.source);
+        } else if (o instanceof List) {
+            List list = (List) o;
+            List copy = new ArrayList(list.size());
+            list.forEach(v -> copy.add(recurseAndAttachAndDeepClone(v)));
+            return copy;
+        } else if (o instanceof Map) {
+            Map<String, Object> map = (Map) o;
+            Map<String, Object> copy = new LinkedHashMap(map.size());
+            map.forEach((k, v) -> copy.put(k, recurseAndAttachAndDeepClone(v)));
+            return copy;
+        } else {
+            return o;
+        }
+    }
+
     public Value attachSource(CharSequence source) {
         return JS.attachSource(source);
     }

@@ -156,9 +156,9 @@ public class ScenarioBridge implements PerfContext {
             engine.logger.warn("callSingle() cached result is an exception");
             throw (Exception) o;
         }
-        // this HAS to be a deep copy to detach any nested JS functions
-        o = new Variable(o).copy(true).getValue();
-        engine.recurseAndAttach(o);
+        // if we don't deep clone, an attach operation would update the tree within the cached value
+        // causing future cache hit + attach attempts to fail !
+        o = engine.recurseAndAttachAndDeepClone(o);
         return JsValue.fromJava(o);
     }
 
