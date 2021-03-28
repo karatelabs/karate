@@ -171,7 +171,9 @@ public class ScenarioBridge implements PerfContext {
         final Map<String, Object> CACHE = engine.runtime.featureRuntime.suite.suiteCache;
         if (CACHE.containsKey(fileName)) {
             engine.logger.trace("callSingle cache hit: {}", fileName);
-            return callSingleResult(engine, CACHE.get(fileName));
+            synchronized (CACHE) {
+                return callSingleResult(engine, CACHE.get(fileName));
+            }
         }
         long startTime = System.currentTimeMillis();
         engine.logger.trace("callSingle waiting for lock: {}", fileName);
@@ -217,8 +219,10 @@ public class ScenarioBridge implements PerfContext {
                 try {
                     resultVar = engine.call(called, argVar, false);
                 } catch (Exception e) {
+                    // don't retain any vestiges of graal-js 
+                    RuntimeException re = new RuntimeException(e.getMessage());
                     // we do this so that an exception is also "cached"
-                    resultVar = new Variable(e); // will be thrown at end
+                    resultVar = new Variable(re); // will be thrown at end
                     engine.logger.warn("callSingle() will cache an exception");
                 }
                 if (minutes > 0) { // cacheFile will be not null
