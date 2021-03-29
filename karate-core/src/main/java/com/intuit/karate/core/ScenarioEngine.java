@@ -409,7 +409,6 @@ public class ScenarioEngine {
         }
     }
 
-    // TODO document new options, [name = map | cookies listOfMaps]
     public void cookies(String exp) {
         Variable var = evalKarateExpression(exp);
         Map<String, Map> cookies = Cookies.normalize(var.getValue());
@@ -1824,7 +1823,6 @@ public class ScenarioEngine {
         return match(matchType, actual.getValue(), expected.getValue());
     }
 
-    // TODO document that match header is case-insensitive at last
     private Match.Result matchHeader(Match.Type matchType, String name, String exp) {
         Variable expected = evalKarateExpression(exp);
         String actual = response.getHeader(name);
@@ -1957,19 +1955,20 @@ public class ScenarioEngine {
             // deep-clone so that subsequent steps don't modify data / references being passed around
             result.vars.forEach((k, v) -> vars.put(k, v.copy(true)));
             init(); // this will attach and also insert magic variables
-            setConfig(new Config(result.config)); // re-apply config from time of snapshot
+            // re-apply config from time of snapshot
+            // and note that setConfig() will attach functions such as configured "headers"
+            setConfig(new Config(result.config));
             return Variable.NULL; // since we already reset the vars above we return null
             // else the call() routine would try to do it again
             // note that shared scope means a return value is meaningless
         } else {
+            // deep-clone for the same reasons mentioned above
             Object resultValue = recurseAndAttachAndDeepClone(result.value.getValue());
             return new Variable(resultValue);
         }
     }
 
     private Variable callOnce(String cacheKey, Variable called, Variable arg, boolean sharedScope) {
-        // IMPORTANT: the call result is always cloned before returning
-        // so that call result (especially if a java Map) is not mutated by other scenarios
         final Map<String, ScenarioCall.Result> CACHE = runtime.featureRuntime.FEATURE_CACHE;
         ScenarioCall.Result result = CACHE.get(cacheKey);
         if (result != null) {
@@ -1989,8 +1988,8 @@ public class ScenarioEngine {
             logger.info(">> lock acquired, begin callonce: {}", cacheKey);
             Variable resultValue = call(called, arg, sharedScope);
             // we clone result (and config) here, to snapshot state at the point the callonce was invoked
-            // this prevents the state from being clobbered by the subsequent steps of this
-            // first scenario that is about to use the result
+            // detaching is important (see JsFunction) so that we can keep the source-code aside
+            // and use it to re-create functions in a new JS context - and work around graal-js limitations
             Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? detachVariables(true) : null;
             Config clonedConfig = new Config(config);
             clonedConfig.detach();
