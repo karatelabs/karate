@@ -1053,7 +1053,15 @@ A few special built-in variables such as `$` (which is a [reference to the JSON 
 A [special case](#remove-if-null) of embedded expressions can remove a JSON key (or XML element / attribute) if the expression evaluates to `null`.
 
 #### Rules for Embedded Expressions
-* They work only within JSON or XML and when on the Right Hand Side of a `def` or `match` or when you [`read()`](#reading-files) a JSON or XML file. And the expression *has* to start with `"#(` and end with `)` - so note that string-concatenation may not work quite the way you expect:
+* They work only within JSON or XML
+* and when on the Right Hand Side of a 
+  * [`def`](#def)
+  * [`match`](#match)
+  * [`configure`](#configure)
+* and when you [`read()`](#reading-files) a JSON or XML file
+* the expression *has* to start with `"#(` and end with `)`
+  
+Because of the last rule above, note that string-concatenation may not work quite the way you expect:
 
 ```cucumber
 # wrong !
@@ -1077,7 +1085,7 @@ As a convenience, embedded expressions are supported on the Right Hand Side of a
 And do note that in Karate 1.0 onwards, ES6 string-interpolation within "backticks" is supported:
 
 ```cucumber
-*And* param filter = `ORDER_DATE:"${todaysDate}"`
+* param filter = `ORDER_DATE:"${todaysDate}"`
 ```
 
 ### Enclosed JavaScript
@@ -3903,7 +3911,7 @@ Refer to this example:
 * [`karate-config.js`](karate-demo/src/test/java/karate-config.js)
 * [`headers-single.feature`](karate-demo/src/test/java/demo/headers/headers-single.feature)
 
-> You *can* use `karate.callSingle()` directly in a `*.feature` file, but it logically fits better in the global "bootstrap".
+You *can* use `karate.callSingle()` directly in a `*.feature` file, but it logically fits better in the global "bootstrap". Ideally it should return "pure JSON" and note that you always get a "deep clone" of the cached result object.
 
 #### `configure callSingleCache`
 When re-running tests in development mode and when your test suite depends on say an `Authorization` header set by [`karate.callSingle()`](#karatecallsingle), you can cache the results locally to a file, which is very convenient when your "auth token" is valid for a period of a few minutes - which typically is the case. This means that as long as the token "on file" is valid, you can save time by not having to make the one or two HTTP calls needed to "sign-in" or create "throw-away" users in your SSO store.

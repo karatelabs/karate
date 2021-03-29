@@ -132,7 +132,7 @@ public class ScenarioEngine {
     private ScenarioEngine parent;
 
     public ScenarioEngine child() {
-        ScenarioEngine child = new ScenarioEngine(config, runtime, detachVariables(), logger);
+        ScenarioEngine child = new ScenarioEngine(config, runtime, detachVariables(true), logger);
         child.parent = this;
         if (children == null) {
             children = new ArrayList();
@@ -1050,7 +1050,7 @@ public class ScenarioEngine {
         });
     }
 
-    public Map<String, Variable> detachVariables() {
+    public Map<String, Variable> detachVariables(boolean deep) { // TODO make deep the sole default
         Map<String, Variable> detached = new HashMap(vars.size());
         vars.forEach((k, v) -> {
             switch (v.type) {
@@ -1060,7 +1060,12 @@ public class ScenarioEngine {
                     break;
                 case MAP:
                 case LIST:
-                    recurseAndDetach(v.getValue());
+                    if (deep) {
+                        Object o = recurseAndDetachAndDeepClone(v.getValue());
+                        v = new Variable(o);
+                    } else {
+                        recurseAndDetach(v.getValue());
+                    }
                     break;
                 default:
                 // do nothing
@@ -1133,16 +1138,17 @@ public class ScenarioEngine {
 
     protected Object recurseAndAttachAndDeepClone(Object o) {
         if (o instanceof Value) {
+            // should never happen if the detach was done properly
             Value value = (Value) o;
             try {
-                if (value.canExecute()) { // should never happen after a proper detach and WILL fail
+                if (value.canExecute()) {
                     return attach(value);
                 }
+                o = JsValue.toJava(value);
             } catch (Exception e) {
-                logger.error("failed to re-attach graal value: {}", e.getMessage());
-                return null;
-            }
-            o = JsValue.toJava(value);
+                logger.warn("failed to re-attach graal value: {}", e.getMessage());
+                return null; // we try to move on after stripping this (js function) from the tree
+            }            
         }
         if (o instanceof JsFunction) {
             JsFunction jf = (JsFunction) o;
@@ -1161,6 +1167,29 @@ public class ScenarioEngine {
             return o;
         }
     }
+    
+    protected Object recurseAndDetachAndDeepClone(Object o) {
+        if (o instanceof Value) {
+            Value value = (Value) o;
+            if (value.canExecute()) {
+                return new JsFunction(value);
+            }
+            o = JsValue.toJava(value);
+        }
+        if (o instanceof List) {
+            List list = (List) o;
+            List copy = new ArrayList(list.size());
+            list.forEach(v -> copy.add(recurseAndDetachAndDeepClone(v)));
+            return copy;
+        } else if (o instanceof Map) {
+            Map<String, Object> map = (Map) o;
+            Map<String, Object> copy = new LinkedHashMap(map.size());
+            map.forEach((k, v) -> copy.put(k, recurseAndDetachAndDeepClone(v)));
+            return copy;
+        } else {
+            return o;
+        }
+    }    
 
     public Value attachSource(CharSequence source) {
         return JS.attachSource(source);
@@ -1918,19 +1947,23 @@ public class ScenarioEngine {
     private Variable callOnceResult(ScenarioCall.Result result, boolean sharedScope) {
         if (sharedScope) { // if shared scope
             vars.clear(); // clean slate
-            vars.putAll(copy(result.vars, false)); // clone for safety     
+            result.vars.forEach((k, v) -> {
+                Object o = recurseAndAttachAndDeepClone(v.getValue()); // clone for safety
+                vars.put(k, new Variable(o));
+            });   
             init(); // this will also insert magic variables
             setConfig(new Config(result.config)); // re-apply config from time of snapshot
             return Variable.NULL; // since we already reset the vars above we return null
             // else the call() routine would try to do it again
             // note that shared scope means a return value is meaningless
         } else {
-            return result.value.copy(false); // clone result for safety 
+            Object resultValue = recurseAndAttachAndDeepClone(result.value.getValue());
+            return new Variable(resultValue);
         }
     }
 
     private Variable callOnce(String cacheKey, Variable called, Variable arg, boolean sharedScope) {
-        // IMPORTANT: the call result is always shallow-cloned before returning
+        // IMPORTANT: the call result is always cloned before returning
         // so that call result (especially if a java Map) is not mutated by other scenarios
         final Map<String, ScenarioCall.Result> CACHE = runtime.featureRuntime.FEATURE_CACHE;
         ScenarioCall.Result result = CACHE.get(cacheKey);
@@ -1953,10 +1986,11 @@ public class ScenarioEngine {
             // we clone result (and config) here, to snapshot state at the point the callonce was invoked
             // this prevents the state from being clobbered by the subsequent steps of this
             // first scenario that is about to use the result
-            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? detachVariables() : null;
+            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? detachVariables(true) : null;
             Config clonedConfig = new Config(config);
             clonedConfig.detach();
-            result = new ScenarioCall.Result(resultValue.copy(false), clonedConfig, clonedVars);
+            Object resultObject = recurseAndDetachAndDeepClone(resultValue.getValue());
+            result = new ScenarioCall.Result(new Variable(resultObject), clonedConfig, clonedVars);
             CACHE.put(cacheKey, result);
             logger.info("<< lock released, cached callonce: {}", cacheKey);
             return resultValue; // another routine will apply globally if needed
