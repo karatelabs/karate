@@ -1078,7 +1078,14 @@ public class ScenarioEngine {
     protected Object recurseAndAttach(Object o) {
         if (o instanceof Value) {
             Value value = (Value) o;
-            return value.canExecute() ? attach(value) : null;
+            try {
+                if (value.canExecute()) {
+                    return attach(value);
+                }
+            } catch (Exception e) {
+                logger.warn("failed to re-attach graal value: {}", e.getMessage());
+            }
+            return null;
         } else if (o instanceof JsFunction) {
             JsFunction jf = (JsFunction) o;
             return attachSource(jf.source);
