@@ -45,15 +45,15 @@ public class Cookies {
         // only static methods               
     }
 
-    private static final String NAME = "name";
-    private static final String VALUE = "value";
-    private static final String WRAP = "wrap";
-    private static final String DOMAIN = "domain";
-    private static final String PATH = "path";
-    private static final String MAX_AGE = "max-age"; // only one with a hyphen
-    private static final String SECURE = "secure";
-    private static final String HTTP_ONLY = "httponly";
-    private static final String SAME_SITE = "samesite";
+    public static final String NAME = "name";
+    public static final String VALUE = "value";
+    public static final String WRAP = "wrap";
+    public static final String DOMAIN = "domain";
+    public static final String PATH = "path";
+    public static final String MAX_AGE = "max-age"; // only one with a hyphen
+    public static final String SECURE = "secure";
+    public static final String HTTP_ONLY = "httponly";
+    public static final String SAME_SITE = "samesite";
 
     public static Map<String, Object> toMap(Cookie cookie) {
         Map<String, Object> map = new HashMap();
