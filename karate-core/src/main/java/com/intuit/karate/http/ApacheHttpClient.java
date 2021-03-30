@@ -94,12 +94,11 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
 
     private void configure(Config config) {
         clientBuilder = HttpClientBuilder.create();
-        clientBuilder.disableCookieManagement();
         clientBuilder.disableAutomaticRetries();
         if (!config.isFollowRedirects()) {
             clientBuilder.disableRedirectHandling();
         } else { // support redirect on POST by default
-            clientBuilder.setRedirectStrategy(new LaxRedirectStrategy());
+            clientBuilder.setRedirectStrategy(LaxRedirectStrategy.INSTANCE);
         }
         clientBuilder.useSystemProperties();
         if (config.isSslEnabled()) {

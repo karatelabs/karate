@@ -130,7 +130,7 @@ class KarateHttpMockHandlerTest {
         );
         matchVarContains("response", "{ 'content-type': ['application/xxx.pingixxxxxx.checkUsernamePassword+json'] }");
     }
-    
+
     @Test
     void testInspectRequestInHeadersFunction() {
         background().scenario(
@@ -143,10 +143,10 @@ class KarateHttpMockHandlerTest {
                 "path '/hello'",
                 "request 'some text'",
                 "method post"
-        );        
-        matchVarContains("response", "{ 'api-key': ['some text'] }");        
+        );
+        matchVarContains("response", "{ 'api-key': ['some text'] }");
     }
-    
+
     @Test
     void testKarateRemove() {
         background().scenario(
@@ -159,10 +159,10 @@ class KarateHttpMockHandlerTest {
                 urlStep(),
                 "path '/hello/1'",
                 "method get"
-        );        
-        matchVarContains("response", "{ '2': 'bar' }");          
+        );
+        matchVarContains("response", "{ '2': 'bar' }");
     }
-    
+
     @Test
     void testTransferEncoding() {
         background().scenario(
@@ -175,10 +175,10 @@ class KarateHttpMockHandlerTest {
                 "header Transfer-Encoding = 'chunked'",
                 "request { foo: 'bar' }",
                 "method post"
-        );        
-        matchVarContains("response", "{ foo: 'bar' }");         
+        );
+        matchVarContains("response", "{ foo: 'bar' }");
     }
-    
+
     @Test
     void testMalformedMockResponse() {
         background().scenario(
@@ -191,9 +191,27 @@ class KarateHttpMockHandlerTest {
                 "method get",
                 "match response == '{ \"id\" \"123\" }'",
                 "match responseType == 'string'"
-        );        
+        );
         Object response = get("response");
         assertEquals(response, "{ \"id\" \"123\" }");
+    }
+
+    @Test
+    void testRedirectAfterPostWithCookie() {
+        background()
+                .scenario("pathMatches('/first')",
+                        "def responseHeaders = { 'Set-Cookie': 'foo=bar; Path=/', Location: '/second' }",
+                        "def responseStatus = 302")
+                .scenario("pathMatches('/second')",
+                        "def response = requestHeaders");
+        startMockServer();
+        run(
+                urlStep(),
+                "path '/first'",
+                "form fields { username: 'blah', password: 'blah' }",
+                "method post"
+        );
+        matchVarContains("response", "{ cookie: ['foo=bar'] }");
     }
 
 }
