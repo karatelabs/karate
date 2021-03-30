@@ -27,7 +27,6 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.core.Config;
 import com.intuit.karate.core.Variable;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -49,33 +48,18 @@ public class HttpLogger {
         if (headers == null || headers.isEmpty()) {
             return;
         }
-        headers.forEach((k, v) -> {
-            sb.append('\n');
-            sb.append(num).append(prefix).append(k).append(": ");
-            int count = v.size();
-            if (count == 1) {
-                if (modifier == null) {
-                    sb.append(v.get(0));
-                } else {
-                    sb.append(modifier.header(k, v.get(0)));
-                }
-            } else {
-                if (modifier == null) {
-                    sb.append(v);
-                } else {
-                    sb.append('[');
-                    Iterator<String> i = v.iterator();
-                    while (i.hasNext()) {
-                        sb.append(modifier.header(k, i.next()));
-                        if (i.hasNext()) {
-                            sb.append(", ");
-                        }
-                    }
-                    sb.append(']');
-                }
-            }
-        });
         sb.append('\n');
+        headers.forEach((k, v) -> {            
+            for (String value : v) {
+                sb.append(num).append(prefix).append(k).append(": ");
+                if (modifier == null) {
+                    sb.append(value);
+                } else {
+                    sb.append(modifier.header(k, value));
+                }
+                sb.append('\n');
+            }
+        });        
     }
 
     private static void logBody(Config config, HttpLogModifier logModifier,
