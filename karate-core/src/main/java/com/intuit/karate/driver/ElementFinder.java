@@ -131,7 +131,7 @@ public class ElementFinder implements Finder {
     @Override
     public String getValue() {
         return find().getValue();
-    }        
+    }
 
     @Override
     public Element clear() {
@@ -177,7 +177,5 @@ public class ElementFinder implements Finder {
     public Element retry(Integer count, Integer interval) {
         return find().retry(count, interval);
     }
-    
-    
 
 }
