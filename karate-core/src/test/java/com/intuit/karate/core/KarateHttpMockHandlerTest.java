@@ -3,6 +3,8 @@ package com.intuit.karate.core;
 import static com.intuit.karate.TestUtils.*;
 import static com.intuit.karate.TestUtils.runScenario;
 import com.intuit.karate.http.HttpServer;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
@@ -99,7 +101,7 @@ class KarateHttpMockHandlerTest {
                 "cookie foo = { value: 'bar', samesite: 'Strict', secure: true }",
                 "method get"
         );
-        matchVarContains("response", "{ cookie: ['foo=bar; Secure; SameSite=Strict'] }");
+        matchVarContains("response", "{ cookie: ['foo=bar'] }");
     }
 
     @Test
@@ -200,10 +202,11 @@ class KarateHttpMockHandlerTest {
     void testRedirectAfterPostWithCookie() {
         background()
                 .scenario("pathMatches('/first')",
-                        "def responseHeaders = { 'Set-Cookie': 'foo=bar; Path=/', Location: '/second' }",
+                        "def responseHeaders = { 'Set-Cookie': 'foo1=bar1', Location: '/second' }",
                         "def responseStatus = 302")
                 .scenario("pathMatches('/second')",
-                        "def response = requestHeaders");
+                        "def response = requestHeaders",
+                        "def responseHeaders = { 'Set-Cookie': 'foo2=bar2' }");
         startMockServer();
         run(
                 urlStep(),
@@ -211,7 +214,10 @@ class KarateHttpMockHandlerTest {
                 "form fields { username: 'blah', password: 'blah' }",
                 "method post"
         );
-        matchVarContains("response", "{ cookie: ['foo=bar'] }");
+        matchVarContains("response", "{ cookie: ['foo1=bar1'] }");
+        Map<String, Object> map = (Map) get("responseHeaders");
+        List<String> list = (List) map.get("Set-Cookie");
+        matchContains(list, "['foo1=bar1; Domain=localhost', 'foo2=bar2; Domain=localhost']");
     }
 
 }

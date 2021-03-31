@@ -302,9 +302,10 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 }
                 map.put(Cookies.SECURE, c.isSecure());
                 io.netty.handler.codec.http.cookie.Cookie nettyCookie = Cookies.fromMap(map);
-                String cookieValue = ServerCookieEncoder.STRICT.encode(nettyCookie);
+                String cookieValue = ServerCookieEncoder.LAX.encode(nettyCookie);
                 cookieValues.add(cookieValue);
             }
+            // removing is probably not needed since apache cookie handling is enabled, but anyway
             httpResponse.removeHeaders(HttpConstants.HDR_SET_COOKIE);
             headers = toHeaders(httpResponse);
             headers.put(HttpConstants.HDR_SET_COOKIE, cookieValues);

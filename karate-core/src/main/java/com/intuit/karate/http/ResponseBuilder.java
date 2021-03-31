@@ -196,7 +196,7 @@ public class ResponseBuilder {
             }
         }
         if (cookies != null) {
-            cookies.forEach(c -> header(HttpConstants.HDR_SET_COOKIE, ServerCookieEncoder.STRICT.encode(c)));
+            cookies.forEach(c -> header(HttpConstants.HDR_SET_COOKIE, ServerCookieEncoder.LAX.encode(c)));
         }
         return status(response.getStatus());
     }
