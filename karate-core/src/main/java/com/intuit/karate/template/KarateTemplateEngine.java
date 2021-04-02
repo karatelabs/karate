@@ -99,11 +99,15 @@ public class KarateTemplateEngine {
             // make thymeleaf errors easier to troubleshoot from the logs
             while (e.getCause() instanceof Exception) {
                 e = (Exception) e.getCause();
-                if (e instanceof TemplateProcessingException) {
-                    logger.error("{}", e.getMessage()); // will print line and col numbers
+                if (e instanceof TemplateProcessingException) {                    
                     if (e.getCause() != null) { // typically the js error
+                        String message = e.getCause().getMessage();
+                        if (message != null && message.startsWith("redirect")) { // TODO improve
+                            break; // don't log a redirect as an error
+                        }
                         logger.error("{}", e.getCause().getMessage());
-                    }
+                    }                    
+                    logger.error("{}", e.getMessage()); // will print line and col numbers
                     break;
                 }
             }

@@ -64,13 +64,15 @@ public class ServerContext implements ProxyObject {
     private static final String AJAX = "ajax";
     private static final String HTTP = "http";
     private static final String TRIGGER = "trigger";
+    private static final String REDIRECT = "redirect";
     private static final String AFTER_SETTLE = "afterSettle";
     private static final String TO_JSON = "toJson";
     private static final String TO_JSON_PRETTY = "toJsonPretty";
     private static final String FROM_JSON = "fromJson";
 
     private static final String[] KEYS = new String[]{
-        READ, READ_AS_STRING, EVAL, EVAL_WITH, UUID, REMOVE, SWITCH, AJAX, HTTP, TRIGGER, AFTER_SETTLE, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
+        READ, READ_AS_STRING, EVAL, EVAL_WITH, UUID, REMOVE, SWITCH, AJAX, HTTP,
+        TRIGGER, REDIRECT, AFTER_SETTLE, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -239,7 +241,7 @@ public class ServerContext implements ProxyObject {
 
     public List<Map<String, Object>> getResponseTriggers() {
         return responseTriggers;
-    }
+    }       
 
     public void trigger(Map<String, Object> trigger) {
         if (responseTriggers == null) {
@@ -263,6 +265,11 @@ public class ServerContext implements ProxyObject {
         RequestCycle.get().setSwitchTemplate(s);
         throw new RedirectException(s);
     };
+    
+    private final Consumer<String> REDIRECT_FUNCTION = s -> {
+        RequestCycle.get().setRedirectPath(s);
+        throw new RedirectException(s);
+    };    
 
     private static final BiFunction<Object, Object, Object> REMOVE_FUNCTION = (o, k) -> {
         if (o instanceof Map && k != null) {
@@ -310,6 +317,8 @@ public class ServerContext implements ProxyObject {
                 return HTTP_FUNCTION;
             case TRIGGER:
                 return (Consumer<Map<String, Object>>) this::trigger;
+            case REDIRECT:
+                return REDIRECT_FUNCTION;
             case AFTER_SETTLE:
                 return (Consumer<String>) this::afterSettle;
             default:

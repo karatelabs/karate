@@ -63,6 +63,7 @@ public class RequestCycle {
     private Response response;
     private ServerContext context;
     private String switchTemplate;
+    private String redirectPath;
 
     public RequestCycle(JsEngine engine) {
         this.engine = engine;
@@ -114,7 +115,15 @@ public class RequestCycle {
         switchTemplate = null;
         return temp;
     }
-    
+
+    public void setRedirectPath(String redirectPath) {
+        this.redirectPath = redirectPath;
+    }
+
+    public String getRedirectPath() {
+        return redirectPath;
+    }
+
     public void init(ServerContext context, Session session) {
         this.context = context;
         if (session != null) {

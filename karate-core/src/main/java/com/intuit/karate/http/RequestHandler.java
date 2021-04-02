@@ -149,13 +149,17 @@ public class RequestHandler implements ServerHandler {
         try {
             return engine.process(request.getPath());
         } catch (Exception e) {
+            String redirectPath = rc.getRedirectPath();
+            if (redirectPath != null) {
+                logger.debug("redirect (full) requested to: {}", redirectPath);
+                return null; // will be handled by response builder
+            }
             String switchTemplate = rc.getAndClearSwitchTemplate();
             if (switchTemplate != null) {
-                logger.debug("redirect requested to: {}", switchTemplate);
+                logger.debug("redirect (ajax) requested to: {}", switchTemplate);
                 return engine.process(switchTemplate);
-            } else {
-                throw e;
             }
+            throw e;
         }
     }
 

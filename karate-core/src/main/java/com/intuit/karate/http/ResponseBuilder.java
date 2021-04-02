@@ -149,6 +149,11 @@ public class ResponseBuilder {
     public Response build(RequestCycle rc) {
         Response response = rc.getResponse();
         ServerContext context = rc.getContext();
+        String redirectPath = rc.getRedirectPath();
+        if (redirectPath != null) {
+            header(HttpConstants.HDR_HX_REDIRECT, redirectPath);
+            return status(302);
+        }
         List<Map<String, Object>> triggers = context.getResponseTriggers();
         if (triggers != null) {
             Map<String, Object> merged;
