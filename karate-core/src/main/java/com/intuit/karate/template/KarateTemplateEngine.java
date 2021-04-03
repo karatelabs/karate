@@ -105,7 +105,7 @@ public class KarateTemplateEngine {
                         if (message != null && message.startsWith("redirect")) { // TODO improve
                             break; // don't log a redirect as an error
                         }
-                        logger.error("{}", e.getCause().getMessage());
+                        logger.error("{}", message);
                     }                    
                     logger.error("{}", e.getMessage()); // will print line and col numbers
                     break;

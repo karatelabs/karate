@@ -154,7 +154,7 @@ public class RequestHandler implements ServerHandler {
                 logger.debug("redirect (full) requested to: {}", redirectPath);
                 return null; // will be handled by response builder
             }
-            String switchTemplate = rc.getAndClearSwitchTemplate();
+            String switchTemplate = rc.getSwitchTemplate();
             if (switchTemplate != null) {
                 logger.debug("redirect (ajax) requested to: {}", switchTemplate);
                 return engine.process(switchTemplate);

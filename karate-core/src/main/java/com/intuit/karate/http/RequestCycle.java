@@ -107,13 +107,8 @@ public class RequestCycle {
         this.switchTemplate = switchTemplate;
     }
 
-    public String getAndClearSwitchTemplate() {
-        if (switchTemplate == null) {
-            return null;
-        }
-        String temp = switchTemplate;
-        switchTemplate = null;
-        return temp;
+    public String getSwitchTemplate() {
+        return switchTemplate;
     }
 
     public void setRedirectPath(String redirectPath) {

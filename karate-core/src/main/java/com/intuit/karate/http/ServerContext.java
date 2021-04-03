@@ -61,6 +61,7 @@ public class ServerContext implements ProxyObject {
     private static final String UUID = "uuid";
     private static final String REMOVE = "remove";
     private static final String SWITCH = "switch";
+    private static final String SWITCHED = "switched";
     private static final String AJAX = "ajax";
     private static final String HTTP = "http";
     private static final String TRIGGER = "trigger";
@@ -71,7 +72,7 @@ public class ServerContext implements ProxyObject {
     private static final String FROM_JSON = "fromJson";
 
     private static final String[] KEYS = new String[]{
-        READ, READ_AS_STRING, EVAL, EVAL_WITH, UUID, REMOVE, SWITCH, AJAX, HTTP,
+        READ, READ_AS_STRING, EVAL, EVAL_WITH, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
         TRIGGER, REDIRECT, AFTER_SETTLE, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
@@ -83,6 +84,7 @@ public class ServerContext implements ProxyObject {
     private boolean api;
     private boolean lockNeeded;
     private Session session;
+    private boolean switched;
 
     private List<Map<String, Object>> responseTriggers;
     private List<String> afterSettleScripts;
@@ -241,7 +243,7 @@ public class ServerContext implements ProxyObject {
 
     public List<Map<String, Object>> getResponseTriggers() {
         return responseTriggers;
-    }       
+    }
 
     public void trigger(Map<String, Object> trigger) {
         if (responseTriggers == null) {
@@ -262,14 +264,19 @@ public class ServerContext implements ProxyObject {
     private final Methods.FunVar HTTP_FUNCTION; // set in constructor
 
     private final Consumer<String> SWITCH_FUNCTION = s -> {
-        RequestCycle.get().setSwitchTemplate(s);
-        throw new RedirectException(s);
+        if (switched) {
+            logger.warn("context.switch() can be called only once during a request, ignoring: {}", s);
+        } else {
+            switched = true;
+            RequestCycle.get().setSwitchTemplate(s);
+            throw new RedirectException(s);
+        }
     };
-    
+
     private final Consumer<String> REDIRECT_FUNCTION = s -> {
         RequestCycle.get().setRedirectPath(s);
         throw new RedirectException(s);
-    };    
+    };
 
     private static final BiFunction<Object, Object, Object> REMOVE_FUNCTION = (o, k) -> {
         if (o instanceof Map && k != null) {
@@ -311,6 +318,8 @@ public class ServerContext implements ProxyObject {
                 return REMOVE_FUNCTION;
             case SWITCH:
                 return SWITCH_FUNCTION;
+            case SWITCHED:
+                return switched;
             case AJAX:
                 return isAjax();
             case HTTP:
