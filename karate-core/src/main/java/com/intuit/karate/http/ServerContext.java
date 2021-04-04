@@ -55,6 +55,7 @@ public class ServerContext implements ProxyObject {
     private static final Logger logger = LoggerFactory.getLogger(ServerContext.class);
 
     private static final String READ = "read";
+    private static final String RESOLVER = "resolver";
     private static final String READ_AS_STRING = "readAsString";
     private static final String EVAL = "eval";
     private static final String EVAL_WITH = "evalWith";
@@ -72,7 +73,7 @@ public class ServerContext implements ProxyObject {
     private static final String FROM_JSON = "fromJson";
 
     private static final String[] KEYS = new String[]{
-        READ, READ_AS_STRING, EVAL, EVAL_WITH, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
+        READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
         TRIGGER, REDIRECT, AFTER_SETTLE, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
@@ -328,6 +329,8 @@ public class ServerContext implements ProxyObject {
                 return (Consumer<Map<String, Object>>) this::trigger;
             case REDIRECT:
                 return REDIRECT_FUNCTION;
+            case RESOLVER:
+                return config.getResourceResolver();
             case AFTER_SETTLE:
                 return (Consumer<String>) this::afterSettle;
             default:

@@ -35,15 +35,18 @@ public class ResourceResolver {
 
     public final boolean classpath;
     public final String root;
+    
+    private static final String EMPTY = "";
+    private static final String SLASH = "/";
 
     public ResourceResolver(String root) {
         if (root == null) {
-            root = "";
+            root = EMPTY;
         }
-        classpath = root.startsWith("classpath:");
+        classpath = root.startsWith(Resource.CLASSPATH_COLON);
         root = ResourceUtils.removePrefix(root);
-        if (!root.isEmpty() && !root.endsWith("/")) {
-            root = root + "/";
+        if (!root.isEmpty() && !root.endsWith(SLASH)) {
+            root = root + SLASH;
         }
         this.root = root;
     }
@@ -53,15 +56,15 @@ public class ResourceResolver {
     }
 
     public Resource resolve(String parent, String path) {
-        if (path.startsWith("classpath:")) {
+        if (path.startsWith(Resource.CLASSPATH_COLON)) {
             return get(path);
         } else if (parent == null) {
-            return get((classpath ? "classpath:" : "") + root + path);
-        } else if (parent.startsWith("classpath:")) {
+            return get((classpath ? Resource.CLASSPATH_COLON : EMPTY) + root + path);
+        } else if (parent.startsWith(Resource.CLASSPATH_COLON)) {
             parent = ResourceUtils.getParentPath(parent);
             return get(parent + path);
         } else {
-            parent = ResourceUtils.getParentPath((classpath ? "classpath:" : "") + root + parent);
+            parent = ResourceUtils.getParentPath((classpath ? Resource.CLASSPATH_COLON : EMPTY) + root + parent);
             return get(parent + path);
         }
     }
@@ -80,7 +83,7 @@ public class ResourceResolver {
 
     @Override
     public String toString() {
-        return classpath ? "classpath:" + root : root;
+        return classpath ? Resource.CLASSPATH_COLON + root : root;
     }
 
 }

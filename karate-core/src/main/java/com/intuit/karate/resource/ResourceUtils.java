@@ -94,7 +94,7 @@ public class ResourceUtils {
     private static final ScanResult SCAN_RESULT = new ClassGraph().acceptPaths("/").scan(1);
 
     public static Resource getResource(File workingDir, String path) {
-        if (path.startsWith("classpath:")) {
+        if (path.startsWith(Resource.CLASSPATH_COLON)) {
             path = removePrefix(path);
             File file = classPathToFile(path);
             if (file != null) {
@@ -141,7 +141,7 @@ public class ResourceUtils {
         for (String path : paths) {
             if (path.endsWith("." + extension)) {
                 results.add(getResource(workingDir, path));
-            } else if (path.startsWith("classpath:")) {
+            } else if (path.startsWith(Resource.CLASSPATH_COLON)) {
                 pathRoots.add(removePrefix(path));
             } else {
                 fileRoots.add(new File(removePrefix(path)));
@@ -151,7 +151,7 @@ public class ResourceUtils {
             results.addAll(findFilesByExtension(workingDir, extension, fileRoots));
         } else if (results.isEmpty() && !pathRoots.isEmpty()) {
             String[] searchPaths = pathRoots.toArray(new String[pathRoots.size()]);
-            try (ScanResult scanResult = new ClassGraph().acceptPaths(searchPaths).scan()) {
+            try (ScanResult scanResult = new ClassGraph().acceptPaths(searchPaths).scan(1)) {
                 ResourceList rl = scanResult.getResourcesWithExtension(extension);
                 rl.forEachByteArrayIgnoringIOException((res, bytes) -> {
                     URI uri = res.getURI();
@@ -231,8 +231,8 @@ public class ResourceUtils {
         return relative;
     }
 
-    public static String removePrefix(String text) {
-        if (text.startsWith("classpath:") || text.startsWith("file:")) {
+    protected static String removePrefix(String text) {
+        if (text.startsWith(Resource.CLASSPATH_COLON) || text.startsWith(Resource.FILE_COLON)) {
             return text.substring(text.indexOf(':') + 1);
         } else {
             return text;
@@ -286,11 +286,11 @@ public class ResourceUtils {
 
     public static Set<String> findJsFilesInClassPath(String path) {
         String searchPath;
-        if (path.startsWith("classpath:")) {
+        if (path.startsWith(Resource.CLASSPATH_COLON)) {
             searchPath = path;
             path = removePrefix(path);
         } else {
-            searchPath = "classpath:" + path;
+            searchPath = Resource.CLASSPATH_COLON + path;
         }
         Resource root = getResource(FileUtils.WORKING_DIR, searchPath);
         File rootFile = root.isFile() ? root.getFile() : FileUtils.WORKING_DIR;

@@ -32,6 +32,9 @@ import java.net.URI;
  * @author pthomas3
  */
 public interface Resource {
+    
+    public static final String CLASSPATH_COLON = "classpath:";
+    public static final String FILE_COLON = "file:";
 
     boolean isFile();
 
@@ -46,7 +49,7 @@ public interface Resource {
     Resource resolve(String path);
 
     default String getPrefixedPath() {
-        return isClassPath() ? "classpath:" + getRelativePath() : getRelativePath();
+        return isClassPath() ? CLASSPATH_COLON + getRelativePath() : getRelativePath();
     }
 
     default String getPrefixedParentPath() {
