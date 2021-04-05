@@ -19,7 +19,7 @@
         <maven.surefire.version>2.22.2</maven.surefire.version>
         <spring.boot.version>2.3.4.RELEASE</spring.boot.version>
         <junit5.version>5.7.0</junit5.version>
-        <karate.version>1.0.0</karate.version>
+        <karate.version>1.0.1</karate.version>
     </properties>    
 
     <dependencies>
