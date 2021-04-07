@@ -32,4 +32,4 @@ mvn clean install -P pre-release -DskipTests
 docker tag karate-chrome ptrthomas/karate-chrome:latest
 docker tag karate-chrome ptrthomas/karate-chrome:@@@
 
-docker push ptrthomas/karate-chrome
+docker push ptrthomas/karate-chrome:@@@

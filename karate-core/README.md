@@ -1159,7 +1159,7 @@ Note that the "opposite" of `optional()` is [`locate()`](#locate) which will fai
 If all you need to do is check whether an element exists and fail the test if it doesn't, see [`exists()`](#exists) below.
 
 ## `exists()`
-This method returns a boolean (`true` or `false`), perfect for asserting if an element exists and failing the test if not.
+This method returns a boolean (`true` or `false`), perfect for asserting if an element exists and giving you the option to perform conditional logic, or manually fail the test using something like [`karate.fail()`](https://github.com/intuit/karate#karate-fail) if needed.
 
 ## `waitUntil()`
 Wait for the *browser* JS expression to evaluate to `true`. Will poll using the [retry()](#retry) settings configured.

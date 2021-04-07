@@ -1059,7 +1059,7 @@ A [special case](#remove-if-null) of embedded expressions can remove a JSON key 
   * [`match`](#match)
   * [`configure`](#configure)
 * and when you [`read()`](#reading-files) a JSON or XML file
-* the expression *has* to start with `"#(` and end with `)`
+* the expression *has* to start with `#(` and end with `)`
   
 Because of the last rule above, note that string-concatenation may not work quite the way you expect:
 
