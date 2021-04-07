@@ -160,6 +160,11 @@ public class Response implements ProxyObject {
         return body == null ? null : Json.of(getBodyConverted());
     }
 
+    public boolean isBinary() {
+        ResourceType rt = getResourceType();
+        return rt == null ? false : rt.isBinary();
+    }
+
     public ResourceType getResourceType() {
         if (resourceType == null) {
             String contentType = getContentType();

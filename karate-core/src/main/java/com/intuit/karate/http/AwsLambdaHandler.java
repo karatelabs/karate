@@ -83,7 +83,7 @@ public class AwsLambdaHandler {
         Map<String, Object> res = new HashMap(4);
         res.put(STATUS_CODE, response.getStatus());
         res.put(MULTI_HEADERS, response.getHeaders());
-        boolean isBinary = response.getResourceType().isBinary();
+        boolean isBinary = response.isBinary();
         res.put(IS_BASE64_ENCODED, isBinary);
         byte[] responseBody = response.getBody();
         if (responseBody == null) {
