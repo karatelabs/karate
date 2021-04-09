@@ -5,9 +5,11 @@ Feature: android test
 
   Scenario: android mobile app UI tests
     Given driver { webDriverSession: { desiredCapabilities : "#(android.desiredConfig)"} }
-    And driver.input('#com.bs.droidaction:id/editTextBox', "UI demo")
-    And driver.click('#com.bs.droidaction:id/clearButton')
-    And driver.input('#com.bs.droidaction:id/editTextBox', "Karate DSL")
-    Then match driver.text('#com.bs.droidaction:id/nameTextView') == 'Karate DSL'
     And driver.click('#com.bs.droidaction:id/showTextCheckBox')
-    And match driver.text('#com.bs.droidaction:id/nameTextView') == ''
+    And driver.clear('#com.bs.droidaction:id/showTextOnDelay').input("10000")
+    And driver.input('#com.bs.droidaction:id/editTextBox', "KarateDSL")
+    And driver.click('#com.bs.droidaction:id/showTextCheckBox')
+    And retry(5, 3000).waitForAny("#com.bs.droidaction:id/nameTextView", "//android.widget.TextView[@text='KarateDSL']")
+    Then match driver.text('#com.bs.droidaction:id/nameTextView') == 'KarateDSL'
+    And driver.click('#com.bs.droidaction:id/showTextCheckBox')
+    And assert (optional('#com.bs.droidaction:id/nameTextView').present != true)

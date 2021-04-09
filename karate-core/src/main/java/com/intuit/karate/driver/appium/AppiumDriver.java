@@ -29,6 +29,7 @@ import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Element;
 import com.intuit.karate.driver.WebDriver;
 import com.intuit.karate.http.ResourceType;
+import com.intuit.karate.http.Response;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -37,20 +38,21 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.function.Supplier;
 
 /**
  * @author babusekaran
  */
 public abstract class AppiumDriver extends WebDriver {
 
-    private boolean isBrowserSession;
+    private boolean isWebSession;
 
-    protected AppiumDriver(DriverOptions options) {
+    protected AppiumDriver(MobileDriverOptions options) {
         super(options);
         // flag to know if driver runs for browser on mobile
         Map<String, Object> sessionPayload = (Map<String, Object>) options.getWebDriverSessionPayload();
         Map<String, Object> desiredCapabilities = (Map<String, Object>) sessionPayload.get("desiredCapabilities");
-        isBrowserSession = (desiredCapabilities.get("browserName") != null) ? true : false;
+        isWebSession = (desiredCapabilities.get("browserName") != null) ? true : false;
     }
 
     @Override
@@ -61,7 +63,7 @@ public abstract class AppiumDriver extends WebDriver {
 
     @Override
     protected String selectorPayload(String id) {
-        if (isBrowserSession) { // use WebDriver selector strategies for mobile browser
+        if (isWebSession) { // use WebDriver selector strategies for mobile browser
             return super.selectorPayload(id);
         }
         Json json = Json.object();
@@ -158,7 +160,7 @@ public abstract class AppiumDriver extends WebDriver {
 
     @Override
     public Object script(String expression) {
-        if (isBrowserSession) { // use WebDriver script for mobile browser
+        if (isWebSession) { // use WebDriver script for mobile browser
             return super.script(expression);
         }
         return eval(expression).getValue();
@@ -172,6 +174,69 @@ public abstract class AppiumDriver extends WebDriver {
         List<Map<String, Object>> scriptArgs = new ArrayList<>(1);
         scriptArgs.add(args);
         return eval(expression, scriptArgs).getValue();
+    }
+
+    @Override
+    public boolean waitUntil(String expression) {
+        if (isWebSession) {
+            return super.waitUntil(expression);
+        }
+        return options.retry(() -> {
+            try {
+                String json = selectorPayload(expression);
+                Response res = http.path("element").postJson(json);
+                if (isLocatorError(res)) {
+                    return false;
+                }
+                return true;
+            } catch (Exception e) {
+                logger.warn("waitUntil evaluate failed: {}", e.getMessage());
+                return false;
+            }
+        }, b -> b, "waitUntil (js)", true);
+    }
+
+    @Override
+    protected <T> T retryIfEnabled(String locator, Supplier<T> action) {
+        if (isWebSession) {
+            return super.retryIfEnabled(locator, action);
+        }
+        if (options.isRetryEnabled()) {
+            waitFor(locator); // will throw exception if not found
+        }
+        return action.get();
+    }
+
+    @Override
+    public DriverOptions getOptions() {
+        if (isWebSession) {
+            return super.getOptions();
+        }
+        return (MobileDriverOptions)options;
+    }
+
+    @Override
+    public Element waitForText(String locator, String expected) {
+        if (isWebSession) {
+            return super.waitForText(locator, expected);
+        }
+        return (Element) waitUntil(() -> {
+            String text = optional(locator).getText();
+            if (!expected.equals(text)) {
+                return null;
+            }
+            return DriverElement.locatorExists(this, locator);
+        });
+    }
+
+    @Override
+    public Element clear(String locator) {
+        if (isWebSession) {
+            return super.clear(locator);
+        }
+        String id = elementId(locator);
+        http.path("element", id, "clear").postJson("{}");
+        return DriverElement.locatorExists(this, locator);
     }
 
 }
