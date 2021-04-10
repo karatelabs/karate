@@ -9,7 +9,7 @@ Feature: android test
     And driver.clear('#com.bs.droidaction:id/showTextOnDelay').input("10000")
     And driver.input('#com.bs.droidaction:id/editTextBox', "KarateDSL")
     And driver.click('#com.bs.droidaction:id/showTextCheckBox')
-    And retry(5, 3000).waitForAny("#com.bs.droidaction:id/nameTextView", "//android.widget.TextView[@text='KarateDSL']")
+    And retry(10, 1000).waitForAny("#com.bs.droidaction:id/nameTextView", "//android.widget.TextView[@text='KarateDSL']")
     Then match driver.text('#com.bs.droidaction:id/nameTextView') == 'KarateDSL'
     And driver.click('#com.bs.droidaction:id/showTextCheckBox')
     And assert (optional('#com.bs.droidaction:id/nameTextView').present != true)

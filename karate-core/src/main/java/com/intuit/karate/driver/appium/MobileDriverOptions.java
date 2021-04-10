@@ -35,15 +35,18 @@ public class MobileDriverOptions extends DriverOptions {
         }
         long startTime = System.currentTimeMillis();
         List<String> list = Arrays.asList(locators);
-        Iterator<String> iterator = list.iterator();
-        boolean found = false;
-        while (iterator.hasNext()) {
-            String locator = iterator.next();
-            found = optional(driver, locator).isPresent();
-            if (found) {
-                break; // break, when at-least one element found
+        boolean found = (boolean)driver.waitUntil(() -> {
+            for (String locator: list) {
+                try {
+                    ((AppiumDriver)driver).elementId(locator);
+                    return true;
+                }
+                catch (RuntimeException re){
+                    logger.debug("failed to locate : {}", locator);
+                }
             }
-        }
+            return null;
+        });
         // important: un-set the retry flag
         disableRetry();
         if (!found) {
@@ -70,7 +73,14 @@ public class MobileDriverOptions extends DriverOptions {
             return super.optional(driver, locator);
         }
         try{
-            driver.waitUntil(locator);
+            retry(() -> {
+                try {
+                    ((AppiumDriver)driver).elementId(locator);
+                    return true;
+                } catch (RuntimeException re) {
+                    return false;
+                }
+            }, b -> b, "optional (locator)", true);
             // the element exists, if the above function did not throw an exception
             return DriverElement.locatorExists(driver, locator);
         }

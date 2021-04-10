@@ -177,26 +177,6 @@ public abstract class AppiumDriver extends WebDriver {
     }
 
     @Override
-    public boolean waitUntil(String expression) {
-        if (isWebSession) {
-            return super.waitUntil(expression);
-        }
-        return options.retry(() -> {
-            try {
-                String json = selectorPayload(expression);
-                Response res = http.path("element").postJson(json);
-                if (isLocatorError(res)) {
-                    return false;
-                }
-                return true;
-            } catch (Exception e) {
-                logger.warn("waitUntil evaluate failed: {}", e.getMessage());
-                return false;
-            }
-        }, b -> b, "waitUntil (js)", true);
-    }
-
-    @Override
     protected <T> T retryIfEnabled(String locator, Supplier<T> action) {
         if (isWebSession) {
             return super.retryIfEnabled(locator, action);
