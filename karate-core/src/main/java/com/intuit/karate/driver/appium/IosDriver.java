@@ -1,7 +1,6 @@
 package com.intuit.karate.driver.appium;
 
 import com.intuit.karate.core.ScenarioRuntime;
-import com.intuit.karate.driver.DriverOptions;
 import java.util.Map;
 
 /**
@@ -9,12 +8,12 @@ import java.util.Map;
  */
 public class IosDriver extends AppiumDriver {
 
-    public IosDriver(DriverOptions options) {
+    public IosDriver(MobileDriverOptions options) {
         super(options);
     }
 
     public static IosDriver start(Map<String, Object> map, ScenarioRuntime sr) {
-        DriverOptions options = new DriverOptions(map, sr, 4723, "appium");
+        MobileDriverOptions options = new MobileDriverOptions(map, sr, 4723, "appium");
         options.arg("--port=" + options.port);
         return new IosDriver(options);
     }
