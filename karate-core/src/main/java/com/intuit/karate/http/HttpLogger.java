@@ -69,7 +69,7 @@ public class HttpLogger {
         }
         Variable v = new Variable(body);
         String text;
-        if (config != null && config.isLogPrettyRequest()) {
+        if (config != null && needsPrettyLogging(config, request)) {
             text = v.getAsPrettyString();
         } else {
             text = v.getAsString();
@@ -78,6 +78,18 @@ public class HttpLogger {
             text = request ? logModifier.request(uri, text) : logModifier.response(uri, text);
         }
         sb.append(text);
+    }
+
+    private static boolean needsPrettyLogging(Config config, boolean request) {
+        return logPrettyRequest(config, request) || logPrettyResponse(config, request);
+    }
+
+    private static boolean logPrettyResponse(Config config, boolean request) {
+        return !request && config.isLogPrettyResponse();
+    }
+
+    private static boolean logPrettyRequest(Config config, boolean request) {
+        return request && config.isLogPrettyRequest();
     }
 
     private static HttpLogModifier logModifier(Config config, String uri) {
