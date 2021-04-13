@@ -476,20 +476,6 @@ You can use these in the "request matcher" described above. This is how you can 
 
 > The [`pathParams`](#pathparams) is a special case. For each request, it will be initialized only if, and after you have used [`pathMatches()`](#pathmatches). In other words you have to call `pathMatches()` first - typically in the "request matcher" and then you will be able to unpack URL parameters in the `Scenario` body.
 
-## Scenario selection
-When multiple scenarios match request, scenario match score is used to pick first with highest score.
-If multiple scenarios have the same score, then the first one is picked. 
-Scenario match score is based on (from most to least important):
-* `path` match score - using [JAX-RS](org.glassfish.jersey.uri.UriTemplate.COMPARATOR)
-   1. Number of literal characters
-   2. Number of path params without regex (i.e. regex missing)
-   3. Number of path params with explicit regex
-* `method` match
-* `query` parameter match(es)
-* `header` match(es) (this includes `Accept` and `Content-Type` functions) 
-
-*Where multiple files are provided they are evaluated in supplied order*
-
 ## `request`
 This variable holds the value of the request body. It will be a JSON or XML object if it can be parsed as such. Else it would be a string.
 
@@ -500,7 +486,7 @@ Rarely used, unless you are expecting incoming binary content. This variable hol
 Holds the value of the "base URL". This will be in the form `http://somehost:8080` and will include the port number if needed. It may start with `https` if applicable.
 
 ## `requestUri`
-Everything on the right side of the "base URL" (see above). This will include everything, including query string parameters if present. For example if the request URL was `http://foo/bar?baz=ban` the value of `requestUri` will be `/bar?baz=ban`.
+Everything on the right side of the "base URL" (see above). This will include everything, including query string parameters if present. For example if the request URL was `http://foo/bar?baz=ban` the value of `requestUri` will be `bar?baz=ban`.
 
 ## `requestMethod`
 The HTTP method, for e.g. `GET`. It will be in capital letters. Instead of doing things like: `requestMethod == 'GET'` - "best practice" is to use the [`methodIs()`](#methodis) helper function for request matching.
@@ -526,7 +512,12 @@ Helper function that makes it easy to match a URI pattern as well as set [path p
 Scenario: pathMatches('/v1/cats/{id}')
     * def id = pathParams.id
 ```
-This functionality is implemented using [JAX-RS specification](https://docs.oracle.com/cd/E19798-01/821-1841/6nmq2cp26/index.html).
+
+The curly-braces can match only one "segment" of the path at any time. But you can pull off any kind of complicated match using plain old JavaScript and inspecting the other objects such as [`requestUri`](#requesturi). For example, to match *any* path that starts with `/foo/` such as `/foo/bar` and `/foo/bar/baz`:
+
+```cucumber
+Scenario: requestUri.startsWith('foo/')
+```
 
 ## `pathParams`
 JSON variable (not a function) allowing you to extract values by name. See [`pathMatches()`](#pathmatches) above.

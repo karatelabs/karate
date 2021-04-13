@@ -423,5 +423,18 @@ class KarateMockHandlerTest {
                 "match response == '<http://example.org/#hello> a <http://example.org/#greeting> .'"
         );
     }
+    
+    @Test
+    void testWildcardLikePathMatch() {
+        background().scenario(
+                "requestUri.startsWith('hello/')",
+                "def response = requestUri");
+        run(
+                URL_STEP,
+                "path '/hello/foo/bar'",
+                "method get",
+                "match response == 'hello/foo/bar'"
+        );
+    }    
 
 }
