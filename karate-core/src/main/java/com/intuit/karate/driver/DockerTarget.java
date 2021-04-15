@@ -136,7 +136,7 @@ public class DockerTarget implements Target {
         }
         File copy = new File(buildDir + File.separator + dirName + ".mp4");
         FileUtils.copy(file, copy);
-        return Collections.singletonMap("video", "../" + copy.getName());
+        return Collections.singletonMap("video", copy.getPath());
     }
 
 }
