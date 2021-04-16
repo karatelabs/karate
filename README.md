@@ -794,7 +794,7 @@ function fn() {
 }
 ```
 
-> Here above, you see the [`karate.log()`](#karate-log), [`karate.env`](#karate-env) and [`karate.configure()`](#karate-configure) "helpers" being used. Note that the `karate-config.js` is re-processed for *every* `Scenario` and in rare cases, you may want to initialize (e.g. auth tokens) only once for all of your tests. This can be achieved using [`karate.callSingle()`](#karate-callsingle).
+> Here above, you see the [`karate.log()`](#karate-log), [`karate.env`](#karate-env) and [`karate.configure()`](#karate-configure) "helpers" being used. Note that the `karate-config.js` is re-processed for *every* `Scenario` and in rare cases, you may want to initialize (e.g. auth tokens) only once for all of your tests. This can be achieved using [`karate.callSingle()`](#karatecallsingle).
 
 A common requirement is to pass dynamic parameter values via the command line, and you can use the [`karate.properties['some.name']`](#karate-properties) syntax for getting a system property passed via JVM options in the form `-Dsome.name=foo`. Refer to the section on [dynamic port numbers](#dynamic-port-numbers) for an example.
 
@@ -3912,6 +3912,8 @@ Refer to this example:
 * [`headers-single.feature`](karate-demo/src/test/java/demo/headers/headers-single.feature)
 
 You *can* use `karate.callSingle()` directly in a `*.feature` file, but it logically fits better in the global "bootstrap". Ideally it should return "pure JSON" and note that you always get a "deep clone" of the cached result object.
+
+IMPORTANT: There are some restrictions when using `karate.callSingle()` especially within [`karate-config.js`](#karate-configjs). Ideally you should return only *pure* JSON data (or a primitive string, number etc.). Keep in mind that the reason this exists is to "cache" data, and *not* behavior. So if you return complex objects such as a custom Java instance or a JS function that depends on complex objects, this [will cause issues when you run in parallel](https://github.com/intuit/karate/issues/1558).
 
 #### `configure callSingleCache`
 When re-running tests in development mode and when your test suite depends on say an `Authorization` header set by [`karate.callSingle()`](#karatecallsingle), you can cache the results locally to a file, which is very convenient when your "auth token" is valid for a period of a few minutes - which typically is the case. This means that as long as the token "on file" is valid, you can save time by not having to make the one or two HTTP calls needed to "sign-in" or create "throw-away" users in your SSO store.

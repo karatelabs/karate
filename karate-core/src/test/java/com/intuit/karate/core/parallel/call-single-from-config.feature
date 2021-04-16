@@ -8,3 +8,4 @@ Scenario:
 * match response == { message: 'from config' }
 
 * def functionFromCallSingleFromConfig = function(){ return 'resultFromFunctionFromCallSingleFromConfig' }
+* def Hello = Java.type('com.intuit.karate.core.parallel.Hello')
