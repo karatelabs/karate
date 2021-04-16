@@ -365,7 +365,6 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     public void emulateDevice(int width, int height, String userAgent) {
-        logger.info("Setting deviceMetrics width={}, height={}, userAgent={}", width, height, userAgent);
         method("Network.setUserAgentOverride").param("userAgent", userAgent).send();
         method("Emulation.setDeviceMetricsOverride")
                 .param("width", width)
