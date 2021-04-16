@@ -86,7 +86,7 @@ public class ScenarioOutline {
         boolean examplesHaveTags = examplesTables.stream().anyMatch(t -> !t.getTags().isEmpty());
         for (ExamplesTable examples : examplesTables) {
             boolean selectedForExecution = false;
-            if (fr != null && examplesHaveTags) {
+            if (fr != null && examplesHaveTags && fr.caller.isNone()) {
                 // getting examples in the context of an execution
                 // if the examples do not have any tagged example, do not worry about selecting
                 Tags tableTags = Tags.merge(examples.getTags());
@@ -97,7 +97,6 @@ public class ScenarioOutline {
             } else {
                 selectedForExecution = true;
             }
-
             if (selectedForExecution) {
                 Table table = examples.getTable();
                 if (table.isDynamic()) {

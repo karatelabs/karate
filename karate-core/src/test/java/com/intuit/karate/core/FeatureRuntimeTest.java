@@ -134,13 +134,13 @@ class FeatureRuntimeTest {
         run("karate-config-getscenario.feature", "classpath:com/intuit/karate/core/");
         System.clearProperty("karate.env");
     }
-    
+
     @Test
     void testKarateJsFromKarateBase() {
         System.setProperty("karate.env", "frombase");
         run("karate-config-frombase.feature", "classpath:com/intuit/karate/core/");
         System.clearProperty("karate.env");
-    }    
+    }
 
     @Test
     void testCallByTag() {
@@ -245,7 +245,7 @@ class FeatureRuntimeTest {
                 .parallel(2);
         assertEquals(0, results.getFailCount());
     }
-    
+
 //    @Test
 //    void testOutlineConfigJsCallOnceParallel() {
 //        Results results = Runner.path("classpath:com/intuit/karate/core/outline-config-js.feature")
@@ -254,7 +254,6 @@ class FeatureRuntimeTest {
 //                .parallel(2);
 //        assertEquals(0, results.getFailCount());
 //    }    
-    
     @Test
     void testOutlineConfigJsCallSingleParallel() {
         Results results = Runner.path("classpath:com/intuit/karate/core/outline-config-js.feature")
@@ -262,17 +261,27 @@ class FeatureRuntimeTest {
                 .karateEnv("callsingle")
                 .parallel(2);
         assertEquals(0, results.getFailCount());
-    }    
+    }
+
+    @Test
+    void testCallSingleOutlineExampleByTag() {
+        Results results = Runner.path("classpath:com/intuit/karate/core/call-single-tag.feature")
+                .configDir("src/test/java/com/intuit/karate/core")
+                .karateEnv("callsingletag")
+                .tags("@runme")
+                .parallel(1);
+        assertEquals(0, results.getFailCount());
+    }
 
     @Test
     void testCallArg() {
         run("call-arg.feature");
     }
-    
+
     @Test
     void testCallArgNull() {
         run("call-arg-null.feature");
-    }    
+    }
 
     @Test
     void testIgnoreStepFailure() {

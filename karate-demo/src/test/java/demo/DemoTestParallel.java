@@ -27,9 +27,9 @@ public class DemoTestParallel {
     
     @Test
     public void testParallel() {
-        System.setProperty("karate.env", "demo"); // ensure reset if other tests (e.g. mock) had set env in CI
         Results results = Runner.path("classpath:demo")
                 .outputCucumberJson(true)
+                .karateEnv("demo")
                 .tags("~@ignore").parallel(5);
         generateReport(results.getReportDir());
         assertTrue(results.getErrorMessages(), results.getFailCount() == 0);        
