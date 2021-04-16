@@ -886,7 +886,7 @@ public class ScenarioEngine {
             setRobot(robot);
         }
     }
-    
+
     public void setDriverToNull() {
         this.driver = null;
     }
@@ -1078,7 +1078,13 @@ public class ScenarioEngine {
         return detached;
     }
 
-    protected Object recurseAndAttach(Object o) {
+    protected void recurseAndAttach(Object o) {
+        // to avoid re-processing objects that have cyclic dependencies
+        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
+        recurseAndAttach(o, seen);
+    }
+
+    private Object recurseAndAttach(Object o, Set<Object> seen) {
         if (o instanceof Value) {
             Value value = (Value) o;
             try {
@@ -1093,24 +1099,28 @@ public class ScenarioEngine {
             JsFunction jf = (JsFunction) o;
             return attachSource(jf.source);
         } else if (o instanceof List) {
-            List list = (List) o;
-            int count = list.size();
-            for (int i = 0; i < count; i++) {
-                Object child = list.get(i);
-                Object result = recurseAndAttach(child);
-                if (result != null) {
-                    list.set(i, result);
+            if (seen.add(o)) {
+                List list = (List) o;
+                int count = list.size();
+                for (int i = 0; i < count; i++) {
+                    Object child = list.get(i);
+                    Object result = recurseAndAttach(child, seen);
+                    if (result != null) {
+                        list.set(i, result);
+                    }
                 }
             }
             return null;
         } else if (o instanceof Map) {
-            Map<String, Object> map = (Map) o;
-            map.forEach((k, v) -> {
-                Object result = recurseAndAttach(v);
-                if (result != null) {
-                    map.put(k, result);
-                }
-            });
+            if (seen.add(o)) {
+                Map<String, Object> map = (Map) o;
+                map.forEach((k, v) -> {
+                    Object result = recurseAndAttach(v, seen);
+                    if (result != null) {
+                        map.put(k, result);
+                    }
+                });
+            }
             return null;
         } else {
             return null;
@@ -1147,6 +1157,12 @@ public class ScenarioEngine {
     }
 
     protected Object recurseAndAttachAndDeepClone(Object o) {
+        // to avoid re-processing objects that have cyclic dependencies
+        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
+        return recurseAndAttachAndDeepClone(o, seen);
+    }
+
+    private Object recurseAndAttachAndDeepClone(Object o, Set<Object> seen) {
         if (o instanceof Value) {
             // should never happen if the detach was done properly
             Value value = (Value) o;
@@ -1164,15 +1180,23 @@ public class ScenarioEngine {
             JsFunction jf = (JsFunction) o;
             return attachSource(jf.source);
         } else if (o instanceof List) {
-            List list = (List) o;
-            List copy = new ArrayList(list.size());
-            list.forEach(v -> copy.add(recurseAndAttachAndDeepClone(v)));
-            return copy;
+            if (seen.add(o)) {
+                List list = (List) o;
+                List copy = new ArrayList(list.size());
+                list.forEach(v -> copy.add(recurseAndAttachAndDeepClone(v)));
+                return copy;
+            } else {
+                return o;
+            }
         } else if (o instanceof Map) {
-            Map<String, Object> map = (Map) o;
-            Map<String, Object> copy = new LinkedHashMap(map.size());
-            map.forEach((k, v) -> copy.put(k, recurseAndAttachAndDeepClone(v)));
-            return copy;
+            if (seen.add(o)) {
+                Map<String, Object> map = (Map) o;
+                Map<String, Object> copy = new LinkedHashMap(map.size());
+                map.forEach((k, v) -> copy.put(k, recurseAndAttachAndDeepClone(v)));
+                return copy;
+            } else {
+                return o;
+            }
         } else {
             return o;
         }
@@ -1929,9 +1953,7 @@ public class ScenarioEngine {
             case JAVA_FUNCTION:
                 return arg == null ? executeFunction(called) : executeFunction(called, new Object[]{arg.getValue()});
             case FEATURE:
-                Variable res = callFeature(called.getValue(), arg, -1, sharedScope);
-                recurseAndAttach(res.getValue()); // will always be a map, we update entries within
-                return res;
+                return callFeature(called.getValue(), arg, -1, sharedScope);
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);
         }
@@ -2020,7 +2042,9 @@ public class ScenarioEngine {
                 KarateException ke = result.getErrorMessagesCombined();
                 throw ke;
             } else {
-                return new Variable(result.getVariables());
+                Map<String, Object> map = result.getVariables();
+                recurseAndAttach(map);
+                return new Variable(map);
             }
         } else if (arg.isList() || arg.isJsOrJavaFunction()) {
             List result = new ArrayList();
