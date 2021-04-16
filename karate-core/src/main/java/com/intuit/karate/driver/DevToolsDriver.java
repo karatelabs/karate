@@ -393,6 +393,7 @@ public abstract class DevToolsDriver implements Driver {
         if (command != null) {
             command.close(true);
         }
+        getRuntime().engine.setDriverToNull();
     }
 
     @Override

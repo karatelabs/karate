@@ -886,6 +886,10 @@ public class ScenarioEngine {
             setRobot(robot);
         }
     }
+    
+    public void setDriverToNull() {
+        this.driver = null;
+    }
 
     public void setDriver(Driver driver) {
         this.driver = driver;
