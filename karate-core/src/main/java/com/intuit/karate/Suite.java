@@ -145,7 +145,7 @@ public class Suite implements Runnable {
             featureResultFiles = null;
             workingDir = FileUtils.WORKING_DIR;
             buildDir = FileUtils.getBuildDir();
-            reportDir = null;
+            reportDir = FileUtils.getBuildDir();
             karateBase = null;
             karateConfig = null;
             karateConfigEnv = null;

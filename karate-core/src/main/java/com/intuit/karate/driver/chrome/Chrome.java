@@ -25,6 +25,8 @@ package com.intuit.karate.driver.chrome;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
+import com.intuit.karate.core.FeatureRuntime;
+import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.DevToolsDriver;
@@ -40,6 +42,8 @@ import java.util.Map;
  * @author pthomas3
  */
 public class Chrome extends DevToolsDriver {
+    
+    public static final String DRIVER_TYPE = "chrome";
 
     public static final String DEFAULT_PATH_MAC = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
     public static final String DEFAULT_PATH_WIN = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
@@ -62,8 +66,8 @@ public class Chrome extends DevToolsDriver {
             options.arg("--headless");
         }
         Command command = options.startProcess();
-        Http http = options.getHttp();
-        Command.waitForHttp(http.urlBase + "/json");
+        Http http = options.getHttp();        
+        Command.waitForHttp(http.urlBase + "/json", r -> r.getStatus() == 200 && !r.json().asList().isEmpty());
         Response res = http.path("json").get();
         if (res.json().asList().isEmpty()) {
             if (command != null) {
@@ -108,14 +112,17 @@ public class Chrome extends DevToolsDriver {
         Map<String, Object> options = new HashMap();
         options.put("executable", chromeExecutablePath);
         options.put("headless", headless);
-        return Chrome.start(options, null);
+        return Chrome.start(options);
     }
 
     public static Chrome start(Map<String, Object> options) {
         if (options == null) {
             options = new HashMap();
         }
-        return Chrome.start(options, null);
+        options.putIfAbsent("type", DRIVER_TYPE);
+        ScenarioRuntime runtime = FeatureRuntime.forTempUse().scenarios.next();
+        ScenarioEngine.set(runtime.engine);
+        return Chrome.start(options, runtime);
     }
 
     public static Chrome start() {

@@ -37,7 +37,7 @@ public class Demo01JavaRunner {
         driver.quit();
     }
 
-    @Test
+    // @Test
     public void testEdge() throws Exception {
         EdgeChromium driver = EdgeChromium.start();
         driver.setUrl("https://github.com/login");

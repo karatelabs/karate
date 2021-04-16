@@ -282,14 +282,14 @@ public class DriverOptions {
         String type = (String) options.get("type");
         if (type == null) {
             sr.logger.warn("type was null, defaulting to 'chrome'");
-            type = "chrome";
+            type = Chrome.DRIVER_TYPE;
             options.put("type", type);
         }
         try { // to make troubleshooting errors easier
             switch (type) {
-                case "chrome":
+                case Chrome.DRIVER_TYPE:
                     return Chrome.start(options, sr);
-                case "msedge":
+                case EdgeChromium.DRIVER_TYPE:
                     return EdgeChromium.start(options, sr);
                 case "chromedriver":
                     return ChromeWebDriver.start(options, sr);
@@ -313,7 +313,7 @@ public class DriverOptions {
                     return PlaywrightDriver.start(options, sr);
                 default:
                     sr.logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
-                    options.put("type", "chrome");
+                    options.put("type", Chrome.DRIVER_TYPE);
                     return Chrome.start(options, sr);
             }
         } catch (Exception e) {
@@ -433,7 +433,7 @@ public class DriverOptions {
                     locator = locator.substring(1);
                 } else {
                     locator = "(." + locator.substring(2);
-                }                 
+                }
             } else if (!DOCUMENT.equals(contextNode)) {
                 locator = "." + locator; // evaluate relative to this node not root
             }

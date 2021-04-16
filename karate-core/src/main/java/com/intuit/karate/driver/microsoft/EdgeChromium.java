@@ -25,6 +25,8 @@ package com.intuit.karate.driver.microsoft;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
+import com.intuit.karate.core.FeatureRuntime;
+import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
@@ -41,6 +43,8 @@ import java.util.Map;
  * @author sixdouglas
  */
 public class EdgeChromium extends DevToolsDriver {
+    
+    public static final String DRIVER_TYPE = "msedge";
 
     public static final String DEFAULT_PATH_MAC = "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge";
     public static final String DEFAULT_PATH_WIN = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
@@ -109,17 +113,20 @@ public class EdgeChromium extends DevToolsDriver {
     }
 
     public static EdgeChromium start(String chromeExecutablePath, boolean headless) {
-        Map<String, Object> options = new HashMap<>();
+        Map<String, Object> options = new HashMap();
         options.put("executable", chromeExecutablePath);
         options.put("headless", headless);
-        return EdgeChromium.start(options, null);
+        return EdgeChromium.start(options);
     }
 
     public static EdgeChromium start(Map<String, Object> options) {
         if (options == null) {
-            options = new HashMap<>();
+            options = new HashMap();
         }
-        return EdgeChromium.start(options, null);
+        options.putIfAbsent("type", DRIVER_TYPE);
+        ScenarioRuntime runtime = FeatureRuntime.forTempUse().scenarios.next();
+        ScenarioEngine.set(runtime.engine);        
+        return EdgeChromium.start(options, runtime);
     }
 
     public static EdgeChromium start() {

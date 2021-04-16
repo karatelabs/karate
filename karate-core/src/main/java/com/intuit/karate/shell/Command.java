@@ -27,6 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
+import com.intuit.karate.http.Response;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
@@ -41,6 +42,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -208,8 +210,12 @@ public class Command extends Thread {
 
     private static final int SLEEP_TIME = 2000;
     private static final int POLL_ATTEMPTS_MAX = 30;
-
+    
     public static boolean waitForHttp(String url) {
+        return waitForHttp(url, r -> r.getStatus() == 200);
+    }
+
+    public static boolean waitForHttp(String url, Predicate<Response> condition) {
         int attempts = 0;
         long startTime = System.currentTimeMillis();
         Http http = Http.to(url);
@@ -218,13 +224,13 @@ public class Command extends Thread {
                 LOGGER.debug("attempt #{} waiting for http to be ready at: {}", attempts, url);
             }
             try {
-                int status = http.get().getStatus();
-                if (status == 200) {
+                Response response = http.get();
+                if (condition.test(response)) {
                     long elapsedTime = System.currentTimeMillis() - startTime;
                     LOGGER.debug("ready to accept http connections after {} ms - {}", elapsedTime, url);
                     return true;
                 } else {
-                    LOGGER.warn("http get returned non-ok status: {} - {}", status, url);
+                    LOGGER.warn("not ready / http get returned status: {} - {}", response.getStatus(), url);
                 }
             } catch (Exception e) {
                 sleep(SLEEP_TIME);
