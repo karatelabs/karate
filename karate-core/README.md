@@ -153,7 +153,7 @@
 <tr>
   <th>Chrome</th>
   <td>
-      <a href="#chrome-java-api">Java API</a>
+      <a href="#java-api">Java API</a>
     | <a href="#driverpdf"><code>driver.pdf()</code></a>
     | <a href="#driverscreenshotfull"><code>driver.screenshotFull()</code></a>
     | <a href="#driverintercept"><code>driver.intercept()</code></a>
@@ -1879,8 +1879,23 @@ In real-life flows, you may need to pass cookies from the [browser](#cookie) to 
 
 A video of the above execution can be viewed [here](https://twitter.com/ptrthomas/status/1253373486384295936).
 
-# Chrome Java API
-Karate also has a Java API to automate the Chrome browser directly, designed for common needs such as converting HTML to PDF - or taking a screenshot of a page. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):
+# Java API
+## Driver Java API
+You can start a [`Driver`]() instance programmatically and perform actions and assertions like this:
+
+```java
+  Driver driver = Driver.start("chrome");
+  driver.setUrl(serverUrl + "/05");  
+  driver.click("button");
+  driver.waitForText("#containerDiv", "hello world");
+```
+
+You can find the complete example [here](../karate-e2e-tests/src/test/java/driver/JavaApiRunner.java). Also see this [explanation](https://twitter.com/KarateDSL/status/1353969718730788865).
+
+Also see the [Karate Java API](https://github.com/intuit/karate#java-api).
+
+## Chrome Java API
+As a convenience you can use the [`Chrome`](../karate-core/src/main/java/com/intuit/karate/driver/chrome/Chrome.java) concrete implementation of a `Driver` directly, designed for common needs such as converting HTML to PDF - or taking a screenshot of a page. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):
 
 ```java
 import com.intuit.karate.FileUtils;
