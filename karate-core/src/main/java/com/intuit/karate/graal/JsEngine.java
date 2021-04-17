@@ -128,6 +128,10 @@ public class JsEngine {
         bindings.putMember(key, JsValue.fromJava(value));
     }
 
+    public void remove(String key) {
+        bindings.removeMember(key);
+    }
+
     public void putAll(Map<String, Object> map) {
         map.forEach((k, v) -> put(k, v));
     }
