@@ -93,7 +93,7 @@ public class ScenarioRuntime implements Runnable {
         result = new ScenarioResult(scenario);
         if (background != null) {
             result.addStepResults(background.result.getStepResults());
-            Map<String, Variable> detached = background.engine.detachVariables(true);            
+            Map<String, Variable> detached = background.engine.detachVariables();            
             detached.forEach((k, v) -> engine.vars.put(k, v));
             engine.requestBuilder = background.engine.requestBuilder.copy();
         }

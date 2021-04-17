@@ -132,7 +132,7 @@ public class ScenarioEngine {
     private ScenarioEngine parent;
 
     public ScenarioEngine child() {
-        ScenarioEngine child = new ScenarioEngine(config, runtime, detachVariables(true), logger);
+        ScenarioEngine child = new ScenarioEngine(config, runtime, detachVariables(), logger);
         child.parent = this;
         if (children == null) {
             children = new ArrayList();
@@ -999,13 +999,15 @@ public class ScenarioEngine {
     public void init() { // not in constructor because it has to be on Runnable.run() thread 
         JS = JsEngine.local();
         logger.trace("js context: {}", JS);
+        // to avoid re-processing objects that have cyclic dependencies
+        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
         runtime.magicVariables.forEach((k, v) -> {
             // even hidden variables may need pre-processing
             // for e.g. the __arg may contain functions that originated in a different js context
-            recurseAndAttach(v);
+            recurseAndAttach(v, seen);
             setHiddenVariable(k, v);
         });
-        attachVariables(); // re-hydrate any functions from caller or background
+        attachVariables(seen); // re-hydrate any functions from caller or background
         setHiddenVariable(KARATE, bridge);
         setHiddenVariable(READ, readFunction);
         HttpClient client = runtime.featureRuntime.suite.clientFactory.create(this);
@@ -1026,7 +1028,7 @@ public class ScenarioEngine {
         }
     }
 
-    private void attachVariables() {
+    private void attachVariables(Set<Object> seen) {
         vars.forEach((k, v) -> {
             switch (v.type) {
                 case JS_FUNCTION:
@@ -1036,7 +1038,7 @@ public class ScenarioEngine {
                     break;
                 case MAP:
                 case LIST:
-                    recurseAndAttach(v.getValue());
+                    recurseAndAttach(v.getValue(), seen);
                     break;
                 case OTHER:
                     if (v.isJsFunctionWrapper()) {
@@ -1053,7 +1055,8 @@ public class ScenarioEngine {
         });
     }
 
-    public Map<String, Variable> detachVariables(boolean deep) { // TODO make deep the sole default
+    protected Map<String, Variable> detachVariables() {
+        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
         Map<String, Variable> detached = new HashMap(vars.size());
         vars.forEach((k, v) -> {
             switch (v.type) {
@@ -1063,12 +1066,8 @@ public class ScenarioEngine {
                     break;
                 case MAP:
                 case LIST:
-                    if (deep) {
-                        Object o = recurseAndDetachAndDeepClone(v.getValue());
-                        v = new Variable(o);
-                    } else {
-                        recurseAndDetach(v.getValue());
-                    }
+                    Object o = recurseAndDetachAndDeepClone(v.getValue(), seen);
+                    v = new Variable(o);
                     break;
                 default:
                 // do nothing
@@ -1127,35 +1126,6 @@ public class ScenarioEngine {
         }
     }
 
-    protected Object recurseAndDetach(Object o) {
-        if (o instanceof Value) {
-            Value value = (Value) o;
-            return value.canExecute() ? new JsFunction(value) : null;
-        } else if (o instanceof List) {
-            List list = (List) o;
-            int count = list.size();
-            for (int i = 0; i < count; i++) {
-                Object child = list.get(i);
-                Object result = recurseAndDetach(child);
-                if (result != null) {
-                    list.set(i, result);
-                }
-            }
-            return null;
-        } else if (o instanceof Map) {
-            Map<String, Object> map = (Map) o;
-            map.forEach((k, v) -> {
-                Object result = recurseAndDetach(v);
-                if (result != null) {
-                    map.put(k, result);
-                }
-            });
-            return null;
-        } else {
-            return null;
-        }
-    }
-
     protected Object recurseAndAttachAndDeepClone(Object o) {
         // to avoid re-processing objects that have cyclic dependencies
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
@@ -1203,6 +1173,11 @@ public class ScenarioEngine {
     }
 
     protected Object recurseAndDetachAndDeepClone(Object o) {
+        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
+        return recurseAndDetachAndDeepClone(o, seen);
+    }
+
+    private Object recurseAndDetachAndDeepClone(Object o, Set<Object> seen) {
         if (o instanceof Value) {
             Value value = (Value) o;
             if (value.canExecute()) {
@@ -1211,15 +1186,23 @@ public class ScenarioEngine {
             o = JsValue.toJava(value);
         }
         if (o instanceof List) {
-            List list = (List) o;
-            List copy = new ArrayList(list.size());
-            list.forEach(v -> copy.add(recurseAndDetachAndDeepClone(v)));
-            return copy;
+            if (seen.add(o)) {
+                List list = (List) o;
+                List copy = new ArrayList(list.size());
+                list.forEach(v -> copy.add(recurseAndDetachAndDeepClone(v, seen)));
+                return copy;
+            } else {
+                return o;
+            }
         } else if (o instanceof Map) {
-            Map<String, Object> map = (Map) o;
-            Map<String, Object> copy = new LinkedHashMap(map.size());
-            map.forEach((k, v) -> copy.put(k, recurseAndDetachAndDeepClone(v)));
-            return copy;
+            if (seen.add(o)) {
+                Map<String, Object> map = (Map) o;
+                Map<String, Object> copy = new LinkedHashMap(map.size());
+                map.forEach((k, v) -> copy.put(k, recurseAndDetachAndDeepClone(v, seen)));
+                return copy;
+            } else {
+                return o;
+            }
         } else {
             return o;
         }
@@ -1953,7 +1936,10 @@ public class ScenarioEngine {
             case JAVA_FUNCTION:
                 return arg == null ? executeFunction(called) : executeFunction(called, new Object[]{arg.getValue()});
             case FEATURE:
-                return callFeature(called.getValue(), arg, -1, sharedScope);
+                // will be always a map or a list of maps (loop call result)
+                Object callResult = callFeature(called.getValue(), arg, -1, sharedScope);
+                recurseAndAttach(callResult);
+                return new Variable(callResult);
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);
         }
@@ -2016,7 +2002,7 @@ public class ScenarioEngine {
             // we clone result (and config) here, to snapshot state at the point the callonce was invoked
             // detaching is important (see JsFunction) so that we can keep the source-code aside
             // and use it to re-create functions in a new JS context - and work around graal-js limitations
-            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? detachVariables(true) : null;
+            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? detachVariables() : null;
             Config clonedConfig = new Config(config);
             clonedConfig.detach();
             Object resultObject = recurseAndDetachAndDeepClone(resultValue.getValue());
@@ -2027,7 +2013,7 @@ public class ScenarioEngine {
         }
     }
 
-    public Variable callFeature(Feature feature, Variable arg, int index, boolean sharedScope) {
+    public Object callFeature(Feature feature, Variable arg, int index, boolean sharedScope) {
         if (arg == null || arg.isMap()) {
             ScenarioCall call = new ScenarioCall(runtime, feature, arg);
             call.setLoopIndex(index);
@@ -2042,9 +2028,7 @@ public class ScenarioEngine {
                 KarateException ke = result.getErrorMessagesCombined();
                 throw ke;
             } else {
-                Map<String, Object> map = result.getVariables();
-                recurseAndAttach(map);
-                return new Variable(map);
+                return result.getVariables();
             }
         } else if (arg.isList() || arg.isJsOrJavaFunction()) {
             List result = new ArrayList();
@@ -2066,8 +2050,8 @@ public class ScenarioEngine {
                     break;
                 }
                 try {
-                    Variable loopResult = callFeature(feature, loopArg, loopIndex, sharedScope);
-                    result.add(loopResult.getValue());
+                    Object loopResult = callFeature(feature, loopArg, loopIndex, sharedScope);
+                    result.add(loopResult);
                 } catch (Exception e) {
                     String message = "feature call loop failed at index: " + loopIndex + ", " + e.getMessage();
                     errors.add(message);
@@ -2079,7 +2063,7 @@ public class ScenarioEngine {
                 loopIndex++;
             }
             if (errors.isEmpty()) {
-                return new Variable(result);
+                return result;
             } else {
                 String errorMessage = StringUtils.join(errors, '\n');
                 throw new KarateException(errorMessage);
