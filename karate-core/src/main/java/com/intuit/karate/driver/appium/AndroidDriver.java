@@ -9,6 +9,8 @@ import java.util.Map;
  */
 public class AndroidDriver extends AppiumDriver {
 
+    public static final String DRIVER_TYPE = "android";
+
     protected AndroidDriver(MobileDriverOptions options) {
         super(options);
     }

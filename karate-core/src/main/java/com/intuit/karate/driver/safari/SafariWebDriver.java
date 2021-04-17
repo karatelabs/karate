@@ -36,6 +36,8 @@ import java.util.Map;
  */
 public class SafariWebDriver extends WebDriver {
 
+    public static final String DRIVER_TYPE = "safaridriver";
+
     public SafariWebDriver(DriverOptions options) {
         super(options);
     }

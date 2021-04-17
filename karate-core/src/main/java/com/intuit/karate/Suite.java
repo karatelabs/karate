@@ -26,6 +26,7 @@ package com.intuit.karate;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
+import com.intuit.karate.driver.DriverRunner;
 import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
@@ -103,6 +104,8 @@ public class Suite implements Runnable {
     public final Map<String, Object> suiteCache;
     private final ReentrantLock progressFileLock;
 
+    public final Map<String, DriverRunner> drivers;
+
     private String read(String name) {
         try {
             Resource resource = ResourceUtils.getResource(workingDir, name);
@@ -156,6 +159,7 @@ public class Suite implements Runnable {
             suiteReports = null;
             jobManager = null;
             progressFileLock = null;
+            drivers = null;
         } else {
             startTime = System.currentTimeMillis();
             rb.resolveAll();
@@ -192,6 +196,7 @@ public class Suite implements Runnable {
             } else {
                 jobManager = null;
             }
+            drivers = rb.drivers;
             threadCount = rb.threadCount;
             timeoutMinutes = rb.timeoutMinutes;
             parallel = threadCount > 1;

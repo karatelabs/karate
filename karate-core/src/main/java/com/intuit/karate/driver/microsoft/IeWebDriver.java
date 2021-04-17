@@ -33,6 +33,8 @@ import java.util.Map;
  * @author pthomas3
  */
 public class IeWebDriver extends WebDriver {
+
+    public static final String DRIVER_TYPE = "iedriver";
     
     public IeWebDriver(DriverOptions options) {
         super(options);

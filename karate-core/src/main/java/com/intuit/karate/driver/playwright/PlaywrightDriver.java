@@ -59,6 +59,8 @@ import java.util.function.Predicate;
  */
 public class PlaywrightDriver implements Driver {
 
+    public static final String DRIVER_TYPE = "playwright";
+
     private final DriverOptions options;
     private final Command command;
     private final WebSocketClient client;

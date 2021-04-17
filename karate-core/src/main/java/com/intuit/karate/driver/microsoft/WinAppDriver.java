@@ -37,6 +37,8 @@ import java.util.Map;
  */
 public class WinAppDriver extends WebDriver {
 
+    public static final String DRIVER_TYPE = "winappdriver";
+
     public WinAppDriver(DriverOptions options) {
         super(options);
     }

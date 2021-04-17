@@ -286,36 +286,13 @@ public class DriverOptions {
             options.put("type", type);
         }
         try { // to make troubleshooting errors easier
-            switch (type) {
-                case Chrome.DRIVER_TYPE:
-                    return Chrome.start(options, sr);
-                case EdgeChromium.DRIVER_TYPE:
-                    return EdgeChromium.start(options, sr);
-                case "chromedriver":
-                    return ChromeWebDriver.start(options, sr);
-                case "geckodriver":
-                    return GeckoWebDriver.start(options, sr);
-                case "safaridriver":
-                    return SafariWebDriver.start(options, sr);
-                case "msedgedriver":
-                    return MsEdgeDriver.start(options, sr);
-                case "mswebdriver":
-                    return MsWebDriver.start(options, sr);
-                case "iedriver":
-                    return IeWebDriver.start(options, sr);
-                case "winappdriver":
-                    return WinAppDriver.start(options, sr);
-                case "android":
-                    return AndroidDriver.start(options, sr);
-                case "ios":
-                    return IosDriver.start(options, sr);
-                case "playwright":
-                    return PlaywrightDriver.start(options, sr);
-                default:
-                    sr.logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
-                    options.put("type", Chrome.DRIVER_TYPE);
-                    return Chrome.start(options, sr);
+            DriverRunner driverRunner = sr.featureRuntime.suite.drivers.get(type);
+            if (driverRunner == null) {
+                sr.logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
+                options.put("type", Chrome.DRIVER_TYPE);
+                driverRunner = sr.featureRuntime.suite.drivers.get(Chrome.DRIVER_TYPE);
             }
+            return driverRunner.start(options, sr);
         } catch (Exception e) {
             String message = "driver config / start failed: " + e.getMessage() + ", options: " + options;
             sr.logger.error(message, e);
@@ -324,6 +301,23 @@ public class DriverOptions {
             }
             throw new RuntimeException(message, e);
         }
+    }
+
+    public static Map<String, DriverRunner> driverRunners() {
+        Map<String, DriverRunner> driverRunners = new HashMap<>();
+        driverRunners.put(Chrome.DRIVER_TYPE, Chrome::start);
+        driverRunners.put(EdgeChromium.DRIVER_TYPE, EdgeChromium::start);
+        driverRunners.put(ChromeWebDriver.DRIVER_TYPE, ChromeWebDriver::start);
+        driverRunners.put(GeckoWebDriver.DRIVER_TYPE, GeckoWebDriver::start);
+        driverRunners.put(SafariWebDriver.DRIVER_TYPE, SafariWebDriver::start);
+        driverRunners.put(MsEdgeDriver.DRIVER_TYPE, MsEdgeDriver::start);
+        driverRunners.put(MsWebDriver.DRIVER_TYPE, MsWebDriver::start);
+        driverRunners.put(IeWebDriver.DRIVER_TYPE, IeWebDriver::start);
+        driverRunners.put(WinAppDriver.DRIVER_TYPE, WinAppDriver::start);
+        driverRunners.put(AndroidDriver.DRIVER_TYPE, AndroidDriver::start);
+        driverRunners.put(IosDriver.DRIVER_TYPE, IosDriver::start);
+        driverRunners.put(PlaywrightDriver.DRIVER_TYPE, PlaywrightDriver::start);
+        return driverRunners;
     }
 
     private Map<String, Object> getSession(String browserName) {
@@ -348,16 +342,16 @@ public class DriverOptions {
     // TODO abstract as method per implementation
     public Map<String, Object> getWebDriverSessionPayload() {
         switch (type) {
-            case "chromedriver":
+            case ChromeWebDriver.DRIVER_TYPE:
                 return getSession("chrome");
-            case "geckodriver":
+            case GeckoWebDriver.DRIVER_TYPE:
                 return getSession("firefox");
-            case "safaridriver":
+            case SafariWebDriver.DRIVER_TYPE:
                 return getSession("safari");
-            case "msedgedriver":
-            case "mswebdriver":
+            case MsEdgeDriver.DRIVER_TYPE:
+            case MsWebDriver.DRIVER_TYPE:
                 return getSession("edge");
-            case "iedriver":
+            case IeWebDriver.DRIVER_TYPE:
                 return getSession("internet explorer");
             default:
                 // else user has to specify full payload via webDriverSession

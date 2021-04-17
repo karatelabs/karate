@@ -35,6 +35,8 @@ import java.util.Map;
  */
 public class MsWebDriver extends WebDriver {
 
+    public static final String DRIVER_TYPE = "mswebdriver";
+
     public MsWebDriver(DriverOptions options) {
         super(options);
     }
