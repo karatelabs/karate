@@ -15,6 +15,8 @@ Scenario: one
 * match response == { one: '#string' }
 * def result = karate.callSingle('call-single-from-feature.feature')
 * match result.response == { message: 'from feature' }
+# use java instance from callSingle in config
+* match Hello.sayHello('world') == 'hello world'
 
 Scenario: two
 * path 'two'

@@ -1091,7 +1091,12 @@ public class ScenarioEngine {
                     return attach(value);
                 }
             } catch (Exception e) {
-                logger.warn("failed to re-attach graal value: {}", e.getMessage());
+                logger.trace("failed to re-attach graal value (will re-try): {}", e.getMessage());
+                try {
+                    return Value.asValue(value.asHostObject());
+                } catch (Exception inner) {
+                    logger.warn("failed to re-attach graal value: {}", inner.getMessage());
+                }
             }
             return null;
         } else if (o instanceof JsFunction) {
@@ -1142,7 +1147,12 @@ public class ScenarioEngine {
                 }
                 o = JsValue.toJava(value);
             } catch (Exception e) {
-                logger.warn("failed to re-attach graal value: {}", e.getMessage());
+                logger.trace("failed to re-attach graal value (will re-try): {}", e.getMessage());
+                try {
+                    return Value.asValue(value.asHostObject());
+                } catch (Exception inner) {
+                    logger.warn("failed to re-attach graal value: {}", inner.getMessage());
+                }
                 return null; // we try to move on after stripping this (js function) from the tree
             }
         }
