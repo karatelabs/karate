@@ -27,6 +27,8 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.RuntimeHookFactory;
+import com.intuit.karate.driver.DriverOptions;
+import com.intuit.karate.driver.DriverRunner;
 import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.job.JobConfig;
 import com.intuit.karate.report.SuiteReports;
@@ -190,6 +192,7 @@ public class Runner {
         Map<String, Object> suiteCache;
         SuiteReports suiteReports;
         JobConfig jobConfig;
+        Map<String, DriverRunner> drivers;
 
         public List<Feature> resolveAll() {
             if (classLoader == null) {
@@ -290,6 +293,13 @@ public class Runner {
             }
             if (suiteReports == null) {
                 suiteReports = SuiteReports.DEFAULT;
+            }
+            if (drivers != null) {
+                Map<String, DriverRunner> customDrivers = drivers;
+                drivers = DriverOptions.driverRunners();
+                drivers.putAll(customDrivers); // allows override of Karate drivers (e.g. custom 'chrome')
+            } else {
+                drivers = DriverOptions.driverRunners();
             }
             if (jobConfig != null) {
                 reportDir = jobConfig.getExecutorDir();
@@ -500,6 +510,11 @@ public class Runner {
         
         public T suiteReports(SuiteReports value) {
             suiteReports = value;
+            return (T) this;
+        }
+
+        public T customDrivers(Map<String, DriverRunner> customDrivers) {
+            drivers = customDrivers;
             return (T) this;
         }
 

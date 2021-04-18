@@ -36,6 +36,8 @@ import java.util.Map;
  */
 public class ChromeWebDriver extends WebDriver {
 
+    public static final String DRIVER_TYPE = "chromedriver";
+
     public ChromeWebDriver(DriverOptions options) {
         super(options);
     }

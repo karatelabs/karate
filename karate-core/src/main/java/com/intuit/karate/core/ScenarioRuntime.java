@@ -73,15 +73,15 @@ public class ScenarioRuntime implements Runnable {
         perfMode = featureRuntime.perfHook != null;
         if (caller.isNone()) {
             logAppender = perfMode ? LogAppender.NO_OP : new StringLogAppender(false);
-            engine = new ScenarioEngine(new Config(), this, new HashMap(), logger);
+            engine = new ScenarioEngine(background == null ? new Config() : background.engine.getConfig(), this, new HashMap(), logger);
         } else if (caller.isSharedScope()) {
             logAppender = caller.parentRuntime.logAppender;
-            Config config = caller.parentRuntime.engine.getConfig();
+            Config config = background == null ? caller.parentRuntime.engine.getConfig() : background.engine.getConfig();
             Map<String, Variable> vars = caller.parentRuntime.engine.vars;
             engine = new ScenarioEngine(config, this, vars, logger);
         } else { // new, but clone and copy data
             logAppender = caller.parentRuntime.logAppender;
-            Config config = new Config(caller.parentRuntime.engine.getConfig());
+            Config config = background == null ? new Config(caller.parentRuntime.engine.getConfig()) : background.engine.getConfig();
             Map<String, Variable> vars = caller.parentRuntime.engine.copyVariables(false);
             engine = new ScenarioEngine(config, this, vars, logger);
         }
@@ -349,10 +349,19 @@ public class ScenarioRuntime implements Runnable {
         if (this.isDynamicBackground()) {
             steps = scenario.getBackgroundSteps();
         } else {
-            steps = background == null ? scenario.getStepsIncludingBackground() : scenario.getSteps();
+            steps = scenario.getStepsIncludingBackground();
         }
         ScenarioEngine.set(engine);
         engine.init();
+        if (this.background != null) {
+            ScenarioEngine backgroundEngine = background.engine;
+            if (backgroundEngine.driver != null) {
+                engine.setDriver(backgroundEngine.driver);
+            }
+            if (backgroundEngine.robot != null) {
+                engine.setRobot(backgroundEngine.robot);
+            }
+        }
         result.setExecutorName(Thread.currentThread().getName());
         result.setStartTime(System.currentTimeMillis());
         if (!dryRun) {

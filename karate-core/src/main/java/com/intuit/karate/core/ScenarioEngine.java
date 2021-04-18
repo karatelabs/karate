@@ -1975,7 +1975,9 @@ public class ScenarioEngine {
         if (sharedScope) { // if shared scope
             vars.clear(); // clean slate
             // deep-clone so that subsequent steps don't modify data / references being passed around
-            result.vars.forEach((k, v) -> vars.put(k, v.copy(true)));
+            if (result.vars != null) {
+                result.vars.forEach((k, v) -> vars.put(k, v.copy(true)));
+            }
             init(); // this will attach and also insert magic variables
             // re-apply config from time of snapshot
             // and note that setConfig() will attach functions such as configured "headers"
