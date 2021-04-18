@@ -1092,7 +1092,8 @@ public class ScenarioEngine {
                     return attach(value);
                 }
             } catch (Exception e) {
-                logger.warn("failed to re-attach graal value: {}", e.getMessage());
+                logger.warn("failed to re-attach graal value and/or is not executable. Will try to use as host object: {}", e.getMessage());
+                return Value.asValue(value.asHostObject());
             }
             return null;
         } else if (o instanceof JsFunction) {
