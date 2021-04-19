@@ -28,11 +28,11 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.graal.Methods;
-import com.linecorp.armeria.common.QueryParams;
-import com.linecorp.armeria.common.QueryParamsBuilder;
 import io.netty.handler.codec.http.cookie.ClientCookieEncoder;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,7 +47,9 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import org.apache.http.client.utils.URIBuilder;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
 import org.slf4j.Logger;
@@ -84,13 +86,14 @@ public class HttpRequestBuilder implements ProxyObject {
         URL, METHOD, PATH, PARAM, PARAMS, HEADER, HEADERS, BODY, INVOKE,
         GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE
     };
-    private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
+    private static final Set<String> KEY_SET = new HashSet<>(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
     private String url;
     private String method;
     private List<String> paths;
     private Map<String, List<String>> params;
+    private String fragment;
     private Map<String, List<String>> headers;
     private MultiPartBuilder multiPart;
     private Object body;
@@ -159,14 +162,7 @@ public class HttpRequestBuilder implements ProxyObject {
             }
             multiPart = null;
         }
-        String urlAndPath = getUrlAndPath();
-        if (params != null) {
-            QueryParamsBuilder qpb = QueryParams.builder();
-            params.forEach((k, v) -> qpb.add(k, v));
-            String append = urlAndPath.indexOf('?') == -1 ? "?" : "&";
-            urlAndPath = urlAndPath + append + qpb.toQueryString();
-        }
-        request.setUrl(urlAndPath);
+        request.setUrl(getUri().toASCIIString());
         if (multiPart != null) {
             if (body == null) { // this is not-null only for a re-try, don't rebuild multi-part
                 body = multiPart.build();
@@ -183,7 +179,7 @@ public class HttpRequestBuilder implements ProxyObject {
             request.setBodyForDisplay(multiPart.getBodyForDisplay());
         }
         if (cookies != null && !cookies.isEmpty()) {
-            List<String> cookieValues = new ArrayList(cookies.size());
+            List<String> cookieValues = new ArrayList<>(cookies.size());
             for (Cookie c : cookies) {
                 String cookieValue = ClientCookieEncoder.LAX.encode(c);
                 cookieValues.add(cookieValue);
@@ -245,6 +241,11 @@ public class HttpRequestBuilder implements ProxyObject {
         return this;
     }
 
+    public HttpRequestBuilder fragment(String fragment) {
+        this.fragment = fragment;
+        return this;
+    }
+
     public HttpRequestBuilder paths(String... paths) {
         for (String path : paths) {
             path(path);
@@ -263,32 +264,39 @@ public class HttpRequestBuilder implements ProxyObject {
         return this;
     }
 
-    private String getPath() {
-        String temp = "";
+    private List<String> backwardsCompatiblePaths() {
         if (paths == null) {
-            return temp;
+            return Collections.emptyList();
         }
-        for (String path : paths) {
-            if (path.startsWith("/")) {
+
+        List<String> result = new ArrayList<>(paths.size());
+        for (int i = 0; i < paths.size(); i++) {
+            String path = paths.get(i);
+            if (i == 0 && path.startsWith("/")) {
                 path = path.substring(1);
+                logger.warn("the first path segment starts with a '/', this will be stripped off for now, but in the future this may be escaped and cause your request to fail.");
             }
-            if (!temp.isEmpty() && !temp.endsWith("/")) {
-                temp = temp + "/";
-            }
-            temp = temp + path;
+            result.add(path);
         }
-        return temp;
+        return result;
     }
 
-    public String getUrlAndPath() {
-        if (url == null) {
-            url = "";
+    private URI getUri() {
+        try {
+            URIBuilder builder = url == null ? new URIBuilder() : new URIBuilder(url);
+            if (params != null) {
+                params.forEach((key, values) -> values.forEach(value -> builder.addParameter(key, value)));
+            }
+            // merge paths from the base url with additional paths supplied to this builder
+            List<String> merged = Stream.of(builder.getPathSegments(), backwardsCompatiblePaths())
+                    .flatMap(List::stream)
+                    .collect(Collectors.toList());
+            return builder.setPathSegments(merged)
+                    .setFragment(fragment)
+                    .build();
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
         }
-        String path = getPath();
-        if (path.isEmpty()) {
-            return url;
-        }
-        return url.endsWith("/") ? url + path : url + "/" + path;
     }
 
     public HttpRequestBuilder body(Object body) {
@@ -331,7 +339,7 @@ public class HttpRequestBuilder implements ProxyObject {
 
     public HttpRequestBuilder header(String name, List<String> values) {
         if (headers == null) {
-            headers = new LinkedHashMap();
+            headers = new LinkedHashMap<>();
         }
         for (String key : headers.keySet()) {
             if (key.equalsIgnoreCase(name)) {
@@ -390,7 +398,7 @@ public class HttpRequestBuilder implements ProxyObject {
 
     public HttpRequestBuilder param(String name, List<String> values) {
         if (params == null) {
-            params = new HashMap();
+            params = new HashMap<>();
         }
         List<String> notNullValues = values.stream().filter(v -> v != null).collect(Collectors.toList());
         if (!notNullValues.isEmpty()) {
@@ -417,7 +425,7 @@ public class HttpRequestBuilder implements ProxyObject {
 
     public HttpRequestBuilder cookie(Cookie cookie) {
         if (cookies == null) {
-            cookies = new HashSet();
+            cookies = new HashSet<>();
         }
         cookies.add(cookie);
         return this;
@@ -451,7 +459,7 @@ public class HttpRequestBuilder implements ProxyObject {
     //
     private final Methods.FunVar PATH_FUNCTION = args -> {
         if (args.length == 0) {
-            return getPath();
+            return getUri().getPath();
         } else {
             for (Object o : args) {
                 if (o != null) {
@@ -596,7 +604,7 @@ public class HttpRequestBuilder implements ProxyObject {
 
     @Override
     public String toString() {
-        return getUrlAndPath();
+        return getUri().toASCIIString();
     }
 
 }
