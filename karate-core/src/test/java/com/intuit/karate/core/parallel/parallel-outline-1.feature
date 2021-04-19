@@ -15,8 +15,8 @@ Scenario Outline:
  * status 200
  * match response == { message: 'from feature' }
  # use java object from background, callSingle, config
- * match helloClass.sayHello('from the other side') == 'hello from the other side'
- * match helloClass.sayHello(name) == 'hello ' + name
+ # * match helloClass.sayHello('from the other side') == 'hello from the other side'
+ # * match helloClass.sayHello(name) == 'hello ' + name
 
  Examples:
   | data |
