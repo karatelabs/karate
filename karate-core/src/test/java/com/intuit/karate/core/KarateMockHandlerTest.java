@@ -52,7 +52,7 @@ class KarateMockHandlerTest {
                 "def response = 'hello world'");
         run(
                 URL_STEP,
-                "path '/hello'",
+                "path 'hello'",
                 "method get"
         );
         matchVar("response", "hello world");
@@ -65,7 +65,7 @@ class KarateMockHandlerTest {
                 "def response = requestHeaders");
         run(
                 URL_STEP,
-                "path '/hello'",
+                "path 'hello'",
                 "request { foo: 'bar' }",
                 "method post"
         );
@@ -94,7 +94,7 @@ class KarateMockHandlerTest {
         run(
                 URL_STEP,
                 "param foo = 'bar'",
-                "path '/hello'",
+                "path 'hello'",
                 "method get"
         );
         matchVar("response", "{ foo: ['bar'] }");
@@ -108,7 +108,7 @@ class KarateMockHandlerTest {
         run(
                 URL_STEP,
                 "params { foo: 'bar' }",
-                "path '/hello'",
+                "path 'hello'",
                 "method get"
         );
         matchVar("response", "{ foo: ['bar'] }");
@@ -122,7 +122,7 @@ class KarateMockHandlerTest {
         run(
                 URL_STEP,
                 "param foo = 'bar,baz'",
-                "path '/hello'",
+                "path 'hello'",
                 "method get"
         );
         matchVar("response", "{ foo: ['bar,baz'] }");
@@ -136,7 +136,7 @@ class KarateMockHandlerTest {
         run(
                 URL_STEP,
                 "param foo = ['bar', 'baz']",
-                "path '/hello'",
+                "path 'hello'",
                 "method get"
         );
         matchVar("response", "{ foo: ['bar', 'baz'] }");
@@ -149,7 +149,7 @@ class KarateMockHandlerTest {
                 "def response = requestHeaders");
         run(
                 URL_STEP,
-                "path '/hello'",
+                "path 'hello'",
                 "header foo = 'bar'",
                 "method get"
         );
@@ -163,7 +163,7 @@ class KarateMockHandlerTest {
                 "def response = requestHeaders");
         run(
                 URL_STEP,
-                "path '/hello'",
+                "path 'hello'",
                 "def fun = function(arg){ return [arg.first, arg.second] }",
                 "header Authorization = call fun { first: 'foo', second: 'bar' }",
                 "method get"
@@ -178,7 +178,7 @@ class KarateMockHandlerTest {
                 "def response = requestHeaders");
         run(
                 URL_STEP,
-                "path '/hello'",
+                "path 'hello'",
                 "request { foo: 'bar' }",
                 "method post"
         );
@@ -193,7 +193,7 @@ class KarateMockHandlerTest {
                 "def response = '{ \"foo\": \"bar\"}'");
         run(
                 URL_STEP,
-                "path '/hello'",
+                "path 'hello'",
                 "method get",
                 "match responseHeaders == { 'Content-Type': ['application/json'] }",
                 "match header content-type == 'application/json'",
@@ -209,7 +209,7 @@ class KarateMockHandlerTest {
         run(
                 URL_STEP,
                 "cookie foo = 'bar'",
-                "path '/hello'",
+                "path 'hello'",
                 "method get"
         );
         matchVar("response", "{ Cookie: ['foo=bar'] }");
@@ -226,7 +226,7 @@ class KarateMockHandlerTest {
         run(
                 URL_STEP,
                 "cookie foo = {value:'bar', expires: '" + pastDate + "'}",
-                "path '/hello'",
+                "path 'hello'",
                 "method get"
         );
         matchVar("response", "{ Cookie: ['foo=bar'] }");
@@ -243,7 +243,7 @@ class KarateMockHandlerTest {
         run(
                 URL_STEP,
                 "cookie foo = { value: 'bar', expires: '" + futureDate + "' }",
-                "path '/hello'",
+                "path 'hello'",
                 "method get"
         );
         matchVar("response", "{ Cookie: ['foo=bar'] }");
@@ -257,7 +257,7 @@ class KarateMockHandlerTest {
         run(
                 URL_STEP,
                 "cookie foo = { value: 'bar', max-age: '0' }",
-                "path '/hello'",
+                "path 'hello'",
                 "method get"
         );
         matchVar("response", "{ Cookie: ['#string'] }");
@@ -271,7 +271,7 @@ class KarateMockHandlerTest {
         run(
                 URL_STEP,
                 "form field foo = 'bar'",
-                "path '/hello'",
+                "path 'hello'",
                 "method get"
         );
         matchVar("response", "{ foo: ['bar'] }");
@@ -285,7 +285,7 @@ class KarateMockHandlerTest {
         run(
                 URL_STEP,
                 "form field foo = 'bar'",
-                "path '/hello'",
+                "path 'hello'",
                 "method post"
         );
         matchVar("response", "foo=bar");
@@ -299,7 +299,7 @@ class KarateMockHandlerTest {
         run(
                 URL_STEP,
                 "multipart field foo = 'bar'",
-                "path '/hello'",
+                "path 'hello'",
                 "method post"
         );
         matchVar("response", "{ foo: ['bar'] }");
@@ -313,7 +313,7 @@ class KarateMockHandlerTest {
         run(
                 URL_STEP,
                 "multipart file foo = { filename: 'foo.txt', value: 'hello' }",
-                "path '/hello'",
+                "path 'hello'",
                 "method post"
         );
         matchVar("response", "{ foo: [{ name: 'foo', value: '#notnull', contentType: 'text/plain', charset: 'UTF-8', filename: 'foo.txt', transferEncoding: '7bit' }] }");
@@ -327,7 +327,7 @@ class KarateMockHandlerTest {
                         "def response = ''");
         run(
                 URL_STEP,
-                "path '/hello'",
+                "path 'hello'",
                 "method get"
         );
         matchVar("responseHeaders", "{ 'Content-Type': ['text/html'] }");
@@ -342,7 +342,7 @@ class KarateMockHandlerTest {
         run(
                 "configure lowerCaseResponseHeaders = true",
                 URL_STEP,
-                "path '/hello'",
+                "path 'hello'",
                 "method get"
         );
         matchVar("responseHeaders", "{ 'content-type': ['text/html'] }");
@@ -356,7 +356,7 @@ class KarateMockHandlerTest {
                 "def response = '<hello>world</hello>'");
         run(
                 URL_STEP,
-                "path '/hello'",
+                "path 'hello'",
                 "method get",
                 "match header content-type == 'application/xml'",
                 "match responseType == 'xml'",
@@ -371,7 +371,7 @@ class KarateMockHandlerTest {
                 "def response = '<hello>world</hello>'");
         run(
                 URL_STEP,
-                "path '/hello'",
+                "path 'hello'",
                 "method get",
                 "match header content-type == 'text/plain'",
                 "match responseType == 'xml'",
@@ -386,7 +386,7 @@ class KarateMockHandlerTest {
                 "def response = '{ \"foo\": \"bar\"}'");
         run(
                 URL_STEP,
-                "path '/hello'",
+                "path 'hello'",
                 "method get",
                 "match header content-type == 'text/plain'",
                 "match responseType == 'json'",
@@ -401,7 +401,7 @@ class KarateMockHandlerTest {
                 "def response = '<http://example.org/#hello> a <http://example.org/#greeting> .'");
         run(
                 URL_STEP,
-                "path '/hello'",
+                "path 'hello'",
                 "method get",
                 "match header content-type == 'text/plain'",
                 "match responseType == 'string'",
@@ -416,7 +416,7 @@ class KarateMockHandlerTest {
                 "def response = '<http://example.org/#hello> a <http://example.org/#greeting> .'");
         run(
                 URL_STEP,
-                "path '/hello'",
+                "path 'hello'",
                 "method get",
                 "match header content-type == 'text/turtle'",
                 "match responseType == 'string'",
@@ -431,7 +431,7 @@ class KarateMockHandlerTest {
                 "def response = requestUri");
         run(
                 URL_STEP,
-                "path '/hello/foo/bar'",
+                "path 'hello', 'foo', 'bar'",
                 "method get",
                 "match response == 'hello/foo/bar'"
         );

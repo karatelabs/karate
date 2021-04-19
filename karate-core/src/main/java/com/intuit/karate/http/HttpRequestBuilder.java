@@ -93,7 +93,6 @@ public class HttpRequestBuilder implements ProxyObject {
     private String method;
     private List<String> paths;
     private Map<String, List<String>> params;
-    private String fragment;
     private Map<String, List<String>> headers;
     private MultiPartBuilder multiPart;
     private Object body;
@@ -241,11 +240,6 @@ public class HttpRequestBuilder implements ProxyObject {
         return this;
     }
 
-    public HttpRequestBuilder fragment(String fragment) {
-        this.fragment = fragment;
-        return this;
-    }
-
     public HttpRequestBuilder paths(String... paths) {
         for (String path : paths) {
             path(path);
@@ -264,36 +258,26 @@ public class HttpRequestBuilder implements ProxyObject {
         return this;
     }
 
-    private List<String> backwardsCompatiblePaths() {
-        if (paths == null) {
-            return Collections.emptyList();
-        }
-
-        List<String> result = new ArrayList<>(paths.size());
-        for (int i = 0; i < paths.size(); i++) {
-            String path = paths.get(i);
-            if (i == 0 && path.startsWith("/")) {
-                path = path.substring(1);
-                logger.warn("the first path segment starts with a '/', this will be stripped off for now, but in the future this may be escaped and cause your request to fail.");
-            }
-            result.add(path);
-        }
-        return result;
-    }
-
     private URI getUri() {
         try {
             URIBuilder builder = url == null ? new URIBuilder() : new URIBuilder(url);
             if (params != null) {
                 params.forEach((key, values) -> values.forEach(value -> builder.addParameter(key, value)));
             }
-            // merge paths from the base url with additional paths supplied to this builder
-            List<String> merged = Stream.of(builder.getPathSegments(), backwardsCompatiblePaths())
-                    .flatMap(List::stream)
-                    .collect(Collectors.toList());
-            return builder.setPathSegments(merged)
-                    .setFragment(fragment)
-                    .build();
+            if (paths != null) {
+                paths.forEach(path -> {
+                    if (path.startsWith("/")) {
+                        logger.warn("Path segment: '{}' starts with a '/', this is probably a mistake. The '/' character will be escaped and sent to the remote server as '%2F'. " +
+                                "If you want to include multiple paths please separate them using commas. Ie. 'hello', 'world' instead of '/hello/world'.", path);
+                    }
+                });
+                // merge paths from the supplied url with additional paths supplied to this builder
+                List<String> merged = Stream.of(builder.getPathSegments(), paths)
+                        .flatMap(List::stream)
+                        .collect(Collectors.toList());
+                builder.setPathSegments(merged);
+            }
+            return builder.build();
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }

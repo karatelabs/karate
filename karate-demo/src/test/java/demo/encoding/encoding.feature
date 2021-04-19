@@ -35,13 +35,6 @@ Scenario: path escapes special characters
     Then status 200
     And match response == '"<>#{}|\^[]`'
 
-Scenario: leading / in first path is tolerated, but will issue a warning
-    Given url demoBaseUrl + '/'
-    And path '/encoding', 'hello'
-    When method get
-    Then status 200
-    And match response == 'hello'
-
 Scenario: leading / in path is not required
     Given url demoBaseUrl
     And path 'encoding', 'hello'
@@ -50,7 +43,7 @@ Scenario: leading / in path is not required
     And match response == 'hello'
 
 Scenario: manually decode before passing to karate
-    * def encoded = '%2Ffoo%2Bbar'
+    * def encoded = 'foo%2Bbar'
     * def decoded = java.net.URLDecoder.decode(encoded, 'UTF-8')
     Given url demoBaseUrl + '/encoding'
     And path decoded

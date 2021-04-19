@@ -68,7 +68,7 @@ class KarateHttpMockHandlerTest {
         startMockServer();
         run(
                 urlStep(),
-                "path '/hello'",
+                "path 'hello'",
                 "method get"
         );
         matchVar("response", "hello world");
@@ -82,7 +82,7 @@ class KarateHttpMockHandlerTest {
         startMockServer();
         run(
                 urlStep(),
-                "path '/hello'",
+                "path 'hello'",
                 "cookie foo = 'bar'",
                 "method get"
         );
@@ -97,7 +97,7 @@ class KarateHttpMockHandlerTest {
         startMockServer();
         run(
                 urlStep(),
-                "path '/hello'",
+                "path 'hello'",
                 "cookie foo = { value: 'bar', samesite: 'Strict', secure: true }",
                 "method get"
         );
@@ -112,7 +112,7 @@ class KarateHttpMockHandlerTest {
         startMockServer();
         run(
                 urlStep(),
-                "path '/hello'",
+                "path 'hello'",
                 "method get"
         );
         matchVarContains("responseHeaders", "{ set-cookie: ['foo=bar; expires=Wed, 30-Dec-20 09:25:45 GMT; path=/; domain=.example.com; HttpOnly; SameSite=Lax; Secure'] }");
@@ -126,7 +126,7 @@ class KarateHttpMockHandlerTest {
         startMockServer();
         run(
                 urlStep(),
-                "path '/hello'",
+                "path 'hello'",
                 "header Content-Type = 'application/xxx.pingixxxxxx.checkUsernamePassword+json'",
                 "method post"
         );
@@ -142,7 +142,7 @@ class KarateHttpMockHandlerTest {
         run(
                 urlStep(),
                 "configure headers = function(request){ return { 'api-key': request.bodyAsString } }",
-                "path '/hello'",
+                "path 'hello'",
                 "request 'some text'",
                 "method post"
         );
@@ -159,7 +159,7 @@ class KarateHttpMockHandlerTest {
         startMockServer();
         run(
                 urlStep(),
-                "path '/hello', '1'",
+                "path 'hello', '1'",
                 "method get"
         );
         matchVarContains("response", "{ '2': 'bar' }");
@@ -173,7 +173,7 @@ class KarateHttpMockHandlerTest {
         startMockServer();
         run(
                 urlStep(),
-                "path '/hello'",
+                "path 'hello'",
                 "header Transfer-Encoding = 'chunked'",
                 "request { foo: 'bar' }",
                 "method post"
@@ -189,7 +189,7 @@ class KarateHttpMockHandlerTest {
         startMockServer();
         run(
                 urlStep(),
-                "path '/hello'",
+                "path 'hello'",
                 "method get",
                 "match response == '{ \"id\" \"123\" }'",
                 "match responseType == 'string'"
@@ -210,7 +210,7 @@ class KarateHttpMockHandlerTest {
         startMockServer();
         run(
                 urlStep(),
-                "path '/first'",
+                "path 'first'",
                 "form fields { username: 'blah', password: 'blah' }",
                 "method post"
         );
