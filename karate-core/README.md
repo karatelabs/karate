@@ -48,6 +48,7 @@
     | <a href="#file-upload">File Upload</a>
     | <a href="#code-reuse">Code Reuse</a>
     | <a href="#hybrid-tests">Hybrid Tests</a>
+    | <a href="#java-api">Java API</a>
   </td>
 </tr>
 <tr>

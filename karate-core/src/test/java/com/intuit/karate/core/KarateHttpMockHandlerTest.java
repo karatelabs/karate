@@ -73,6 +73,22 @@ class KarateHttpMockHandlerTest {
         );
         matchVar("response", "hello world");
     }
+    
+    @Test
+    void testRequestBodyAsInteger() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestHeaders");
+        startMockServer();
+        run(
+                urlStep(),
+                "path '/hello'",
+                "request 42",
+                "method post"
+        );
+        // for some reason, apache assumes this encoding if the request body is raw bytes TODO
+        matchVarContains("response", "{ 'content-type': ['application/octet-stream'] }");
+    }    
 
     @Test
     void testThatCookieIsPartOfRequest() {

@@ -141,6 +141,20 @@ class KarateMockHandlerTest {
         );
         matchVar("response", "{ foo: ['bar', 'baz'] }");
     }
+    
+    @Test
+    void testRequestBodyAsInteger() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = request");
+        run(
+                URL_STEP,
+                "path '/hello'",
+                "request 42",
+                "method post"
+        );
+        matchVar("response", "42");
+    }    
 
     @Test
     void testHeaders() {
