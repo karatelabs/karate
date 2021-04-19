@@ -159,7 +159,7 @@ class KarateHttpMockHandlerTest {
         startMockServer();
         run(
                 urlStep(),
-                "path '/hello/1'",
+                "path '/hello', '1'",
                 "method get"
         );
         matchVarContains("response", "{ '2': 'bar' }");

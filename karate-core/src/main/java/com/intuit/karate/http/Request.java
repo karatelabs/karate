@@ -92,7 +92,7 @@ public class Request implements ProxyObject {
         PATH, METHOD, PARAM, PARAMS, HEADER, HEADERS, PATH_PARAM, PATH_PARAMS, BODY, MULTI_PART, MULTI_PARTS, JSON, AJAX,
         GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE
     };
-    private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
+    private static final Set<String> KEY_SET = new HashSet<>(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
     private String urlAndPath;
@@ -106,7 +106,7 @@ public class Request implements ProxyObject {
     private ResourceType resourceType;
     private String resourcePath;
     private String pathParam;
-    private List pathParams = Collections.EMPTY_LIST;
+    private List pathParams = Collections.emptyList();
     private RequestContext requestContext;
 
     public RequestContext getRequestContext() {
@@ -149,7 +149,7 @@ public class Request implements ProxyObject {
     public List<Cookie> getCookies() {
          List<String> cookieValues = getHeaderValues(HttpConstants.HDR_COOKIE);
          if (cookieValues == null) {
-             return Collections.EMPTY_LIST;
+             return Collections.emptyList();
          }
          return cookieValues.stream().map(ClientCookieDecoder.STRICT::decode).collect(toList());
     }
@@ -231,7 +231,7 @@ public class Request implements ProxyObject {
     }
 
     public Map<String, List<String>> getParams() {
-        return params == null ? Collections.EMPTY_MAP : params;
+        return params == null ? Collections.emptyMap() : params;
     }
 
     public void setParams(Map<String, List<String>> params) {
@@ -255,7 +255,7 @@ public class Request implements ProxyObject {
     }
 
     public Map<String, List<String>> getHeaders() {
-        return headers == null ? Collections.EMPTY_MAP : headers;
+        return headers == null ? Collections.emptyMap() : headers;
     }
 
     public void setHeaders(Map<String, List<String>> headers) {
@@ -282,7 +282,7 @@ public class Request implements ProxyObject {
         try {
             return JsValue.fromBytes(body, false, rt);
         } catch (Exception e) {
-            logger.trace("failed to auto-convert response: {}", e);
+            logger.trace("failed to auto-convert response", e);
             return getBodyAsString();
         }
     }
@@ -335,14 +335,14 @@ public class Request implements ProxyObject {
         boolean multipart;
         if (contentType.startsWith("multipart")) {
             multipart = true;
-            multiParts = new HashMap();
+            multiParts = new HashMap<>();
         } else if (contentType.contains("form-urlencoded")) {
             multipart = false;
         } else {
             return;
         }
         logger.trace("decoding content-type: {}", contentType);
-        params = (params == null || params.isEmpty()) ? new HashMap() : new HashMap(params); // since it may be immutable
+        params = (params == null || params.isEmpty()) ? new HashMap<>() : new HashMap<>(params); // since it may be immutable
         DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.valueOf(method), path, Unpooled.wrappedBuffer(body));
         request.headers().add(HttpConstants.HDR_CONTENT_TYPE, contentType);
         InterfaceHttpPostRequestDecoder decoder = multipart ? new HttpPostMultipartRequestDecoder(request) : new HttpPostStandardRequestDecoder(request);
@@ -350,12 +350,8 @@ public class Request implements ProxyObject {
             for (InterfaceHttpData part : decoder.getBodyHttpDatas()) {
                 String name = part.getName();
                 if (multipart && part instanceof FileUpload) {
-                    List<Map<String, Object>> list = multiParts.get(name);
-                    if (list == null) {
-                        list = new ArrayList();
-                        multiParts.put(name, list);
-                    }
-                    Map<String, Object> map = new HashMap();
+                    List<Map<String, Object>> list = multiParts.computeIfAbsent(name, k -> new ArrayList<>());
+                    Map<String, Object> map = new HashMap<>();
                     list.add(map);
                     FileUpload fup = (FileUpload) part;
                     map.put("name", name);
@@ -373,11 +369,7 @@ public class Request implements ProxyObject {
                     }
                 } else { // form-field, url-encoded if not multipart
                     Attribute attribute = (Attribute) part;
-                    List<String> list = params.get(name);
-                    if (list == null) {
-                        list = new ArrayList();
-                        params.put(name, list);
-                    }
+                    List<String> list = params.computeIfAbsent(name, k -> new ArrayList<>());
                     list.add(attribute.getValue());
                 }
             }
