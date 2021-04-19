@@ -64,7 +64,7 @@ public class HttpUtils {
         if (count <= 1) {
             return null;
         }
-        Map<String, String> map = new LinkedHashMap(count - 1);
+        Map<String, String> map = new LinkedHashMap<>(count - 1);
         for (int i = 1; i < count; i++) {
             String item = items.get(i);
             int pos = item.indexOf('=');
@@ -90,7 +90,7 @@ public class HttpUtils {
         if (rightSize != leftSize) {
             return null;
         }
-        Map<String, String> map = new LinkedHashMap(leftSize);
+        Map<String, String> map = new LinkedHashMap<>(leftSize);
         for (int i = 0; i < leftSize; i++) {
             String left = leftList.get(i);
             String right = rightList.get(i);
@@ -107,7 +107,7 @@ public class HttpUtils {
         return map;
     }
 
-    public static final String normaliseUriPath(String uri) {
+    public static String normaliseUriPath(String uri) {
         uri = uri.indexOf('?') == -1 ? uri : uri.substring(0, uri.indexOf('?'));
         if (uri.endsWith("/")) {
             uri = uri.substring(0, uri.length() - 1);
@@ -224,7 +224,7 @@ public class HttpUtils {
 
     private static final HttpResponseStatus CONNECTION_ESTABLISHED = new HttpResponseStatus(200, "Connection established");
 
-    public static final FullHttpResponse connectionEstablished() {
+    public static FullHttpResponse connectionEstablished() {
         return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, CONNECTION_ESTABLISHED);
     }
 
@@ -243,7 +243,7 @@ public class HttpUtils {
         List<String> list;
         if (msg.headers().contains(HttpHeaderNames.VIA)) {
             List<String> existing = msg.headers().getAll(HttpHeaderNames.VIA);
-            list = new ArrayList(existing);
+            list = new ArrayList<>(existing);
             list.add(sb.toString());
         } else {
             list = Collections.singletonList(sb.toString());
