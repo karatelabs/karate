@@ -523,7 +523,7 @@ Scenario: requestUri.startsWith('foo/')
 JSON variable (not a function) allowing you to extract values by name. See [`pathMatches()`](#pathmatches) above.
 
 ## `methodIs()`
-Helper function that you will use a lot along with [`pathMatches()`](#pathmatches). Lower-case is fine. Allows for array of possible values. For example:
+Helper function that you will use a lot along with [`pathMatches()`](#pathmatches). Lower-case is fine. For example:
 
 ```cucumber
 Scenario: pathMatches('/v1/cats/{id}') && methodIs('get')

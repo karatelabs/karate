@@ -182,19 +182,6 @@ public class MatchOperation {
                 return fail("actual path does not exist");
             }
         }
-        if (expected.isString()) {
-            String expStr = expected.getValue();
-            if (expStr.startsWith("#")) {
-                switch (type) {
-                    case NOT_EQUALS:
-                        return macroEqualsExpected(expStr) ? fail("is equal") : pass();
-                    case NOT_CONTAINS:
-                        return macroEqualsExpected(expStr) ? fail("actual contains expected") : pass();
-                    default:
-                        return macroEqualsExpected(expStr) ? pass() : fail(null);
-                }
-            }
-        }
         if (actual.type != expected.type) {
             switch (type) {
                 case CONTAINS:
@@ -217,8 +204,27 @@ public class MatchOperation {
                 MatchOperation mo = new MatchOperation(context, type, actual, new Match.Value(XmlUtils.toObject(expected.getValue(), true)));
                 mo.execute();
                 return mo.pass ? pass() : fail(mo.failReason);
+            }
+            if (expected.isString()) {
+                String expStr = expected.getValue();
+                if (!expStr.startsWith("#")) { // edge case if rhs is macro
+                    return type == Match.Type.NOT_EQUALS ? pass() : fail("data types don't match");
+                }
             } else {
                 return type == Match.Type.NOT_EQUALS ? pass() : fail("data types don't match");
+            }
+        }
+        if (expected.isString()) {
+            String expStr = expected.getValue();
+            if (expStr.startsWith("#")) {
+                switch (type) {
+                    case NOT_EQUALS:
+                        return macroEqualsExpected(expStr) ? fail("is equal") : pass();
+                    case NOT_CONTAINS:
+                        return macroEqualsExpected(expStr) ? fail("actual contains expected") : pass();
+                    default:
+                        return macroEqualsExpected(expStr) ? pass() : fail(null);
+                }
             }
         }
         switch (type) {
@@ -334,14 +340,12 @@ public class MatchOperation {
                 validatorName = StringUtils.trimToNull(validatorName);
                 if (validatorName != null) {
                     Match.Validator validator = null;
-
                     if (validatorName.startsWith(REGEX)) {
                         String regex = validatorName.substring(5).trim();
                         validator = new Match.RegexValidator(regex);
                     } else {
                         validator = Match.VALIDATORS.get(validatorName);
                     }
-
                     if (validator != null) {
                         if (optional && (actual.isNotPresent() || actual.isNull())) {
                             // pass

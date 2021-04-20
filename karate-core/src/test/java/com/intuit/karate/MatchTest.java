@@ -146,6 +146,11 @@ class MatchTest {
         match("['foo', 'bar']", CONTAINS, "['baz']", FAILS);
         message("actual array does not contain expected item - baz");
     }
+    
+    @Test
+    void testListContainsRegex() {
+        match("['foo', 'bar']", CONTAINS, "#regex .{3}");
+    }    
 
     @Test
     void testListNotContains() {

@@ -160,7 +160,7 @@
     | <a href="#driverintercept"><code>driver.intercept()</code></a>
     | <a href="#driverinputfile"><code>driver.inputFile()</code></a>
     | <a href="#driveremulatedevice"><code>driver.emulateDevice()</code></a>
-    | <a href="#scriptawait"><code>driver.scriptAwait()</code></a> 
+    | <a href="#driverscriptawait"><code>driver.scriptAwait()</code></a> 
   </td> 
 </tr>
 <tr>
