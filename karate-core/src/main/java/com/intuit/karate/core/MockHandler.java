@@ -74,7 +74,7 @@ public class MockHandler implements ServerHandler {
     private boolean corsEnabled;
 
     protected static final ThreadLocal<Request> LOCAL_REQUEST = new ThreadLocal<Request>();
-    private String prefix;
+    private String prefix = "";
 
     public MockHandler withPrefix(String prefix) {
         this.prefix = prefix;
