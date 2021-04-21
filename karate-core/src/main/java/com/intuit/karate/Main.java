@@ -37,6 +37,7 @@ import com.intuit.karate.shell.Command;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -66,8 +67,14 @@ public class Main implements Callable<Void> {
     @Parameters(split = "$", description = "one or more tests (features) or search-paths to run")
     List<String> paths;
 
-    @Option(names = {"-m", "--mock"}, description = "mock server file")
+    @Option(names = {"--mock"}, description = "mock server file")
     File mock;
+
+    @Option(names = {"-m", "--mocks"}, split = ",", description = "one or more mock server files")
+    List<File> mocks;
+
+    @Option(names = {"-P", "--prefix"}, description = "mock server prefix (contextPath)")
+    String prefix = "/";
 
     @Option(names = {"-p", "--port"}, description = "server port (default 8080)")
     int port = 8080;
@@ -365,7 +372,7 @@ public class Main implements Callable<Void> {
             server.waitSync();
             return null;
         }
-        if (mock == null) {
+        if (mock == null && mocks == null) {
             CommandLine.usage(this, System.err);
             return null;
         }
@@ -378,8 +385,10 @@ public class Main implements Callable<Void> {
         if (env != null) { // some advanced mocks may want karate.env
             System.setProperty(Constants.KARATE_ENV, env);
         }
+        List<File> features = mocks != null? mocks : Arrays.asList(mock);
         MockServer.Builder builder = MockServer
-                .feature(mock)
+                .featureFiles(features)
+                .prefix(prefix)
                 .certFile(cert)
                 .keyFile(key)
                 .watch(watch);

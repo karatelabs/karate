@@ -34,7 +34,10 @@ import com.intuit.karate.http.Request;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.Response;
 import com.intuit.karate.http.ServerHandler;
+
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -66,54 +69,70 @@ public class MockHandler implements ServerHandler {
     private static final String PATH_PARAMS = "pathParams";
     private static final String BODY_PATH = "bodyPath";
 
-    private final Feature feature;
-    private final ScenarioRuntime runtime; // holds global config and vars
-    private final Map<String, Variable> globals;
-    private final boolean corsEnabled;
-    
+    private final LinkedHashMap<Feature, ScenarioRuntime> features = new LinkedHashMap<>(); // feature + holds global config and vars
+    private final Map<String, Variable> globals = new HashMap<>();
+    private boolean corsEnabled;
+
     protected static final ThreadLocal<Request> LOCAL_REQUEST = new ThreadLocal<Request>();
+    private String prefix;
+
+    public MockHandler withPrefix(String prefix) {
+        this.prefix = prefix;
+        return this;
+    }
+
 
     public MockHandler(Feature feature) {
         this(feature, null);
     }
 
     public MockHandler(Feature feature, Map<String, Object> args) {
-        this.feature = feature;
-        FeatureRuntime featureRuntime = FeatureRuntime.of(Suite.forTempUse(), feature, args);
-        FeatureSection section = new FeatureSection();
-        section.setIndex(-1); // TODO util for creating dummy scenario
-        Scenario dummy = new Scenario(feature, section, -1);
-        section.setScenario(dummy);
-        runtime = new ScenarioRuntime(featureRuntime, dummy);
-        runtime.engine.setVariable(PATH_MATCHES, (Function<String, Boolean>) this::pathMatches);
-        runtime.engine.setVariable(PARAM_EXISTS, (Function<String, Boolean>) this::paramExists);
-        runtime.engine.setVariable(PARAM_VALUE, (Function<String, String>) this::paramValue);
-        runtime.engine.setVariable(METHOD_IS, (Function<String, Boolean>) this::methodIs);
-        runtime.engine.setVariable(TYPE_CONTAINS, (Function<String, Boolean>) this::typeContains);
-        runtime.engine.setVariable(ACCEPT_CONTAINS, (Function<String, Boolean>) this::acceptContains);
-        runtime.engine.setVariable(HEADER_CONTAINS, (BiFunction<String, String, Boolean>) this::headerContains);
-        runtime.engine.setVariable(BODY_PATH, (Function<String, Object>) this::bodyPath);
-        runtime.engine.init();        
-        if (feature.isBackgroundPresent()) {
-            // if we are within a scenario already e.g. karate.start(), preserve context
-            ScenarioEngine prevEngine = ScenarioEngine.get();
-            try {                
-                ScenarioEngine.set(runtime.engine);
-                for (Step step : feature.getBackground().getSteps()) {
-                    Result result = StepRuntime.execute(step, runtime.actions);
-                    if (result.isFailed()) {
-                        String message = "mock-server background failed - " + feature + ":" + step.getLine();
-                        runtime.logger.error(message);
-                        throw new KarateException(message, result.getError());
+        this(Arrays.asList(feature), args);
+    }
+
+    public MockHandler(List<Feature> features) {
+        this(features, null);
+    }
+
+    public MockHandler(List<Feature> features, Map<String, Object> args) {
+        for (Feature feature: features) {
+            FeatureRuntime featureRuntime = FeatureRuntime.of(Suite.forTempUse(), feature, args);
+            FeatureSection section = new FeatureSection();
+            section.setIndex(-1); // TODO util for creating dummy scenario
+            Scenario dummy = new Scenario(feature, section, -1);
+            section.setScenario(dummy);
+            ScenarioRuntime runtime = new ScenarioRuntime(featureRuntime, dummy);
+            runtime.engine.setVariable(PATH_MATCHES, (Function<String, Boolean>) this::pathMatches);
+            runtime.engine.setVariable(PARAM_EXISTS, (Function<String, Boolean>) this::paramExists);
+            runtime.engine.setVariable(PARAM_VALUE, (Function<String, String>) this::paramValue);
+            runtime.engine.setVariable(METHOD_IS, (Function<String, Boolean>) this::methodIs);
+            runtime.engine.setVariable(TYPE_CONTAINS, (Function<String, Boolean>) this::typeContains);
+            runtime.engine.setVariable(ACCEPT_CONTAINS, (Function<String, Boolean>) this::acceptContains);
+            runtime.engine.setVariable(HEADER_CONTAINS, (BiFunction<String, String, Boolean>) this::headerContains);
+            runtime.engine.setVariable(BODY_PATH, (Function<String, Object>) this::bodyPath);
+            runtime.engine.init();
+            if (feature.isBackgroundPresent()) {
+                // if we are within a scenario already e.g. karate.start(), preserve context
+                ScenarioEngine prevEngine = ScenarioEngine.get();
+                try {
+                    ScenarioEngine.set(runtime.engine);
+                    for (Step step : feature.getBackground().getSteps()) {
+                        Result result = StepRuntime.execute(step, runtime.actions);
+                        if (result.isFailed()) {
+                            String message = "mock-server background failed - " + feature + ":" + step.getLine();
+                            runtime.logger.error(message);
+                            throw new KarateException(message, result.getError());
+                        }
                     }
+                } finally {
+                    ScenarioEngine.set(prevEngine);
                 }
-            } finally {
-                ScenarioEngine.set(prevEngine);
             }
+            corsEnabled = corsEnabled || runtime.engine.getConfig().isCorsEnabled();
+            globals.putAll(runtime.engine.detachVariables());
+            runtime.logger.info("mock server initialized: {}", feature);
+            this.features.put(feature, runtime);
         }
-        corsEnabled = runtime.engine.getConfig().isCorsEnabled();
-        globals = runtime.engine.detachVariables();
-        runtime.logger.info("mock server initialized: {}", feature);
     }
 
     private static final Result PASSED = Result.passed(0);
@@ -132,87 +151,93 @@ public class MockHandler implements ServerHandler {
             }
             return response;
         }
-        // important for graal to work properly
-        Thread.currentThread().setContextClassLoader(runtime.featureRuntime.suite.classLoader);
-        LOCAL_REQUEST.set(req);
-        req.processBody();
-        ScenarioEngine engine = new ScenarioEngine(runtime, new HashMap(globals));
-        ScenarioEngine.set(engine);
-        engine.init();
-        engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
-        engine.setVariable(ScenarioEngine.REQUEST_URI, req.getPath());
-        engine.setVariable(ScenarioEngine.REQUEST_METHOD, req.getMethod());
-        engine.setVariable(ScenarioEngine.REQUEST_HEADERS, req.getHeaders());
-        engine.setVariable(ScenarioEngine.REQUEST, req.getBodyConverted());
-        engine.setVariable(REQUEST_PARAMS, req.getParams());
-        engine.setVariable(REQUEST_BYTES, req.getBody());
-        Map<String, List<Map<String, Object>>> parts = req.getMultiParts();
-        if (parts != null) {
-            engine.setHiddenVariable(REQUEST_PARTS, parts); // TODO add to docs
-        }
-        for (FeatureSection fs : feature.getSections()) {
-            if (fs.isOutline()) {
-                runtime.logger.warn("skipping scenario outline - {}:{}", feature, fs.getScenarioOutline().getLine());
-                break;
+        req.setPath(req.getPath().substring(prefix.length()));
+        for (Map.Entry<Feature, ScenarioRuntime> entry: this.features.entrySet()) {
+            Feature feature = entry.getKey();
+            ScenarioRuntime runtime = entry.getValue();
+
+            // important for graal to work properly
+            Thread.currentThread().setContextClassLoader(runtime.featureRuntime.suite.classLoader);
+            LOCAL_REQUEST.set(req);
+            req.processBody();
+            ScenarioEngine engine = new ScenarioEngine(runtime, new HashMap(globals));
+            ScenarioEngine.set(engine);
+            engine.init();
+            engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
+            engine.setVariable(ScenarioEngine.REQUEST_URI, req.getPath());
+            engine.setVariable(ScenarioEngine.REQUEST_METHOD, req.getMethod());
+            engine.setVariable(ScenarioEngine.REQUEST_HEADERS, req.getHeaders());
+            engine.setVariable(ScenarioEngine.REQUEST, req.getBodyConverted());
+            engine.setVariable(REQUEST_PARAMS, req.getParams());
+            engine.setVariable(REQUEST_BYTES, req.getBody());
+            Map<String, List<Map<String, Object>>> parts = req.getMultiParts();
+            if (parts != null) {
+                engine.setHiddenVariable(REQUEST_PARTS, parts); // TODO add to docs
             }
-            Scenario scenario = fs.getScenario();
-            if (isMatchingScenario(scenario, engine)) {
-                Map<String, Object> configureHeaders;
-                Variable response, responseStatus, responseHeaders, responseDelay;
-                ScenarioActions actions = new ScenarioActions(engine);
-                Result result = PASSED;
-                for (Step step : scenario.getSteps()) {
-                    result = StepRuntime.execute(step, actions);
-                    if (result.isAborted()) {
-                        runtime.logger.debug("abort at {}:{}", feature, step.getLine());
-                        break;
-                    }
-                    if (result.isFailed()) {
-                        String message = "server-side scenario failed, " + feature + ":" + step.getLine()
-                                + "\n" + step.toString() + "\n" + result.getError().getMessage();
-                        runtime.logger.error(message);
-                        break;
-                    }
+            for (FeatureSection fs : feature.getSections()) {
+                if (fs.isOutline()) {
+                    runtime.logger.warn("skipping scenario outline - {}:{}", feature, fs.getScenarioOutline().getLine());
+                    break;
                 }
-                engine.mockAfterScenario();
-                configureHeaders = engine.mockConfigureHeaders();
-                response = engine.vars.remove(ScenarioEngine.RESPONSE);
-                responseStatus = engine.vars.remove(ScenarioEngine.RESPONSE_STATUS);
-                responseHeaders = engine.vars.remove(ScenarioEngine.RESPONSE_HEADERS);
-                responseDelay = engine.vars.remove(RESPONSE_DELAY);
-                globals.putAll(engine.detachVariables());
-                Response res = new Response(200);
-                if (result.isFailed()) {
-                    response = new Variable(result.getError().getMessage());
-                    responseStatus = new Variable(500);
-                } else {
-                    if (corsEnabled) {
-                        res.setHeader("Access-Control-Allow-Origin", "*");
-                    }
-                    res.setHeaders(configureHeaders);
-                    if (responseHeaders != null && responseHeaders.isMap()) {
-                        res.setHeaders(responseHeaders.getValue());
-                    }
-                    if (responseDelay != null) {
-                        res.setDelay(responseDelay.getAsInt());
-                    }
-                }
-                if (response != null && !response.isNull()) {
-                    res.setBody(response.getAsByteArray());
-                    if (res.getContentType() == null) {
-                        ResourceType rt = ResourceType.fromObject(response.getValue());
-                        if (rt != null) {
-                            res.setContentType(rt.contentType);
+                Scenario scenario = fs.getScenario();
+                if (isMatchingScenario(scenario, engine)) {
+                    Map<String, Object> configureHeaders;
+                    Variable response, responseStatus, responseHeaders, responseDelay;
+                    ScenarioActions actions = new ScenarioActions(engine);
+                    Result result = PASSED;
+                    for (Step step : scenario.getSteps()) {
+                        result = StepRuntime.execute(step, actions);
+                        if (result.isAborted()) {
+                            runtime.logger.debug("abort at {}:{}", feature, step.getLine());
+                            break;
+                        }
+                        if (result.isFailed()) {
+                            String message = "server-side scenario failed, " + feature + ":" + step.getLine()
+                                    + "\n" + step.toString() + "\n" + result.getError().getMessage();
+                            runtime.logger.error(message);
+                            break;
                         }
                     }
+                    engine.mockAfterScenario();
+                    configureHeaders = engine.mockConfigureHeaders();
+                    response = engine.vars.remove(ScenarioEngine.RESPONSE);
+                    responseStatus = engine.vars.remove(ScenarioEngine.RESPONSE_STATUS);
+                    responseHeaders = engine.vars.remove(ScenarioEngine.RESPONSE_HEADERS);
+                    responseDelay = engine.vars.remove(RESPONSE_DELAY);
+                    globals.putAll(engine.detachVariables());
+                    Response res = new Response(200);
+                    if (result.isFailed()) {
+                        response = new Variable(result.getError().getMessage());
+                        responseStatus = new Variable(500);
+                    } else {
+                        if (corsEnabled) {
+                            res.setHeader("Access-Control-Allow-Origin", "*");
+                        }
+                        res.setHeaders(configureHeaders);
+                        if (responseHeaders != null && responseHeaders.isMap()) {
+                            res.setHeaders(responseHeaders.getValue());
+                        }
+                        if (responseDelay != null) {
+                            res.setDelay(responseDelay.getAsInt());
+                        }
+                    }
+                    if (response != null && !response.isNull()) {
+                        res.setBody(response.getAsByteArray());
+                        if (res.getContentType() == null) {
+                            ResourceType rt = ResourceType.fromObject(response.getValue());
+                            if (rt != null) {
+                                res.setContentType(rt.contentType);
+                            }
+                        }
+                    }
+                    if (responseStatus != null) {
+                        res.setStatus(responseStatus.getAsInt());
+                    }
+                    return res;
                 }
-                if (responseStatus != null) {
-                    res.setStatus(responseStatus.getAsInt());
-                }
-                return res;
             }
         }
-        runtime.logger.warn("no scenarios matched, returning 404: {}", req);
+        logger.warn("no scenarios matched, returning 404: {}", req); // NOTE: not logging with engine.logger
         return new Response(404);
     }
 
