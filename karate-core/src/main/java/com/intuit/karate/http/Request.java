@@ -178,17 +178,8 @@ public class Request implements ProxyObject {
         StringUtils.Pair pair = HttpUtils.parseUriIntoUrlBaseAndPath(url);
         urlBase = pair.left;
         QueryStringDecoder qsd = new QueryStringDecoder(pair.right);
-        String path = qsd.path();
-        Map<String, List<String>> queryParams = qsd.parameters();
-        if (queryParams.size() == 1) {
-            List<String> list = queryParams.values().iterator().next();
-            if (!list.isEmpty() && "".equals(list.get(0))) {
-                // annoying edge case where url had encoded characters
-                path = pair.right.replace('?', '�');
-            }
-        }
-        setPath(path);
-        setParams(queryParams);
+        setPath(qsd.path());
+        setParams(qsd.parameters());
     }
 
     public String getUrlAndPath() {

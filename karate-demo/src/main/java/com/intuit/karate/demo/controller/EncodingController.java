@@ -23,9 +23,10 @@
  */
 package com.intuit.karate.demo.controller;
 
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import javax.servlet.http.HttpServletRequest;
 
 /**
  *
@@ -35,14 +36,28 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/encoding")
 public class EncodingController {
 
-    @RequestMapping("/{token:.+}")
-    public String echoPath(@PathVariable String token) {
-        return token;
+    @RequestMapping("/**")
+    public String echoPath(HttpServletRequest httpServletRequest) {
+        // running from spring boot + tomcat
+        if (httpServletRequest.getPathInfo() == null) {
+            return httpServletRequest.getServletPath().replace("/encoding/", "");
+
+        // running from mock spring mvc
+        } else {
+            return httpServletRequest.getPathInfo().replace("/encoding/", "");
+        }
     }
     
-    @RequestMapping("/index.php?/api/v2/{token:.+}")
-    public String echoPathWithQuestion(@PathVariable String token) {
-        return token;
+    @RequestMapping("/index.php?/api/v2/**")
+    public String echoPathWithQuestion(HttpServletRequest httpServletRequest) {
+        // running from spring boot + tomcat
+        if (httpServletRequest.getPathInfo() == null) {
+            return httpServletRequest.getServletPath().replace("/encoding/index.php?/api/v2/", "");
+
+        // running from mock spring mvc
+        } else {
+            return httpServletRequest.getPathInfo().replace("/encoding/index.php?/api/v2/", "");
+        }
     }    
 
 }

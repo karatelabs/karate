@@ -26,7 +26,7 @@ Scenario: append trailing / to url
     And path 'encoding', 'hello', ''
     When method get
     Then status 200
-    And match response == 'hello'
+    And match response == 'hello/'
 
 Scenario: path escapes special characters
     Given url demoBaseUrl
