@@ -73,7 +73,7 @@ public class MockHandler implements ServerHandler {
     private final Map<String, Variable> globals = new HashMap<>();
     private boolean corsEnabled;
 
-    protected static final ThreadLocal<Request> LOCAL_REQUEST = new ThreadLocal<Request>();
+    protected static final ThreadLocal<Request> LOCAL_REQUEST = new ThreadLocal<>();
     private String prefix = "";
 
     public MockHandler withPrefix(String prefix) {
@@ -102,15 +102,7 @@ public class MockHandler implements ServerHandler {
             Scenario dummy = new Scenario(feature, section, -1);
             section.setScenario(dummy);
             ScenarioRuntime runtime = new ScenarioRuntime(featureRuntime, dummy);
-            runtime.engine.setVariable(PATH_MATCHES, (Function<String, Boolean>) this::pathMatches);
-            runtime.engine.setVariable(PARAM_EXISTS, (Function<String, Boolean>) this::paramExists);
-            runtime.engine.setVariable(PARAM_VALUE, (Function<String, String>) this::paramValue);
-            runtime.engine.setVariable(METHOD_IS, (Function<String, Boolean>) this::methodIs);
-            runtime.engine.setVariable(TYPE_CONTAINS, (Function<String, Boolean>) this::typeContains);
-            runtime.engine.setVariable(ACCEPT_CONTAINS, (Function<String, Boolean>) this::acceptContains);
-            runtime.engine.setVariable(HEADER_CONTAINS, (BiFunction<String, String, Boolean>) this::headerContains);
-            runtime.engine.setVariable(BODY_PATH, (Function<String, Object>) this::bodyPath);
-            runtime.engine.init();
+            initiateScenarioRunTime(runtime);
             if (feature.isBackgroundPresent()) {
                 // if we are within a scenario already e.g. karate.start(), preserve context
                 ScenarioEngine prevEngine = ScenarioEngine.get();
@@ -133,6 +125,23 @@ public class MockHandler implements ServerHandler {
             runtime.logger.info("mock server initialized: {}", feature);
             this.features.put(feature, runtime);
         }
+    }
+
+    /**
+     * Parse Scenario values from feature file ex- pathMatches(), method type - get/post
+     * @param runtime
+     */
+    private void initiateScenarioRunTime(ScenarioRuntime runtime)
+    {
+        runtime.engine.setVariable(PATH_MATCHES, (Function<String, Boolean>) this::pathMatches);
+        runtime.engine.setVariable(PARAM_EXISTS, (Function<String, Boolean>) this::paramExists);
+        runtime.engine.setVariable(PARAM_VALUE, (Function<String, String>) this::paramValue);
+        runtime.engine.setVariable(METHOD_IS, (Function<String, Boolean>) this::methodIs);
+        runtime.engine.setVariable(TYPE_CONTAINS, (Function<String, Boolean>) this::typeContains);
+        runtime.engine.setVariable(ACCEPT_CONTAINS, (Function<String, Boolean>) this::acceptContains);
+        runtime.engine.setVariable(HEADER_CONTAINS, (BiFunction<String, String, Boolean>) this::headerContains);
+        runtime.engine.setVariable(BODY_PATH, (Function<String, Object>) this::bodyPath);
+        runtime.engine.init();
     }
 
     private static final Result PASSED = Result.passed(0);
@@ -160,7 +169,7 @@ public class MockHandler implements ServerHandler {
             Thread.currentThread().setContextClassLoader(runtime.featureRuntime.suite.classLoader);
             LOCAL_REQUEST.set(req);
             req.processBody();
-            ScenarioEngine engine = new ScenarioEngine(runtime, new HashMap(globals));
+            ScenarioEngine engine = new ScenarioEngine(runtime, new HashMap<>(globals));
             ScenarioEngine.set(engine);
             engine.init();
             engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
@@ -275,7 +284,8 @@ public class MockHandler implements ServerHandler {
 
     public boolean paramExists(String name) {
         Map<String, List<String>> params = LOCAL_REQUEST.get().getParams();
-        return params == null ? false : params.containsKey(name);
+        return params != null && params.containsKey(name);
+
     }
 
     public String paramValue(String name) {
@@ -288,12 +298,12 @@ public class MockHandler implements ServerHandler {
 
     public boolean typeContains(String text) {
         String contentType = LOCAL_REQUEST.get().getContentType();
-        return contentType == null ? false : contentType.contains(text);
+        return contentType != null && contentType.contains(text);
     }
 
     public boolean acceptContains(String text) {
         String acceptHeader = LOCAL_REQUEST.get().getHeader("Accept");
-        return acceptHeader == null ? false : acceptHeader.contains(text);
+        return acceptHeader != null && acceptHeader.contains(text);
     }
 
     public boolean headerContains(String name, String value) {
