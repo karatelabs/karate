@@ -35,11 +35,7 @@ import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.Response;
 import com.intuit.karate.http.ServerHandler;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.slf4j.Logger;
@@ -87,7 +83,7 @@ public class MockHandler implements ServerHandler {
     }
 
     public MockHandler(Feature feature, Map<String, Object> args) {
-        this(Arrays.asList(feature), args);
+        this(Collections.singletonList(feature), args);
     }
 
     public MockHandler(List<Feature> features) {
@@ -129,7 +125,7 @@ public class MockHandler implements ServerHandler {
 
     /**
      * Parse Scenario values from feature file ex- pathMatches(), method type - get/post
-     * @param runtime
+     * @param runtime ScenarioRuntime
      */
     private void initiateScenarioRunTime(ScenarioRuntime runtime)
     {
@@ -169,16 +165,8 @@ public class MockHandler implements ServerHandler {
             Thread.currentThread().setContextClassLoader(runtime.featureRuntime.suite.classLoader);
             LOCAL_REQUEST.set(req);
             req.processBody();
-            ScenarioEngine engine = new ScenarioEngine(runtime, new HashMap<>(globals));
-            ScenarioEngine.set(engine);
-            engine.init();
-            engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
-            engine.setVariable(ScenarioEngine.REQUEST_URI, req.getPath());
-            engine.setVariable(ScenarioEngine.REQUEST_METHOD, req.getMethod());
-            engine.setVariable(ScenarioEngine.REQUEST_HEADERS, req.getHeaders());
-            engine.setVariable(ScenarioEngine.REQUEST, req.getBodyConverted());
-            engine.setVariable(REQUEST_PARAMS, req.getParams());
-            engine.setVariable(REQUEST_BYTES, req.getBody());
+            //Create Scenario engine
+            ScenarioEngine engine = createScenarioEngine(req, runtime);
             Map<String, List<Map<String, Object>>> parts = req.getMultiParts();
             if (parts != null) {
                 engine.setHiddenVariable(REQUEST_PARTS, parts); // TODO add to docs
@@ -194,19 +182,8 @@ public class MockHandler implements ServerHandler {
                     Variable response, responseStatus, responseHeaders, responseDelay;
                     ScenarioActions actions = new ScenarioActions(engine);
                     Result result = PASSED;
-                    for (Step step : scenario.getSteps()) {
-                        result = StepRuntime.execute(step, actions);
-                        if (result.isAborted()) {
-                            runtime.logger.debug("abort at {}:{}", feature, step.getLine());
-                            break;
-                        }
-                        if (result.isFailed()) {
-                            String message = "server-side scenario failed, " + feature + ":" + step.getLine()
-                                    + "\n" + step.toString() + "\n" + result.getError().getMessage();
-                            runtime.logger.error(message);
-                            break;
-                        }
-                    }
+                    //Execute Steps in Scenario
+                    result = executeScenarioSteps(feature, runtime, scenario, actions, result);
                     engine.mockAfterScenario();
                     configureHeaders = engine.mockConfigureHeaders();
                     response = engine.vars.remove(ScenarioEngine.RESPONSE);
@@ -248,6 +225,53 @@ public class MockHandler implements ServerHandler {
         }
         logger.warn("no scenarios matched, returning 404: {}", req); // NOTE: not logging with engine.logger
         return new Response(404);
+    }
+
+    /**
+     * Execute steps for every scenario identified
+     * @param feature
+     * @param runtime
+     * @param scenario
+     * @param actions
+     * @param result
+     * @return
+     */
+    private Result executeScenarioSteps(Feature feature,
+                                        ScenarioRuntime runtime,
+                                        Scenario scenario,
+                                        ScenarioActions actions,
+                                        Result result)
+    {
+        for (Step step : scenario.getSteps()) {
+            result = StepRuntime.execute(step, actions);
+            if (result.isAborted()) {
+                runtime.logger.debug("abort at {}:{}", feature, step.getLine());
+                break;
+            }
+            if (result.isFailed()) {
+                String message = "server-side scenario failed, " + feature + ":" + step.getLine()
+                        + "\n" + step.toString() + "\n" + result.getError().getMessage();
+                runtime.logger.error(message);
+                break;
+            }
+        }
+        return result;
+    }
+
+    private ScenarioEngine createScenarioEngine(Request req,
+                                                ScenarioRuntime runtime)
+    {
+        ScenarioEngine engine = new ScenarioEngine(runtime, new HashMap<>(globals));
+        ScenarioEngine.set(engine);
+        engine.init();
+        engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
+        engine.setVariable(ScenarioEngine.REQUEST_URI, req.getPath());
+        engine.setVariable(ScenarioEngine.REQUEST_METHOD, req.getMethod());
+        engine.setVariable(ScenarioEngine.REQUEST_HEADERS, req.getHeaders());
+        engine.setVariable(ScenarioEngine.REQUEST, req.getBodyConverted());
+        engine.setVariable(REQUEST_PARAMS, req.getParams());
+        engine.setVariable(REQUEST_BYTES, req.getBody());
+        return engine;
     }
 
     private boolean isMatchingScenario(Scenario scenario, ScenarioEngine engine) {
