@@ -47,7 +47,9 @@ public class ScenarioFileReader {
     }
 
     public Object readFile(String text) {
-        StringUtils.Pair pair = parsePathAndTags(text);
+        StringBuilder left = new StringBuilder();
+        StringBuilder right = new StringBuilder();
+        StringUtils.Pair pair = parsePathAndTags(text, left, right);
         text = pair.left;
         if (isJsonFile(text) || isXmlFile(text)) {
             String contents = readFileAsString(text);
@@ -111,17 +113,42 @@ public class ScenarioFileReader {
         return pos == -1 ? text : text.substring(pos + 1);
     }
 
-    private static StringUtils.Pair parsePathAndTags(String text) {
+    /**
+     * This method looks at the file read () in feature file and determines if the @ is contained in the file path then
+     * is the text on left side contains "." to represent file extension. If yes then left and right part are
+     * extracted and returned. However, if the left side does not contain "." then it means that file or
+     * directory name contains @ symbol and the code recursevly sets left path upto @ and text input = right part.
+     * Ex - //read(call-by-tag-called.feature@name=second) --- here before @, . is contained so no recursive call will made.
+     *     //C:\Dinesh\karate-test\@example@s\call-by-tag-called.feature@name=second -- here in the first recursion
+     *     left = C:\Dinesh\karate-test\@, right = "" and text = example@s\call-by-tag-called.feature@name=second
+     *     Second recursion, left = C:\Dinesh\karate-test\@example@, right = "" and text = s\call-by-tag-called.feature@name=second
+     *     final result left = C:\Dinesh\karate-test\@example@s\call-by-tag-called.feature and right = name=second
+     * @param text
+     * @param left
+     * @param right
+     * @return
+     */
+    private static StringUtils.Pair parsePathAndTags(String text,
+                                                     StringBuilder left,
+                                                     StringBuilder right) {
         int pos = text.indexOf('@');
         if (pos == -1) {
             text = StringUtils.trimToEmpty(text);
-            return new StringUtils.Pair(text, null);
+            return new StringUtils.Pair(left.append(text).toString(), null);
         } else {
-            String left = StringUtils.trimToEmpty(text.substring(0, pos));
-            String right = StringUtils.trimToEmpty(text.substring(pos));
-            return new StringUtils.Pair(left, right);
+            if(StringUtils.trimToEmpty(text.substring(0, pos)).contains(".")){
+                left = left.append(StringUtils.trimToEmpty(text.substring(0, pos)));
+                right =right.append(StringUtils.trimToEmpty(text.substring(pos)));
+            }else{
+                left = left.append(StringUtils.trimToEmpty(text.substring(0, pos+1)));
+                parsePathAndTags(StringUtils.trimToEmpty(text.substring(pos+1)), left, right);
+
+            }
+
+            return new StringUtils.Pair(left.toString(), right.toString());
         }
     }
+
 
     public Resource toResource(String path) {
         if (isClassPath(path)) {
