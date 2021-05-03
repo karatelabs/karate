@@ -37,6 +37,7 @@ import com.intuit.karate.shell.Command;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -66,8 +67,11 @@ public class Main implements Callable<Void> {
     @Parameters(split = "$", description = "one or more tests (features) or search-paths to run")
     List<String> paths;
 
-    @Option(names = {"-m", "--mock"}, description = "mock server file")
-    File mock;
+    @Option(names = {"-m", "--mock", "--mocks"}, split = ",", description = "one or more mock server files")
+    List<File> mocks;
+
+    @Option(names = {"-P", "--prefix"}, description = "mock server path prefix (context-path)")
+    String prefix = "/";
 
     @Option(names = {"-p", "--port"}, description = "server port (default 8080)")
     int port = 8080;
@@ -365,7 +369,7 @@ public class Main implements Callable<Void> {
             server.waitSync();
             return null;
         }
-        if (mock == null) {
+        if (mocks == null || mocks.isEmpty()) {
             CommandLine.usage(this, System.err);
             return null;
         }
@@ -379,7 +383,8 @@ public class Main implements Callable<Void> {
             System.setProperty(Constants.KARATE_ENV, env);
         }
         MockServer.Builder builder = MockServer
-                .feature(mock)
+                .featureFiles(mocks)
+                .pathPrefix(prefix)
                 .certFile(cert)
                 .keyFile(key)
                 .watch(watch);

@@ -19,7 +19,10 @@ class MockTest {
     static final Logger logger = LoggerFactory.getLogger(MockTest.class);
 
     static HttpServer startMockServer() {
-        MockServer server = MockServer.feature("classpath:com/intuit/karate/core/mock/_mock.feature").build();
+        MockServer server = MockServer.features(
+                "classpath:com/intuit/karate/core/mock/_simple.feature",
+                "classpath:com/intuit/karate/core/mock/_mock.feature")
+                .build();
         System.setProperty("karate.server.port", server.getPort() + "");
         return server;
     }
