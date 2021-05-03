@@ -67,13 +67,10 @@ public class Main implements Callable<Void> {
     @Parameters(split = "$", description = "one or more tests (features) or search-paths to run")
     List<String> paths;
 
-    @Option(names = {"--mock"}, description = "mock server file")
-    File mock;
-
-    @Option(names = {"-m", "--mocks"}, split = ",", description = "one or more mock server files")
+    @Option(names = {"-m", "--mock", "--mocks"}, split = ",", description = "one or more mock server files")
     List<File> mocks;
 
-    @Option(names = {"-P", "--prefix"}, description = "mock server prefix (contextPath)")
+    @Option(names = {"-P", "--prefix"}, description = "mock server path prefix (context-path)")
     String prefix = "/";
 
     @Option(names = {"-p", "--port"}, description = "server port (default 8080)")
@@ -372,7 +369,7 @@ public class Main implements Callable<Void> {
             server.waitSync();
             return null;
         }
-        if (mock == null && mocks == null) {
+        if (mocks == null || mocks.isEmpty()) {
             CommandLine.usage(this, System.err);
             return null;
         }
@@ -385,10 +382,9 @@ public class Main implements Callable<Void> {
         if (env != null) { // some advanced mocks may want karate.env
             System.setProperty(Constants.KARATE_ENV, env);
         }
-        List<File> features = mocks != null? mocks : Arrays.asList(mock);
         MockServer.Builder builder = MockServer
-                .featureFiles(features)
-                .prefix(prefix)
+                .featureFiles(mocks)
+                .pathPrefix(prefix)
                 .certFile(cert)
                 .keyFile(key)
                 .watch(watch);

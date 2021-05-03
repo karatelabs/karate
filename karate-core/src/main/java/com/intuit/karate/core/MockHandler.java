@@ -288,7 +288,7 @@ public class MockHandler implements ServerHandler {
 
     public boolean typeContains(String text) {
         String contentType = LOCAL_REQUEST.get().getContentType();
-        return contentType == null ? false : contentType.contains(text);
+        return contentType != null && contentType.contains(text);
     }
 
     public boolean acceptContains(String text) {
