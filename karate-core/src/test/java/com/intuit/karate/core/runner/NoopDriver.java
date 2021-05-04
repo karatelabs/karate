@@ -320,6 +320,12 @@ public class NoopDriver implements Driver {
     }
 
     @Override
+    public Map<String, Object> position(String locator, boolean absolute) {
+        logger.debug("NoopDriver: position()");
+        return Collections.EMPTY_MAP;
+    }
+
+    @Override
     public byte[] screenshot(String locator, boolean embed) {
         logger.debug("NoopDriver: screenshot()");
         return new byte[0];

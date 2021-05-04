@@ -410,6 +410,11 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Map<String, Object> position(String locator) {
+        return position(locator, false);
+    }
+
+    @Override
+    public Map<String, Object> position(String locator, boolean absolute) {
         return retryIfEnabled(locator, ()
                 -> eval("return " + DriverOptions.selector(locator) + ".getBoundingClientRect()").getValue());
     }

@@ -32,3 +32,6 @@ Scenario:
 
 # friendly locators
 * call read('09.feature')
+
+# element position
+* call read('10.feature')
