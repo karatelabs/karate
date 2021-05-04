@@ -602,6 +602,12 @@ public class DriverOptions {
         }
     }
 
+    public static String getAbsolutePositionJs(String locator) {
+        String temp = "var r = " + selector(locator, DOCUMENT)
+            + ".getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }";
+        return wrapInFunctionInvoke(temp);
+    }
+
     public static String getPositionJs(String locator) {
         String temp = "var r = " + selector(locator, DOCUMENT) + ".getBoundingClientRect();"
                 + " var dx = window.scrollX; var dy = window.scrollY;"

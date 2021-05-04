@@ -769,10 +769,15 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public Map<String, Object> position(String locator) {
+        return position(locator, false);
+    }
+
+    @Override
+    public Map<String, Object> position(String locator, boolean absolute) {
         boolean submitTemp = submit; // in case we are prepping for a submit().mouse(locator).click()
         submit = false;
         retryIfEnabled(locator);
-        Map<String, Object> map = eval(DriverOptions.getPositionJs(locator)).getResult().getValue();
+        Map<String, Object> map = eval(absolute ? DriverOptions.getAbsolutePositionJs(locator) : DriverOptions.getPositionJs(locator)).getResult().getValue();
         submit = submitTemp;
         return map;
     }

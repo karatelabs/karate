@@ -88,7 +88,7 @@ public class ElementFinder implements Finder {
     }
 
     private static String findScript(Driver driver, String locator, ElementFinder.Type type, String findTag) {
-        Map<String, Object> pos = driver.position(locator);
+        Map<String, Object> pos = driver.position(locator, true);
         Number xNum = (Number) pos.get("x");
         Number yNum = (Number) pos.get("y");
         Number width = (Number) pos.get("width");
