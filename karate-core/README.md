@@ -785,9 +785,13 @@ This also works as a "getter" to get the current window dimensions.
 The result JSON will be in the form: `{ x: '#number', y: '#number', width: '#number', height: '#number' }`
 
 ## `position()`
-Get the position and size of an element by [locator](#locators) as follows:
+Get the absolute position and size of an element by [locator](#locators) as follows:
 ```cucumber
 * def pos = position('#someid')
+```
+The absolute position returns the coordinate from the top left corner of the page. If you need the position of an element relative to the current viewport, you can pass an extra boolean argument set to 'true' ('false' will return the absolute position) :
+```cucumber
+* def pos = position('#someid', true)
 ```
 The result JSON will be in the form: `{ x: '#number', y: '#number', width: '#number', height: '#number' }`
 

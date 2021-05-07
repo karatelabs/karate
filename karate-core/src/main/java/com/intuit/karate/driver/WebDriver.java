@@ -26,7 +26,6 @@ package com.intuit.karate.driver;
 import com.intuit.karate.Http;
 import com.intuit.karate.Logger;
 import com.intuit.karate.Json;
-import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.Variable;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.Response;
@@ -414,7 +413,7 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public Map<String, Object> position(String locator, boolean absolute) {
+    public Map<String, Object> position(String locator, boolean relative) {
         return retryIfEnabled(locator, ()
                 -> eval("return " + DriverOptions.selector(locator) + ".getBoundingClientRect()").getValue());
     }

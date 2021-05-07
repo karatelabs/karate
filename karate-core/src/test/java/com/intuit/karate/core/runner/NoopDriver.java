@@ -320,7 +320,7 @@ public class NoopDriver implements Driver {
     }
 
     @Override
-    public Map<String, Object> position(String locator, boolean absolute) {
+    public Map<String, Object> position(String locator, boolean relative) {
         logger.debug("NoopDriver: position()");
         return Collections.EMPTY_MAP;
     }
