@@ -478,19 +478,9 @@ You can use these in the "request matcher" described above. This is how you can 
 
 ##Scenario selection
 
-When multiple scenarios match request, scenario match score is used to pick first with highest score. If multiple scenarios have the same score, then the first one is picked. Scenario match score is based on (from most to least important):
-
-- `path` match score - using JAX-RS  
-        Number of literal characters
-        Number of path params without regex (i.e. regex missing)
-        Number of path params with explicit regex
-- `method` match
-- `query` parameter match(es)
-- `header` match(es) (this includes Accept and Content-Type functions)
-
 When multiple files are provided, they are evaluated in supplied order
 - `Example 1`: When a feature file contains same scenario:
-```
+```cucumber
 Scenario: pathMatches('/test')
 * def response = read('/example/Bye.txt')
 
