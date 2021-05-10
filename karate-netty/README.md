@@ -491,14 +491,14 @@ Here the first scenario will be picked and Bye.txt will be returned as response.
 
 - `Example 2`: When same scenario exists in two separate files.  
   Feature-file1.feature
-```
+```cucumber
 ##Feature-file1.feature
 Scenario: pathMatches('/test')
 * def response = read('/example/Bye.txt')
 
 ```
   Feature-file2.feature
-```
+```cucumber
 ##Feature-file2.feature
 Scenario: pathMatches('/test')
 * def response = read('/example/Hi.txt')
