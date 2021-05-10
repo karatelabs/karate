@@ -476,6 +476,41 @@ You can use these in the "request matcher" described above. This is how you can 
 
 > The [`pathParams`](#pathparams) is a special case. For each request, it will be initialized only if, and after you have used [`pathMatches()`](#pathmatches). In other words you have to call `pathMatches()` first - typically in the "request matcher" and then you will be able to unpack URL parameters in the `Scenario` body.
 
+##Scenario selection
+
+When multiple files are provided, they are evaluated in supplied order
+- `Example 1`: When a feature file contains same scenario:
+```cucumber
+Scenario: pathMatches('/test')
+* def response = read('/example/Bye.txt')
+
+Scenario: pathMatches('/test')
+* def response = read('/example/hi.txt')
+```
+Here the first scenario will be picked and Bye.txt will be returned as response.
+
+- `Example 2`: When same scenario exists in two separate files.  
+  Feature-file1.feature
+```cucumber
+##Feature-file1.feature
+Scenario: pathMatches('/test')
+* def response = read('/example/Bye.txt')
+
+```
+  Feature-file2.feature
+```cucumber
+##Feature-file2.feature
+Scenario: pathMatches('/test')
+* def response = read('/example/Hi.txt')
+
+```
+The response will be determined by the order of file.
+`java -jar karate.jar -m Feature-file1.feature -m Feature-file2.feature`  
+Here `Bye.txt` will be returned as response.  
+
+`java -jar karate.jar -m Feature-file2.feature -m Feature-file1.feature`  
+Here `Hi.txt` will be returned as response.  
+
 ## `request`
 This variable holds the value of the request body. It will be a JSON or XML object if it can be parsed as such. Else it would be a string.
 
