@@ -120,6 +120,16 @@ public enum ResourceType {
                 return false;
         }
     }
+    
+    public boolean isUrlEncodedOrMultipart() {
+        switch (this) {
+            case URLENCODED:
+            case MULTIPART:
+                return true;
+            default:
+                return false;
+        }        
+    }
 
     public boolean isHtml() {
         return this == HTML;

@@ -288,7 +288,11 @@ public class Request implements ProxyObject {
     }
 
     public boolean isForStaticResource() {
-        return "GET".equals(method) && getResourceType() != null;
+        if (!"GET".equals(method)) {
+            return false;
+        }
+        ResourceType rt = getResourceType();
+        return rt != null && !rt.isUrlEncodedOrMultipart();
     }
 
     public ResourceType getResourceType() {
