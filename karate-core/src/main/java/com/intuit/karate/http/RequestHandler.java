@@ -76,7 +76,7 @@ public class RequestHandler implements ServerHandler {
         }
         ServerContext context = contextFactory.apply(request);
         context.prepare();
-        if (request.isForStaticResource()) {
+        if (!context.isApi() && request.isForStaticResource()) {
             if (logger.isDebugEnabled()) {
                 logger.debug("{}", request);
             }

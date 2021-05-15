@@ -259,7 +259,7 @@ public class JsValue {
         if (trimmed.isEmpty()) {
             return raw;
         }
-        if (resourceType != null && !resourceType.isJson() && !resourceType.isXml() && !resourceType.isText()) {
+        if (resourceType != null && resourceType.isBinary()) {
             return raw;
         }
         switch (trimmed.charAt(0)) {

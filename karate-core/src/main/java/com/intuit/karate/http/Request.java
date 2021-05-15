@@ -145,13 +145,13 @@ public class Request implements ProxyObject {
     public String getContentType() {
         return getHeader(HttpConstants.HDR_CONTENT_TYPE);
     }
-    
+
     public List<Cookie> getCookies() {
-         List<String> cookieValues = getHeaderValues(HttpConstants.HDR_COOKIE);
-         if (cookieValues == null) {
-             return Collections.EMPTY_LIST;
-         }
-         return cookieValues.stream().map(ClientCookieDecoder.STRICT::decode).collect(toList());
+        List<String> cookieValues = getHeaderValues(HttpConstants.HDR_COOKIE);
+        if (cookieValues == null) {
+            return Collections.EMPTY_LIST;
+        }
+        return cookieValues.stream().map(ClientCookieDecoder.STRICT::decode).collect(toList());
     }
 
     public String getParam(String name) {
@@ -286,9 +286,9 @@ public class Request implements ProxyObject {
             return getBodyAsString();
         }
     }
-    
+
     public boolean isForStaticResource() {
-        return getResourceType() != null;
+        return "GET".equals(method) && getResourceType() != null;
     }
 
     public ResourceType getResourceType() {
@@ -296,10 +296,6 @@ public class Request implements ProxyObject {
             String contentType = getContentType();
             if (contentType != null) {
                 resourceType = ResourceType.fromContentType(contentType);
-                if (resourceType == ResourceType.URLENCODED || resourceType == ResourceType.MULTIPART) {
-                    resourceType = null; // else will be treated as request for static resource
-                    // TODO this needs to be refactored without breaking the /api --> js resolution
-                }
             }
         }
         return resourceType;

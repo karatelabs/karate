@@ -41,6 +41,7 @@ public enum ResourceType {
     PNG("image/png", vals("png"), vals("png")),
     GIF("image/gif", vals("gif"), vals("gif")),
     JPG("image/jpeg", vals("jpeg", "jpg"), vals("jpg", "jpeg")),
+    SVG("image/svg+xml", vals("svg"), vals("svg")),
     MP4("video/mp4", vals("mp4"), vals("mp4")),
     PDF("application/pdf", vals("pdf"), vals("pdf")),
     HTML("text/html", vals("html"), vals("html", "htm")),
@@ -120,7 +121,9 @@ public enum ResourceType {
         }
     }
 
-    public boolean isHtml() { return this == HTML; }
+    public boolean isHtml() {
+        return this == HTML;
+    }
 
     public boolean isJson() {
         switch (this) {
@@ -142,7 +145,9 @@ public enum ResourceType {
         }
     }
 
-    public boolean isText() { return this == TEXT; }
+    public boolean isText() {
+        return this == TEXT;
+    }
 
     public boolean isBinary() {
         switch (this) {
