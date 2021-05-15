@@ -296,8 +296,9 @@ public class Request implements ProxyObject {
             String contentType = getContentType();
             if (contentType != null) {
                 resourceType = ResourceType.fromContentType(contentType);
-                if (resourceType == ResourceType.URLENCODED) {
+                if (resourceType == ResourceType.URLENCODED || resourceType == ResourceType.MULTIPART) {
                     resourceType = null; // else will be treated as request for static resource
+                    // TODO this needs to be refactored without breaking the /api --> js resolution
                 }
             }
         }
