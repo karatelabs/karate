@@ -242,6 +242,7 @@ class MatchTest {
         message("$.z | data types don't match");
         match("{ a: 1, b: 2, c: 3 }", NOT_CONTAINS, "{ a: 1 }", FAILS);
         message("$ | actual contains expected");
+        match("{ a: 1, b: 2, c: 3 }", NOT_CONTAINS, "{}");  
     }
 
     @Test

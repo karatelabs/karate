@@ -504,9 +504,13 @@ public class MatchOperation {
         if (type == Match.Type.CONTAINS_ANY || type == Match.Type.CONTAINS_ANY_DEEP) {
             return unMatchedKeysExp.isEmpty() ? true : fail("no key-values matched");
         }
-        if (unMatchedKeysExp.isEmpty() // hack alert: the NOT_CONTAINS will be reversed by the calling routine
-                && (type == Match.Type.CONTAINS || type == Match.Type.CONTAINS_DEEP || type == Match.Type.NOT_CONTAINS)) {
-            return true; // all expected keys matched, expMap was empty in the first place    
+        if (unMatchedKeysExp.isEmpty()) { 
+            if (type == Match.Type.CONTAINS || type == Match.Type.CONTAINS_DEEP) {
+                return true; // all expected keys matched, expMap was empty in the first place    
+            }
+            if (type == Match.Type.NOT_CONTAINS && !expMap.isEmpty()) {
+                return true; // hack alert: the NOT_CONTAINS will be reversed by the calling routine
+            }
         }
         if (!unMatchedKeysExp.isEmpty()) {
             return fail("all key-values did not match, expected has un-matched keys - " + unMatchedKeysExp);
