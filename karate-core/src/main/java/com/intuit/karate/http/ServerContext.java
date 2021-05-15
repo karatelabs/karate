@@ -65,6 +65,7 @@ public class ServerContext implements ProxyObject {
     private static final String SWITCHED = "switched";
     private static final String AJAX = "ajax";
     private static final String HTTP = "http";
+    private static final String RENDER = "render";
     private static final String TRIGGER = "trigger";
     private static final String REDIRECT = "redirect";
     private static final String AFTER_SETTLE = "afterSettle";
@@ -74,7 +75,7 @@ public class ServerContext implements ProxyObject {
 
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
-        TRIGGER, REDIRECT, AFTER_SETTLE, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
+        RENDER, TRIGGER, REDIRECT, AFTER_SETTLE, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -89,10 +90,16 @@ public class ServerContext implements ProxyObject {
 
     private List<Map<String, Object>> responseTriggers;
     private List<String> afterSettleScripts;
+    private final Map<String, Object> variables;
 
     public ServerContext(ServerConfig config, Request request) {
+        this(config, request, null);
+    }
+
+    public ServerContext(ServerConfig config, Request request, Map<String, Object> variables) {
         this.config = config;
         this.request = request;
+        this.variables = variables;
         HTTP_FUNCTION = args -> {
             HttpClient client = config.getHttpClientFactory().apply(request);
             HttpRequestBuilder http = new HttpRequestBuilder(client);
@@ -202,6 +209,10 @@ public class ServerContext implements ProxyObject {
         return request;
     }
 
+    public Map<String, Object> getVariables() {
+        return variables;
+    }
+
     public Session getSession() {
         return session;
     }
@@ -261,7 +272,7 @@ public class ServerContext implements ProxyObject {
     }
 
     private static final Supplier<String> UUID_FUNCTION = () -> java.util.UUID.randomUUID().toString();
-    private final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s, false, null);
+    private static final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s, false, null);
     private final Methods.FunVar HTTP_FUNCTION; // set in constructor
 
     private final Consumer<String> SWITCH_FUNCTION = s -> {
@@ -296,6 +307,8 @@ public class ServerContext implements ProxyObject {
         return o;
     };
 
+    private final Function<String, String> RENDER_FUNCTION = s -> RequestCycle.get().getTemplateEngine().process(s);
+
     @Override
     public Object getMember(String key) {
         switch (key) {
@@ -325,6 +338,8 @@ public class ServerContext implements ProxyObject {
                 return isAjax();
             case HTTP:
                 return HTTP_FUNCTION;
+            case RENDER:
+                return RENDER_FUNCTION;
             case TRIGGER:
                 return (Consumer<Map<String, Object>>) this::trigger;
             case REDIRECT:

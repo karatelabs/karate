@@ -111,7 +111,7 @@ public class RequestHandler implements ServerHandler {
                 }
             }
         }
-        RequestCycle rc = RequestCycle.init(JsEngine.global());
+        RequestCycle rc = RequestCycle.init(JsEngine.global(), engine);
         rc.init(context, session);
         try {
             if (context.isApi()) {

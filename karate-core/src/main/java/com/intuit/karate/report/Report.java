@@ -71,7 +71,7 @@ public interface Report {
         private String template;
         private String reportDir;
         private String reportFileName;
-        private Map<String, Object> variables = new HashMap();
+        private final Map<String, Object> variables = new HashMap();
 
         public Builder resourceRoot(String value) {
             resourceRoot = value;
