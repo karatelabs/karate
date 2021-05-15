@@ -240,6 +240,8 @@ class MatchTest {
         message("$ | actual does not contain expected | no key-values matched");
         message("$.x | data types don't match");
         message("$.z | data types don't match");
+        match("{ a: 1, b: 2, c: 3 }", NOT_CONTAINS, "{ a: 1 }", FAILS);
+        message("$ | actual contains expected");
     }
 
     @Test
