@@ -1256,7 +1256,7 @@ public class ScenarioEngine {
             return JS.execute(function, args);
         } catch (Exception e) {
             String jsSource = function.getSourceLocation().getCharacters().toString();
-            KarateException ke = fromJsEvalException(jsSource, e);
+            KarateException ke = JsEngine.fromJsEvalException(jsSource, e);
             setFailedReason(ke);
             throw ke;
         }
@@ -1266,33 +1266,10 @@ public class ScenarioEngine {
         try {
             return new Variable(JS.eval(js));
         } catch (Exception e) {
-            KarateException ke = fromJsEvalException(js, e);
+            KarateException ke = JsEngine.fromJsEvalException(js, e);
             setFailedReason(ke);
             throw ke;
         }
-    }
-
-    protected static KarateException fromJsEvalException(String js, Exception e) {
-        // do our best to make js error traces informative, else thrown exception seems to
-        // get swallowed by the java reflection based method invoke flow
-        StackTraceElement[] stack = e.getStackTrace();
-        StringBuilder sb = new StringBuilder();
-        sb.append(">>>> js failed:\n");
-        List<String> lines = StringUtils.toStringLines(js);
-        int index = 0;
-        for (String line : lines) {
-            sb.append(String.format("%02d", ++index)).append(": ").append(line).append('\n');
-        }
-        sb.append("<<<<\n");
-        sb.append(e.toString()).append('\n');
-        for (int i = 0; i < stack.length; i++) {
-            String line = stack[i].toString();
-            sb.append("- ").append(line).append('\n');
-            if (line.startsWith("<js>") || i > 5) {
-                break;
-            }
-        }
-        return new KarateException(sb.toString());
     }
 
     public void setHiddenVariable(String key, Object value) {

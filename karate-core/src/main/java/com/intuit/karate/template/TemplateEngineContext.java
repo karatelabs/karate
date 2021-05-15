@@ -75,12 +75,20 @@ public class TemplateEngineContext implements IEngineContext {
 
     public JsValue evalGlobal(String src) {
         getVariableNames().forEach(name -> jsEngine.put(name, getVariable(name)));
-        return jsEngine.eval(src);
+        try {
+            return jsEngine.eval(src);
+        } catch (Exception e) {
+            throw JsEngine.fromJsEvalException(src, e);
+        }
     }
 
     public JsValue evalLocal(String src, boolean returnValue) {
-        Value value = jsEngine.evalWith(getVariableNames(), this::getVariable, src, returnValue);
-        return new JsValue(value);
+        try {
+            Value value = jsEngine.evalWith(getVariableNames(), this::getVariable, src, returnValue);
+            return new JsValue(value);
+        } catch (Exception e) {
+            throw JsEngine.fromJsEvalException(src, e);
+        }
     }
 
     @Override
