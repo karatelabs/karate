@@ -53,7 +53,7 @@ public interface Report {
 
     default File render(String reportDir) {
         JsEngine je = getJsEngine();
-        KarateTemplateEngine engine = TemplateUtils.forResourcePath(je, getResourceRoot());
+        KarateTemplateEngine engine = TemplateUtils.forResourceRoot(je, getResourceRoot());
         String html = engine.process(getTemplate());
         if (reportDir == null) {
             reportDir = getReportDir();

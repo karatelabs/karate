@@ -988,7 +988,7 @@ public class ScenarioEngine {
         }
         if (templateEngine == null) {
             String prefixedPath = runtime.featureRuntime.rootFeature.feature.getResource().getPrefixedParentPath();
-            templateEngine = TemplateUtils.forResourcePath(JS, prefixedPath);
+            templateEngine = TemplateUtils.forResourceRoot(JS, prefixedPath);
         }
         String html = templateEngine.process(path);
         runtime.embed(FileUtils.toBytes(html), ResourceType.HTML);

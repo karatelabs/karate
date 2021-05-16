@@ -25,8 +25,11 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.graal.JsArray;
+import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.graal.Methods;
+import com.intuit.karate.template.KarateTemplateEngine;
+import com.intuit.karate.template.TemplateUtils;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import java.io.InputStream;
@@ -107,6 +110,43 @@ public class ServerContext implements ProxyObject {
                 http.url((String) args[0]);
             }
             return http;
+        };
+        RENDER_FUNCTION = o -> {
+            if (o instanceof String) {
+                return RequestCycle.get().getTemplateEngine().process((String) o);
+            }
+            Map<String, Object> map;
+            if (o instanceof Map) {
+                map = (Map) o;
+            } else {
+                logger.warn("invalid argument to render: {}", o);
+                return null;
+            }
+            Map<String, Object> templateVars = (Map) map.get("variables");
+            String path = (String) map.get("path");
+            if (path != null) {
+                if (templateVars == null) {
+                    return RequestCycle.get().getTemplateEngine().process(path);
+                }
+                JsEngine je = JsEngine.local();
+                je.putAll(templateVars);
+                KarateTemplateEngine kte = TemplateUtils.forResourceResolver(je, config.getResourceResolver());
+                return kte.process(path);
+            }
+            String html = (String) map.get("html");
+            if (html == null) {
+                logger.warn("invalid argument to render, path or html needed: {}", map);
+                return null;
+            }
+            JsEngine je;
+            if (templateVars == null) {
+                je = RequestCycle.get().getEngine();
+            } else {
+                je = JsEngine.local();
+                je.putAll(templateVars);
+            }
+            KarateTemplateEngine kte = TemplateUtils.forStrings(je);
+            return kte.process(html);
         };
     }
 
@@ -273,7 +313,9 @@ public class ServerContext implements ProxyObject {
 
     private static final Supplier<String> UUID_FUNCTION = () -> java.util.UUID.randomUUID().toString();
     private static final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s, false, null);
+
     private final Methods.FunVar HTTP_FUNCTION; // set in constructor
+    private final Function<Object, String> RENDER_FUNCTION; // set in constructor
 
     private final Consumer<String> SWITCH_FUNCTION = s -> {
         if (switched) {
@@ -306,8 +348,6 @@ public class ServerContext implements ProxyObject {
         }
         return o;
     };
-
-    private final Function<String, String> RENDER_FUNCTION = s -> RequestCycle.get().getTemplateEngine().process(s);
 
     @Override
     public Object getMember(String key) {
