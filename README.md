@@ -846,6 +846,8 @@ When your project gets complex, you can have separate `karate-config-<env>.js` f
 
 > Make sure you configure your source code management system (e.g. Git) to ignore `karate-config-*.js` if needed.
 
+> There should always be `karate-config.js` in the "root" folder, even if you don't have any "common" config. In such cases, the function can do nothing or return an empty JSON. [Learn more](https://github.com/intuit/karate/issues/1588).
+
 Here are the rules Karate uses on bootstrap (before every `Scenario` or `Examples` row in a `Scenario Outline`):
 
 * if the system-property `karate.config.dir` was set, Karate will look in this folder for `karate-config.js` - and if found, will process it
