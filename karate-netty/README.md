@@ -476,7 +476,7 @@ You can use these in the "request matcher" described above. This is how you can 
 
 > The [`pathParams`](#pathparams) is a special case. For each request, it will be initialized only if, and after you have used [`pathMatches()`](#pathmatches). In other words you have to call `pathMatches()` first - typically in the "request matcher" and then you will be able to unpack URL parameters in the `Scenario` body.
 
-##Scenario selection
+## Scenario selection
 
 When multiple files are provided, they are evaluated in supplied order
 - `Example 1`: When a feature file contains same scenario:
