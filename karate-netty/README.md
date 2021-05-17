@@ -476,20 +476,6 @@ You can use these in the "request matcher" described above. This is how you can 
 
 > The [`pathParams`](#pathparams) is a special case. For each request, it will be initialized only if, and after you have used [`pathMatches()`](#pathmatches). In other words you have to call `pathMatches()` first - typically in the "request matcher" and then you will be able to unpack URL parameters in the `Scenario` body.
 
-## Scenario selection
-When multiple scenarios match request, scenario match score is used to pick first with highest score.
-If multiple scenarios have the same score, then the first one is picked. 
-Scenario match score is based on (from most to least important):
-* `path` match score - using [JAX-RS](org.glassfish.jersey.uri.UriTemplate.COMPARATOR)
-   1. Number of literal characters
-   2. Number of path params without regex (i.e. regex missing)
-   3. Number of path params with explicit regex
-* `method` match
-* `query` parameter match(es)
-* `header` match(es) (this includes `Accept` and `Content-Type` functions) 
-
-*Where multiple files are provided they are evaluated in supplied order*
-
 ## `request`
 This variable holds the value of the request body. It will be a JSON or XML object if it can be parsed as such. Else it would be a string.
 
