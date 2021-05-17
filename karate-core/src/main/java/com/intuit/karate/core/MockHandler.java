@@ -77,7 +77,6 @@ public class MockHandler implements ServerHandler {
         return this;
     }
 
-
     public MockHandler(Feature feature) {
         this(feature, null);
     }
@@ -91,14 +90,14 @@ public class MockHandler implements ServerHandler {
     }
 
     public MockHandler(List<Feature> features, Map<String, Object> args) {
-        for (Feature feature: features) {
+        for (Feature feature : features) {
             FeatureRuntime featureRuntime = FeatureRuntime.of(Suite.forTempUse(), feature, args);
             FeatureSection section = new FeatureSection();
             section.setIndex(-1); // TODO util for creating dummy scenario
             Scenario dummy = new Scenario(feature, section, -1);
             section.setScenario(dummy);
             ScenarioRuntime runtime = new ScenarioRuntime(featureRuntime, dummy);
-            initiateScenarioRunTime(runtime);
+            initRuntime(runtime);
             if (feature.isBackgroundPresent()) {
                 // if we are within a scenario already e.g. karate.start(), preserve context
                 ScenarioEngine prevEngine = ScenarioEngine.get();
@@ -123,12 +122,7 @@ public class MockHandler implements ServerHandler {
         }
     }
 
-    /**
-     * Parse Scenario values from feature file ex- pathMatches(), method type - get/post
-     * @param runtime ScenarioRuntime
-     */
-    private void initiateScenarioRunTime(ScenarioRuntime runtime)
-    {
+    private void initRuntime(ScenarioRuntime runtime) {
         runtime.engine.setVariable(PATH_MATCHES, (Function<String, Boolean>) this::pathMatches);
         runtime.engine.setVariable(PARAM_EXISTS, (Function<String, Boolean>) this::paramExists);
         runtime.engine.setVariable(PARAM_VALUE, (Function<String, String>) this::paramValue);
@@ -157,19 +151,17 @@ public class MockHandler implements ServerHandler {
             return response;
         }
         req.setPath(req.getPath().substring(prefix.length()));
-        for (Map.Entry<Feature, ScenarioRuntime> entry: this.features.entrySet()) {
+        for (Map.Entry<Feature, ScenarioRuntime> entry : this.features.entrySet()) {
             Feature feature = entry.getKey();
             ScenarioRuntime runtime = entry.getValue();
-
             // important for graal to work properly
             Thread.currentThread().setContextClassLoader(runtime.featureRuntime.suite.classLoader);
             LOCAL_REQUEST.set(req);
             req.processBody();
-            //Create Scenario engine
             ScenarioEngine engine = createScenarioEngine(req, runtime);
             Map<String, List<Map<String, Object>>> parts = req.getMultiParts();
             if (parts != null) {
-                engine.setHiddenVariable(REQUEST_PARTS, parts); // TODO add to docs
+                engine.setHiddenVariable(REQUEST_PARTS, parts);
             }
             for (FeatureSection fs : feature.getSections()) {
                 if (fs.isOutline()) {
@@ -182,7 +174,6 @@ public class MockHandler implements ServerHandler {
                     Variable response, responseStatus, responseHeaders, responseDelay;
                     ScenarioActions actions = new ScenarioActions(engine);
                     Result result = PASSED;
-                    //Execute Steps in Scenario
                     result = executeScenarioSteps(feature, runtime, scenario, actions, result);
                     engine.mockAfterScenario();
                     configureHeaders = engine.mockConfigureHeaders();
@@ -227,21 +218,7 @@ public class MockHandler implements ServerHandler {
         return new Response(404);
     }
 
-    /**
-     * Execute steps for every scenario identified
-     * @param feature
-     * @param runtime
-     * @param scenario
-     * @param actions
-     * @param result
-     * @return
-     */
-    private Result executeScenarioSteps(Feature feature,
-                                        ScenarioRuntime runtime,
-                                        Scenario scenario,
-                                        ScenarioActions actions,
-                                        Result result)
-    {
+    private Result executeScenarioSteps(Feature feature, ScenarioRuntime runtime, Scenario scenario, ScenarioActions actions, Result result) {
         for (Step step : scenario.getSteps()) {
             result = StepRuntime.execute(step, actions);
             if (result.isAborted()) {
@@ -258,9 +235,7 @@ public class MockHandler implements ServerHandler {
         return result;
     }
 
-    private ScenarioEngine createScenarioEngine(Request req,
-                                                ScenarioRuntime runtime)
-    {
+    private ScenarioEngine createScenarioEngine(Request req, ScenarioRuntime runtime) {
         ScenarioEngine engine = new ScenarioEngine(runtime, new HashMap<>(globals));
         ScenarioEngine.set(engine);
         engine.init();
