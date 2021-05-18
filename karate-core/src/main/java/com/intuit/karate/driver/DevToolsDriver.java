@@ -93,7 +93,7 @@ public abstract class DevToolsDriver implements Driver {
         this.options = options;
         this.command = command;
 
-        if (options.target != null && ((Boolean) options.options.get("siblingContainer"))) {
+        if (options.target != null && options.options.get("siblingContainer") != null && ((Boolean) options.options.get("siblingContainer"))) {
             // if running in a siblingContainer
             // manipulate the webSocketUrl to the container host
             String host = (String) options.options.get("host");
