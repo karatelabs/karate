@@ -24,6 +24,7 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.KarateException;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.ScenarioRuntime;
@@ -33,6 +34,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  *
@@ -45,7 +48,6 @@ public class DockerTarget implements Target {
     private Function<Integer, String> command;
     private final Map<String, Object> options;
     private boolean pull = false;
-    
     private boolean karateChrome = false;
 
     public DockerTarget(String dockerImage) {
@@ -72,10 +74,10 @@ public class DockerTarget implements Target {
             }
             if (imageId != null) {
                 if (imageId.contains("/chrome-headless")) {
-                    command = p -> sb.toString() + " -p " + p + ":9222 " + imageId;
+                    command = p -> sb.toString() + " -p 9222 " + imageId;
                 } else if (imageId.contains("/karate-chrome")) {
                     karateChrome = true;
-                    command = p -> sb.toString() + " -p " + p + ":9222 " + imageId;
+                    command = p -> sb.toString() + " -p 9222 " + imageId;
                 }
             }
         } else {
@@ -100,16 +102,26 @@ public class DockerTarget implements Target {
             sr.logger.debug("attempting to pull docker image: {}", imageId);
             Command.execLine(null, "docker pull " + imageId);
         }
-        int port = Command.getFreePort(0);
-        containerId = Command.execLine(null, command.apply(port));
-        Map<String, Object> map = new HashMap();        
+        containerId = Command.execLine(null, command.apply(null));
+        int port = this.getContainerPort(containerId);
+        Map<String, Object> map = new HashMap();
         if (options != null) {
             map.putAll(options);
         }
+
+        boolean siblingContainer = (Boolean) options.get("siblingContainer");
+        boolean useDockerHost = (Boolean) options.get("useDockerHost");
+        String host = "127.0.0.1";
+        if (siblingContainer) {
+            String containerName = Command.execLine(null, "docker inspect -f '{{.Name}}' " + containerId + " | cut -c 2-");
+            host = useDockerHost ? "host.docker.internal" : containerName;
+        }
+
         map.put("start", false);
+        map.put("host", host);
         map.put("port", port);
         map.put("type", "chrome");
-        Command.waitForHttp("http://127.0.0.1:" + port + "/json");
+        Command.waitForHttp("http://" + host + ":" + port + "/json");
         return map;
     }
     
@@ -139,4 +151,17 @@ public class DockerTarget implements Target {
         return Collections.singletonMap("video", copy.getPath());
     }
 
+    private int getContainerPort(String containerId) {
+        String dockerPort = Command.execLine((File)null, "docker port " + containerId + " 9222/tcp");
+        Pattern portPattern = Pattern.compile("(\\d+?\\.){3}\\d:(\\d+)");
+        Matcher matcher = portPattern.matcher(dockerPort);
+        if (matcher.matches()) {
+            try {
+                return Integer.parseInt(matcher.group(2));
+            } catch (NumberFormatException e) {
+                throw new KarateException("Error fetching port from started docker container", e);
+            }
+        }
+        throw new KarateException("Error fetching port from started docker container");
+    }
 }

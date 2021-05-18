@@ -92,6 +92,15 @@ public abstract class DevToolsDriver implements Driver {
         logger = options.driverLogger;
         this.options = options;
         this.command = command;
+
+        if (options.target != null && ((Boolean) options.options.get("siblingContainer"))) {
+            // if running in a siblingContainer
+            // manipulate the webSocketUrl to the container host
+            String host = (String) options.options.get("host");
+            Integer port = (Integer) options.options.get("port");
+            webSocketUrl = webSocketUrl.replace("ws://localhost", "ws://" + host + ":" + port);
+        }
+
         this.wait = new DevToolsWait(this, options);
         int pos = webSocketUrl.lastIndexOf('/');
         rootFrameId = webSocketUrl.substring(pos + 1);

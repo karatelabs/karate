@@ -217,6 +217,7 @@ public class DriverOptions {
 
     public Http getHttp() {
         Http http = Http.to(getUrlBase());
+        http.header("HOST", "localhost");
         http.setAppender(driverLogger.getAppender());
         if (httpConfig != null) {
             http.configure(httpConfig);
