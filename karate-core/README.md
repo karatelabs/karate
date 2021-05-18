@@ -1166,6 +1166,14 @@ If all you need to do is check whether an element exists and fail the test if it
 ## `exists()`
 This method returns a boolean (`true` or `false`), perfect for asserting if an element exists and giving you the option to perform conditional logic, or manually fail the test using something like [`karate.fail()`](https://github.com/intuit/karate#karate-fail) if needed.
 
+Note that there is a [`karate.fail()`](https://github.com/intuit/karate#karate-fail) API that may be handy when you want to fail a test after advanced / conditional checks.
+
+```cucumber
+* var buttonExists = exists('#myButton')
+* var labelExists = exists('#myLabel')
+* if (buttonExists && !labelExists) karate.fail('button exists but label does not')
+```
+
 ## `waitUntil()`
 Wait for the *browser* JS expression to evaluate to `true`. Will poll using the [retry()](#retry) settings configured.
 
