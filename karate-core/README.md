@@ -1164,9 +1164,11 @@ Note that the "opposite" of `optional()` is [`locate()`](#locate) which will fai
 If all you need to do is check whether an element exists and fail the test if it doesn't, see [`exists()`](#exists) below.
 
 ## `exists()`
-This method returns a boolean (`true` or `false`), perfect for asserting if an element exists and giving you the option to perform conditional logic, or manually fail the test using something like [`karate.fail()`](https://github.com/intuit/karate#karate-fail) if needed.
+This method returns a boolean (`true` or `false`), perfect for asserting if an element exists and giving you the option to perform conditional logic, or manually fail the test.
 
 Note that there is a [`karate.fail()`](https://github.com/intuit/karate#karate-fail) API that may be handy when you want to fail a test after advanced / conditional checks.
+
+And also note that instead of using the `match` keyword, you can use [`karate.match()`](https://stackoverflow.com/a/50350442/143475) for very advanced conditional checks.
 
 ```cucumber
 * var buttonExists = exists('#myButton')
