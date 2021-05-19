@@ -109,8 +109,8 @@ public class DockerTarget implements Target {
             map.putAll(options);
         }
 
-        boolean siblingContainer = options.get("siblingContainer") != null && (Boolean) options.get("siblingContainer");
-        boolean useDockerHost = options.get("useDockerHost") != null && (Boolean) options.get("useDockerHost");
+        boolean siblingContainer = options != null && options.get("siblingContainer") != null && (Boolean) options.get("siblingContainer");
+        boolean useDockerHost = options != null && options.get("useDockerHost") != null && (Boolean) options.get("useDockerHost");
         String host = "127.0.0.1";
         if (siblingContainer) {
             String containerName = Command.execLine(null, "docker inspect -f '{{.Name}}' " + containerId + " | cut -c 2-");
