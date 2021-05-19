@@ -28,6 +28,7 @@ import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.graal.Methods;
+import com.intuit.karate.template.KarateEngineContext;
 import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateUtils;
 import io.netty.handler.codec.http.cookie.Cookie;
@@ -323,12 +324,14 @@ public class ServerContext implements ProxyObject {
         } else {
             switched = true;
             RequestCycle.get().setSwitchTemplate(s);
+            KarateEngineContext.get().setRedirect(true);
             throw new RedirectException(s);
         }
     };
 
     private final Consumer<String> REDIRECT_FUNCTION = s -> {
         RequestCycle.get().setRedirectPath(s);
+        KarateEngineContext.get().setRedirect(true);
         throw new RedirectException(s);
     };
 

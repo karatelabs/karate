@@ -62,7 +62,7 @@ public class KarateTemplateEngine {
         wrapped = new TemplateEngine();
         wrapped.setEngineContextFactory((IEngineConfiguration ec, TemplateData data, Map<String, Object> attrs, IContext context) -> {
             IEngineContext engineContext = standardFactory.createEngineContext(ec, data, attrs, context);
-            return TemplateEngineContext.initThreadLocal(engineContext, je == null ? RequestCycle.get().getEngine() : je);
+            return KarateEngineContext.initThreadLocal(engineContext, je == null ? RequestCycle.get().getEngine() : je);
         });
         // the next line is a set which clears and replaces all existing / default
         wrapped.setDialect(new KarateStandardDialect());
@@ -96,19 +96,18 @@ public class KarateTemplateEngine {
                 throw new TemplateOutputException("error flushing output writer", templateSpec.getTemplate(), -1, -1, e);
             }
         } catch (Exception e) {
-            // make thymeleaf errors easier to troubleshoot from the logs
-            while (e.getCause() instanceof Exception) {
-                e = (Exception) e.getCause();
-                if (e instanceof TemplateProcessingException) {                    
-                    if (e.getCause() != null) { // typically the js error
-                        String message = e.getCause().getMessage();
-                        if (message != null && message.startsWith("redirect")) { // TODO improve
-                            break; // don't log a redirect as an error
+            if (!KarateEngineContext.get().isRedirect()) { // don't log redirects
+                // make thymeleaf errors easier to troubleshoot from the logs
+                while (e.getCause() instanceof Exception) {
+                    e = (Exception) e.getCause();
+                    if (e instanceof TemplateProcessingException) {
+                        logger.error("{}", e.getMessage()); // will print line and col numbers
+                        if (e.getCause() != null) { // typically the js error
+                            String message = e.getCause().getMessage();
+                            logger.error("{}", message);
                         }
-                        logger.error("{}", message);
-                    }                    
-                    logger.error("{}", e.getMessage()); // will print line and col numbers
-                    break;
+                        break;
+                    }
                 }
             }
             if (logger.isTraceEnabled()) {
