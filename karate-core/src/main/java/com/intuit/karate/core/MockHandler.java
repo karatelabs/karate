@@ -150,7 +150,10 @@ public class MockHandler implements ServerHandler {
             }
             return response;
         }
-        req.setPath(req.getPath().substring(prefix.length()));
+        String path = req.getPath();
+        if (!path.isEmpty()) {
+            req.setPath(path.substring(prefix.length()));
+        }
         for (Map.Entry<Feature, ScenarioRuntime> entry : this.features.entrySet()) {
             Feature feature = entry.getKey();
             ScenarioRuntime runtime = entry.getValue();
