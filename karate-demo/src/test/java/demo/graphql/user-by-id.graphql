@@ -1,0 +1,13 @@
+query ($id: ID!){
+  user(id: $id) {
+    id
+    username
+    email
+    address {
+      geo {
+        lat
+        lng
+      }
+    }
+  }
+}
