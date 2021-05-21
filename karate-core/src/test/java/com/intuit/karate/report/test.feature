@@ -27,3 +27,12 @@ Scenario: second one
 }
 """
 * print large
+
+Scenario Outline: example ${data}
+# outline comment
+* print 'in outline'
+
+Examples:
+| data |
+| 1    | 
+| 2    |

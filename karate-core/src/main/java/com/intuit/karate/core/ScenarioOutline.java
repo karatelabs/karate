@@ -30,22 +30,22 @@ import java.util.List;
  * @author pthomas3
  */
 public class ScenarioOutline {
-
+    
     private final Feature feature;
     private final FeatureSection section;
-
+    
     private int line;
     private List<Tag> tags;
     private String name;
     private String description;
     private List<Step> steps;
     private List<ExamplesTable> examplesTables;
-
+    
     public ScenarioOutline(Feature feature, FeatureSection section) {
         this.feature = feature;
         this.section = section;
     }
-
+    
     public Scenario toScenario(String dynamicExpression, int exampleIndex, int updateLine, List<Tag> tagsForExamples) {
         Scenario s = new Scenario(feature, section, exampleIndex);
         s.setName(name);
@@ -73,14 +73,15 @@ public class ScenarioOutline {
             step.setText(original.getText());
             step.setDocString(original.getDocString());
             step.setTable(original.getTable());
+            step.setComments(original.getComments());
         }
         return s;
     }
-
+    
     public List<Scenario> getScenarios() {
         return this.getScenarios(null);
     }
-
+    
     public List<Scenario> getScenarios(FeatureRuntime fr) {
         List<Scenario> list = new ArrayList();
         boolean examplesHaveTags = examplesTables.stream().anyMatch(t -> !t.getTags().isEmpty());
@@ -119,57 +120,57 @@ public class ScenarioOutline {
         }
         return list;
     }
-
+    
     public FeatureSection getSection() {
         return section;
     }
-
+    
     public int getLine() {
         return line;
     }
-
+    
     public void setLine(int line) {
         this.line = line;
     }
-
+    
     public List<Tag> getTags() {
         return tags;
     }
-
+    
     public void setTags(List<Tag> tags) {
         this.tags = tags;
     }
-
+    
     public String getName() {
         return name;
     }
-
+    
     public void setName(String name) {
         this.name = name;
     }
-
+    
     public String getDescription() {
         return description;
     }
-
+    
     public void setDescription(String description) {
         this.description = description;
     }
-
+    
     public List<Step> getSteps() {
         return steps;
     }
-
+    
     public void setSteps(List<Step> steps) {
         this.steps = steps;
     }
-
+    
     public List<ExamplesTable> getExamplesTables() {
         return examplesTables;
     }
-
+    
     public void setExamplesTables(List<ExamplesTable> examplesTables) {
         this.examplesTables = examplesTables;
     }
-
+    
 }
