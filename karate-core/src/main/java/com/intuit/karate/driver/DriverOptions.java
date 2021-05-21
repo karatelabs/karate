@@ -217,7 +217,10 @@ public class DriverOptions {
 
     public Http getHttp() {
         Http http = Http.to(getUrlBase());
-        http.header("HOST", "localhost");
+        boolean siblingContainer = options != null && options.get("siblingContainer") != null && (Boolean) options.get("siblingContainer");
+        if (siblingContainer) {
+            http.header("HOST", "localhost");
+        }
         http.setAppender(driverLogger.getAppender());
         if (httpConfig != null) {
             http.configure(httpConfig);
