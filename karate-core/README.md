@@ -1348,6 +1348,15 @@ Here is an interesting example where a JavaScript event can be triggered on a gi
 * waitFor('#someId').script("_.dispatchEvent(new Event('change'))")
 ```
 
+When starting with `_`, the ES6 arrow function syntax is also supported. This is more compact, and is especially useful for expressions that do not start with the current DOM element. Here is an example of getting the ["computed style"](https://developer.mozilla.org/en-US/docs/Web/API/Window/getComputedStyle) for a given element:
+
+```cucumber
+* match script('.styled-div', "function(e){ return getComputedStyle(e)['font-size'] }") == '30px'
+
+# this shorter version is equivalent to the above
+* match script('.styled-div', "_ => getComputedStyle(_)['font-size']") == '30px'
+```
+
 For an advanced example of simulating a drag and drop operation see [this answer on Stack Overflow](https://stackoverflow.com/a/60800181/143475).
 
 Also see the plural form [`scriptAll()`](#scriptall).

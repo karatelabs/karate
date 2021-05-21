@@ -548,7 +548,16 @@ public class DriverOptions {
 
     private String fun(String expression) {
         char first = expression.charAt(0);
-        return (first == '_' || first == '!') ? "function(_){ return " + expression + " }" : expression;
+        switch (first) {
+            case '_':
+                if (expression.contains("=>")) {
+                    return expression;
+                }
+            case '!':
+                return "function(_){ return " + expression + " }";
+            default:
+                return expression;
+        }
     }
 
     public String scriptSelector(String locator, String expression) {
@@ -604,7 +613,7 @@ public class DriverOptions {
 
     public static String getRelativePositionJs(String locator) {
         String temp = "var r = " + selector(locator, DOCUMENT)
-            + ".getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }";
+                + ".getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }";
         return wrapInFunctionInvoke(temp);
     }
 

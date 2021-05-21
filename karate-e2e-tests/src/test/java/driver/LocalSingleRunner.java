@@ -31,7 +31,7 @@ class LocalSingleRunner {
     
     @Test
     void testSingle() {
-        run("10");
+        run("03");
     }    
     
 }
