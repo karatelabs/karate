@@ -94,6 +94,13 @@ public abstract class DevToolsDriver implements Driver {
         logger = options.driverLogger;
         this.options = options;
         this.command = command;
+
+        if (options.isRemoteHost()) {
+            String host = (String) options.options.get("host");
+            Integer port = (Integer) options.options.get("port");
+            webSocketUrl = webSocketUrl.replace("ws://localhost/", "ws://" + host + ":" + port + "/");
+        }
+
         this.wait = new DevToolsWait(this, options);
         int pos = webSocketUrl.lastIndexOf('/');
         rootFrameId = webSocketUrl.substring(pos + 1);
