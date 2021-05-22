@@ -532,18 +532,20 @@ public abstract class WebDriver implements Driver {
         if (titleOrUrl == null) {
             return;
         }
-        List<String> list = getPages();
-        for (String handle : list) {
-            http.path("window").postJson(getJsonForHandle(handle));
-            String title = getTitle();
-            if (title != null && title.contains(titleOrUrl)) {
-                return;
+        options.retry(() -> {
+            for (String handle : getPages()) {
+                http.path("window").postJson(getJsonForHandle(handle));
+                String title = getTitle();
+                if (title != null && title.contains(titleOrUrl)) {
+                    return true;
+                }
+                String url = getUrl();
+                if (url != null && url.contains(titleOrUrl)) {
+                    return true;
+                }
             }
-            String url = getUrl();
-            if (url != null && url.contains(titleOrUrl)) {
-                return;
-            }
-        }
+            return false;
+        }, returned -> returned, "waiting to switch to tab: " + titleOrUrl, true);
     }
 
     @Override

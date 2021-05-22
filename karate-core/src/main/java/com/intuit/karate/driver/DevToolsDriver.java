@@ -325,11 +325,11 @@ public abstract class DevToolsDriver implements Driver {
     public DriverOptions getOptions() {
         return options;
     }
-    
+
     private void attachAndActivate(String targetId) {
         DevToolsMessage dtm = method("Target.attachToTarget").param("targetId", targetId).param("flatten", true).send();
         sessionId = dtm.getResult("sessionId", String.class);
-        method("Target.activateTarget").param("targetId", targetId).send();        
+        method("Target.activateTarget").param("targetId", targetId).send();
     }
 
     @Override
@@ -834,23 +834,20 @@ public abstract class DevToolsDriver implements Driver {
         if (titleOrUrl == null) {
             return;
         }
-        DevToolsMessage dtm = method("Target.getTargets").send();
-        List<Map> targets = dtm.getResult("targetInfos").getValue();
-        String targetId = null;
-        for (Map map : targets) {
-            String title = (String) map.get("title");
-            String url = (String) map.get("url");
-            if ((title != null && title.contains(titleOrUrl))
-                    || (url != null && url.contains(titleOrUrl))) {
-                targetId = (String) map.get("targetId");
-                break;
+        String targetId = options.retry(() -> {
+            DevToolsMessage dtm = method("Target.getTargets").send();
+            List<Map> targets = dtm.getResult("targetInfos").getValue();
+            for (Map map : targets) {
+                String title = (String) map.get("title");
+                String url = (String) map.get("url");
+                if ((title != null && title.contains(titleOrUrl))
+                        || (url != null && url.contains(titleOrUrl))) {
+                    return (String) map.get("targetId");
+                }
             }
-        }
-        if (targetId != null) {
-            attachAndActivate(targetId);
-        } else {
-            logger.warn("failed to switch page to {}", titleOrUrl);
-        }
+            return null;
+        }, returned -> returned != null, "waiting to switch to tab: " + titleOrUrl, true);
+        attachAndActivate(targetId);
     }
 
     @Override
