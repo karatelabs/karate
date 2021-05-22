@@ -407,6 +407,9 @@ public class ScenarioRuntime implements Runnable {
                 }
             }
         } catch (Exception e) {
+            if (currentStepResult != null) {
+                result.addStepResult(currentStepResult);
+            }
             logError("scenario [run] failed\n" + e.getMessage());
             currentStepResult = result.addFakeStepResult("scenario [run] failed", e);
         } finally {
@@ -491,11 +494,9 @@ public class ScenarioRuntime implements Runnable {
             currentStepResult.setHidden(hidden);
         }
         addStepLogEmbedsAndCallResults();
-
         if (currentStepResult.isErrorIgnored()) {
             this.engine.setFailedReason(null);
         }
-
         if (!this.engine.isIgnoringStepErrors() && this.isIgnoringFailureSteps()) {
             if (this.engine.getConfig().isContinueAfterContinueOnStepFailure()) {
                 // continue execution and reset failed reason for engine to null
@@ -507,7 +508,6 @@ public class ScenarioRuntime implements Runnable {
                 stopped = true;
             }
         }
-
         if (stepResult.isFailed()) {
             if (engine.driver != null) {
                 engine.driver.onFailure(currentStepResult);
