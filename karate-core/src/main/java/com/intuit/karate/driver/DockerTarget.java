@@ -164,4 +164,8 @@ public class DockerTarget implements Target {
         }
         throw new KarateException("Error fetching port from started docker container");
     }
+
+    public String getContainerId() {
+        return this.containerId;
+    }
 }
