@@ -68,8 +68,11 @@ public abstract class DevToolsDriver implements Driver {
 
     private Integer windowId;
     private String windowState;
-    private Integer executionContextId;
     protected String sessionId;
+
+    // iframe support
+    private Integer executionContextId;
+    private String currentFrameId;
 
     protected boolean domContentEventFired;
     protected final Set<String> framesStillLoading = new HashSet();
@@ -179,6 +182,15 @@ public abstract class DevToolsDriver implements Driver {
             framesStillLoading.remove(frameLoadedId);
             logger.trace("** frame stopped loading: {}, remaining in-progress: {}", frameLoadedId, framesStillLoading);
         }
+        if (dtm.methodIs("Runtime.executionContextsCleared")) {
+            executionContextId = null;
+        }
+        if (dtm.methodIs("Runtime.executionContextCreated")) {
+            String frameId = dtm.getParam("context.auxData.frameId");
+            if ((currentFrameId != null && frameId.equals(currentFrameId))) {
+                executionContextId = dtm.getParam("context.id");
+            }
+        }
         if (dtm.methodIs("Runtime.consoleAPICalled") && options.showBrowserLog) {
             List<String> values = dtm.getParam("args[*].value");
             for (String value : values) {
@@ -236,9 +248,12 @@ public abstract class DevToolsDriver implements Driver {
 
     //==========================================================================
     //
-    private DevToolsMessage evalOnce(String expression, boolean quickly, boolean fireAndForget) {
+    private DevToolsMessage evalOnce(String expression, boolean quickly, boolean fireAndForget, boolean returnByValue) {
         DevToolsMessage toSend = method("Runtime.evaluate")
-                .param("expression", expression).param("returnByValue", true);
+                .param("expression", expression);
+        if (returnByValue) {
+            toSend.param("returnByValue", true);
+        }
         if (executionContextId != null) {
             toSend.param("contextId", executionContextId);
         }
@@ -253,20 +268,31 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     protected DevToolsMessage eval(String expression) {
-        return eval(expression, false);
+        return evalInternal(expression, false, true);
     }
 
-    private DevToolsMessage eval(String expression, boolean quickly) {
-        DevToolsMessage dtm = evalOnce(expression, quickly, false);
+    protected DevToolsMessage evalQuickly(String expression) {
+        return evalInternal(expression, true, true);
+    }
+
+    protected String evalForObjectId(String expression) {
+        return options.retry(() -> {
+            DevToolsMessage dtm = evalInternal(expression, true, false);
+            return dtm.getResult("objectId", String.class);
+        }, returned -> returned != null, "eval for object id: " + expression, true);
+    }
+
+    private DevToolsMessage evalInternal(String expression, boolean quickly, boolean returnByValue) {
+        DevToolsMessage dtm = evalOnce(expression, quickly, false, returnByValue);
         if (dtm.isResultError()) {
             String message = "js eval failed once:" + expression
-                    + ", error: " + dtm.getResult().getAsString();
+                    + ", error: " + dtm.getResult();
             logger.warn(message);
             options.sleep();
-            dtm = evalOnce(expression, quickly, false); // no wait condition for the re-try
+            dtm = evalOnce(expression, quickly, false, returnByValue); // no wait condition for the re-try
             if (dtm.isResultError()) {
                 message = "js eval failed twice:" + expression
-                        + ", error: " + dtm.getResult().getAsString();
+                        + ", error: " + dtm.getResult();
                 logger.error(message);
                 throw new RuntimeException(message);
             }
@@ -281,7 +307,7 @@ public abstract class DevToolsDriver implements Driver {
         if (options.highlight) {
             // highlight(locator, options.highlightDuration); // instead of this
             String highlightJs = options.highlight(locator, options.highlightDuration);
-            evalOnce(highlightJs, true, true); // do it safely, i.e. fire and forget
+            evalOnce(highlightJs, true, true, true); // do it safely, i.e. fire and forget
         }
     }
 
@@ -290,35 +316,19 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public Integer elementId(String locator) {
-        DevToolsMessage dtm = method("DOM.querySelector")
-                .param("nodeId", getRootNodeId())
-                .param("selector", locator).send();
-        if (dtm.isResultError()) {
-            return null;
-        }
-        return dtm.getResult("nodeId").getAsInt();
+    public String elementId(String locator) {
+        return evalForObjectId(DriverOptions.selector(locator));
     }
 
     @Override
     public List elementIds(String locator) {
-        if (locator.startsWith("/")) { // special handling for xpath
-            getRootNodeId(); // just so that DOM.getDocument is called else DOM.performSearch fails
-            DevToolsMessage dtm = method("DOM.performSearch").param("query", locator).send();
-            String searchId = dtm.getResult("searchId", String.class);
-            int resultCount = dtm.getResult("resultCount", Integer.class);
-            dtm = method("DOM.getSearchResults")
-                    .param("searchId", searchId)
-                    .param("fromIndex", 0).param("toIndex", resultCount).send();
-            return dtm.getResult("nodeIds", List.class);
+        List<Element> elements = locateAll(locator);
+        List<String> objectIds = new ArrayList(elements.size());
+        for (Element e : elements) {
+            String objectId = evalForObjectId(e.getLocator());
+            objectIds.add(objectId);
         }
-        DevToolsMessage dtm = method("DOM.querySelectorAll")
-                .param("nodeId", getRootNodeId())
-                .param("selector", locator).send();
-        if (dtm.isResultError()) {
-            return Collections.EMPTY_LIST;
-        }
-        return dtm.getResult("nodeIds").getValue();
+        return objectIds;
     }
 
     @Override
@@ -679,7 +689,7 @@ public abstract class DevToolsDriver implements Driver {
     public boolean waitUntil(String expression) {
         return options.retry(() -> {
             try {
-                return eval(expression, true).getResult().isTrue();
+                return evalQuickly(expression).getResult().isTrue();
             } catch (Exception e) {
                 logger.warn("waitUntil evaluate failed: {}", e.getMessage());
                 return false;
@@ -869,14 +879,16 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void switchFrame(int index) {
         if (index == -1) {
+            currentFrameId = null;
             executionContextId = null;
-            sessionId = null;
             return;
         }
-        List<Integer> ids = elementIds("iframe,frame");
-        if (index < ids.size()) {
-            Integer nodeId = ids.get(index);
-            setExecutionContext(nodeId, index);
+        List<String> objectIds = elementIds("iframe,frame");
+        if (index < objectIds.size()) {
+            String objectId = objectIds.get(index);
+            if (!setExecutionContext(objectId)) {
+                logger.warn("failed to switch frame by index: {}", index);
+            }
         } else {
             logger.warn("unable to switch frame by index: {}", index);
         }
@@ -885,33 +897,29 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void switchFrame(String locator) {
         if (locator == null) {
+            currentFrameId = null;
             executionContextId = null;
-            sessionId = null;
             return;
         }
         retryIfEnabled(locator);
-        Integer nodeId = elementId(locator);
-        if (nodeId == null) {
-            return;
+        String objectId = evalForObjectId(DriverOptions.selector(locator));
+        if (!setExecutionContext(objectId)) {
+            logger.warn("failed to switch frame by locator: {}", locator);
         }
-        setExecutionContext(nodeId, locator);
     }
 
-    private void setExecutionContext(int nodeId, Object locator) {
+    private boolean setExecutionContext(String objectId) { // locator just for logging      
         DevToolsMessage dtm = method("DOM.describeNode")
-                .param("nodeId", nodeId)
+                .param("objectId", objectId)
                 .param("depth", 0)
                 .send();
-        String frameId = dtm.getResult("node.frameId", String.class);
-        if (frameId == null) {
-            logger.warn("unable to find frame by nodeId: {}", locator);
-            return;
+        currentFrameId = dtm.getResult("node.frameId", String.class);
+        if (currentFrameId == null) {
+            return false;
         }
-        dtm = method("Page.createIsolatedWorld").param("frameId", frameId).send();
+        dtm = method("Page.createIsolatedWorld").param("frameId", currentFrameId).send();
         executionContextId = dtm.getResult("executionContextId").getValue();
-        if (executionContextId == null) {
-            logger.warn("execution context is null, unable to switch frame by locator: {}", locator);
-        }
+        return true;
     }
 
     public void enableNetworkEvents() {
@@ -954,13 +962,14 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     public void inputFile(String locator, String... relativePaths) {
+        retryIfEnabled(locator);
         List<String> files = new ArrayList(relativePaths.length);
         ScenarioEngine engine = ScenarioEngine.get();
         for (String p : relativePaths) {
             files.add(engine.fileReader.toAbsolutePath(p));
         }
-        Integer nodeId = elementId(locator);
-        method("DOM.setFileInputFiles").param("files", files).param("nodeId", nodeId).send();
+        String objectId = evalForObjectId(DriverOptions.selector(locator));
+        method("DOM.setFileInputFiles").param("files", files).param("objectId", objectId).send();
     }
 
     public Object scriptAwait(String expression) {

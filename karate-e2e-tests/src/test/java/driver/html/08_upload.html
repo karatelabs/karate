@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Page 08 upload</title>
+    <script src="00.js"></script>
+    <link rel="stylesheet" href="00.css" type="text/css"/>  
+    <link rel="icon" href="00.ico">
+  </head>
+  <script ka:scope="global">
+    if (request.post) {
+      var uploaded = request.multiPart('myFile');
+    }
+  </script>  
+  <body>
+    <h1 th:if="request.post" th:text="uploaded.filename" id="uploadMessage"></h1>
+    <form th:if="!request.post" action="08_upload" method="post" enctype="multipart/form-data">
+      <input type="file" name="myFile" id="fileToUpload"/>
+      <input type="submit" value="Upload" id="uploadButton"/>
+    </form>
+  </body>
+</html>
+

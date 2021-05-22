@@ -95,7 +95,7 @@ public class DevToolsMessage {
     }
 
     public <T> T getResult(String path, Class<T> clazz) {
-        if (result == null) {
+        if (result == null || result.isNull()) {
             return null;
         }
         Json json = Json.of(result.getValue());

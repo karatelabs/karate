@@ -26,3 +26,10 @@ Scenario: using frame index
 # switch back to parent frame
 * switchFrame(-1)
 * match text('#messageId') == 'this div is outside the iframe'
+
+Scenario: upload within frame
+* if (driverType != 'chrome') karate.abort()
+* switchFrame('#uploadFrameId')
+* driver.inputFile('#fileToUpload', '08.pdf')
+* click('#uploadButton')
+* waitForText('#uploadMessage', '08.pdf')
