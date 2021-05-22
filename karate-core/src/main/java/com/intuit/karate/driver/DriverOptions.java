@@ -125,6 +125,10 @@ public class DriverOptions {
         return preSubmitHash;
     }
 
+    public boolean isRemoteHost() {
+        return options != null && options.get("remoteHost") != null && (Boolean) options.get("remoteHost");
+    }
+
     public void setPreSubmitHash(String preSubmitHash) {
         this.preSubmitHash = preSubmitHash;
     }
@@ -217,8 +221,7 @@ public class DriverOptions {
 
     public Http getHttp() {
         Http http = Http.to(getUrlBase());
-        boolean siblingContainer = options != null && options.get("siblingContainer") != null && (Boolean) options.get("siblingContainer");
-        if (siblingContainer) {
+        if (this.isRemoteHost()) {
             http.header("HOST", "localhost");
         }
         http.setAppender(driverLogger.getAppender());

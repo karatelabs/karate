@@ -109,10 +109,10 @@ public class DockerTarget implements Target {
             map.putAll(options);
         }
 
-        boolean siblingContainer = options != null && options.get("siblingContainer") != null && (Boolean) options.get("siblingContainer");
+        boolean remoteHost = options != null && options.get("remoteHost") != null && (Boolean) options.get("remoteHost");
         boolean useDockerHost = options != null && options.get("useDockerHost") != null && (Boolean) options.get("useDockerHost");
         String host = "127.0.0.1";
-        if (siblingContainer) {
+        if (remoteHost) {
             String containerName = Command.execLine(null, "docker inspect -f '{{.Name}}' " + containerId + " | cut -c 2-");
             host = useDockerHost ? "host.docker.internal" : containerName;
         }
