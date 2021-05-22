@@ -1,6 +1,5 @@
 package com.intuit.karate.gatling
 
-import java.util.Collections
 import java.util.function.Consumer
 
 import akka.actor.ActorSystem
@@ -13,6 +12,7 @@ import io.gatling.core.action.{Action, ExitableAction}
 import io.gatling.core.session.Session
 import io.gatling.core.stats.StatsEngine
 
+import java.util
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration, MILLISECONDS}
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
@@ -60,15 +60,17 @@ class KarateAction(val name: String, val tags: Seq[String], val protocol: Karate
       }
 
       override def afterFeature(fr: FeatureResult): Unit = {
-        val vars = fr.getVariables
+        val vars:java.util.Map[String, Object] = fr.getVariables
         val attributes = if (vars == null) Map.empty else {
+          // Removing the gatling specific attributes.
           vars.remove("__gatling")
           vars.asScala
         }
+        // Using __karate as karate specific attributes.
         if (fr.isEmpty || fr.isFailed) {
-          next ! session.markAsFailed.setAll(attributes)
+          next ! session.markAsFailed.set("__karate", attributes).setAll(attributes)
         } else {
-          next ! session.setAll(attributes)
+          next ! session.set("__karate", attributes).setAll(attributes)
         }
       }
 
@@ -77,9 +79,20 @@ class KarateAction(val name: String, val tags: Seq[String], val protocol: Karate
     }
 
     val pauseFunction: Consumer[java.lang.Number] = t => pause(t.intValue())
-    val attribs: Object = (session.attributes + ("userId" -> session.userId) + ("pause" -> pauseFunction))
+
+    val attribs: java.util.Map[String, AnyRef] = (session.attributes + ("userId" -> session.userId) + ("pause" -> pauseFunction))
       .asInstanceOf[Map[String, AnyRef]].asJava
-    val arg = Collections.singletonMap("__gatling", attribs)
+
+    val arg:java.util.Map[String, Object] = new util.HashMap[String, Object](attribs)
+
+    if (arg.containsKey("__karate")) {
+      // unwrapping karate attributes and removing it from attribs.
+      val karateAttribs = arg.remove("__karate").asInstanceOf[scala.collection.mutable.Map[String, AnyRef]].asJava
+      arg.putAll(karateAttribs)
+    }
+
+    arg.put("__gatling", attribs)
+
     Runner.callAsync(name, tags.asJava, arg, perfHook)
 
   }
