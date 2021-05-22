@@ -185,6 +185,12 @@ public abstract class DevToolsDriver implements Driver {
             frameSessions.put(dtm.getParam("targetInfo.targetId"), dtm.getParam("sessionId"));
             logger.trace("** added frame session: {}", frameSessions);
         }
+        if (dtm.methodIs("Runtime.consoleAPICalled") && options.showBrowserLog) {
+            List<String> values = dtm.getParam("args[*].value");
+            for (String value : values) {
+                logger.debug("[console] {}", value);
+            }
+        }        
         if (dtm.methodIs("Fetch.requestPaused")) {
             handleInterceptedRequest(dtm);
         }

@@ -74,6 +74,7 @@ public class DriverOptions {
     public final boolean headless;
     public final boolean showProcessLog;
     public final boolean showDriverLog;
+    public final boolean showBrowserLog;
     public final Logger logger;
     public final LogAppender appender;
     public final Logger processLogger;
@@ -146,6 +147,7 @@ public class DriverOptions {
         executable = get("executable", defaultExecutable);
         headless = get("headless", false);
         showProcessLog = get("showProcessLog", false);
+        showBrowserLog = get("showBrowserLog", true);
         addOptions = get("addOptions", null);
         uniqueName = type + "_" + System.currentTimeMillis();
         String packageName = getClass().getPackage().getName();
