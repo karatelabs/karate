@@ -35,3 +35,6 @@ Scenario:
 
 # element position
 * call read('10.feature')
+
+# switchPage()
+* call read('11.feature')

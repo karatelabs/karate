@@ -43,9 +43,10 @@ public class DevToolsMessage {
 
     protected final DevToolsDriver driver;
 
-    private Integer id;
-    private String sessionId;
+    private final String sessionId;
     private final String method;
+
+    private Integer id;
     private Json params;
     private Map<String, Object> error;
     private Variable result;
@@ -65,14 +66,6 @@ public class DevToolsMessage {
 
     public void setTimeout(Integer timeout) {
         this.timeout = timeout;
-    }
-
-    public String getSessionId() {
-        return sessionId;
-    }
-
-    public void setSessionId(String sessionId) {
-        this.sessionId = sessionId;
     }
 
     public String getMethod() {
@@ -150,6 +143,7 @@ public class DevToolsMessage {
 
     public DevToolsMessage(DevToolsDriver driver, Map<String, Object> map) {
         this.driver = driver;
+        sessionId = (String) map.get("sessionId");;
         id = (Integer) map.get("id");
         method = (String) map.get("method");
         Map temp = (Map) map.get("params");

@@ -73,7 +73,6 @@ public abstract class DevToolsDriver implements Driver {
 
     protected boolean domContentEventFired;
     protected final Set<String> framesStillLoading = new HashSet();
-    private final Map<String, String> frameSessions = new HashMap();
     private boolean submit;
 
     protected String currentDialogText;
@@ -169,7 +168,6 @@ public abstract class DevToolsDriver implements Driver {
             if (rootFrameId.equals(frameLoadingId)) { // root page is loading
                 domContentEventFired = false;
                 framesStillLoading.clear();
-                frameSessions.clear();
                 logger.trace("** root frame started loading, cleared all page state: {}", frameLoadingId);
             } else {
                 framesStillLoading.add(frameLoadingId);
@@ -181,16 +179,12 @@ public abstract class DevToolsDriver implements Driver {
             framesStillLoading.remove(frameLoadedId);
             logger.trace("** frame stopped loading: {}, remaining in-progress: {}", frameLoadedId, framesStillLoading);
         }
-        if (dtm.methodIs("Target.attachedToTarget")) {
-            frameSessions.put(dtm.getParam("targetInfo.targetId"), dtm.getParam("sessionId"));
-            logger.trace("** added frame session: {}", frameSessions);
-        }
         if (dtm.methodIs("Runtime.consoleAPICalled") && options.showBrowserLog) {
             List<String> values = dtm.getParam("args[*].value");
             for (String value : values) {
                 logger.debug("[console] {}", value);
             }
-        }        
+        }
         if (dtm.methodIs("Fetch.requestPaused")) {
             handleInterceptedRequest(dtm);
         }
@@ -331,10 +325,16 @@ public abstract class DevToolsDriver implements Driver {
     public DriverOptions getOptions() {
         return options;
     }
+    
+    private void attachAndActivate(String targetId) {
+        DevToolsMessage dtm = method("Target.attachToTarget").param("targetId", targetId).param("flatten", true).send();
+        sessionId = dtm.getResult("sessionId", String.class);
+        method("Target.activateTarget").param("targetId", targetId).send();        
+    }
 
     @Override
     public void activate() {
-        method("Target.activateTarget").param("targetId", rootFrameId).send();
+        attachAndActivate(rootFrameId);
     }
 
     protected void initWindowIdAndState() {
@@ -847,7 +847,7 @@ public abstract class DevToolsDriver implements Driver {
             }
         }
         if (targetId != null) {
-            method("Target.activateTarget").param("targetId", targetId).send();
+            attachAndActivate(targetId);
         } else {
             logger.warn("failed to switch page to {}", titleOrUrl);
         }
@@ -863,7 +863,7 @@ public abstract class DevToolsDriver implements Driver {
         if (index < targets.size()) {
             Map target = targets.get(index);
             String targetId = (String) target.get("targetId");
-            method("Target.activateTarget").param("targetId", targetId).send();
+            attachAndActivate(targetId);
         } else {
             logger.warn("failed to switch frame by index: {}", index);
         }
@@ -910,11 +910,6 @@ public abstract class DevToolsDriver implements Driver {
             logger.warn("unable to find frame by nodeId: {}", locator);
             return;
         }
-        sessionId = frameSessions.get(frameId);
-        if (sessionId != null) {
-            logger.trace("found out-of-process frame - session: {} - {}", frameId, sessionId);
-            return;
-        }
         dtm = method("Page.createIsolatedWorld").param("frameId", frameId).send();
         executionContextId = dtm.getResult("executionContextId").getValue();
         if (executionContextId == null) {
@@ -934,13 +929,6 @@ public abstract class DevToolsDriver implements Driver {
         method("Runtime.enable").send();
     }
 
-    public void enableTargetEvents() {
-        method("Target.setAutoAttach")
-                .param("autoAttach", true)
-                .param("waitForDebuggerOnStart", false)
-                .param("flatten", true).send();
-    }
-    
     public void intercept(Value value) {
         Map<String, Object> config = (Map) JsValue.toJava(value);
         config = new Variable(config).getValue();
@@ -985,7 +973,7 @@ public abstract class DevToolsDriver implements Driver {
                 .param("awaitPromise", true);
         if (executionContextId != null) {
             toSend.param("contextId", executionContextId);
-        }        
+        }
         return toSend.send().getResult().getValue();
     }
 

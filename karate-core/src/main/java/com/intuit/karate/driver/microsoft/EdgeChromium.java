@@ -105,7 +105,6 @@ public class EdgeChromium extends DevToolsDriver {
         edgeChromium.activate();
         edgeChromium.enablePageEvents();
         edgeChromium.enableRuntimeEvents();
-        edgeChromium.enableTargetEvents();
         if (!options.headless) {
             edgeChromium.initWindowIdAndState();
         }
