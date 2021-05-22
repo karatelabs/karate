@@ -50,7 +50,7 @@ a .step-ref { font-weight: bold; color: blue; }
 
 .scenario table { margin: 0.5em; }
 .scenario table td { border: 1px solid gray; padding: 0.1em 0.2em; } 
-.preformatted { white-space: pre-wrap; font-family: monospace; padding: 0 0.3em 0.2em 0.3em; overflow: auto; } 
+.preformatted { white-space: pre-wrap; font-family: monospace; padding: 0 0.3em 0.2em 0.3em; overflow: auto; font-size: 13px; } 
 .embed img { width: 100%; }
 
 .passed { background-color: #bff2bf; } 
