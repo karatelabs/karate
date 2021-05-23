@@ -62,9 +62,6 @@ public class FeatureParser extends KarateParserBaseListener {
         KarateParser parser = new KarateParser(tokenStream);
         parser.addErrorListener(errorListener);
         RuleContext tree = parser.feature();
-        if (logger.isTraceEnabled()) {
-            logger.debug(tree.toStringTree(parser));
-        }
         ParseTreeWalker walker = new ParseTreeWalker();
         walker.walk(this, tree);
     }
@@ -249,9 +246,6 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         List<Step> steps = toSteps(scenario, ctx.step());
         scenario.setSteps(steps);
-        if (logger.isTraceEnabled()) {
-            logger.trace("scenario steps: {}", steps);
-        }
     }
     
     @Override
