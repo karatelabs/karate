@@ -1143,7 +1143,12 @@ public class ScenarioEngine {
             Value value = (Value) o;
             try {
                 if (value.canExecute() || value.isMetaObject()) {
-                    return attach(value);
+                    // dealing with a js value from another context has to be thread isolated
+                    // since this routine is called only for callSingle, hopefully
+                    // this is not a serious performance hit
+                    synchronized (runtime.featureRuntime.suite) {
+                        return attach(value);
+                    }
                 }
                 o = JsValue.toJava(value);
             } catch (Exception e) {
