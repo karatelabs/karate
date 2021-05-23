@@ -1256,7 +1256,7 @@ public class ScenarioEngine {
             return JS.execute(function, args);
         } catch (Exception e) {
             String jsSource = function.getSourceLocation().getCharacters().toString();
-            KarateException ke = JsEngine.fromJsEvalException(jsSource, e);
+            KarateException ke = JsEngine.fromJsEvalException(jsSource, e, null);
             setFailedReason(ke);
             throw ke;
         }
@@ -1266,7 +1266,7 @@ public class ScenarioEngine {
         try {
             return new Variable(JS.eval(js));
         } catch (Exception e) {
-            KarateException ke = JsEngine.fromJsEvalException(js, e);
+            KarateException ke = JsEngine.fromJsEvalException(js, e, null);
             setFailedReason(ke);
             throw ke;
         }

@@ -202,11 +202,14 @@ public class JsEngine {
         return function.execute(JsValue.fromJava(arg));
     }
     
-    public static KarateException fromJsEvalException(String js, Exception e) {
+    public static KarateException fromJsEvalException(String js, Exception e, String message) {
         // do our best to make js error traces informative, else thrown exception seems to
         // get swallowed by the java reflection based method invoke flow
         StackTraceElement[] stack = e.getStackTrace();
         StringBuilder sb = new StringBuilder();
+        if (message != null) {
+            sb.append(message).append('\n');
+        }
         sb.append(">>>> js failed:\n");
         List<String> lines = StringUtils.toStringLines(js);
         int index = 0;
@@ -221,7 +224,7 @@ public class JsEngine {
             if (line.startsWith("<js>") || i > 5) {
                 break;
             }
-        }
+        }       
         return new KarateException(sb.toString());
     }    
 

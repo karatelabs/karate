@@ -87,7 +87,7 @@ public class KarateEngineContext implements IEngineContext {
         try {
             return jsEngine.eval(src);
         } catch (Exception e) {
-            throw JsEngine.fromJsEvalException(src, e);
+            throw JsEngine.fromJsEvalException(src, e, null);
         }
     }
 
@@ -96,7 +96,7 @@ public class KarateEngineContext implements IEngineContext {
             Value value = jsEngine.evalWith(getVariableNames(), this::getVariable, src, returnValue);
             return new JsValue(value);
         } catch (Exception e) {
-            throw JsEngine.fromJsEvalException(src, e);
+            throw JsEngine.fromJsEvalException(src, e, null);
         }
     }
 
