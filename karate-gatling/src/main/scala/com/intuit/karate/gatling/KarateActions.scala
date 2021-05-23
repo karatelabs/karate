@@ -111,8 +111,8 @@ class KarateFeatureActionBuilder(name: String, tags: Seq[String]) extends Action
 
 }
 
-class KarateCallArgAction(key: String, valueSupplier: Session => AnyRef,
-                          val statsEngine: StatsEngine, val clock: Clock, val next: Action) extends ExitableAction with NameGen {
+class KarateSetAction(key: String, valueSupplier: Session => AnyRef,
+                      val statsEngine: StatsEngine, val clock: Clock, val next: Action) extends ExitableAction with NameGen {
 
   override val name: String = genName("karateCallArg")
 
@@ -123,10 +123,10 @@ class KarateCallArgAction(key: String, valueSupplier: Session => AnyRef,
 
 }
 
-class KarateCallArgActionBuilder(key: String, valueSupplier: Session => AnyRef) extends ActionBuilder {
+class KarateSetActionBuilder(key: String, valueSupplier: Session => AnyRef) extends ActionBuilder {
 
   override def build(ctx: ScenarioContext, next: Action): Action = {
-    new KarateCallArgAction(key, valueSupplier, ctx.coreComponents.statsEngine, ctx.coreComponents.clock, next)
+    new KarateSetAction(key, valueSupplier, ctx.coreComponents.statsEngine, ctx.coreComponents.clock, next)
   }
 
 }
