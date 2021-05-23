@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ParallelJavaTest {
 
-    // @Test
+    @Test
     public void testParallel() {
         Results results = Runner.path("classpath:com/intuit/karate/core/parajava/parallel-java.feature")
                 .configDir("classpath:com/intuit/karate/core/parajava")

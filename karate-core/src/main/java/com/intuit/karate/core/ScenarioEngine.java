@@ -1091,7 +1091,7 @@ public class ScenarioEngine {
                     return attach(value);
                 }
             } catch (Exception e) {
-                logger.trace("failed to re-attach graal value (will re-try): {}", e.getMessage());
+                logger.trace("[attach] failed to re-attach graal value (will re-try): {}", e.getMessage());
                 try {
                     return Value.asValue(value.asHostObject());
                 } catch (Exception inner) {
@@ -1142,12 +1142,12 @@ public class ScenarioEngine {
             // should never happen if the detach was done properly
             Value value = (Value) o;
             try {
-                if (value.canExecute()) {
+                if (value.canExecute() || value.isMetaObject()) {
                     return attach(value);
                 }
                 o = JsValue.toJava(value);
             } catch (Exception e) {
-                logger.trace("failed to re-attach graal value (will re-try): {}", e.getMessage());
+                logger.trace("[attach deep] failed to re-attach graal value (will re-try): {}", e.getMessage());
                 try {
                     return Value.asValue(value.asHostObject());
                 } catch (Exception inner) {

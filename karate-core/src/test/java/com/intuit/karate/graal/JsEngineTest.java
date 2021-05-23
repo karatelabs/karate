@@ -192,6 +192,13 @@ class JsEngineTest {
         Value v = Value.asValue(sp);
         assertTrue(v.isHostObject());
     }
+    
+    @Test
+    void testJavaType() {
+        Value v = je.evalForValue("Java.type('com.intuit.karate.graal.SimplePojo')");
+        assertTrue(v.isMetaObject());
+        assertTrue(v.isHostObject());
+    }    
 
     @Test
     void testEvalWithinFunction() {
