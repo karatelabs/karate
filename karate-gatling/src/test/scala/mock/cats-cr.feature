@@ -7,10 +7,10 @@ Feature: cats crud
   @name=create
   Scenario: create
 
-    Given request { name: 'Billie' }
+    Given request { name: '#(name)' }
     When method post
     Then status 200
-    And match response == { id: '#uuid', name: 'Billie' }
+    And match response == { id: '#uuid', name: '#(name)' }
     * def id = response.id
 
   @name=read
@@ -19,5 +19,6 @@ Feature: cats crud
     Given path id
     When method get
     Then status 200
-    And match response == { id: '#(id)', name: 'Billie' }
+    # intentionally a different name :)
+    And match response == { id: '#(id)', name: '#(expectedName)' }
 

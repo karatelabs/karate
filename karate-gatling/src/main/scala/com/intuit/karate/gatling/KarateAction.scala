@@ -1,7 +1,6 @@
 package com.intuit.karate.gatling
 
 import java.util.function.Consumer
-
 import akka.actor.ActorSystem
 import com.intuit.karate.core._
 import com.intuit.karate.http.HttpRequest
@@ -11,6 +10,7 @@ import io.gatling.commons.util.Clock
 import io.gatling.core.action.{Action, ExitableAction}
 import io.gatling.core.session.Session
 import io.gatling.core.stats.StatsEngine
+import io.gatling.core.util.NameGen
 
 import java.util
 import scala.jdk.CollectionConverters._
@@ -19,6 +19,7 @@ import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 
 object KarateAction {
   val GLOBAL_CACHE = new java.util.HashMap[String, AnyRef]
+  val KARATE_CONTEXT_SESSION_KEY:String = "__karate"
 }
 
 class KarateAction(val name: String, val tags: Seq[String], val protocol: KarateProtocol, val system: ActorSystem,
@@ -61,16 +62,15 @@ class KarateAction(val name: String, val tags: Seq[String], val protocol: Karate
 
       override def afterFeature(fr: FeatureResult): Unit = {
         val vars:java.util.Map[String, Object] = fr.getVariables
-        val attributes = if (vars == null) Map.empty else {
+        val attributes:Map[String, AnyRef] = if (vars == null) Map.empty else {
           // Removing the gatling specific attributes.
           vars.remove("__gatling")
-          vars.asScala
+          vars.asScala.toMap
         }
-        // Using __karate as karate specific attributes.
         if (fr.isEmpty || fr.isFailed) {
-          next ! session.markAsFailed.set("__karate", attributes).setAll(attributes)
+          next ! session.markAsFailed.set(KarateAction.KARATE_CONTEXT_SESSION_KEY, attributes).setAll(attributes)
         } else {
-          next ! session.set("__karate", attributes).setAll(attributes)
+          next ! session.set(KarateAction.KARATE_CONTEXT_SESSION_KEY, attributes).setAll(attributes)
         }
       }
 
@@ -85,9 +85,9 @@ class KarateAction(val name: String, val tags: Seq[String], val protocol: Karate
 
     val arg:java.util.Map[String, Object] = new util.HashMap[String, Object](attribs)
 
-    if (arg.containsKey("__karate")) {
+    if (arg.containsKey(KarateAction.KARATE_CONTEXT_SESSION_KEY)) {
       // unwrapping karate attributes and removing it from attribs.
-      val karateAttribs = arg.remove("__karate").asInstanceOf[scala.collection.mutable.Map[String, AnyRef]].asJava
+      val karateAttribs = arg.remove(KarateAction.KARATE_CONTEXT_SESSION_KEY).asInstanceOf[Map[String, AnyRef]].asJava
       arg.putAll(karateAttribs)
     }
 
@@ -98,3 +98,21 @@ class KarateAction(val name: String, val tags: Seq[String], val protocol: Karate
   }
 
 }
+
+class KarateContextAdd(key: String, valueSupplier: Session => AnyRef, val statsEngine: StatsEngine, val clock: Clock, val next: Action)
+  extends ExitableAction
+    with NameGen {
+
+  override val name: String = genName("karateAdd")
+
+  /**
+   * Adds variable into karate context.
+   *
+   * @param session the session of the virtual user
+   */
+  override def execute(session: Session): Unit = {
+    val karateContext = session(KarateAction.KARATE_CONTEXT_SESSION_KEY).asOption[Map[String, AnyRef]].getOrElse(Map.empty)
+    next ! session.set(KarateAction.KARATE_CONTEXT_SESSION_KEY,  karateContext + (key -> valueSupplier(session)))
+  }
+}
+
