@@ -91,6 +91,8 @@ public class DriverOptions {
     public final String webDriverPath;
     public final Map<String, Object> webDriverSession;
     public final Map<String, Object> httpConfig;
+    public final boolean remoteHost;
+    public final boolean useDockerHost;
     public final Target target;
     public final String beforeStart;
     public final String afterStop;
@@ -127,7 +129,11 @@ public class DriverOptions {
     }
 
     public boolean isRemoteHost() {
-        return options != null && options.get("remoteHost") != null && (Boolean) options.get("remoteHost");
+        return remoteHost;
+    }
+
+    public boolean isHostDockerHost() {
+        return host.equalsIgnoreCase("host.docker.internal");
     }
 
     public void setPreSubmitHash(String preSubmitHash) {
@@ -191,6 +197,8 @@ public class DriverOptions {
         webDriverPath = get("webDriverPath", null);
         webDriverSession = get("webDriverSession", null);
         httpConfig = get("httpConfig", null);
+        remoteHost = get("remoteHost", false);
+        useDockerHost = get("useDockerHost", false);
         beforeStart = get("beforeStart", null);
         afterStop = get("afterStop", null);
         videoFile = get("videoFile", null);
