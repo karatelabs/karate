@@ -195,8 +195,8 @@ public class DriverOptions {
         webDriverPath = get("webDriverPath", null);
         webDriverSession = get("webDriverSession", null);
         httpConfig = get("httpConfig", null);
-        remoteHost = get("remoteHost", null);
-        useDockerHost = get("useDockerHost", null);
+        remoteHost = get("remoteHost", false);
+        useDockerHost = get("useDockerHost", false);
         beforeStart = get("beforeStart", null);
         afterStop = get("afterStop", null);
         videoFile = get("videoFile", null);
