@@ -114,7 +114,7 @@ class KarateFeatureActionBuilder(name: String, tags: Seq[String]) extends Action
 class KarateSetAction(key: String, valueSupplier: Session => AnyRef,
                       val statsEngine: StatsEngine, val clock: Clock, val next: Action) extends ExitableAction with NameGen {
 
-  override val name: String = genName("karateCallArg")
+  override val name: String = genName("karateSet")
 
   override def execute(session: Session): Unit = {
     val karateContext = session(KarateFeatureAction.KARATE_CONTEXT_SESSION_KEY).asOption[Map[String, AnyRef]].getOrElse(Map.empty)
