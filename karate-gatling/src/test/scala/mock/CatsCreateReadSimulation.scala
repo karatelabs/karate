@@ -40,6 +40,8 @@ class CatsCreateReadSimulation extends Simulation {
     feed(feeder)
     .exec(addToKarateContext)
     .exec(createOnly)
+      // renaming as required by read only.
+    .exec(karateAdd("expectedName", s => s("name").as[String]))
     .exec(readOnly)
   }
 

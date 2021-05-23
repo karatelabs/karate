@@ -19,5 +19,6 @@ Feature: cats crud
     Given path id
     When method get
     Then status 200
-    And match response == { id: '#(id)', name: '#(name)' }
+    # intentionally a different name :)
+    And match response == { id: '#(id)', name: '#(expectedName)' }
 
