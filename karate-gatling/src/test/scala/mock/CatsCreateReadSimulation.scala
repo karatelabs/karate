@@ -4,6 +4,7 @@ import com.intuit.karate.gatling.PreDef._
 import io.gatling.core.Predef._
 
 import scala.concurrent.duration._
+import scala.util.Random
 
 class CatsCreateReadSimulation extends Simulation {
 
@@ -15,6 +16,12 @@ class CatsCreateReadSimulation extends Simulation {
   )
 
   protocol.nameResolver = (req, ctx) => req.getHeader("karate-name")
+
+  val feeder = Iterator.continually(Map("name" -> (Random.alphanumeric.take(20).mkString + "-name")))
+
+  val addToKarateContext = scenario("feederToContext")
+    .exec(karateAdd("name", s => s("name").as[String]))
+
 
   val createOnly = scenario("create").exec(karateFeature("classpath:mock/cats-cr.feature@name=create")).exec(session => {
     println("*** session status in gatling: " + session.status)
@@ -30,7 +37,10 @@ class CatsCreateReadSimulation extends Simulation {
   })
 
   val createAndRead = scenario("createAndRead").group("createAndRead") {
-    exec(createOnly).exec(readOnly)
+    feed(feeder)
+    .exec(addToKarateContext)
+    .exec(createOnly)
+    .exec(readOnly)
   }
 
 
