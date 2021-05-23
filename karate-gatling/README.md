@@ -21,6 +21,7 @@
     | <a href="#nameresolver"><code>nameResolver</code></a>
     | <a href="#pausefor"><code>pauseFor()</code></a>
     | <a href="#karatefeature"><code>karateFeature()</code></a>
+    | <a href="#karateSet"><code>karateSet()</code></a>
     | <a href="#tag-selector">Tag Selector</a>
     | <a href="#ignore-tags">Ignore Tags</a>
   </td>
@@ -30,6 +31,7 @@
   <td>
       <a href="#gatling-session">Session</a>
     | <a href="#feeders">Feeders</a>
+    | <a href="#chaining">Chaining</a>
     | <a href="#karatecallsingle"><code>karate.callSingle()</code></a>
     | <a href="#detecting-gatling-at-run-time">Detecting Gatling At Run Time</a>
     | <a href="#think-time">Think Time</a>
@@ -268,6 +270,14 @@ And now in the feature file you can do this:
 ```cucumber
 * print __gatling.catName
 ```
+
+### Chaining
+Normally we recommend that `Scenario`-s should be self-contained and that you should model any "flows" of calls made to API-s or code within a single `Scenario` itself or by using [`call`](https://github.com/intuit/karate#call).
+
+But for advanced load-modelling, you may want to compose `Scenario`-s along with Gatling [feeders](#feeders) and have variables "flow" from one `Scenario` into another. This way you will be able to use all of Gatling's features such as [grouping](https://gatling.io/docs/current/general/scenario/#groups-definition), [assertions](https://gatling.io/docs/current/general/assertions/) and control over each [sub-execution](https://gatling.io/docs/current/general/scenario/#exec).
+
+#### `karateSet()`
+[This example](src/test/scala/mock/CatsChainedSimulation.scala) shows how you can use the `karateSet()` Gatling action to pipe data from the Gatling session (typically a feeder) into variables that Karate can access.
 
 #### `karate.callSingle()`
 A common need is to run a routine, typically a sign-in and setting up of an `Authorization` header only *once* - for all `Feature` invocations. Keep in mind that when you use Gatling, what used to be a single `Feature` in "normal" Karate will now be multiplied by the number of users you define. So [`callonce`](https://github.com/intuit/karate#callonce) won't be sufficient anymore.

@@ -2,7 +2,6 @@ Feature: cats crud
 
   Background:
     * url baseUrl
-    * print 'gatling userId:', __gatling.userId
 
   @name=create
   Scenario: create
@@ -15,10 +14,9 @@ Feature: cats crud
 
   @name=read
   Scenario: read
-    # requires id to be passed.
+    # note how 'id' and 'expectedName' are passed in via the gatling session
     Given path id
     When method get
     Then status 200
-    # intentionally a different name :)
     And match response == { id: '#(id)', name: '#(expectedName)' }
 
