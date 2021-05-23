@@ -291,5 +291,10 @@ class FeatureRuntimeTest {
         report.render("target/report-test");
         // error log will should have logs on all failures
     }
+    
+    @Test
+    void testKarateFork() {
+        run("fork.feature");
+    }    
 
 }
