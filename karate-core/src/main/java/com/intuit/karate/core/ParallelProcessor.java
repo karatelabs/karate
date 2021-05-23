@@ -54,16 +54,18 @@ public abstract class ParallelProcessor<T> {
         publisher.forEachRemaining(in -> {
             final CompletableFuture future = new CompletableFuture();
             futures.add(future);
-            executor.submit(() -> {
+            Runnable runnable = () -> {
                 try {
                     process(in);
                 } catch (Exception e) {
                     logger.error("[parallel] input item failed: {}", e.getMessage());
                 }
                 future.complete(Boolean.TRUE);
-            });
+            };
             if (shouldRunSynchronously(in)) {
-                future.join();
+                monitor.submit(runnable); // single thread pool
+            } else {
+                executor.submit(runnable);
             }
         });
         final CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
