@@ -179,6 +179,7 @@
 * Simple, clean syntax that is well suited for people new to programming or test-automation
 * All-in-one framework that includes [parallel-execution](https://github.com/intuit/karate#parallel-execution), [HTML reports](https://github.com/intuit/karate#junit-html-report), [environment-switching](https://github.com/intuit/karate#switching-the-environment), and [CI integration](https://github.com/intuit/karate#test-reports)
 * Cross-platform - with even the option to run as a programming-language *neutral* [stand-alone executable](https://github.com/intuit/karate/wiki/ZIP-Release)
+* Support for [`iframe`-s](#switchframe), [switching browser tabs](#switchpage), and [uploading files](#driverinputfile)
 * No need to learn complicated programming concepts such as "callbacks", "`async` / `await`" and "promises"
 * Option to use [wildcard](#wildcard-locators) and ["friendly" locators](#friendly-locators) without needing to inspect the HTML-page source, CSS, or internal XPath structure
 * Chrome-native automation using the [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) (equivalent to [Puppeteer](https://pptr.dev))
@@ -188,7 +189,6 @@
 * [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI environment or [Docker](#configure-drivertarget) - without needing a "master node" or "grid"
 * You can even run tests in parallel across [different machines](#distributed-testing) - and Karate will aggregate the results
 * Embed [video-recordings of tests](#karate-chrome) into the HTML report from a Docker container
-* Windows [Desktop application automation](https://twitter.com/KarateDSL/status/1052432964804640768) using the Microsoft [WinAppDriver](https://github.com/Microsoft/WinAppDriver)
 * [Android and iOS mobile support](https://github.com/intuit/karate/issues/743) via [Appium](http://appium.io)
 * Seamlessly mix API and UI tests within the same script, for example [sign-in using an API](https://github.com/intuit/karate#http-basic-authentication-example) and speed-up your tests
 * [Intercept HTTP requests](#intercepting-http-requests) made by the browser and re-use [Karate mocks](https://github.com/intuit/karate/tree/master/karate-netty) to stub / modify server responses and even replace HTML content
