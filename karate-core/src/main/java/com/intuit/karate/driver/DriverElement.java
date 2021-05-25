@@ -112,6 +112,12 @@ public class DriverElement implements Element {
     }
 
     @Override
+    public Element scroll() {
+        driver.scroll(locator);
+        return this;
+    }        
+
+    @Override
     public Mouse mouse() {
         return driver.mouse(locator);
     }

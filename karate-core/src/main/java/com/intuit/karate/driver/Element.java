@@ -51,6 +51,8 @@ public interface Element {
     Element click();
 
     Element submit();
+    
+    Element scroll();
 
     Mouse mouse();
 

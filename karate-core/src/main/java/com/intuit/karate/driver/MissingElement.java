@@ -92,6 +92,11 @@ public class MissingElement implements Element {
     }
 
     @Override
+    public Element scroll() {
+        return this;
+    }        
+
+    @Override
     public Mouse mouse() {
         return null;
     }
