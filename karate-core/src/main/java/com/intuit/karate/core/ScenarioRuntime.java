@@ -93,10 +93,10 @@ public class ScenarioRuntime implements Runnable {
         if (background != null) {
             if (!background.isDynamicBackground()) {
                 result.addStepResults(background.result.getStepResults());
+                engine.requestBuilder = background.engine.requestBuilder.copy();
             }
             Map<String, Variable> detached = background.engine.detachVariables();
             detached.forEach((k, v) -> engine.vars.put(k, v));
-            engine.requestBuilder = background.engine.requestBuilder.copy();
         }
         dryRun = featureRuntime.suite.dryRun;
         tags = scenario.getTagsEffective();
