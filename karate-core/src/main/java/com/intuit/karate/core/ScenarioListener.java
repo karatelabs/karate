@@ -53,17 +53,9 @@ public class ScenarioListener implements Consumer, Function, Runnable {
 
     private void init() {
         if (function == null) {
-            try { // TODO remove this after all the fixes for #1515
-                long startTime = System.currentTimeMillis();
-                parent.runtime.ASYNC_SEMAPHORE.tryAcquire(500, TimeUnit.MILLISECONDS);
-                logger.debug("[listener-init] async lock waited {} ms", System.currentTimeMillis() - startTime);
-            } catch (Exception e) {
-                logger.warn("[listener-init] async lock failed: {}", e.getMessage());
-            }
             ScenarioEngine.set(child);
             child.init();
             function = child.attachSource(source);
-            parent.runtime.ASYNC_SEMAPHORE.release();
         }
     }
 
