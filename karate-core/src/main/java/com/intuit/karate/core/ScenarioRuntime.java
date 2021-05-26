@@ -93,7 +93,9 @@ public class ScenarioRuntime implements Runnable {
         magicVariables = initMagicVariables();
         result = new ScenarioResult(scenario);
         if (background != null) {
-            result.addStepResults(background.result.getStepResults());
+            if (!background.isDynamicBackground()) {
+                result.addStepResults(background.result.getStepResults());
+            }
             Map<String, Variable> detached = background.engine.detachVariables();
             detached.forEach((k, v) -> engine.vars.put(k, v));
             engine.requestBuilder = background.engine.requestBuilder.copy();

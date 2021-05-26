@@ -36,3 +36,10 @@ Examples:
 | data |
 | 1    | 
 | 2    |
+
+Scenario Outline: dynamic ${__num + 1}
+# dynamic outline comment
+* print 'row:', __row
+
+Examples:
+| read('data.csv') |
