@@ -24,7 +24,6 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.KarateException;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.RuntimeHook;
@@ -39,7 +38,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Semaphore;
 
 /**
  * @author pthomas3
