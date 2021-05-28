@@ -7,5 +7,5 @@ Scenario:
 
 * click("#helloDiv")
 * switchPage('/11_tab')
-* karate.log("driver.url", driver.url)
-* match driver.url contains '11_tab'
+* waitForUrl('/11_tab')
+* match text('#content') == 'Page 11 Tab'
