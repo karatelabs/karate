@@ -285,7 +285,7 @@ public class HttpRequestBuilder implements ProxyObject {
         try {
             URIBuilder builder = createBuilder(url, params);
             if (Objects.nonNull(rawPaths)) {
-                builder.setPath(buildRawPath(rawPaths));
+                builder.setPath(mergeRawPath(builder, rawPaths));
             }
             if (Objects.nonNull(paths)) {
                 builder.setPathSegments(mergePathSegments(builder, paths));
@@ -296,7 +296,7 @@ public class HttpRequestBuilder implements ProxyObject {
         }
     }
 
-    private String buildRawPath(List<String> rawPaths) {
+    private String mergeRawPath(URIBuilder builder, List<String> rawPaths) {
         String result = "";
         for (String path : rawPaths) {
             if (path.startsWith("/")) {
@@ -306,6 +306,13 @@ public class HttpRequestBuilder implements ProxyObject {
                 result += "/";
             }
             result += path;
+        }
+        if (Objects.nonNull(builder.getPath())) {
+            if (builder.getPath().endsWith("/")) {
+                result = builder.getPath() + result;
+            } else {
+                result = builder.getPath() + "/" + result;
+            }
         }
         return result;
     }

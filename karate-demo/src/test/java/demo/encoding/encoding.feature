@@ -52,15 +52,15 @@ Scenario: manually decode before passing to karate
     And match response == 'foo+bar'
 
 Scenario: use raw path passing a string with existing path separators
-    Given url demoBaseUrl
-    And raw path '/encoding/hello/world/123/'
+    Given url demoBaseUrl + '/encoding'
+    And raw path '/hello/world/123/'
     When method get
     Then status 200
     And match response == 'hello/world/123/'
 
 Scenario: german xml
     Given url demoBaseUrl
-    And path 'echo'    
+    And path 'echo'
     And request <name>Müller</name>
     And header Content-Type = 'application/xml; charset=utf-8'
     When method post
