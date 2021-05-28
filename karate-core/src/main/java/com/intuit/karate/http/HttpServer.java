@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.http;
 
+import com.linecorp.armeria.common.HttpResponse;
+import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
@@ -107,6 +109,12 @@ public class HttpServer {
     }
 
     public HttpServer(ServerBuilder sb) {
+        HttpService httpStopService = (ctx, req) -> {
+            logger.debug("received command to stop server: {}", req.path());
+            this.stop();
+            return HttpResponse.of(HttpStatus.ACCEPTED);
+        };
+        sb.service("/__admin/stop", httpStopService);
         server = sb.build();
         future = server.start();
         future.join();

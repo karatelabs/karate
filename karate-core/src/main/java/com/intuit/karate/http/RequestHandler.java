@@ -76,7 +76,7 @@ public class RequestHandler implements ServerHandler {
         }
         ServerContext context = contextFactory.apply(request);
         context.prepare();
-        if (request.isForStaticResource()) {
+        if (!context.isApi() && request.isForStaticResource()) {
             if (logger.isDebugEnabled()) {
                 logger.debug("{}", request);
             }
@@ -111,7 +111,7 @@ public class RequestHandler implements ServerHandler {
                 }
             }
         }
-        RequestCycle rc = RequestCycle.init(JsEngine.global());
+        RequestCycle rc = RequestCycle.init(JsEngine.global(), engine);
         rc.init(context, session);
         try {
             if (context.isApi()) {

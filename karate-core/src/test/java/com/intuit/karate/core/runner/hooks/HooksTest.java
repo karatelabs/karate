@@ -145,10 +145,12 @@ public class HooksTest {
         assertEquals(0, testRuntimeHook.getRuntimeHookTracker().get("beforeScenario").values().stream().mapToInt(Integer::intValue).sum());
         assertEquals(0, testRuntimeHook.getRuntimeHookTracker().get("afterScenario").values().stream().mapToInt(Integer::intValue).sum());
 
-        // 3 because steps are added again to each scenario outline to execute again ...
+        // 5 because steps are added again to each scenario outline to execute again ...
         // background steps are re-run on each scenario outline
-        assertEquals(3, testRuntimeHook.getRuntimeHookTracker().get("beforeStep").values().stream().mapToInt(Integer::intValue).sum());
-        assertEquals(3, testRuntimeHook.getRuntimeHookTracker().get("afterStep").values().stream().mapToInt(Integer::intValue).sum());
+        // so 2 steps per each scenario outline + 1 step that takes to compute the background section
+        // needed to provide the value on the Examples table
+        assertEquals(5, testRuntimeHook.getRuntimeHookTracker().get("beforeStep").values().stream().mapToInt(Integer::intValue).sum());
+        assertEquals(5, testRuntimeHook.getRuntimeHookTracker().get("afterStep").values().stream().mapToInt(Integer::intValue).sum());
     }
 
     @Test

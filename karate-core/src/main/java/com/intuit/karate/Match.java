@@ -24,6 +24,8 @@
 package com.intuit.karate;
 
 import com.intuit.karate.graal.JsEngine;
+import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -41,9 +43,9 @@ import org.w3c.dom.Node;
  * @author pthomas3
  */
 public class Match {
-
+    
     public static enum Type {
-
+        
         EQUALS,
         NOT_EQUALS,
         CONTAINS,
@@ -59,28 +61,28 @@ public class Match {
         EACH_CONTAINS_ONLY,
         EACH_CONTAINS_ANY,
         EACH_CONTAINS_DEEP
-
+        
     }
-
+    
     static final Result PASS = new Result(true, null);
-
+    
     static Result fail(String message) {
         return new Result(false, message);
     }
-
+    
     interface Validator extends Function<Value, Result> {
         //
     }
-
+    
     static class RegexValidator implements Validator {
-
+        
         private final Pattern pattern;
-
+        
         public RegexValidator(String regex) {
             regex = StringUtils.trimToEmpty(regex);
             pattern = Pattern.compile(regex);
         }
-
+        
         @Override
         public Result apply(Value v) {
             if (!v.isString()) {
@@ -90,11 +92,11 @@ public class Match {
             Matcher matcher = pattern.matcher(strValue);
             return matcher.matches() ? PASS : fail("regex match failed");
         }
-
+        
     }
-
+    
     static final Map<String, Validator> VALIDATORS = new HashMap(11);
-
+    
     static {
         VALIDATORS.put("array", v -> v.isList() ? PASS : fail("not an array or list"));
         VALIDATORS.put("boolean", v -> v.isBoolean() ? PASS : fail("not a boolean"));
@@ -118,33 +120,33 @@ public class Match {
             }
         });
     }
-
+    
     public static class Result {
-
+        
         public final String message;
         public final boolean pass;
-
+        
         private Result(boolean pass, String message) {
             this.pass = pass;
             this.message = message;
         }
-
+        
         @Override
         public String toString() {
             return pass ? "[pass]" : message;
         }
-
+        
         public Map<String, Object> toMap() {
             Map<String, Object> map = new HashMap(2);
             map.put("pass", pass);
             map.put("message", message);
             return map;
         }
-
+        
     }
-
+    
     static class Context {
-
+        
         final JsEngine JS;
         final MatchOperation root;
         final int depth;
@@ -152,7 +154,7 @@ public class Match {
         final String path;
         final String name;
         final int index;
-
+        
         Context(JsEngine js, MatchOperation root, boolean xml, int depth, String path, String name, int index) {
             this.JS = js;
             this.root = root;
@@ -162,7 +164,7 @@ public class Match {
             this.name = name;
             this.index = index;
         }
-
+        
         Context descend(String name) {
             if (xml) {
                 String childPath = path.endsWith("/@") ? path + name : (depth == 0 ? "" : path) + "/" + name;
@@ -173,7 +175,7 @@ public class Match {
                 return new Context(JS, root, xml, depth + 1, childPath, name, -1);
             }
         }
-
+        
         Context descend(int index) {
             if (xml) {
                 return new Context(JS, root, xml, depth + 1, path + "[" + (index + 1) + "]", name, index);
@@ -181,9 +183,9 @@ public class Match {
                 return new Context(JS, root, xml, depth + 1, path + "[" + index + "]", name, index);
             }
         }
-
+        
     }
-
+    
     static enum ValueType {
         NULL,
         BOOLEAN,
@@ -195,19 +197,29 @@ public class Match {
         XML,
         OTHER
     }
-
+    
     public static class Value {
-
+        
         final ValueType type;
         final boolean exceptionOnMatchFailure;
-
+        
         private final Object value;
-
+        
         Value(Object value) {
             this(value, false);
         }
-
+        
         Value(Object value, boolean exceptionOnMatchFailure) {
+            if (value instanceof Set) {
+                value = new ArrayList((Set) value);
+            } else if (value != null && value.getClass().isArray()) {                
+                int length = Array.getLength(value);
+                List list = new ArrayList(length);
+                for (int i = 0; i < length; i++) {
+                    list.add(Array.get(value, i));
+                }
+                value = list;
+            }
             this.value = value;
             this.exceptionOnMatchFailure = exceptionOnMatchFailure;
             if (value == null) {
@@ -230,39 +242,39 @@ public class Match {
                 type = ValueType.OTHER;
             }
         }
-
+        
         public boolean isBoolean() {
             return type == ValueType.BOOLEAN;
         }
-
+        
         public boolean isNumber() {
             return type == ValueType.NUMBER;
         }
-
+        
         public boolean isString() {
             return type == ValueType.STRING;
         }
-
+        
         public boolean isNull() {
             return type == ValueType.NULL;
         }
-
+        
         public boolean isMap() {
             return type == ValueType.MAP;
         }
-
+        
         public boolean isList() {
             return type == ValueType.LIST;
         }
-
+        
         public boolean isXml() {
             return type == ValueType.XML;
         }
-
+        
         boolean isNotPresent() {
             return "#notpresent".equals(value);
         }
-
+        
         boolean isMapOrListOrXml() {
             switch (type) {
                 case MAP:
@@ -273,11 +285,11 @@ public class Match {
                     return false;
             }
         }
-
+        
         public <T> T getValue() {
             return (T) value;
         }
-
+        
         String getWithinSingleQuotesIfString() {
             if (type == ValueType.STRING) {
                 return "'" + value + "'";
@@ -285,7 +297,7 @@ public class Match {
                 return getAsString();
             }
         }
-
+        
         public String getAsString() {
             switch (type) {
                 case LIST:
@@ -297,7 +309,7 @@ public class Match {
                     return value + "";
             }
         }
-
+        
         String getAsXmlString() {
             if (type == ValueType.MAP) {
                 Node node = XmlUtils.fromMap(getValue());
@@ -306,7 +318,7 @@ public class Match {
                 return getAsString();
             }
         }
-
+        
         Value getSortedLike(Value other) {
             if (isMap() && other.isMap()) {
                 Map<String, Object> reference = other.getValue();
@@ -327,7 +339,7 @@ public class Match {
                 return this;
             }
         }
-
+        
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
@@ -336,7 +348,7 @@ public class Match {
             sb.append("]");
             return sb.toString();
         }
-
+        
         public Result is(Type matchType, Object expected) {
             MatchOperation mo = new MatchOperation(matchType, this, new Value(parseIfJsonOrXmlString(expected), exceptionOnMatchFailure));
             mo.execute();
@@ -355,61 +367,61 @@ public class Match {
         public Result isEqualTo(Object expected) {
             return is(Type.EQUALS, expected);
         }
-
+        
         public Result contains(Object expected) {
             return is(Type.CONTAINS, expected);
         }
-
+        
         public Result containsDeep(Object expected) {
             return is(Type.CONTAINS_DEEP, expected);
         }
-
+        
         public Result containsOnly(Object expected) {
             return is(Type.CONTAINS_ONLY, expected);
         }
-
+        
         public Result containsAny(Object expected) {
             return is(Type.CONTAINS_ANY, expected);
         }
-
+        
         public Result isNotEqualTo(Object expected) {
             return is(Type.NOT_EQUALS, expected);
         }
-
+        
         public Result isNotContaining(Object expected) {
             return is(Type.NOT_CONTAINS, expected);
         }
-
+        
         public Result isEachEqualTo(Object expected) {
             return is(Type.EACH_EQUALS, expected);
         }
-
+        
         public Result isEachNotEqualTo(Object expected) {
             return is(Type.EACH_NOT_EQUALS, expected);
         }
-
+        
         public Result isEachContaining(Object expected) {
             return is(Type.EACH_CONTAINS, expected);
         }
-
+        
         public Result isEachNotContaining(Object expected) {
             return is(Type.EACH_NOT_CONTAINS, expected);
         }
-
+        
         public Result isEachContainingDeep(Object expected) {
             return is(Type.EACH_CONTAINS_DEEP, expected);
         }
-
+        
         public Result isEachContainingOnly(Object expected) {
             return is(Type.EACH_CONTAINS_ONLY, expected);
         }
-
+        
         public Result isEachContainingAny(Object expected) {
             return is(Type.EACH_CONTAINS_ANY, expected);
         }
-
+        
     }
-
+    
     public static Result execute(JsEngine js, Type matchType, Object actual, Object expected) {
         MatchOperation mo = new MatchOperation(js, matchType, new Value(actual), new Value(expected));
         mo.execute();
@@ -419,7 +431,7 @@ public class Match {
             return fail(mo.getFailureReasons());
         }
     }
-
+    
     public static Object parseIfJsonOrXmlString(Object o) {
         if (o instanceof String) {
             String s = (String) o;
@@ -437,13 +449,13 @@ public class Match {
         }
         return o;
     }
-
+    
     public static Value evaluate(Object actual) {
         return new Value(parseIfJsonOrXmlString(actual), false);
     }
-
+    
     public static Value that(Object actual) {
         return new Value(parseIfJsonOrXmlString(actual), true);
     }
-
+    
 }

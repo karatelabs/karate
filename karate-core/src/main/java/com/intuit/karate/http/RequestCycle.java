@@ -25,8 +25,10 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.template.KarateTemplateEngine;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,25 +54,31 @@ public class RequestCycle {
         return THREAD_LOCAL.get();
     }
 
-    public static RequestCycle init(JsEngine je) {
-        RequestCycle rc = new RequestCycle(je);
+    public static RequestCycle init(JsEngine je, KarateTemplateEngine te) {
+        RequestCycle rc = new RequestCycle(je, te);
         THREAD_LOCAL.set(rc);
         return rc;
     }
 
     private final JsEngine engine;
+    private final KarateTemplateEngine templateEngine;
     private Session session;
     private Response response;
     private ServerContext context;
     private String switchTemplate;
     private String redirectPath;
 
-    public RequestCycle(JsEngine engine) {
+    public RequestCycle(JsEngine engine, KarateTemplateEngine templateEngine) {
         this.engine = engine;
+        this.templateEngine = templateEngine;
     }
 
     public JsEngine getEngine() {
         return engine;
+    }
+
+    public KarateTemplateEngine getTemplateEngine() {
+        return templateEngine;
     }
 
     public void close() {
@@ -126,6 +134,10 @@ public class RequestCycle {
             this.session = session;
         }
         // this has to be after the session init
+        Map<String, Object> variables = context.getVariables();
+        if (variables != null) {
+            engine.putAll(variables);
+        }
         Request request = context.getRequest();
         request.processBody();
         engine.put(REQUEST, request);

@@ -24,6 +24,7 @@
 package com.intuit.karate;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -259,10 +260,13 @@ public class StringUtils {
     }
 
     public static String throwableToString(Throwable t) {
-        StringWriter sw = new StringWriter();
-        PrintWriter pw = new PrintWriter(sw);
-        t.printStackTrace(pw);
-        return sw.toString();
+        try(final StringWriter sw = new StringWriter();
+            final PrintWriter pw = new PrintWriter(sw, true)) {
+            t.printStackTrace(pw);
+            return sw.toString();
+        } catch (IOException e) {
+            return null;
+        }
     }
 
 }

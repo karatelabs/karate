@@ -63,9 +63,9 @@ public class KaScriptElemProcessor extends AbstractElementModelProcessor {
                 String text = StringUtils.trimToNull(((IText) event).getText());
                 if (text != null) {
                     if ("local".equals(scope)) {
-                        TemplateEngineContext.get().evalLocal(text, false);
+                        KarateEngineContext.get().evalLocal(text, false);
                     } else {
-                        TemplateEngineContext.get().evalGlobal(text);
+                        KarateEngineContext.get().evalGlobal(text);
                     }
                 }
                 if (isHead && headModel == null) {

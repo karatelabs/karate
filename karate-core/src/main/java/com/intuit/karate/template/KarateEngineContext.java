@@ -47,40 +47,57 @@ import org.thymeleaf.templatemode.TemplateMode;
  *
  * @author pthomas3
  */
-public class TemplateEngineContext implements IEngineContext {
+public class KarateEngineContext implements IEngineContext {
 
-    private static final Logger logger = LoggerFactory.getLogger(TemplateEngineContext.class);
+    private static final Logger logger = LoggerFactory.getLogger(KarateEngineContext.class);
 
-    private static final ThreadLocal<TemplateEngineContext> THREAD_LOCAL = new ThreadLocal();
+    private static final ThreadLocal<KarateEngineContext> THREAD_LOCAL = new ThreadLocal();
 
     private final IEngineContext wrapped;
     private final JsEngine jsEngine;
-    private final Map<String, Object> context = new HashMap();
+    private final Map<String, Object> context = new HashMap();    
+    private boolean redirect;        
 
-    public static TemplateEngineContext initThreadLocal(IEngineContext wrapped, JsEngine engine) {
-        TemplateEngineContext tec = new TemplateEngineContext(wrapped, engine);
+    public static KarateEngineContext initThreadLocal(IEngineContext wrapped, JsEngine engine) {
+        KarateEngineContext tec = new KarateEngineContext(wrapped, engine);
         THREAD_LOCAL.set(tec);
         return tec;
     }
 
-    private TemplateEngineContext(IEngineContext wrapped, JsEngine jsEngine) {
+    private KarateEngineContext(IEngineContext wrapped, JsEngine jsEngine) {
         this.wrapped = wrapped;
         this.jsEngine = jsEngine;
         jsEngine.put("_", context);
     }
 
-    public static TemplateEngineContext get() {
+    public static KarateEngineContext get() {
         return THREAD_LOCAL.get();
     }
+    
+    public void setRedirect(boolean redirect) {
+        this.redirect = redirect;
+    }
+
+    public boolean isRedirect() {
+        return redirect;
+    }    
 
     public JsValue evalGlobal(String src) {
         getVariableNames().forEach(name -> jsEngine.put(name, getVariable(name)));
-        return jsEngine.eval(src);
+        try {
+            return jsEngine.eval(src);
+        } catch (Exception e) {
+            throw JsEngine.fromJsEvalException(src, e, null);
+        }
     }
 
     public JsValue evalLocal(String src, boolean returnValue) {
-        Value value = jsEngine.evalWith(getVariableNames(), this::getVariable, src, returnValue);
-        return new JsValue(value);
+        try {
+            Value value = jsEngine.evalWith(getVariableNames(), this::getVariable, src, returnValue);
+            return new JsValue(value);
+        } catch (Exception e) {
+            throw JsEngine.fromJsEvalException(src, e, null);
+        }
     }
 
     @Override

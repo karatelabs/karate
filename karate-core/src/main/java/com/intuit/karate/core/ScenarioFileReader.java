@@ -111,17 +111,27 @@ public class ScenarioFileReader {
         return pos == -1 ? text : text.substring(pos + 1);
     }
 
+    /**
+     * This method assigns left and right part of file path if the path has a feature file followed by @. For all
+     * other file types, it assigns null to the right part.
+     * @param text file path as string
+    * @return StringUtils.Pair which holds the left and right values as string
+     */
+
     private static StringUtils.Pair parsePathAndTags(String text) {
-        int pos = text.indexOf('@');
-        if (pos == -1) {
+        int pos = text.indexOf(".feature@");
+        if (pos == -1)
+        {
             text = StringUtils.trimToEmpty(text);
             return new StringUtils.Pair(text, null);
-        } else {
-            String left = StringUtils.trimToEmpty(text.substring(0, pos));
-            String right = StringUtils.trimToEmpty(text.substring(pos));
-            return new StringUtils.Pair(left, right);
+        }else {
+            return new StringUtils.Pair(StringUtils.trimToEmpty(text.substring(0, pos+8)), StringUtils.trimToEmpty(text.substring(pos+9)));
         }
+
+
+
     }
+
 
     public Resource toResource(String path) {
         if (isClassPath(path)) {

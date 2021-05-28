@@ -182,19 +182,6 @@ public class MatchOperation {
                 return fail("actual path does not exist");
             }
         }
-        if (expected.isString()) {
-            String expStr = expected.getValue();
-            if (expStr.startsWith("#")) {
-                switch (type) {
-                    case NOT_EQUALS:
-                        return macroEqualsExpected(expStr) ? fail("is equal") : pass();
-                    case NOT_CONTAINS:
-                        return macroEqualsExpected(expStr) ? fail("actual contains expected") : pass();
-                    default:
-                        return macroEqualsExpected(expStr) ? pass() : fail(null);
-                }
-            }
-        }
         if (actual.type != expected.type) {
             switch (type) {
                 case CONTAINS:
@@ -217,8 +204,27 @@ public class MatchOperation {
                 MatchOperation mo = new MatchOperation(context, type, actual, new Match.Value(XmlUtils.toObject(expected.getValue(), true)));
                 mo.execute();
                 return mo.pass ? pass() : fail(mo.failReason);
+            }
+            if (expected.isString()) {
+                String expStr = expected.getValue();
+                if (!expStr.startsWith("#")) { // edge case if rhs is macro
+                    return type == Match.Type.NOT_EQUALS ? pass() : fail("data types don't match");
+                }
             } else {
                 return type == Match.Type.NOT_EQUALS ? pass() : fail("data types don't match");
+            }
+        }
+        if (expected.isString()) {
+            String expStr = expected.getValue();
+            if (expStr.startsWith("#")) {
+                switch (type) {
+                    case NOT_EQUALS:
+                        return macroEqualsExpected(expStr) ? fail("is equal") : pass();
+                    case NOT_CONTAINS:
+                        return macroEqualsExpected(expStr) ? fail("actual contains expected") : pass();
+                    default:
+                        return macroEqualsExpected(expStr) ? pass() : fail(null);
+                }
             }
         }
         switch (type) {
@@ -334,14 +340,12 @@ public class MatchOperation {
                 validatorName = StringUtils.trimToNull(validatorName);
                 if (validatorName != null) {
                     Match.Validator validator = null;
-
                     if (validatorName.startsWith(REGEX)) {
                         String regex = validatorName.substring(5).trim();
                         validator = new Match.RegexValidator(regex);
                     } else {
                         validator = Match.VALIDATORS.get(validatorName);
                     }
-
                     if (validator != null) {
                         if (optional && (actual.isNotPresent() || actual.isNull())) {
                             // pass
@@ -495,15 +499,18 @@ public class MatchOperation {
                 unMatchedKeysAct.remove(key);
             } else if (type == Match.Type.EQUALS) {
                 return fail("match failed for name: '" + key + "'");
-
             }
         }
         if (type == Match.Type.CONTAINS_ANY || type == Match.Type.CONTAINS_ANY_DEEP) {
             return unMatchedKeysExp.isEmpty() ? true : fail("no key-values matched");
         }
-        if (unMatchedKeysExp.isEmpty()
-                && (type == Match.Type.CONTAINS || type == Match.Type.CONTAINS_DEEP)) {
-            return true; // all expected keys matched, expMap was empty in the first place
+        if (unMatchedKeysExp.isEmpty()) { 
+            if (type == Match.Type.CONTAINS || type == Match.Type.CONTAINS_DEEP) {
+                return true; // all expected keys matched, expMap was empty in the first place    
+            }
+            if (type == Match.Type.NOT_CONTAINS && !expMap.isEmpty()) {
+                return true; // hack alert: the NOT_CONTAINS will be reversed by the calling routine
+            }
         }
         if (!unMatchedKeysExp.isEmpty()) {
             return fail("all key-values did not match, expected has un-matched keys - " + unMatchedKeysExp);

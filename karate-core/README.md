@@ -48,6 +48,7 @@
     | <a href="#file-upload">File Upload</a>
     | <a href="#code-reuse">Code Reuse</a>
     | <a href="#hybrid-tests">Hybrid Tests</a>
+    | <a href="#java-api">Java API</a>
   </td>
 </tr>
 <tr>
@@ -153,13 +154,13 @@
 <tr>
   <th>Chrome</th>
   <td>
-      <a href="#chrome-java-api">Java API</a>
+      <a href="#java-api">Java API</a>
     | <a href="#driverpdf"><code>driver.pdf()</code></a>
     | <a href="#driverscreenshotfull"><code>driver.screenshotFull()</code></a>
     | <a href="#driverintercept"><code>driver.intercept()</code></a>
     | <a href="#driverinputfile"><code>driver.inputFile()</code></a>
     | <a href="#driveremulatedevice"><code>driver.emulateDevice()</code></a>
-    | <a href="#scriptawait"><code>driver.scriptAwait()</code></a> 
+    | <a href="#driverscriptawait"><code>driver.scriptAwait()</code></a> 
   </td> 
 </tr>
 <tr>
@@ -178,6 +179,7 @@
 * Simple, clean syntax that is well suited for people new to programming or test-automation
 * All-in-one framework that includes [parallel-execution](https://github.com/intuit/karate#parallel-execution), [HTML reports](https://github.com/intuit/karate#junit-html-report), [environment-switching](https://github.com/intuit/karate#switching-the-environment), and [CI integration](https://github.com/intuit/karate#test-reports)
 * Cross-platform - with even the option to run as a programming-language *neutral* [stand-alone executable](https://github.com/intuit/karate/wiki/ZIP-Release)
+* Support for [`iframe`-s](#switchframe), [switching browser tabs](#switchpage), and [uploading files](#driverinputfile)
 * No need to learn complicated programming concepts such as "callbacks", "`async` / `await`" and "promises"
 * Option to use [wildcard](#wildcard-locators) and ["friendly" locators](#friendly-locators) without needing to inspect the HTML-page source, CSS, or internal XPath structure
 * Chrome-native automation using the [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) (equivalent to [Puppeteer](https://pptr.dev))
@@ -187,7 +189,6 @@
 * [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI environment or [Docker](#configure-drivertarget) - without needing a "master node" or "grid"
 * You can even run tests in parallel across [different machines](#distributed-testing) - and Karate will aggregate the results
 * Embed [video-recordings of tests](#karate-chrome) into the HTML report from a Docker container
-* Windows [Desktop application automation](https://twitter.com/KarateDSL/status/1052432964804640768) using the Microsoft [WinAppDriver](https://github.com/Microsoft/WinAppDriver)
 * [Android and iOS mobile support](https://github.com/intuit/karate/issues/743) via [Appium](http://appium.io)
 * Seamlessly mix API and UI tests within the same script, for example [sign-in using an API](https://github.com/intuit/karate#http-basic-authentication-example) and speed-up your tests
 * [Intercept HTTP requests](#intercepting-http-requests) made by the browser and re-use [Karate mocks](https://github.com/intuit/karate/tree/master/karate-netty) to stub / modify server responses and even replace HTML content
@@ -269,6 +270,7 @@ key | description
 `headless` | [headless mode](https://developers.google.com/web/updates/2017/04/headless-chrome) only applies to `{ type: 'chrome' }` for now, also see [`DockerTarget`](#dockertarget) and [`webDriverSession`](#webdriversession)
 `showDriverLog` | default `false`, will include webdriver HTTP traffic in Karate report, useful for troubleshooting or bug reports
 `showProcessLog` | default `false`, will include even executable (webdriver or browser) logs in the Karate report
+`showBrowserLog` | default `true`, only applies to `{ type: 'chrome' }` which shows the browser console log in the HTML report for convenience
 `addOptions` | default `null`, has to be a list / JSON array that will be appended as additional CLI arguments to the `executable`, e.g. `['--no-sandbox', '--windows-size=1920,1080']`
 `beforeStart` | default `null`, an OS command that will be executed before commencing a `Scenario` (and before the `executable` is invoked if applicable) typically used to start video-recording
 `afterStop` | default `null`, an OS command that will be executed after a `Scenario` completes, typically used to stop video-recording and save the video file to an output folder
@@ -471,6 +473,8 @@ The built-in [`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarge
 * and when `stop()` is called, indicate if a video recording is present (after retrieving it from the stopped container)
 
 Controlling this flow from Java can take a lot of complexity out your build pipeline and keep things cross-platform. And you don't need to line-up an assortment of shell-scripts to do all these things. You can potentially include the steps of deploying (and un-deploying) the application-under-test using this approach - but probably the top-level [JUnit test-suite](https://github.com/intuit/karate#parallel-execution) would be the right place for those.
+
+If the machine where you are running Karate is not the same as your target host (e.g. a sibling Docker container or a Chrome browser in a different machine) you might need to configure `DockerTarget` with the `remoteHost` and/or `useDockerHost` properties. The `DockerTarget` implementation has an example [and you can find more details here](https://github.com/intuit/karate/pull/1603#issuecomment-846420716).
 
 Another (simple) example of a custom `Target` you can use as a reference is this one: [`karate-devicefarm-demo`](https://github.com/ptrthomas/karate-devicefarm-demo) - which demonstrates how Karate can be used to drive tests on [AWS DeviceFarm](https://docs.aws.amazon.com/devicefarm/latest/testgrid/what-is-testgrid.html). The same approach should apply to any Selenium "grid" provider such as [Zalenium](https://opensource.zalando.com/zalenium/).
 
@@ -784,9 +788,13 @@ This also works as a "getter" to get the current window dimensions.
 The result JSON will be in the form: `{ x: '#number', y: '#number', width: '#number', height: '#number' }`
 
 ## `position()`
-Get the position and size of an element by [locator](#locators) as follows:
+Get the absolute position and size of an element by [locator](#locators) as follows:
 ```cucumber
 * def pos = position('#someid')
+```
+The absolute position returns the coordinate from the top left corner of the page. If you need the position of an element relative to the current viewport, you can pass an extra boolean argument set to 'true' ('false' will return the absolute position) :
+```cucumber
+* def pos = position('#someid', true)
 ```
 The result JSON will be in the form: `{ x: '#number', y: '#number', width: '#number', height: '#number' }`
 
@@ -1159,7 +1167,17 @@ Note that the "opposite" of `optional()` is [`locate()`](#locate) which will fai
 If all you need to do is check whether an element exists and fail the test if it doesn't, see [`exists()`](#exists) below.
 
 ## `exists()`
-This method returns a boolean (`true` or `false`), perfect for asserting if an element exists and giving you the option to perform conditional logic, or manually fail the test using something like [`karate.fail()`](https://github.com/intuit/karate#karate-fail) if needed.
+This method returns a boolean (`true` or `false`), perfect for asserting if an element exists and giving you the option to perform conditional logic, or manually fail the test.
+
+Note that there is a [`karate.fail()`](https://github.com/intuit/karate#karate-fail) API that may be handy when you want to fail a test after advanced / conditional checks.
+
+And also note that instead of using the `match` keyword, you can use [`karate.match()`](https://stackoverflow.com/a/50350442/143475) for very advanced conditional checks.
+
+```cucumber
+* var buttonExists = exists('#myButton')
+* var labelExists = exists('#myLabel')
+* if (buttonExists && !labelExists) karate.fail('button exists but label does not')
+```
 
 ## `waitUntil()`
 Wait for the *browser* JS expression to evaluate to `true`. Will poll using the [retry()](#retry) settings configured.
@@ -1331,6 +1349,15 @@ Here is an interesting example where a JavaScript event can be triggered on a gi
 
 ```cucumber
 * waitFor('#someId').script("_.dispatchEvent(new Event('change'))")
+```
+
+When starting with `_`, the ES6 arrow function syntax is also supported. This is more compact, and is especially useful for expressions that do not start with the current DOM element. Here is an example of getting the ["computed style"](https://developer.mozilla.org/en-US/docs/Web/API/Window/getComputedStyle) for a given element:
+
+```cucumber
+* match script('.styled-div', "function(e){ return getComputedStyle(e)['font-size'] }") == '30px'
+
+# this shorter version is equivalent to the above
+* match script('.styled-div', "_ => getComputedStyle(_)['font-size']") == '30px'
 ```
 
 For an advanced example of simulating a drag and drop operation see [this answer on Stack Overflow](https://stackoverflow.com/a/60800181/143475).
@@ -1879,8 +1906,23 @@ In real-life flows, you may need to pass cookies from the [browser](#cookie) to 
 
 A video of the above execution can be viewed [here](https://twitter.com/ptrthomas/status/1253373486384295936).
 
-# Chrome Java API
-Karate also has a Java API to automate the Chrome browser directly, designed for common needs such as converting HTML to PDF - or taking a screenshot of a page. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):
+# Java API
+## Driver Java API
+You can start a [`Driver`]() instance programmatically and perform actions and assertions like this:
+
+```java
+  Driver driver = Driver.start("chrome");
+  driver.setUrl(serverUrl + "/05");  
+  driver.click("button");
+  driver.waitForText("#containerDiv", "hello world");
+```
+
+You can find the complete example [here](../karate-e2e-tests/src/test/java/driver/JavaApiRunner.java). Also see this [explanation](https://twitter.com/KarateDSL/status/1353969718730788865).
+
+Also see the [Karate Java API](https://github.com/intuit/karate#java-api).
+
+## Chrome Java API
+As a convenience you can use the [`Chrome`](../karate-core/src/main/java/com/intuit/karate/driver/chrome/Chrome.java) concrete implementation of a `Driver` directly, designed for common needs such as converting HTML to PDF - or taking a screenshot of a page. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):
 
 ```java
 import com.intuit.karate.FileUtils;

@@ -24,12 +24,12 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.KarateException;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.debug.DebugThread;
+import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.StringLogAppender;
 
@@ -38,7 +38,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Semaphore;
 
 /**
  * @author pthomas3
@@ -73,15 +72,15 @@ public class ScenarioRuntime implements Runnable {
         perfMode = featureRuntime.perfHook != null;
         if (caller.isNone()) {
             logAppender = perfMode ? LogAppender.NO_OP : new StringLogAppender(false);
-            engine = new ScenarioEngine(new Config(), this, new HashMap(), logger);
+            engine = new ScenarioEngine(background == null ? new Config() : background.engine.getConfig(), this, new HashMap(), logger);
         } else if (caller.isSharedScope()) {
             logAppender = caller.parentRuntime.logAppender;
-            Config config = caller.parentRuntime.engine.getConfig();
+            Config config = background == null ? caller.parentRuntime.engine.getConfig() : background.engine.getConfig();
             Map<String, Variable> vars = caller.parentRuntime.engine.vars;
             engine = new ScenarioEngine(config, this, vars, logger);
         } else { // new, but clone and copy data
             logAppender = caller.parentRuntime.logAppender;
-            Config config = new Config(caller.parentRuntime.engine.getConfig());
+            Config config = background == null ? new Config(caller.parentRuntime.engine.getConfig()) : background.engine.getConfig();
             Map<String, Variable> vars = caller.parentRuntime.engine.copyVariables(false);
             engine = new ScenarioEngine(config, this, vars, logger);
         }
@@ -92,10 +91,12 @@ public class ScenarioRuntime implements Runnable {
         magicVariables = initMagicVariables();
         result = new ScenarioResult(scenario);
         if (background != null) {
-            result.addStepResults(background.result.getStepResults());
-            Map<String, Variable> detached = background.engine.detachVariables(true);            
+            if (!background.isDynamicBackground()) {
+                result.addStepResults(background.result.getStepResults());
+                engine.requestBuilder = background.engine.requestBuilder.copy();
+            }
+            Map<String, Variable> detached = background.engine.detachVariables();
             detached.forEach((k, v) -> engine.vars.put(k, v));
-            engine.requestBuilder = background.engine.requestBuilder.copy();
         }
         dryRun = featureRuntime.suite.dryRun;
         tags = scenario.getTagsEffective();
@@ -293,8 +294,8 @@ public class ScenarioRuntime implements Runnable {
             Map<String, Object> map = engine.getOrEvalAsMap(fun);
             engine.setVariables(map);
         } catch (Exception e) {
-            String message = scenario.getDebugInfo() + "\n" + displayName + "\n" + e.getMessage();
-            error = new KarateException(message, e);
+            String message = ">> " + scenario.getDebugInfo() + "\n>> " + displayName + " failed\n>> " + e.getMessage();
+            error = JsEngine.fromJsEvalException(js, e, message);
             stopped = true;
             configFailed = true;
         }
@@ -349,10 +350,19 @@ public class ScenarioRuntime implements Runnable {
         if (this.isDynamicBackground()) {
             steps = scenario.getBackgroundSteps();
         } else {
-            steps = background == null ? scenario.getStepsIncludingBackground() : scenario.getSteps();
+            steps = scenario.getStepsIncludingBackground();
         }
         ScenarioEngine.set(engine);
         engine.init();
+        if (this.background != null) {
+            ScenarioEngine backgroundEngine = background.engine;
+            if (backgroundEngine.driver != null) {
+                engine.setDriver(backgroundEngine.driver);
+            }
+            if (backgroundEngine.robot != null) {
+                engine.setRobot(backgroundEngine.robot);
+            }
+        }
         result.setExecutorName(Thread.currentThread().getName());
         result.setStartTime(System.currentTimeMillis());
         if (!dryRun) {
@@ -398,6 +408,9 @@ public class ScenarioRuntime implements Runnable {
                 }
             }
         } catch (Exception e) {
+            if (currentStepResult != null) {
+                result.addStepResult(currentStepResult);
+            }
             logError("scenario [run] failed\n" + e.getMessage());
             currentStepResult = result.addFakeStepResult("scenario [run] failed", e);
         } finally {
@@ -415,14 +428,11 @@ public class ScenarioRuntime implements Runnable {
             } else if (!this.isDynamicBackground()) { // don't add "fake" scenario to feature results
                 afterRun();
             }
-
             if (caller.isNone()) {
                 logAppender.close(); // reclaim memory
             }
         }
     }
-
-    protected final Semaphore ASYNC_SEMAPHORE = new Semaphore(1);
 
     public void execute(Step step) {
         if (!stopped && !dryRun) {
@@ -448,15 +458,6 @@ public class ScenarioRuntime implements Runnable {
             }
         } else if (dryRun) {
             stepResult = Result.passed(0);
-        } else if (engine.children != null) {
-            try {
-                ASYNC_SEMAPHORE.acquire();
-            } catch (Exception e) {
-                logger.warn("[runtime] async lock failed: {}", e.getMessage());
-            } finally {
-                stepResult = StepRuntime.execute(step, actions);
-                ASYNC_SEMAPHORE.release();
-            }
         } else {
             stepResult = StepRuntime.execute(step, actions);
         }
@@ -483,11 +484,9 @@ public class ScenarioRuntime implements Runnable {
             currentStepResult.setHidden(hidden);
         }
         addStepLogEmbedsAndCallResults();
-
         if (currentStepResult.isErrorIgnored()) {
             this.engine.setFailedReason(null);
         }
-
         if (!this.engine.isIgnoringStepErrors() && this.isIgnoringFailureSteps()) {
             if (this.engine.getConfig().isContinueAfterContinueOnStepFailure()) {
                 // continue execution and reset failed reason for engine to null
@@ -499,7 +498,6 @@ public class ScenarioRuntime implements Runnable {
                 stopped = true;
             }
         }
-
         if (stepResult.isFailed()) {
             if (engine.driver != null) {
                 engine.driver.onFailure(currentStepResult);

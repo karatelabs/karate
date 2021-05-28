@@ -36,6 +36,8 @@ import java.util.Map;
  */
 public class GeckoWebDriver extends WebDriver {
 
+    public static final String DRIVER_TYPE = "geckodriver";
+
     public GeckoWebDriver(DriverOptions options) {
         super(options);
     }

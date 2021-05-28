@@ -426,6 +426,9 @@ public interface Driver extends Plugin {
     Map<String, Object> position(String locator);
 
     @AutoDef
+    Map<String, Object> position(String locator, boolean relative);
+
+    @AutoDef
     byte[] screenshot(String locator, boolean embed);
 
     @AutoDef

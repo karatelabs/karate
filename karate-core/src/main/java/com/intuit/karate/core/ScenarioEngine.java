@@ -132,7 +132,7 @@ public class ScenarioEngine {
     private ScenarioEngine parent;
 
     public ScenarioEngine child() {
-        ScenarioEngine child = new ScenarioEngine(config, runtime, detachVariables(true), logger);
+        ScenarioEngine child = new ScenarioEngine(config, runtime, detachVariables(), logger);
         child.parent = this;
         if (children == null) {
             children = new ArrayList();
@@ -997,7 +997,7 @@ public class ScenarioEngine {
         }
         if (templateEngine == null) {
             String prefixedPath = runtime.featureRuntime.rootFeature.feature.getResource().getPrefixedParentPath();
-            templateEngine = TemplateUtils.forResourcePath(JS, prefixedPath);
+            templateEngine = TemplateUtils.forResourceRoot(JS, prefixedPath);
         }
         String html = templateEngine.process(path);
         runtime.embed(FileUtils.toBytes(html), ResourceType.HTML);
@@ -1008,13 +1008,15 @@ public class ScenarioEngine {
     public void init() { // not in constructor because it has to be on Runnable.run() thread 
         JS = JsEngine.local();
         logger.trace("js context: {}", JS);
+        // to avoid re-processing objects that have cyclic dependencies
+        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
         runtime.magicVariables.forEach((k, v) -> {
             // even hidden variables may need pre-processing
             // for e.g. the __arg may contain functions that originated in a different js context
-            recurseAndAttach(v);
+            recurseAndAttach(v, seen);
             setHiddenVariable(k, v);
         });
-        attachVariables(); // re-hydrate any functions from caller or background
+        attachVariables(seen); // re-hydrate any functions from caller or background
         setHiddenVariable(KARATE, bridge);
         setHiddenVariable(READ, readFunction);
         HttpClient client = runtime.featureRuntime.suite.clientFactory.create(this);
@@ -1035,7 +1037,7 @@ public class ScenarioEngine {
         }
     }
 
-    private void attachVariables() {
+    private void attachVariables(Set<Object> seen) {
         vars.forEach((k, v) -> {
             switch (v.type) {
                 case JS_FUNCTION:
@@ -1045,7 +1047,7 @@ public class ScenarioEngine {
                     break;
                 case MAP:
                 case LIST:
-                    recurseAndAttach(v.getValue());
+                    recurseAndAttach(v.getValue(), seen);
                     break;
                 case OTHER:
                     if (v.isJsFunctionWrapper()) {
@@ -1062,7 +1064,8 @@ public class ScenarioEngine {
         });
     }
 
-    public Map<String, Variable> detachVariables(boolean deep) { // TODO make deep the sole default
+    protected Map<String, Variable> detachVariables() {
+        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
         Map<String, Variable> detached = new HashMap(vars.size());
         vars.forEach((k, v) -> {
             switch (v.type) {
@@ -1072,12 +1075,8 @@ public class ScenarioEngine {
                     break;
                 case MAP:
                 case LIST:
-                    if (deep) {
-                        Object o = recurseAndDetachAndDeepClone(v.getValue());
-                        v = new Variable(o);
-                    } else {
-                        recurseAndDetach(v.getValue());
-                    }
+                    Object o = recurseAndDetachAndDeepClone(v.getValue(), seen);
+                    v = new Variable(o);
                     break;
                 default:
                 // do nothing
@@ -1101,7 +1100,12 @@ public class ScenarioEngine {
                     return attach(value);
                 }
             } catch (Exception e) {
-                logger.warn("failed to re-attach graal value: {}", e.getMessage());
+                logger.trace("[attach] failed to re-attach graal value (will re-try): {}", e.getMessage());
+                try {
+                    return Value.asValue(value.asHostObject());
+                } catch (Exception inner) {
+                    logger.warn("failed to re-attach graal value: {}", inner.getMessage());
+                }
             }
             return null;
         } else if (o instanceof JsFunction) {
@@ -1136,35 +1140,6 @@ public class ScenarioEngine {
         }
     }
 
-    protected Object recurseAndDetach(Object o) {
-        if (o instanceof Value) {
-            Value value = (Value) o;
-            return value.canExecute() ? new JsFunction(value) : null;
-        } else if (o instanceof List) {
-            List list = (List) o;
-            int count = list.size();
-            for (int i = 0; i < count; i++) {
-                Object child = list.get(i);
-                Object result = recurseAndDetach(child);
-                if (result != null) {
-                    list.set(i, result);
-                }
-            }
-            return null;
-        } else if (o instanceof Map) {
-            Map<String, Object> map = (Map) o;
-            map.forEach((k, v) -> {
-                Object result = recurseAndDetach(v);
-                if (result != null) {
-                    map.put(k, result);
-                }
-            });
-            return null;
-        } else {
-            return null;
-        }
-    }
-
     protected Object recurseAndAttachAndDeepClone(Object o) {
         // to avoid re-processing objects that have cyclic dependencies
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
@@ -1176,12 +1151,22 @@ public class ScenarioEngine {
             // should never happen if the detach was done properly
             Value value = (Value) o;
             try {
-                if (value.canExecute()) {
-                    return attach(value);
+                if (value.canExecute() || value.isMetaObject()) {
+                    // dealing with a js value from another context has to be thread isolated
+                    // since this routine is called only for callSingle, hopefully
+                    // this is not a serious performance hit
+                    synchronized (runtime.featureRuntime.suite) {
+                        return attach(value);
+                    }
                 }
                 o = JsValue.toJava(value);
             } catch (Exception e) {
-                logger.warn("failed to re-attach graal value: {}", e.getMessage());
+                logger.trace("[attach deep] failed to re-attach graal value (will re-try): {}", e.getMessage());
+                try {
+                    return Value.asValue(value.asHostObject());
+                } catch (Exception inner) {
+                    logger.warn("failed to re-attach graal value: {}", inner.getMessage());
+                }
                 return null; // we try to move on after stripping this (js function) from the tree
             }
         }
@@ -1212,6 +1197,11 @@ public class ScenarioEngine {
     }
 
     protected Object recurseAndDetachAndDeepClone(Object o) {
+        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
+        return recurseAndDetachAndDeepClone(o, seen);
+    }
+
+    private Object recurseAndDetachAndDeepClone(Object o, Set<Object> seen) {
         if (o instanceof Value) {
             Value value = (Value) o;
             if (value.canExecute()) {
@@ -1220,15 +1210,23 @@ public class ScenarioEngine {
             o = JsValue.toJava(value);
         }
         if (o instanceof List) {
-            List list = (List) o;
-            List copy = new ArrayList(list.size());
-            list.forEach(v -> copy.add(recurseAndDetachAndDeepClone(v)));
-            return copy;
+            if (seen.add(o)) {
+                List list = (List) o;
+                List copy = new ArrayList(list.size());
+                list.forEach(v -> copy.add(recurseAndDetachAndDeepClone(v, seen)));
+                return copy;
+            } else {
+                return o;
+            }
         } else if (o instanceof Map) {
-            Map<String, Object> map = (Map) o;
-            Map<String, Object> copy = new LinkedHashMap(map.size());
-            map.forEach((k, v) -> copy.put(k, recurseAndDetachAndDeepClone(v)));
-            return copy;
+            if (seen.add(o)) {
+                Map<String, Object> map = (Map) o;
+                Map<String, Object> copy = new LinkedHashMap(map.size());
+                map.forEach((k, v) -> copy.put(k, recurseAndDetachAndDeepClone(v, seen)));
+                return copy;
+            } else {
+                return o;
+            }
         } else {
             return o;
         }
@@ -1272,7 +1270,7 @@ public class ScenarioEngine {
             return JS.execute(function, args);
         } catch (Exception e) {
             String jsSource = function.getSourceLocation().getCharacters().toString();
-            KarateException ke = fromJsEvalException(jsSource, e);
+            KarateException ke = JsEngine.fromJsEvalException(jsSource, e, null);
             setFailedReason(ke);
             throw ke;
         }
@@ -1282,33 +1280,10 @@ public class ScenarioEngine {
         try {
             return new Variable(JS.eval(js));
         } catch (Exception e) {
-            KarateException ke = fromJsEvalException(js, e);
+            KarateException ke = JsEngine.fromJsEvalException(js, e, null);
             setFailedReason(ke);
             throw ke;
         }
-    }
-
-    protected static KarateException fromJsEvalException(String js, Exception e) {
-        // do our best to make js error traces informative, else thrown exception seems to
-        // get swallowed by the java reflection based method invoke flow
-        StackTraceElement[] stack = e.getStackTrace();
-        StringBuilder sb = new StringBuilder();
-        sb.append(">>>> js failed:\n");
-        List<String> lines = StringUtils.toStringLines(js);
-        int index = 0;
-        for (String line : lines) {
-            sb.append(String.format("%02d", ++index)).append(": ").append(line).append('\n');
-        }
-        sb.append("<<<<\n");
-        sb.append(e.toString()).append('\n');
-        for (int i = 0; i < stack.length; i++) {
-            String line = stack[i].toString();
-            sb.append("- ").append(line).append('\n');
-            if (line.startsWith("<js>") || i > 5) {
-                break;
-            }
-        }
-        return new KarateException(sb.toString());
     }
 
     public void setHiddenVariable(String key, Object value) {
@@ -1962,7 +1937,10 @@ public class ScenarioEngine {
             case JAVA_FUNCTION:
                 return arg == null ? executeFunction(called) : executeFunction(called, new Object[]{arg.getValue()});
             case FEATURE:
-                return callFeature(called.getValue(), arg, -1, sharedScope);
+                // will be always a map or a list of maps (loop call result)
+                Object callResult = callFeature(called.getValue(), arg, -1, sharedScope);
+                recurseAndAttach(callResult);
+                return new Variable(callResult);
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);
         }
@@ -1988,7 +1966,9 @@ public class ScenarioEngine {
         if (sharedScope) { // if shared scope
             vars.clear(); // clean slate
             // deep-clone so that subsequent steps don't modify data / references being passed around
-            result.vars.forEach((k, v) -> vars.put(k, v.copy(true)));
+            if (result.vars != null) {
+                result.vars.forEach((k, v) -> vars.put(k, v.copy(true)));
+            }
             init(); // this will attach and also insert magic variables
             // re-apply config from time of snapshot
             // and note that setConfig() will attach functions such as configured "headers"
@@ -2025,7 +2005,7 @@ public class ScenarioEngine {
             // we clone result (and config) here, to snapshot state at the point the callonce was invoked
             // detaching is important (see JsFunction) so that we can keep the source-code aside
             // and use it to re-create functions in a new JS context - and work around graal-js limitations
-            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? detachVariables(true) : null;
+            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? detachVariables() : null;
             Config clonedConfig = new Config(config);
             clonedConfig.detach();
             Object resultObject = recurseAndDetachAndDeepClone(resultValue.getValue());
@@ -2036,7 +2016,7 @@ public class ScenarioEngine {
         }
     }
 
-    public Variable callFeature(Feature feature, Variable arg, int index, boolean sharedScope) {
+    public Object callFeature(Feature feature, Variable arg, int index, boolean sharedScope) {
         if (arg == null || arg.isMap()) {
             ScenarioCall call = new ScenarioCall(runtime, feature, arg);
             call.setLoopIndex(index);
@@ -2051,9 +2031,7 @@ public class ScenarioEngine {
                 KarateException ke = result.getErrorMessagesCombined();
                 throw ke;
             } else {
-                Map<String, Object> map = result.getVariables();
-                recurseAndAttach(map);
-                return new Variable(map);
+                return result.getVariables();
             }
         } else if (arg.isList() || arg.isJsOrJavaFunction()) {
             List result = new ArrayList();
@@ -2075,8 +2053,8 @@ public class ScenarioEngine {
                     break;
                 }
                 try {
-                    Variable loopResult = callFeature(feature, loopArg, loopIndex, sharedScope);
-                    result.add(loopResult.getValue());
+                    Object loopResult = callFeature(feature, loopArg, loopIndex, sharedScope);
+                    result.add(loopResult);
                 } catch (Exception e) {
                     String message = "feature call loop failed at index: " + loopIndex + ", " + e.getMessage();
                     errors.add(message);
@@ -2088,7 +2066,7 @@ public class ScenarioEngine {
                 loopIndex++;
             }
             if (errors.isEmpty()) {
-                return new Variable(result);
+                return result;
             } else {
                 String errorMessage = StringUtils.join(errors, '\n');
                 throw new KarateException(errorMessage);

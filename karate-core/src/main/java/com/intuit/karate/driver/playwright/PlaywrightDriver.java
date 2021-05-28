@@ -59,6 +59,8 @@ import java.util.function.Predicate;
  */
 public class PlaywrightDriver implements Driver {
 
+    public static final String DRIVER_TYPE = "playwright";
+
     private final DriverOptions options;
     private final Command command;
     private final WebSocketClient client;
@@ -540,10 +542,15 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public Map<String, Object> position(String locator) {
+        return position(locator, false);
+    }
+
+    @Override
+    public Map<String, Object> position(String locator, boolean relative) {
         boolean submitTemp = submit; // in case we are prepping for a submit().mouse(locator).click()
         submit = false;
         retryIfEnabled(locator);
-        Map<String, Object> map = eval(DriverOptions.getPositionJs(locator)).getResultValue();
+        Map<String, Object> map = eval(relative ? DriverOptions.getRelativePositionJs(locator) : DriverOptions.getPositionJs(locator)).getResultValue();
         submit = submitTemp;
         return map;
     }

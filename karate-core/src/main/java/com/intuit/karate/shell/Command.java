@@ -27,6 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.http.Response;
 import org.slf4j.LoggerFactory;
 
@@ -149,9 +150,7 @@ public class Command extends Thread {
                 list.add("sh");
                 list.add("-c");
         }
-        for (String arg : args) {
-            list.add(arg);
-        }
+        list.add(StringUtils.join(args, ' '));
         return list.toArray(new String[list.size()]);
     }
 

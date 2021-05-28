@@ -24,9 +24,12 @@
 package com.intuit.karate.graal;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.KarateException;
+import com.intuit.karate.StringUtils;
 import java.io.File;
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -128,6 +131,10 @@ public class JsEngine {
         bindings.putMember(key, JsValue.fromJava(value));
     }
 
+    public void remove(String key) {
+        bindings.removeMember(key);
+    }
+
     public void putAll(Map<String, Object> map) {
         map.forEach((k, v) -> put(k, v));
     }
@@ -194,6 +201,32 @@ public class JsEngine {
         Value function = evalForValue(sb.toString());
         return function.execute(JsValue.fromJava(arg));
     }
+    
+    public static KarateException fromJsEvalException(String js, Exception e, String message) {
+        // do our best to make js error traces informative, else thrown exception seems to
+        // get swallowed by the java reflection based method invoke flow
+        StackTraceElement[] stack = e.getStackTrace();
+        StringBuilder sb = new StringBuilder();
+        if (message != null) {
+            sb.append(message).append('\n');
+        }
+        sb.append(">>>> js failed:\n");
+        List<String> lines = StringUtils.toStringLines(js);
+        int index = 0;
+        for (String line : lines) {
+            sb.append(String.format("%02d", ++index)).append(": ").append(line).append('\n');
+        }
+        sb.append("<<<<\n");
+        sb.append(e.toString()).append('\n');
+        for (int i = 0; i < stack.length; i++) {
+            String line = stack[i].toString();
+            sb.append("- ").append(line).append('\n');
+            if (line.startsWith("<js>") || i > 5) {
+                break;
+            }
+        }       
+        return new KarateException(sb.toString());
+    }    
 
     @Override
     public String toString() {

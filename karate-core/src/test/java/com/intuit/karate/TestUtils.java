@@ -6,6 +6,8 @@ import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.ScenarioIterator;
 import com.intuit.karate.core.ScenarioRuntime;
+import com.intuit.karate.core.runner.NoopDriver;
+import com.intuit.karate.driver.DriverRunner;
 import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.resource.MemoryResource;
 import com.intuit.karate.resource.Resource;
@@ -14,6 +16,8 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.thymeleaf.util.StringUtils;
 
@@ -76,10 +80,14 @@ public class TestUtils {
     }
 
     public static FeatureRuntime runFeature(String path, String configDir) {
+        Map<String, DriverRunner> customDrivers = new HashMap<>();
+        customDrivers.put(NoopDriver.DRIVER_TYPE, NoopDriver::start);
+
         Feature feature = Feature.read(path);
         Runner.Builder rb = Runner.builder();
         rb.features(feature);
         rb.configDir(configDir);
+        rb.customDrivers(customDrivers);
         FeatureRuntime fr = FeatureRuntime.of(new Suite(rb), feature);
         fr.run();
         return fr;

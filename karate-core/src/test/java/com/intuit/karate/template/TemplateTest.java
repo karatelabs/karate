@@ -26,7 +26,7 @@ class TemplateTest {
     @Test
     void testHtmlFile() {
         JsEngine je = JsEngine.local();
-        KarateTemplateEngine engine = TemplateUtils.forResourcePath(je, "classpath:com/intuit/karate/template");
+        KarateTemplateEngine engine = TemplateUtils.forResourceRoot(je, "classpath:com/intuit/karate/template");
         String rendered = engine.process("main.html");
         // logger.debug("rendered: {}", rendered);
         assertTrue(rendered.contains("<div id=\"before_one\"><span>js_one</span></div>"));

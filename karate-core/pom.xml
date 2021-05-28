@@ -12,7 +12,7 @@
     
     <properties>
         <antlr.version>4.7.1</antlr.version>
-        <graal.version>21.0.0</graal.version>
+        <graal.version>21.0.0.2</graal.version>
     </properties>
 
     <dependencies>
@@ -216,11 +216,19 @@
                                         <relocation>
                                             <pattern>com.linecorp.</pattern>
                                             <shadedPattern>karate.com.linecorp.</shadedPattern>
-                                        </relocation>                                        
+                                        </relocation>
+                                        <relocation>
+                                            <pattern>io.micrometer.</pattern>
+                                            <shadedPattern>karate.io.micrometer.</shadedPattern>
+                                        </relocation>
+                                        <relocation>
+                                            <pattern>org.reactivestreams.</pattern>
+                                            <shadedPattern>karate.org.reactivestreams.</shadedPattern>
+                                        </relocation>                                                                                
                                         <relocation>
                                             <pattern>io.netty.</pattern>
                                             <shadedPattern>karate.io.netty.</shadedPattern>
-                                        </relocation>
+                                        </relocation>                                                                              
                                         <relocation>
                                             <pattern>org.apache.http.</pattern>
                                             <shadedPattern>karate.org.apache.http.</shadedPattern>
@@ -228,7 +236,15 @@
                                         <relocation>
                                             <pattern>org.thymeleaf.</pattern>
                                             <shadedPattern>karate.org.thymeleaf.</shadedPattern>
-                                        </relocation>                                                                                                                    
+                                        </relocation>
+                                        <relocation>
+                                            <pattern>org.attoparser.</pattern>
+                                            <shadedPattern>karate.org.attoparser.</shadedPattern>
+                                        </relocation>
+                                        <relocation>
+                                            <pattern>org.unbescape.</pattern>
+                                            <shadedPattern>karate.org.unbescape.</shadedPattern>
+                                        </relocation>                                                                                                                                                                                                   
                                         <relocation>
                                             <pattern>org.antlr.v4.</pattern>
                                             <shadedPattern>karate.org.antlr.v4.</shadedPattern>

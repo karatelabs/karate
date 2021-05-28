@@ -41,7 +41,7 @@ public class TemplateUtils {
         // only static methods
     }
 
-    private static final String HTMX_SCRIPT_TAG = "<script src=\"https://unpkg.com/htmx.org@1.2.0\"></script>";
+    private static final String HTMX_SCRIPT_TAG = "<script src=\"https://unpkg.com/htmx.org@1.4.0\"></script>";
 
     public static IModel generateHeadScriptTag(ITemplateContext ctx) {
         IModelFactory modelFactory = ctx.getModelFactory();
@@ -69,11 +69,14 @@ public class TemplateUtils {
         return engine;
     }
 
-    public static KarateTemplateEngine forResourcePath(JsEngine je, String root) {
-        ResourceResolver resourceResolver = new ResourceResolver(root);
+    public static KarateTemplateEngine forResourceResolver(JsEngine je, ResourceResolver resourceResolver) {
         KarateTemplateEngine engine = new KarateTemplateEngine(je, new KarateScriptDialect(resourceResolver));
         engine.setTemplateResolver(new ResourceHtmlTemplateResolver(resourceResolver));
         return engine;
+    }
+
+    public static KarateTemplateEngine forResourceRoot(JsEngine je, String root) {
+        return forResourceResolver(je, new ResourceResolver(root));
     }
 
 }

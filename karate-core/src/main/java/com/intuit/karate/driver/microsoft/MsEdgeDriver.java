@@ -34,6 +34,8 @@ import java.util.Map;
  */
 public class MsEdgeDriver extends WebDriver {
 
+    public static final String DRIVER_TYPE = "msedgedriver";
+
     public MsEdgeDriver(DriverOptions options) {
         super(options);
     }

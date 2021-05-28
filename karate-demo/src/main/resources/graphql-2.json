@@ -1,1 +1,15 @@
-{"data":{"pokemon":{"id":"UG9rZW1vbjowMDQ=","number":"004","name":"Charmander","attacks":{"special":[{"name":"Flame Burst","type":"Fire","damage":30},{"name":"Flame Charge","type":"Fire","damage":25},{"name":"Flamethrower","type":"Fire","damage":55}]}}}}
+{
+    "data": {
+        "user": {
+            "address": {
+                "geo": {
+                    "lng": 81.1496,
+                    "lat": -37.3159
+                }
+            },
+            "id": "1",
+            "email": "Sincere@april.biz",
+            "username": "Bret"
+        }
+    }
+}

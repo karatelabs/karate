@@ -4,7 +4,9 @@ import com.intuit.karate.graal.JsEngine;
 import static org.junit.jupiter.api.Assertions.*;
 import static com.intuit.karate.Match.Type.*;
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,6 +110,22 @@ class MatchTest {
         match("hello".getBytes(), NOT_EQUALS, "helloo".getBytes());
         match("hello".getBytes(), NOT_EQUALS, "hello".getBytes(), FAILS);
     }
+    
+    @Test
+    void testJavaSet() {
+        Set<String> set = new HashSet();
+        set.add("foo");
+        set.add("bar");
+        Match.that(set).containsOnly("['foo', 'bar']");
+    }
+    
+    @Test
+    void testJavaArray() {
+        String[] strArray = new String[]{"foo", "bar"};
+        Match.that(strArray).containsOnly("['foo', 'bar']");
+        int[] intArray = new int[]{1, 2, 3};
+        Match.that(intArray).isEqualTo("[1, 2, 3]");        
+    }    
 
     @Test
     void testNotEquals() {
@@ -146,6 +164,11 @@ class MatchTest {
         match("['foo', 'bar']", CONTAINS, "['baz']", FAILS);
         message("actual array does not contain expected item - baz");
     }
+    
+    @Test
+    void testListContainsRegex() {
+        match("['foo', 'bar']", CONTAINS, "#regex .{3}");
+    }    
 
     @Test
     void testListNotContains() {
@@ -217,6 +240,9 @@ class MatchTest {
         message("$ | actual does not contain expected | no key-values matched");
         message("$.x | data types don't match");
         message("$.z | data types don't match");
+        match("{ a: 1, b: 2, c: 3 }", NOT_CONTAINS, "{ a: 1 }", FAILS);
+        message("$ | actual contains expected");
+        match("{ a: 1, b: 2, c: 3 }", NOT_CONTAINS, "{}");  
     }
 
     @Test
@@ -351,7 +377,6 @@ class MatchTest {
         match("{ a: 1}", NOT_EQUALS, " { a: '##null' }");
         match("{ a: null}", NOT_EQUALS, " { a: '#notnull' }");
         match("{ a: null}", EQUALS, " { a: '##notnull' }");
-
     }
 
 }

@@ -197,7 +197,7 @@ public class HttpRequestBuilder implements ProxyObject {
                         contentType = rt.contentType;
                     }
                 }
-                Charset charset = HttpUtils.parseContentTypeCharset(contentType);
+                Charset charset = contentType == null ? null : HttpUtils.parseContentTypeCharset(contentType);
                 if (charset == null) {
                     // client can be null when not in karate scenario
                     charset = client == null ? null : client.getConfig().getCharset();

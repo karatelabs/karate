@@ -32,3 +32,9 @@ Scenario:
 
 # friendly locators
 * call read('09.feature')
+
+# element position
+* call read('10.feature')
+
+# switchPage()
+* call read('11.feature')

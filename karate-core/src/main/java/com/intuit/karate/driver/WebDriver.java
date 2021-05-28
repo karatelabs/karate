@@ -26,7 +26,6 @@ package com.intuit.karate.driver;
 import com.intuit.karate.Http;
 import com.intuit.karate.Logger;
 import com.intuit.karate.Json;
-import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.Variable;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.Response;
@@ -410,6 +409,11 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Map<String, Object> position(String locator) {
+        return position(locator, false);
+    }
+
+    @Override
+    public Map<String, Object> position(String locator, boolean relative) {
         return retryIfEnabled(locator, ()
                 -> eval("return " + DriverOptions.selector(locator) + ".getBoundingClientRect()").getValue());
     }
@@ -528,18 +532,20 @@ public abstract class WebDriver implements Driver {
         if (titleOrUrl == null) {
             return;
         }
-        List<String> list = getPages();
-        for (String handle : list) {
-            http.path("window").postJson(getJsonForHandle(handle));
-            String title = getTitle();
-            if (title != null && title.contains(titleOrUrl)) {
-                return;
+        options.retry(() -> {
+            for (String handle : getPages()) {
+                http.path("window").postJson(getJsonForHandle(handle));
+                String title = getTitle();
+                if (title != null && title.contains(titleOrUrl)) {
+                    return true;
+                }
+                String url = getUrl();
+                if (url != null && url.contains(titleOrUrl)) {
+                    return true;
+                }
             }
-            String url = getUrl();
-            if (url != null && url.contains(titleOrUrl)) {
-                return;
-            }
-        }
+            return false;
+        }, returned -> returned, "waiting to switch to tab: " + titleOrUrl, true);
     }
 
     @Override

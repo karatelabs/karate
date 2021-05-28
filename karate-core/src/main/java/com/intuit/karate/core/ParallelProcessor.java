@@ -50,23 +50,30 @@ public abstract class ParallelProcessor<T> {
         this.monitor = monitor;
     }
 
-    public void execute() {
-        publisher.forEachRemaining(in -> {
-            if (shouldRunSynchronously(in)) {
-                process(in);
-            } else {
-                final CompletableFuture future = new CompletableFuture();
-                futures.add(future);
-                executor.submit(() -> {
-                    try {
-                        process(in);
-                    } catch (Exception e) {
-                        logger.error("[parallel] input item failed: {}", e.getMessage());
-                    }
-                    future.complete(Boolean.TRUE);
-                });
+    private Runnable toRunnable(final CompletableFuture prevFuture, final T next, final CompletableFuture future) {
+        return () -> {
+            if (prevFuture != null) {
+                prevFuture.join();
             }
-        });
+            try {
+                process(next);
+            } catch (Exception e) {
+                logger.error("[parallel] input item failed: {}", e.getMessage());
+            }
+            future.complete(Boolean.TRUE);
+        };
+    }
+
+    public void execute() {
+        CompletableFuture prevFuture = null;
+        while (publisher.hasNext()) {
+            final CompletableFuture future = new CompletableFuture();
+            futures.add(future);
+            T next = publisher.next();
+            boolean sync = shouldRunSynchronously(next);
+            executor.submit(toRunnable(prevFuture, next, future));
+            prevFuture = sync ? future : null;
+        }
         final CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
         monitor.submit(() -> {
             CompletableFuture.allOf(futuresArray).join();

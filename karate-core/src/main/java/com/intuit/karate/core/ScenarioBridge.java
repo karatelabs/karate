@@ -232,8 +232,7 @@ public class ScenarioBridge implements PerfContext {
                         engine.logger.warn("callSingleCache write failed, not json-like: {}", resultVar);
                     }
                 }
-                result = resultVar.getValue();
-                engine.recurseAndDetach(result);
+                result = engine.recurseAndDetachAndDeepClone(resultVar.getValue());
             }
             CACHE.put(fileName, result);
             engine.logger.info("<< lock released, cached callSingle: {}", fileName);

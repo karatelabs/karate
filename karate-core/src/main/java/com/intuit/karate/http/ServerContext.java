@@ -25,8 +25,12 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.graal.JsArray;
+import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.graal.Methods;
+import com.intuit.karate.template.KarateEngineContext;
+import com.intuit.karate.template.KarateTemplateEngine;
+import com.intuit.karate.template.TemplateUtils;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import java.io.InputStream;
@@ -65,6 +69,7 @@ public class ServerContext implements ProxyObject {
     private static final String SWITCHED = "switched";
     private static final String AJAX = "ajax";
     private static final String HTTP = "http";
+    private static final String RENDER = "render";
     private static final String TRIGGER = "trigger";
     private static final String REDIRECT = "redirect";
     private static final String AFTER_SETTLE = "afterSettle";
@@ -74,7 +79,7 @@ public class ServerContext implements ProxyObject {
 
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
-        TRIGGER, REDIRECT, AFTER_SETTLE, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
+        RENDER, TRIGGER, REDIRECT, AFTER_SETTLE, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -89,10 +94,16 @@ public class ServerContext implements ProxyObject {
 
     private List<Map<String, Object>> responseTriggers;
     private List<String> afterSettleScripts;
+    private final Map<String, Object> variables;
 
     public ServerContext(ServerConfig config, Request request) {
+        this(config, request, null);
+    }
+
+    public ServerContext(ServerConfig config, Request request, Map<String, Object> variables) {
         this.config = config;
         this.request = request;
+        this.variables = variables;
         HTTP_FUNCTION = args -> {
             HttpClient client = config.getHttpClientFactory().apply(request);
             HttpRequestBuilder http = new HttpRequestBuilder(client);
@@ -100,6 +111,43 @@ public class ServerContext implements ProxyObject {
                 http.url((String) args[0]);
             }
             return http;
+        };
+        RENDER_FUNCTION = o -> {
+            if (o instanceof String) {
+                return RequestCycle.get().getTemplateEngine().process((String) o);
+            }
+            Map<String, Object> map;
+            if (o instanceof Map) {
+                map = (Map) o;
+            } else {
+                logger.warn("invalid argument to render: {}", o);
+                return null;
+            }
+            Map<String, Object> templateVars = (Map) map.get("variables");
+            String path = (String) map.get("path");
+            if (path != null) {
+                if (templateVars == null) {
+                    return RequestCycle.get().getTemplateEngine().process(path);
+                }
+                JsEngine je = JsEngine.local();
+                je.putAll(templateVars);
+                KarateTemplateEngine kte = TemplateUtils.forResourceResolver(je, config.getResourceResolver());
+                return kte.process(path);
+            }
+            String html = (String) map.get("html");
+            if (html == null) {
+                logger.warn("invalid argument to render, path or html needed: {}", map);
+                return null;
+            }
+            JsEngine je;
+            if (templateVars == null) {
+                je = RequestCycle.get().getEngine();
+            } else {
+                je = JsEngine.local();
+                je.putAll(templateVars);
+            }
+            KarateTemplateEngine kte = TemplateUtils.forStrings(je);
+            return kte.process(html);
         };
     }
 
@@ -202,6 +250,10 @@ public class ServerContext implements ProxyObject {
         return request;
     }
 
+    public Map<String, Object> getVariables() {
+        return variables;
+    }
+
     public Session getSession() {
         return session;
     }
@@ -261,8 +313,10 @@ public class ServerContext implements ProxyObject {
     }
 
     private static final Supplier<String> UUID_FUNCTION = () -> java.util.UUID.randomUUID().toString();
-    private final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s, false, null);
+    private static final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s, false, null);
+
     private final Methods.FunVar HTTP_FUNCTION; // set in constructor
+    private final Function<Object, String> RENDER_FUNCTION; // set in constructor
 
     private final Consumer<String> SWITCH_FUNCTION = s -> {
         if (switched) {
@@ -270,12 +324,14 @@ public class ServerContext implements ProxyObject {
         } else {
             switched = true;
             RequestCycle.get().setSwitchTemplate(s);
+            KarateEngineContext.get().setRedirect(true);
             throw new RedirectException(s);
         }
     };
 
     private final Consumer<String> REDIRECT_FUNCTION = s -> {
         RequestCycle.get().setRedirectPath(s);
+        KarateEngineContext.get().setRedirect(true);
         throw new RedirectException(s);
     };
 
@@ -325,6 +381,8 @@ public class ServerContext implements ProxyObject {
                 return isAjax();
             case HTTP:
                 return HTTP_FUNCTION;
+            case RENDER:
+                return RENDER_FUNCTION;
             case TRIGGER:
                 return (Consumer<Map<String, Object>>) this::trigger;
             case REDIRECT:

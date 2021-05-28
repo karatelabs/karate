@@ -27,3 +27,19 @@ Scenario: second one
 }
 """
 * print large
+
+Scenario Outline: example ${data}
+# outline comment
+* print 'in outline'
+
+Examples:
+| data |
+| 1    | 
+| 2    |
+
+Scenario Outline: dynamic ${__num + 1}
+# dynamic outline comment
+* print 'row:', __row
+
+Examples:
+| read('data.csv') |

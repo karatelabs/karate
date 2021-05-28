@@ -8,6 +8,8 @@ import java.util.Map;
  */
 public class IosDriver extends AppiumDriver {
 
+    public static final String DRIVER_TYPE = "ios";
+
     public IosDriver(MobileDriverOptions options) {
         super(options);
     }
