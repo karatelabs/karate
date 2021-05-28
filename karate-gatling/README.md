@@ -21,7 +21,7 @@
     | <a href="#nameresolver"><code>nameResolver</code></a>
     | <a href="#pausefor"><code>pauseFor()</code></a>
     | <a href="#karatefeature"><code>karateFeature()</code></a>
-    | <a href="#karateSet"><code>karateSet()</code></a>
+    | <a href="#karateset"><code>karateSet()</code></a>
     | <a href="#tag-selector">Tag Selector</a>
     | <a href="#ignore-tags">Ignore Tags</a>
   </td>
@@ -231,6 +231,8 @@ Here above, the variable `id` that was defined (using `def`) in the [Karate feat
 
 On the karate side, after scenario involving a [`karateFeature()`](#karatefeature) completes, the variables  are passed onto [`karateFeature()`](#karatefeature) invocations as indicated in the [simulation example](src/test/scala/mock/CatsCreateReadSimulation.scala) - in the read `id` from the one defined post create.
 
+Also see [chaining](#chaining) - where Karate variables created in one `Scenario` can flow into others in advanced Gatling set-ups.
+
 ### Gatling Session
 The [Gatling session](https://gatling.io/docs/current/session/session_api/) attributes and `userId` would be available in a Karate variable under the name-space `__gatling`. So you can refer to the user-id for the thread as follows:
 
@@ -275,6 +277,10 @@ And now in the feature file you can do this:
 Normally we recommend that `Scenario`-s should be self-contained and that you should model any "flows" of calls made to API-s or code within a single `Scenario` itself or by using [`call`](https://github.com/intuit/karate#call).
 
 But for advanced load-modelling, you may want to compose `Scenario`-s along with Gatling [feeders](#feeders) and have variables "flow" from one `Scenario` into another. This way you will be able to use all of Gatling's features such as [grouping](https://gatling.io/docs/current/general/scenario/#groups-definition), [assertions](https://gatling.io/docs/current/general/assertions/) and control over each [sub-execution](https://gatling.io/docs/current/general/scenario/#exec).
+
+So the rule is that any variable created within a [`karateFeature()`](#karatefeature) "exec()" would return back to the Gatling session, and be automatically injected into any subsequent Karate feature within the same Gatling scenario.
+
+And if you have a need to create new variables on the "Gatling side" and inject them into Karate features, you can use `karateSet()`, explained below.
 
 #### `karateSet()`
 [This example](src/test/scala/mock/CatsChainedSimulation.scala) shows how you can use the `karateSet()` Gatling action to pipe data from the Gatling session (typically a feeder) into variables that Karate can access.

@@ -1824,6 +1824,8 @@ Scenario:
 
 The entire example can be found [here](../karate-demo/src/test/java/driver/mock/demo-01.feature) - and here is a [video](https://twitter.com/KarateDSL/status/1248996522357739521). Note how the "fake" [`response.json`](../karate-demo/src/test/java/driver/mock/response.json) is tiny compared to the "real" JSON, because we know that only a few data-elements are needed for the UI to work in this case.
 
+The Karate [regression test-suite](https://stackoverflow.com/a/66005331/143475) that runs in GitHub actions (effectively our CI) - includes another [example](../karate-e2e-tests/src/test/java/driver/05.feature), and you can find a good explanation [here](https://twitter.com/KarateDSL/status/1350743622312894466).
+
 ## Intercepting All Requests
 If you use `*` as the `urlPattern` *every* request can be routed to the mock ! And if you use the following mock, it will actually act as a ["pass-through" proxy](https://github.com/intuit/karate/tree/master/karate-netty#karateproceed) - but with the advantage that every single request and response will be emitted to `target/karate.log`. You may be able to turn this into a custom "record-replay" framework, or do other interesting things. Yes, you can modify the request or response if needed !
 

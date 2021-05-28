@@ -279,7 +279,7 @@ If you *don't* want to use Java, you have the option of just downloading and ext
 Visual Studio Code can be used for Java (or Maven) projects as well. One reason to use it is the excellent [*debug support* that we have for Karate](https://twitter.com/KarateDSL/status/1167533484560142336).
 
 ## Maven
-All you need is available in the [`karate-core`](https://search.maven.org/artifact/com.intuit.karate/karate-core) artifact. You can run tests with this [directly](#parallel-execution), but teams can choose the JUnit variant that pulls in JUnit 5 and [slightly improves the in-IDE experience](https://stackoverflow.com/a/65578167/143475).
+All you need is available in the [`karate-core`](https://search.maven.org/artifact/com.intuit.karate/karate-core) artifact. You can run tests with this [directly](#parallel-execution), but teams can choose the JUnit variant (shown below) that pulls in JUnit 5 and [slightly improves the in-IDE experience](https://stackoverflow.com/a/65578167/143475).
 
 ```xml
 <dependency>
