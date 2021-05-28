@@ -761,7 +761,7 @@ Note that you can call this *on* an [`Element`](#element-api) instance if you re
 ## `scroll()`
 The following methods are available only *on* Windows `Element`-s. Note that they will work only if the "[Scroll Pattern](https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationscrollpattern)" is available. 
 
-> Note that `scroll()` has not been tested, please contribute if you can. Also refer to the [diff]() as an example of how to add an un-implemented "pattern" to `karate-robot`.
+> Note that `scroll()` has not been tested, please contribute if you can. Also refer to the [diff](https://github.com/intuit/karate/commit/10228725a97939dc8fb72499a7a2d52d9366a01f) as an example of how to add an un-implemented "pattern" to `karate-robot`.
 
 ### `scroll(horizontalPercent, verticalPercent)`
 ### `scrollUp()`
