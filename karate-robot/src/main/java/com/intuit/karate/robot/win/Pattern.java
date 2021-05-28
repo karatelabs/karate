@@ -36,7 +36,7 @@ public enum Pattern {
     Selection(10001),
     Value(10002, IUIAutomationValuePattern.class),
     RangeValue(10003),
-    Scroll(10004),
+    Scroll(10004, IUIAutomationScrollPattern.class),
     ExpandCollapse(10005),
     Grid(10006),
     GridItem(10007),
@@ -97,7 +97,7 @@ public enum Pattern {
     public static Pattern fromType(Class type) {
         return FROM_CLASS.get(type.getSimpleName());
     }
-    
+
     public static Pattern fromName(String name) {
         return FROM_NAME.get(name.toLowerCase());
     }

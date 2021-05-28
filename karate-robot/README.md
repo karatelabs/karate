@@ -77,6 +77,7 @@
     | <a href="#select"><code>select()</code></a>
     | <a href="#highlight"><code>highlight()</code></a>
     | <a href="#highlightall"><code>highlightAll()</code></a>
+    | <a href="#scroll"><code>scroll()</code></a>
   </td>
 </tr>
 <tr>
@@ -756,6 +757,16 @@ Note that you can call this *on* an [`Element`](#element-api) instance if you re
 ```cucumber
 * locate('//pane{Tree}').screenshot()
 ```
+
+## `scroll()`
+The following methods are available only *on* Windows `Element`-s. Note that they will work only if the "[Scroll Pattern](https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationscrollpattern)" is available. 
+
+> Note that `scroll()` has not been tested, please contribute if you can. Also refer to the [diff]() as an example of how to add an un-implemented "pattern" to `karate-robot`.
+
+### `scroll(horizontalPercent, verticalPercent)`
+### `scrollUp()`
+### `scrollDown()`
+Both `scrollUp()` and `scrollDown()` take an optional boolean argument to specify if a "large" increment should be used, e.g: `scrollDown(true)`.
 
 ## `screenshotActive()`
 This will screenshot only the [active](#robotactive) control, typically the [window](#window) having focus.

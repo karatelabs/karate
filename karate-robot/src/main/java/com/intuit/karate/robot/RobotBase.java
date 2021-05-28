@@ -124,6 +124,10 @@ public abstract class RobotBase implements Robot, Plugin {
         return temp == null ? defaultValue : temp;
     }
 
+    public Logger getLogger() {
+        return logger;
+    }        
+
     public RobotBase(ScenarioRuntime runtime) {
         this(runtime, Collections.EMPTY_MAP);
     }

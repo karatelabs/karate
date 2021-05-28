@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.robot.win;
 
+import com.intuit.karate.Logger;
 import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.Location;
 import com.intuit.karate.robot.Region;
@@ -40,10 +41,12 @@ public class WinElement implements Element {
 
     protected final IUIAutomationElement e;
     private final WinRobot robot;
+    private final Logger logger;
 
     public WinElement(WinRobot robot, IUIAutomationElement e) {
         this.robot = robot;
         this.e = e;
+        this.logger = robot.getLogger();
     }
 
     @Override
@@ -129,6 +132,11 @@ public class WinElement implements Element {
 
     private boolean isInvokePatternAvailable() {
         Variant.VARIANT variant = e.getCurrentPropertyValue(Property.IsInvokePatternAvailable);
+        return variant.booleanValue();
+    }
+
+    private boolean isScrollPatternAvailable() {
+        Variant.VARIANT variant = e.getCurrentPropertyValue(Property.IsScrollPatternAvailable);
         return variant.booleanValue();
     }
 
@@ -245,6 +253,46 @@ public class WinElement implements Element {
     public Element select() {
         IUIAutomationSelectionItemPattern pattern = e.getCurrentPattern(IUIAutomationSelectionItemPattern.class);
         pattern.select();
+        return this;
+    }
+
+    public Element scrollDown() {
+        return scrollDown(false);
+    }
+
+    public Element scrollUp() {
+        return scrollUp(false);
+    }
+
+    public Element scrollDown(boolean large) {
+        if (isScrollPatternAvailable()) {
+            IUIAutomationScrollPattern pattern = e.getCurrentPattern(IUIAutomationScrollPattern.class);
+            ScrollAmount sa = large ? ScrollAmount.LargeIncrement : ScrollAmount.SmallIncrement;
+            pattern.scroll(sa);
+        } else {
+            logger.warn("scroll pattern not available on: {}", getName());
+        }
+        return this;
+    }
+
+    public Element scrollUp(boolean large) {
+        if (isScrollPatternAvailable()) {
+            IUIAutomationScrollPattern pattern = e.getCurrentPattern(IUIAutomationScrollPattern.class);
+            ScrollAmount sa = large ? ScrollAmount.LargeDecrement : ScrollAmount.SmallDecrement;
+            pattern.scroll(sa);
+        } else {
+            logger.warn("scroll pattern not available on: {}", getName());
+        }
+        return this;
+    }
+
+    public Element scroll(double horizontalPercent, double verticalPercent) {
+        if (isScrollPatternAvailable()) {
+            IUIAutomationScrollPattern pattern = e.getCurrentPattern(IUIAutomationScrollPattern.class);
+            pattern.setScrollPercent(horizontalPercent, verticalPercent);
+        } else {
+            logger.warn("scroll pattern not available on: {}", getName());
+        }
         return this;
     }
 

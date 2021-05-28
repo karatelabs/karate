@@ -24,6 +24,7 @@
 package com.intuit.karate.robot.win;
 
 import com.sun.jna.Function;
+import com.sun.jna.ptr.DoubleByReference;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
 import java.util.ArrayList;
@@ -53,10 +54,10 @@ public abstract class IUIAutomationBase extends ComRef {
     protected static int enumValue(String name, String key) {
         return ComUtils.enumValue(name, key);
     }
-    
+
     protected static String enumKey(String name, int value) {
         return ComUtils.enumKey(name, value);
-    }    
+    }
 
     public int invoke(int offset, Object... args) {
         Function function = INTERFACE.getFunction(offset, REF.getValue());
@@ -139,7 +140,7 @@ public abstract class IUIAutomationBase extends ComRef {
 
     public String invokeForString(String name) {
         ComRef ref = new ComRef();
-        invoke(name, ref);        
+        invoke(name, ref);
         return ref.isNull() ? "" : ref.asString();
     }
 
@@ -148,9 +149,15 @@ public abstract class IUIAutomationBase extends ComRef {
         invoke(name, ref);
         return ref.getValue();
     }
-    
+
     public boolean invokeForBool(String name) {
         return invokeForInt(name) != 0;
-    }    
+    }
+
+    public double invokeForDouble(String name) {
+        DoubleByReference ref = new DoubleByReference();
+        invoke(name, ref);
+        return ref.getValue();
+    }
 
 }
