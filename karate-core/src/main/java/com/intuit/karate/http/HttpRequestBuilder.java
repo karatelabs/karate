@@ -43,6 +43,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -92,6 +93,7 @@ public class HttpRequestBuilder implements ProxyObject {
     private String url;
     private String method;
     private List<String> paths;
+    private List<String> rawPaths;
     private Map<String, List<String>> params;
     private Map<String, List<String>> headers;
     private MultiPartBuilder multiPart;
@@ -258,29 +260,78 @@ public class HttpRequestBuilder implements ProxyObject {
         return this;
     }
 
+    public HttpRequestBuilder rawPaths(String... rawPaths) {
+        for (String rawPath : rawPaths) {
+            rawPath(rawPath);
+        }
+        return this;
+    }
+
+    public HttpRequestBuilder rawPath(String rawPath) {
+        if (rawPath == null) {
+            return this;
+        }
+        if (rawPaths == null) {
+            rawPaths = new ArrayList<>();
+        }
+        rawPaths.add(rawPath);
+        return this;
+    }
+
     private URI getUri() {
+        if (Objects.nonNull(rawPaths) && Objects.nonNull(paths)) {
+            throw new IllegalStateException("Cannot mix 'path' and 'raw path' steps together in the same scenario, please use one or the other but not both.");
+        }
         try {
-            URIBuilder builder = url == null ? new URIBuilder() : new URIBuilder(url);
-            if (params != null) {
-                params.forEach((key, values) -> values.forEach(value -> builder.addParameter(key, value)));
+            URIBuilder builder = createBuilder(url, params);
+            if (Objects.nonNull(rawPaths)) {
+                builder.setPath(buildRawPath(rawPaths));
             }
-            if (paths != null) {
-                paths.forEach(path -> {
-                    if (path.startsWith("/")) {
-                        logger.warn("Path segment: '{}' starts with a '/', this is probably a mistake. The '/' character will be escaped and sent to the remote server as '%2F'. " +
-                                "If you want to include multiple paths please separate them using commas. Ie. 'hello', 'world' instead of '/hello/world'.", path);
-                    }
-                });
-                // merge paths from the supplied url with additional paths supplied to this builder
-                List<String> merged = Stream.of(builder.getPathSegments(), paths)
-                        .flatMap(List::stream)
-                        .collect(Collectors.toList());
-                builder.setPathSegments(merged);
+            if (Objects.nonNull(paths)) {
+                builder.setPathSegments(mergePathSegments(builder, paths));
             }
             return builder.build();
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private String buildRawPath(List<String> rawPaths) {
+        String result = "";
+        for (String path : rawPaths) {
+            if (path.startsWith("/")) {
+                path = path.substring(1);
+            }
+            if (!result.isEmpty() && !result.endsWith("/")) {
+                result += "/";
+            }
+            result += path;
+        }
+        return result;
+    }
+
+    private List<String> mergePathSegments(URIBuilder builder, List<String> paths) {
+        paths.stream()
+                .filter(path -> path.startsWith("/"))
+                .forEach(this::warnPathSegment);
+
+        return Stream.of(builder.getPathSegments(), paths)
+                .flatMap(List::stream)
+                .collect(Collectors.toList());
+    }
+
+    private void warnPathSegment(String path) {
+        logger.warn("Path segment: '{}' starts with a '/', this is probably a mistake. The '/' character will be escaped and sent to the remote server as '%2F'. " +
+                "If you want to include multiple paths please separate them using commas. Ie. 'hello', 'world' instead of '/hello/world'.", path);
+    }
+
+    // Not sure the type of params
+    private URIBuilder createBuilder(String url, Map<String, List<String>> params) throws URISyntaxException {
+        URIBuilder builder = Objects.isNull(url) ? new URIBuilder() : new URIBuilder(url);
+        if (Objects.nonNull(params)) {
+            params.forEach((key, values) -> values.forEach(value -> builder.addParameter(key, value)));
+        }
+        return builder;
     }
 
     public HttpRequestBuilder body(Object body) {

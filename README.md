@@ -1595,7 +1595,7 @@ REST-style path parameters.  Can be expressions that will be evaluated.  Comma d
 # eg. given a documentId of 1234 the path will be: /documents%2F1234%2Fdownload
 Given path 'documents/' + documentId + '/download'
 
-# this is the correct way to specify multiple paths
+# this is the correct way to specify multiple path segments
 Given path 'documents', documentId, 'download'
 
 # or you can do the same on multiple lines if you wish
@@ -1606,6 +1606,12 @@ And path 'download'
 # you can also ensure that the constructed url has a trailing / by appending an empty path segment
 # eg. given a documentId of 1234 the path will be: /documents/1234/download/
 Given path 'documents', documentId, 'download', ''
+
+# if you want to take control of building a string that already contais the path separators
+Given raw path '/my/manually/constructed/path'
+
+# you can of course still use variables
+Gicen raw path '/my/manually/constructed/path/', documentId
 ```
 Note that the `path` 'resets' after any HTTP request is made but not the `url`. The [Hello World](#hello-world) is a great example of 'REST-ful' use of the `url` when the test focuses on a single REST 'resource'. Look at how the `path` did not need to be specified for the second HTTP `get` call since `/cats` is part of the `url`.
 

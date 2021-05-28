@@ -43,13 +43,20 @@ Scenario: leading / in path is not required
     And match response == 'hello'
 
 Scenario: manually decode before passing to karate
-    * def encoded = 'foo%2Bbar'
+    * def encoded = 'encoding%2Ffoo%2Bbar'
     * def decoded = java.net.URLDecoder.decode(encoded, 'UTF-8')
-    Given url demoBaseUrl + '/encoding'
-    And path decoded
+    Given url demoBaseUrl
+    And raw path decoded
     When method get
     Then status 200
     And match response == 'foo+bar'
+
+Scenario: use raw path passing a string with existing path separators
+    Given url demoBaseUrl
+    And raw path '/encoding/hello/world/123/'
+    When method get
+    Then status 200
+    And match response == 'hello/world/123/'
 
 Scenario: german xml
     Given url demoBaseUrl
