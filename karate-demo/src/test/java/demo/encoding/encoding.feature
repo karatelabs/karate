@@ -21,14 +21,42 @@ Scenario: question mark in the url
     Then status 200
     And match response == 'hello'
 
+Scenario: append trailing / to url
+    Given url demoBaseUrl
+    And path 'encoding', 'hello', ''
+    When method get
+    Then status 200
+    And match response == 'hello/'
+
+Scenario: path escapes special characters
+    Given url demoBaseUrl
+    And path 'encoding', '"<>#{}|\^[]`'
+    When method get
+    Then status 200
+    And match response == '"<>#{}|\^[]`'
+
+Scenario: leading / in path is not required
+    Given url demoBaseUrl
+    And path 'encoding', 'hello'
+    When method get
+    Then status 200
+    And match response == 'hello'
+
 Scenario: manually decode before passing to karate
     * def encoded = 'encoding%2Ffoo%2Bbar'
     * def decoded = java.net.URLDecoder.decode(encoded, 'UTF-8')
     Given url demoBaseUrl
-    And path decoded
+    And raw path decoded
     When method get
     Then status 200
     And match response == 'foo+bar'
+
+Scenario: use raw path passing a string with existing path separators
+    Given url demoBaseUrl
+    And raw path '/encoding/hello/world/123/'
+    When method get
+    Then status 200
+    And match response == 'hello/world/123/'
 
 Scenario: german xml
     Given url demoBaseUrl

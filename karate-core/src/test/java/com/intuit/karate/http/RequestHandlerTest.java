@@ -52,7 +52,7 @@ class RequestHandlerTest {
 
     @Test
     void testIndexAndAjaxPost() {
-        request.path("/index");
+        request.path("index");
         handle();
         matchHeaderContains("Set-Cookie", "karate.sid");
         matchHeaderEquals("Content-Type", "text/html");
@@ -61,7 +61,7 @@ class RequestHandlerTest {
         assertTrue(body.contains("<td>Apple</td>"));
         assertTrue(body.contains("<td>Orange</td>"));
         assertTrue(body.contains("<span>Billie</span>"));
-        request.path("/person")
+        request.path("person")
                 .contentType("application/x-www-form-urlencoded")
                 .header("HX-Request", "true")
                 .body("firstName=John&lastName=Smith&email=john%40smith.com")

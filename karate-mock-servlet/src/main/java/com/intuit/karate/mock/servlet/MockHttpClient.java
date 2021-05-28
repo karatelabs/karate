@@ -34,6 +34,14 @@ import com.intuit.karate.http.Request;
 import com.intuit.karate.http.Response;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+
+import javax.servlet.Servlet;
+import javax.servlet.ServletContext;
+import javax.servlet.http.Cookie;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -42,13 +50,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import javax.servlet.Servlet;
-import javax.servlet.ServletContext;
-import javax.servlet.http.Cookie;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 /**
  *
@@ -90,7 +91,10 @@ public class MockHttpClient implements HttpClient {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.request(request.getMethod(), uri);
+        MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.request(request.getMethod(), uri)
+                // Spring is decoding this using ISO 8859-1 instead of UTF-8, so here we explicitly set path info from
+                // the URI which decoded it using UTF-8. This prevents Spring from having to decode it itself.
+                .pathInfo(uri.getPath());
         if (request.getHeaders() != null) {
             request.getHeaders().forEach((k, vals) -> builder.header(k, vals.toArray()));
             request.getCookies().forEach(c -> {
@@ -133,7 +137,7 @@ public class MockHttpClient implements HttpClient {
         }
         headers = toHeaders(res.getHeaderNames(), name -> res.getHeaders(name));
         javax.servlet.http.Cookie[] cookies = res.getCookies();
-        List<String> cookieValues = new ArrayList(cookies.length);
+        List<String> cookieValues = new ArrayList<>(cookies.length);
         for (javax.servlet.http.Cookie c : cookies) {
             DefaultCookie dc = new DefaultCookie(c.getName(), c.getValue());
             dc.setDomain(c.getDomain());
@@ -152,7 +156,7 @@ public class MockHttpClient implements HttpClient {
     }
 
     private static Collection<String> toCollection(Enumeration<String> values) {
-        List<String> list = new ArrayList();
+        List<String> list = new ArrayList<>();
         while (values.hasMoreElements()) {
             list.add(values.nextElement());
         }
@@ -160,10 +164,10 @@ public class MockHttpClient implements HttpClient {
     }
 
     private static Map<String, List<String>> toHeaders(Collection<String> names, Function<String, Collection<String>> valuesFn) {
-        Map<String, List<String>> map = new LinkedHashMap(names.size());
+        Map<String, List<String>> map = new LinkedHashMap<>(names.size());
         for (String name : names) {
             Collection<String> values = valuesFn.apply(name);
-            List<String> list = new ArrayList(values.size());
+            List<String> list = new ArrayList<>(values.size());
             for (String value : values) {
                 list.add(value);
             }

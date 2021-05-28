@@ -83,6 +83,12 @@ public class ScenarioActions implements Actions {
     }
 
     @Override
+    @When("^raw path (.+)")
+    public void rawPath(String exp) {
+        engine.rawPath(exp);
+    }
+
+    @Override
     @When("^param ([^\\s]+) = (.+)")
     public void param(String name, String exp) {
         engine.param(name, exp);

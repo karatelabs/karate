@@ -34,6 +34,6 @@ public interface HttpClientFactory {
 
     HttpClient create(ScenarioEngine engine);
 
-    public static final HttpClientFactory DEFAULT = engine -> new ApacheHttpClient(engine);
+    HttpClientFactory DEFAULT = ApacheHttpClient::new;
 
 }

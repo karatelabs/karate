@@ -1591,17 +1591,29 @@ Given url 'https://' + e2eHostName + '/v1/api'
 If you are trying to build dynamic URLs including query-string parameters in the form: `http://myhost/some/path?foo=bar&search=true` - please refer to the [`param`](#param) keyword.
 
 ## `path`
-REST-style path parameters.  Can be expressions that will be evaluated.  Comma delimited values are supported which can be more convenient, and takes care of URL-encoding and appending '/' where needed.
+REST-style path parameters.  Can be expressions that will be evaluated.  Comma delimited values are supported which can be more convenient, and takes care of URL-encoding and appending '/' between path segments as needed.
 ```cucumber
+# this is invalid and will result in / being encoded as %2F when sent to the remote server
+# eg. given a documentId of 1234 the path will be: /documents%2F1234%2Fdownload
 Given path 'documents/' + documentId + '/download'
 
-# this is equivalent to the above
+# this is the correct way to specify multiple path segments
 Given path 'documents', documentId, 'download'
 
 # or you can do the same on multiple lines if you wish
 Given path 'documents'
 And path documentId
 And path 'download'
+
+# you can also ensure that the constructed url has a trailing / by appending an empty path segment
+# eg. given a documentId of 1234 the path will be: /documents/1234/download/
+Given path 'documents', documentId, 'download', ''
+
+# if you want to take control of building a string that already contais the path separators
+Given raw path '/my/manually/constructed/path'
+
+# you can of course still use variables
+Gicen raw path '/my/manually/constructed/path/', documentId
 ```
 Note that the `path` 'resets' after any HTTP request is made but not the `url`. The [Hello World](#hello-world) is a great example of 'REST-ful' use of the `url` when the test focuses on a single REST 'resource'. Look at how the `path` did not need to be specified for the second HTTP `get` call since `/cats` is part of the `url`.
 
@@ -1822,7 +1834,7 @@ Use this for multipart content items that don't have field-names.  Here below is
 also demonstrates using the [`multipart/related`](https://tools.ietf.org/html/rfc2387) content-type.
 
 ```cucumber
-Given path '/v2/documents'
+Given path 'v2', 'documents'
 And multipart entity read('foo.json')
 And multipart field image = read('bar.jpg')
 And header Content-Type = 'multipart/related'
