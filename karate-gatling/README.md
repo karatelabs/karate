@@ -242,6 +242,10 @@ The [Gatling session](https://gatling.io/docs/current/session/session_api/) attr
 
 This is useful as an alternative to using a random UUID where you want to create unique users, and makes it easy to co-relate values to your test-run in some situations.
 
+For advanced Gatling simulations -  the state of Karate variables at the end of a `Feature` execution will be automatically injected into the Gatling session and available to other `karateFeature()` executions within the same Gatling "scenario" (note that the terminology "scenario" here is specific to Gatling). See [Chaining](#chaining) for more.
+
+So there are two ways to pass data from Gatling to a Karate `Feature`. The first is the use of the `__gatling` "special" variable. But when you want to minimize conditional logic in your Karate scripts, you can use [`karateSet()`](#karateset) to set-up variables directly. So prefer the second approach, as the goal should be to re-use Karate functional-tests as performance-tests without making any changes to the `Feature` files.
+
 ### Feeders
 Because of the above mechanism which allows Karate to "see" Gatling session data, you can use [feeders](https://gatling.io/docs/current/session/feeder) effectively. For example:
 
