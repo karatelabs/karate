@@ -71,7 +71,7 @@ public class ScenarioRuntime implements Runnable {
         this.caller = featureRuntime.caller;
         perfMode = featureRuntime.perfHook != null;
         if (caller.isNone()) {
-            logAppender = perfMode ? LogAppender.NO_OP : new StringLogAppender(false);
+            logAppender = new StringLogAppender(false);
             engine = new ScenarioEngine(background == null ? new Config() : background.engine.getConfig(), this, new HashMap(), logger);
         } else if (caller.isSharedScope()) {
             logAppender = caller.parentRuntime.logAppender;
