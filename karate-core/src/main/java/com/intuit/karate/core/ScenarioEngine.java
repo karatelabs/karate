@@ -371,7 +371,16 @@ public class ScenarioEngine {
     }
 
     public void path(String exp) {
-        List<?> list = evalJs("[" + exp + "]").getValue();
+        if (exp.contains(",")) {
+            exp = "[" + exp + "]";
+        }
+        Variable v = evalJs(exp);
+        List<?> list;
+        if (v.isList()) {
+            list = v.getValue();
+        } else {
+            list = Collections.singletonList(v.getValue());
+        }
         for (Object o : list) {
             if (o != null) {
                 requestBuilder.path(o.toString());
@@ -379,8 +388,6 @@ public class ScenarioEngine {
         }
     }
 
-    // TODO document that for params and headers, lists are supported but
-    // enclosed in square brackets
     public void param(String name, String exp) {
         Variable var = evalJs(exp);
         if (var.isList()) {

@@ -450,5 +450,33 @@ class KarateMockHandlerTest {
                 "match response == 'hello/foo/bar'"
         );
     }    
+    
+    @Test
+    void testPathFromStringVariable() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestUri");
+        run(
+                URL_STEP,
+                " def temp = 'hello'",
+                "path temp",
+                "method get",
+                "match response == 'hello'"
+        );
+    }     
+    
+    @Test
+    void testPathFromArrayVariable() {
+        background().scenario(
+                "pathMatches('/hello/world')",
+                "def response = requestUri");
+        run(
+                URL_STEP,
+                " def temp = ['hello', 'world']",
+                "path temp",
+                "method get",
+                "match response == 'hello/world'"
+        );
+    }    
 
 }
