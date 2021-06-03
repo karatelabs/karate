@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  *
- *  @author pthomas3
+ * @author pthomas3
  */
 class ScenarioRuntimeTest {
 
@@ -645,9 +645,9 @@ class ScenarioRuntimeTest {
     void testMatchContainsArrayOnLhs() {
         run(
                 "match ['foo', 'bar'] contains 'foo'"
-        );     
+        );
     }
-    
+
     @Test
     void testMatchSchema() {
         run(
@@ -708,6 +708,16 @@ class ScenarioRuntimeTest {
         matchVar("res2", "value is 2.0");
         matchVar("res3", "value is 2.0");
         matchVar("res4", "value is 2.0");
+    }
+
+    @Test
+    void testTableWithInvalidVariableName() {
+        fail = true;
+        run(
+                "table table1 =",
+                "| col |",
+                "| foo |"
+        );
     }
 
     @Test

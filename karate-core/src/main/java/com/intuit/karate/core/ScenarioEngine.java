@@ -197,6 +197,8 @@ public class ScenarioEngine {
     }
 
     public void table(String name, List<Map<String, String>> rows) {
+        name = StringUtils.trimToEmpty(name);
+        validateVariableName(name);      
         List<Map<String, Object>> result = new ArrayList<>(rows.size());
         for (Map<String, String> map : rows) {
             Map<String, Object> row = new LinkedHashMap<>(map);
@@ -219,7 +221,7 @@ public class ScenarioEngine {
             }
             result.add(row);
         }
-        setVariable(name.trim(), result);
+        setVariable(name, result);
     }
 
     public void replace(String name, String token, String value) {
