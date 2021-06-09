@@ -1709,7 +1709,7 @@ Multi-value params are also supported:
 * param myParam = ['foo', 'bar']
 ```
 
-You can also use JSON to set multiple query-parameters in one-line using [`params`](#params) and this is especially useful for dynamic data-driven testing.
+For convenience, a `null` value will be ignored. You can also use JSON to set multiple query-parameters in one-line using [`params`](#params) and this is especially useful for dynamic data-driven testing.
 
 ## `header`
 You can use [functions](#calling-javascript-functions) or [expressions](#karate-expressions):
