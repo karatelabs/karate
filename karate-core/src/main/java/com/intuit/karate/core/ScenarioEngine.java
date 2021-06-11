@@ -198,7 +198,7 @@ public class ScenarioEngine {
 
     public void table(String name, List<Map<String, String>> rows) {
         name = StringUtils.trimToEmpty(name);
-        validateVariableName(name);      
+        validateVariableName(name);
         List<Map<String, Object>> result = new ArrayList<>(rows.size());
         for (Map<String, String> map : rows) {
             Map<String, Object> row = new LinkedHashMap<>(map);
@@ -1157,26 +1157,13 @@ public class ScenarioEngine {
 
     private Object recurseAndAttachAndDeepClone(Object o, Set<Object> seen) {
         if (o instanceof Value) {
-            // should never happen if the detach was done properly
+            // will happen only for java "class" and java functions (static methods)
             Value value = (Value) o;
             try {
-                if (value.canExecute() || value.isMetaObject()) {
-                    // dealing with a js value from another context has to be thread isolated
-                    // since this routine is called only for callSingle, hopefully
-                    // this is not a serious performance hit
-                    synchronized (runtime.featureRuntime.suite) {
-                        return attach(value);
-                    }
-                }
-                o = JsValue.toJava(value);
+                return Value.asValue(value);
             } catch (Exception e) {
-                logger.trace("[attach deep] failed to re-attach graal value (will re-try): {}", e.getMessage());
-                try {
-                    return Value.asValue(value.asHostObject());
-                } catch (Exception inner) {
-                    logger.warn("failed to re-attach graal value: {}", inner.getMessage());
-                }
-                return null; // we try to move on after stripping this (js function) from the tree
+                logger.warn("[attach deep] failed to re-attach graal value: {} - {}", value, e.getMessage());
+                return null;
             }
         }
         if (o instanceof JsFunction) {
@@ -1214,7 +1201,11 @@ public class ScenarioEngine {
         if (o instanceof Value) {
             Value value = (Value) o;
             if (value.canExecute()) {
-                return new JsFunction(value);
+                if (value.isMetaObject()) {
+                    return new JsFunction(value);
+                } else {
+                    return value; // keep as-is for attach
+                }
             }
             o = JsValue.toJava(value);
         }

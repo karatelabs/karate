@@ -5,9 +5,11 @@ function fn() {
   };  
   var result = karate.callSingle('call-single-from-config.feature', config);
   config.message = result.response.message;
-  // this used to throw the [Multi threaded access requested by thread xxx but is not allowed for language(s) js.] error
   config.Hello = result.Hello;
   var result2 = karate.callSingle('call-single-from-config2.feature', result);
-  config.message2 = result2.message;  
+  config.message2 = result2.message;
+  var result3 = karate.callSingle('call-single-from-config3.js');
+  // TODO currently java functions in call-single not supported
+  // config.sayHello = result3.sayHello;
   return config;
 }
