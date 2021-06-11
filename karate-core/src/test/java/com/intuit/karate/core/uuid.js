@@ -1,1 +1,1 @@
-function(){ return java.util.UUID.randomUUID() + '' }
+function fn(){ return java.util.UUID.randomUUID() + ''; }

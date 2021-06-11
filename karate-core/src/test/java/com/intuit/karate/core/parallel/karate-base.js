@@ -1,3 +1,3 @@
 function fn() {   
-  return { functionFromKarateBase: function(){ return 'fromKarateBase' } }
+  return { functionFromKarateBase: function(){ return 'fromKarateBase'; } };
 }

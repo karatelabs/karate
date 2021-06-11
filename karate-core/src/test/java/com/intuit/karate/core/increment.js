@@ -5,5 +5,5 @@ function fn() {
     var nextId = curId + 1;
     karate.set('_curId', nextId);
     return nextId;
-  }
+  };
 }  

@@ -1,4 +1,4 @@
 function fn() {
-  var config = karate.callSingle('callonce-config-called.feature')
+  var config = karate.callSingle('callonce-config-called.feature');
   return config;
 }
