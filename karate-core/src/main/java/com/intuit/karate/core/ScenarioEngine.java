@@ -743,7 +743,7 @@ public class ScenarioEngine {
     // websocket / async =======================================================
     //   
     private List<WebSocketClient> webSocketClients;
-    CompletableFuture SIGNAL = new CompletableFuture();
+    private CompletableFuture SIGNAL = new CompletableFuture();
 
     public WebSocketClient webSocket(WebSocketOptions options) {
         WebSocketClient webSocketClient = new WebSocketClient(options, logger);

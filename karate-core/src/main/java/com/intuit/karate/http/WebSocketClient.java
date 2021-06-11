@@ -51,6 +51,8 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.net.URI;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import javax.net.ssl.SSLException;
 
@@ -95,7 +97,7 @@ public class WebSocketClient implements WebSocketListener {
     public void setLogger(Logger logger) {
         this.logger = logger;
     }
-
+    
     public WebSocketClient(WebSocketOptions options, Logger logger) {
         this.logger = logger;
         textHandler = options.getTextHandler();
@@ -192,35 +194,20 @@ public class WebSocketClient implements WebSocketListener {
         channel.writeAndFlush(frame);
     }
 
-    private final Object LOCK = new Object();
-    private Object signalResult;
+    private CompletableFuture SIGNAL = new CompletableFuture();
 
-    public void signal(Object result) {
+    public synchronized void signal(Object result) {
         logger.trace("signal called: {}", result);
-        synchronized (LOCK) {
-            signalResult = result;
-            LOCK.notify();
-        }
+        SIGNAL.complete(result);
     }
 
     public Object listen(long timeout) {
-        synchronized (LOCK) {
-            if (signalResult != null) {
-                logger.debug("signal arrived early ! result: {}", signalResult);
-                Object temp = signalResult;
-                signalResult = null;
-                return temp;
-            }
-            try {
-                logger.trace("entered listen wait state");
-                LOCK.wait(timeout);
-                logger.trace("exit listen wait state, result: {}", signalResult);
-            } catch (InterruptedException e) {
-                logger.error("listen timed out: {}", e.getMessage());
-            }
-            Object temp = signalResult;
-            signalResult = null;
-            return temp;
+        try {
+            logger.trace("entered listen wait state");
+            return SIGNAL.get(timeout, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            logger.error("listen timed out: {}", e + "");
+            return null;
         }
     }
 
