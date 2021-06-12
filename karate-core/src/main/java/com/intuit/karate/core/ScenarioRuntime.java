@@ -334,7 +334,7 @@ public class ScenarioRuntime implements Runnable {
             return false;
         }
         if (fr.caller.isNone()) {
-            if (tags.evaluate(fr.suite.tagSelector)) {
+            if (tags.evaluate(fr.suite.tagSelector, fr.suite.env)) {
                 fr.logger.trace("matched scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
                 return true;
             }

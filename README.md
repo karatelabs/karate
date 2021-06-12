@@ -845,6 +845,8 @@ Karate is flexible, you can easily over-write config variables within each indiv
 System.setProperty("karate.env", "pre-prod");
 ```
 
+For advanced users, note that [tags](#tags) and the `karate.env` environment-switch can be "linked" using the special [environment tags](#environment-tags).
+
 ## Environment Specific Config
 When your project gets complex, you can have separate `karate-config-<env>.js` files that will be processed for that specific value of [`karate.env`](#switching-the-environment). This is especially useful when you want to maintain passwords, secrets or even URL-s specific for your local dev environment. 
 
@@ -3827,6 +3829,30 @@ Tag | Description
 `@ignore` | Any `Scenario` with (or that has inherited) this tag will be skipped at run-time. This does not apply to anything that is "called" though
 `@parallel` | See [`@parallel=false`](#parallelfalse)
 `@report` | See [`@report=false`](#reportfalse)
+`@env` | See below
+`@envnot` | See below
+
+### Environment Tags
+There are two special tags that allow you to "select" or "un-select" a `Scenario` depending on the value of [`karate.env`](#switching-the-environment). This can be really convenient, for example to *never* run some tests in a certain "production like" or sensitive environment.
+
+* `@env=foo` - will run only when the value of `karate.env` is `foo` and not-null
+* `@envnot=foo` - will run only when the value of `karate.env` is `null` or anything *but* `foo`
+
+Here is an example:
+
+```cucumber
+@env=dev  
+Scenario: runs only when karate.env is 'dev'
+* print 'karate.env is:', karate.env
+```
+
+Since multiple values are supported, you can also do this:
+
+```cucumber
+@envnot=perf,prod  
+Scenario: never runs in perf or prod
+* print 'karate.env is:', karate.env
+```
 
 ### Tags And Examples
 A little-known capability of the Cucumber / Gherkin syntax is to be able to tag even specific rows in a bunch of examples ! You have to repeat the `Examples` section for each tag. The example below combines this with the advanced features described above.

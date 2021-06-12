@@ -9,8 +9,8 @@ import java.util.List;
  *
  * @author pthomas3
  */
-class TagsTest {   
-    
+class TagsTest {
+
     @Test
     public void testCucumberOptionsTagsConversion() {
         assertEquals("anyOf('@foo')", Tags.fromKarateOptionsTags("@foo"));
@@ -19,23 +19,23 @@ class TagsTest {
         assertEquals("anyOf('@foo') && not('@bar')", Tags.fromKarateOptionsTags("@foo", "~@bar"));
         // detect new syntax and use as-is
         assertEquals("anyOf('@foo')", Tags.fromKarateOptionsTags("anyOf('@foo')"));
-    }    
-    
-    private boolean eval(String tagSelector, String ... strs) {
+    }
+
+    private boolean eval(String tagSelector, String... strs) {
         List<Tag> list = new ArrayList(strs.length);
         for (String s : strs) {
             list.add(new Tag(0, s));
         }
         Tags tags = new Tags(list);
-        return tags.evaluate(tagSelector);
+        return tags.evaluate(tagSelector, null);
     }
-    
+
     @Test
     public void testTagSelectors() {
         assertTrue(eval(null));
         assertFalse(eval(null, "@ignore"));
-        assertTrue(eval(null, "@foo", "@bar")); 
-        assertFalse(eval(null, "@foo", "@ignore")); 
+        assertTrue(eval(null, "@foo", "@bar"));
+        assertFalse(eval(null, "@foo", "@ignore"));
         assertTrue(eval("anyOf('@foo')", "@foo", "@bar"));
         assertTrue(eval("not('@ignore')"));
         assertTrue(eval("not('@ignore')", "@foo", "@bar"));
@@ -50,13 +50,13 @@ class TagsTest {
         assertFalse(eval("not('@ignore', '@foo')", "@ignore"));
         assertFalse(eval("!anyOf('@ignore')", "@foo", "@bar", "@ignore"));
         assertFalse(eval("anyOf('@foo') && !anyOf('@ignore')", "@foo", "@bar", "@ignore"));
-        assertFalse(eval("anyOf('@foo')", "@bar", "@ignore"));        
+        assertFalse(eval("anyOf('@foo')", "@bar", "@ignore"));
         assertFalse(eval("allOf('@foo', '@baz')", "@foo", "@bar"));
         assertFalse(eval("anyOf('@foo') && anyOf('@baz')", "@foo", "@bar"));
         assertFalse(eval("!anyOf('@foo')", "@foo", "@bar"));
-        assertFalse(eval("allOf('@foo', '@bar') && not('@ignore')", "@foo", "@bar", "@ignore"));        
+        assertFalse(eval("allOf('@foo', '@bar') && not('@ignore')", "@foo", "@bar", "@ignore"));
     }
-    
+
     @Test
     public void testTagValueSelectors() {
         assertFalse(eval("valuesFor('@id').isPresent"));
@@ -80,5 +80,30 @@ class TagsTest {
         assertTrue(eval("valuesFor('@id').isEach(s => s.startsWith('1'))", "@id=100,1000"));
         assertTrue(eval("valuesFor('@id').isEach(s => /^1.*/.test(s))", "@id=100,1000"));
     }
-    
+
+    private boolean evalEnv(String tagSelector, String karateEnv, String... strs) {
+        List<Tag> list = new ArrayList(strs.length);
+        for (String s : strs) {
+            list.add(new Tag(0, s));
+        }
+        Tags tags = new Tags(list);
+        return tags.evaluate(tagSelector, karateEnv);
+    }
+
+    @Test
+    public void testEnvSelectors() {
+        assertFalse(evalEnv(null, null, "@env=foo"));
+        assertTrue(evalEnv(null, "foo", "@env=foo"));
+        assertTrue(evalEnv(null, null, "@envnot=foo"));
+        assertFalse(evalEnv(null, "foo", "@envnot=foo"));
+        assertTrue(evalEnv(null, "foo", "@env=foo", "@bar"));
+        assertTrue(evalEnv("anyOf('@bar')", "foo", "@env=foo", "@bar"));
+        assertFalse(evalEnv("anyOf('@baz')", "foo", "@env=foo", "@bar"));
+        assertFalse(evalEnv(null, "baz", "@env=foo", "@bar"));
+        assertFalse(evalEnv(null, "foo", "@envnot=foo", "@bar"));
+        assertTrue(evalEnv(null, "foo", "@envnot=baz", "@bar"));
+        assertTrue(evalEnv("anyOf('@bar')", "foo", "@envnot=baz", "@bar"));
+        assertFalse(evalEnv("anyOf('@baz')", "foo", "@envnot=baz", "@bar"));
+    }
+
 }

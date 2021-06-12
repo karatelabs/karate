@@ -131,8 +131,20 @@ public class Tags implements Iterable<Tag> {
         }
     }
 
-    public boolean evaluate(String tagSelector) {
+    public boolean evaluate(String tagSelector, String karateEnv) {
         if (tags.contains(Tag.IGNORE)) {
+            return false;
+        }
+        Values envValues = valuesFor(Tag.ENV);
+        if (envValues.isPresent) {
+            if (karateEnv == null) {
+                return false;
+            }
+            if (!envValues.isAnyOf(karateEnv)) {
+                return false;
+            }
+        }
+        if (karateEnv != null && valuesFor(Tag.ENVNOT).isAnyOf(karateEnv)) {
             return false;
         }
         if (tagSelector == null) {
