@@ -43,7 +43,6 @@ import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.WebSocketClient;
 import com.intuit.karate.http.WebSocketOptions;
 import com.intuit.karate.shell.Command;
-import com.linecorp.armeria.internal.shaded.guava.base.Charsets;
 import java.io.File;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
