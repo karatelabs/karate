@@ -75,17 +75,17 @@ public class HooksTest {
         assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("beforeFeature").values().stream().mapToInt(Integer::intValue).sum());
         assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("afterFeature").values().stream().mapToInt(Integer::intValue).sum());
 
-        assertEquals(2, testRuntimeHook.getRuntimeHookTracker().get("beforeBackground").values().stream().mapToInt(Integer::intValue).sum());
-        assertEquals(2, testRuntimeHook.getRuntimeHookTracker().get("afterBackground").values().stream().mapToInt(Integer::intValue).sum());
+        assertEquals(3, testRuntimeHook.getRuntimeHookTracker().get("beforeBackground").values().stream().mapToInt(Integer::intValue).sum());
+        assertEquals(3, testRuntimeHook.getRuntimeHookTracker().get("afterBackground").values().stream().mapToInt(Integer::intValue).sum());
 
-        assertEquals(6, testRuntimeHook.getRuntimeHookTracker().get("beforeScenario").values().stream().mapToInt(Integer::intValue).sum());
-        assertEquals(6, testRuntimeHook.getRuntimeHookTracker().get("afterScenario").values().stream().mapToInt(Integer::intValue).sum());
+        assertEquals(9, testRuntimeHook.getRuntimeHookTracker().get("beforeScenario").values().stream().mapToInt(Integer::intValue).sum());
+        assertEquals(9, testRuntimeHook.getRuntimeHookTracker().get("afterScenario").values().stream().mapToInt(Integer::intValue).sum());
 
         // note how before scenario does not evaluate yet the name of the scenario, allowing you to inject stuff into it potentially?
-        assertEquals(4, testRuntimeHook.getRuntimeHookTracker().get("beforeScenario").get("dogs: ${name}"));
-        assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("afterScenario").get("dogs: dog1"));
-        assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("afterScenario").get("dogs: dog2"));
-        assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("afterScenario").get("dogs: dog3"));
+        assertEquals(7, testRuntimeHook.getRuntimeHookTracker().get("beforeScenario").get("dogs: ${name}"));
+        assertEquals(2, testRuntimeHook.getRuntimeHookTracker().get("afterScenario").get("dogs: dog1"));
+        assertEquals(2, testRuntimeHook.getRuntimeHookTracker().get("afterScenario").get("dogs: dog2"));
+        assertEquals(2, testRuntimeHook.getRuntimeHookTracker().get("afterScenario").get("dogs: dog3"));
         assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("afterScenario").get("dogs: dog4"));
 
         assertEquals(2, testRuntimeHook.getRuntimeHookTracker().get("beforeScenario").get("cats: ${name}"));

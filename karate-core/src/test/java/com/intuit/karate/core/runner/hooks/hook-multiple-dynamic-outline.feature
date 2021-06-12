@@ -15,6 +15,6 @@ Scenario Outline: dogs: ${name}
   * match name == "<name>"
   Examples:
     | dogs |
-  @tagged
+  @anothertag
   Examples:
     | taggedDogs |

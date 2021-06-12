@@ -90,7 +90,7 @@ public class ScenarioOutline {
             if (fr != null && examplesHaveTags && fr.caller.isNone()) {
                 // getting examples in the context of an execution
                 // if the examples do not have any tagged example, do not worry about selecting
-                Tags tableTags = Tags.merge(examples.getTags());
+                Tags tableTags = Tags.merge(fr.feature.getTags(), tags, examples.getTags());
                 boolean executeForTable = tableTags.evaluate(fr.suite.tagSelector);
                 if (executeForTable) {
                     selectedForExecution = true;
