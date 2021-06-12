@@ -2885,7 +2885,7 @@ Karate supports the following [functional-style](https://en.wikipedia.org/wiki/F
 
 A few more useful "transforms" are to select a sub-set of key-value pairs using [`karate.filterKeys()`](#karate-filterkeys), merging 2 or more JSON-s using [`karate.merge()`](#karate-merge) and combining 2 or more arrays (or objects) into a single array using [`karate.append()`](#karate-append). And [`karate.appendTo()`](#karate-appendto) is for updating an existing variable (the equivalent of `array.push()` in JavaScript), which is especially useful in the body of a `karate.forEach()`.
 
-You can also sort arrays of arbitrary JSON using [`karate.sort()`](#karate-sort).
+You can also sort arrays of arbitrary JSON using [`karate.sort()`](#karate-sort). Simple arrays of strings or numbers can be stripped of duplicates using [`karate.distinct()`](#karate-distinct).
 
 > Note that a single JS function is sufficient to transform a given JSON object into a completely new one, and you can use complex conditional logic if needed.
 
@@ -3216,6 +3216,7 @@ Operation | Description
 <a name="karate-call"><code>karate.call(fileName, [arg])</code></a> | invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument), see [`call()` vs `read()`](#call-vs-read) for details
 <a name="karate-callsingle"><code>karate.callSingle(fileName, [arg])</code></a> | like the above, but guaranteed to run **only once** even across multiple features - see [`karate.callSingle()`](#karatecallsingle)
 <a name="karate-configure"><code>karate.configure(key, value)</code></a> | does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
+<a name="karate-distinct"><code>karate.distinct(list)</code></a> | returns only unique items out of an array of strings or numbers
 <a name="karate-embed"><code>karate.embed(object, mimeType)</code></a> | embeds the object (can be raw bytes or an image) into the JSON report output, see this [example](karate-demo/src/test/java/demo/embed/embed.feature)
 <a name="karate-env"><code>karate.env</code></a> | gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
 <a name="karate-eval"><code>karate.eval(expression)</code></a> | for really advanced needs, you can programmatically generate a snippet of JavaScript which can be evaluated at run-time, you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature)
@@ -3257,7 +3258,7 @@ Operation | Description
 <a name="karate-setxml"><code>karate.setXml(name, xmlString)</code></a> | rarely used, refer to the example above
 <a name="karate-signal"><code>karate.signal(result)</code></a> | trigger an event that [`karate.listen(timeout)`](#karate-listen) is waiting for, and pass the data, see [async](#async)
 <a name="karate-sizeof"><code>karate.sizeOf(object)</code></a> | returns the size of the map-like or list-like object
-<a name="karate-sort"><code>karate.sort(list, function)</code></a> | sorts the list using the provided custom function called for each item in the list (and the optional second argument is the item index) e.g. `karate.sort(myList, x => x.val)`
+<a name="karate-sort"><code>karate.sort(list, function)</code></a> | sorts the list using the provided custom function called for each item in the list (and the optional second argument is the item index) e.g. `karate.sort(myList, x => x.val)`, and the second / function argument is not needed if the list is of plain strings or numbers
 <a name="karate-stop"><code>karate.stop(port)</code></a> | will pause the test execution until a socket connection (even HTTP `GET`) is made to the port logged to the console, useful for troubleshooting UI tests without using a [de-bugger](https://twitter.com/KarateDSL/status/1167533484560142336), of course - *NEVER* forget to remove this after use ! 
 <a name="karate-target"><code>karate.target(object)</code></a> | currently for web-ui automation only, see [target lifecycle](karate-core#target-lifecycle)
 <a name="karate-tags"><code>karate.tags</code></a> | for advanced users - scripts can introspect the tags that apply to the current scope, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)

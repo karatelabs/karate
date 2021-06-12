@@ -48,8 +48,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -258,6 +260,19 @@ public class ScenarioBridge implements PerfContext {
 
     public void configure(String key, Value value) {
         getEngine().configure(key, new Variable(value));
+    }
+    
+    public Object distinct(Value o) {
+        if (!o.hasArrayElements()) {
+            return JsList.EMPTY;
+        }
+        long count = o.getArraySize();
+        Set<Object> set = new LinkedHashSet();
+        for (int i = 0; i < count; i++) {
+            Object value = JsValue.toJava(o.getArrayElement(i));
+            set.add(value);
+        }
+        return JsValue.fromJava(new ArrayList(set));        
     }
 
     public void embed(Object o, String contentType) {
@@ -685,6 +700,10 @@ public class ScenarioBridge implements PerfContext {
         } else {
             return -1;
         }
+    }
+    
+    public Object sort(Value o) {
+        return sort(o, getEngine().JS.evalForValue("x => x"));
     }
 
     public Object sort(Value o, Value f) {

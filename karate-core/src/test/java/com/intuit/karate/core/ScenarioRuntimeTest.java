@@ -740,6 +740,18 @@ class ScenarioRuntimeTest {
         );
         matchVar("text", "words that need to be correct");
     }
+    
+    @Test
+    void testDistinct() {
+        run(
+                "def list1 = ['abc', 'def', 'abc', 'def', 'ghi']",
+                "def res1 = karate.distinct(list1)",
+                "match res1 == ['abc', 'def', 'ghi']",
+                "def list2 = [1, 2, 1, 2, 3]",
+                "def res2 = karate.distinct(list2)",
+                "match res2 == [1, 2, 3]"
+        );        
+    }
 
     @Test
     void testSort() {
@@ -750,7 +762,10 @@ class ScenarioRuntimeTest {
                 "match res1 == [{ num: 1 }, { num: 2 }, { num: 3 }]",
                 "def list2 = [{ val: 'C' }, { val: 'A' }, { val: 'B' }]",
                 "def res2 = karate.sort(list2, x => x.val)",
-                "match res2 == [{ val: 'A' }, { val: 'B' }, { val: 'C' }]"
+                "match res2 == [{ val: 'A' }, { val: 'B' }, { val: 'C' }]",
+                "def list3 = ['c', 'b', 'a']",
+                "def res3 = karate.sort(list3)",
+                "match res3 == ['a', 'b', 'c']"
         );
     }
 
