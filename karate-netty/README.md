@@ -274,10 +274,10 @@ java -jar karate.jar my-test.feature:42
 ```
 
 #### Tags
-You can specify [Cucumber tags](https://github.com/intuit/karate#cucumber-tags) to include (or exclude) using the `-t` or `--tags`  option as follows:
+You can specify [Cucumber tags](https://github.com/intuit/karate#cucumber-tags) to include (or exclude) using the `-t` or `--tags`  option as follows. Note that the special, built-in tag `@ignore` is *always* skipped.
 
 ```
-java -jar karate.jar -t @smoke,~@ignore my-test.feature
+java -jar karate.jar -t @smoke,~@skipme my-test.feature
 ```
 
 #### `karate.env`
@@ -310,21 +310,21 @@ var foo = karate.properties['foo']
 If you provide a directory in which multiple feature files are present (even in sub-folders), they will be all run. You can even specify the number of threads to run in parallel using `-T` or `--threads` (not to be confused with `-t` for tags):
 
 ```
-java -jar karate.jar -T 5 -t ~@ignore src/features
+java -jar karate.jar -T 5 -t @smoke src/features
 ```
 
 #### Output Directory
 The output directory where the `karate.log` file, JUnit XML and Cucumber report JSON files would be output will default to `target` in the current working directory. The Cucumber HTML report would be found in a folder called `cucumber-html-reports` within this "output" folder. You can change the output folder using the `-o` or `--output` option:
 
 ```
-java -jar karate.jar -T 5 -t ~@ignore -o /my/custom/dir src/features
+java -jar karate.jar -T 5 -t ~@skipme -o /my/custom/dir src/features
 ```
 
 #### Clean
 The [output directory](#output-directory) will be deleted before the test runs if you use the `-C` or `--clean` option.
 
 ```
-java -jar karate.jar -T 5 -t ~@ignore -C src/features
+java -jar karate.jar -T 5 -C src/features
 ```
 
 #### Debug Server

@@ -199,7 +199,7 @@ The above [Tag Selector](#tag-selector) approach is designed for simple cases wh
 To exclude:
 
 ```scala
-  val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature", "~@ignore"))
+  val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature", "~@skipme"))
 ```
 
 To run scenarios tagged `foo` OR `bar`

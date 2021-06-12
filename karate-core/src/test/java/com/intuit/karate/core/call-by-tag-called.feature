@@ -1,4 +1,3 @@
-@ignore
 Feature:
 
 @name=first

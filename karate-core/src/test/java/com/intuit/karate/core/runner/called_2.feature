@@ -1,4 +1,3 @@
-@ignore
 Feature:
 
 @foo=bar1

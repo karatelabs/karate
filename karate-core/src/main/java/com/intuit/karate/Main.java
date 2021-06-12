@@ -93,7 +93,7 @@ public class Main implements Callable<Void> {
     @Option(names = {"-k", "--key"}, description = "ssl private key (default: " + SslContextFactory.DEFAULT_KEY_NAME + ")")
     File key;
 
-    @Option(names = {"-t", "--tags"}, description = "cucumber tags - e.g. '@smoke,~@ignore'")
+    @Option(names = {"-t", "--tags"}, description = "cucumber tags - e.g. '@smoke,~@skipme' [@ignore is always skipped by default]")
     List<String> tags;
 
     @Option(names = {"-T", "--threads"}, description = "number of threads when running tests")

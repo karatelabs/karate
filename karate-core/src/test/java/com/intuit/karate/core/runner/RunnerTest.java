@@ -2,7 +2,6 @@ package com.intuit.karate.core.runner;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.KarateException;
-import com.intuit.karate.KarateOptions;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import com.intuit.karate.report.ReportUtils;
@@ -19,7 +18,6 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-@KarateOptions(tags = {"~@ignore"})
 class RunnerTest {
 
     static final Logger logger = LoggerFactory.getLogger(RunnerTest.class);

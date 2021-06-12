@@ -1,4 +1,3 @@
-@ignore
 Feature: Tag Filter multi-scenario-outline feature.
 # Note, in this feature, tags are used in both scenario outlines. This should pass the tag filter which is checking that there are tags defined.
 

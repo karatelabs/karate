@@ -35,7 +35,6 @@ public class DemoMockProxySslRunner {
     // @Test TODO SSL proxy
     public void testParallel() {
         Results results = Runner.path("classpath:demo/cats", "classpath:demo/greeting")
-                .tags("~@ignore")
                 .configDir("classpath:mock/proxy")
                 .systemProperty("demo.server.port", demoServerPort + "")
                 .systemProperty("demo.proxy.port", server.getPort() + "")

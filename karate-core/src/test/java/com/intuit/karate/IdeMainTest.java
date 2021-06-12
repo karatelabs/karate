@@ -32,13 +32,13 @@ class IdeMainTest {
         assertNull(options.paths);
         assertNull(options.tags);
         assertEquals("foo", options.name);
-        options = IdeMain.parseStringArgs(new String[]{"--tags", "~@ignore"});
+        options = IdeMain.parseStringArgs(new String[]{"--tags", "~@skipme"});
         assertNull(options.paths);
-        assertEquals("~@ignore", options.tags.get(0));
+        assertEquals("~@skipme", options.tags.get(0));
         assertNull(options.name);
-        options = IdeMain.parseStringArgs(new String[]{"--tags", "~@ignore", "foo.feature"});
+        options = IdeMain.parseStringArgs(new String[]{"--tags", "~@skipme", "foo.feature"});
         assertEquals("foo.feature", options.paths.get(0));
-        assertEquals("~@ignore", options.tags.get(0));
+        assertEquals("~@skipme", options.tags.get(0));
         assertNull(options.name);
     }
 

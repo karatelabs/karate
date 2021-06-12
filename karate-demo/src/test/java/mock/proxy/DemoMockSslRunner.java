@@ -29,7 +29,6 @@ public class DemoMockSslRunner {
     // @Test TODO investigate CI troubles
     public void testParallel() {
         Results results = Runner.path("classpath:demo/cats", "classpath:demo/greeting")
-                .tags("~@ignore")
                 .configDir("classpath:mock/proxy")
                 .systemProperty("demo.server.port", server.getPort() + "")
                 .systemProperty("demo.server.https", "true")

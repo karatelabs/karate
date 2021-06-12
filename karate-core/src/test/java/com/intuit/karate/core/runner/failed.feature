@@ -1,4 +1,3 @@
-@ignore
 Feature: fail2pass1
 Background:
 Given def a = 1

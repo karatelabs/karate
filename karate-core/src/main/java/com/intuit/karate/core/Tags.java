@@ -132,6 +132,9 @@ public class Tags implements Iterable<Tag> {
     }
 
     public boolean evaluate(String tagSelector) {
+        if (tags.contains(Tag.IGNORE)) {
+            return false;
+        }
         if (tagSelector == null) {
             return true;
         }

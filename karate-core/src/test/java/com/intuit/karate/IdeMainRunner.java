@@ -11,7 +11,7 @@ class IdeMainRunner {
 
     @Test
     void testCli() {
-        IdeMain.main(new String[]{"-t", "~@ignore", "-T", "2", "classpath:com/intuit/karate/core/runner/multi-scenario.feature"});
+        IdeMain.main(new String[]{"-t", "~@skipme", "-T", "2", "classpath:com/intuit/karate/core/runner/multi-scenario.feature"});
     }
     
     @Test

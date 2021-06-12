@@ -24,7 +24,7 @@ public class DemoTestSelected {
 
     @Test
     public void testSelected() {
-        List<String> tags = Arrays.asList("~@ignore");
+        List<String> tags = Arrays.asList("~@skipme");
         List<String> features = Arrays.asList("classpath:demo/cats");
         String karateOutputPath = "target/surefire-reports";
         Results results = Runner.path(features)

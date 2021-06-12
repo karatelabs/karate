@@ -1,4 +1,3 @@
-@ignore
 Feature:
 
 Scenario: null arg

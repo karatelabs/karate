@@ -521,8 +521,10 @@ mvn test -Dtest=CatsRunner
 ### `karate.options`
 When your Java test "runner" is linked to multiple feature files, which will be the case when you use the recommended [parallel runner](#parallel-execution), you can narrow down your scope to a single feature, scenario or directory via the command-line, useful in dev-mode. Note how even [tags](#tags) to exclude (or include) can be specified:
 
+> Note that any `Feature` or `Scenario` with the special `@ignore` tag will be skipped by default.
+
 ```
-mvn test "-Dkarate.options=--tags ~@ignore classpath:demo/cats/cats.feature" -Dtest=DemoTestParallel
+mvn test "-Dkarate.options=--tags ~@skipme classpath:demo/cats/cats.feature" -Dtest=DemoTestParallel
 ```
 
 Multiple feature files (or paths) can be specified, de-limited by the space character. They should be at the end of the `karate.options`. To run only a single scenario, append the line number on which the scenario is defined, de-limited by `:`.
@@ -560,10 +562,12 @@ or
 One way to define 'test-suites' in Karate is to have a JUnit class at a level 'above' (in terms of folder hierarchy) all the `*.feature` files in your project. So if you take the previous [folder structure example](#naming-conventions), you can do this on the command-line:
 
 ```
-mvn test "-Dkarate.options=--tags ~@ignore" -Dtest=AnimalsTest
+mvn test "-Dkarate.options=--tags ~@skipme" -Dtest=AnimalsTest
 ```
 
-Here, `AnimalsTest` is the name of the Java class we designated to run the multiple `*.feature` files that make up your test-suite. There is a neat way to [tag your tests](#tags) and the above example demonstrates how to run all tests _except_ the ones tagged `@ignore`.
+Here, `AnimalsTest` is the name of the Java class we designated to run the multiple `*.feature` files that make up your test-suite. There is a neat way to [tag your tests](#tags) and the above example demonstrates how to run all tests _except_ the ones tagged `@skipme`.
+
+Note that the special, built-in tag `@ignore` will *always* be skipped by default, and you don't need to specify `~@ignore` anywhere.
 
 You can 'lock down' the fact that you only want to execute the single JUnit class that functions as a test-suite - by using the following [maven-surefire-plugin configuration](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html):
 
@@ -577,7 +581,7 @@ You can 'lock down' the fact that you only want to execute the single JUnit clas
             <include>animals/AnimalsTest.java</include>
         </includes>
         <systemProperties>
-            <karate.options>--tags ~@ignore</karate.options>
+            <karate.options>--tags @smoke</karate.options>
         </systemProperties>            
     </configuration>
 </plugin> 
@@ -624,7 +628,7 @@ public class TestParallel {
     
     @Test
     public void testParallel() {
-        Results results = Runner.path("classpath:some/package").tags("~@ignore").parallel(5);
+        Results results = Runner.path("classpath:some/package").tags("@smoke").parallel(5);
         assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
     }
     
@@ -635,7 +639,7 @@ public class TestParallel {
 * The `Runner.path()` "builder" method in `karate-core` is how you refer to the package you want to execute, and all feature files within sub-directories will be picked up
 * `Runner.path()` takes multiple string parameters, so you can refer to multiple packages or even individual `*.feature` files and easily "compose" a test-suite
   * e.g. `Runner.path("classpath:animals", "classpath:some/other/package.feature")`
-* To [choose tags](#tags), call the `tags()` API, note that in the example above, any `*.feature` file tagged as `@ignore` will be skipped - as the `~` prefix means a "NOT" operation. You can also specify tags on the [command-line](#test-suites). The `tags()` method also takes multiple arguments, for e.g.
+* To [choose tags](#tags), call the `tags()` API, note that by default, any `*.feature` file tagged with the special (built-in) tag: `@ignore` will be skipped. You can also specify tags on the [command-line](#test-suites). The `tags()` method also takes multiple arguments, for e.g.
   * this is an "AND" operation: `tags("@customer", "@smoke")`
   * and this is an "OR" operation: `tags("@customer,@smoke")`
 * There is an optional `reportDir()` method if you want to customize the directory to which the [HTML, XML and JSON](#parallel-execution) files will be output, it defaults to `target/karate-reports`
@@ -657,7 +661,7 @@ class TestParallel {
 
     @Test
     void testParallel() {
-        Results results = Runner.path("classpath:animals").tags("~@ignore").parallel(5);
+        Results results = Runner.path("classpath:animals").tags("~@skipme").parallel(5);
         assertEquals(0, results.getFailCount(), results.getErrorMessages());
     }
 
@@ -3814,6 +3818,15 @@ Gherkin has a great way to sprinkle meta-data into test-scripts - which gives yo
 The documentation on how to run tests via the [command line](#test-suites) has an example of how to use tags to decide which tests to *not* run (or ignore). Also see [`first.feature`](karate-demo/src/test/java/demo/tags/first.feature) and [`second.feature`](karate-demo/src/test/java/demo/tags/second.feature) in the [demos](karate-demo). If you find yourself juggling multiple tags with logical `AND` and `OR` complexity, refer to this [Stack Overflow answer](https://stackoverflow.com/a/34543352/143475) and this [blog post](https://testingneeds.wordpress.com/2015/09/15/junit-runner-with-cucumberoptions/).
 
 > For advanced users, Karate supports being able to query for tags within a test, and even tags in a `@name=value` form. Refer to [`karate.tags`](#karate-tags) and [`karate.tagValues`](#karate-tagvalues).
+
+### Special Tags
+For completeness, the "built-in" tags are the following:
+
+Tag | Description
+--- | -----------
+`@ignore` | Any `Scenario` with (or that has inherited) this tag will be skipped at run-time. This does not apply to anything that is "called" though
+`@parallel` | See [`@parallel=false`](#parallelfalse)
+`@report` | See [`@report=false`](#reportfalse)
 
 ### Tags And Examples
 A little-known capability of the Cucumber / Gherkin syntax is to be able to tag even specific rows in a bunch of examples ! You have to repeat the `Examples` section for each tag. The example below combines this with the advanced features described above.

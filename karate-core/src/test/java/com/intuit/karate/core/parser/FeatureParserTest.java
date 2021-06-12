@@ -34,7 +34,6 @@ class FeatureParserTest {
         Feature feature = Feature.read("classpath:com/intuit/karate/core/parser/" + name);
         Runner.Builder builder = Runner.builder();
         builder.karateEnv(env);
-        builder.tags("~@ignore");
         FeatureRuntime fr = FeatureRuntime.of(new Suite(builder), feature);
         fr.run();
         return fr.result;

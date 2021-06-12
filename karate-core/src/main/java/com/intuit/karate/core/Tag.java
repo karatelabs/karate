@@ -32,6 +32,8 @@ import java.util.List;
  * @author pthomas3
  */
 public class Tag {
+    
+    public static final String IGNORE = "ignore";
 
     private final int line;
     private final String text;

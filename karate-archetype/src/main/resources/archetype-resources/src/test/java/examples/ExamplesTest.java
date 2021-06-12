@@ -10,7 +10,6 @@ class ExamplesTest {
     @Test
     void testParallel() {
         Results results = Runner.path("classpath:examples")
-                .tags("~@ignore")
                 //.outputCucumberJson(true)
                 .parallel(5);
         assertEquals(0, results.getFailCount(), results.getErrorMessages());

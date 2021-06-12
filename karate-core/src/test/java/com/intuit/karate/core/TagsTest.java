@@ -33,7 +33,9 @@ class TagsTest {
     @Test
     public void testTagSelectors() {
         assertTrue(eval(null));
-        assertTrue(eval(null, "@foo", "@bar"));        
+        assertFalse(eval(null, "@ignore"));
+        assertTrue(eval(null, "@foo", "@bar")); 
+        assertFalse(eval(null, "@foo", "@ignore")); 
         assertTrue(eval("anyOf('@foo')", "@foo", "@bar"));
         assertTrue(eval("not('@ignore')"));
         assertTrue(eval("not('@ignore')", "@foo", "@bar"));

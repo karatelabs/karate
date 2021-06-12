@@ -13,7 +13,7 @@ public class WebRunner {
     
     @Test
     void test() {
-        Results results = Runner.path("classpath:jobtest/web").tags("~@ignore").parallel(1);
+        Results results = Runner.path("classpath:jobtest/web").parallel(1);
         assertEquals(0, results.getFailCount(), results.getErrorMessages());
     }     
     

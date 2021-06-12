@@ -44,7 +44,7 @@ public class MockSpringMvcServletTest {
                 f -> !f.getName().equals("karate-config.js"), false); // don't over-write karate-config.js
         MockSpringMvcServlet factory = new MockSpringMvcServlet();
         Results results = Runner.path("classpath:demo")
-                .tags("~@ignore", "~@mock-servlet-todo")
+                .tags("~@mock-servlet-todo")
                 .karateEnv("dev-mock-springmvc")
                 .clientFactory(factory)
                 .parallel(1);

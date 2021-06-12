@@ -1,4 +1,3 @@
-@ignore
 Feature: abort2pass1
 Background:
 Given def a = 1

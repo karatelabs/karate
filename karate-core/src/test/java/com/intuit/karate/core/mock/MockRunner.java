@@ -36,7 +36,7 @@ class MockRunner {
     private void run(String name) {
         results = Runner.path("classpath:com/intuit/karate/core/mock/" + name)
                 .configDir("classpath:com/intuit/karate/core/mock")
-                .tags("~@ignore").parallel(1);
+                .parallel(1);
         assertEquals(0, results.getFailCount(), results.getErrorMessages());
     }
 
