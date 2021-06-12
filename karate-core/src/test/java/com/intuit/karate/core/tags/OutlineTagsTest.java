@@ -31,5 +31,21 @@ public class OutlineTagsTest {
                 .parallel(1);
         assertEquals(2, results.getScenariosPassed());
     }     
+    
+    @Test
+    public void testOneAndBoth() {
+        Results results = Runner.path("classpath:com/intuit/karate/core/tags/outline-tags.feature")
+                .tags("@one", "@both")
+                .parallel(1);
+        assertEquals(2, results.getScenariosPassed());
+    } 
+    
+    @Test
+    public void testNoneOrBoth() {
+        Results results = Runner.path("classpath:com/intuit/karate/core/tags/outline-tags.feature")
+                .tags("@none,@both")
+                .parallel(1);
+        assertEquals(4, results.getScenariosPassed());
+    }    
 
 }

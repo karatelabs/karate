@@ -5,13 +5,13 @@ Feature:
 Scenario Outline:
 * print __row
 
-@one
+@one @both
 Examples:
 | name   |
 | one-1  |
 | one-2  |
 
-@two
+@two @both
 Examples:
 | name   |
 | two-1  |
