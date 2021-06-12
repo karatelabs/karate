@@ -503,6 +503,16 @@ class ScenarioRuntimeTest {
         // fixed for windows
         match(((String) get("res")).replaceAll("[\r\n]+", "@"), "a,b@1,2@3,4@");
     }
+    
+    @Test
+    void testTrim() {
+        run(
+                "def text = ' \\tblah\\n'",
+                "def foo = karate.trim(text)",
+                "match foo == 'blah'"
+        );
+        matchVar("foo", "blah");     
+    }
 
     @Test
     void testEval() {
