@@ -787,6 +787,17 @@ class ScenarioRuntimeTest {
                 "def list = karate.range(10, 5, -1)"
         );
     }
+    
+    @Test
+    void testUrlEncodeAndDecode() {
+        run(
+                "def raw = 'encoding%2Ffoo%2Bbar'",
+                "def decoded = karate.urlDecode(raw)",
+                "match decoded == 'encoding/foo+bar'",
+                "def encoded = karate.urlEncode(decoded)",
+                "match encoded == raw"
+        );
+    }
 
     @Test
     void testMatchXmlXpath() {

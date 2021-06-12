@@ -93,7 +93,6 @@ public class HttpRequestBuilder implements ProxyObject {
     private String url;
     private String method;
     private List<String> paths;
-    private List<String> rawPaths;
     private Map<String, List<String>> params;
     private Map<String, List<String>> headers;
     private MultiPartBuilder multiPart;
@@ -119,7 +118,7 @@ public class HttpRequestBuilder implements ProxyObject {
         retryUntil = null;
         return this;
     }
-    
+
     public HttpRequestBuilder copy() {
         HttpRequestBuilder hrb = new HttpRequestBuilder(client);
         hrb.url = url;
@@ -163,7 +162,7 @@ public class HttpRequestBuilder implements ProxyObject {
             }
             multiPart = null;
         }
-        request.setUrl(getUri().toASCIIString());
+        request.setUrl(getUri());
         if (multiPart != null) {
             if (body == null) { // this is not-null only for a re-try, don't rebuild multi-part
                 body = multiPart.build();
@@ -260,85 +259,35 @@ public class HttpRequestBuilder implements ProxyObject {
         return this;
     }
 
-    public HttpRequestBuilder rawPaths(String... rawPaths) {
-        for (String rawPath : rawPaths) {
-            rawPath(rawPath);
-        }
-        return this;
-    }
-
-    public HttpRequestBuilder rawPath(String rawPath) {
-        if (rawPath == null) {
-            return this;
-        }
-        if (rawPaths == null) {
-            rawPaths = new ArrayList<>();
-        }
-        rawPaths.add(rawPath);
-        return this;
-    }
-
-    private URI getUri() {
-        if (Objects.nonNull(rawPaths) && Objects.nonNull(paths)) {
-            throw new IllegalStateException("Cannot mix 'path' and 'raw path' steps together in the same scenario, please use one or the other but not both.");
-        }
+    private String getUri() {
         try {
-            URIBuilder builder = createBuilder(url, params);
-            if (Objects.nonNull(rawPaths)) {
-                builder.setPath(mergeRawPath(builder, rawPaths));
+            URIBuilder builder;
+            if (url == null) {
+                builder = new URIBuilder();
+            } else {
+                if (url.endsWith("/")) {
+                    url = url.substring(0, url.length() - 1);
+                }
+                builder = new URIBuilder(url);
             }
-            if (Objects.nonNull(paths)) {
-                builder.setPathSegments(mergePathSegments(builder, paths));
+            if (params != null) {
+                params.forEach((key, values) -> values.forEach(value -> builder.addParameter(key, value)));
             }
-            return builder.build();
+            if (paths != null) {
+                List<String> segments = new ArrayList();
+                segments.addAll(builder.getPathSegments());
+                for (String item : paths) {
+                    for (String s : StringUtils.split(item, '/', true)) {
+                        segments.add(s);
+                    }
+                }
+                builder.setPathSegments(segments);
+            }
+            URI uri = builder.build();
+            return uri.toASCIIString();
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    private String mergeRawPath(URIBuilder builder, List<String> rawPaths) {
-        String result = "";
-        for (String path : rawPaths) {
-            if (path.startsWith("/")) {
-                path = path.substring(1);
-            }
-            if (!result.isEmpty() && !result.endsWith("/")) {
-                result += "/";
-            }
-            result += path;
-        }
-        if (Objects.nonNull(builder.getPath())) {
-            if (builder.getPath().endsWith("/")) {
-                result = builder.getPath() + result;
-            } else {
-                result = builder.getPath() + "/" + result;
-            }
-        }
-        return result;
-    }
-
-    private List<String> mergePathSegments(URIBuilder builder, List<String> paths) {
-        paths.stream()
-                .filter(path -> path.startsWith("/"))
-                .forEach(this::warnPathSegment);
-
-        return Stream.of(builder.getPathSegments(), paths)
-                .flatMap(List::stream)
-                .collect(Collectors.toList());
-    }
-
-    private void warnPathSegment(String path) {
-        logger.warn("Path segment: '{}' starts with a '/', this is probably a mistake. The '/' character will be escaped and sent to the remote server as '%2F'. " +
-                "If you want to include multiple paths please separate them using commas. Ie. 'hello', 'world' instead of '/hello/world'.", path);
-    }
-
-    // Not sure the type of params
-    private URIBuilder createBuilder(String url, Map<String, List<String>> params) throws URISyntaxException {
-        URIBuilder builder = Objects.isNull(url) ? new URIBuilder() : new URIBuilder(url);
-        if (Objects.nonNull(params)) {
-            params.forEach((key, values) -> values.forEach(value -> builder.addParameter(key, value)));
-        }
-        return builder;
     }
 
     public HttpRequestBuilder body(Object body) {
@@ -501,7 +450,7 @@ public class HttpRequestBuilder implements ProxyObject {
     //
     private final Methods.FunVar PATH_FUNCTION = args -> {
         if (args.length == 0) {
-            return getUri().getPath();
+            return getUri();
         } else {
             for (Object o : args) {
                 if (o != null) {
@@ -646,7 +595,7 @@ public class HttpRequestBuilder implements ProxyObject {
 
     @Override
     public String toString() {
-        return getUri().toASCIIString();
+        return getUri();
     }
 
 }

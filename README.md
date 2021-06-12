@@ -1592,29 +1592,16 @@ If you are trying to build dynamic URLs including query-string parameters in the
 
 ## `path`
 REST-style path parameters.  Can be expressions that will be evaluated.  Comma delimited values are supported which can be more convenient, and takes care of URL-encoding and appending '/' between path segments as needed.
-```cucumber
-# this is invalid and will result in / being encoded as %2F when sent to the remote server
-# eg. given a documentId of 1234 the path will be: /documents%2F1234%2Fdownload
-Given path 'documents/' + documentId + '/download'
 
-# this is the correct way to specify multiple path segments
+```cucumber
 Given path 'documents', documentId, 'download'
 
 # or you can do the same on multiple lines if you wish
 Given path 'documents'
 And path documentId
 And path 'download'
-
-# you can also ensure that the constructed url has a trailing / by appending an empty path segment
-# eg. given a documentId of 1234 the path will be: /documents/1234/download/
-Given path 'documents', documentId, 'download', ''
-
-# if you want to take control of building a string that already contais the path separators
-Given raw path '/my/manually/constructed/path'
-
-# you can of course still use variables
-Gicen raw path '/my/manually/constructed/path/', documentId
 ```
+
 Note that the `path` 'resets' after any HTTP request is made but not the `url`. The [Hello World](#hello-world) is a great example of 'REST-ful' use of the `url` when the test focuses on a single REST 'resource'. Look at how the `path` did not need to be specified for the second HTTP `get` call since `/cats` is part of the `url`.
 
 > Important: If you attempt to build a URL in the form `?myparam=value` by using `path` the `?` will get encoded into `%3F`. Use either the [`param`](#param) keyword, e.g.: `* param myparam = 'value'` or [`url`](#url): `* url 'http://example.com/v1?myparam'`
@@ -3269,6 +3256,8 @@ Operation | Description
 <a name="karate-tojson"><code>karate.toJson(object)</code></a> | converts a Java object into JSON, and `karate.toJson(object, true)` will strip all keys that have `null` values from the resulting JSON, convenient for unit-testing Java code, see [example](karate-demo/src/test/java/demo/unit/cat.feature)
 <a name="karate-trim"><code>karate.trim(string)</code></a> | trim leading and trailing white-space (including line-feeds, tab-characters etc.)
 <a name="karate-typeof"><code>karate.typeOf(any)</code></a> | for advanced conditional logic when object types are dynamic and not known in advance, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature)
+<a name="karate-urldecode"><code>karate.urlDecode(string)</code></a> | URL decode
+<a name="karate-urlencode"><code>karate.urlEncode(string)</code></a> | URL encode
 <a name="karate-valuesof"><code>karate.valuesOf(object)</code></a> | returns only the values of a map-like object (or itself if a list-like object)
 <a name="karate-waitforhttp"><code>karate.waitForHttp(url)</code></a> | will wait until the URL is ready to accept HTTP connections
 <a name="karate-waitforport"><code>karate.waitForPort(host, port)</code></a> | will wait until the host:port is ready to accept socket connections

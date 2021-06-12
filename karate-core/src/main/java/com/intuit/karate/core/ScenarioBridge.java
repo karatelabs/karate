@@ -43,7 +43,10 @@ import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.WebSocketClient;
 import com.intuit.karate.http.WebSocketOptions;
 import com.intuit.karate.shell.Command;
+import com.linecorp.armeria.internal.shaded.guava.base.Charsets;
 import java.io.File;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -839,6 +842,24 @@ public class ScenarioBridge implements PerfContext {
         Variable v = new Variable(value);
         return v.getTypeString();
     }
+    
+    public String urlEncode(String s) {
+        try {
+            return URLEncoder.encode(s, "UTF-8");
+        } catch (Exception e) {
+            getEngine().logger.warn("url encode failed: {}", e.getMessage());
+            return s;
+        }
+    }
+    
+    public String urlDecode(String s) {
+        try {
+            return URLDecoder.decode(s, "UTF-8");
+        } catch (Exception e) {
+            getEngine().logger.warn("url encode failed: {}", e.getMessage());
+            return s;
+        }
+    }    
 
     public Object valuesOf(Value v) {
         if (v.hasArrayElements()) {

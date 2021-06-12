@@ -363,15 +363,6 @@ public class ScenarioEngine {
         requestBuilder.url(var.getAsString());
     }
 
-    public void rawPath(String exp) {
-        List<?> list = evalJs("[" + exp + "]").getValue();
-        for (Object o : list) {
-            if (o != null) {
-                requestBuilder.rawPath(o.toString());
-            }
-        }
-    }
-
     public void path(String exp) {
         if (exp.contains(",")) {
             exp = "[" + exp + "]";

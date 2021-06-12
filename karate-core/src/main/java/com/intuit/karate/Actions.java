@@ -110,8 +110,6 @@ public interface Actions {
 
     void path(String exp);
 
-    void rawPath(String exp);
-
     void print(String exp);
 
     void remove(String name, String path);

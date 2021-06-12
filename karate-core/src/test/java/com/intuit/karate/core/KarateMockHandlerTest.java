@@ -141,7 +141,7 @@ class KarateMockHandlerTest {
         );
         matchVar("response", "{ foo: ['bar', 'baz'] }");
     }
-    
+
     @Test
     void testRequestBodyAsInteger() {
         background().scenario(
@@ -154,7 +154,7 @@ class KarateMockHandlerTest {
                 "method post"
         );
         matchVar("response", "42");
-    }    
+    }
 
     @Test
     void testHeaders() {
@@ -422,6 +422,7 @@ class KarateMockHandlerTest {
                 "match response == '<http://example.org/#hello> a <http://example.org/#greeting> .'"
         );
     }
+
     @Test
     void testResponseContentTypeForNonXmlWithTags() {
         background().scenario(
@@ -437,7 +438,7 @@ class KarateMockHandlerTest {
                 "match response == '<http://example.org/#hello> a <http://example.org/#greeting> .'"
         );
     }
-    
+
     @Test
     void testWildcardLikePathMatch() {
         background().scenario(
@@ -449,8 +450,8 @@ class KarateMockHandlerTest {
                 "method get",
                 "match response == 'hello/foo/bar'"
         );
-    }    
-    
+    }
+
     @Test
     void testPathFromStringVariable() {
         background().scenario(
@@ -463,8 +464,8 @@ class KarateMockHandlerTest {
                 "method get",
                 "match response == 'hello'"
         );
-    }     
-    
+    }
+
     @Test
     void testPathFromArrayVariable() {
         background().scenario(
@@ -477,6 +478,32 @@ class KarateMockHandlerTest {
                 "method get",
                 "match response == 'hello/world'"
         );
-    }    
+    }
+
+    @Test
+    void testPathWithForwardSlashes() {
+        background().scenario(
+                "pathMatches('/hello/world')",
+                "def response = requestUri");
+        run(
+                URL_STEP,
+                "path '/hello/world'",
+                "method get",
+                "match response == 'hello/world'"
+        );
+    }
+
+    @Test
+    void testPathWithEscapedSlashes() {
+        background().scenario(
+                "pathMatches('/hello/world')",
+                "def response = requestUri");
+        run(
+                URL_STEP,
+                "path '/hello\\\\/world'",
+                "method get",
+                "match response == 'hello/world'"
+        );
+    }  
 
 }
