@@ -68,6 +68,10 @@ Scenario: pathMatches('/v1/download')
 Scenario: pathMatches('/v1/upload')
     * def response = { size: '#(requestBytes.length)' }
 
+Scenario: pathMatches('/v1/upload/excel')
+    * def filePart = requestParts['myFile'][0]
+    * def response = filePart
+
 Scenario: pathMatches('/v1/multipart')
     # TODO multipart handling on server side !
     * def response = { success: true }

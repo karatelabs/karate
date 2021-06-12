@@ -119,12 +119,14 @@ public class MultiPartBuilder {
                 ResourceType resourceType;
                 if (contentType == null) {
                     resourceType = ResourceType.fromFileExtension(filename);
-                    contentType = resourceType.contentType;
                 } else {
                     resourceType = ResourceType.fromContentType(contentType);
-                    if (resourceType == null) {
-                        resourceType = ResourceType.BINARY;
-                    }
+                }
+                if (resourceType == null) {
+                    resourceType = ResourceType.BINARY;
+                }
+                if (contentType == null) {
+                    contentType = resourceType.contentType;
                 }
                 try {
                     encoder.addBodyFileUpload(name, filename, file, contentType, !resourceType.isBinary());
@@ -135,11 +137,16 @@ public class MultiPartBuilder {
                 String contentType = (String) map.get("contentType");
                 ResourceType resourceType;
                 if (contentType == null) {
-                    resourceType = ResourceType.fromObject(value, ResourceType.BINARY);
-                    contentType = resourceType.contentType;
+                    resourceType = ResourceType.fromObject(value);
                 } else {
                     resourceType = ResourceType.fromContentType(contentType);
+                }               
+                if (resourceType == null) {
+                    resourceType = ResourceType.BINARY;
                 }
+                if (contentType == null) {
+                    contentType = resourceType.contentType;
+                }                
                 Charset cs = null;
                 if (!resourceType.isBinary()) {
                     String charset = (String) map.get("charset");
