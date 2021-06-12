@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import org.graalvm.polyglot.Value;
+import org.graalvm.polyglot.proxy.ProxyExecutable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
@@ -87,7 +88,14 @@ public class JsValue {
             }
             type = Type.OTHER;
         } else if (v.canExecute()) {
-            value = v; // special case, keep around as graal value
+            if (!v.isMetaObject()) {
+                // e.g. Java function
+                // will be treated exactly like a polyglot JS function
+                // but hide complexity/threading issues behind a Proxy
+                value = (ProxyExecutable) arguments -> v.execute(arguments);
+            } else {
+                value = v; // special case, keep around as graal value
+            }
             type = Type.FUNCTION;
         } else if (v.hasArrayElements()) {
             int size = (int) v.getArraySize();
