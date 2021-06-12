@@ -227,7 +227,7 @@ public class Tags implements Iterable<Tag> {
                 sb.append("anyOf(");
                 List<String> or = StringUtils.split(and, ',', false);
                 for (String tag : or) {
-                    sb.append('\'').append(tag).append('\'').append(',');
+                    sb.append('\'').append(tag.trim()).append('\'').append(',');
                 }
                 sb.setLength(sb.length() - 1);
                 sb.append(')');

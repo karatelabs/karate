@@ -14,7 +14,7 @@ class TagsTest {
     @Test
     public void testCucumberOptionsTagsConversion() {
         assertEquals("anyOf('@foo')", Tags.fromKarateOptionsTags("@foo"));
-        assertEquals("anyOf('@foo','@bar')", Tags.fromKarateOptionsTags("@foo,@bar"));
+        assertEquals("anyOf('@foo','@bar')", Tags.fromKarateOptionsTags("@foo, @bar"));
         assertEquals("anyOf('@foo') && anyOf('@bar')", Tags.fromKarateOptionsTags("@foo", "@bar"));
         assertEquals("anyOf('@foo') && not('@bar')", Tags.fromKarateOptionsTags("@foo", "~@bar"));
         // detect new syntax and use as-is
