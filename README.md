@@ -3768,14 +3768,16 @@ The JS API has a [`karate.signal(result)`](#karate-signal) method that is useful
 ### `listen`
 You use the `listen` keyword (with a timeout) to wait until that event occurs. The `listenResult` magic variable will hold the value passed to the call to `karate.signal()`.
 
-This is best [explained](https://github.com/intuit/karate/tree/master/karate-netty#consumer-provider-example) in this [example](karate-demo/src/test/java/mock/contract/payment-service.feature) that involves listening to an ActiveMQ / JMS queue. Note how [JS functions](#javascript-functions) defined at run-time can be mixed with custom [Java code](#java-interop) to get things done.
+This is best [explained](https://github.com/intuit/karate/tree/master/karate-netty#consumer-provider-example) in this [example](karate-demo/src/test/java/mock/contract/payment-service.feature) that involves listening to an ActiveMQ / JMS queue.
+
+Note how [JS functions](#javascript-functions) defined at run-time can be mixed with custom [Java code](#java-interop) to get things done. You need to use [`karate.toJava()`](#karate-tojava) to "wrap" JS functions passed to custom Java code.
 
 ```cucumber
 Background:
 * def QueueConsumer = Java.type('mock.contract.QueueConsumer')
 * def queue = new QueueConsumer(queueName)
 * def handler = function(msg){ karate.signal(msg) }
-* queue.listen(handler)
+* queue.listen(karate.toJava(handler))
 * url paymentServiceUrl + '/payments'
 
 Scenario: create, get, update, list and delete payments
@@ -3835,8 +3837,8 @@ Tag | Description
 ### Environment Tags
 There are two special tags that allow you to "select" or "un-select" a `Scenario` depending on the value of [`karate.env`](#switching-the-environment). This can be really convenient, for example to *never* run some tests in a certain "production like" or sensitive environment.
 
-* `@env=foo` - will run only when the value of `karate.env` is `foo` and not-null
-* `@envnot=foo` - will run only when the value of `karate.env` is `null` or anything *but* `foo`
+* `@env=foo,bar` - will run only when the value of `karate.env` is not-null *and* equal to `foo` *or* `bar`
+* `@envnot=foo` - will run when the value of `karate.env` is `null` or anything *other than* `foo`
 
 Here is an example:
 
