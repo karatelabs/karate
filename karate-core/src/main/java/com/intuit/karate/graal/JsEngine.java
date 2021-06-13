@@ -210,7 +210,7 @@ public class JsEngine {
         if (message != null) {
             sb.append(message).append('\n');
         }
-        sb.append(">>>> js failed:\n");
+        sb.append("js failed:\n>>>>\n");
         List<String> lines = StringUtils.toStringLines(js);
         int index = 0;
         for (String line : lines) {
