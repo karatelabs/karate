@@ -23,7 +23,7 @@ class CatsSimulation extends Simulation {
     println("*** session status in gatling: " + session.status)
     session
   })
-  val delete = scenario("delete").group("delete xcats") {
+  val delete = scenario("delete").group("delete cats") {
     exec(karateFeature("classpath:mock/cats-delete.feature@name=delete"))
   }
   val custom = scenario("custom").exec(karateFeature("classpath:mock/custom-rpc.feature"))

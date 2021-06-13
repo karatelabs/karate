@@ -76,7 +76,7 @@ class KarateFeatureAction(val name: String, val tags: Seq[String], val protocol:
       callArg.putAll(incomingData)
     }
 
-    callArg.put("__gatling", gatlingSessionAttributes)
+    callArg.put(KarateProtocol.GATLING_KEY, gatlingSessionAttributes)
 
     protocol.runner.suiteCache(KarateProtocol.GLOBAL_CACHE)
     protocol.runner.classLoader(Thread.currentThread.getContextClassLoader)
