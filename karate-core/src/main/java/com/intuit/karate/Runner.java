@@ -27,6 +27,7 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.RuntimeHookFactory;
+import com.intuit.karate.core.ScenarioCall;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.DriverRunner;
 import com.intuit.karate.http.HttpClientFactory;
@@ -75,6 +76,7 @@ public class Runner {
 
     // this is called by karate-gatling !
     public static void callAsync(Runner.Builder builder, String path, Map<String, Object> arg, PerfHook perfHook) {
+        builder.features = Collections.emptyList(); // will skip expensive feature resolution in builder.resolveAll()
         Suite suite = new Suite(builder);
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, arg, perfHook);
@@ -161,7 +163,6 @@ public class Runner {
     //
     public static class Builder<T extends Builder> {
 
-        boolean resolved;
         ClassLoader classLoader;
         Class optionsClass;
         String env;
@@ -187,16 +188,49 @@ public class Runner {
         boolean dryRun;
         boolean debugMode;
         Map<String, String> systemProperties;
-        Map<String, Object> suiteCache;
+        Map<String, Object> callSingleCache;
+        Map<String, ScenarioCall.Result> callOnceCache;
         SuiteReports suiteReports;
         JobConfig jobConfig;
         Map<String, DriverRunner> drivers;
 
+        // synchronize because the main user is karate-gatling
+        public synchronized Builder copy() {
+            Builder b = new Builder();
+            b.classLoader = classLoader;
+            b.optionsClass = optionsClass;
+            b.env = env;
+            b.workingDir = workingDir;
+            b.buildDir = buildDir;
+            b.configDir = configDir;
+            b.threadCount = threadCount;
+            b.timeoutMinutes = timeoutMinutes;
+            b.reportDir = reportDir;
+            b.scenarioName = scenarioName;
+            b.tags = tags;
+            b.paths = paths;
+            b.features = features;
+            b.relativeTo = relativeTo;
+            b.hooks.addAll(hooks); // final
+            b.hookFactory = hookFactory;
+            b.clientFactory = clientFactory;
+            b.forTempUse = forTempUse;
+            b.backupReportDir = backupReportDir;
+            b.outputHtmlReport = outputHtmlReport;
+            b.outputJunitXml = outputJunitXml;
+            b.outputCucumberJson = outputCucumberJson;
+            b.dryRun = dryRun;
+            b.debugMode = debugMode;
+            b.systemProperties = systemProperties;
+            b.callSingleCache = callSingleCache;
+            b.callOnceCache = callOnceCache;
+            b.suiteReports = suiteReports;
+            b.jobConfig = jobConfig;
+            b.drivers = drivers;
+            return b;
+        }
+
         public List<Feature> resolveAll() {
-            if (resolved) {
-                return features;
-            }
-            resolved = true;
             if (classLoader == null) {
                 classLoader = Thread.currentThread().getContextClassLoader();
             }
@@ -290,8 +324,11 @@ public class Runner {
                     feature.setCallName(scenarioName);
                 }
             }
-            if (suiteCache == null) {
-                suiteCache = new HashMap();
+            if (callSingleCache == null) {
+                callSingleCache = new HashMap();
+            }
+            if (callOnceCache == null) {
+                callOnceCache = new HashMap();
             }
             if (suiteReports == null) {
                 suiteReports = SuiteReports.DEFAULT;
@@ -320,13 +357,6 @@ public class Runner {
             forTempUse = true;
             return (T) this;
         }
-        
-        //======================================================================
-        // special case to over-write any already set for gatling
-        //
-        public void setTags(List<String> tags) {
-            this.tags = tags;
-        }       
 
         //======================================================================
         //
@@ -419,7 +449,7 @@ public class Runner {
         public T tags(String... tags) {
             tags(Arrays.asList(tags));
             return (T) this;
-        }               
+        }
 
         public T features(Collection<Feature> value) {
             if (value != null) {
@@ -486,11 +516,11 @@ public class Runner {
             outputHtmlReport = value;
             return (T) this;
         }
-        
+
         public T backupReportDir(boolean value) {
             backupReportDir = value;
             return (T) this;
-        }        
+        }
 
         public T outputCucumberJson(boolean value) {
             outputCucumberJson = value;
@@ -506,17 +536,22 @@ public class Runner {
             dryRun = value;
             return (T) this;
         }
-        
+
         public T debugMode(boolean value) {
             debugMode = value;
             return (T) this;
-        }        
+        }
 
-        public T suiteCache(Map<String, Object> value) {
-            suiteCache = value;
+        public T callSingleCache(Map<String, Object> value) {
+            callSingleCache = value;
             return (T) this;
         }
         
+        public T callOnceCache(Map<String, ScenarioCall.Result> value) {
+            callOnceCache = value;
+            return (T) this;
+        }        
+
         public T suiteReports(SuiteReports value) {
             suiteReports = value;
             return (T) this;

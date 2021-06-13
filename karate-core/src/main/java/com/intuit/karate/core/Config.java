@@ -78,7 +78,7 @@ public class Config {
     private boolean logPrettyRequest;
     private boolean logPrettyResponse;
     private boolean printEnabled = true;
-    private boolean outlineVariablesAuto = true;
+    private boolean pauseIfNotPerf = false;
     private boolean abortedStepsShouldPass = false;
     private Target driverTarget;
     private Map<String, Object> driverOptions;
@@ -224,8 +224,8 @@ public class Config {
                     retryCount = get(map, "count", retryCount);
                 }
                 return false;
-            case "outlineVariablesAuto":
-                outlineVariablesAuto = value.isTrue();
+            case "pauseIfNotPerf":
+                pauseIfNotPerf = value.isTrue();
                 return false;
             case "abortedStepsShouldPass":
                 abortedStepsShouldPass = value.isTrue();
@@ -356,7 +356,7 @@ public class Config {
         showAllSteps = parent.showAllSteps;
         retryInterval = parent.retryInterval;
         retryCount = parent.retryCount;
-        outlineVariablesAuto = parent.outlineVariablesAuto;
+        pauseIfNotPerf = parent.pauseIfNotPerf;
         abortedStepsShouldPass = parent.abortedStepsShouldPass;
         logModifier = parent.logModifier;
         callSingleCacheMinutes = parent.callSingleCacheMinutes;
@@ -538,8 +538,8 @@ public class Config {
         this.retryCount = retryCount;
     }
 
-    public boolean isOutlineVariablesAuto() {
-        return outlineVariablesAuto;
+    public boolean isPauseIfNotPerf() {
+        return pauseIfNotPerf;
     }
 
     public boolean isAbortedStepsShouldPass() {
@@ -581,4 +581,5 @@ public class Config {
     public void setContinueAfterContinueOnStepFailure(boolean continueAfterContinueOnStepFailure) {
         this.continueAfterContinueOnStepFailure = continueAfterContinueOnStepFailure;
     }
+
 }

@@ -29,6 +29,7 @@ import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.driver.DriverRunner;
 import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.core.Scenario;
+import com.intuit.karate.core.ScenarioCall;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.SyncExecutorService;
@@ -101,7 +102,8 @@ public class Suite implements Runnable {
     public final String karateConfig;
     public final String karateConfigEnv;
 
-    public final Map<String, Object> suiteCache;
+    public final Map<String, Object> callSingleCache;
+    public final Map<String, ScenarioCall.Result> callOnceCache;
     private final ReentrantLock progressFileLock;
 
     public final Map<String, DriverRunner> drivers;
@@ -155,7 +157,8 @@ public class Suite implements Runnable {
             parallel = false;
             scenarioExecutor = null;
             pendingTasks = null;
-            suiteCache = null;
+            callSingleCache = null;
+            callOnceCache = null;
             suiteReports = null;
             jobManager = null;
             progressFileLock = null;
@@ -178,7 +181,8 @@ public class Suite implements Runnable {
             features = rb.features;
             featuresFound = features.size();
             futures = new ArrayList(featuresFound);
-            suiteCache = rb.suiteCache;
+            callSingleCache = rb.callSingleCache;
+            callOnceCache = rb.callOnceCache;
             suiteReports = rb.suiteReports;
             featureResultFiles = new HashSet();
             workingDir = rb.workingDir;

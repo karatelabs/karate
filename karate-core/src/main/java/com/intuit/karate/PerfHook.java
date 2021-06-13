@@ -42,5 +42,7 @@ public interface PerfHook {
     void submit(Runnable runnable);
     
     void afterFeature(FeatureResult fr);
+    
+    void pause(Number millis);
 
 }

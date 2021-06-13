@@ -161,6 +161,11 @@ class PerfHookTest {
             logger.debug("afterFeature called");
         }
 
+        @Override
+        public void pause(Number millis) {
+            
+        }                
+
     };
 
 }

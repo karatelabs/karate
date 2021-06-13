@@ -26,6 +26,19 @@ class KarateFeatureAction(val name: String, val tags: Seq[String], val protocol:
 
     implicit val executor: ExecutionContextExecutor = system.dispatcher
 
+    def pauseInternal(time: Int) = {
+      val duration = Duration(time, MILLISECONDS)
+      try {
+        Await.result(Future.never, duration)
+      } catch {
+        // we do all this to achieve a non-blocking "pause"
+        // and the timeout exception will ALWAYS be thrown
+        case e: Throwable => // do nothing
+      }
+    }
+
+    val pauseFunction: Consumer[java.lang.Number] = t => pauseInternal(t.intValue())
+
     val perfHook = new PerfHook {
 
       override def getPerfEventName(req: HttpRequest, sr: ScenarioRuntime): String = {
@@ -59,9 +72,9 @@ class KarateFeatureAction(val name: String, val tags: Seq[String], val protocol:
         }
       }
 
-    }
+      override def pause(millis: java.lang.Number): Unit = pauseFunction.accept(millis)
 
-    val pauseFunction: Consumer[java.lang.Number] = t => pause(t.intValue())
+    }
 
     val gatlingSessionAttributes: java.util.Map[String, AnyRef] =
       (session.attributes
@@ -78,23 +91,13 @@ class KarateFeatureAction(val name: String, val tags: Seq[String], val protocol:
 
     callArg.put(KarateProtocol.GATLING_KEY, gatlingSessionAttributes)
 
-    protocol.runner.suiteCache(KarateProtocol.GLOBAL_CACHE)
-    protocol.runner.classLoader(Thread.currentThread.getContextClassLoader)
-    protocol.runner.setTags(tags.asJava) // setter over-writes anything previously set
+    val runner = protocol.runner.copy()
+    runner.callSingleCache(protocol.callSingleCache)
+    runner.callOnceCache(protocol.callOnceCache)
+    runner.tags(tags.asJava)
 
     Runner.callAsync(protocol.runner, name, callArg, perfHook)
 
-  }
-
-  def pause(time: Int) = {
-    val duration = Duration(time, MILLISECONDS)
-    try {
-      Await.result(Future.never, duration)
-    } catch {
-      // we do all this to achieve a non-blocking "pause"
-      // and the timeout exception will ALWAYS be thrown
-      case e: Throwable => // do nothing
-    }
   }
 
 }
@@ -127,4 +130,3 @@ class KarateSetActionBuilder(key: String, valueSupplier: Session => AnyRef) exte
   }
 
 }
-

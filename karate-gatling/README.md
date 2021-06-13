@@ -183,13 +183,15 @@ Also see how to [`pause()`](#think-time) without blocking threads if you really 
 #### `runner`
 Which feature to call and what tags to use are driven by the [`karateFeature()`](#karatefeature) syntax as described in later sections. Most of the time this would be sufficient. But in cases where you have custom configuration, you will need a way to replicate what you may be doing using the [`Runner.Builder`](https://github.com/intuit/karate#parallel-execution) methods. Most of the time this would be setting the `karate.env`.
 
-To enable this, a `Runner.Builder` instance is made available on the `protocol` in a variable called `runner` and all the builder methods such as `karateEnv()`, `configDir()` and `systemProperty()` can be configured. Note that some things such as `tags()` *cannot* be customized, as this is feature-specific.
+To enable this, a `Runner.Builder` instance is made available on the `protocol` in a variable called `runner` and all the builder methods such as `karateEnv()`, `configDir()` and `systemProperty()` can be configured. Note that some things such as `tags()` *cannot* be customized, as this is left to the `karateFeature()`.
 
 Here is an example of setting the `karate.env` to `perf` which means that `karate-config-perf.js` will be used in addition to `karate-config.js` for [bootstrapping the config](https://github.com/intuit/karate#configuration) for each `Scenario`.
 
 ```scala
   protocol.runner.karateEnv("perf")
 ```
+
+But the alternate mechanism of setting a Java system-property `karate.env` via the command-line is always an option, so using the `runner` can be avoided in most cases.
 
 ### `karateFeature()`
 This declares a whole Karate feature as a "flow". Note how you can have concurrent flows in the same Gatling simulation.
@@ -302,13 +304,9 @@ And if you have a need to create new variables on the "Gatling side" and inject 
 [This example](src/test/scala/mock/CatsChainedSimulation.scala) shows how you can use the `karateSet()` Gatling action to pipe data from the Gatling session (typically a feeder) into variables that Karate can access.
 
 #### `karate.callSingle()`
-A common need is to run a routine, typically a sign-in and setting up of an `Authorization` header only *once* - for all `Feature` invocations. Keep in mind that when you use Gatling, what used to be a single `Feature` in "normal" Karate will now be multiplied by the number of users you define. So [`callonce`](https://github.com/intuit/karate#callonce) won't be sufficient anymore.
+A common need is to run a routine, typically a sign-in and setting up of an `Authorization` header only *once* - for all `Feature` invocations. Keep in mind that when you use Gatling, what used to be a single `Feature` in "normal" Karate will now be multiplied by the number of users you define. But [`callonce`](https://github.com/intuit/karate#callonce) is designed so that it will be "once for everything" when Karate is running in Gatling "perf" mode.
 
-> IMPORTANT ! We have seen teams bring down their identity or SSO service because they did not realize that every `Feature` for every virtual-user was making a "sign in" call to get an `Authorization` header. Please use `karate.callSingle()` or Gatling "feeders" properly as explained below.
-
-You can use [`karate.callSingle()`](https://github.com/intuit/karate#hooks) in these situations and it will work as you expect. Ideally you should use [Feeders](#feeders) since `karate.callSingle()` will lock all threads - which may not play very well with Gatling. But when you want to quickly re-use existing Karate tests as performance tests, this will work nicely.
-
-Normally `karate.callSingle()` is used within the [`karate-config.js`](https://github.com/intuit/karate#karate-configjs) but it *can* be used at any point within a `Feature` if needed. Keep this in mind if you are trying to modify tests that depend on `callonce`. Also see the next section on how you can conditionally change the logic depending on whether the `Feature` is being run as a Gatling test or not.
+You can also use [`karate.callSingle()`](https://github.com/intuit/karate#hooks) in these situations. Ideally you should use [Feeders](#feeders) since `callonce` and `karate.callSingle()` will lock all threads - which may not play very well with Gatling. But when you want to quickly re-use existing Karate tests as performance tests, this will work nicely.
 
 #### Detecting Gatling At Run Time
 You would typically want your feature file to be usable when not being run via Gatling, so you can use this pattern, since [`karate.get()`](https://github.com/intuit/karate#karate-get) has an optional second argument to use as a "default" value if the variable does not exist or is `null`.
@@ -322,23 +320,13 @@ For a full, working, stand-alone example, refer to the [`karate-gatling-demo`](.
 #### Think Time
 Gatling provides a way to [`pause()`](https://gatling.io/docs/current/general/scenario/#scenario-pause) between HTTP requests, to simulate user "think time". But when you have all your requests in a Karate feature file, this can be difficult to simulate - and you may think that adding `java.lang.Thread.sleep()` here and there will do the trick. But no, what a `Thread.sleep()` will do is *block threads* - which is a very bad thing in a load simulation. This will get in the way of Gatling, which is specialized to generate load in a non-blocking fashion.
 
-For this - the [Gatling session](#gatling-session) mentioned above has a `pause(milliseconds)` function available. And following the pattern to [detect if the feature is being run by Gatling](#detecting-gatling-at-run-time) - you can do this:
+The [`karate.pause()`](https://github.com/intuit/karate#karate-pause) function is specially designed to use the Gatling session if applicable - or do nothing.
 
 ```cucumber
-* def sleep = function(ms){ java.lang.Thread.sleep(ms) }
-# or function(ms){ } for a no-op !
-* def pause = karate.get('__gatling.pause', sleep)
+* karate.pause(5000)
 ```
 
-And now, whenever you need, you can add a pause between API invocations in a feature file:
-
-```cucumber
-* pause(5000)
-```
-
-You can see how the `pause()` function can be a no-op when *not* a Gatling test, which is probably what you would do most of the time. You can have your "think-times" apply *only* when running as a load test.
-
-Refer to the main documentation on how to [achieve code re-use](https://github.com/intuit/karate/tree/develop#multiple-functions-in-one-file) if you don't want to define the `pause` function in multiple features.
+You normally don't want to slow down your functional tests. But you can use the [`configure pauseIfNotPerf`](https://github.com/intuit/karate#configure) flag (default `false`) to have `karate.pause()` work even in "normal" mode.
 
 ## `configure localAddress`
 > This is implemented only for the `karate-apache` HTTP client. Note that the IP address needs to be [*physically assigned* to the local machine](https://www.blazemeter.com/blog/how-to-send-jmeter-requests-from-different-ips/).

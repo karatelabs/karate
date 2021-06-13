@@ -1974,8 +1974,13 @@ public class ScenarioEngine {
         }
     }
 
-    private Variable callOnce(String cacheKey, Variable called, Variable arg, boolean sharedScope) {
-        final Map<String, ScenarioCall.Result> CACHE = runtime.featureRuntime.FEATURE_CACHE;
+    private Variable callOnce(String cacheKey, Variable called, Variable arg, boolean sharedScope) {        
+        final Map<String, ScenarioCall.Result> CACHE;
+        if (runtime.perfMode) { // use suite-wide cache for gatling
+            CACHE = runtime.featureRuntime.suite.callOnceCache;
+        } else {
+            CACHE = runtime.featureRuntime.CALLONCE_CACHE;
+        }
         ScenarioCall.Result result = CACHE.get(cacheKey);
         if (result != null) {
             logger.trace("callonce cache hit for: {}", cacheKey);

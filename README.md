@@ -1970,6 +1970,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `cors` | boolean | See [`karate-netty`](karate-netty#configure-cors)
 `driver` | JSON | See [UI Automation](karate-core)
 `driverTarget` | JSON / Java Object | See [`configure driverTarget`](karate-core#configure-drivertarget)
+`pauseIfNotPerf` | boolean | defaults to `false`, relevant only for performance-testing, see [`karate.pause()`](#karate-pause) and [`karate-gatling`](karate-gatling#pause)
 
 Examples:
 ```cucumber
@@ -3235,6 +3236,7 @@ Operation | Description
 <a name="karate-match"><code>karate.match(actual, expected)</code></a> | brings the power of the *fuzzy* [`match`](#match) syntax into Karate-JS, returns a JSON in the form `{ pass: '#boolean', message: '#string' }` and you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature) - you can even place a *full* match expression like this: `karate.match("each foo contains { a: '#number' }")`
 <a name="karate-merge"><code>karate.merge(... maps)</code></a> | useful to merge the key-values of two (or more) JSON (or map-like) objects, see [JSON transforms](#json-transforms)
 <a name="karate-os"><code>karate.os</code></a> | returns the operating system details as JSON, for e.g. `{ type: 'macosx', name: 'Mac OS X' }` - useful for writing conditional logic, the possible `type`-s being: `macosx`, `windows`, `linux` and `unknown`
+<a name="karate-pause"><code>karate.pause(number)</code></a> | sleep time in milliseconds, relevant only for [performance-testing](karate-gatling#pause) - and will be a no-op otherwise unless [`configure pauseIfNotPerf`](#configure) is `true`
 <a name="karate-pretty"><code>karate.pretty(value)</code></a> | return a 'pretty-printed', nicely indented string representation of the JSON value, also see: [`print`](#print)
 <a name="karate-prettyxml"><code>karate.prettyXml(value)</code></a> | return a 'pretty-printed', nicely indented string representation of the XML value, also see: [`print`](#print)
 <a name="karate-prevrequest"><code>karate.prevRequest</code></a> | for advanced users, you can inspect the *actual* HTTP request after it happens, useful if you are writing a framework over Karate, refer to this example: [`request.feature`](karate-demo/src/test/java/demo/request/request.feature)

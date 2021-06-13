@@ -172,7 +172,7 @@ public class ScenarioBridge implements PerfContext {
 
     public Object callSingle(String fileName, Value arg) throws Exception {
         ScenarioEngine engine = getEngine();
-        final Map<String, Object> CACHE = engine.runtime.featureRuntime.suite.suiteCache;
+        final Map<String, Object> CACHE = engine.runtime.featureRuntime.suite.callSingleCache;
         if (CACHE.containsKey(fileName)) {
             engine.logger.trace("callSingle cache hit: {}", fileName);
             return callSingleResult(engine, CACHE.get(fileName));
@@ -604,6 +604,23 @@ public class ScenarioBridge implements PerfContext {
         }
         return new JsMap(map);
     }
+    
+    public void pause(Value value) {
+        ScenarioEngine engine = getEngine();
+        if (!value.isNumber()) {
+            engine.logger.warn("pause argument is not a number:", value);
+            return;
+        }
+        if (engine.runtime.perfMode) {
+            engine.runtime.featureRuntime.perfHook.pause(value.asInt());
+        } else if (engine.getConfig().isPauseIfNotPerf()) {
+            try {
+                Thread.sleep(value.asInt());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }    
 
     public String pretty(Object o) {
         Variable v = new Variable(o);
