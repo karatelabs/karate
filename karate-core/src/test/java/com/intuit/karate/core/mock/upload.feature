@@ -15,3 +15,11 @@ And multipart file myFile = { read: 'test.xlsx', filename: 'my-file.xlsx', conte
 When method post
 Then status 200
 And match response == {charset: 'UTF-8', filename: 'my-file.xlsx', transferEncoding: 'binary', name: 'myFile', contentType: 'text/csv', value: '#ignore' }
+
+Scenario: upload multipart
+Given url mockServerUrl + 'multipart'
+And multipart file myFile = { read: 'test.pdf.zip', filename: 'test.pdf.zip', contentType: 'application/octet-stream' }
+And multipart field message = 'multipart test'
+When method post
+Then status 200
+And match response == { success: true }

@@ -73,7 +73,6 @@ Scenario: pathMatches('/v1/upload/excel')
     * def response = filePart
 
 Scenario: pathMatches('/v1/multipart')
-    # TODO multipart handling on server side !
     * def response = { success: true }
 
 Scenario: pathMatches('/v1/form')

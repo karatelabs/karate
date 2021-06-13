@@ -37,6 +37,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
     | <a href="#requestmethod"><code>requestMethod</code></a>
     | <a href="#requestheaders"><code>requestHeaders</code></a>
     | <a href="#requestparams"><code>requestParams</code></a>
+    | <a href="#requestparts"><code>requestParts</code></a>
     | <a href="#pathmatches"><code>pathMatches()</code></a>
     | <a href="#pathparams"><code>pathParams</code></a>
     | <a href="#methodis"><code>methodIs()</code></a>
@@ -539,6 +540,29 @@ Note that you can define your custom JS re-usable functions in the `Background` 
 
 ## `requestParams`
 A map-like' object of all query-string parameters and the values will always be an array. The built-in convenience function [`paramExists()`](#paramexists) is what you would use most of the time.
+
+## `requestParts`
+File-uploads can be handled using this. If the incoming request is a multipart, this variable will be set and it is a `Map` of `List`-s. For example if a file was in the request under the name `myFile`, you can get the details like this:
+
+```cucumber
+Scenario: pathMatches('/v1/upload/excel')
+    * def filePart = requestParts['myFile'][0]
+```
+
+Each "part" (`filePart` in the above example) will contain the following properties:
+
+* `name` - the name (which will be `myFile` in the above example)
+* `charset`
+* `transferEncoding`
+* `filename` - the file name of this part
+* `contentType` - the content-type of this part
+* `value` - the content as raw bytes
+
+This is one of the rare places in Karate where raw bytes are exposed, but it should be easy for you to [convert it into a string](https://github.com/intuit/karate#type-conversion) if needed.
+
+```cucumber
+* string message = filePart.value
+```
 
 ## `pathMatches()`
 Helper function that makes it easy to match a URI pattern as well as set [path parameters](#pathparams) up for extraction later using curly-braces. For example:
