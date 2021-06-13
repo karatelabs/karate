@@ -42,7 +42,5 @@ public interface PerfHook {
     void submit(Runnable runnable);
     
     void afterFeature(FeatureResult fr);
-    
-    Map<String, Object> getGlobalCache();
 
 }

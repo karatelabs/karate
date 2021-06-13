@@ -1,7 +1,9 @@
 package mock
 
+import com.intuit.karate.Runner
 import com.intuit.karate.gatling.PreDef._
 import io.gatling.core.Predef._
+
 import scala.concurrent.duration._
 
 class CatsSimulation extends Simulation {
@@ -14,13 +16,14 @@ class CatsSimulation extends Simulation {
   )
 
   protocol.nameResolver = (req, ctx) => req.getHeader("karate-name")
+  protocol.runner.karateEnv("perf")
 
   val create = scenario("create").exec(karateFeature("classpath:mock/cats-create.feature")).exec(session => {
     println("*** id in gatling: " + session("id").as[String])
     println("*** session status in gatling: " + session.status)
     session
   })
-  val delete = scenario("delete").group("delete cats") {
+  val delete = scenario("delete").group("delete xcats") {
     exec(karateFeature("classpath:mock/cats-delete.feature@name=delete"))
   }
   val custom = scenario("custom").exec(karateFeature("classpath:mock/custom-rpc.feature"))

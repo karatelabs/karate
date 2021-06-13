@@ -74,11 +74,8 @@ public class Runner {
     }
 
     // this is called by karate-gatling !
-    public static void callAsync(String path, List<String> tags, Map<String, Object> arg, PerfHook perfHook) {
-        Builder builder = new Builder();
-        builder.tags = tags;
-        builder.suiteCache = perfHook.getGlobalCache(); // for call-single to lock across all threads
-        Suite suite = new Suite(builder); // sets tag selector
+    public static void callAsync(Runner.Builder builder, String path, Map<String, Object> arg, PerfHook perfHook) {
+        Suite suite = new Suite(builder);
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, arg, perfHook);
         featureRuntime.setNext(() -> perfHook.afterFeature(featureRuntime.result));
@@ -164,6 +161,7 @@ public class Runner {
     //
     public static class Builder<T extends Builder> {
 
+        boolean resolved;
         ClassLoader classLoader;
         Class optionsClass;
         String env;
@@ -195,6 +193,10 @@ public class Runner {
         Map<String, DriverRunner> drivers;
 
         public List<Feature> resolveAll() {
+            if (resolved) {
+                return features;
+            }
+            resolved = true;
             if (classLoader == null) {
                 classLoader = Thread.currentThread().getContextClassLoader();
             }
@@ -318,6 +320,13 @@ public class Runner {
             forTempUse = true;
             return (T) this;
         }
+        
+        //======================================================================
+        // special case to over-write any already set for gatling
+        //
+        public void setTags(List<String> tags) {
+            this.tags = tags;
+        }       
 
         //======================================================================
         //
@@ -410,7 +419,7 @@ public class Runner {
         public T tags(String... tags) {
             tags(Arrays.asList(tags));
             return (T) this;
-        }
+        }               
 
         public T features(Collection<Feature> value) {
             if (value != null) {

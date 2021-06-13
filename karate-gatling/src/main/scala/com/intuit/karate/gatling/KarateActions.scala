@@ -19,11 +19,6 @@ import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration, MILLISECONDS}
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 
-object KarateFeatureAction {
-  val GLOBAL_CACHE = new java.util.HashMap[String, AnyRef]
-  val KARATE_CONTEXT_SESSION_KEY: String = "__karate"
-}
-
 class KarateFeatureAction(val name: String, val tags: Seq[String], val protocol: KarateProtocol, val system: ActorSystem,
                           val statsEngine: StatsEngine, val clock: Clock, val next: Action) extends ExitableAction {
 
@@ -54,17 +49,15 @@ class KarateFeatureAction(val name: String, val tags: Seq[String], val protocol:
       override def afterFeature(fr: FeatureResult): Unit = {
         val vars: java.util.Map[String, Object] = fr.getVariables
         val attributes: Map[String, AnyRef] = if (vars == null) Map.empty else {
-          vars.remove("__gatling")
+          vars.remove(KarateProtocol.GATLING_KEY)
           vars.asScala.toMap
         }
         if (fr.isEmpty || fr.isFailed) {
-          next ! session.markAsFailed.set(KarateFeatureAction.KARATE_CONTEXT_SESSION_KEY, attributes).setAll(attributes)
+          next ! session.markAsFailed.set(KarateProtocol.KARATE_KEY, attributes).setAll(attributes)
         } else {
-          next ! session.set(KarateFeatureAction.KARATE_CONTEXT_SESSION_KEY, attributes).setAll(attributes)
+          next ! session.set(KarateProtocol.KARATE_KEY, attributes).setAll(attributes)
         }
       }
-
-      override def getGlobalCache: java.util.HashMap[String, AnyRef] = KarateFeatureAction.GLOBAL_CACHE
 
     }
 
@@ -78,14 +71,18 @@ class KarateFeatureAction(val name: String, val tags: Seq[String], val protocol:
 
     val callArg: java.util.Map[String, Object] = new java.util.HashMap[String, Object](gatlingSessionAttributes)
 
-    if (callArg.containsKey(KarateFeatureAction.KARATE_CONTEXT_SESSION_KEY)) {
-      val incomingData = callArg.remove(KarateFeatureAction.KARATE_CONTEXT_SESSION_KEY).asInstanceOf[Map[String, AnyRef]].asJava
+    if (callArg.containsKey(KarateProtocol.KARATE_KEY)) {
+      val incomingData = callArg.remove(KarateProtocol.KARATE_KEY).asInstanceOf[Map[String, AnyRef]].asJava
       callArg.putAll(incomingData)
     }
 
     callArg.put("__gatling", gatlingSessionAttributes)
 
-    Runner.callAsync(name, tags.asJava, callArg, perfHook)
+    protocol.runner.suiteCache(KarateProtocol.GLOBAL_CACHE)
+    protocol.runner.classLoader(Thread.currentThread.getContextClassLoader)
+    protocol.runner.setTags(tags.asJava) // setter over-writes anything previously set
+
+    Runner.callAsync(protocol.runner, name, callArg, perfHook)
 
   }
 
@@ -117,8 +114,8 @@ class KarateSetAction(key: String, valueSupplier: Session => AnyRef,
   override val name: String = genName("karateSet")
 
   override def execute(session: Session): Unit = {
-    val karateContext = session(KarateFeatureAction.KARATE_CONTEXT_SESSION_KEY).asOption[Map[String, AnyRef]].getOrElse(Map.empty)
-    next ! session.set(KarateFeatureAction.KARATE_CONTEXT_SESSION_KEY, karateContext + (key -> valueSupplier(session)))
+    val karateContext = session(KarateProtocol.KARATE_KEY).asOption[Map[String, AnyRef]].getOrElse(Map.empty)
+    next ! session.set(KarateProtocol.KARATE_KEY, karateContext + (key -> valueSupplier(session)))
   }
 
 }

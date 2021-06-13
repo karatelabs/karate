@@ -1,7 +1,8 @@
 package com.intuit.karate.gatling
 
 import akka.actor.ActorSystem
-import com.intuit.karate.http.{HttpUtils, HttpRequest}
+import com.intuit.karate.Runner
+import com.intuit.karate.http.{HttpRequest, HttpUtils}
 import com.intuit.karate.core.ScenarioRuntime
 import io.gatling.core.CoreComponents
 import io.gatling.core.config.GatlingConfiguration
@@ -22,9 +23,13 @@ class KarateProtocol(val uriPatterns: Map[String, Seq[MethodPause]]) extends Pro
     if (matchedUri.isDefined) matchedUri.get else pathPair.right
   }
   var nameResolver: (HttpRequest, ScenarioRuntime) => String = (req, ctx) => null
+  var runner = new Runner.Builder
 }
 
 object KarateProtocol {
+  val KARATE_KEY = "__karate"
+  val GATLING_KEY = "__gatling"
+  val GLOBAL_CACHE = new java.util.HashMap[String, AnyRef]
   val KarateProtocolKey = new ProtocolKey[KarateProtocol, KarateComponents] {
     override def defaultProtocolValue(configuration: GatlingConfiguration) = new KarateProtocol(Map.empty)
     override def newComponents(coreComponents: CoreComponents)=

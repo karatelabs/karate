@@ -5,8 +5,6 @@ import com.intuit.karate.Runner;
 import static com.intuit.karate.TestUtils.*;
 import com.intuit.karate.http.HttpRequest;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
@@ -48,11 +46,10 @@ class PerfHookTest {
 
     @Test
     void testPerfHook1() {
-        // Run a passing scenario
-        List<String> tags = Collections.singletonList("@name=pass");
+        // run a passing scenario
         String bar = UUID.randomUUID().toString().replaceAll("-", "");
         Map<String, Object> arg = Collections.singletonMap("bar", bar);
-        Runner.callAsync("classpath:com/intuit/karate/core/perf.feature", tags, arg, perfHook);
+        Runner.callAsync(Runner.builder().tags("@name=pass"), "classpath:com/intuit/karate/core/perf.feature", arg, perfHook);
         assertEquals(eventName, "http://localhost:" + server.getPort() + "/hello?foo=" + bar);
         assertNotNull(featureResult);
         assertFalse(featureResult.isEmpty());
@@ -65,11 +62,10 @@ class PerfHookTest {
 
     @Test
     void testPerfHook2() {
-        // Run a scenario which fails the status check
-        List<String> tags = Collections.singletonList("@name=failStatus");
+        // run a scenario which fails the status check
         String bar = UUID.randomUUID().toString().replaceAll("-", "");
         Map<String, Object> arg = Collections.singletonMap("bar", bar);
-        Runner.callAsync("classpath:com/intuit/karate/core/perf.feature", tags, arg, perfHook);
+        Runner.callAsync(Runner.builder().tags("@name=failStatus"), "classpath:com/intuit/karate/core/perf.feature", arg, perfHook);
         assertEquals(eventName, "http://localhost:" + server.getPort() + "/hello?foo=" + bar);
         assertNotNull(featureResult);
         assertFalse(featureResult.isEmpty());
@@ -82,11 +78,10 @@ class PerfHookTest {
 
     @Test
     void testPerfHook3() {
-        // Run a scenario which fails the response match
-        List<String> tags = Collections.singletonList("@name=failResponse");
+        // run a scenario which fails the response match
         String bar = UUID.randomUUID().toString().replaceAll("-", "");
         Map<String, Object> arg = Collections.singletonMap("bar", bar);
-        Runner.callAsync("classpath:com/intuit/karate/core/perf.feature", tags, arg, perfHook);
+        Runner.callAsync(Runner.builder().tags("@name=failResponse"), "classpath:com/intuit/karate/core/perf.feature", arg, perfHook);
         assertEquals(eventName, "http://localhost:" + server.getPort() + "/hello?foo=" + bar);
         assertNotNull(featureResult);
         assertFalse(featureResult.isEmpty());
@@ -99,10 +94,8 @@ class PerfHookTest {
 
     @Test
     void testPerfHook4() {
-        // Run a scenario without passing a required argument
-        List<String> tags = Collections.singletonList("@name=pass");
-        Map<String, Object> arg = Collections.emptyMap();
-        Runner.callAsync("classpath:com/intuit/karate/core/perf.feature", tags, arg, perfHook);
+        // run a scenario without passing a required argument
+        Runner.callAsync(Runner.builder().tags("@name=pass"), "classpath:com/intuit/karate/core/perf.feature", null, perfHook);
         assertNull(eventName);
         assertNotNull(featureResult);
         assertFalse(featureResult.isEmpty());
@@ -115,10 +108,8 @@ class PerfHookTest {
 
     @Test
     void testPerfHook5() {
-        // Run a scenario which doesn't exist
-        List<String> tags = Collections.singletonList("@name=doesntExist");
-        Map<String, Object> arg = Collections.emptyMap();
-        Runner.callAsync("classpath:com/intuit/karate/core/perf.feature", tags, arg, perfHook);
+        // run a scenario which doesn't exist
+        Runner.callAsync(Runner.builder().tags("@name=doesntExist"), "classpath:com/intuit/karate/core/perf.feature", null, perfHook);
         assertNull(eventName);
         assertNotNull(featureResult);
         assertTrue(featureResult.isEmpty());
@@ -131,12 +122,10 @@ class PerfHookTest {
 
     @Test
     void testPerfHook6() {
-        // Run a feature which doesn't exist
-        List<String> tags = Collections.emptyList();
-        Map<String, Object> arg = Collections.emptyMap();
+        // run a feature which doesn't exist
         String feature = "com/intuit/karate/core/doesntExist.feature";
         try {
-            Runner.callAsync("classpath:" + feature, tags, arg, perfHook);
+            Runner.callAsync(Runner.builder(), "classpath:" + feature, null, perfHook);
             fail("we expected execution to fail");
         } catch (RuntimeException e) {
             assertEquals(e.getMessage(), "not found: " + feature);
@@ -147,8 +136,6 @@ class PerfHookTest {
 
     String eventName;
     FeatureResult featureResult;
-    static Map<String, Object> globalCache = new HashMap();
-
     PerfHook perfHook = new PerfHook() {
 
         @Override
@@ -172,11 +159,6 @@ class PerfHookTest {
         public void afterFeature(FeatureResult fr) {
             featureResult = fr;
             logger.debug("afterFeature called");
-        }
-
-        @Override
-        public Map<String, Object> getGlobalCache() {
-            return globalCache;
         }
 
     };

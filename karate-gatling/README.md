@@ -20,6 +20,7 @@
       <a href="#karateprotocol"><code>karateProtocol()</code></a>
     | <a href="#nameresolver"><code>nameResolver</code></a>
     | <a href="#pausefor"><code>pauseFor()</code></a>
+    | <a href="#runner"><code>runner</code></a>
     | <a href="#karatefeature"><code>karateFeature()</code></a>
     | <a href="#karateset"><code>karateSet()</code></a>
     | <a href="#tag-selector">Tag Selector</a>
@@ -140,6 +141,7 @@ class CatsSimulation extends Simulation {
   )
 
   protocol.nameResolver = (req, ctx) => req.getHeader("karate-name")
+  protocol.runner.karateEnv("perf")
 
   val create = scenario("create").exec(karateFeature("classpath:mock/cats-create.feature"))
   val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature@name=delete"))
@@ -172,18 +174,28 @@ When method get
 ```
 
 #### `pauseFor()`
-
 You can also set pause times (in milliseconds) per URL pattern *and* HTTP method (`get`, `post` etc.) if needed (see [limitations](#limitations)). If non-zero, this pause will be applied *before* the invocation of the matching HTTP request.
 
 We recommend you set that to `0` for everything unless you really need to artifically limit the requests per second. Note how you can use `Nil` to default to `0` for all HTTP methods for a URL pattern. Make sure you wire up the `protocol` in the Gatling `setUp`. If you use a [`nameResolver`](#nameresolver), even those names can be used in the `pauseFor` lookup (instead of a URL pattern).
 
 Also see how to [`pause()`](#think-time) without blocking threads if you really need to do it *within* a Karate feature, for e.g. to simulate user "think time" - in more detail.
 
+#### `runner`
+Which feature to call and what tags to use are driven by the [`karateFeature()`](#karatefeature) syntax as described in later sections. Most of the time this would be sufficient. But in cases where you have custom configuration, you will need a way to replicate what you may be doing using the [`Runner.Builder`](https://github.com/intuit/karate#parallel-execution) methods. Most of the time this would be setting the `karate.env`.
+
+To enable this, a `Runner.Builder` instance is made available on the `protocol` in a variable called `runner` and all the builder methods such as `karateEnv()`, `configDir()` and `systemProperty()` can be configured. Note that some things such as `tags()` *cannot* be customized, as this is feature-specific.
+
+Here is an example of setting the `karate.env` to `perf` which means that `karate-config-perf.js` will be used in addition to `karate-config.js` for [bootstrapping the config](https://github.com/intuit/karate#configuration) for each `Scenario`.
+
+```scala
+  protocol.runner.karateEnv("perf")
+```
+
 ### `karateFeature()`
 This declares a whole Karate feature as a "flow". Note how you can have concurrent flows in the same Gatling simulation.
 
 #### Tag Selector
-In the code above, note how a single `Scenario` (or multiple) can be "chosen" by appending the [tag](https://github.com/intuit/karate#cucumber-tags) name to the `Feature` path. This allows you to re-use only selected tests out of your existing functional or regression test suites for composing a performance test-suite.
+In the code above, note how a single `Scenario` (or multiple) can be "chosen" by appending the [tag](https://github.com/intuit/karate#tags) name to the `Feature` path. This allows you to re-use only selected tests out of your existing functional or regression test suites for composing a performance test-suite.
 
 If multiple `Scenario`-s have the tag on them, they will all be executed. The order of execution will be the order in which they appear in the `Feature`.
 
@@ -196,7 +208,7 @@ The above [Tag Selector](#tag-selector) approach is designed for simple cases wh
   val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature", "@name=delete"))
 ```
 
-To exclude:
+To exclude (note that `@ignore` is skipped by default):
 
 ```scala
   val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature", "~@skipme"))
