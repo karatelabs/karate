@@ -183,7 +183,9 @@ Also see how to [`pause()`](#think-time) without blocking threads if you really 
 #### `runner`
 Which feature to call and what tags to use are driven by the [`karateFeature()`](#karatefeature) syntax as described in later sections. Most of the time this would be sufficient. But in cases where you have custom configuration, you will need a way to replicate what you may be doing using the [`Runner.Builder`](https://github.com/intuit/karate#parallel-execution) methods. Most of the time this would be setting the `karate.env`.
 
-To enable this, a `Runner.Builder` instance is made available on the `protocol` in a variable called `runner` and all the builder methods such as `karateEnv()`, `configDir()` and `systemProperty()` can be configured. Note that some things such as `tags()` *cannot* be customized, as this is left to the `karateFeature()`.
+To enable this, a `Runner.Builder` instance is made available on the `protocol` in a variable called `runner` and all the builder methods such as `karateEnv()`, `configDir()` and `systemProperty()` can be configured.
+
+Note that tags are typically set by the use of `karateFeature()`. If you call `tags()` on the `runner` instance, they will be inherited by all `karateFeature()` calls, where you can add more tags, but you can't *remove* any that were set on the `runner`.
 
 Here is an example of setting the `karate.env` to `perf` which means that `karate-config-perf.js` will be used in addition to `karate-config.js` for [bootstrapping the config](https://github.com/intuit/karate#configuration) for each `Scenario`.
 
