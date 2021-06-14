@@ -196,12 +196,12 @@ public class WebSocketClient implements WebSocketListener {
 
     private CompletableFuture SIGNAL = new CompletableFuture();
 
-    public synchronized void signal(Object result) {
+    public void signal(Object result) {
         logger.trace("signal called: {}", result);
         SIGNAL.complete(result);
     }
 
-    public Object listen(long timeout) {
+    public synchronized Object listen(long timeout) {
         try {
             logger.trace("entered listen wait state");
             return SIGNAL.get(timeout, TimeUnit.MILLISECONDS);
