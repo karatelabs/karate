@@ -276,6 +276,19 @@ public class ScenarioBridge implements PerfContext {
         }
         return JsValue.fromJava(new ArrayList(set));        
     }
+    
+    public String doc(Value v) {
+        Map<String, Object> arg;
+        if (v.isString()) {
+            arg = Collections.singletonMap("read", v.asString());
+        } else if (v.hasMembers()) {
+            arg = new JsValue(v).getAsMap();
+        } else {
+            getEngine().logger.warn("doc - unexpected argument: {}", v);
+            return null;
+        }
+        return getEngine().docInternal(arg);
+    }
 
     public void embed(Object o, String contentType) {
         ResourceType resourceType;

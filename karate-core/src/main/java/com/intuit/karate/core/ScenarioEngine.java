@@ -977,30 +977,32 @@ public class ScenarioEngine {
     private KarateTemplateEngine templateEngine;
 
     public void doc(String exp) {
-        if (runtime.reportDisabled) {
-            return;
-        }
-        String path;
         Variable v = evalKarateExpression(exp);
         if (v.isString()) {
-            path = v.getAsString();
+            docInternal(Collections.singletonMap("read", v.getAsString()));
         } else if (v.isMap()) {
             Map<String, Object> map = v.getValue();
-            path = (String) map.get("read");
-            if (path == null) {
-                logger.warn("doc json missing 'read' property: {}", v);
-                return;
-            }
+            docInternal(map);
         } else {
             logger.warn("doc is not string or json: {}", v);
-            return;
+        }
+    }
+
+    protected String docInternal(Map<String, Object> options) {
+        String path = (String) options.get("read");
+        if (path == null) {
+            logger.warn("doc json missing 'read' property: {}", options);
+            return null;
         }
         if (templateEngine == null) {
             String prefixedPath = runtime.featureRuntime.rootFeature.feature.getResource().getPrefixedParentPath();
             templateEngine = TemplateUtils.forResourceRoot(JS, prefixedPath);
         }
         String html = templateEngine.process(path);
-        runtime.embed(FileUtils.toBytes(html), ResourceType.HTML);
+        if (!runtime.reportDisabled) {
+            runtime.embed(FileUtils.toBytes(html), ResourceType.HTML);
+        }
+        return html;
     }
 
     //==========================================================================        
@@ -1974,7 +1976,7 @@ public class ScenarioEngine {
         }
     }
 
-    private Variable callOnce(String cacheKey, Variable called, Variable arg, boolean sharedScope) {        
+    private Variable callOnce(String cacheKey, Variable called, Variable arg, boolean sharedScope) {
         final Map<String, ScenarioCall.Result> CACHE;
         if (runtime.perfMode) { // use suite-wide cache for gatling
             CACHE = runtime.featureRuntime.suite.callOnceCache;
