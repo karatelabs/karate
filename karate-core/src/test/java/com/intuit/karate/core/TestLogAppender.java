@@ -1,4 +1,4 @@
-package com.intuit.karate.junit4.demos;
+package com.intuit.karate.core;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;

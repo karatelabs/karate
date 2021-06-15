@@ -64,11 +64,6 @@ class FeatureRuntimeTest {
     }
 
     @Test
-    void testPrint() {
-        run("print.feature");
-    }
-
-    @Test
     void testFail1() {
         fail = true;
         run("fail1.feature");

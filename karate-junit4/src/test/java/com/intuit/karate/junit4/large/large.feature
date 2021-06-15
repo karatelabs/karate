@@ -1,4 +1,3 @@
-@ignore
 Feature: large payloads
 
 Scenario: large xml

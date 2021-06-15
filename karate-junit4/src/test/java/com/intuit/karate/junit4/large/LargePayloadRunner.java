@@ -2,11 +2,11 @@ package com.intuit.karate.junit4.large;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
-import com.intuit.karate.junit4.Karate;
-import com.intuit.karate.KarateOptions;
+import com.intuit.karate.Results;
+import com.intuit.karate.Runner;
 import java.io.File;
-import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
+import static org.junit.Assert.assertEquals;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -16,14 +16,12 @@ import org.w3c.dom.Element;
  *
  * @author pthomas3
  */
-@RunWith(Karate.class)
-@KarateOptions(features = "classpath:com/intuit/karate/junit4/large/large.feature")
 public class LargePayloadRunner {
     
     private static final Logger logger = LoggerFactory.getLogger(LargePayloadRunner.class);
     
-    @BeforeClass
-    public static void createLargeXml() {
+    @Test
+    public void testLargeXml() {
         Document doc = XmlUtils.toXmlDoc("<ProcessRequest xmlns=\"http://someservice.com/someProcess\"/>");
         Element root = doc.getDocumentElement();        
         Element test = doc.createElement("statusCode");
@@ -41,6 +39,10 @@ public class LargePayloadRunner {
         int size = bytes.length;
         logger.debug("xml byte count: " + size);
         FileUtils.writeToFile(new File("target/large.xml"), xml);
-    }
+        Results results = Runner
+                .path("classpath:com/intuit/karate/junit4/large/large.feature")
+                .parallel(1);
+        assertEquals(results.getErrorMessages(), 0, results.getFailCount());        
+    }    
     
 }
