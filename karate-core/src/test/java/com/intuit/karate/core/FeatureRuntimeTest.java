@@ -295,6 +295,11 @@ class FeatureRuntimeTest {
     @Test
     void testKarateFork() {
         run("fork.feature");
-    }    
+    }  
+    
+    @Test
+    void testCsv() {
+        run("csv.feature");
+    }     
 
 }

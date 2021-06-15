@@ -23,18 +23,15 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.Variable;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.spi.json.JsonProvider;
 import com.jayway.jsonpath.spi.json.JsonSmartJsonProvider;
 import com.jayway.jsonpath.spi.mapper.JsonSmartMappingProvider;
 import com.jayway.jsonpath.spi.mapper.MappingProvider;
-import de.siegmar.fastcsv.reader.CsvContainer;
 import de.siegmar.fastcsv.reader.CsvReader;
 import de.siegmar.fastcsv.reader.CsvRow;
 import de.siegmar.fastcsv.writer.CsvWriter;
-import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -163,45 +160,44 @@ public class JsonUtils {
     }
 
     public static List<Map> fromCsv(String raw) {
-        CsvReader reader = new CsvReader();
-        reader.setContainsHeader(true);
+        CsvReader reader = CsvReader.builder().build(raw);
+        List<String> header = Collections.emptyList();
         List<Map> rows = new ArrayList();
         try {
-            CsvContainer csv = reader.read(new StringReader(raw));
-            for (CsvRow row : csv.getRows()) {
-                rows.add(row.getFieldMap());
+            boolean first = true;
+            for (CsvRow row : reader) {
+                if (first) {
+                    header = row.getFields();
+                    first = false;
+                } else {
+                    int count = header.size();
+                    Map<String, Object> map = new LinkedHashMap(count);
+                    for (int i = 0; i < count; i++) {
+                        map.put(header.get(i), row.getField(i));
+                    }
+                    rows.add(map);
+                }
             }
             return rows;
         } catch (Exception e) {
-            logger.warn("failed to parse csv: {}", raw);
+            logger.warn("failed to parse csv: {}", e.getMessage());
             return rows;
         }
     }
 
     public static String toCsv(List<Map<String, Object>> list) {
-        List<String[]> csv = new ArrayList(list.size() + 1);
-        // header row
-        boolean first = true;
-        for (Map<String, Object> map : list) {
-            int colCount = map.size();
-            if (first) {
-                Set<String> keys = map.keySet();
-                csv.add(keys.toArray(new String[colCount]));
-                first = false;
-            }
-            String[] row = new String[colCount];
-            List cols = new ArrayList(map.values());
-            for (int i = 0; i < colCount; i++) {
-                row[i] = new Variable(cols.get(i)).getAsString();
-            }
-            csv.add(row);
-        }
-        CsvWriter csvWriter = new CsvWriter();
         StringWriter sw = new StringWriter();
-        try {
-            csvWriter.write(sw, csv);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        CsvWriter writer = CsvWriter.builder().build(sw);
+        // header row
+        if (!list.isEmpty()) {
+            writer.writeRow(list.get(0).keySet());
+        }
+        for (Map<String, Object> map : list) {
+            List<String> row = new ArrayList(map.size());
+            for (Object value : map.values()) {
+                row.add(value == null ? null : value.toString());
+            }
+            writer.writeRow(row);
         }
         return sw.toString();
     }
