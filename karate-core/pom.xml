@@ -11,7 +11,7 @@
     <packaging>jar</packaging>   
     
     <properties>
-        <antlr.version>4.7.1</antlr.version>
+        <antlr.version>4.9.2</antlr.version>
         <graal.version>21.1.0</graal.version>
     </properties>
 
@@ -96,7 +96,7 @@
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
-            <version>1.27</version>
+            <version>1.29</version>
         </dependency>
         <dependency>
             <groupId>de.siegmar</groupId>
@@ -106,12 +106,12 @@
         <dependency>
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
-            <version>4.5.2</version>
+            <version>4.6.1</version>
         </dependency>
         <dependency>
             <groupId>io.github.classgraph</groupId>
             <artifactId>classgraph</artifactId>
-            <version>4.8.93</version>
+            <version>4.8.108</version>
         </dependency>        
         <dependency>
             <groupId>org.junit.jupiter</groupId>
