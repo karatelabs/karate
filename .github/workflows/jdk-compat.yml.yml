@@ -1,0 +1,35 @@
+name: jdk-compat
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: jdk version
+        required: true
+        default: 16
+
+jobs:
+  build:
+    timeout-minutes: 10
+    runs-on: ubuntu-20.04
+    steps:
+    - name: git checkout
+      uses: actions/checkout@v2
+    - name: get latest jdk ga
+      uses: sormuras/download-jdk@v1
+      with:
+        feature: 17      
+    - name: set up jdk
+      uses: actions/setup-java@v2
+      with:
+        distribution: jdkfile
+        jdkFile: ${{ env.JDK_FILE }}
+        java-version: ${{ env.JDK_VERSION }}      
+    - name: cache maven packages
+      uses: actions/cache@v2
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2        
+    - name: build with maven
+      run: mvn -B clean install -P pre-release,smoke -Djavacpp.platform=linux-x86_64

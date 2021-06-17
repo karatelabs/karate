@@ -205,7 +205,24 @@
                     </plugin>                     
                 </plugins>
             </build>
-        </profile>    
+        </profile>
+        <profile>
+            <id>smoke</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <version>${maven.surefire.version}</version>
+                        <configuration>
+                            <includes>
+                                <include>demo/DemoTestParallel.java</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                </plugins>                
+            </build>
+        </profile>            
     </profiles>
     
 </project>
