@@ -28,9 +28,3 @@ When method get
 Then status 200
 And match response contains { id: '#(id)', name: 'Billie' }
 
-# get cat but ask for xml
-Given path 'cats', id
-And header Accept = 'application/xml'
-When method get
-Then status 200
-And match response == <cat><id>#(id)</id><name>Billie</name></cat>
