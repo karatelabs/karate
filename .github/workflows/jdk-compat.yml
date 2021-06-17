@@ -1,12 +1,8 @@
 name: jdk-compat
 
 on:
-  workflow_dispatch:
-    inputs:
-      name:
-        description: jdk version
-        required: true
-        default: 16
+  push:
+    branches: [ develop ]
 
 jobs:
   build:
