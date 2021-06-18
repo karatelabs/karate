@@ -371,6 +371,7 @@
                         <configuration>
                             <excludes>
                                 <exclude>**/MockSslTest.java</exclude>
+                                <exclude>**/ProxyServerTest.java</exclude>
                                 <exclude>**/ProxyServerSslTest.java</exclude>
                             </excludes>
                         </configuration>
