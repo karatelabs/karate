@@ -78,10 +78,6 @@ public class ScenarioFileReader {
         }
     }
 
-    public File relativePathToFile(String relativePath) {
-        return toResource(relativePath).getFile();
-    }
-
     public String toAbsolutePath(String relativePath) {
         Resource resource = toResource(relativePath);
         try {
@@ -111,27 +107,15 @@ public class ScenarioFileReader {
         return pos == -1 ? text : text.substring(pos + 1);
     }
 
-    /**
-     * This method assigns left and right part of file path if the path has a feature file followed by @. For all
-     * other file types, it assigns null to the right part.
-     * @param text file path as string
-    * @return StringUtils.Pair which holds the left and right values as string
-     */
-
     private static StringUtils.Pair parsePathAndTags(String text) {
         int pos = text.indexOf(".feature@");
-        if (pos == -1)
-        {
+        if (pos == -1) {
             text = StringUtils.trimToEmpty(text);
             return new StringUtils.Pair(text, null);
-        }else {
-            return new StringUtils.Pair(StringUtils.trimToEmpty(text.substring(0, pos+8)), StringUtils.trimToEmpty(text.substring(pos+9)));
+        } else {
+            return new StringUtils.Pair(StringUtils.trimToEmpty(text.substring(0, pos + 8)), StringUtils.trimToEmpty(text.substring(pos + 9)));
         }
-
-
-
     }
-
 
     public Resource toResource(String path) {
         if (isClassPath(path)) {

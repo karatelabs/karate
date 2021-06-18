@@ -263,7 +263,7 @@ public class ScenarioBridge implements PerfContext {
     public void configure(String key, Value value) {
         getEngine().configure(key, new Variable(value));
     }
-    
+
     public Object distinct(Value o) {
         if (!o.hasArrayElements()) {
             return JsList.EMPTY;
@@ -274,9 +274,9 @@ public class ScenarioBridge implements PerfContext {
             Object value = JsValue.toJava(o.getArrayElement(i));
             set.add(value);
         }
-        return JsValue.fromJava(new ArrayList(set));        
+        return JsValue.fromJava(new ArrayList(set));
     }
-    
+
     public String doc(Value v) {
         Map<String, Object> arg;
         if (v.isString()) {
@@ -617,7 +617,7 @@ public class ScenarioBridge implements PerfContext {
         }
         return new JsMap(map);
     }
-    
+
     public void pause(Value value) {
         ScenarioEngine engine = getEngine();
         if (!value.isNumber()) {
@@ -633,7 +633,7 @@ public class ScenarioBridge implements PerfContext {
                 throw new RuntimeException(e);
             }
         }
-    }    
+    }
 
     public String pretty(Object o) {
         Variable v = new Variable(o);
@@ -733,7 +733,7 @@ public class ScenarioBridge implements PerfContext {
             return -1;
         }
     }
-    
+
     public Object sort(Value o) {
         return sort(o, getEngine().JS.evalForValue("x => x"));
     }
@@ -831,7 +831,7 @@ public class ScenarioBridge implements PerfContext {
     }
 
     private File toJavaFile(String path) {
-        return getEngine().fileReader.relativePathToFile(path);
+        return getEngine().fileReader.toResource(path).getFile();
     }
 
     public Object toJson(Value value) {
@@ -862,7 +862,7 @@ public class ScenarioBridge implements PerfContext {
         Variable v = new Variable(o);
         return v.getAsString();
     }
-    
+
     public String trim(String s) {
         return s == null ? null : s.trim();
     }
@@ -871,7 +871,7 @@ public class ScenarioBridge implements PerfContext {
         Variable v = new Variable(value);
         return v.getTypeString();
     }
-    
+
     public String urlEncode(String s) {
         try {
             return URLEncoder.encode(s, "UTF-8");
@@ -880,7 +880,7 @@ public class ScenarioBridge implements PerfContext {
             return s;
         }
     }
-    
+
     public String urlDecode(String s) {
         try {
             return URLDecoder.decode(s, "UTF-8");
@@ -888,7 +888,7 @@ public class ScenarioBridge implements PerfContext {
             getEngine().logger.warn("url encode failed: {}", e.getMessage());
             return s;
         }
-    }    
+    }
 
     public Object valuesOf(Value v) {
         if (v.hasArrayElements()) {
