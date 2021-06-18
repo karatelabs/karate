@@ -7,10 +7,10 @@ Background:
  * def data = [ { name: 'value1' }, { name: 'value2' }, { name: 'value3' }, { name: 'value4' } ]
  # java object that comes from a callSingle in the config
  * def helloClass = HelloConfigSingle
-* callonce read('call-once-from-feature.feature')
+ * callonce read('call-once-from-feature.feature')
 
 Scenario Outline:
- # * call read('called.feature')
+ * call read('called.feature')
  * match functionFromKarateBase() == 'fromKarateBase'
  * path 'fromfeature'
  * method get

@@ -1930,10 +1930,12 @@ public class ScenarioEngine {
             case JAVA_FUNCTION:
                 return arg == null ? executeFunction(called) : executeFunction(called, new Object[]{arg.getValue()});
             case FEATURE:
-                // will be always a map or a list of maps (loop call result)
+                // will be always a map or a list of maps (loop call result)                
                 Object callResult = callFeature(called.getValue(), arg, -1, sharedScope);
-                recurseAndAttach(callResult);
-                return new Variable(callResult);
+                synchronized (runtime.featureRuntime.suite) { // make sure any artifacts from a callonce / callsingle are handled
+                    recurseAndAttach(callResult);
+                    return new Variable(callResult);
+                }
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);
         }
