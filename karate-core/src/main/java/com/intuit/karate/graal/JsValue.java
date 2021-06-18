@@ -34,7 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import org.graalvm.polyglot.Value;
-import org.graalvm.polyglot.proxy.ProxyExecutable;
+import org.graalvm.polyglot.proxy.Proxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
@@ -89,10 +89,7 @@ public class JsValue {
             type = Type.OTHER;
         } else if (v.canExecute()) {
             if (!v.isMetaObject()) {
-                // e.g. Java function
-                // will be treated exactly like a polyglot JS function
-                // but hide complexity/threading issues behind a Proxy
-                value = (ProxyExecutable) arguments -> v.execute(arguments);
+                value = new JsExecutable(v);
             } else {
                 value = v; // special case, keep around as graal value
             }
@@ -186,8 +183,7 @@ public class JsValue {
     }
 
     public static Object fromJava(Object o) {
-        if (o instanceof Function // can be Map also, do this before Map                
-                || o instanceof JsList || o instanceof JsMap || o instanceof JsXml) { // should never happen, but just in case
+        if (o instanceof Function || o instanceof Proxy) {
             return o; 
         } else if (o instanceof List) {
             return new JsList((List) o);

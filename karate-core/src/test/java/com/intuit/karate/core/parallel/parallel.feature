@@ -4,7 +4,7 @@ Background:
 # background http builder should work even if a callonce follows
 * url serverUrl
 * match message == 'from config'
-* callonce read('common.feature')
+* callonce read('call-once-from-feature.feature')
 * match message == 'from common'
 * match message2 == 'fromCallSingleFromConfig2'
 
@@ -16,7 +16,7 @@ Scenario: one
 * def result = karate.callSingle('call-single-from-feature.feature')
 * match result.response == { message: 'from feature' }
 # use java class instance from callSingle in config
-* match Hello.sayHello('world') == 'hello world'
+* match HelloConfigSingle.sayHello('world') == 'hello world'
 # use java method instance from callSingle in config
 # * match sayHello('world') == 'hello world'
 
