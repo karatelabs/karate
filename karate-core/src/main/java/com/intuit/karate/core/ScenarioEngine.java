@@ -1012,13 +1012,15 @@ public class ScenarioEngine {
         logger.trace("js context: {}", JS);
         // to avoid re-processing objects that have cyclic dependencies
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        runtime.magicVariables.forEach((k, v) -> {
-            // even hidden variables may need pre-processing
-            // for e.g. the __arg may contain functions that originated in a different js context
-            recurseAndAttach(v, seen);
-            setHiddenVariable(k, v);
-        });
-        attachVariables(seen); // re-hydrate any functions from caller or background
+        synchronized (runtime.featureRuntime.suite) { // make sure any artifacts from a callonce / callsingle are handled
+            runtime.magicVariables.forEach((k, v) -> {
+                // even hidden variables may need pre-processing
+                // for e.g. the __arg may contain functions that originated in a different js context
+                recurseAndAttach(v, seen);
+                setHiddenVariable(k, v);
+            });
+            attachVariables(seen); // re-hydrate any functions from caller or background
+        }
         setHiddenVariable(KARATE, bridge);
         setHiddenVariable(READ, readFunction);
         HttpClient client = runtime.featureRuntime.suite.clientFactory.create(this);
