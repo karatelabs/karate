@@ -8,6 +8,7 @@ import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
 import java.io.File;
+import java.util.Collections;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
@@ -104,5 +105,19 @@ class RunnerTest {
         assertFalse(contents.contains("failed"));
         assertTrue(contents.contains("* def result = call read('called-arg-null.feature')"));
     }
+    
+    @Test
+    void testJavaApiWithArgAndConfig() {
+        Map<String, Object> result = Runner.runFeature("classpath:com/intuit/karate/core/runner/run-arg.feature", Collections.singletonMap("foo", "hello"), true);
+        assertEquals("hello world", result.get("message"));
+        assertEquals("normal", result.get("configSource"));
+    }  
+    
+    @Test
+    void testJavaApiWithArgNoConfig() {
+        Map<String, Object> result = Runner.runFeature("classpath:com/intuit/karate/core/runner/run-arg.feature", Collections.singletonMap("foo", "hello"), false);
+        assertEquals("hello world", result.get("message"));
+        assertEquals(null, result.get("configSource"));
+    }     
 
 }
