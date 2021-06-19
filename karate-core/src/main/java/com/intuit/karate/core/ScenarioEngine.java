@@ -1073,27 +1073,25 @@ public class ScenarioEngine {
     }
 
     protected Map<String, Variable> detachVariables() {
-        synchronized (runtime.featureRuntime.suite) {
-            Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-            Map<String, Variable> detached = new HashMap(vars.size());
-            vars.forEach((k, v) -> {
-                switch (v.type) {
-                    case JS_FUNCTION:
-                        JsFunction jf = new JsFunction(v.getValue());
-                        v = new Variable(jf);
-                        break;
-                    case MAP:
-                    case LIST:
-                        Object o = recurseAndDetachAndDeepClone(v.getValue(), seen);
-                        v = new Variable(o);
-                        break;
-                    default:
-                    // do nothing
+        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
+        Map<String, Variable> detached = new HashMap(vars.size());
+        vars.forEach((k, v) -> {
+            switch (v.type) {
+                case JS_FUNCTION:
+                    JsFunction jf = new JsFunction(v.getValue());
+                    v = new Variable(jf);
+                    break;
+                case MAP:
+                case LIST:
+                    Object o = recurseAndDetachAndDeepClone(v.getValue(), seen);
+                    v = new Variable(o);
+                    break;
+                default:
+                // do nothing
                 }
-                detached.put(k, v);
-            });
-            return detached;
-        }
+            detached.put(k, v);
+        });
+        return detached;
     }
 
     protected void recurseAndAttach(Object o) {
