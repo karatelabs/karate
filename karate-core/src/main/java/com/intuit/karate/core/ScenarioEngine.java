@@ -1022,7 +1022,7 @@ public class ScenarioEngine {
         runtime.magicVariables.forEach((k, v) -> {
             // even hidden variables may need pre-processing
             // for e.g. the __arg may contain functions that originated in a different js context
-            recurseAndAttach(v, seen);
+            recurseAndAttach(k, v, seen);
             setHiddenVariable(k, v);
         });
         attachVariables(seen); // re-hydrate any functions from caller or background
@@ -1048,28 +1048,17 @@ public class ScenarioEngine {
 
     private void attachVariables(Set<Object> seen) {
         vars.forEach((k, v) -> {
-            switch (v.type) {
-                case JS_FUNCTION:
-                    Value value = attach(v.getValue());
-                    v = new Variable(value);
-                    vars.put(k, v);
-                    break;
-                case MAP:
-                case LIST:
-                    recurseAndAttach(v.getValue(), seen);
-                    break;
-                case OTHER:
-                    if (v.isJsFunctionWrapper()) {
-                        JsFunction jf = v.getValue();
-                        Value attached = attachSource(jf.source);
-                        v = new Variable(attached);
-                        vars.put(k, v);
-                    }
-                    break;
-                default:
-                // do nothing
+            Object o = recurseAndAttach(k, v.getValue(), seen);
+            if (o == null) {
+                o = v.getValue();
+            } else {
+                try {
+                    vars.put(k, new Variable(o));
+                } catch (Exception e) {
+                    logger.debug("[*** attach variables ***] failed to attach graal value: {} - {}", k, e.getMessage());
+                }
             }
-            JS.put(k, v.getValue());
+            JS.put(k, o);
         });
     }
 
@@ -1077,33 +1066,19 @@ public class ScenarioEngine {
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
         Map<String, Variable> detached = new HashMap(vars.size());
         vars.forEach((k, v) -> {
-            switch (v.type) {
-                case JS_FUNCTION:
-                    JsFunction jf = new JsFunction(v.getValue());
-                    v = new Variable(jf);
-                    break;
-                case MAP:
-                case LIST:
-                    Object o = recurseAndDetachAndDeepClone(v.getValue(), seen);
-                    v = new Variable(o);
-                    break;
-                default:
-                // do nothing
-                }
-            detached.put(k, v);
+            Object o = recurseAndDetachAndDeepClone(v.getValue(), seen);
+            detached.put(k, new Variable(o));
         });
         return detached;
     }
 
     // only called by "call" routine
-    protected void recurseAndAttach(Object o) {
+    protected void recurseAndAttach(String name, Object o) {
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        synchronized (runtime.featureRuntime.suite) {
-            recurseAndAttach(o, seen);
-        }
+        recurseAndAttach(name, o, seen);
     }
 
-    private Object recurseAndAttach(Object o, Set<Object> seen) {
+    private Object recurseAndAttach(String name, Object o, Set<Object> seen) {
         if (o instanceof Value) {
             Value value = Value.asValue(o);
             try {
@@ -1111,13 +1086,13 @@ public class ScenarioEngine {
                     if (value.isMetaObject()) { // js function
                         return attach(value);
                     } else { // java function
-                        return new JsExecutable(value);
+                        return value;
                     }
                 } else { // anything else, including java-type references
                     return value;
                 }
             } catch (Exception e) {
-                logger.warn("[attach] failed to attach js value: {}", e.getMessage());
+                logger.warn("[*** attach ***] failed to attach js value: {} - {}", name, e.getMessage());
                 return null;
             }
         } else if (o instanceof JsFunction) {
@@ -1129,7 +1104,7 @@ public class ScenarioEngine {
                 int count = list.size();
                 for (int i = 0; i < count; i++) {
                     Object child = list.get(i);
-                    Object result = recurseAndAttach(child, seen);
+                    Object result = recurseAndAttach(name + "[" + i + "]", child, seen);
                     if (result != null) {
                         list.set(i, result);
                     }
@@ -1140,7 +1115,7 @@ public class ScenarioEngine {
             if (seen.add(o)) {
                 Map<String, Object> map = (Map) o;
                 map.forEach((k, v) -> {
-                    Object result = recurseAndAttach(v, seen);
+                    Object result = recurseAndAttach(name + "." + k, v, seen);
                     if (result != null) {
                         map.put(k, result);
                     }
@@ -1162,11 +1137,10 @@ public class ScenarioEngine {
 
     private Object recurseAndAttachAndDeepClone(Object o, Set<Object> seen) {
         if (o instanceof Value) {
-            // will happen only for java "class" and java functions (static methods)
             try {
                 return Value.asValue(o);
             } catch (Exception e) {
-                logger.warn("[attach deep] failed to attach graal value: {}", e.getMessage());
+                logger.warn("[*** attach deep ***] failed to attach graal value: {}", e.getMessage());
                 return null;
             }
         }
@@ -1206,20 +1180,20 @@ public class ScenarioEngine {
 
     private Object recurseAndDetachAndDeepClone(Object o, Set<Object> seen) {
         if (o instanceof Value) {
-            Value value = Value.asValue(o);
+            Value value = (Value) o;
             try {
                 if (value.canExecute()) {
                     if (value.isMetaObject()) { // js function
-                        o = new JsFunction(value);
+                        return new JsFunction(value);
                     } else { // java function
-                        o = new JsExecutable(value);
+                        return new JsExecutable(value);
                     }
                 } else {
                     // everything else including java-type references that do not need special attach handling
-                    o = value;
+                    o = JsValue.toJava(value);
                 }
             } catch (Exception e) {
-                logger.warn("[detach] unsupported value in callonce / callSingle: {}", e.getMessage());
+                logger.warn("[*** detach deep ***] unsupported value in callonce / callSingle: {}", e.getMessage());
                 return null;
             }
         }
@@ -1327,7 +1301,13 @@ public class ScenarioEngine {
         if (map == null) {
             return;
         }
-        map.forEach((k, v) -> setVariable(k, v));
+        map.forEach((k, v) -> {
+            try {
+                setVariable(k, v);
+            } catch (Exception e) {
+                logger.warn("[*** set variables ***] skipping invalid graal value: {} - {}", k, e.getMessage());
+            }
+        });
     }
 
     private static Map<String, Variable> copy(Map<String, Variable> source, boolean deep) {
@@ -1953,7 +1933,7 @@ public class ScenarioEngine {
             case FEATURE:
                 // will be always a map or a list of maps (loop call result)                
                 Object callResult = callFeature(called.getValue(), arg, -1, sharedScope);
-                recurseAndAttach(callResult);
+                recurseAndAttach("", callResult);
                 return new Variable(callResult);
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);

@@ -121,7 +121,9 @@ public class JsValue {
                 type = Type.OTHER;
             }
         } catch (Exception e) {
-            logger.debug("js conversion failed", e);
+            if (logger.isTraceEnabled()) {
+                logger.trace("js conversion failed", e);
+            }
             throw e;
         }
     }
