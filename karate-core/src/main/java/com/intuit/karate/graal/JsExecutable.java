@@ -25,12 +25,16 @@ package com.intuit.karate.graal;
 
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyExecutable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class JsExecutable implements ProxyExecutable {
+    
+    private static final Logger logger = LoggerFactory.getLogger(JsExecutable.class);
 
     private final Value value;
 
@@ -39,7 +43,10 @@ public class JsExecutable implements ProxyExecutable {
     }
 
     @Override
-    public Object execute(Value... arguments) {       
+    public Object execute(Value... arguments) {
+        if (logger.isTraceEnabled()) {
+            logger.trace("begin execute: {}", value);
+        }
         return value.execute(arguments);
     }
 

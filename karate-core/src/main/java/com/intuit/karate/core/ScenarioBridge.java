@@ -175,9 +175,7 @@ public class ScenarioBridge implements PerfContext {
         final Map<String, Object> CACHE = engine.runtime.featureRuntime.suite.callSingleCache;
         if (CACHE.containsKey(fileName)) {
             engine.logger.trace("callSingle cache hit: {}", fileName);
-            synchronized (CACHE) {
-                return callSingleResult(engine, CACHE.get(fileName));
-            }
+            return callSingleResult(engine, CACHE.get(fileName));
         }
         long startTime = System.currentTimeMillis();
         engine.logger.trace("callSingle waiting for lock: {}", fileName);

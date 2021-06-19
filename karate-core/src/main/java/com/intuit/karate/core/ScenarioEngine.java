@@ -1094,27 +1094,27 @@ public class ScenarioEngine {
         return detached;
     }
 
+    // only called by "call" routine
     protected void recurseAndAttach(Object o) {
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        recurseAndAttach(o, seen);
+        synchronized (runtime.featureRuntime.suite) {
+            recurseAndAttach(o, seen);
+        }
     }
 
     private Object recurseAndAttach(Object o, Set<Object> seen) {
         if (o instanceof Value) {
             Value value = (Value) o;
             try {
-                if (value.canExecute()) {
+                if (!value.isHostObject() && value.canExecute()) {
                     return attach(value);
+                } else {
+                    return Value.asValue(value);
                 }
             } catch (Exception e) {
-                logger.trace("[attach] failed to re-attach graal value (will re-try): {}", e.getMessage());
-                try {
-                    return Value.asValue(value.asHostObject());
-                } catch (Exception inner) {
-                    logger.warn("failed to re-attach graal value: {}", inner.getMessage());
-                }
+                logger.warn("[attach] failed to attach js value: {}", e.getMessage());
+                return null;
             }
-            return null;
         } else if (o instanceof JsFunction) {
             JsFunction jf = (JsFunction) o;
             return attachSource(jf.source);
@@ -1159,7 +1159,7 @@ public class ScenarioEngine {
             try {
                 return Value.asValue(value);
             } catch (Exception e) {
-                logger.warn("[attach deep] failed to re-attach graal value: {} - {}", value, e.getMessage());
+                logger.warn("[attach deep] failed to attach graal value: {}", e.getMessage());
                 return null;
             }
         }
@@ -1189,22 +1189,26 @@ public class ScenarioEngine {
         }
     }
 
+    // only for callonce and callSingle
     protected Object recurseAndDetachAndDeepClone(Object o) {
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        return recurseAndDetachAndDeepClone(o, seen);
+        synchronized (runtime.featureRuntime.suite) {
+            return recurseAndDetachAndDeepClone(o, seen);
+        }
     }
 
     private Object recurseAndDetachAndDeepClone(Object o, Set<Object> seen) {
         if (o instanceof Value) {
             Value value = (Value) o;
-            if (value.canExecute()) {
-                if (value.isMetaObject()) {
-                    return new JsFunction(value);
-                } else {
-                    return value; // keep as-is for attach
-                }
+            if (!value.isHostObject() && value.canExecute()) {
+                return new JsFunction(value);
             }
-            o = JsValue.toJava(value);
+            try {
+                o = JsValue.toJava(value);
+            } catch (Exception e) {
+                logger.warn("[detach] unsupported value in callonce / callSingle: {}", e.getMessage());
+                return null;
+            }
         }
         if (o instanceof List) {
             if (seen.add(o)) {
@@ -1990,9 +1994,7 @@ public class ScenarioEngine {
         ScenarioCall.Result result = CACHE.get(cacheKey);
         if (result != null) {
             logger.trace("callonce cache hit for: {}", cacheKey);
-            synchronized (CACHE) {
-                return callOnceResult(result, sharedScope);
-            }
+            return callOnceResult(result, sharedScope);
         }
         long startTime = System.currentTimeMillis();
         logger.trace("callonce waiting for lock: {}", cacheKey);
