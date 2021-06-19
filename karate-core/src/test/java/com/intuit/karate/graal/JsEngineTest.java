@@ -112,6 +112,16 @@ class JsEngineTest {
     }
 
     @Test
+    void testJavaStaticMethod() {
+        je.eval("var StaticPojo = Java.type('com.intuit.karate.graal.StaticPojo')");
+        JsValue sp = je.eval("StaticPojo.sayHello");
+        assertTrue(sp.isFunction());
+        Value ov = sp.getOriginal();
+        assertTrue(ov.canExecute());
+        assertFalse(ov.isHostObject());
+    }
+
+    @Test
     void testJsOperations() {
         je.eval("var foo = { a: 1 }");
         JsValue v = je.eval("foo.a");
@@ -192,13 +202,13 @@ class JsEngineTest {
         Value v = Value.asValue(sp);
         assertTrue(v.isHostObject());
     }
-    
+
     @Test
     void testJavaType() {
         Value v = je.evalForValue("Java.type('com.intuit.karate.graal.SimplePojo')");
         assertTrue(v.isMetaObject());
         assertTrue(v.isHostObject());
-    }    
+    }
 
     @Test
     void testEvalWithinFunction() {

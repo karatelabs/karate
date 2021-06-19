@@ -36,6 +36,7 @@ import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Key;
 import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.graal.JsExecutable;
 import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.*;
@@ -1106,9 +1107,13 @@ public class ScenarioEngine {
         if (o instanceof Value) {
             Value value = (Value) o;
             try {
-                if (!value.isHostObject() && value.canExecute()) {
-                    return attach(value);
-                } else {
+                if (value.canExecute()) {
+                    if (value.isMetaObject()) { // js function
+                        return attach(value);
+                    } else { // java function
+                        return new JsExecutable(value);
+                    }
+                } else { // anything else, including java-type references
                     return Value.asValue(value);
                 }
             } catch (Exception e) {

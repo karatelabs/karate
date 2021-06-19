@@ -76,6 +76,9 @@ public class JsValue {
             } else if (o instanceof JsList) {
                 value = ((JsList) o).getList();
                 type = Type.ARRAY;
+            } else if (o instanceof JsExecutable) {
+                value = (JsExecutable) o;
+                type = Type.FUNCTION;                
             } else { // e.g. custom bridge, e.g. Request
                 value = v.as(Object.class);
                 type = Type.OTHER;
@@ -88,10 +91,10 @@ public class JsValue {
             }
             type = Type.OTHER;
         } else if (v.canExecute()) {
-            if (!v.isMetaObject()) {
+            if (v.isMetaObject()) { // js function
+                value = v; // special case, keep around as graal value                
+            } else { // java function reference
                 value = new JsExecutable(v);
-            } else {
-                value = v; // special case, keep around as graal value
             }
             type = Type.FUNCTION;
         } else if (v.hasArrayElements()) {
