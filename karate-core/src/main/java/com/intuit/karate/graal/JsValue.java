@@ -62,62 +62,67 @@ public class JsValue {
 
     public JsValue(Value v) {
         this.original = v;
-        if (v.isNull()) { // apparently this can be a "host object" as well !
-            value = null;
-            type = Type.NULL;
-        } else if (v.isProxyObject()) {
-            Object o = v.asProxyObject();
-            if (o instanceof JsXml) {
-                value = ((JsXml) o).getNode();
-                type = Type.XML;
-            } else if (o instanceof JsMap) {
-                value = ((JsMap) o).getMap();
-                type = Type.OBJECT;
-            } else if (o instanceof JsList) {
-                value = ((JsList) o).getList();
+        try {
+            if (v.isNull()) { // apparently this can be a "host object" as well !
+                value = null;
+                type = Type.NULL;
+            } else if (v.isProxyObject()) {
+                Object o = v.asProxyObject();
+                if (o instanceof JsXml) {
+                    value = ((JsXml) o).getNode();
+                    type = Type.XML;
+                } else if (o instanceof JsMap) {
+                    value = ((JsMap) o).getMap();
+                    type = Type.OBJECT;
+                } else if (o instanceof JsList) {
+                    value = ((JsList) o).getList();
+                    type = Type.ARRAY;
+                } else if (o instanceof JsExecutable) {
+                    value = (JsExecutable) o;
+                    type = Type.FUNCTION;                
+                } else { // e.g. custom bridge, e.g. Request
+                    value = v.as(Object.class);
+                    type = Type.OTHER;
+                }
+            } else if (v.isHostObject()) { // java object
+                if (v.isMetaObject()) { // java.lang.Class !
+                    value = v; // special case, keep around as graal value
+                } else {
+                    value = v.asHostObject();
+                }
+                type = Type.OTHER;
+            } else if (v.canExecute()) {
+                if (v.isMetaObject()) { // js function
+                    value = v; // special case, keep around as graal value                
+                } else { // java function reference
+                    value = new JsExecutable(v);
+                }
+                type = Type.FUNCTION;
+            } else if (v.hasArrayElements()) {
+                int size = (int) v.getArraySize();
+                List list = new ArrayList(size);
+                for (int i = 0; i < size; i++) {
+                    Value child = v.getArrayElement(i);
+                    list.add(new JsValue(child).value);
+                }
+                value = list;
                 type = Type.ARRAY;
-            } else if (o instanceof JsExecutable) {
-                value = (JsExecutable) o;
-                type = Type.FUNCTION;                
-            } else { // e.g. custom bridge, e.g. Request
+            } else if (v.hasMembers()) {
+                Set<String> keys = v.getMemberKeys();
+                Map<String, Object> map = new LinkedHashMap(keys.size());
+                for (String key : keys) {
+                    Value child = v.getMember(key);
+                    map.put(key, new JsValue(child).value);
+                }
+                value = map;
+                type = Type.OBJECT;
+            } else {
                 value = v.as(Object.class);
                 type = Type.OTHER;
             }
-        } else if (v.isHostObject()) { // java object
-            if (v.isMetaObject()) { // java.lang.Class !
-                value = v; // special case, keep around as graal value
-            } else {
-                value = v.asHostObject();
-            }
-            type = Type.OTHER;
-        } else if (v.canExecute()) {
-            if (v.isMetaObject()) { // js function
-                value = v; // special case, keep around as graal value                
-            } else { // java function reference
-                value = new JsExecutable(v);
-            }
-            type = Type.FUNCTION;
-        } else if (v.hasArrayElements()) {
-            int size = (int) v.getArraySize();
-            List list = new ArrayList(size);
-            for (int i = 0; i < size; i++) {
-                Value child = v.getArrayElement(i);
-                list.add(new JsValue(child).value);
-            }
-            value = list;
-            type = Type.ARRAY;
-        } else if (v.hasMembers()) {
-            Set<String> keys = v.getMemberKeys();
-            Map<String, Object> map = new LinkedHashMap(keys.size());
-            for (String key : keys) {
-                Value child = v.getMember(key);
-                map.put(key, new JsValue(child).value);
-            }
-            value = map;
-            type = Type.OBJECT;
-        } else {
-            value = v.as(Object.class);
-            type = Type.OTHER;
+        } catch (Exception e) {
+            logger.debug("js conversion failed", e);
+            throw e;
         }
     }
 

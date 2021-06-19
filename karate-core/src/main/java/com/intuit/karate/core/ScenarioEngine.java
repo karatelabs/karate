@@ -1105,7 +1105,7 @@ public class ScenarioEngine {
 
     private Object recurseAndAttach(Object o, Set<Object> seen) {
         if (o instanceof Value) {
-            Value value = (Value) o;
+            Value value = Value.asValue(o);
             try {
                 if (value.canExecute()) {
                     if (value.isMetaObject()) { // js function
@@ -1114,7 +1114,7 @@ public class ScenarioEngine {
                         return new JsExecutable(value);
                     }
                 } else { // anything else, including java-type references
-                    return Value.asValue(value);
+                    return value;
                 }
             } catch (Exception e) {
                 logger.warn("[attach] failed to attach js value: {}", e.getMessage());
@@ -1152,17 +1152,19 @@ public class ScenarioEngine {
         }
     }
 
+    // called only by result processing of callonce / callSingle
     protected Object recurseAndAttachAndDeepClone(Object o) {
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        return recurseAndAttachAndDeepClone(o, seen);
+        synchronized (runtime.featureRuntime.suite) {
+            return recurseAndAttachAndDeepClone(o, seen);
+        }
     }
 
     private Object recurseAndAttachAndDeepClone(Object o, Set<Object> seen) {
         if (o instanceof Value) {
             // will happen only for java "class" and java functions (static methods)
-            Value value = (Value) o;
             try {
-                return Value.asValue(value);
+                return Value.asValue(o);
             } catch (Exception e) {
                 logger.warn("[attach deep] failed to attach graal value: {}", e.getMessage());
                 return null;
@@ -1175,7 +1177,7 @@ public class ScenarioEngine {
             if (seen.add(o)) {
                 List list = (List) o;
                 List copy = new ArrayList(list.size());
-                list.forEach(v -> copy.add(recurseAndAttachAndDeepClone(v)));
+                list.forEach(v -> copy.add(recurseAndAttachAndDeepClone(v, seen)));
                 return copy;
             } else {
                 return o;
@@ -1184,7 +1186,7 @@ public class ScenarioEngine {
             if (seen.add(o)) {
                 Map<String, Object> map = (Map) o;
                 Map<String, Object> copy = new LinkedHashMap(map.size());
-                map.forEach((k, v) -> copy.put(k, recurseAndAttachAndDeepClone(v)));
+                map.forEach((k, v) -> copy.put(k, recurseAndAttachAndDeepClone(v, seen)));
                 return copy;
             } else {
                 return o;
@@ -1204,12 +1206,18 @@ public class ScenarioEngine {
 
     private Object recurseAndDetachAndDeepClone(Object o, Set<Object> seen) {
         if (o instanceof Value) {
-            Value value = (Value) o;
-            if (!value.isHostObject() && value.canExecute()) {
-                return new JsFunction(value);
-            }
+            Value value = Value.asValue(o);
             try {
-                o = JsValue.toJava(value);
+                if (value.canExecute()) {
+                    if (value.isMetaObject()) { // js function
+                        o = new JsFunction(value);
+                    } else { // java function
+                        o = new JsExecutable(value);
+                    }
+                } else {
+                    // everything else including java-type references that do not need special attach handling
+                    o = value;
+                }
             } catch (Exception e) {
                 logger.warn("[detach] unsupported value in callonce / callSingle: {}", e.getMessage());
                 return null;
