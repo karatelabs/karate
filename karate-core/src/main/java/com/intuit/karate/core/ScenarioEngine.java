@@ -67,13 +67,13 @@ import java.util.regex.Pattern;
  * @author pthomas3
  */
 public class ScenarioEngine {
-    
+
     private static final String KARATE = "karate";
     private static final String READ = "read";
     private static final String DRIVER = "driver";
     private static final String ROBOT = "robot";
     private static final String KEY = "Key";
-    
+
     public static final String RESPONSE = "response";
     public static final String RESPONSE_HEADERS = "responseHeaders";
     public static final String RESPONSE_STATUS = "responseStatus";
@@ -81,9 +81,9 @@ public class ScenarioEngine {
     private static final String RESPONSE_COOKIES = "responseCookies";
     private static final String RESPONSE_TIME = "responseTime";
     private static final String RESPONSE_TYPE = "responseType";
-    
+
     private static final String LISTEN_RESULT = "listenResult";
-    
+
     public static final String REQUEST = "request";
     public static final String REQUEST_URL_BASE = "requestUrlBase";
     public static final String REQUEST_URI = "requestUri";
@@ -91,26 +91,26 @@ public class ScenarioEngine {
     public static final String REQUEST_METHOD = "requestMethod";
     public static final String REQUEST_HEADERS = "requestHeaders";
     private static final String REQUEST_TIME_STAMP = "requestTimeStamp";
-    
+
     public final ScenarioRuntime runtime;
     public final ScenarioFileReader fileReader;
     public final Map<String, Variable> vars;
     public final Logger logger;
-    
+
     private final Function<String, Object> readFunction;
     private final ScenarioBridge bridge;
     private final Collection<RuntimeHook> hooks;
-    
+
     private boolean aborted;
     private Throwable failedReason;
-    
+
     protected JsEngine JS;
 
     // only used by mock server
     public ScenarioEngine(ScenarioRuntime runtime, Map<String, Variable> vars) {
         this(runtime.engine.config, runtime, vars, runtime.logger);
     }
-    
+
     public ScenarioEngine(Config config, ScenarioRuntime runtime, Map<String, Variable> vars, Logger logger) {
         this.config = config;
         this.runtime = runtime;
@@ -121,17 +121,17 @@ public class ScenarioEngine {
         this.vars = vars;
         this.logger = logger;
     }
-    
+
     public static ScenarioEngine forTempUse() {
         FeatureRuntime fr = FeatureRuntime.forTempUse();
         ScenarioRuntime sr = new ScenarioIterator(fr).first();
         sr.engine.init();
         return sr.engine;
     }
-    
+
     protected List<ScenarioEngine> children;
     private ScenarioEngine parent;
-    
+
     public ScenarioEngine child() {
         ScenarioEngine child = new ScenarioEngine(config, runtime, detachVariables(), logger);
         child.parent = this;
@@ -141,17 +141,17 @@ public class ScenarioEngine {
         children.add(child);
         return child;
     }
-    
+
     private static final ThreadLocal<ScenarioEngine> THREAD_LOCAL = new ThreadLocal<ScenarioEngine>();
-    
+
     public static ScenarioEngine get() {
         return THREAD_LOCAL.get();
     }
-    
+
     public static void set(ScenarioEngine se) {
         THREAD_LOCAL.set(se);
     }
-    
+
     protected static void remove() {
         THREAD_LOCAL.remove();
     }
@@ -161,42 +161,42 @@ public class ScenarioEngine {
     public boolean isAborted() {
         return aborted;
     }
-    
+
     public void setAborted(boolean aborted) {
         this.aborted = aborted;
     }
-    
+
     public boolean isFailed() {
         return failedReason != null;
     }
-    
+
     public boolean isIgnoringStepErrors() {
         return !config.getContinueOnStepFailureMethods().isEmpty();
     }
-    
+
     public void setFailedReason(Throwable failedReason) {
         this.failedReason = failedReason;
     }
-    
+
     public Throwable getFailedReason() {
         return failedReason;
     }
-    
+
     public void matchResult(Match.Type matchType, String expression, String path, String expected) {
         Match.Result mr = match(matchType, expression, path, expected);
         if (!mr.pass) {
             setFailedReason(new KarateException(mr.message));
         }
     }
-    
+
     public void set(String name, String path, String exp) {
         set(name, path, exp, false, false);
     }
-    
+
     public void remove(String name, String path) {
         set(name, path, null, true, false);
     }
-    
+
     public void table(String name, List<Map<String, String>> rows) {
         name = StringUtils.trimToEmpty(name);
         validateVariableName(name);
@@ -224,7 +224,7 @@ public class ScenarioEngine {
         }
         setVariable(name, result);
     }
-    
+
     public void replace(String name, String token, String value) {
         name = name.trim();
         Variable v = vars.get(name);
@@ -235,21 +235,21 @@ public class ScenarioEngine {
         String replaced = replacePlaceholderText(text, token, value);
         setVariable(name, replaced);
     }
-    
+
     public void assertTrue(String expression) {
         if (!evalJs(expression).isTrue()) {
             String message = "did not evaluate to 'true': " + expression;
             setFailedReason(new KarateException(message));
         }
     }
-    
+
     public void print(String exp) {
         if (!config.isPrintEnabled()) {
             return;
         }
         evalJs("karate.log('[print]'," + exp + ")");
     }
-    
+
     public void invokeAfterHookIfConfigured(boolean afterFeature) {
         if (runtime.caller.depth > 0) {
             return;
@@ -271,7 +271,7 @@ public class ScenarioEngine {
     // gatling =================================================================
     //   
     private PerfEvent prevPerfEvent;
-    
+
     public void logLastPerfEvent(String failureMessage) {
         if (prevPerfEvent != null && runtime.perfMode) {
             if (failureMessage != null) {
@@ -282,7 +282,7 @@ public class ScenarioEngine {
         }
         prevPerfEvent = null;
     }
-    
+
     public void capturePerfEvent(PerfEvent event) {
         logLastPerfEvent(null);
         prevPerfEvent = event;
@@ -294,7 +294,7 @@ public class ScenarioEngine {
     private HttpRequest request;
     private Response response;
     private Config config;
-    
+
     public Config getConfig() {
         return config;
     }
@@ -308,24 +308,24 @@ public class ScenarioEngine {
             requestBuilder.client.setConfig(config);
         }
     }
-    
+
     public HttpRequest getRequest() {
         return request;
     }
-    
+
     public Response getResponse() {
         return response;
     }
-    
+
     public HttpRequestBuilder getRequestBuilder() {
         return requestBuilder;
     }
-    
+
     public void configure(String key, String exp) {
         Variable v = evalKarateExpression(exp);
         configure(key, v);
     }
-    
+
     public void configure(String key, Variable v) {
         key = StringUtils.trimToEmpty(key);
         // if next line returns true, config is http-client related
@@ -335,7 +335,7 @@ public class ScenarioEngine {
             }
         }
     }
-    
+
     private void evalAsMap(String exp, BiConsumer<String, List<String>> fun) {
         Variable var = evalKarateExpression(exp);
         if (!var.isMap()) {
@@ -358,12 +358,12 @@ public class ScenarioEngine {
             }
         });
     }
-    
+
     public void url(String exp) {
         Variable var = evalKarateExpression(exp);
         requestBuilder.url(var.getAsString());
     }
-    
+
     public void path(String exp) {
         if (exp.contains(",")) {
             exp = "[" + exp + "]";
@@ -381,7 +381,7 @@ public class ScenarioEngine {
             }
         }
     }
-    
+
     public void param(String name, String exp) {
         Variable var = evalJs(exp);
         if (var.isList()) {
@@ -390,11 +390,11 @@ public class ScenarioEngine {
             requestBuilder.param(name, var.getAsString());
         }
     }
-    
+
     public void params(String expr) {
         evalAsMap(expr, (k, v) -> requestBuilder.param(k, v));
     }
-    
+
     public void header(String name, String exp) {
         Variable var = evalKarateExpression(exp);
         if (var.isList()) {
@@ -403,11 +403,11 @@ public class ScenarioEngine {
             requestBuilder.header(name, var.getAsString());
         }
     }
-    
+
     public void headers(String expr) {
         evalAsMap(expr, (k, v) -> requestBuilder.header(k, v));
     }
-    
+
     public void cookie(String name, String exp) {
         Variable var = evalKarateExpression(exp);
         if (var.isString()) {
@@ -418,13 +418,13 @@ public class ScenarioEngine {
             requestBuilder.cookie(map);
         }
     }
-    
+
     public void cookies(String exp) {
         Variable var = evalKarateExpression(exp);
         Map<String, Map> cookies = Cookies.normalize(var.getValue());
         requestBuilder.cookies(cookies.values());
     }
-    
+
     private void updateConfigCookies(Map<String, Map> cookies) {
         if (cookies == null) {
             return;
@@ -437,7 +437,7 @@ public class ScenarioEngine {
             config.setCookies(new Variable(map));
         }
     }
-    
+
     public void formField(String name, String exp) {
         Variable var = evalKarateExpression(exp);
         if (var.isList()) {
@@ -446,7 +446,7 @@ public class ScenarioEngine {
             requestBuilder.formField(name, var.getAsString());
         }
     }
-    
+
     public void formFields(String exp) {
         Variable var = evalKarateExpression(exp);
         if (var.isMap()) {
@@ -458,15 +458,15 @@ public class ScenarioEngine {
             logger.warn("did not evaluate to map {}: {}", exp, var);
         }
     }
-    
+
     public void multipartField(String name, String value) {
         multipartFile(name, value);
     }
-    
+
     public void multipartFields(String exp) {
         multipartFiles(exp);
     }
-    
+
     private void multiPartInternal(String name, Object value) {
         Map<String, Object> map = new HashMap();
         if (name != null) {
@@ -497,12 +497,12 @@ public class ScenarioEngine {
             logger.trace("did not evaluate to string, map or list {}: {}", name, value);
         }
     }
-    
+
     public void multipartFile(String name, String exp) {
         Variable var = evalKarateExpression(exp);
         multiPartInternal(name, var.getValue());
     }
-    
+
     public void multipartFiles(String exp) {
         Variable var = evalKarateExpression(exp);
         if (var.isMap()) {
@@ -517,12 +517,12 @@ public class ScenarioEngine {
             logger.warn("did not evaluate to map or list {}: {}", exp, var);
         }
     }
-    
+
     public void request(String body) {
         Variable v = evalKarateExpression(body);
         requestBuilder.body(v.getValue());
     }
-    
+
     public void soapAction(String exp) {
         String action = evalKarateExpression(exp).getAsString();
         if (action == null) {
@@ -532,11 +532,11 @@ public class ScenarioEngine {
         requestBuilder.contentType("text/xml");
         method("POST");
     }
-    
+
     public void retry(String condition) {
         requestBuilder.setRetryUntil(condition);
     }
-    
+
     public void method(String method) {
         if (!HttpConstants.HTTP_METHODS.contains(method.toUpperCase())) { // support expressions also
             method = evalKarateExpression(method).getAsString();
@@ -555,7 +555,7 @@ public class ScenarioEngine {
         requestBuilder.reset();
         return response;
     }
-    
+
     private void httpInvokeOnce() {
         Map<String, Map> cookies = getOrEvalAsMap(config.getCookies());
         if (cookies != null) {
@@ -637,10 +637,10 @@ public class ScenarioEngine {
         if (perfEventName != null) {
             PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, response.getStatus());
             capturePerfEvent(pe);
-            
+
         }
     }
-    
+
     private void httpInvokeWithRetries() {
         int maxRetries = config.getRetryCount();
         int sleep = config.getRetryInterval();
@@ -676,7 +676,7 @@ public class ScenarioEngine {
             retryCount++;
         }
     }
-    
+
     public void status(int status) {
         if (status != response.getStatus()) {
             // make sure log masking is applied
@@ -684,7 +684,7 @@ public class ScenarioEngine {
             setFailedReason(new KarateException(message));
         }
     }
-    
+
     public KeyStore getKeyStore(String trustStoreFile, String password, String type) {
         if (trustStoreFile == null) {
             return null;
@@ -726,11 +726,11 @@ public class ScenarioEngine {
         }
         httpInvoke();
     }
-    
+
     public Map<String, Object> mockConfigureHeaders() {
         return getOrEvalAsMap(config.getResponseHeaders());
     }
-    
+
     public void mockAfterScenario() {
         if (config.getAfterScenario().isJsOrJavaFunction()) {
             executeFunction(config.getAfterScenario());
@@ -741,7 +741,7 @@ public class ScenarioEngine {
     //   
     private List<WebSocketClient> webSocketClients;
     private CompletableFuture SIGNAL = new CompletableFuture();
-    
+
     public WebSocketClient webSocket(WebSocketOptions options) {
         WebSocketClient webSocketClient = new WebSocketClient(options, logger);
         if (webSocketClients == null) {
@@ -750,7 +750,7 @@ public class ScenarioEngine {
         webSocketClients.add(webSocketClient);
         return webSocketClient;
     }
-    
+
     public void signal(Object result) {
         logger.debug("signal called: {}", result);
         if (parent != null) {
@@ -761,7 +761,7 @@ public class ScenarioEngine {
             }
         }
     }
-    
+
     public Object listen(String exp) {
         Variable v = evalKarateExpression(exp);
         int timeout = v.getAsInt();
@@ -779,15 +779,15 @@ public class ScenarioEngine {
             return listenResult;
         }
     }
-    
+
     public Command fork(boolean useLineFeed, List<String> args) {
         return fork(useLineFeed, Collections.singletonMap("args", args));
     }
-    
+
     public Command fork(boolean useLineFeed, String line) {
         return fork(useLineFeed, Collections.singletonMap("line", line));
     }
-    
+
     public Command fork(boolean useLineFeed, Map<String, Object> options) {
         Boolean useShell = (Boolean) options.get("useShell");
         if (useShell == null) {
@@ -842,7 +842,7 @@ public class ScenarioEngine {
     //
     protected Driver driver;
     protected Plugin robot;
-    
+
     private void autoDef(Plugin plugin, String instanceName) {
         for (String methodName : plugin.methodNames()) {
             String invoke = instanceName + "." + methodName;
@@ -854,7 +854,7 @@ public class ScenarioEngine {
             setHiddenVariable(methodName, evalJs(sb.toString()));
         }
     }
-    
+
     public void driver(String exp) {
         Variable v = evalKarateExpression(exp);
         // re-create driver within a test if needed
@@ -874,7 +874,7 @@ public class ScenarioEngine {
             driver.setUrl(v.getAsString());
         }
     }
-    
+
     public void robot(String exp) {
         Variable v = evalKarateExpression(exp);
         if (robot == null) {
@@ -901,11 +901,11 @@ public class ScenarioEngine {
             setRobot(robot);
         }
     }
-    
+
     public void setDriverToNull() {
         this.driver = null;
     }
-    
+
     public void setDriver(Driver driver) {
         this.driver = driver;
         setHiddenVariable(DRIVER, driver);
@@ -916,7 +916,7 @@ public class ScenarioEngine {
         autoDef(driver, DRIVER);
         setHiddenVariable(KEY, Key.INSTANCE);
     }
-    
+
     public void setRobot(Plugin robot) { // TODO unify
         this.robot = robot;
         // robot.setContext(this);
@@ -928,7 +928,7 @@ public class ScenarioEngine {
         autoDef(robot, ROBOT);
         setHiddenVariable(KEY, Key.INSTANCE);
     }
-    
+
     public void stop(StepResult lastStepResult) {
         if (runtime.caller.isSharedScope()) {
             // TODO life-cycle this hand off
@@ -967,7 +967,7 @@ public class ScenarioEngine {
             }
         }
     }
-    
+
     private void embedVideo(String path) {
         if (path != null) {
             File videoFile = new File(path);
@@ -981,7 +981,7 @@ public class ScenarioEngine {
     // doc =====================================================================
     //    
     private KarateTemplateEngine templateEngine;
-    
+
     public void doc(String exp) {
         Variable v = evalKarateExpression(exp);
         if (v.isString()) {
@@ -993,7 +993,7 @@ public class ScenarioEngine {
             logger.warn("doc is not string or json: {}", v);
         }
     }
-    
+
     protected String docInternal(Map<String, Object> options) {
         String path = (String) options.get("read");
         if (path == null) {
@@ -1018,15 +1018,13 @@ public class ScenarioEngine {
         logger.trace("js context: {}", JS);
         // to avoid re-processing objects that have cyclic dependencies
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        synchronized (runtime.featureRuntime.suite) { // make sure any artifacts from a callonce / callsingle are handled
-            runtime.magicVariables.forEach((k, v) -> {
-                // even hidden variables may need pre-processing
-                // for e.g. the __arg may contain functions that originated in a different js context
-                recurseAndAttach(v, seen);
-                setHiddenVariable(k, v);
-            });
-            attachVariables(seen); // re-hydrate any functions from caller or background
-        }
+        runtime.magicVariables.forEach((k, v) -> {
+            // even hidden variables may need pre-processing
+            // for e.g. the __arg may contain functions that originated in a different js context
+            recurseAndAttach(v, seen);
+            setHiddenVariable(k, v);
+        });
+        attachVariables(seen); // re-hydrate any functions from caller or background
         setHiddenVariable(KARATE, bridge);
         setHiddenVariable(READ, readFunction);
         HttpClient client = runtime.featureRuntime.suite.clientFactory.create(this);
@@ -1046,7 +1044,7 @@ public class ScenarioEngine {
             }
         }
     }
-    
+
     private void attachVariables(Set<Object> seen) {
         vars.forEach((k, v) -> {
             switch (v.type) {
@@ -1073,35 +1071,36 @@ public class ScenarioEngine {
             JS.put(k, v.getValue());
         });
     }
-    
+
     protected Map<String, Variable> detachVariables() {
-        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        Map<String, Variable> detached = new HashMap(vars.size());
-        vars.forEach((k, v) -> {
-            switch (v.type) {
-                case JS_FUNCTION:
-                    JsFunction jf = new JsFunction(v.getValue());
-                    v = new Variable(jf);
-                    break;
-                case MAP:
-                case LIST:
-                    Object o = recurseAndDetachAndDeepClone(v.getValue(), seen);
-                    v = new Variable(o);
-                    break;
-                default:
-                // do nothing
-            }
-            detached.put(k, v);
-        });
-        return detached;
+        synchronized (runtime.featureRuntime.suite) {
+            Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
+            Map<String, Variable> detached = new HashMap(vars.size());
+            vars.forEach((k, v) -> {
+                switch (v.type) {
+                    case JS_FUNCTION:
+                        JsFunction jf = new JsFunction(v.getValue());
+                        v = new Variable(jf);
+                        break;
+                    case MAP:
+                    case LIST:
+                        Object o = recurseAndDetachAndDeepClone(v.getValue(), seen);
+                        v = new Variable(o);
+                        break;
+                    default:
+                    // do nothing
+                }
+                detached.put(k, v);
+            });
+            return detached;
+        }
     }
-    
+
     protected void recurseAndAttach(Object o) {
-        // to avoid re-processing objects that have cyclic dependencies
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
         recurseAndAttach(o, seen);
     }
-    
+
     private Object recurseAndAttach(Object o, Set<Object> seen) {
         if (o instanceof Value) {
             Value value = (Value) o;
@@ -1149,13 +1148,12 @@ public class ScenarioEngine {
             return null;
         }
     }
-    
+
     protected Object recurseAndAttachAndDeepClone(Object o) {
-        // to avoid re-processing objects that have cyclic dependencies
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
         return recurseAndAttachAndDeepClone(o, seen);
     }
-    
+
     private Object recurseAndAttachAndDeepClone(Object o, Set<Object> seen) {
         if (o instanceof Value) {
             // will happen only for java "class" and java functions (static methods)
@@ -1192,12 +1190,12 @@ public class ScenarioEngine {
             return o;
         }
     }
-    
+
     protected Object recurseAndDetachAndDeepClone(Object o) {
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
         return recurseAndDetachAndDeepClone(o, seen);
     }
-    
+
     private Object recurseAndDetachAndDeepClone(Object o, Set<Object> seen) {
         if (o instanceof Value) {
             Value value = (Value) o;
@@ -1232,15 +1230,15 @@ public class ScenarioEngine {
             return o;
         }
     }
-    
+
     public Value attachSource(CharSequence source) {
         return JS.attachSource(source);
     }
-    
+
     public Value attach(Value before) {
         return JS.attach(before);
     }
-    
+
     protected <T> Map<String, T> getOrEvalAsMap(Variable var, Object... args) {
         if (var.isJsOrJavaFunction()) {
             Variable res = executeFunction(var, args);
@@ -1249,7 +1247,7 @@ public class ScenarioEngine {
             return var.isMap() ? var.getValue() : null;
         }
     }
-    
+
     public Variable executeFunction(Variable var, Object... args) {
         switch (var.type) {
             case JS_FUNCTION:
@@ -1265,7 +1263,7 @@ public class ScenarioEngine {
                 throw new RuntimeException("expected function, but was: " + var);
         }
     }
-    
+
     private JsValue executeJsValue(Value function, Object... args) {
         try {
             return JS.execute(function, args);
@@ -1276,7 +1274,7 @@ public class ScenarioEngine {
             throw ke;
         }
     }
-    
+
     public Variable evalJs(String js) {
         try {
             return new Variable(JS.eval(js));
@@ -1286,14 +1284,14 @@ public class ScenarioEngine {
             throw ke;
         }
     }
-    
+
     public void setHiddenVariable(String key, Object value) {
         if (value instanceof Variable) {
             value = ((Variable) value).getValue();
         }
         JS.put(key, value);
     }
-    
+
     public void setVariable(String key, Object value) {
         Variable v;
         if (value instanceof Variable) {
@@ -1309,30 +1307,30 @@ public class ScenarioEngine {
             children.forEach(c -> c.setVariable(key, value));
         }
     }
-    
+
     public void setVariables(Map<String, Object> map) {
         if (map == null) {
             return;
         }
         map.forEach((k, v) -> setVariable(k, v));
     }
-    
+
     private static Map<String, Variable> copy(Map<String, Variable> source, boolean deep) {
         Map<String, Variable> map = new HashMap(source.size());
         source.forEach((k, v) -> map.put(k, v.copy(deep)));
         return map;
     }
-    
+
     public Map<String, Variable> copyVariables(boolean deep) {
         return copy(vars, deep);
     }
-    
+
     public Map<String, Object> getAllVariablesAsMap() {
         Map<String, Object> map = new HashMap(vars.size());
         vars.forEach((k, v) -> map.put(k, v == null ? null : v.getValue()));
         return map;
     }
-    
+
     private static void validateVariableName(String name) {
         if (!isValidVariableName(name)) {
             throw new RuntimeException("invalid variable name: " + name);
@@ -1344,7 +1342,7 @@ public class ScenarioEngine {
             throw new RuntimeException("'" + name + "' is a reserved name, also use the form '* " + name + " <expression>' instead");
         }
     }
-    
+
     private Variable evalAndCastTo(AssignType assignType, String exp) {
         Variable v = evalKarateExpression(exp);
         switch (assignType) {
@@ -1369,7 +1367,7 @@ public class ScenarioEngine {
                 return v; // as is
         }
     }
-    
+
     public void assign(AssignType assignType, String name, String exp) {
         name = StringUtils.trimToEmpty(name);
         validateVariableName(name); // always validate when gherkin
@@ -1382,31 +1380,31 @@ public class ScenarioEngine {
             setVariable(name, evalAndCastTo(assignType, exp));
         }
     }
-    
+
     private static boolean isEmbeddedExpression(String text) {
         return text != null && (text.startsWith("#(") || text.startsWith("##(")) && text.endsWith(")");
     }
-    
+
     private static class EmbedAction {
-        
+
         final boolean remove;
         final Object value;
-        
+
         private EmbedAction(boolean remove, Object value) {
             this.remove = remove;
             this.value = value;
         }
-        
+
         static EmbedAction remove() {
             return new EmbedAction(true, null);
         }
-        
+
         static EmbedAction update(Object value) {
             return new EmbedAction(false, value);
         }
-        
+
     }
-    
+
     public Variable evalEmbeddedExpressions(Variable value) {
         switch (value.type) {
             case STRING:
@@ -1424,7 +1422,7 @@ public class ScenarioEngine {
                 return value;
         }
     }
-    
+
     private EmbedAction recurseEmbeddedExpressions(Variable node) {
         switch (node.type) {
             case LIST:
@@ -1499,7 +1497,7 @@ public class ScenarioEngine {
                 return null;
         }
     }
-    
+
     private void recurseXmlEmbeddedExpressions(Node node) {
         if (node.getNodeType() == Node.DOCUMENT_NODE) {
             node = node.getFirstChild();
@@ -1583,7 +1581,7 @@ public class ScenarioEngine {
             grandParent.removeChild(parent);
         }
     }
-    
+
     public String replacePlaceholderText(String text, String token, String replaceWith) {
         if (text == null) {
             return null;
@@ -1611,9 +1609,9 @@ public class ScenarioEngine {
         }
         return text.replace(token, replaceWith);
     }
-    
+
     private static final String TOKEN = "token";
-    
+
     public void replaceTable(String text, List<Map<String, String>> list) {
         if (text == null) {
             return;
@@ -1636,17 +1634,17 @@ public class ScenarioEngine {
                 replace(text, token, value);
             }
         }
-        
+
     }
-    
+
     public void set(String name, String path, Variable value) {
         set(name, path, false, value, false, false);
     }
-    
+
     private void set(String name, String path, String exp, boolean delete, boolean viaTable) {
         set(name, path, isWithinParentheses(exp), evalKarateExpression(exp), delete, viaTable);
     }
-    
+
     private void set(String name, String path, boolean isWithinParentheses, Variable value, boolean delete, boolean viaTable) {
         name = StringUtils.trimToEmpty(name);
         path = StringUtils.trimToNull(path);
@@ -1710,11 +1708,11 @@ public class ScenarioEngine {
                 json.set(path, value.<Object>getValue());
             }
         }
-        
+
     }
-    
+
     private static final String PATH = "path";
-    
+
     public void setViaTable(String name, String path, List<Map<String, String>> list) {
         name = StringUtils.trimToEmpty(name);
         path = StringUtils.trimToNull(path);
@@ -1764,7 +1762,7 @@ public class ScenarioEngine {
             }
         }
     }
-    
+
     public static StringUtils.Pair parseVariableAndPath(String text) {
         Matcher matcher = VAR_AND_PATH_PATTERN.matcher(text);
         matcher.find();
@@ -1782,7 +1780,7 @@ public class ScenarioEngine {
         }
         return StringUtils.pair(name, path);
     }
-    
+
     public Match.Result match(Match.Type matchType, String expression, String path, String rhs) {
         String name = StringUtils.trimToEmpty(expression);
         if (isDollarPrefixedJsonPath(name) || isXmlPath(name)) { // 
@@ -1835,87 +1833,87 @@ public class ScenarioEngine {
         Variable expected = evalKarateExpression(rhs);
         return match(matchType, actual.getValue(), expected.getValue());
     }
-    
+
     private Match.Result matchHeader(Match.Type matchType, String name, String exp) {
         Variable expected = evalKarateExpression(exp);
         String actual = response.getHeader(name);
         return match(matchType, actual, expected.getValue());
     }
-    
+
     public Match.Result match(Match.Type matchType, Object actual, Object expected) {
         return Match.execute(JS, matchType, actual, expected);
     }
-    
+
     private static final Pattern VAR_AND_PATH_PATTERN = Pattern.compile("\\w+");
     private static final String VARIABLE_PATTERN_STRING = "[a-zA-Z][\\w]*";
     private static final Pattern VARIABLE_PATTERN = Pattern.compile(VARIABLE_PATTERN_STRING);
     private static final Pattern FUNCTION_PATTERN = Pattern.compile("^function[^(]*\\(");
     private static final Pattern JS_PLACEHODER = Pattern.compile("\\$\\{.*?\\}");
-    
+
     public static boolean isJavaScriptFunction(String text) {
         return FUNCTION_PATTERN.matcher(text).find();
     }
-    
+
     public static boolean isValidVariableName(String name) {
         return VARIABLE_PATTERN.matcher(name).matches();
     }
-    
+
     public static boolean hasJavaScriptPlacehoder(String exp) {
         return JS_PLACEHODER.matcher(exp).find();
     }
-    
+
     public static final boolean isVariableAndSpaceAndPath(String text) {
         return text.matches("^" + VARIABLE_PATTERN_STRING + "\\s+.+");
     }
-    
+
     public static final boolean isVariable(String text) {
         return VARIABLE_PATTERN.matcher(text).matches();
     }
-    
+
     public static final boolean isWithinParentheses(String text) {
         return text != null && text.startsWith("(") && text.endsWith(")");
     }
-    
+
     public static final boolean isCallSyntax(String text) {
         return text.startsWith("call ");
     }
-    
+
     public static final boolean isCallOnceSyntax(String text) {
         return text.startsWith("callonce ");
     }
-    
+
     public static final boolean isGetSyntax(String text) {
         return text.startsWith("get ") || text.startsWith("get[");
     }
-    
+
     public static final boolean isJson(String text) {
         return text.startsWith("{") || text.startsWith("[");
     }
-    
+
     public static final boolean isXml(String text) {
         return text.startsWith("<");
     }
-    
+
     public static boolean isXmlPath(String text) {
         return text.startsWith("/");
     }
-    
+
     public static boolean isXmlPathFunction(String text) {
         return text.matches("^[a-z-]+\\(.+");
     }
-    
+
     public static final boolean isJsonPath(String text) {
         return text.indexOf('*') != -1 || text.contains("..") || text.contains("[?");
     }
-    
+
     public static final boolean isDollarPrefixed(String text) {
         return text.startsWith("$");
     }
-    
+
     public static final boolean isDollarPrefixedJsonPath(String text) {
         return text.startsWith("$.") || text.startsWith("$[") || text.equals("$");
     }
-    
+
     public static StringUtils.Pair parseCallArgs(String line) {
         int pos = line.indexOf("read(");
         if (pos != -1) {
@@ -1931,7 +1929,7 @@ public class ScenarioEngine {
         }
         return new StringUtils.Pair(line.substring(0, pos), StringUtils.trimToNull(line.substring(pos)));
     }
-    
+
     public Variable call(Variable called, Variable arg, boolean sharedScope) {
         switch (called.type) {
             case JS_FUNCTION:
@@ -1940,15 +1938,13 @@ public class ScenarioEngine {
             case FEATURE:
                 // will be always a map or a list of maps (loop call result)                
                 Object callResult = callFeature(called.getValue(), arg, -1, sharedScope);
-                synchronized (runtime.featureRuntime.suite) { // make sure any artifacts from a callonce / callsingle are handled
-                    recurseAndAttach(callResult);
-                    return new Variable(callResult);
-                }
+                recurseAndAttach(callResult);
+                return new Variable(callResult);
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);
         }
     }
-    
+
     public Variable call(boolean callOnce, String exp, boolean sharedScope) {
         StringUtils.Pair pair = parseCallArgs(exp);
         Variable called = evalKarateExpression(pair.left);
@@ -1964,7 +1960,7 @@ public class ScenarioEngine {
         }
         return result;
     }
-    
+
     private Variable callOnceResult(ScenarioCall.Result result, boolean sharedScope) {
         if (sharedScope) { // if shared scope
             vars.clear(); // clean slate
@@ -1985,7 +1981,7 @@ public class ScenarioEngine {
             return new Variable(resultValue);
         }
     }
-    
+
     private Variable callOnce(String cacheKey, Variable called, Variable arg, boolean sharedScope) {
         final Map<String, ScenarioCall.Result> CACHE;
         if (runtime.perfMode) { // use suite-wide cache for gatling
@@ -1996,7 +1992,9 @@ public class ScenarioEngine {
         ScenarioCall.Result result = CACHE.get(cacheKey);
         if (result != null) {
             logger.trace("callonce cache hit for: {}", cacheKey);
-            return callOnceResult(result, sharedScope);
+            synchronized (CACHE) {
+                return callOnceResult(result, sharedScope);
+            }
         }
         long startTime = System.currentTimeMillis();
         logger.trace("callonce waiting for lock: {}", cacheKey);
@@ -2023,7 +2021,7 @@ public class ScenarioEngine {
             return resultValue; // another routine will apply globally if needed
         }
     }
-    
+
     public Object callFeature(Feature feature, Variable arg, int index, boolean sharedScope) {
         if (arg == null || arg.isMap()) {
             ScenarioCall call = new ScenarioCall(runtime, feature, arg);
@@ -2083,7 +2081,7 @@ public class ScenarioEngine {
             throw new RuntimeException("feature call argument is not a json object or array: " + arg);
         }
     }
-    
+
     public Variable evalJsonPath(Variable v, String path) {
         Json json = Json.of(v.getValueAndForceParsingAsJson());
         try {
@@ -2092,7 +2090,7 @@ public class ScenarioEngine {
             return Variable.NOT_PRESENT;
         }
     }
-    
+
     public static Variable evalXmlPath(Variable xml, String path) {
         NodeList nodeList;
         Node doc = xml.getAsXml();
@@ -2122,7 +2120,7 @@ public class ScenarioEngine {
         }
         return new Variable(list);
     }
-    
+
     private static Variable nodeToValue(Node node) {
         int childElementCount = XmlUtils.getChildElementCount(node);
         if (childElementCount == 0) {
@@ -2135,15 +2133,15 @@ public class ScenarioEngine {
             return new Variable(XmlUtils.toNewDocument(node));
         }
     }
-    
+
     public Variable evalJsonPathOnVariableByName(String name, String path) {
         return evalJsonPath(vars.get(name), path);
     }
-    
+
     public Variable evalXmlPathOnVariableByName(String name, String path) {
         return evalXmlPath(vars.get(name), path);
     }
-    
+
     public Variable evalKarateExpression(String text) {
         text = StringUtils.trimToNull(text);
         if (text == null) {
@@ -2225,5 +2223,5 @@ public class ScenarioEngine {
             return evalJs(text);
         }
     }
-    
+
 }
