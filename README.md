@@ -2101,18 +2101,18 @@ Key | Type | Required? | Description
 `algorithm` | string | optional | force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). Default is `TLS`.  
 
 Example:  
-```
+```cucumber
 # enable X509 certificate authentication with PKCS12 file 'certstore.pfx' and password 'certpassword'
 * configure ssl = { keyStore: 'classpath:certstore.pfx', keyStorePassword: 'certpassword', keyStoreType: 'pkcs12' }
 ```
 
-```
+```cucumber
 # trust all server certificates, in the feature file
 * configure ssl = { trustAll: true }
 ```
 
-```
-# trust all server certificates, global configuration in 'karate-config.js'
+```js
+// trust all server certificates, global configuration in 'karate-config.js'
 karate.configure('ssl', { trustAll: true });
 ```
 
