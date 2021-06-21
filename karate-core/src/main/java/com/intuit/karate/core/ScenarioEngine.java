@@ -1055,7 +1055,7 @@ public class ScenarioEngine {
                 try {
                     vars.put(k, new Variable(o));
                 } catch (Exception e) {
-                    logger.debug("[*** attach variables ***] failed to attach graal value: {} - {}", k, e.getMessage());
+                    logger.debug("[*** attach variables ***] ignoring non-json value: '{}' - {}", k, e.getMessage());
                 }
             }
             JS.put(k, o);
@@ -1066,7 +1066,7 @@ public class ScenarioEngine {
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
         Map<String, Variable> detached = new HashMap(vars.size());
         vars.forEach((k, v) -> {
-            Object o = recurseAndDetachAndDeepClone(v.getValue(), seen);
+            Object o = recurseAndDetachAndDeepClone(k, v.getValue(), seen);
             detached.put(k, new Variable(o));
         });
         return detached;
@@ -1080,19 +1080,15 @@ public class ScenarioEngine {
 
     private Object recurseAndAttach(String name, Object o, Set<Object> seen) {
         if (o instanceof Value) {
-            Value value = Value.asValue(o);
             try {
-                if (value.canExecute()) {
-                    if (value.isMetaObject()) { // js function
-                        return attach(value);
-                    } else { // java function
-                        return value;
-                    }
-                } else { // anything else, including java-type references
+                Value value = Value.asValue(o);
+                if (value.canExecute() && value.isMetaObject()) { // js function
+                    return attach(value);
+                } else { // anything else, including java functions and java-type references
                     return value;
                 }
             } catch (Exception e) {
-                logger.warn("[*** attach ***] failed to attach js value: {} - {}", name, e.getMessage());
+                logger.warn("[*** attach ***] ignoring non-json value: '{}' - {}", name, e.getMessage());
                 return null;
             }
         } else if (o instanceof JsFunction) {
@@ -1130,15 +1126,15 @@ public class ScenarioEngine {
     // called only by result processing of callonce / callSingle
     protected Object recurseAndAttachAndDeepClone(Object o) {
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        return recurseAndAttachAndDeepClone(o, seen);
+        return recurseAndAttachAndDeepClone("", o, seen);
     }
 
-    private Object recurseAndAttachAndDeepClone(Object o, Set<Object> seen) {
+    private Object recurseAndAttachAndDeepClone(String name, Object o, Set<Object> seen) {
         if (o instanceof Value) {
             try {
                 return Value.asValue(o);
             } catch (Exception e) {
-                logger.warn("[*** attach deep ***] failed to attach graal value: {}", e.getMessage());
+                logger.warn("[*** attach deep ***] ignoring non-json value: '{}' - {}", name, e.getMessage());
                 return null;
             }
         }
@@ -1148,8 +1144,12 @@ public class ScenarioEngine {
         } else if (o instanceof List) {
             if (seen.add(o)) {
                 List list = (List) o;
-                List copy = new ArrayList(list.size());
-                list.forEach(v -> copy.add(recurseAndAttachAndDeepClone(v, seen)));
+                int count = list.size();
+                List copy = new ArrayList(count);
+                for (int i = 0; i < count; i++) {
+                    Object child = list.get(i);
+                    copy.add(recurseAndAttachAndDeepClone(name + "[" + i + "]", child, seen));
+                }
                 return copy;
             } else {
                 return o;
@@ -1158,7 +1158,7 @@ public class ScenarioEngine {
             if (seen.add(o)) {
                 Map<String, Object> map = (Map) o;
                 Map<String, Object> copy = new LinkedHashMap(map.size());
-                map.forEach((k, v) -> copy.put(k, recurseAndAttachAndDeepClone(v, seen)));
+                map.forEach((k, v) -> copy.put(k, recurseAndAttachAndDeepClone(name + "." + k, v, seen)));
                 return copy;
             } else {
                 return o;
@@ -1171,10 +1171,10 @@ public class ScenarioEngine {
     // only for callonce and callSingle
     protected Object recurseAndDetachAndDeepClone(Object o) {
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        return recurseAndDetachAndDeepClone(o, seen);
+        return recurseAndDetachAndDeepClone("", o, seen);
     }
 
-    private Object recurseAndDetachAndDeepClone(Object o, Set<Object> seen) {
+    private Object recurseAndDetachAndDeepClone(String name, Object o, Set<Object> seen) {
         if (o instanceof Value) {
             Value value = (Value) o;
             try {
@@ -1189,15 +1189,19 @@ public class ScenarioEngine {
                     o = JsValue.toJava(value);
                 }
             } catch (Exception e) {
-                logger.warn("[*** detach deep ***] unsupported value in callonce / callSingle: {}", e.getMessage());
+                logger.warn("[*** detach deep ***] ignoring non-json value in callonce / callSingle: '{}' - {}", e.getMessage());
                 return null;
             }
         }
         if (o instanceof List) {
             if (seen.add(o)) {
                 List list = (List) o;
+                int count = list.size();
                 List copy = new ArrayList(list.size());
-                list.forEach(v -> copy.add(recurseAndDetachAndDeepClone(v, seen)));
+                for (int i = 0; i < count; i++) {
+                    Object child = list.get(i);
+                    copy.add(recurseAndDetachAndDeepClone(name + "[" + i + "]", child, seen));
+                }
                 return copy;
             } else {
                 return o;
@@ -1206,7 +1210,7 @@ public class ScenarioEngine {
             if (seen.add(o)) {
                 Map<String, Object> map = (Map) o;
                 Map<String, Object> copy = new LinkedHashMap(map.size());
-                map.forEach((k, v) -> copy.put(k, recurseAndDetachAndDeepClone(v, seen)));
+                map.forEach((k, v) -> copy.put(k, recurseAndDetachAndDeepClone(name + "." + k, v, seen)));
                 return copy;
             } else {
                 return o;
@@ -1301,7 +1305,7 @@ public class ScenarioEngine {
             try {
                 setVariable(k, v);
             } catch (Exception e) {
-                logger.warn("[*** set variables ***] skipping invalid graal value: {} - {}", k, e.getMessage());
+                logger.warn("[*** set variables ***] ignoring non-json value: {} - {}", k, e.getMessage());
             }
         });
     }
