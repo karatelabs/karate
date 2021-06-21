@@ -1022,13 +1022,17 @@ public class ScenarioEngine {
         runtime.magicVariables.forEach((k, v) -> {
             // even hidden variables may need pre-processing
             // for e.g. the __arg may contain functions that originated in a different js context
-            Object o = recurseAndAttach(k, v, seen);
-            if (o == null) {
-                o = v;
-            }
-            JS.put(k, o);
+            AttachResult ar = recurseAndAttach(k, v, seen);
+            JS.put(k, ar.value);
         });
-        attachVariables(seen); // re-hydrate any functions from caller or background
+        // re-hydrate any functions from caller or background
+        vars.forEach((k, v) -> {
+            AttachResult ar = recurseAndAttach(k, v.getValue(), seen);
+            // note that we don't update the vars !
+            // if we do, any "bad" out-of-context values will crash the constructor of Variable
+            // it is possible the vars are detached / re-used later, so we kind of defer the inevitable
+            JS.put(k, ar.value);
+        });
         JS.put(KARATE, bridge);
         JS.put(READ, readFunction);
         HttpClient client = runtime.featureRuntime.suite.clientFactory.create(this);
@@ -1049,22 +1053,6 @@ public class ScenarioEngine {
         }
     }
 
-    private void attachVariables(Set<Object> seen) {
-        vars.forEach((k, v) -> {
-            Object o = recurseAndAttach(k, v.getValue(), seen);
-            if (o == null) {
-                o = v.getValue();
-            } else {
-                try {
-                    vars.put(k, new Variable(o));
-                } catch (Exception e) {
-                    logger.debug("[*** attach variables ***] ignoring non-json value: '{}' - {}", k, e.getMessage());
-                }
-            }
-            JS.put(k, o);
-        });
-    }
-
     protected Map<String, Variable> detachVariables() {
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
         Map<String, Variable> detached = new HashMap(vars.size());
@@ -1075,53 +1063,76 @@ public class ScenarioEngine {
         return detached;
     }
 
-    private Object recurseAndAttach(String name, Object o, Set<Object> seen) {
+    private static class AttachResult {
+
+        final Object value;
+        final boolean dirty;
+
+        static final AttachResult NULL = new AttachResult(null, true);
+
+        AttachResult(Object value, boolean dirty) {
+            this.value = value;
+            this.dirty = dirty;
+        }
+
+        static AttachResult dirty(Object value) {
+            return new AttachResult(value, true);
+        }
+
+        static AttachResult clean(Object value) {
+            return new AttachResult(value, false);
+        }
+
+    }
+
+    private AttachResult recurseAndAttach(String name, Object o, Set<Object> seen) {
         if (o instanceof Value) {
+            Value value = Value.asValue(o);
             try {
-                Value value = Value.asValue(o);
                 if (value.canExecute() && value.isMetaObject()) { // js function
-                    return attach(value);
+                    return AttachResult.dirty(attach(value));
                 } else { // anything else, including java functions and java-type references
-                    return value;
+                    return AttachResult.dirty(value);
                 }
             } catch (Exception e) {
                 logger.warn("[*** attach ***] ignoring non-json value: '{}' - {}", name, e.getMessage());
-                return null;
+                // here we sweep things under the carpet and hope that graal does not notice !
+                return AttachResult.dirty(value);
             }
         } else if (o instanceof JsFunction) {
             JsFunction jf = (JsFunction) o;
             try {
-                return attachSource(jf.source);
+                return AttachResult.dirty(attachSource(jf.source));
             } catch (Exception e) {
                 logger.warn("[*** attach ***] ignoring js-function: '{}' - {}", name, e.getMessage());
-                return null;                
-            }            
+                return AttachResult.NULL;
+            }
         } else if (o instanceof List) {
             if (seen.add(o)) {
                 List list = (List) o;
                 int count = list.size();
                 for (int i = 0; i < count; i++) {
                     Object child = list.get(i);
-                    Object result = recurseAndAttach(name + "[" + i + "]", child, seen);
-                    if (result != null) {
-                        list.set(i, result);
+                    AttachResult ar = recurseAndAttach(name + "[" + i + "]", child, seen);
+                    if (ar.dirty) {
+                        list.set(i, ar.value);
                     }
                 }
             }
-            return null;
+            return AttachResult.clean(o);
         } else if (o instanceof Map) {
             if (seen.add(o)) {
                 Map<String, Object> map = (Map) o;
                 map.forEach((k, v) -> {
-                    Object result = recurseAndAttach(name + "." + k, v, seen);
-                    if (result != null) {
-                        map.put(k, result);
+                    AttachResult ar = recurseAndAttach(name + "." + k, v, seen);
+                    if (ar.dirty) {
+                        map.put(k, ar.value);
                     }
                 });
             }
-            return null;
+            return AttachResult.clean(o);
         } else {
-            return null;
+            return AttachResult.clean(o);
         }
     }
 
@@ -1146,7 +1157,7 @@ public class ScenarioEngine {
                 return attachSource(jf.source);
             } catch (Exception e) {
                 logger.warn("[*** attach deep ***] ignoring js-function: '{}' - {}", name, e.getMessage());
-                return null;                
+                return null;
             }
         } else if (o instanceof List) {
             if (seen.add(o)) {
