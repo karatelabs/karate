@@ -1093,7 +1093,12 @@ public class ScenarioEngine {
             }
         } else if (o instanceof JsFunction) {
             JsFunction jf = (JsFunction) o;
-            return attachSource(jf.source);
+            try {
+                return attachSource(jf.source);
+            } catch (Exception e) {
+                logger.warn("[*** attach ***] ignoring js-function: '{}' - {}", name, e.getMessage());
+                return null;                
+            }            
         } else if (o instanceof List) {
             if (seen.add(o)) {
                 List list = (List) o;
@@ -1140,7 +1145,12 @@ public class ScenarioEngine {
         }
         if (o instanceof JsFunction) {
             JsFunction jf = (JsFunction) o;
-            return attachSource(jf.source);
+            try {
+                return attachSource(jf.source);
+            } catch (Exception e) {
+                logger.warn("[*** attach deep ***] ignoring js-function: '{}' - {}", name, e.getMessage());
+                return null;                
+            }
         } else if (o instanceof List) {
             if (seen.add(o)) {
                 List list = (List) o;
