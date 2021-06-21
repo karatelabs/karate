@@ -1209,8 +1209,12 @@ public class ScenarioEngine {
         if (o instanceof Value) {
             Value value = (Value) o;
             try {
-                if (value.canExecute() && value.isMetaObject()) { // js function
-                    return new JsFunction(value);
+                if (value.canExecute()) { 
+                    if (value.isMetaObject()) { // js function
+                        return new JsFunction(value);
+                    } else { // java function                        
+                        return new JsExecutable(value);
+                    }
                 } else {
                     return value;
                 }

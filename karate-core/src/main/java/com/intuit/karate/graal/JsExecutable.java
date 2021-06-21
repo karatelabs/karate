@@ -42,12 +42,14 @@ public class JsExecutable implements ProxyExecutable {
         this.value = value;
     }
 
+    private static final Object LOCK = new Object();
+    
     @Override
     public Object execute(Value... arguments) {
-        if (logger.isTraceEnabled()) {
-            logger.trace("begin execute: {}", value);
+        synchronized (LOCK) {
+            logger.warn("[*** execute ***] global lock on java function possibly from callonce / callSingle: {}", value);
+            return value.execute(arguments);
         }
-        return value.execute(arguments);
     }
 
 }

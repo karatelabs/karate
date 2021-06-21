@@ -15,10 +15,10 @@ Scenario: one
 * match response == { one: '#string' }
 * def result = karate.callSingle('call-single-from-feature.feature')
 * match result.response == { message: 'from feature' }
-# use java class instance from callSingle in config
+
 * match HelloConfigSingle.sayHello('world') == 'hello world'
-# use java method instance from callSingle in config
-# * match sayHello('world') == 'hello world'
+* match HelloOnce.sayHello('world') == 'hello world'
+* match sayHello('world') == 'hello world'
 
 Scenario: two
 * path 'two'
@@ -28,6 +28,10 @@ Scenario: two
 * def result = karate.callSingle('call-single-from-feature.feature')
 * match result.response == { message: 'from feature' }
 
+* match HelloConfigSingle.sayHello('world') == 'hello world'
+* match HelloOnce.sayHello('world') == 'hello world'
+* match sayHello('world') == 'hello world'
+
 Scenario: three
 * path 'three'
 * method get
@@ -35,3 +39,7 @@ Scenario: three
 * match response == { three: '#string' }
 * def result = karate.callSingle('call-single-from-feature.feature')
 * match result.response == { message: 'from feature' }
+
+* match HelloConfigSingle.sayHello('world') == 'hello world'
+* match HelloOnce.sayHello('world') == 'hello world'
+* match sayHello('world') == 'hello world'

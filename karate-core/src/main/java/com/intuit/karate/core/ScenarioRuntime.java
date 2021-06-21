@@ -268,7 +268,7 @@ public class ScenarioRuntime implements Runnable {
         }
         if (scenario.isOutlineExample() && !this.isDynamicBackground()) { // init examples row magic variables
             Map<String, Object> exampleData = scenario.getExampleData();
-            exampleData.forEach((k, v) -> map.put(k, v));
+            map.putAll(exampleData);
             map.put("__row", exampleData);
             map.put("__num", scenario.getExampleIndex());
         }
