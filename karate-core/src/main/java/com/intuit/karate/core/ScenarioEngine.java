@@ -1130,9 +1130,7 @@ public class ScenarioEngine {
     // called only by result processing of callonce / callSingle
     protected Object recurseAndAttachAndDeepClone(Object o) {
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        synchronized (runtime.featureRuntime.suite) {
-            return recurseAndAttachAndDeepClone(o, seen);
-        }
+        return recurseAndAttachAndDeepClone(o, seen);
     }
 
     private Object recurseAndAttachAndDeepClone(Object o, Set<Object> seen) {
