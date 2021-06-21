@@ -1025,14 +1025,27 @@ public class ScenarioEngine {
             AttachResult ar = recurseAndAttach(k, v, seen);
             JS.put(k, ar.value);
         });
-        // re-hydrate any functions from caller or background
         vars.forEach((k, v) -> {
+            // re-hydrate any functions from caller or background  
             AttachResult ar = recurseAndAttach(k, v.getValue(), seen);
             // note that we don't update the vars !
             // if we do, any "bad" out-of-context values will crash the constructor of Variable
             // it is possible the vars are detached / re-used later, so we kind of defer the inevitable
             JS.put(k, ar.value);
         });
+        if (runtime.caller.arg != null && runtime.caller.arg.isMap()) {
+            // add the call arg as separate "over ride" variables
+            Map<String, Object> arg = runtime.caller.arg.getValue();
+            arg.forEach((k, v) -> {
+                AttachResult ar = recurseAndAttach(k, v, seen);
+                try {
+                    vars.put(k, new Variable(ar.value));
+                } catch (Exception e) {
+                    logger.warn("[*** init call-arg ***] ignoring non-json value: '{}' - {}", k, e.getMessage());
+                }
+                JS.put(k, ar.value);
+            });
+        }
         JS.put(KARATE, bridge);
         JS.put(READ, readFunction);
         HttpClient client = runtime.featureRuntime.suite.clientFactory.create(this);
@@ -1096,7 +1109,7 @@ public class ScenarioEngine {
                 }
             } catch (Exception e) {
                 logger.warn("[*** attach ***] ignoring non-json value: '{}' - {}", name, e.getMessage());
-                // here we sweep things under the carpet and hope that graal does not notice !
+                // here we try our luck and hope that graal does not notice !
                 return AttachResult.dirty(value);
             }
         } else if (o instanceof JsFunction) {
@@ -1196,19 +1209,14 @@ public class ScenarioEngine {
         if (o instanceof Value) {
             Value value = (Value) o;
             try {
-                if (value.canExecute()) {
-                    if (value.isMetaObject()) { // js function
-                        return new JsFunction(value);
-                    } else { // java function
-                        return new JsExecutable(value);
-                    }
+                if (value.canExecute() && value.isMetaObject()) { // js function
+                    return new JsFunction(value);
                 } else {
-                    // everything else including java-type references that do not need special attach handling
-                    o = JsValue.toJava(value);
+                    return value;
                 }
             } catch (Exception e) {
                 logger.warn("[*** detach deep ***] ignoring non-json value in callonce / callSingle: '{}' - {}", e.getMessage());
-                return null;
+                return value; // try our luck
             }
         }
         if (o instanceof List) {
@@ -1301,17 +1309,27 @@ public class ScenarioEngine {
 
     public void setVariable(String key, Object value) {
         Variable v;
+        Object o;
         if (value instanceof Variable) {
             v = (Variable) value;
+            o = v.getValue();
         } else {
-            v = new Variable(value);
+            o = value;
+            try {
+                v = new Variable(value);                
+            } catch (Exception e) {
+                v = null;
+                logger.warn("[*** set variable ***] ignoring non-json value: {} - {}", key, e.getMessage());
+            }
         }
-        vars.put(key, v);
+        if (v != null) {
+            vars.put(key, v);
+        }
         if (JS != null) {
-            JS.put(key, v.getValue());
+            JS.put(key, o);
         }
         if (children != null) {
-            children.forEach(c -> c.setVariable(key, value));
+            children.forEach(c -> c.setVariable(key, o));
         }
     }
 
@@ -1319,13 +1337,7 @@ public class ScenarioEngine {
         if (map == null) {
             return;
         }
-        map.forEach((k, v) -> {
-            try {
-                setVariable(k, v);
-            } catch (Exception e) {
-                logger.warn("[*** set variables ***] ignoring non-json value: {} - {}", k, e.getMessage());
-            }
-        });
+        map.forEach((k, v) -> setVariable(k, v));
     }
 
     private static Map<String, Variable> copy(Map<String, Variable> source, boolean deep) {

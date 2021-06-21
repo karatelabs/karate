@@ -258,20 +258,13 @@ public class ScenarioRuntime implements Runnable {
 
     private Map<String, Object> initMagicVariables() {
         Map<String, Object> map = new HashMap();
-        if (caller.isNone()) { // if feature called via java api
-            if (caller.arg != null && caller.arg.isMap()) {
-                engine.setVariables(caller.arg.getValue());
-            }
-        } else {
+        if (!caller.isNone()) {
             // karate principle: parent variables are always "visible"
             // so we inject the parent magic variables
             // but they will be over-written by what is local to this scenario
             map.putAll(caller.parentRuntime.magicVariables);
             map.put("__arg", caller.arg == null ? null : caller.arg.getValue());
             map.put("__loop", caller.getLoopIndex());
-            if (caller.arg != null && caller.arg.isMap()) {
-                engine.setVariables(caller.arg.getValue());
-            }
         }
         if (scenario.isOutlineExample() && !this.isDynamicBackground()) { // init examples row magic variables
             Map<String, Object> exampleData = scenario.getExampleData();
