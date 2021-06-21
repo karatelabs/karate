@@ -1022,12 +1022,15 @@ public class ScenarioEngine {
         runtime.magicVariables.forEach((k, v) -> {
             // even hidden variables may need pre-processing
             // for e.g. the __arg may contain functions that originated in a different js context
-            recurseAndAttach(k, v, seen);
-            setHiddenVariable(k, v);
+            Object o = recurseAndAttach(k, v, seen);
+            if (o == null) {
+                o = v;
+            }
+            JS.put(k, o);
         });
         attachVariables(seen); // re-hydrate any functions from caller or background
-        setHiddenVariable(KARATE, bridge);
-        setHiddenVariable(READ, readFunction);
+        JS.put(KARATE, bridge);
+        JS.put(READ, readFunction);
         HttpClient client = runtime.featureRuntime.suite.clientFactory.create(this);
         // edge case: can be set by dynamic scenario outline background
         // or be left as-is because a callonce triggered init()
@@ -1070,12 +1073,6 @@ public class ScenarioEngine {
             detached.put(k, new Variable(o));
         });
         return detached;
-    }
-
-    // only called by "call" routine
-    protected void recurseAndAttach(String name, Object o) {
-        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        recurseAndAttach(name, o, seen);
     }
 
     private Object recurseAndAttach(String name, Object o, Set<Object> seen) {
@@ -1943,7 +1940,8 @@ public class ScenarioEngine {
             case FEATURE:
                 // will be always a map or a list of maps (loop call result)                
                 Object callResult = callFeature(called.getValue(), arg, -1, sharedScope);
-                recurseAndAttach("", callResult);
+                Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
+                recurseAndAttach("", callResult, seen);
                 return new Variable(callResult);
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);
