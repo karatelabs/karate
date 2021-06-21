@@ -1102,9 +1102,13 @@ public class ScenarioEngine {
         if (o instanceof Value) {
             Value value = Value.asValue(o);
             try {
-                if (value.canExecute() && value.isMetaObject()) { // js function
-                    return AttachResult.dirty(attach(value));
-                } else { // anything else, including java functions and java-type references
+                if (value.canExecute()) {
+                    if (value.isMetaObject()) { // js function
+                        return AttachResult.dirty(attach(value));
+                    } else { // java function
+                        return AttachResult.dirty(new JsExecutable(value));
+                    }
+                } else { // anything else, including java-type references
                     return AttachResult.dirty(value);
                 }
             } catch (Exception e) {
@@ -1112,7 +1116,8 @@ public class ScenarioEngine {
                 // here we try our luck and hope that graal does not notice !
                 return AttachResult.dirty(value);
             }
-        } else if (o instanceof JsFunction) {
+        }
+        if (o instanceof JsFunction) {
             JsFunction jf = (JsFunction) o;
             try {
                 return AttachResult.dirty(attachSource(jf.source));
@@ -1320,7 +1325,7 @@ public class ScenarioEngine {
         } else {
             o = value;
             try {
-                v = new Variable(value);                
+                v = new Variable(value);
             } catch (Exception e) {
                 v = null;
                 logger.warn("[*** set variable ***] ignoring non-json value: {} - {}", key, e.getMessage());
