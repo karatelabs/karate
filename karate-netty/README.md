@@ -578,6 +578,12 @@ The curly-braces can match only one "segment" of the path at any time. But you c
 Scenario: requestUri.startsWith('foo/')
 ```
 
+And since this is plain-old JavaScript you can even do this:
+
+```cucumber
+Scenario: !requestUri.startsWith('foo/')
+```
+
 ## `pathParams`
 JSON variable (not a function) allowing you to extract values by name. See [`pathMatches()`](#pathmatches) above.
 
