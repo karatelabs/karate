@@ -765,7 +765,8 @@ class ScenarioRuntimeTest {
                 "match res2 == [{ val: 'A' }, { val: 'B' }, { val: 'C' }]",
                 "def list3 = ['c', 'b', 'a']",
                 "def res3 = karate.sort(list3)",
-                "match res3 == ['a', 'b', 'c']"
+                "match res3 == ['a', 'b', 'c']",
+                "match res3.reverse() == ['c', 'b', 'a']"
         );
     }
 

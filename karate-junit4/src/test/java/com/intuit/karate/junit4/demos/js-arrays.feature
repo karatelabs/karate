@@ -146,6 +146,7 @@ Scenario: sort
     * def fun = function(x){ return x.a.b }
     * def bar = karate.sort(foo, fun)
     * match bar == [{a: { b: 1 }}, {a: { b: 2 }}, {a: { b: 3 }}]
+    * match bar.reverse() == [{a: { b: 3 }}, {a: { b: 2 }}, {a: { b: 1 }}]
 
 Scenario: get last array element (js)
     * def list = [1, 2, 3, 4]

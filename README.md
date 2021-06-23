@@ -2879,7 +2879,7 @@ Karate supports the following [functional-style](https://en.wikipedia.org/wiki/F
 
 A few more useful "transforms" are to select a sub-set of key-value pairs using [`karate.filterKeys()`](#karate-filterkeys), merging 2 or more JSON-s using [`karate.merge()`](#karate-merge) and combining 2 or more arrays (or objects) into a single array using [`karate.append()`](#karate-append). And [`karate.appendTo()`](#karate-appendto) is for updating an existing variable (the equivalent of `array.push()` in JavaScript), which is especially useful in the body of a `karate.forEach()`.
 
-You can also sort arrays of arbitrary JSON using [`karate.sort()`](#karate-sort). Simple arrays of strings or numbers can be stripped of duplicates using [`karate.distinct()`](#karate-distinct).
+You can also sort arrays of arbitrary JSON using [`karate.sort()`](#karate-sort). Simple arrays of strings or numbers can be stripped of duplicates using [`karate.distinct()`](#karate-distinct). All JS "native" array operations can be used, such as `someName.reverse()`.
 
 > Note that a single JS function is sufficient to transform a given JSON object into a completely new one, and you can use complex conditional logic if needed.
 
@@ -2947,7 +2947,8 @@ Scenario: sort
     * def foo = [{a: { b: 3 }}, {a: { b: 1 }}, {a: { b: 2 }}]
     * def fun = function(x){ return x.a.b }
     * def bar = karate.sort(foo, fun)
-    * match bar == [{a: { b: 1 }}, {a: { b: 2 }}, {a: { b: 3 }}]    
+    * match bar == [{a: { b: 1 }}, {a: { b: 2 }}, {a: { b: 3 }}]
+    * match bar.reverse() == [{a: { b: 3 }}, {a: { b: 2 }}, {a: { b: 1 }}]
 ```
 
 ### Loops
