@@ -1117,7 +1117,11 @@ public class ScenarioEngine {
                 return AttachResult.dirty(value);
             }
         }
-        if (o instanceof JsFunction) {
+        if (o instanceof Class) {
+            Class clazz = (Class) o;
+            Value value = JS.evalForValue("Java.type('" + clazz.getCanonicalName() + "')");
+            return AttachResult.dirty(value);
+        } else if (o instanceof JsFunction) {
             JsFunction jf = (JsFunction) o;
             try {
                 return AttachResult.dirty(attachSource(jf.source));
@@ -1169,7 +1173,11 @@ public class ScenarioEngine {
                 return null;
             }
         }
-        if (o instanceof JsFunction) {
+        if (o instanceof Class) {
+            Class clazz = (Class) o;
+            Value value = JS.evalForValue("Java.type('" + clazz.getCanonicalName() + "')");
+            return value;
+        } else if (o instanceof JsFunction) {
             JsFunction jf = (JsFunction) o;
             try {
                 return attachSource(jf.source);
@@ -1212,20 +1220,20 @@ public class ScenarioEngine {
 
     private Object recurseAndDetachAndDeepClone(String name, Object o, Set<Object> seen) {
         if (o instanceof Value) {
-            Value value = (Value) o;
+            Value value = Value.asValue(o);
             try {
-                if (value.canExecute()) { 
+                if (value.canExecute()) {
                     if (value.isMetaObject()) { // js function
                         return new JsFunction(value);
                     } else { // java function                        
                         return new JsExecutable(value);
                     }
-                } else {
-                    return value;
+                } else if (value.isHostObject()) {
+                    return value.asHostObject();
                 }
             } catch (Exception e) {
-                logger.warn("[*** detach deep ***] ignoring non-json value in callonce / callSingle: '{}' - {}", e.getMessage());
-                return value; // try our luck
+                logger.warn("[*** detach deep ***] ignoring non-json value in callonce / callSingle: '{}' - {}", name, e.getMessage());
+                return null;
             }
         }
         if (o instanceof List) {

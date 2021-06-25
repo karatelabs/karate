@@ -33,23 +33,18 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class JsExecutable implements ProxyExecutable {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(JsExecutable.class);
 
-    private final Value value;
+    public final Value value;
 
     public JsExecutable(Value value) {
         this.value = value;
     }
 
-    private static final Object LOCK = new Object();
-    
     @Override
     public Object execute(Value... arguments) {
-        synchronized (LOCK) {
-            logger.warn("[*** execute ***] global lock on java function possibly from callonce / callSingle: {}", value);
-            return value.execute(arguments);
-        }
+        return value.execute(arguments);
     }
 
 }
