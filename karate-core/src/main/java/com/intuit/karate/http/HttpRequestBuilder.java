@@ -259,15 +259,12 @@ public class HttpRequestBuilder implements ProxyObject {
         return this;
     }
 
-    private String getUri() {
+    public String getUri() {
         try {
             URIBuilder builder;
             if (url == null) {
                 builder = new URIBuilder();
             } else {
-                if (url.endsWith("/")) {
-                    url = url.substring(0, url.length() - 1);
-                }
                 builder = new URIBuilder(url);
             }
             if (params != null) {
@@ -275,7 +272,11 @@ public class HttpRequestBuilder implements ProxyObject {
             }
             if (paths != null) {
                 List<String> segments = new ArrayList();
-                segments.addAll(builder.getPathSegments());
+                for (String item : builder.getPathSegments()) {
+                    if (!item.isEmpty()) {
+                        segments.add(item);
+                    }
+                }                
                 for (String item : paths) {
                     for (String s : StringUtils.split(item, '/', true)) {
                         segments.add(s);
