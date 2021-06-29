@@ -78,7 +78,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 
 ### Capabilities
 * Everything on `localhost` or within your network, no need to worry about your data leaking into the cloud
-* Super-easy 'hard-coded' mocks ([example](../karate-junit4/src/test/java/com/intuit/karate/mock/_mock.feature))
+* Super-easy 'hard-coded' mocks ([example](../karate-core/src/test/java/com/intuit/karate/core/mock/_mock.feature))
 * Stateful mocks that can fully simulate CRUD for a micro-service ([example](../karate-demo/src/test/java/mock/proxy/demo-mock.feature))
 * Not only JSON but first-class support for XML, plain-text, binary, etc.
 * Convert JSON or XML into dynamic responses with ease
