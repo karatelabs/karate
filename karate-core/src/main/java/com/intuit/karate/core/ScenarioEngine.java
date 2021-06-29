@@ -1175,8 +1175,7 @@ public class ScenarioEngine {
         }
         if (o instanceof Class) {
             Class clazz = (Class) o;
-            Value value = JS.evalForValue("Java.type('" + clazz.getCanonicalName() + "')");
-            return value;
+            return JS.evalForValue("Java.type('" + clazz.getCanonicalName() + "')");
         } else if (o instanceof JsFunction) {
             JsFunction jf = (JsFunction) o;
             try {
@@ -1233,7 +1232,7 @@ public class ScenarioEngine {
                 }
             } catch (Exception e) {
                 logger.warn("[*** detach deep ***] ignoring non-json value in callonce / callSingle: '{}' - {}", name, e.getMessage());
-                return null;
+                return value; // re-attempt on attach
             }
         }
         if (o instanceof List) {

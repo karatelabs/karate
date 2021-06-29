@@ -6,7 +6,7 @@ Background:
  * url serverUrl
  * def data = [ { name: 'value1' }, { name: 'value2' }, { name: 'value3' }, { name: 'value4' } ]
  # java object that comes from a callSingle in the config
- * def helloClass = HelloConfigSingle
+ * def HelloBg = HelloConfigSingle
  * callonce read('call-once-from-feature.feature')
 
 Scenario Outline:
@@ -16,9 +16,10 @@ Scenario Outline:
  * method get
  * status 200
  * match response == { message: 'from feature' }
- # use java object from background, callSingle, config
-  * match helloClass.sayHello('from the other side') == 'hello from the other side'
-  * match helloClass.sayHello(name) == 'hello ' + name
+
+ * match HelloBg.sayHello('world') == 'hello world'
+ * match HelloOnce.sayHello('world') == 'hello world'
+ * match sayHello('world') == 'hello world'
 
  Examples:
   | data |

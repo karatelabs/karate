@@ -42,9 +42,22 @@ public class JsExecutable implements ProxyExecutable {
         this.value = value;
     }
 
+    private static final Object LOCK = new Object();
+
     @Override
     public Object execute(Value... arguments) {
-        return value.execute(arguments);
+        Object[] args = new Object[arguments.length];
+        for (int i = 0; i < args.length; i++) {
+            args[i] = arguments[i].as(Object.class);
+        }
+        try {
+            return value.execute(args);
+        } catch (Exception e) {
+            logger.warn("[*** execute ***] java method reference (from callSingle() ?) invocation failed: {}", e.getMessage());
+            synchronized (LOCK) {
+                return value.execute(args);
+            }
+        }
     }
 
 }
