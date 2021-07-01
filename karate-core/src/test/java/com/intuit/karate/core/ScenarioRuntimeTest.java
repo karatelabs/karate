@@ -466,6 +466,9 @@ class ScenarioRuntimeTest {
                 "def foo = { foo: 'hello', bar: 5 }",
                 "def res1 = karate.toBean(foo, 'com.intuit.karate.core.SimplePojo')"
         );
+        SimplePojo sp = (SimplePojo) get("res1");
+        assertEquals(sp.getFoo(), "hello");
+        assertEquals(sp.getBar(), 5);
     }
 
     @Test
