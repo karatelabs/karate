@@ -9,6 +9,7 @@ Background:
 * match message2 == 'fromCallSingleFromConfig2'
 
 Scenario: one
+* call sayHelloOnce 'one'
 * path 'one'
 * method get
 * status 200
@@ -19,8 +20,10 @@ Scenario: one
 * match HelloConfigSingle.sayHello('world') == 'hello world'
 * match HelloOnce.sayHello('world') == 'hello world'
 * match sayHello('world') == 'hello world'
+* match sayHelloOnce('world') == 'hello world'
 
 Scenario: two
+* call sayHelloOnce 'two'
 * path 'two'
 * method get
 * status 200
@@ -31,8 +34,10 @@ Scenario: two
 * match HelloConfigSingle.sayHello('world') == 'hello world'
 * match HelloOnce.sayHello('world') == 'hello world'
 * match sayHello('world') == 'hello world'
+* match sayHelloOnce('world') == 'hello world'
 
 Scenario: three
+* call sayHelloOnce 'three'
 * path 'three'
 * method get
 * status 200
@@ -43,3 +48,4 @@ Scenario: three
 * match HelloConfigSingle.sayHello('world') == 'hello world'
 * match HelloOnce.sayHello('world') == 'hello world'
 * match sayHello('world') == 'hello world'
+* match sayHelloOnce('world') == 'hello world'

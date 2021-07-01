@@ -2008,7 +2008,15 @@ public class ScenarioEngine {
             vars.clear(); // clean slate
             // deep-clone so that subsequent steps don't modify data / references being passed around
             if (result.vars != null) {
-                result.vars.forEach((k, v) -> vars.put(k, v.copy(true)));
+                Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
+                result.vars.forEach((k, v) -> {
+                    Object o = recurseAndAttachAndDeepClone(k, v.getValue(), seen);
+                    try {
+                        vars.put(k, new Variable(o));
+                    } catch (Exception e) {
+                        logger.warn("[*** callonce result ***] ignoring non-json value: '{}' - {}", k, e.getMessage());
+                    }
+                });
             }
             init(); // this will attach and also insert magic variables
             // re-apply config from time of snapshot
