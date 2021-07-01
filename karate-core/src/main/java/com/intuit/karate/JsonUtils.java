@@ -51,6 +51,8 @@ import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
+import static net.minidev.json.JSONValue.defaultReader;
+
 /**
  *
  * @author pthomas3
@@ -135,7 +137,7 @@ public class JsonUtils {
     public static Object fromJsonStrict(String json) {
         JSONParser parser = new JSONParser(JSONParser.MODE_RFC4627);
         try {
-            return parser.parse(json.trim());
+            return parser.parse(json.trim(), defaultReader.DEFAULT_ORDERED);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

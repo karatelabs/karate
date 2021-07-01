@@ -2,6 +2,7 @@ package com.intuit.karate;
 
 import com.intuit.karate.core.ComplexPojo;
 import com.intuit.karate.core.SimplePojo;
+import com.intuit.karate.core.Variable;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -88,6 +89,15 @@ class JsonUtilsTest {
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof net.minidev.json.parser.ParseException);
         }
+    }
+
+    @Test
+    void fromJsonStrictRetainsKeyOrder() {
+        String originalString = "{\"tango\":\"Alice\",\"foxtrot\":\"0.0.0.0\",\"sierra\":\"Bob\"}";
+        Object obj = JsonUtils.fromJsonStrict(originalString);
+                Variable var = new Variable(obj);
+        String serialized = var.getAsString();
+        assertEquals(originalString, serialized);
     }
 
 }
