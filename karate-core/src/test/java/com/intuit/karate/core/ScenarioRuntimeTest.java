@@ -451,14 +451,21 @@ class ScenarioRuntimeTest {
     }
 
     @Test
+    void testJsonToString() {
+        run(
+                "def original = '{\"echo\":\"echo@gmail.com\",\"lambda\":\"Lambda\",\"bravo\":\"1980-01-01\"}'",
+                "json asJson = original",
+                "string asString = asJson",
+                "match original == asString"
+        );
+    }
+
+    @Test
     void testToBean() {
         run(
                 "def foo = { foo: 'hello', bar: 5 }",
                 "def res1 = karate.toBean(foo, 'com.intuit.karate.core.SimplePojo')"
         );
-        SimplePojo sp = (SimplePojo) get("res1");
-        assertEquals(sp.getFoo(), "hello");
-        assertEquals(sp.getBar(), 5);
     }
 
     @Test
@@ -503,7 +510,7 @@ class ScenarioRuntimeTest {
         // fixed for windows
         match(((String) get("res")).replaceAll("[\r\n]+", "@"), "a,b@1,2@3,4@");
     }
-    
+
     @Test
     void testTrim() {
         run(
@@ -511,7 +518,7 @@ class ScenarioRuntimeTest {
                 "def foo = karate.trim(text)",
                 "match foo == 'blah'"
         );
-        matchVar("foo", "blah");     
+        matchVar("foo", "blah");
     }
 
     @Test
@@ -740,7 +747,7 @@ class ScenarioRuntimeTest {
         );
         matchVar("text", "words that need to be correct");
     }
-    
+
     @Test
     void testDistinct() {
         run(
@@ -750,7 +757,7 @@ class ScenarioRuntimeTest {
                 "def list2 = [1, 2, 1, 2, 3]",
                 "def res2 = karate.distinct(list2)",
                 "match res2 == [1, 2, 3]"
-        );        
+        );
     }
 
     @Test
@@ -788,7 +795,7 @@ class ScenarioRuntimeTest {
                 "def list = karate.range(10, 5, -1)"
         );
     }
-    
+
     @Test
     void testUrlEncodeAndDecode() {
         run(

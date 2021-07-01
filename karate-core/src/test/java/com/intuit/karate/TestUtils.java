@@ -82,7 +82,6 @@ public class TestUtils {
     public static FeatureRuntime runFeature(String path, String configDir) {
         Map<String, DriverRunner> customDrivers = new HashMap<>();
         customDrivers.put(NoopDriver.DRIVER_TYPE, NoopDriver::start);
-
         Feature feature = Feature.read(path);
         Runner.Builder rb = Runner.builder();
         rb.features(feature);

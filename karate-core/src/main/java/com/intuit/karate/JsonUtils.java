@@ -129,7 +129,7 @@ public class JsonUtils {
     }
 
     public static Object fromJson(String json) {
-        return JSONValue.parse(json);
+        return JSONValue.parseKeepingOrder(json);
     }
 
     public static Object fromJsonStrict(String json) {
