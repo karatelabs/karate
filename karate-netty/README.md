@@ -542,7 +542,7 @@ Note that you can define your custom JS re-usable functions in the `Background` 
 A map-like' object of all query-string parameters and the values will always be an array. The built-in convenience function [`paramExists()`](#paramexists) is what you would use most of the time.
 
 ## `requestParts`
-File-uploads can be handled using this. If the incoming request is a multipart, this variable will be set and it is a `Map` of `List`-s. For example if a file was in the request under the name `myFile`, you can get the details like this:
+This can be used to handle file-upload use-cases. If the incoming request is a multipart, this variable will be set and it is a `Map` of `List`-s. For example - if a file was in the request under the name `myFile`, you can get the details like this:
 
 ```cucumber
 Scenario: pathMatches('/v1/upload/excel')
@@ -563,6 +563,8 @@ This is one of the rare places in Karate where raw bytes are exposed, but it sho
 ```cucumber
 * string message = filePart.value
 ```
+
+Also refer to [this article](https://software-that-matters.com/2021/07/02/mock-a-file-server-with-karate-test-framework/) by Peter Quiel.
 
 ## `pathMatches()`
 Helper function that makes it easy to match a URI pattern as well as set [path parameters](#pathparams) up for extraction later using curly-braces. For example:
