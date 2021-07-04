@@ -38,17 +38,18 @@ import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  *
  * @author pthomas3
  */
 public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
-    
+
     public MavenJobConfig(int executorCount, String host, int port) {
         super(executorCount, host, port);
     }
-    
+
     @Override
     public List<JobCommand> getMainCommands(JobChunk<ScenarioRuntime> chunk) {
         Scenario scenario = chunk.getValue().scenario;
@@ -64,7 +65,7 @@ public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
         }
         return Collections.singletonList(new JobCommand(temp));
     }
-    
+
     @Override
     public ScenarioRuntime handleUpload(JobChunk<ScenarioRuntime> chunk, File upload) {
         ScenarioRuntime runtime = chunk.getValue();
@@ -80,7 +81,12 @@ public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
             logger.warn("executor feature result is empty");
             return runtime;
         }
-        ScenarioResult sr = fr.getScenarioResults().get(0);
+        Optional<ScenarioResult> optional = fr.getScenarioResults().stream().filter(sr -> !sr.getStepResults().isEmpty()).findFirst();
+        if (optional.isEmpty()) {
+            logger.warn("executor scenario result is empty");
+            return runtime;            
+        }
+        ScenarioResult sr = optional.get();
         sr.setExecutorName(chunk.getExecutorId());
         sr.setStartTime(chunk.getStartTime());
         sr.setEndTime(System.currentTimeMillis());
@@ -100,5 +106,5 @@ public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
         }
         return runtime;
     }
-    
+
 }

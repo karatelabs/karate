@@ -41,9 +41,9 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class FeatureRuntime implements Runnable {
-    
+
     protected static final Logger logger = LoggerFactory.getLogger(FeatureRuntime.class);
-    
+
     public final Suite suite;
     public final FeatureRuntime rootFeature;
     public final ScenarioCall caller;
@@ -51,25 +51,25 @@ public class FeatureRuntime implements Runnable {
     public final Iterator<ScenarioRuntime> scenarios;
     public final PerfHook perfHook;
     public final FeatureResult result;
-    
+
     private final ParallelProcessor<ScenarioRuntime> processor;
-    
+
     public final Map<String, ScenarioCall.Result> CALLONCE_CACHE = new HashMap();
-    
+
     private Runnable next;
-    
+
     public Resource resolveFromThis(String path) {
         return feature.getResource().resolve(path);
     }
-    
+
     public Resource resolveFromRoot(String path) {
         return rootFeature.feature.getResource().resolve(path);
     }
-    
+
     public void setNext(Runnable next) {
         this.next = next;
     }
-    
+
     public static FeatureRuntime forTempUse() {
         Suite sr = Suite.forTempUse();
         File workingDir = new File(sr.buildDir).getAbsoluteFile();
@@ -77,23 +77,23 @@ public class FeatureRuntime implements Runnable {
         Feature feature = Feature.read(resource);
         return FeatureRuntime.of(sr, feature);
     }
-    
+
     public static FeatureRuntime of(Feature feature) {
         return FeatureRuntime.of(new Suite(), feature, null);
     }
-    
+
     public static FeatureRuntime of(Suite sr, Feature feature) {
         return FeatureRuntime.of(sr, feature, null);
     }
-    
+
     public static FeatureRuntime of(Suite sr, Feature feature, Map<String, Object> arg) {
         return new FeatureRuntime(sr, feature, ScenarioCall.none(arg), null);
     }
-    
+
     public static FeatureRuntime of(Suite sr, Feature feature, Map<String, Object> arg, PerfHook perfHook) {
         return new FeatureRuntime(sr, feature, ScenarioCall.none(arg), perfHook);
     }
-    
+
     public FeatureRuntime(ScenarioCall call) {
         this(call.parentRuntime.featureRuntime.suite, call.feature, call, call.parentRuntime.featureRuntime.perfHook);
         result.setLoopIndex(call.getLoopIndex());
@@ -102,7 +102,7 @@ public class FeatureRuntime implements Runnable {
             result.setCallArg(call.arg.getValue());
         }
     }
-    
+
     private FeatureRuntime(Suite suite, Feature feature, ScenarioCall caller, PerfHook perfHook) {
         this.suite = suite;
         this.feature = feature;
@@ -116,28 +116,28 @@ public class FeatureRuntime implements Runnable {
                     suite.scenarioExecutor,
                     scenarios,
                     suite.pendingTasks) {
-                
+
                 @Override
                 public void process(ScenarioRuntime sr) {
                     processScenario(sr);
                 }
-                
+
                 @Override
                 public void onComplete() {
                     afterFeature();
                 }
-                
+
                 @Override
                 public boolean shouldRunSynchronously(ScenarioRuntime sr) {
                     return sr.tags.valuesFor("parallel").isAnyOf("false");
                 }
-                
+
             };
         } else {
             processor = null;
         }
     }
-    
+
     private boolean beforeHookDone;
     private boolean beforeHookResult = true;
 
@@ -152,7 +152,7 @@ public class FeatureRuntime implements Runnable {
         }
         return beforeHookResult;
     }
-    
+
     @Override
     public void run() {
         if (processor != null) {
@@ -166,9 +166,9 @@ public class FeatureRuntime implements Runnable {
             afterFeature();
         }
     }
-    
+
     private ScenarioRuntime lastExecutedScenario;
-    
+
     private void processScenario(ScenarioRuntime sr) {
         if (beforeHook()) {
             lastExecutedScenario = sr;
@@ -180,8 +180,11 @@ public class FeatureRuntime implements Runnable {
             } else {
                 sr.run();
             }
-            synchronized (result) {
-                result.addResult(sr.result);
+            // can be empty for distributed / job-server flows
+            if (!sr.result.getStepResults().isEmpty()) {
+                synchronized (result) {
+                    result.addResult(sr.result);
+                }
             }
         }
     }
@@ -202,10 +205,10 @@ public class FeatureRuntime implements Runnable {
             next.run();
         }
     }
-    
+
     @Override
     public String toString() {
         return feature.toString();
     }
-    
+
 }

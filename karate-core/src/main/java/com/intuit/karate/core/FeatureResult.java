@@ -98,7 +98,9 @@ public class FeatureResult {
         if (list != null) {
             for (Map<String, Object> srMap : list) {
                 ScenarioResult sr = ScenarioResult.fromKarateJson(workingDir, feature, srMap);
-                fr.addResult(sr);
+                if (!sr.getStepResults().isEmpty()) {
+                    fr.addResult(sr);
+                }                
             }
         }
         return fr;
