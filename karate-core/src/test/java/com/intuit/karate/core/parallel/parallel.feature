@@ -19,7 +19,7 @@ Scenario: one
 
 * match HelloConfigSingle.sayHello('world') == 'hello world'
 * match HelloOnce.sayHello('world') == 'hello world'
-* match sayHello('world') == 'hello world'
+# * match sayHello('world') == 'hello world'
 * match sayHelloOnce('world') == 'hello world'
 
 Scenario: two
@@ -33,7 +33,7 @@ Scenario: two
 
 * match HelloConfigSingle.sayHello('world') == 'hello world'
 * match HelloOnce.sayHello('world') == 'hello world'
-* match sayHello('world') == 'hello world'
+# * match sayHello('world') == 'hello world'
 * match sayHelloOnce('world') == 'hello world'
 
 Scenario: three
@@ -47,5 +47,5 @@ Scenario: three
 
 * match HelloConfigSingle.sayHello('world') == 'hello world'
 * match HelloOnce.sayHello('world') == 'hello world'
-* match sayHello('world') == 'hello world'
+# * match sayHello('world') == 'hello world'
 * match sayHelloOnce('world') == 'hello world'
