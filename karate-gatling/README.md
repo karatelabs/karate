@@ -115,6 +115,8 @@ For those who use [Gradle](https://gradle.org), this sample [`build.gradle`](../
 Most problems when using Karate with Gradle occur when "test-resources" are not configured properly. So make sure that all your `*.js` and `*.feature` files are copied to the "resources" folder - when you build the project.
 
 ## Limitations
+Karate introduces a different threading model for the HTTP Client, so if you have to attain a high RPS (Requests Per Second) value, you need to introduce a config-file that is normally not required for "vanilla" Gatling. We have found that by default an RPS of around 30 is suppported, but to go higher - please see [Increasing Thread Pool Size](#increasing-thread-pool-size).
+
 As of now the Gatling concept of ["throttle" and related syntax](https://gatling.io/docs/2.3/general/simulation_setup/#simulation-setup-throttling) is not supported. Most teams don't need this, but you can declare "pause" times in Karate, see [`pauseFor()`](#pausefor).
 
 ## Logging
