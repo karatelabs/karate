@@ -170,7 +170,7 @@ public class JsEngine {
         }
     }
 
-    public JsValue execute(Value function, Object... args) {
+    public static JsValue execute(Value function, Object... args) {
         for (int i = 0; i < args.length; i++) {
             args[i] = JsValue.fromJava(args[i]);
         }

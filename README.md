@@ -3602,7 +3602,7 @@ This does require you to move 'set-up' into a separate `*.feature` (or JavaScrip
 
 So when you use the combination of `callonce` in a `Background`, you can indeed get the same effect as using a [`@BeforeClass`](http://junit.sourceforge.net/javadoc/org/junit/BeforeClass.html) annotation, and you can find examples in the [karate-demo](karate-demo), such as this one: [`callonce.feature`](karate-demo/src/test/java/demo/callonce/call-once.feature).
 
-> Recommended only for experienced users - [`karate.callSingle()`](#karate-callsingle) is a way to invoke a feature or function 'globally' only once.
+A `callonce` is ideally used for only "pure" JSON. You may face issues if you attempt to mix in JS functions or Java code. See [`karate.callSingle()`](#karatecallsingle).
 
 ## `eval`
 > This is for evaluating arbitrary JavaScript and you are advised to use this only as a last resort ! Conditional logic is not recommended especially within test scripts because [tests should be deterministic](https://martinfowler.com/articles/nonDeterminism.html).
@@ -3821,6 +3821,33 @@ Scenario: create, get, update, list and delete payments
     * match shipment == { paymentId: '#(id)', status: 'shipped' }
 ```
 
+### Java Function References
+JavaScript functions have some limitations when combined with multi-threaded Java code. So it is recommended that you directly use a Java `Function` when possible instead of using the `karate.toJava()` "wrapper" as shown above.
+
+One pattern you can adopt is to create a "factory" method that returns a Java function - where you can easily delegate to the logic you want. For example, see the `sayHelloFactory()` method below:
+
+```java
+public class Hello {
+
+    public static String sayHello(String message) {
+        return "hello " + message;
+    }
+
+    public static Function<String, String> sayHelloFactory() {
+        return s -> sayHello(s);
+    }
+
+}
+```
+
+And now, to get a reference to that "function" you can do this:
+
+```cucumber
+* def sayHello = Java.type('com.myco.Hello').sayHelloFactory()
+```
+
+This can be convenient when using [shared scope](#shared-scope) because you can just call `sayHello('myname')` where needed.
+
 ## WebSocket
 Karate also has built-in support for [websocket](http://www.websocket.org) that is based on the [async](#async) capability. The following method signatures are available on the [`karate` JS object](#the-karate-object) to obtain a websocket reference:
 
@@ -3988,7 +4015,7 @@ Refer to this example:
 
 You *can* use `karate.callSingle()` directly in a `*.feature` file, but it logically fits better in the global "bootstrap". Ideally it should return "pure JSON" and note that you always get a "deep clone" of the cached result object.
 
-IMPORTANT: There are some restrictions when using `karate.callSingle()` especially within [`karate-config.js`](#karate-configjs). Ideally you should return only *pure* JSON data (or a primitive string, number etc.). Keep in mind that the reason this exists is to "cache" data, and *not* behavior. So if you return complex objects such as a custom Java instance or a JS function that depends on complex objects, this [*may* cause issues when you run in parallel](https://github.com/intuit/karate/issues/1558).
+IMPORTANT: There are some restrictions when using [`callonce`](#callonce) or `karate.callSingle()` especially within [`karate-config.js`](#karate-configjs). Ideally you should return only *pure* JSON data (or a primitive string, number etc.). Keep in mind that the reason this exists is to "cache" data, and *not* behavior. So if you return complex objects such as a custom Java instance or a JS function that depends on complex objects, this [*may* cause issues when you run in parallel](https://github.com/intuit/karate/issues/1558). If you really need to re-use a Java function, see [Java Function References](#java-function-references).
 
 #### `configure callSingleCache`
 When re-running tests in development mode and when your test suite depends on say an `Authorization` header set by [`karate.callSingle()`](#karatecallsingle), you can cache the results locally to a file, which is very convenient when your "auth token" is valid for a period of a few minutes - which typically is the case. This means that as long as the token "on file" is valid, you can save time by not having to make the one or two HTTP calls needed to "sign-in" or create "throw-away" users in your SSO store.

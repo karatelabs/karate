@@ -1297,7 +1297,7 @@ public class ScenarioEngine {
 
     private JsValue executeJsValue(Value function, Object... args) {
         try {
-            return JS.execute(function, args);
+            return JsEngine.execute(function, args);
         } catch (Exception e) {
             String jsSource = function.getSourceLocation().getCharacters().toString();
             KarateException ke = JsEngine.fromJsEvalException(jsSource, e, null);

@@ -211,6 +211,22 @@ class JsEngineTest {
     }
 
     @Test
+    void testJavaFunction() {
+        Value v = je.evalForValue("Java.type('com.intuit.karate.graal.StaticPojo').sayHello");
+        assertFalse(v.isMetaObject());
+        assertFalse(v.isHostObject());
+        assertTrue(v.canExecute());
+    }
+    
+    @Test
+    void testJavaFunctionFactory() {
+        Value v = je.evalForValue("Java.type('com.intuit.karate.graal.StaticPojo').sayHelloFactory()");
+        assertFalse(v.isMetaObject());
+        assertTrue(v.isHostObject());
+        assertTrue(v.canExecute());
+    }    
+
+    @Test
     void testEvalWithinFunction() {
         Map<String, Object> map = new HashMap();
         map.put("a", 1);
