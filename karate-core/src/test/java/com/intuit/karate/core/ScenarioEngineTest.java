@@ -28,7 +28,7 @@ public class ScenarioEngineTest {
 
     private void matchEval(Object before, Object after) {
         Variable actual = new Variable(Match.parseIfJsonOrXmlString(before));
-        Variable expected = engine.evalEmbeddedExpressions(actual);
+        Variable expected = engine.evalEmbeddedExpressions(actual, false);
         Match.Result mr = Match.evaluate(expected.getValue()).isEqualTo(Match.parseIfJsonOrXmlString(after));
         assertTrue(mr.pass, mr.message);
     }

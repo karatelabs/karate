@@ -2363,6 +2363,31 @@ A very useful behavior when you combine the optional marker with an [embedded ex
 * match json == { foo: 'hello', bar: null }
 ```
 
+If you are just trying to pre-define schema snippets to use in a [fuzzy-match](#fuzzy-matching), you can use [enclosed Javascript](#enclosed-javascript) to suppress the default behavior of replacing placeholders. For example:
+
+```cucumber
+* def dogSchema = { id: '#string', color: '#string' }
+# here we enclose in round-brackets to preserve the optional embedded expression
+# so that it can be used later in a "match"
+* def schema = ({ id: '#string', name: '#string', dog: '##(dogSchema)' })
+
+* def response1 = { id: '123', name: 'foo' }
+* match response1 == schema
+```
+
+Something similar can be done for XML by using [`text`](#text) and "casting" to XML before use in a [`match`](#match):
+
+```cucumber
+* text schema =
+"""
+<root>
+  <a>#string</a>
+  <b>##(subSchema)</b>
+</root>
+"""
+* xml schema = schema
+```
+
 ### `#null` and `#notpresent`
 Karate's [`match`](#match) is strict, and the case where a JSON key exists but has a `null` value (`#null`) is considered different from the case where the key is not present at all (`#notpresent`) in the payload.
 

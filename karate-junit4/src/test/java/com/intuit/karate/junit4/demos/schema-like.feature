@@ -3,8 +3,9 @@ Feature: json-schema like validation
 Scenario: but simpler and more powerful
 
 * def response = read('odds.json')
-
-* def oddSchema = { price: '#string', status: '#? _ < 3', ck: '##number', name: '#regex[0-9X]' }
+# here we enclose in round-brackets to preserve the optional embedded expression
+# so that it can be used later in a "match"
+* def oddSchema = ({ price: '#string', status: '#? _ < 3', ck: '##number', name: '#regex[0-9X]' })
 * def isValidTime = read('time-validator.js')
 
 Then match response ==
@@ -147,7 +148,9 @@ Scenario: complex nested arrays
 
 Scenario: re-usable json chunks as nodes, but optional
 * def dogSchema = { id: '#string', color: '#string' }
-* def schema = { id: '#string', name: '#string', dog: '##(dogSchema)' }
+# here we enclose in round-brackets to preserve the optional embedded expression
+# so that it can be used later in a "match"
+* def schema = ({ id: '#string', name: '#string', dog: '##(dogSchema)' })
 
 * def response1 = { id: '123', name: 'foo' }
 * match response1 == schema

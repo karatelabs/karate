@@ -1446,32 +1446,32 @@ public class ScenarioEngine {
 
     }
 
-    public Variable evalEmbeddedExpressions(Variable value) {
+    public Variable evalEmbeddedExpressions(Variable value, boolean forMatch) {
         switch (value.type) {
             case STRING:
             case MAP:
             case LIST:
-                EmbedAction ea = recurseEmbeddedExpressions(value);
+                EmbedAction ea = recurseEmbeddedExpressions(value, forMatch);
                 if (ea != null) {
                     return ea.remove ? Variable.NULL : new Variable(ea.value);
                 } else {
                     return value;
                 }
             case XML:
-                recurseXmlEmbeddedExpressions(value.getValue());
+                recurseXmlEmbeddedExpressions(value.getValue(), forMatch);
             default:
                 return value;
         }
     }
 
-    private EmbedAction recurseEmbeddedExpressions(Variable node) {
+    private EmbedAction recurseEmbeddedExpressions(Variable node, boolean forMatch) {
         switch (node.type) {
             case LIST:
                 List list = node.getValue();
                 Set<Integer> indexesToRemove = new HashSet();
                 int count = list.size();
                 for (int i = 0; i < count; i++) {
-                    EmbedAction ea = recurseEmbeddedExpressions(new Variable(list.get(i)));
+                    EmbedAction ea = recurseEmbeddedExpressions(new Variable(list.get(i)), forMatch);
                     if (ea != null) {
                         if (ea.remove) {
                             indexesToRemove.add(i);
@@ -1495,7 +1495,7 @@ public class ScenarioEngine {
                 Map<String, Object> map = node.getValue();
                 List<String> keysToRemove = new ArrayList();
                 map.forEach((k, v) -> {
-                    EmbedAction ea = recurseEmbeddedExpressions(new Variable(v));
+                    EmbedAction ea = recurseEmbeddedExpressions(new Variable(v), forMatch);
                     if (ea != null) {
                         if (ea.remove) {
                             keysToRemove.add(k);
@@ -1522,11 +1522,11 @@ public class ScenarioEngine {
                     if (optional) {
                         if (result.isNull()) {
                             return EmbedAction.remove();
-                        } else if (result.isObject() || result.isArray()) {
+                        }
+                        if (forMatch && (result.isObject() || result.isArray())) {
                             // preserve optional JSON chunk schema-like references as-is, they are needed for future match attempts
                             return null;
                         }
-                        // and only substitute primitives ! 
                     }
                     return EmbedAction.update(result.getValue());
                 } catch (Exception e) {
@@ -1539,7 +1539,7 @@ public class ScenarioEngine {
         }
     }
 
-    private void recurseXmlEmbeddedExpressions(Node node) {
+    private void recurseXmlEmbeddedExpressions(Node node, boolean forMatch) {
         if (node.getNodeType() == Node.DOCUMENT_NODE) {
             node = node.getFirstChild();
         }
@@ -1587,7 +1587,7 @@ public class ScenarioEngine {
                         if (optional) {
                             if (jv.isNull()) {
                                 elementsToRemove.add(child);
-                            } else if (jv.isXml() || jv.isObject()) {
+                            } else if (forMatch && (jv.isXml() || jv.isObject())) {
                                 // preserve optional XML chunk schema-like references as-is, they are needed for future match attempts
                             } else {
                                 child.setNodeValue(jv.getAsString());
@@ -1613,7 +1613,7 @@ public class ScenarioEngine {
                     }
                 }
             } else if (child.hasChildNodes() || child.hasAttributes()) {
-                recurseXmlEmbeddedExpressions(child);
+                recurseXmlEmbeddedExpressions(child, forMatch);
             }
         }
         for (Node toRemove : elementsToRemove) { // because of how the above routine works, these are always of type TEXT_NODE
@@ -1871,12 +1871,12 @@ public class ScenarioEngine {
                 actual = evalXmlPath(actual, path);
             }
         }
-        Variable expected = evalKarateExpression(rhs);
+        Variable expected = evalKarateExpression(rhs, true);
         return match(matchType, actual.getValue(), expected.getValue());
     }
 
     private Match.Result matchHeader(Match.Type matchType, String name, String exp) {
-        Variable expected = evalKarateExpression(exp);
+        Variable expected = evalKarateExpression(exp, true);
         String actual = response.getHeader(name);
         return match(matchType, actual, expected.getValue());
     }
@@ -2189,8 +2189,12 @@ public class ScenarioEngine {
     public Variable evalXmlPathOnVariableByName(String name, String path) {
         return evalXmlPath(vars.get(name), path);
     }
-
+    
     public Variable evalKarateExpression(String text) {
+        return evalKarateExpression(text, false);
+    }
+
+    public Variable evalKarateExpression(String text, boolean forMatch) {
         text = StringUtils.trimToNull(text);
         if (text == null) {
             return Variable.NULL;
@@ -2255,10 +2259,10 @@ public class ScenarioEngine {
             return sv;
         } else if (isJson(text)) {
             Json json = Json.of(text);
-            return evalEmbeddedExpressions(new Variable(json.value()));
+            return evalEmbeddedExpressions(new Variable(json.value()), forMatch);
         } else if (isXml(text)) {
             Document doc = XmlUtils.toXmlDoc(text);
-            return evalEmbeddedExpressions(new Variable(doc));
+            return evalEmbeddedExpressions(new Variable(doc), forMatch);
         } else if (isXmlPath(text)) {
             return evalXmlPathOnVariableByName(RESPONSE, text);
         } else {

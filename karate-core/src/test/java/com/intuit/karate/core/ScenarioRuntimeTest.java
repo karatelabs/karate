@@ -667,12 +667,21 @@ class ScenarioRuntimeTest {
                 "match ['foo', 'bar'] contains 'foo'"
         );
     }
+    
+    @Test
+    void testMatchEmbeddedOptionalObject() {
+        run(
+                "def foo = { a: 1 }",
+                "def bar = { foo: '##(foo)' }",
+                "match bar == { foo: { a: 1 } }"
+        );
+    }
 
     @Test
     void testMatchSchema() {
         run(
                 "def dogSchema = { id: '#string', color: '#string' }",
-                "def schema = { id: '#string', name: '#string', dog: '##(dogSchema)' }",
+                "def schema = ({ id: '#string', name: '#string', dog: '##(dogSchema)' })",
                 "def response1 = { id: '123', name: 'foo' }",
                 "match response1 == schema",
                 "def response2 = { id: '123', name: 'foo', dog: { id: '456', color: 'brown' } }",

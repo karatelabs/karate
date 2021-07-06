@@ -478,13 +478,16 @@ Scenario: xml matching involving karate-schema substitutions
 """
 <c>#string</c>
 """
-* def schema =
+* text schema =
 """
 <root>
   <a>#string</a>
   <b>##(subSchema)</b>
 </root>
 """
+# this is to avoid auto-substitution of the "##(subSchema)" part
+# since we need to "preserve" it for later use in a "match"
+* xml schema = schema
 * def test1 =
 """
 <root>
