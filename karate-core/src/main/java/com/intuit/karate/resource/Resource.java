@@ -35,6 +35,7 @@ public interface Resource {
     
     public static final String CLASSPATH_COLON = "classpath:";
     public static final String FILE_COLON = "file:";
+    public static final String ROOT_COLON = "root:";
 
     boolean isFile();
 

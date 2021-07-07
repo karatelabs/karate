@@ -24,6 +24,8 @@
 package com.intuit.karate.template;
 
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.thymeleaf.IEngineConfiguration;
 import org.thymeleaf.cache.NonCacheableCacheEntryValidity;
 import org.thymeleaf.templatemode.TemplateMode;
@@ -35,6 +37,8 @@ import org.thymeleaf.templateresolver.TemplateResolution;
  * @author pthomas3
  */
 public class StringHtmlTemplateResolver implements ITemplateResolver {
+    
+    private static final Logger logger = LoggerFactory.getLogger(StringHtmlTemplateResolver.class);
     
     public static final StringHtmlTemplateResolver INSTANCE = new StringHtmlTemplateResolver();
 
@@ -50,6 +54,9 @@ public class StringHtmlTemplateResolver implements ITemplateResolver {
 
     @Override
     public TemplateResolution resolveTemplate(IEngineConfiguration configuration, String ownerTemplate, String template, Map<String, Object> templateResolutionAttributes) {
+        if (ownerTemplate != null) {
+            return null;
+        }
         StringTemplateResource resource = new StringTemplateResource(template);
         return new TemplateResolution(resource, TemplateMode.HTML, NonCacheableCacheEntryValidity.INSTANCE);
     }

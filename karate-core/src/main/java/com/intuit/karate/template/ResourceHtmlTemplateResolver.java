@@ -55,7 +55,7 @@ public class ResourceHtmlTemplateResolver implements ITemplateResolver {
 
     @Override
     public Integer getOrder() {
-        return 0;
+        return 1;
     }
 
     @Override

@@ -48,40 +48,44 @@ import org.thymeleaf.templatemode.TemplateMode;
  * @author pthomas3
  */
 public class KarateEngineContext implements IEngineContext {
-
+    
     private static final Logger logger = LoggerFactory.getLogger(KarateEngineContext.class);
-
+    
     private static final ThreadLocal<KarateEngineContext> THREAD_LOCAL = new ThreadLocal();
-
+    
     private final IEngineContext wrapped;
     private final JsEngine jsEngine;
     private final Map<String, Object> context = new HashMap();    
-    private boolean redirect;        
-
+    private boolean redirect;    
+    
     public static KarateEngineContext initThreadLocal(IEngineContext wrapped, JsEngine engine) {
         KarateEngineContext tec = new KarateEngineContext(wrapped, engine);
         THREAD_LOCAL.set(tec);
         return tec;
     }
-
+    
     private KarateEngineContext(IEngineContext wrapped, JsEngine jsEngine) {
         this.wrapped = wrapped;
         this.jsEngine = jsEngine;
         jsEngine.put("_", context);
     }
-
+    
     public static KarateEngineContext get() {
         return THREAD_LOCAL.get();
+    }
+    
+    public static void set(KarateEngineContext kec) {
+        THREAD_LOCAL.set(kec);
     }
     
     public void setRedirect(boolean redirect) {
         this.redirect = redirect;
     }
-
+    
     public boolean isRedirect() {
         return redirect;
     }    
-
+    
     public JsValue evalGlobal(String src) {
         getVariableNames().forEach(name -> jsEngine.put(name, getVariable(name)));
         try {
@@ -90,7 +94,7 @@ public class KarateEngineContext implements IEngineContext {
             throw JsEngine.fromJsEvalException(src, e, null);
         }
     }
-
+    
     public JsValue evalLocal(String src, boolean returnValue) {
         try {
             Value value = jsEngine.evalWith(getVariableNames(), this::getVariable, src, returnValue);
@@ -99,7 +103,7 @@ public class KarateEngineContext implements IEngineContext {
             throw JsEngine.fromJsEvalException(src, e, null);
         }
     }
-
+    
     @Override
     public void increaseLevel() {
         if (!context.isEmpty()) {
@@ -108,150 +112,150 @@ public class KarateEngineContext implements IEngineContext {
         }
         wrapped.increaseLevel();
     }
-
+    
     @Override
     public void setVariable(String name, Object value) {
         wrapped.setVariable(name, value);
     }
-
+    
     @Override
     public void setVariables(Map<String, Object> variables) {
         wrapped.setVariables(variables);
     }
-
+    
     @Override
     public void removeVariable(String name) {
         wrapped.removeVariable(name);
     }
-
+    
     @Override
     public void setTemplateData(TemplateData template) {
         wrapped.setTemplateData(template);
     }
-
+    
     @Override
     public void decreaseLevel() {
         wrapped.decreaseLevel();
     }
-
+    
     @Override
     public boolean containsVariable(String name) {
         return wrapped.containsVariable(name);
     }
-
+    
     @Override
     public Set<String> getVariableNames() {
         return wrapped.getVariableNames();
     }
-
+    
     @Override
     public Object getVariable(String name) {
         return wrapped.getVariable(name);
     }
-
+    
     @Override
     public boolean isVariableLocal(String name) {
         return wrapped.isVariableLocal(name);
     }
-
+    
     @Override
     public void setSelectionTarget(Object selectionTarget) {
         wrapped.setSelectionTarget(selectionTarget);
     }
-
+    
     @Override
     public void setInliner(IInliner inliner) {
         wrapped.setInliner(inliner);
     }
-
+    
     @Override
     public void setElementTag(IProcessableElementTag elementTag) {
         wrapped.setElementTag(elementTag);
     }
-
+    
     @Override
     public List<IProcessableElementTag> getElementStackAbove(int contextLevel) {
         return wrapped.getElementStackAbove(contextLevel);
     }
-
+    
     @Override
     public int level() {
         return wrapped.level();
     }
-
+    
     @Override
     public TemplateData getTemplateData() {
         return wrapped.getTemplateData();
     }
-
+    
     @Override
     public TemplateMode getTemplateMode() {
         return wrapped.getTemplateMode();
     }
-
+    
     @Override
     public List<TemplateData> getTemplateStack() {
         return wrapped.getTemplateStack();
     }
-
+    
     @Override
     public List<IProcessableElementTag> getElementStack() {
         return wrapped.getElementStack();
     }
-
+    
     @Override
     public Map<String, Object> getTemplateResolutionAttributes() {
         return wrapped.getTemplateResolutionAttributes();
     }
-
+    
     @Override
     public IModelFactory getModelFactory() {
         return wrapped.getModelFactory();
     }
-
+    
     @Override
     public boolean hasSelectionTarget() {
         return wrapped.hasSelectionTarget();
     }
-
+    
     @Override
     public Object getSelectionTarget() {
         return wrapped.getSelectionTarget();
     }
-
+    
     @Override
     public IInliner getInliner() {
         return wrapped.getInliner();
     }
-
+    
     @Override
     public String getMessage(Class<?> origin, String key, Object[] messageParameters, boolean useAbsent) {
         return wrapped.getMessage(origin, key, messageParameters, useAbsent);
     }
-
+    
     @Override
     public String buildLink(String base, Map<String, Object> parameters) {
         return wrapped.buildLink(base, parameters);
     }
-
+    
     @Override
     public IdentifierSequences getIdentifierSequences() {
         return wrapped.getIdentifierSequences();
     }
-
+    
     @Override
     public IEngineConfiguration getConfiguration() {
         return wrapped.getConfiguration();
     }
-
+    
     @Override
     public IExpressionObjects getExpressionObjects() {
         return wrapped.getExpressionObjects();
     }
-
+    
     @Override
     public Locale getLocale() {
         return wrapped.getLocale();
     }
-
+    
 }

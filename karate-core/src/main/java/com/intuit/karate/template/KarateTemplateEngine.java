@@ -71,6 +71,10 @@ public class KarateTemplateEngine {
         }
     }
 
+    public void addTemplateResolver(ITemplateResolver templateResolver) {
+        wrapped.addTemplateResolver(templateResolver);
+    }
+
     public void setTemplateResolver(ITemplateResolver templateResolver) {
         wrapped.setTemplateResolver(templateResolver);
     }

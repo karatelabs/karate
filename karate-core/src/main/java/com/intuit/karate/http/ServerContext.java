@@ -29,7 +29,6 @@ import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.graal.Methods;
 import com.intuit.karate.template.KarateEngineContext;
-import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateUtils;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
@@ -114,7 +113,8 @@ public class ServerContext implements ProxyObject {
         };
         RENDER_FUNCTION = o -> {
             if (o instanceof String) {
-                return RequestCycle.get().getTemplateEngine().process((String) o);
+                JsEngine je = RequestCycle.get().getEngine();
+                return TemplateUtils.renderResourcePath((String) o, je, config.getResourceResolver());
             }
             Map<String, Object> map;
             if (o instanceof Map) {
@@ -126,13 +126,14 @@ public class ServerContext implements ProxyObject {
             Map<String, Object> templateVars = (Map) map.get("variables");
             String path = (String) map.get("path");
             if (path != null) {
+                JsEngine je;
                 if (templateVars == null) {
-                    return RequestCycle.get().getTemplateEngine().process(path);
+                    je = RequestCycle.get().getEngine();
+                } else {
+                    je = JsEngine.local();
+                    je.putAll(templateVars);
                 }
-                JsEngine je = JsEngine.local();
-                je.putAll(templateVars);
-                KarateTemplateEngine kte = TemplateUtils.forResourceResolver(je, config.getResourceResolver());
-                return kte.process(path);
+                return TemplateUtils.renderResourcePath(path, je, config.getResourceResolver());
             }
             String html = (String) map.get("html");
             if (html == null) {
@@ -146,8 +147,7 @@ public class ServerContext implements ProxyObject {
                 je = JsEngine.local();
                 je.putAll(templateVars);
             }
-            KarateTemplateEngine kte = TemplateUtils.forStrings(je);
-            return kte.process(html);
+            return TemplateUtils.renderHtmlString(html, je, config.getResourceResolver());
         };
     }
 
