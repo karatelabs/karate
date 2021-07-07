@@ -36,18 +36,18 @@ import org.thymeleaf.model.IProcessableElementTag;
  * @author pthomas3
  */
 public class TemplateUtils {
-    
+
     private TemplateUtils() {
         // only static methods
     }
-    
+
     private static final String HTMX_SCRIPT_TAG = "<script src=\"https://unpkg.com/htmx.org@1.4.0\"></script>";
-    
+
     public static IModel generateHeadScriptTag(ITemplateContext ctx) {
         IModelFactory modelFactory = ctx.getModelFactory();
         return modelFactory.parse(ctx.getTemplateData(), HTMX_SCRIPT_TAG);
     }
-    
+
     public static boolean hasAncestorElement(ITemplateContext ctx, String name) {
         for (IProcessableElementTag tag : ctx.getElementStack()) {
             if (tag.getElementCompleteName().equalsIgnoreCase(name)) {
@@ -56,30 +56,30 @@ public class TemplateUtils {
         }
         return false;
     }
-    
+
     public static KarateTemplateEngine forServer(ServerConfig config) {
         KarateTemplateEngine engine = new KarateTemplateEngine(null, new KarateServerDialect(config));
         engine.setTemplateResolver(new ServerHtmlTemplateResolver(config.getResourceResolver()));
         return engine;
     }
-    
+
     public static KarateTemplateEngine forStrings(JsEngine je, ResourceResolver resourceResolver) {
-        KarateTemplateEngine engine = new KarateTemplateEngine(je);        
+        KarateTemplateEngine engine = new KarateTemplateEngine(je, new KarateScriptDialect(resourceResolver));
         engine.setTemplateResolver(StringHtmlTemplateResolver.INSTANCE);
         engine.addTemplateResolver(new ResourceHtmlTemplateResolver(resourceResolver));
         return engine;
     }
-    
+
     public static KarateTemplateEngine forResourceResolver(JsEngine je, ResourceResolver resourceResolver) {
         KarateTemplateEngine engine = new KarateTemplateEngine(je, new KarateScriptDialect(resourceResolver));
         engine.setTemplateResolver(new ResourceHtmlTemplateResolver(resourceResolver));
         return engine;
     }
-    
+
     public static KarateTemplateEngine forResourceRoot(JsEngine je, String root) {
         return forResourceResolver(je, new ResourceResolver(root));
     }
-    
+
     public static String renderResourcePath(String path, JsEngine je, ResourceResolver resourceResolver) {
         KarateEngineContext old = KarateEngineContext.get();
         try {
@@ -88,8 +88,8 @@ public class TemplateUtils {
         } finally {
             KarateEngineContext.set(old);
         }
-    }   
-    
+    }
+
     public static String renderHtmlString(String html, JsEngine je, ResourceResolver resourceResolver) {
         KarateEngineContext old = KarateEngineContext.get();
         try {
@@ -99,5 +99,5 @@ public class TemplateUtils {
             KarateEngineContext.set(old);
         }
     }
-    
+
 }
