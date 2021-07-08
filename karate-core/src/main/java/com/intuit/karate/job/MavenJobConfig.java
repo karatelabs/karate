@@ -82,7 +82,7 @@ public class MavenJobConfig extends JobConfigBase<ScenarioRuntime> {
             return runtime;
         }
         Optional<ScenarioResult> optional = fr.getScenarioResults().stream().filter(sr -> !sr.getStepResults().isEmpty()).findFirst();
-        if (optional.isEmpty()) {
+        if (!optional.isPresent()) {
             logger.warn("executor scenario result is empty");
             return runtime;            
         }
