@@ -287,6 +287,11 @@ class FeatureRuntimeTest {
     @Test
     void testCsv() {
         run("csv.feature");
-    }     
+    }    
+    
+    @Test
+    void testXmlPretty() {
+        run("xml-pretty.feature");
+    }      
 
 }

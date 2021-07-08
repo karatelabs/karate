@@ -1722,6 +1722,7 @@ public class ScenarioEngine {
             } else {
                 XmlUtils.setByPath(doc, path, value.getAsString());
             }
+            setVariable(name, new Variable(doc));
         } else { // assume json-path
             if (target == null || target.isNull()) {
                 if (viaTable) { // auto create if using set via cucumber table as a convenience
@@ -2189,7 +2190,7 @@ public class ScenarioEngine {
     public Variable evalXmlPathOnVariableByName(String name, String path) {
         return evalXmlPath(vars.get(name), path);
     }
-    
+
     public Variable evalKarateExpression(String text) {
         return evalKarateExpression(text, false);
     }
