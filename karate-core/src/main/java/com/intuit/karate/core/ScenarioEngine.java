@@ -62,12 +62,15 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class ScenarioEngine {
+    
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ScenarioEngine.class);
 
     private static final String KARATE = "karate";
     private static final String READ = "read";
@@ -1413,7 +1416,7 @@ public class ScenarioEngine {
         name = StringUtils.trimToEmpty(name);
         validateVariableName(name); // always validate when gherkin
         if (vars.containsKey(name)) {
-            logger.debug("over-writing existing variable '{}' with new value: {}", name, exp);
+            LOGGER.debug("over-writing existing variable '{}' with new value: {}", name, exp);
         }
         if (assignType == AssignType.TEXT) {
             setVariable(name, exp);
