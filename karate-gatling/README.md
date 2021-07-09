@@ -300,7 +300,7 @@ Normally we recommend that `Scenario`-s should be self-contained and that you sh
 
 But for advanced load-modelling, you may want to compose `Scenario`-s along with Gatling [feeders](#feeders) and have variables "flow" from one `Scenario` into another. This way you will be able to use all of Gatling's features such as [grouping](https://gatling.io/docs/current/general/scenario/#groups-definition), [assertions](https://gatling.io/docs/current/general/assertions/) and control over each [sub-execution](https://gatling.io/docs/current/general/scenario/#exec).
 
-So the rule is that any variable created within a [`karateFeature()`](#karatefeature) "exec()" would return back to the Gatling session, and be automatically injected into any subsequent Karate feature within the same Gatling scenario.
+So the rule is that any variable created within the `exec()` of a [`karateFeature()`](#karatefeature) would return back to the Gatling session, and be automatically injected into any subsequent Karate feature within the same Gatling scenario.
 
 And if you have a need to create new variables on the "Gatling side" and inject them into Karate features, you can use `karateSet()`, explained below.
 

@@ -17,7 +17,7 @@ class CatsChainedSimulation extends Simulation {
   val feeder = Iterator.continually(Map("name" -> (Random.alphanumeric.take(20).mkString + "-name")))
 
   val feederToKarate = scenario("feederToKarate")
-    .exec(karateSet("name", s => s("name").as[String]))
+    .exec(karateSet("name", session => session("name").as[String]))
 
   val create = scenario("create").exec(karateFeature("classpath:mock/cats-chained.feature@name=create"))
 
@@ -32,7 +32,7 @@ class CatsChainedSimulation extends Simulation {
       .exec(feederToKarate)
       .exec(create)
       // for demo: injecting a new variable name expected by the 'read' feature
-      .exec(karateSet("expectedName", s => s("name").as[String]))
+      .exec(karateSet("expectedName", session => session("name").as[String]))
       .exec(read)
   }
 
