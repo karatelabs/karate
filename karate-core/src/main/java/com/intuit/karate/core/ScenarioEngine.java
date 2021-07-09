@@ -69,7 +69,7 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class ScenarioEngine {
-    
+
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ScenarioEngine.class);
 
     private static final String KARATE = "karate";
@@ -1040,13 +1040,17 @@ public class ScenarioEngine {
             // add the call arg as separate "over ride" variables
             Map<String, Object> arg = runtime.caller.arg.getValue();
             arg.forEach((k, v) -> {
-                AttachResult ar = recurseAndAttach(k, v, seen);
+                AttachResult ar;
                 try {
+                    ar = recurseAndAttach(k, v, seen);
                     vars.put(k, new Variable(ar.value));
                 } catch (Exception e) {
+                    ar = null;
                     logger.warn("[*** init call-arg ***] ignoring non-json value: '{}' - {}", k, e.getMessage());
                 }
-                JS.put(k, ar.value);
+                if (ar != null) {
+                    JS.put(k, ar.value);
+                }
             });
         }
         JS.put(KARATE, bridge);
@@ -1151,6 +1155,7 @@ public class ScenarioEngine {
                 map.forEach((k, v) -> {
                     AttachResult ar = recurseAndAttach(name + "." + k, v, seen);
                     if (ar.dirty) {
+
                         map.put(k, ar.value);
                     }
                 });

@@ -28,6 +28,7 @@ import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.ScenarioActions;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.debug.DebugThread;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.http.ResourceType;
@@ -405,7 +406,7 @@ public class ScenarioRuntime implements Runnable {
             if (currentStepResult != null) {
                 result.addStepResult(currentStepResult);
             }
-            logError("scenario [run] failed\n" + e.getMessage());
+            logError("scenario [run] failed\n" + StringUtils.throwableToString(e));
             currentStepResult = result.addFakeStepResult("scenario [run] failed", e);
         } finally {
             if (this.isDynamicBackground() && !reRun) {
