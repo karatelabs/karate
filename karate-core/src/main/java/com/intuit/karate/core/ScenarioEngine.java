@@ -1040,12 +1040,12 @@ public class ScenarioEngine {
             // add the call arg as separate "over ride" variables
             Map<String, Object> arg = runtime.caller.arg.getValue();
             arg.forEach((k, v) -> {
-                AttachResult ar;
+                AttachResult ar = null;
                 try {
+                    // in rare cases, e.g. immutable map originating from gatling, this next line will fail
                     ar = recurseAndAttach(k, v, seen);
                     vars.put(k, new Variable(ar.value));
                 } catch (Exception e) {
-                    ar = null;
                     logger.warn("[*** init call-arg ***] ignoring non-json value: '{}' - {}", k, e.getMessage());
                 }
                 if (ar != null) {
@@ -1155,7 +1155,6 @@ public class ScenarioEngine {
                 map.forEach((k, v) -> {
                     AttachResult ar = recurseAndAttach(name + "." + k, v, seen);
                     if (ar.dirty) {
-
                         map.put(k, ar.value);
                     }
                 });
