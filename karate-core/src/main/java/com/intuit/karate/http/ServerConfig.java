@@ -27,6 +27,7 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.core.Config;
 import com.intuit.karate.resource.ResourceResolver;
 import com.linecorp.armeria.common.RequestContext;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.function.Function;
@@ -73,6 +74,11 @@ public class ServerConfig {
         client.setRequestContext(context);
         return client;
     };
+
+    public ServerConfig(ResourceResolver resourceResolver) {
+        this.resourceResolver = resourceResolver;
+        jsFiles = Collections.emptySet();
+    }
 
     public ServerConfig(String root) {
         resourceResolver = new ResourceResolver(root);

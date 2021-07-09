@@ -58,20 +58,20 @@ public class TemplateUtils {
     }
 
     public static KarateTemplateEngine forServer(ServerConfig config) {
-        KarateTemplateEngine engine = new KarateTemplateEngine(null, new KarateServerDialect(config));
+        KarateTemplateEngine engine = new KarateTemplateEngine(null, null, new KarateServerDialect(config));
         engine.setTemplateResolver(new ServerHtmlTemplateResolver(config.getResourceResolver()));
         return engine;
     }
 
     public static KarateTemplateEngine forStrings(JsEngine je, ResourceResolver resourceResolver) {
-        KarateTemplateEngine engine = new KarateTemplateEngine(je, new KarateScriptDialect(resourceResolver));
+        KarateTemplateEngine engine = new KarateTemplateEngine(resourceResolver, je, new KarateScriptDialect(resourceResolver));
         engine.setTemplateResolver(StringHtmlTemplateResolver.INSTANCE);
         engine.addTemplateResolver(new ResourceHtmlTemplateResolver(resourceResolver));
         return engine;
     }
 
     public static KarateTemplateEngine forResourceResolver(JsEngine je, ResourceResolver resourceResolver) {
-        KarateTemplateEngine engine = new KarateTemplateEngine(je, new KarateScriptDialect(resourceResolver));
+        KarateTemplateEngine engine = new KarateTemplateEngine(resourceResolver, je, new KarateScriptDialect(resourceResolver));
         engine.setTemplateResolver(new ResourceHtmlTemplateResolver(resourceResolver));
         return engine;
     }

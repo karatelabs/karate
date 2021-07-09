@@ -62,6 +62,7 @@ public class ServerContext implements ProxyObject {
     private static final String READ_AS_STRING = "readAsString";
     private static final String EVAL = "eval";
     private static final String EVAL_WITH = "evalWith";
+    private static final String GET = "get";
     private static final String UUID = "uuid";
     private static final String REMOVE = "remove";
     private static final String SWITCH = "switch";
@@ -77,7 +78,7 @@ public class ServerContext implements ProxyObject {
     private static final String FROM_JSON = "fromJson";
 
     private static final String[] KEYS = new String[]{
-        READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
+        READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
         RENDER, TRIGGER, REDIRECT, AFTER_SETTLE, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
@@ -312,6 +313,22 @@ public class ServerContext implements ProxyObject {
         afterSettleScripts.add(js);
     }
 
+    private final Methods.FunVar GET_FUNCTION = args -> {
+        if (args.length == 0 || args[0] == null) {
+            return null;
+        }
+        String name = args[0].toString();
+        KarateEngineContext kec = KarateEngineContext.get();
+        if (args.length == 1) {
+            return kec.getVariable(name);
+        }
+        if (kec.containsVariable(name)) {
+            return kec.getVariable(name);
+        } else {
+            return args[1];
+        }
+    };
+    
     private static final Supplier<String> UUID_FUNCTION = () -> java.util.UUID.randomUUID().toString();
     private static final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s, false, null);
 
@@ -363,6 +380,8 @@ public class ServerContext implements ProxyObject {
                 return (Function<String, Object>) this::eval;
             case EVAL_WITH:
                 return (BiFunction<Object, String, Object>) this::evalWith;
+            case GET:
+                return GET_FUNCTION;
             case UUID:
                 return UUID_FUNCTION;
             case TO_JSON:
