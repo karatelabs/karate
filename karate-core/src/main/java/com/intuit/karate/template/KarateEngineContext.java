@@ -104,6 +104,10 @@ public class KarateEngineContext implements IEngineContext {
         }
     }
     
+    public void setLocal(String name, Object value) {
+        context.put(name, value);
+    }
+    
     @Override
     public void increaseLevel() {
         if (!context.isEmpty()) {

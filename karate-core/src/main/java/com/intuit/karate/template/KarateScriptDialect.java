@@ -23,11 +23,9 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.resource.ResourceResolver;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.function.Supplier;
 import org.thymeleaf.dialect.AbstractProcessorDialect;
 import org.thymeleaf.processor.IProcessor;
 
@@ -49,6 +47,7 @@ public class KarateScriptDialect extends AbstractProcessorDialect {
         Set<IProcessor> ps = new HashSet();
         ps.add(new KaScriptAttrProcessor(dialectPrefix, resourceResolver));
         ps.add(new KaScriptElemProcessor(dialectPrefix));
+        ps.add(new KaSetElemProcessor(dialectPrefix));
         return ps;
     }
 
