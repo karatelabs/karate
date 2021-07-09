@@ -47,6 +47,7 @@ public class KarateServerDialect extends AbstractProcessorDialect {
         Set<IProcessor> ps = new HashSet();
         ps.add(new KaScriptAttrProcessor(dialectPrefix, config.getResourceResolver()));
         ps.add(new KaScriptElemProcessor(dialectPrefix));
+        ps.add(new KaSetElemProcessor(dialectPrefix));
         ps.add(new KaLinkHrefProcessor(dialectPrefix, config));
         ps.add(new KaHxAnyAttrProcessor(dialectPrefix, "target"));
         ps.add(new KaHxAnyAttrProcessor(dialectPrefix, "swap"));

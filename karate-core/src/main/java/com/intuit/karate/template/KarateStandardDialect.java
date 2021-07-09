@@ -23,10 +23,8 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.graal.JsEngine;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.context.IExpressionContext;
@@ -39,6 +37,7 @@ import org.thymeleaf.standard.expression.IStandardVariableExpressionEvaluator;
 import org.thymeleaf.standard.expression.StandardExpressionExecutionContext;
 import org.thymeleaf.standard.expression.StandardExpressionParser;
 import org.thymeleaf.standard.processor.StandardEachTagProcessor;
+import org.thymeleaf.standard.processor.StandardWithTagProcessor;
 
 /**
  *
@@ -66,7 +65,10 @@ public class KarateStandardDialect extends StandardDialect implements IStandardV
         Set<IProcessor> patched = new HashSet(processors.size());
         for (IProcessor p : processors) {
             if (p instanceof StandardEachTagProcessor) {
-                p = new KarateEachTagProcessor(dialectPrefix);
+                p = new KarateEachTagProcessor(p.getTemplateMode(), dialectPrefix);
+            }
+            if (p instanceof StandardWithTagProcessor) {
+                p = new KarateWithTagProcessor(p.getTemplateMode(), dialectPrefix);
             }
             patched.add(p);
         }

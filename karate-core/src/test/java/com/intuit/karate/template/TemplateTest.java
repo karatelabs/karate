@@ -45,5 +45,14 @@ class TemplateTest {
                 + "second line"
                 + "</div>");
     }
+    
+    @Test
+    void testWith() {
+        JsEngine je = JsEngine.local();
+        KarateTemplateEngine engine = TemplateUtils.forResourceRoot(je, "classpath:com/intuit/karate/template");
+        String rendered = engine.process("with.html");
+        assertTrue(rendered.contains("<div>bar</div>"));
+        assertTrue(rendered.contains("<div>hello world</div>"));
+    }    
 
 }

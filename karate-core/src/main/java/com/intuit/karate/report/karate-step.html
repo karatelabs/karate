@@ -58,7 +58,7 @@
     </div>
     <div th:each="scenario: cr.scenarioResults">
       <div th:each="sr: scenario.stepResults" 
-           th:with="callDepth=${cr.callDepth},parentId=${callerId},isBackground=${isBackground}"
+           th:with="callDepth: cr.callDepth, parentId: callerId, isBackground: isBackground"
            th:include="karate-step.html">
       </div>
     </div>    
