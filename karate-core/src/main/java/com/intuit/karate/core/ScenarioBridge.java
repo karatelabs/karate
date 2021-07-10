@@ -356,7 +356,6 @@ public class ScenarioBridge implements PerfContext {
         for (int i = 0; i < count; i++) {
             Value v = o.getArrayElement(i);
             Value res = f.execute(v, i);
-            // TODO breaking we used to support truthy values
             if (res.isBoolean() && res.asBoolean()) {
                 list.add(new JsValue(v).getValue());
             }

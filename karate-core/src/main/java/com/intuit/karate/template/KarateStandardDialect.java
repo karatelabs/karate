@@ -36,6 +36,9 @@ import org.thymeleaf.standard.expression.IStandardVariableExpression;
 import org.thymeleaf.standard.expression.IStandardVariableExpressionEvaluator;
 import org.thymeleaf.standard.expression.StandardExpressionExecutionContext;
 import org.thymeleaf.standard.expression.StandardExpressionParser;
+import org.thymeleaf.standard.processor.StandardAttrTagProcessor;
+import org.thymeleaf.standard.processor.StandardAttrappendTagProcessor;
+import org.thymeleaf.standard.processor.StandardAttrprependTagProcessor;
 import org.thymeleaf.standard.processor.StandardEachTagProcessor;
 import org.thymeleaf.standard.processor.StandardWithTagProcessor;
 
@@ -70,6 +73,15 @@ public class KarateStandardDialect extends StandardDialect implements IStandardV
             if (p instanceof StandardWithTagProcessor) {
                 p = new KarateWithTagProcessor(p.getTemplateMode(), dialectPrefix);
             }
+            if (p instanceof StandardAttrTagProcessor) {
+                p = new KarateAttributeTagProcessor.KarateAttrTagProcessor(p.getTemplateMode(), dialectPrefix);
+            }
+            if (p instanceof StandardAttrappendTagProcessor) {
+                p = new KarateAttributeTagProcessor.KarateAttrappendTagProcessor(p.getTemplateMode(), dialectPrefix);
+            }
+            if (p instanceof StandardAttrprependTagProcessor) {
+                p = new KarateAttributeTagProcessor.KarateAttrprependTagProcessor(p.getTemplateMode(), dialectPrefix);
+            }            
             patched.add(p);
         }
         return patched;

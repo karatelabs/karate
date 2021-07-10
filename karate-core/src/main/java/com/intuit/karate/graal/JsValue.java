@@ -295,5 +295,18 @@ public class JsValue {
             return raw;
         }
     }
-
+    
+    public static boolean isTruthy(Object o) {
+        if (o == null) {
+            return false;
+        }
+        if (o instanceof Boolean) {
+            return ((Boolean) o);
+        }
+        if (o instanceof Number) {
+            return ((Number) o).doubleValue() != 0.0;
+        }
+        return true;
+    }
+ 
 }

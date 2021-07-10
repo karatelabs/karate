@@ -7,7 +7,7 @@
     _.stepStatus = sr.result.status;    
   </script>
 
-  <div th:each="comment: sr.step.comments" class="step-row" th:attrappend="data-parent=${parentId}">
+  <div th:each="comment: sr.step.comments" class="step-row" th:attr="'data-parent': parentId">
     <div class="step-container">
       <div class="step-ref passed"></div>
       <div th:each="indent: repeat(callDepth)" class="step-indent"></div>
@@ -16,7 +16,7 @@
     <div class="time-cell comment"></div>            
   </div>
 
-  <div class="step-row" th:attrappend="data-parent=${parentId}">
+  <div class="step-row" th:attr="'data-parent': parentId">
     <div class="step-container" th:id="stepId">
       <div class="step-ref" th:classappend="isBackground ? 'bg-step' : stepStatus" th:text="sr.step.line"></div>
       <div th:each="indent: repeat(callDepth)" class="step-indent"></div>
@@ -33,11 +33,11 @@
     </tr>     
   </table> 
   
-  <div class="preformatted" th:attr="data-parent=${stepId}" th:if="sr.step.docString" th:text="sr.step.docString"></div>
+  <div class="preformatted" th:attr="'data-parent': stepId" th:if="sr.step.docString" th:text="sr.step.docString"></div>
 
-  <div th:each="embed: sr.embeds" class="embed" th:attr="data-parent=${stepId}" th:utext="embed.html"></div>
+  <div th:each="embed: sr.embeds" class="embed" th:attr="'data-parent': stepId" th:utext="embed.html"></div>
 
-  <div class="preformatted" th:attr="data-parent=${stepId}" th:if="sr.stepLog" th:text="sr.stepLog"></div>   
+  <div class="preformatted" th:attr="'data-parent': stepId" th:if="sr.stepLog" th:text="sr.stepLog"></div>   
 
   <div th:each="cr: sr.callResults">
     <script ka:scope="local">
@@ -48,7 +48,7 @@
       }
       _.callerId = stepId + '.' + (cr.loopIndex + 1) + '.call';
     </script>    
-    <div class="step-row" th:attrappend="data-parent=${parentId}">
+    <div class="step-row" th:attr="'data-parent': parentId">
       <div class="step-container" th:id="callerId">
         <div class="step-ref" th:classappend="isBackground ? 'bg-step' : callStatus">&gt;&gt;</div>
         <div th:each="indent: repeat(cr.callDepth)" class="step-indent"></div>

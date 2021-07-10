@@ -64,7 +64,7 @@
             <div class="time-cell passed"></div>
           </div>
           <div th:each="sr: scenario.stepResults"               
-               th:attrappend="data-parent=${sr.step.background ? scenario.refId + 'bg' : null}"
+               th:attr="'data-parent': sr.step.background ? scenario.refId + 'bg' : null"
                th:with="callDepth: 0, parentId: null, isBackground: sr.step.background"
                th:include="karate-step.html">
           </div>
