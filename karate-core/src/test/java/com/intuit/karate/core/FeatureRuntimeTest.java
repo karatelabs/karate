@@ -292,6 +292,11 @@ class FeatureRuntimeTest {
     @Test
     void testXmlPretty() {
         run("xml-pretty.feature");
-    }      
+    }
+    
+    @Test
+    void testMatchStep() {
+        run("match-step.feature");
+    }     
 
 }

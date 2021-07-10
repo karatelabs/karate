@@ -310,6 +310,8 @@ public class ScenarioActions implements Actions {
         }
         if (rhs == null) {
             rhs = "";
+        } else {
+            rhs = " " + rhs;
         }
         MatchStep m = new MatchStep(exp + op1 + op2 + rhs);
         engine.matchResult(m.type, m.name, m.path, m.expected);
