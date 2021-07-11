@@ -10,6 +10,7 @@ Also see [The World's Smallest Microservice](https://www.linkedin.com/pulse/worl
 * `mvn clean test`
 
 ## Main Artifacts
+You can click on the links to view the source-code.
 | File | Description | Comment |
 | ---- | ----------- | ------- |
 | [PaymentService.java](payment-producer/src/main/java/payment/producer/PaymentService.java) | Producer | A very simple [Spring Boot](https://spring.io/projects/spring-boot) app / REST service |
