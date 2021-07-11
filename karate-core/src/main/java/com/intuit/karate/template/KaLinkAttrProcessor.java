@@ -24,6 +24,9 @@
 package com.intuit.karate.template;
 
 import com.intuit.karate.http.ServerConfig;
+import com.intuit.karate.resource.Resource;
+import com.intuit.karate.resource.ResourceResolver;
+import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.context.ITemplateContext;
@@ -37,21 +40,33 @@ import org.thymeleaf.templatemode.TemplateMode;
  *
  * @author pthomas3
  */
-public class KaLinkHrefProcessor extends AbstractAttributeTagProcessor {
+public class KaLinkAttrProcessor extends AbstractAttributeTagProcessor {
 
-    private static final Logger logger = LoggerFactory.getLogger(KaLinkHrefProcessor.class);
+    private static final Logger logger = LoggerFactory.getLogger(KaLinkAttrProcessor.class);
+    
+    private static final String HREF = "href";
 
+    private final ResourceResolver resourceResolver;
     private final String hostContextPath;
 
-    public KaLinkHrefProcessor(String dialectPrefix, ServerConfig config) {
-        super(TemplateMode.HTML, dialectPrefix, "link", false, "href", false, 1000, false);
+    public KaLinkAttrProcessor(String dialectPrefix, ServerConfig config) {
+        super(TemplateMode.HTML, dialectPrefix, "link", false, HREF, false, 1000, false);
         hostContextPath = config.getHostContextPath();
+        resourceResolver = config.getResourceResolver();
     }
 
     @Override
     protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag, AttributeName an, String av, IElementTagStructureHandler sh) {
         String href = hostContextPath == null ? av : hostContextPath + av;
-        sh.setAttribute("href", href);
+        String param = tag.getAttributeValue(getDialectPrefix(), KaScriptElemProcessor.PARAM);
+        if (param != null) {
+            Resource resource = resourceResolver.resolve(href);
+            if (resource.isFile()) {
+                File file = resource.getFile();
+                href = href + "?ts=" + file.lastModified();
+            }
+        }
+        sh.setAttribute(HREF, href);
     }
 
 }

@@ -64,14 +64,16 @@ public class TemplateUtils {
     }
 
     public static KarateTemplateEngine forStrings(JsEngine je, ResourceResolver resourceResolver) {
-        KarateTemplateEngine engine = new KarateTemplateEngine(resourceResolver, je, new KarateScriptDialect(resourceResolver));
+        ServerConfig config = new ServerConfig(resourceResolver);
+        KarateTemplateEngine engine = new KarateTemplateEngine(config, je, new KarateScriptDialect(config));
         engine.setTemplateResolver(StringHtmlTemplateResolver.INSTANCE);
         engine.addTemplateResolver(new ResourceHtmlTemplateResolver(resourceResolver));
         return engine;
     }
 
     public static KarateTemplateEngine forResourceResolver(JsEngine je, ResourceResolver resourceResolver) {
-        KarateTemplateEngine engine = new KarateTemplateEngine(resourceResolver, je, new KarateScriptDialect(resourceResolver));
+        ServerConfig config = new ServerConfig(resourceResolver);
+        KarateTemplateEngine engine = new KarateTemplateEngine(config, je, new KarateScriptDialect(config));
         engine.setTemplateResolver(new ResourceHtmlTemplateResolver(resourceResolver));
         return engine;
     }

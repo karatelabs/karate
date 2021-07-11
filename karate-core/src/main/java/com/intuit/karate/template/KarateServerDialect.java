@@ -45,10 +45,10 @@ public class KarateServerDialect extends AbstractProcessorDialect {
     @Override
     public Set<IProcessor> getProcessors(String dialectPrefix) {
         Set<IProcessor> ps = new HashSet();
-        ps.add(new KaScriptAttrProcessor(dialectPrefix, config.getResourceResolver()));
+        ps.add(new KaScriptAttrProcessor(dialectPrefix, config));
         ps.add(new KaScriptElemProcessor(dialectPrefix));
         ps.add(new KaSetElemProcessor(dialectPrefix));
-        ps.add(new KaLinkHrefProcessor(dialectPrefix, config));
+        ps.add(new KaLinkAttrProcessor(dialectPrefix, config));
         ps.add(new KaHxAnyAttrProcessor(dialectPrefix, "target"));
         ps.add(new KaHxAnyAttrProcessor(dialectPrefix, "swap"));
         ps.add(new KaHxAnyAttrProcessor(dialectPrefix, "trigger"));

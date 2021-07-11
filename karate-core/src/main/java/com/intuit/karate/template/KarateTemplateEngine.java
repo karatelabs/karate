@@ -28,7 +28,6 @@ import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.http.RequestCycle;
 import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.http.ServerContext;
-import com.intuit.karate.resource.ResourceResolver;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Map;
@@ -60,17 +59,16 @@ public class KarateTemplateEngine {
     private final StandardEngineContextFactory standardFactory;
     private final TemplateEngine wrapped;
 
-    public KarateTemplateEngine(ResourceResolver resourceResolver, JsEngine je, IDialect... dialects) {
+    public KarateTemplateEngine(ServerConfig config, JsEngine je, IDialect... dialects) {
         standardFactory = new StandardEngineContextFactory();
         wrapped = new TemplateEngine();
         wrapped.setEngineContextFactory((IEngineConfiguration ec, TemplateData data, Map<String, Object> attrs, IContext context) -> {
             IEngineContext engineContext = standardFactory.createEngineContext(ec, data, attrs, context);
             if (je == null) {
                 return KarateEngineContext.initThreadLocal(engineContext, RequestCycle.get().getEngine());
-            } else {
-                ServerConfig config = new ServerConfig(resourceResolver);
+            } else {                
                 ServerContext sc = new ServerContext(config, null);
-                je.put("context", sc); // TODO improve
+                je.put(RequestCycle.CONTEXT, sc); // TODO improve
                 return KarateEngineContext.initThreadLocal(engineContext, je);
             }
 

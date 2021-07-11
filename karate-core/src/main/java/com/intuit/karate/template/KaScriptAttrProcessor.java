@@ -24,7 +24,10 @@
 package com.intuit.karate.template;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.http.ServerConfig;
+import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceResolver;
+import java.io.File;
 import java.io.InputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,22 +46,41 @@ public class KaScriptAttrProcessor extends AbstractAttributeTagProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(KaScriptAttrProcessor.class);
 
+    private static final String SRC = "src";
+    
+    private final String hostContextPath;
     private final ResourceResolver resourceResolver;
 
-    public KaScriptAttrProcessor(String dialectPrefix, ResourceResolver resourceResolver) {
-        super(TemplateMode.HTML, dialectPrefix, null, false, "src", true, 1000, true);
-        this.resourceResolver = resourceResolver;
+    public KaScriptAttrProcessor(String dialectPrefix, ServerConfig config) {
+        super(TemplateMode.HTML, dialectPrefix, null, false, SRC, false, 1000, false);
+        resourceResolver = config.getResourceResolver();
+        hostContextPath = config.getHostContextPath();
     }
 
     @Override
-    protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag, AttributeName an, String av, IElementTagStructureHandler sh) {
-        InputStream is = resourceResolver.resolve(av).getStream();
-        String src = FileUtils.toString(is);
+    protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag, AttributeName an, String src, IElementTagStructureHandler sh) {
         String scope = tag.getAttributeValue(getDialectPrefix(), KaScriptElemProcessor.SCOPE);
-        if ("local".equals(scope)) {
-            KarateEngineContext.get().evalLocal(src, false);
+        if (scope == null) {
+            if (hostContextPath != null) {
+                src = hostContextPath + src;
+            }
+            String param = tag.getAttributeValue(getDialectPrefix(), KaScriptElemProcessor.PARAM);
+            if (param != null) {
+                Resource resource = resourceResolver.resolve(src);
+                if (resource.isFile()) {
+                    File file = resource.getFile();
+                    src = src + "?ts=" + file.lastModified();
+                }
+            }
+            sh.setAttribute(SRC, src);
+            return;
+        }
+        InputStream is = resourceResolver.resolve(src).getStream();
+        String js = FileUtils.toString(is);
+        if (KaScriptElemProcessor.LOCAL.equals(scope)) {
+            KarateEngineContext.get().evalLocal(js, false);
         } else {
-            KarateEngineContext.get().evalGlobal(src);
+            KarateEngineContext.get().evalGlobal(js);
         }
         sh.removeElement();
     }

@@ -44,6 +44,9 @@ public class KaScriptElemProcessor extends AbstractElementModelProcessor {
     private static final Logger logger = LoggerFactory.getLogger(KaScriptElemProcessor.class);
     
     protected static final String SCOPE = "scope";
+    protected static final String LOCAL = "local";
+    protected static final String HEAD = "head";
+    protected static final String PARAM = "param";
 
     public KaScriptElemProcessor(String dialectPrefix) {
         super(TemplateMode.HTML, dialectPrefix, "script", false, SCOPE, true, 1000);
@@ -55,14 +58,14 @@ public class KaScriptElemProcessor extends AbstractElementModelProcessor {
         IProcessableElementTag tag = ctx.getElementStack().get(depth - 1);
         String scope = tag.getAttributeValue(getDialectPrefix(), SCOPE);
         int n = model.size();
-        boolean isHead = TemplateUtils.hasAncestorElement(ctx, "head");
+        boolean isHead = TemplateUtils.hasAncestorElement(ctx, HEAD);
         IModel headModel = null;
         while (n-- != 0) {
             final ITemplateEvent event = model.get(n);
             if (event instanceof IText) {
                 String text = StringUtils.trimToNull(((IText) event).getText());
                 if (text != null) {
-                    if ("local".equals(scope)) {
+                    if (LOCAL.equals(scope)) {
                         KarateEngineContext.get().evalLocal(text, false);
                     } else {
                         KarateEngineContext.get().evalGlobal(text);

@@ -41,12 +41,10 @@ public class RequestCycle {
 
     private static final Logger logger = LoggerFactory.getLogger(RequestCycle.class);
 
+    public static final String CONTEXT = "context";
     private static final String REQUEST = "request";
     private static final String SESSION = "session";
     private static final String RESPONSE = "response";
-    private static final String CONTEXT = "context";
-
-    public static final Set<String> GLOBALS = new HashSet(Arrays.asList(REQUEST, SESSION, RESPONSE, CONTEXT));
 
     private static final ThreadLocal<RequestCycle> THREAD_LOCAL = new ThreadLocal();
 
