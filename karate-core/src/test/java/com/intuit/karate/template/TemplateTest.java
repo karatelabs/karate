@@ -68,7 +68,7 @@ class TemplateTest {
     void testStatic() {
         File file = ResourceUtils.getFileRelativeTo(getClass(), "temp.js");
         String rendered = render("static.html");
-        assertTrue(rendered.contains("<script src=\"temp.js?ts=" + file.lastModified() + "\" ka:param=\"true\"></script>"));
+        assertTrue(rendered.contains("<script src=\"temp.js?ts=" + file.lastModified() + "\"></script>"));
     }
 
 }

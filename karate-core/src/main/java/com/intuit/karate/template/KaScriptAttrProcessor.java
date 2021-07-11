@@ -47,7 +47,7 @@ public class KaScriptAttrProcessor extends AbstractAttributeTagProcessor {
     private static final Logger logger = LoggerFactory.getLogger(KaScriptAttrProcessor.class);
 
     private static final String SRC = "src";
-    
+
     private final String hostContextPath;
     private final ResourceResolver resourceResolver;
 
@@ -64,13 +64,14 @@ public class KaScriptAttrProcessor extends AbstractAttributeTagProcessor {
             if (hostContextPath != null) {
                 src = hostContextPath + src;
             }
-            String param = tag.getAttributeValue(getDialectPrefix(), KaScriptElemProcessor.PARAM);
-            if (param != null) {
+            String kaStatic = tag.getAttributeValue(getDialectPrefix(), KaScriptElemProcessor.STATIC);
+            if (kaStatic != null) {
                 Resource resource = resourceResolver.resolve(src);
                 if (resource.isFile()) {
                     File file = resource.getFile();
                     src = src + "?ts=" + file.lastModified();
                 }
+                sh.removeAttribute(getDialectPrefix(), KaScriptElemProcessor.STATIC);
             }
             sh.setAttribute(SRC, src);
             return;
