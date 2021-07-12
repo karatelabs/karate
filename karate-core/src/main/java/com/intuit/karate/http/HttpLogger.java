@@ -23,10 +23,11 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
-import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.core.Config;
 import com.intuit.karate.core.Variable;
+import com.intuit.karate.graal.JsValue;
 import java.util.List;
 import java.util.Map;
 
@@ -49,7 +50,7 @@ public class HttpLogger {
             return;
         }
         sb.append('\n');
-        headers.forEach((k, v) -> {            
+        headers.forEach((k, v) -> {
             for (String value : v) {
                 sb.append(num).append(prefix).append(k).append(": ");
                 if (modifier == null) {
@@ -59,20 +60,21 @@ public class HttpLogger {
                 }
                 sb.append('\n');
             }
-        });        
+        });
     }
 
     private static void logBody(Config config, HttpLogModifier logModifier,
-            StringBuilder sb, String uri, Object body, boolean request) {
+            StringBuilder sb, String uri, byte[] body, boolean request) {
         if (body == null) {
             return;
         }
-        Variable v = new Variable(body);
         String text;
         if (config != null && needsPrettyLogging(config, request)) {
+            Object converted = JsValue.fromBytes(body, false, null);
+            Variable v = new Variable(converted);
             text = v.getAsPrettyString();
         } else {
-            text = v.getAsString();
+            text = FileUtils.toString(body);
         }
         if (logModifier != null) {
             text = request ? logModifier.request(uri, text) : logModifier.response(uri, text);
@@ -124,15 +126,8 @@ public class HttpLogger {
         if (rt == null || rt.isBinary()) {
             // don't log body
         } else {
-            Object converted = rt == ResourceType.URLENCODED ? null : request.getBodyForDisplay();
-            if (converted == null) {
-                try {
-                    converted = JsValue.fromBytes(request.getBody(), true, rt);
-                } catch (Throwable t) {
-                    converted = request.getBodyAsString();
-                }
-            }
-            logBody(config, requestModifier, sb, uri, converted, true);
+            byte[] body = rt == ResourceType.MULTIPART ? request.getBodyForDisplay().getBytes() : request.getBody();
+            logBody(config, requestModifier, sb, uri, body, true);
         }
         sb.append('\n');
         logger.debug("{}", sb);
@@ -151,13 +146,7 @@ public class HttpLogger {
         if (rt == null || rt.isBinary()) {
             // don't log body
         } else {
-            Object converted;
-            try {
-                converted = JsValue.fromBytes(response.getBody(), true, rt);
-            } catch (Throwable t) {
-                converted = response.getBodyAsString();
-            }
-            logBody(config, responseModifier, sb, uri, converted, false);
+            logBody(config, responseModifier, sb, uri, response.getBody(), false);
         }
         logger.debug("{}", sb);
     }
