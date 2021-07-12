@@ -7,6 +7,8 @@ Background:
 
 @two
 Scenario: hello world
+# Some comments
+# Some more comments
 * print 'before'
 * call read('feature-result-called.feature')
 * print 'after'
