@@ -49,12 +49,16 @@
                         ]
                     },
                     "keyword": "*",
-                    "line": 10,
+                    "line": 12,
                     "doc_string": {
                         "content_type": "",
                         "value": "#string",
-                        "line": 10
-                    }
+                        "line": 12
+                    },
+                    "comments": [
+                        "# Some comments",
+                        "# Some more comments"
+                    ]
                 },
                 {
                     "name": "call read('feature-result-called.feature')",
@@ -68,7 +72,7 @@
                         ]
                     },
                     "keyword": "*",
-                    "line": 11
+                    "line": 13
                 },
                 {
                     "name": "com\/intuit\/karate\/core\/feature-result-called.feature",
@@ -82,7 +86,7 @@
                         ]
                     },
                     "keyword": "",
-                    "line": 11
+                    "line": 13
                 },
                 {
                     "name": "print 'in called'",
@@ -154,11 +158,11 @@
                         ]
                     },
                     "keyword": "*",
-                    "line": 12,
+                    "line": 14,
                     "doc_string": {
                         "content_type": "",
                         "value": "#string",
-                        "line": 12
+                        "line": 14
                     }
                 }
             ],
@@ -202,7 +206,7 @@
             ]
         },
         {
-            "line": 19,
+            "line": 21,
             "name": "hello foo",
             "description": "",
             "id": "hello-foo",
@@ -221,11 +225,11 @@
                         ]
                     },
                     "keyword": "*",
-                    "line": 15,
+                    "line": 17,
                     "doc_string": {
                         "content_type": "",
                         "value": "#string",
-                        "line": 15
+                        "line": 17
                     }
                 }
             ],
@@ -265,7 +269,7 @@
             ]
         },
         {
-            "line": 20,
+            "line": 22,
             "name": "hello bar",
             "description": "",
             "id": "hello-bar",
@@ -284,11 +288,11 @@
                         ]
                     },
                     "keyword": "*",
-                    "line": 15,
+                    "line": 17,
                     "doc_string": {
                         "content_type": "",
                         "value": "#string",
-                        "line": 15
+                        "line": 17
                     }
                 }
             ],

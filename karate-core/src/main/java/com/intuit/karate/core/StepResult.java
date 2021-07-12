@@ -187,6 +187,9 @@ public class StepResult {
             }
             map.put("embeddings", embedList);
         }
+        if (step.getComments() != null && !step.getComments().isEmpty()) {
+            map.put("comments", step.getComments());
+        }
         return map;
     }
 
