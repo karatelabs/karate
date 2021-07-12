@@ -24,7 +24,11 @@
                         "status": "passed"
                     },
                     "step": {
-                        "line": 10,
+                        "comments": [
+                            "# Some comments",
+                            "# Some more comments"
+                        ],
+                        "line": 12,
                         "prefix": "*",
                         "index": 0,
                         "text": "print 'before'"
@@ -38,7 +42,7 @@
                         "status": "passed"
                     },
                     "step": {
-                        "line": 11,
+                        "line": 13,
                         "prefix": "*",
                         "index": 1,
                         "text": "call read('feature-result-called.feature')"
@@ -131,7 +135,7 @@
                         "status": "passed"
                     },
                     "step": {
-                        "line": 12,
+                        "line": 14,
                         "prefix": "*",
                         "index": 2,
                         "text": "print 'after'"
@@ -153,7 +157,7 @@
             "tags": [
                 "one",
                 "two"
-            ]            
+            ]
         },
         {
             "stepResults": [
@@ -179,7 +183,7 @@
                         "status": "passed"
                     },
                     "step": {
-                        "line": 15,
+                        "line": 17,
                         "prefix": "*",
                         "index": 0,
                         "text": "print 'name:', name"
@@ -190,12 +194,12 @@
             "executorName": "main",
             "name": "hello foo",
             "description": "",
-            "line": 19,
+            "line": 21,
             "sectionIndex": 1,
             "startTime": "#number",
             "endTime": "#number",
             "exampleIndex": 0,
-            "refId": "[2.1:19]",
+            "refId": "[2.1:21]",
             "durationMillis": "#number",
             "failed": false,
             "tags": [
@@ -229,7 +233,7 @@
                         "status": "passed"
                     },
                     "step": {
-                        "line": 15,
+                        "line": 17,
                         "prefix": "*",
                         "index": 0,
                         "text": "print 'name:', name"
@@ -240,12 +244,12 @@
             "executorName": "#string",
             "name": "hello bar",
             "description": "",
-            "line": 20,
+            "line": 22,
             "sectionIndex": 1,
             "startTime": "#number",
             "endTime": "#number",
             "exampleIndex": 1,
-            "refId": "[2.2:20]",
+            "refId": "[2.2:22]",
             "durationMillis": "#number",
             "failed": false,
             "tags": [
@@ -253,7 +257,7 @@
             ],
             "exampleData": {
                 "name": "bar"
-            }            
+            }
         }
     ],
     "prefixedPath": "classpath:com\/intuit\/karate\/core\/feature-result.feature",
