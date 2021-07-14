@@ -73,7 +73,7 @@ class KarateHttpMockHandlerTest {
         );
         matchVar("response", "hello world");
     }
-    
+
     @Test
     void testUrlWithTrailingSlashAndPath() {
         background().scenario(
@@ -87,7 +87,7 @@ class KarateHttpMockHandlerTest {
                 "match response == 'hello/world'"
         );
         matchVar("response", "hello/world");
-    }     
+    }
 
     @Test
     void testRequestBodyAsInteger() {
@@ -147,6 +147,22 @@ class KarateHttpMockHandlerTest {
                 "method get"
         );
         matchVarContains("responseHeaders", "{ set-cookie: ['foo=bar; expires=Wed, 30-Dec-20 09:25:45 GMT; path=/; domain=.example.com; HttpOnly; SameSite=Lax; Secure'] }");
+    }
+
+    @Test
+    void testMultipleCookies() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestHeaders");
+        startMockServer();
+        run(
+                urlStep(),
+                "path 'hello'",
+                "cookie cookie1 = 'foo'",
+                "cookie cookie2 = 'bar'",
+                "method get"
+        );
+        matchVarContains("response", "{ cookie: ['cookie1=foo; cookie2=bar'] }");
     }
 
     @Test
