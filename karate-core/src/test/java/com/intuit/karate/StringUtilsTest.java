@@ -69,7 +69,7 @@ class StringUtilsTest {
     void testJoin() {
         String[] foo = {"a", "b"};
         assertEquals("a,b", StringUtils.join(foo, ','));
-        assertEquals("a,b", StringUtils.join(Arrays.asList(foo), ','));
+        assertEquals("a,b", StringUtils.join(Arrays.asList(foo), ","));
     }
 
     @Test

@@ -184,7 +184,7 @@ public class HttpRequestBuilder implements ProxyObject {
                 String cookieValue = ClientCookieEncoder.LAX.encode(c);
                 cookieValues.add(cookieValue);
             }
-            header(HttpConstants.HDR_COOKIE, cookieValues);
+            header(HttpConstants.HDR_COOKIE, StringUtils.join(cookieValues, "; "));
         }
         if (body != null) {
             request.setBody(JsValue.toBytes(body));

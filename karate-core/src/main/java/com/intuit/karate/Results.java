@@ -209,7 +209,7 @@ public class Results {
     }
 
     public String getErrorMessages() {
-        return StringUtils.join(errors, '\n');
+        return StringUtils.join(errors, "\n");
     }
 
     public Suite getSuite() {

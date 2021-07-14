@@ -122,7 +122,7 @@ public class StringUtils {
         return sb.toString();
     }
 
-    public static String join(Collection<String> c, char delimiter) {
+    public static String join(Collection<String> c, String delimiter) {
         StringBuilder sb = new StringBuilder();
         Iterator iterator = c.iterator();
         while (iterator.hasNext()) {

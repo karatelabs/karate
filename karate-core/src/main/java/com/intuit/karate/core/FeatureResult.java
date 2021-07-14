@@ -220,7 +220,7 @@ public class FeatureResult {
     }
 
     public String getErrorMessages() {
-        return StringUtils.join(getErrors(), '\n');
+        return StringUtils.join(getErrors(), "\n");
     }
 
     public String getCallNameForReport() {

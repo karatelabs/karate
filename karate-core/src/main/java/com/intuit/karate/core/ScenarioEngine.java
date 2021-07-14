@@ -2130,7 +2130,7 @@ public class ScenarioEngine {
             if (errors.isEmpty()) {
                 return result;
             } else {
-                String errorMessage = StringUtils.join(errors, '\n');
+                String errorMessage = StringUtils.join(errors, "\n");
                 throw new KarateException(errorMessage);
             }
         } else {
