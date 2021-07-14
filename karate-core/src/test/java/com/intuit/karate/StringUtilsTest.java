@@ -95,6 +95,7 @@ class StringUtilsTest {
         assertEquals("foo-bar", StringUtils.toIdString("foo bar"));
         assertEquals("foo--bar", StringUtils.toIdString("foo//bar"));
         assertEquals("foo-bar", StringUtils.toIdString("foo\\bar"));
+        assertEquals("foo-bar", StringUtils.toIdString("foo:bar"));
         assertEquals("", StringUtils.toIdString(null)); // TODO
     }
 

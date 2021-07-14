@@ -173,7 +173,7 @@ public class StringUtils {
         if (name == null) {
             return "";
         }
-        return name.replaceAll("[\\s_\\\\/]", "-").toLowerCase();
+        return name.replaceAll("[\\s_\\\\/:]", "-").toLowerCase();
     }
 
     public static StringUtils.Pair splitByFirstLineFeed(String text) {
