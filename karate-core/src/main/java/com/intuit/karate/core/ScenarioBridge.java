@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.EventContext;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
@@ -64,7 +65,13 @@ import org.graalvm.polyglot.Value;
  *
  * @author pthomas3
  */
-public class ScenarioBridge implements PerfContext {
+public class ScenarioBridge implements PerfContext, EventContext {
+    
+    private final ScenarioEngine ENGINE;
+    
+    protected ScenarioBridge(ScenarioEngine engine) {
+        ENGINE = engine;
+    }
 
     public void abort() {
         getEngine().setAborted(true);
@@ -470,7 +477,8 @@ public class ScenarioBridge implements PerfContext {
     // TODO migrate these to functions not properties
     //
     public ScenarioEngine getEngine() {
-        return ScenarioEngine.get();
+        ScenarioEngine engine = ScenarioEngine.get();
+        return engine == null ? ENGINE : engine;
     }
 
     public String getEnv() {
@@ -719,8 +727,10 @@ public class ScenarioBridge implements PerfContext {
         getEngine().set(name, path, new Variable(XmlUtils.toXmlDoc(xml)));
     }
 
-    public void signal(Value result) {
-        getEngine().signal(JsValue.toJava(result));
+    @Override
+    public void signal(Object o) {
+        Value v = Value.asValue(o);
+        getEngine().signal(JsValue.toJava(v));
     }
 
     public Object sizeOf(Value v) {

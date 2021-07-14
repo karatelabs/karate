@@ -3,8 +3,9 @@ Feature: payment service
 Background:
 * def QueueConsumer = Java.type('mock.contract.QueueConsumer')
 * def queue = new QueueConsumer(queueName)
-* def handler = function(msg){ karate.signal(msg) }
-* queue.listen(karate.toJava(handler))
+# * def handler = function(msg){ karate.signal(msg) }
+# * queue.listen(karate.toJava(handler))
+* queue.listen(karate)
 * url paymentServiceUrl + '/payments'
 
 Scenario: create, get, update, list and delete payments

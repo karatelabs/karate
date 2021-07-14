@@ -1,5 +1,6 @@
 package mock.contract;
 
+import com.intuit.karate.EventContext;
 import javax.jms.Connection;
 import javax.jms.Destination;
 import javax.jms.JMSException;
@@ -46,6 +47,17 @@ public class QueueConsumer {
             }
         });
     }
+    
+    public void listen(EventContext context) {
+        setMessageListener(message -> {
+            TextMessage tm = (TextMessage) message;
+            try {
+                context.signal(tm.getText());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }    
 
     public void setMessageListener(MessageListener ml) {
         try {

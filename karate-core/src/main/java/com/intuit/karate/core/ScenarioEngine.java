@@ -121,7 +121,7 @@ public class ScenarioEngine {
         hooks = runtime.featureRuntime.suite.hooks;
         fileReader = new ScenarioFileReader(this, runtime.featureRuntime);
         readFunction = s -> JsValue.fromJava(fileReader.readFile(s));
-        bridge = new ScenarioBridge();
+        bridge = new ScenarioBridge(this);
         this.vars = vars;
         this.logger = logger;
     }
