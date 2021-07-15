@@ -220,6 +220,9 @@ To understand how Karate compares to other UI automation frameworks, this articl
   * a handy reference that can give you ideas on how to structure your tests
   * run as part of Karate's [regression suite](https://stackoverflow.com/a/66005331/143475) via GitHub Actions
 
+## Mobile / Appium
+* Refer to this [example project](../examples/mobile-test)
+
 ## Windows
 * [Example](../karate-demo/src/test/java/driver/windows/calc.feature) - but also see the [`karate-robot`](https://github.com/intuit/karate/tree/master/karate-robot) for an alternative approach.
 
