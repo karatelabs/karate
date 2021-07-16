@@ -25,7 +25,7 @@ public class Demo01JavaRunner {
         driver.input("#login_field", "dummy");
         driver.input("#password", "world");
         driver.submit().click("input[name=commit]");
-        String html = driver.html("#js-flash-container");
+        String html = driver.html(".flash-error");
         assertTrue(html.contains("Incorrect username or password."));
         driver.setUrl("https://google.com");
         driver.input("input[name=q]", "karate dsl");
@@ -44,7 +44,7 @@ public class Demo01JavaRunner {
         driver.input("#login_field", "dummy");
         driver.input("#password", "world");
         driver.submit().click("input[name=commit]");
-        String html = driver.html("#js-flash-container");
+        String html = driver.html(".flash-error");
         assertTrue(html.contains("Incorrect username or password."));
         driver.setUrl("https://google.com");
         driver.input("input[name=q]", "karate dsl");

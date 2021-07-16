@@ -9,7 +9,7 @@ Feature: parallel testing demo - single node using docker
     * input('#login_field', 'dummy')
     * input('#password', 'world')
     * submit().click("input[name=commit]")
-    * match html('#js-flash-container') contains 'Incorrect username or password.'
+    * match html('.flash-error') contains 'Incorrect username or password.'
 
   Scenario: google search for karate
     Given driver 'https://google.com'

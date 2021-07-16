@@ -7,7 +7,7 @@ Scenario: try to login to github
   And input('#login_field', 'dummy')
   And input('#password', 'world')
   When submit().click("input[name=commit]")
-  Then match html('#js-flash-container') contains 'Incorrect username or password.'
+  Then match html('.flash-error') contains 'Incorrect username or password.'
   
   Given driver 'https://google.com'
   And input("input[name=q]", 'karate dsl')
