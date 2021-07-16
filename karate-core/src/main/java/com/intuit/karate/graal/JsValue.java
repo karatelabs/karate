@@ -281,7 +281,11 @@ public class JsValue {
             case '[':
                 return jsonStrict ? JsonUtils.fromJsonStrict(raw) : JsonUtils.fromJson(raw);
             case '<':
-                return XmlUtils.toXmlDoc(raw);
+                if (resourceType == null || resourceType.isXml()) {
+                    return XmlUtils.toXmlDoc(raw);
+                } else {
+                    return raw;
+                }
             default:
                 return raw;
         }

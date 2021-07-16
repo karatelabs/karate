@@ -64,6 +64,7 @@ Scenario: german xml
     And header Content-Type = 'application/xml; charset=utf-8'
     When method post
     Then status 200
+    And xml response = response
     And match response == <name>Müller</name>
 
 Scenario: french json

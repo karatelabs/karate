@@ -379,7 +379,7 @@ class KarateMockHandlerTest {
     }
 
     @Test
-    void testResponseAutoConversionForXmlAsPlainText() {
+    void testNoResponseAutoConversionForUnknownContentType() {
         background().scenario(
                 "pathMatches('/hello')",
                 "def response = '<hello>world</hello>'");
@@ -388,8 +388,7 @@ class KarateMockHandlerTest {
                 "path 'hello'",
                 "method get",
                 "match header content-type == 'text/plain'",
-                "match responseType == 'xml'",
-                "match response.hello == 'world'"
+                "match responseType == 'string'"
         );
     }
 

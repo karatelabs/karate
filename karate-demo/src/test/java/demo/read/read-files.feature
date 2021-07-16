@@ -26,4 +26,5 @@ Scenario: using xml from a file
     Given request payload
     When method post
     Then status 200
-    And match / == read('sample.xml')
+    And xml response = response
+    And match response == read('sample.xml')

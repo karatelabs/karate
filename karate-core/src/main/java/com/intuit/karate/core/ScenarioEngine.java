@@ -641,7 +641,6 @@ public class ScenarioEngine {
         if (perfEventName != null) {
             PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, response.getStatus());
             capturePerfEvent(pe);
-
         }
     }
 
