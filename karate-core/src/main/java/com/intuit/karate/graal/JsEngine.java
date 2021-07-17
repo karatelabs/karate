@@ -169,13 +169,12 @@ public class JsEngine {
             return evalForValue("(" + source + ")");
         }
     }
-
-    public static JsValue execute(Value function, Object... args) {
+    
+    public static Value execute(Value function, Object... args) {
         for (int i = 0; i < args.length; i++) {
             args[i] = JsValue.fromJava(args[i]);
         }
-        Value result = function.execute(args);
-        return new JsValue(result);
+        return function.execute(args);
     }
 
     public Value evalWith(Value value, String src, boolean returnValue) {

@@ -39,8 +39,7 @@ class JsEngineTest {
     @Test
     void testFunctionExecute() {
         JsValue v = je.eval("(function(){ return ['a', 'b', 'c'] })");
-        assertTrue(v.isFunction());
-        JsValue res = v.invoke();
+        JsValue res = new JsValue(JsEngine.execute(v.getOriginal()));
         assertTrue(res.isArray());
         assertEquals("[\"a\",\"b\",\"c\"]", res.toJsonOrXmlString(false));
         assertEquals("function(){ return ['a', 'b', 'c'] }", v.toString());
@@ -50,7 +49,7 @@ class JsEngineTest {
     void testArrowFunctionZeroArg() {
         JsValue v = je.eval("() => ['a', 'b', 'c']");
         assertTrue(v.isFunction());
-        JsValue res = v.invoke();
+        JsValue res = new JsValue(JsEngine.execute(v.getOriginal()));
         assertTrue(res.isArray());
         assertEquals("[\"a\",\"b\",\"c\"]", res.toJsonOrXmlString(false));
         assertEquals("() => ['a', 'b', 'c']", v.toString());
@@ -87,7 +86,7 @@ class JsEngineTest {
     void testArrowFunctionSingleArg() {
         JsValue v = je.eval("x => [x, x]");
         assertTrue(v.isFunction());
-        JsValue res = v.invoke(1);
+        JsValue res = new JsValue(JsEngine.execute(v.getOriginal(), 1));
         assertTrue(res.isArray());
         assertEquals("[1,1]", res.toJsonOrXmlString(false));
         assertEquals("x => [x, x]", v.toString());

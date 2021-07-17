@@ -39,7 +39,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Semaphore;
 
 /**
  * @author pthomas3
@@ -429,8 +428,6 @@ public class ScenarioRuntime implements Runnable {
         }
     }
 
-    protected final Semaphore ASYNC_SEMAPHORE = new Semaphore(1);
-
     public void execute(Step step) {
         if (!stopped && !dryRun) {
             boolean shouldExecute = true;
@@ -455,15 +452,6 @@ public class ScenarioRuntime implements Runnable {
             }
         } else if (dryRun) {
             stepResult = Result.passed(0);
-        } else if (engine.children != null) {
-            try {
-                ASYNC_SEMAPHORE.acquire();
-            } catch (Exception e) {
-                logger.warn("[runtime] async lock failed: {}", e.getMessage());
-            } finally {
-                stepResult = StepRuntime.execute(step, actions);
-                ASYNC_SEMAPHORE.release();
-            }
         } else {
             stepResult = StepRuntime.execute(step, actions);
         }

@@ -34,6 +34,8 @@ import com.intuit.karate.MatchStep;
 import com.intuit.karate.PerfContext;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
+import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.graal.JsExecutable;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsMap;
 import com.intuit.karate.graal.JsValue;
@@ -66,9 +68,9 @@ import org.graalvm.polyglot.Value;
  * @author pthomas3
  */
 public class ScenarioBridge implements PerfContext, EventContext {
-    
+
     private final ScenarioEngine ENGINE;
-    
+
     protected ScenarioBridge(ScenarioEngine engine) {
         ENGINE = engine;
     }
@@ -362,7 +364,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
         List list = new ArrayList();
         for (int i = 0; i < count; i++) {
             Value v = o.getArrayElement(i);
-            Value res = f.execute(v, i);
+            Value res = JsEngine.execute(f, v, i);
             if (res.isBoolean() && res.asBoolean()) {
                 list.add(new JsValue(v).getValue());
             }
@@ -579,7 +581,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
         List list = new ArrayList();
         for (int i = 0; i < count; i++) {
             Value v = o.getArrayElement(i);
-            Value res = f.execute(v, i);
+            Value res = JsEngine.execute(f, v, i);
             list.add(new JsValue(res).getValue());
         }
         return new JsList(list);
@@ -698,7 +700,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
         assertIfJsFunction(f);
         List list = new ArrayList(n);
         for (int i = 0; i < n; i++) {
-            Value v = f.execute(i);
+            Value v = JsEngine.execute(f, i);
             list.add(new JsValue(v).getValue());
         }
         return new JsList(list);
@@ -755,9 +757,8 @@ public class ScenarioBridge implements PerfContext, EventContext {
         long count = o.getArraySize();
         Map<Object, Object> map = new TreeMap();
         for (int i = 0; i < count; i++) {
-            Object value = JsValue.toJava(o.getArrayElement(i));
-            Object item = JsValue.fromJava(value); // necessary re-conversion
-            Value key = f.execute(item, i);
+            Object item = JsValue.toJava(o.getArrayElement(i));
+            Value key = JsEngine.execute(f, item, i);
             if (key.isNumber()) {
                 map.put(key.as(Number.class), item);
             } else {
@@ -833,7 +834,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
 
     public Object toJava(Value value) {
         if (value.canExecute()) {
-            return new ScenarioListener(getEngine(), value);
+            return new JsExecutable(value);
         } else {
             return new JsValue(value).getValue();
         }
@@ -932,14 +933,16 @@ public class ScenarioBridge implements PerfContext, EventContext {
 
     public WebSocketClient webSocket(String url, Value listener, Value value) {
         Function<String, Boolean> handler;
+        ScenarioEngine engine = getEngine();
         if (listener == null || !listener.canExecute()) {
             handler = m -> true;
         } else {
-            handler = new ScenarioListener(getEngine(), listener);
+            JsEngine copy = JsEngine.local(engine.JS);            
+            handler = new JsExecutable(copy.attach(listener));
         }
         WebSocketOptions options = new WebSocketOptions(url, value == null ? null : new JsValue(value).getValue());
         options.setTextHandler(handler);
-        return getEngine().webSocket(options);
+        return engine.webSocket(options);
     }
 
     public WebSocketClient webSocketBinary(String url) {
@@ -952,14 +955,16 @@ public class ScenarioBridge implements PerfContext, EventContext {
 
     public WebSocketClient webSocketBinary(String url, Value listener, Value value) {
         Function<byte[], Boolean> handler;
+        ScenarioEngine engine = getEngine();
         if (listener == null || !listener.canExecute()) {
             handler = m -> true;
         } else {
-            handler = new ScenarioListener(getEngine(), listener);
+            JsEngine copy = JsEngine.local(engine.JS);
+            handler = new JsExecutable(copy.attach(listener));
         }
         WebSocketOptions options = new WebSocketOptions(url, value == null ? null : new JsValue(value).getValue());
         options.setBinaryHandler(handler);
-        return getEngine().webSocket(options);
+        return engine.webSocket(options);
     }
 
     public File write(Object o, String path) {

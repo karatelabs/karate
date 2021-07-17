@@ -133,19 +133,6 @@ public class ScenarioEngine {
         return sr.engine;
     }
 
-    protected List<ScenarioEngine> children;
-    private ScenarioEngine parent;
-
-    public ScenarioEngine child() {
-        ScenarioEngine child = new ScenarioEngine(config, runtime, detachVariables(), logger);
-        child.parent = this;
-        if (children == null) {
-            children = new ArrayList();
-        }
-        children.add(child);
-        return child;
-    }
-
     private static final ThreadLocal<ScenarioEngine> THREAD_LOCAL = new ThreadLocal<ScenarioEngine>();
 
     public static ScenarioEngine get() {
@@ -755,13 +742,8 @@ public class ScenarioEngine {
     }
 
     public void signal(Object result) {
-        logger.debug("signal called: {}", result);
-        if (parent != null) {
-            parent.signal(result);
-        } else {
-            synchronized (JS.context) {
-                SIGNAL.complete(result);
-            }
+        synchronized (JS.context) {
+            SIGNAL.complete(result);
         }
     }
 
@@ -823,13 +805,11 @@ public class ScenarioEngine {
         }
         Value funOut = (Value) options.get("listener");
         if (funOut != null && funOut.canExecute()) {
-            ScenarioListener sl = new ScenarioListener(this, funOut);
-            command.setListener(sl);
+            command.setListener(new JsExecutable(funOut));
         }
         Value funErr = (Value) options.get("errorListener");
         if (funErr != null && funErr.canExecute()) {
-            ScenarioListener sl = new ScenarioListener(this, funErr);
-            command.setErrorListener(sl);
+            command.setErrorListener(new JsExecutable(funErr));
         }
         Boolean start = (Boolean) options.get("start");
         if (start == null) {
@@ -1303,7 +1283,7 @@ public class ScenarioEngine {
 
     private JsValue executeJsValue(Value function, Object... args) {
         try {
-            return JsEngine.execute(function, args);
+            return new JsValue(JsEngine.execute(function, args));
         } catch (Exception e) {
             String jsSource = function.getSourceLocation().getCharacters().toString();
             KarateException ke = JsEngine.fromJsEvalException(jsSource, e, null);
@@ -1349,9 +1329,6 @@ public class ScenarioEngine {
         }
         if (JS != null) {
             JS.put(key, o);
-        }
-        if (children != null) {
-            children.forEach(c -> c.setVariable(key, o));
         }
     }
 

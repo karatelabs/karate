@@ -38,7 +38,7 @@ public class VariableTest {
         Variable var = new Variable(jv);
         assertTrue(var.isJsFunction());
         assertFalse(var.isJavaFunction());
-        JsValue res = JsEngine.execute(var.getValue(), new Object[]{1, 2});
+        JsValue res = new JsValue(JsEngine.execute(var.getValue(), new Object[]{1, 2}));
         assertEquals(3, res.<Integer>getValue());
     }
 

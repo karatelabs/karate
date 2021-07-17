@@ -144,10 +144,6 @@ public class JsValue {
         return original;
     }
 
-    public JsValue invoke(Object... args) {
-        return new JsValue(original.execute(args));
-    }
-
     public boolean isXml() {
         return type == Type.XML;
     }

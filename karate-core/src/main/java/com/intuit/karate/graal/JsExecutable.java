@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.graal;
 
+import java.util.function.Consumer;
+import java.util.function.Function;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyExecutable;
 import org.slf4j.Logger;
@@ -32,7 +34,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class JsExecutable implements ProxyExecutable {
+public class JsExecutable implements ProxyExecutable, Consumer, Function, Runnable {
 
     private static final Logger logger = LoggerFactory.getLogger(JsExecutable.class);
 
@@ -44,20 +46,40 @@ public class JsExecutable implements ProxyExecutable {
 
     private static final Object LOCK = new Object();
 
-    @Override
-    public Object execute(Value... arguments) {
-        Object[] args = new Object[arguments.length];
-        for (int i = 0; i < args.length; i++) {
-            args[i] = arguments[i].as(Object.class);
-        }
+    private Value executeInternal(Object... args) {
         try {
-            return value.execute(args);
+            return JsEngine.execute(value, args);
         } catch (Exception e) {
-            logger.warn("[*** execute ***] java method reference (from callSingle() ?) invocation failed: {}", e.getMessage());
+            logger.warn("[*** execute ***] invocation failed: {}", e.getMessage());
             synchronized (LOCK) {
-                return value.execute(args);
+                return JsEngine.execute(value, args);
             }
         }
+    }
+
+    @Override
+    public Object execute(Value... values) {
+        Object[] args = new Object[values.length];
+        for (int i = 0; i < args.length; i++) {
+            args[i] = values[i].as(Object.class);
+        }
+        return executeInternal(args);
+    }
+
+    @Override
+    public void accept(Object arg) {
+        executeInternal(arg);
+    }
+
+    @Override
+    public Object apply(Object arg) {
+        Value res = executeInternal(arg);
+        return JsValue.toJava(res);
+    }
+
+    @Override
+    public void run() {
+        executeInternal();
     }
 
 }

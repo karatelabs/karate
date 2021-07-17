@@ -95,8 +95,8 @@ public class Tags implements Iterable<Tag> {
             if (!v.canExecute()) {
                 return false;
             }
-            for (String s : values) {
-                JsValue jv = new JsValue(v.execute(s));
+            for (String s : values) {                
+                JsValue jv = new JsValue(JsEngine.execute(v, s));
                 if (!jv.isTrue()) {
                     return false;
                 }
