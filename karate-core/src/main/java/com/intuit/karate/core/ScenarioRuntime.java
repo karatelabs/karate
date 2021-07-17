@@ -82,13 +82,13 @@ public class ScenarioRuntime implements Runnable {
         } else { // new, but clone and copy data
             logAppender = caller.parentRuntime.logAppender;
             Config config = background == null ? new Config(caller.parentRuntime.engine.getConfig()) : background.engine.getConfig();
-            Map<String, Variable> vars = caller.parentRuntime.engine.copyVariables(false);
-            engine = new ScenarioEngine(config, this, vars, logger);
+            // in this case, parent variables are set via magic variables
+            engine = new ScenarioEngine(config, this, new HashMap(), logger);
         }
         logger.setAppender(logAppender);
         actions = new ScenarioActions(engine);
         this.scenario = scenario;
-        this.background = background; // used only to check which steps remain
+        this.background = background; // used only to check which steps remain        
         magicVariables = initMagicVariables();
         result = new ScenarioResult(scenario);
         if (background != null) {
@@ -260,8 +260,11 @@ public class ScenarioRuntime implements Runnable {
         Map<String, Object> map = new HashMap();
         if (!caller.isNone()) {
             // karate principle: parent variables are always "visible"
-            // so we inject the parent magic variables
+            // so we inject the parent variables
             // but they will be over-written by what is local to this scenario
+            if (!caller.isSharedScope()) {
+                caller.parentRuntime.engine.vars.forEach((k, v) -> map.put(k, v == null ? null : v.getValue()));
+            }
             map.putAll(caller.parentRuntime.magicVariables);
             map.put("__arg", caller.arg == null ? null : caller.arg.getValue());
             map.put("__loop", caller.getLoopIndex());

@@ -1350,16 +1350,6 @@ public class ScenarioEngine {
         map.forEach((k, v) -> setVariable(k, v));
     }
 
-    private static Map<String, Variable> copy(Map<String, Variable> source, boolean deep) {
-        Map<String, Variable> map = new HashMap(source.size());
-        source.forEach((k, v) -> map.put(k, v.copy(deep)));
-        return map;
-    }
-
-    public Map<String, Variable> copyVariables(boolean deep) {
-        return copy(vars, deep);
-    }
-
     public Map<String, Object> getAllVariablesAsMap() {
         Map<String, Object> map = new HashMap(vars.size());
         vars.forEach((k, v) -> map.put(k, v == null ? null : v.getValue()));

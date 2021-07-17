@@ -19,10 +19,9 @@ Scenario: shared scope: called feature will over-write (and contribute) variable
 
 Scenario: called feature updates a nested element of 'foo' using the 'set' keyword
     * def foo = { key: 'value' }
-    # improved in karate 1.0 json cannot be mutated in called features
+    # json can be mutated in called features
     * def result = call read('copy-called.feature')
-    # so callers cannot mutate this context !
-    * match foo == { key: 'value' }
+    * match foo == { key: 'changed' }
 
 Scenario: you can manually 'clone' a payload if needed
     * def original = { key: 'value' }
