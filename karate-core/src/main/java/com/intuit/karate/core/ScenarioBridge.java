@@ -735,6 +735,23 @@ public class ScenarioBridge implements PerfContext, EventContext {
         getEngine().signal(JsValue.toJava(v));
     }
 
+    @Override
+    public void signalAppend(Object o) {
+        Value v = Value.asValue(o);
+        getEngine().signalAppend(JsValue.toJava(v));
+    }
+
+    @Override
+    public Object signalCollect() {
+        Object result = getEngine().signalCollect();
+        return JsValue.fromJava(result);
+    }
+
+    @Override
+    public void signalClear() {
+        getEngine().signalClear();
+    }
+
     public Object sizeOf(Value v) {
         if (v.hasArrayElements()) {
             return v.getArraySize();

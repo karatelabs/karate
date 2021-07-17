@@ -731,6 +731,7 @@ public class ScenarioEngine {
     // websocket / async =======================================================
     //   
     private List<WebSocketClient> webSocketClients;
+    private final List signalCollector = new ArrayList();
     private CompletableFuture SIGNAL = new CompletableFuture();
 
     public WebSocketClient webSocket(WebSocketOptions options) {
@@ -742,15 +743,25 @@ public class ScenarioEngine {
         return webSocketClient;
     }
 
-    public void signal(Object result) {
-        synchronized (JS.context) {
-            SIGNAL.complete(result);
-        }
+    public synchronized void signal(Object result) {
+        SIGNAL.complete(result);
     }
 
-    public Object listen(String exp) {
+    public synchronized void signalAppend(Object result) {
+        signalCollector.add(result);
+    }
+
+    public synchronized Object signalCollect() {
+        return signalCollector;
+    }
+
+    public synchronized void signalClear() {
+        signalCollector.clear();
+    }
+
+    public void listen(String exp) {
         Variable v = evalKarateExpression(exp);
-        int timeout = v.getAsInt();
+        int timeout = v.getAsInt();        
         logger.debug("entered listen state with timeout: {}", timeout);
         Object listenResult = null;
         try {
@@ -762,7 +773,6 @@ public class ScenarioEngine {
             setHiddenVariable(LISTEN_RESULT, listenResult);
             logger.debug("exit listen state with result: {}", listenResult);
             SIGNAL = new CompletableFuture();
-            return listenResult;
         }
     }
 
