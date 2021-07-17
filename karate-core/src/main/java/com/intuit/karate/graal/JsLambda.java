@@ -23,8 +23,9 @@
  */
 package com.intuit.karate.graal;
 
+import java.util.function.Consumer;
+import java.util.function.Function;
 import org.graalvm.polyglot.Value;
-import org.graalvm.polyglot.proxy.ProxyExecutable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,36 +33,30 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class JsExecutable implements ProxyExecutable {
+public class JsLambda implements Consumer, Function, Runnable {
 
-    private static final Logger logger = LoggerFactory.getLogger(JsExecutable.class);
+    private static final Logger logger = LoggerFactory.getLogger(JsLambda.class);
 
     public final Value value;
 
-    public JsExecutable(Value value) {
+    public JsLambda(Value value) {
         this.value = value;
     }
 
-    private static final Object LOCK = new Object();
-
-    protected static Value invoke(Value value, Object... args) {
-        try {
-            return JsEngine.execute(value, args);
-        } catch (Exception e) {
-            logger.warn("[*** execute ***] invocation failed: {}", e.getMessage());
-            synchronized (LOCK) {
-                return JsEngine.execute(value, args);
-            }
-        }
+    @Override
+    public void accept(Object arg) {
+        JsExecutable.invoke(value, arg);
     }
 
     @Override
-    public Object execute(Value... values) {
-        Object[] args = new Object[values.length];
-        for (int i = 0; i < args.length; i++) {
-            args[i] = values[i].as(Object.class);
-        }
-        return invoke(value, args);
+    public Object apply(Object arg) {
+        Value res = JsExecutable.invoke(value, arg);
+        return JsValue.toJava(res);
+    }
+
+    @Override
+    public void run() {
+        JsExecutable.invoke(value);
     }
 
 }

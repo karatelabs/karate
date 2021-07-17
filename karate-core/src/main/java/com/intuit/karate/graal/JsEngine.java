@@ -92,15 +92,6 @@ public class JsEngine {
         return new JsEngine(createContext(engine));
     }
 
-    public static JsEngine local(JsEngine parent) {
-        JsEngine je = local();
-        Value bindings = parent.bindings;
-        for (String key : bindings.getMemberKeys()) {
-            je.putValue(key, bindings.getMember(key));
-        }
-        return je;
-    }
-
     //==========================================================================
     //
     public final Context context;
@@ -109,6 +100,22 @@ public class JsEngine {
     private JsEngine(Context context) {
         this.context = context;
         bindings = context.getBindings(JS);
+    }
+
+    public JsEngine copy() {
+        JsEngine temp = local();
+        for (String key : bindings.getMemberKeys()) {
+            Value v = bindings.getMember(key);
+            if (v.isHostObject()) {
+                temp.bindings.putMember(key, v);
+            } else if (v.canExecute()) {
+                Value fun = temp.evalForValue("(" + v.getSourceLocation().getCharacters() + ")");
+                temp.bindings.putMember(key, fun);
+            } else {
+                temp.bindings.putMember(key, JsValue.toJava(v));
+            }
+        }
+        return temp;
     }
 
     public JsValue eval(InputStream is) {
@@ -144,17 +151,6 @@ public class JsEngine {
         return new JsValue(value);
     }
 
-    public void putValue(String key, Value v) {
-        if (v.isHostObject()) {
-            bindings.putMember(key, v);
-        } else if (v.canExecute()) {
-            Value fun = evalForValue("(" + v.getSourceLocation().getCharacters() + ")");
-            bindings.putMember(key, fun);
-        } else {
-            put(key, JsValue.toJava(v));
-        }
-    }
-
     public Value attachSource(CharSequence source) {
         Value value = evalForValue("(" + source + ")");
         return attach(value);
@@ -169,7 +165,7 @@ public class JsEngine {
             return evalForValue("(" + source + ")");
         }
     }
-    
+
     public static Value execute(Value function, Object... args) {
         for (int i = 0; i < args.length; i++) {
             args[i] = JsValue.fromJava(args[i]);
@@ -200,7 +196,7 @@ public class JsEngine {
         Value function = evalForValue(sb.toString());
         return function.execute(JsValue.fromJava(arg));
     }
-    
+
     public static KarateException fromJsEvalException(String js, Exception e, String message) {
         // do our best to make js error traces informative, else thrown exception seems to
         // get swallowed by the java reflection based method invoke flow
@@ -223,9 +219,9 @@ public class JsEngine {
             if (line.startsWith("<js>") || i > 5) {
                 break;
             }
-        }       
+        }
         return new KarateException(sb.toString());
-    }    
+    }
 
     @Override
     public String toString() {

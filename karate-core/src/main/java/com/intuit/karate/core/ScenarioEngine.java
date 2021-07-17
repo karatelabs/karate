@@ -38,6 +38,7 @@ import com.intuit.karate.driver.Key;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsExecutable;
 import com.intuit.karate.graal.JsFunction;
+import com.intuit.karate.graal.JsLambda;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.*;
 import com.intuit.karate.resource.Resource;
@@ -805,11 +806,11 @@ public class ScenarioEngine {
         }
         Value funOut = (Value) options.get("listener");
         if (funOut != null && funOut.canExecute()) {
-            command.setListener(new JsExecutable(funOut));
+            command.setListener(new JsLambda(funOut));
         }
         Value funErr = (Value) options.get("errorListener");
         if (funErr != null && funErr.canExecute()) {
-            command.setErrorListener(new JsExecutable(funErr));
+            command.setErrorListener(new JsLambda(funErr));
         }
         Boolean start = (Boolean) options.get("start");
         if (start == null) {

@@ -48,7 +48,7 @@ public class QueueConsumer {
         });
     }
     
-    public void listen(EventContext context) {
+    public void bind(EventContext context) {
         setMessageListener(message -> {
             TextMessage tm = (TextMessage) message;
             try {

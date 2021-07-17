@@ -35,7 +35,7 @@ import com.intuit.karate.PerfContext;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsExecutable;
+import com.intuit.karate.graal.JsLambda;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsMap;
 import com.intuit.karate.graal.JsValue;
@@ -834,7 +834,8 @@ public class ScenarioBridge implements PerfContext, EventContext {
 
     public Object toJava(Value value) {
         if (value.canExecute()) {
-            return new JsExecutable(value);
+            JsEngine copy = getEngine().JS.copy();
+            return new JsLambda(copy.attach(value));
         } else {
             return new JsValue(value).getValue();
         }
@@ -937,8 +938,8 @@ public class ScenarioBridge implements PerfContext, EventContext {
         if (listener == null || !listener.canExecute()) {
             handler = m -> true;
         } else {
-            JsEngine copy = JsEngine.local(engine.JS);            
-            handler = new JsExecutable(copy.attach(listener));
+            JsEngine copy = engine.JS.copy();
+            handler = new JsLambda(copy.attach(listener));
         }
         WebSocketOptions options = new WebSocketOptions(url, value == null ? null : new JsValue(value).getValue());
         options.setTextHandler(handler);
@@ -959,8 +960,8 @@ public class ScenarioBridge implements PerfContext, EventContext {
         if (listener == null || !listener.canExecute()) {
             handler = m -> true;
         } else {
-            JsEngine copy = JsEngine.local(engine.JS);
-            handler = new JsExecutable(copy.attach(listener));
+            JsEngine copy = engine.JS.copy();
+            handler = new JsLambda(copy.attach(listener));
         }
         WebSocketOptions options = new WebSocketOptions(url, value == null ? null : new JsValue(value).getValue());
         options.setBinaryHandler(handler);
