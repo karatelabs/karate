@@ -30,11 +30,5 @@ package com.intuit.karate;
 public interface EventContext {
 
     void signal(Object arg);
-    
-    void signalAppend(Object arg);
-    
-    Object signalCollect();
-    
-    void signalClear();
 
 }

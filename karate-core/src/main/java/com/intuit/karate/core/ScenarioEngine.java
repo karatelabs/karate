@@ -731,7 +731,6 @@ public class ScenarioEngine {
     // websocket / async =======================================================
     //   
     private List<WebSocketClient> webSocketClients;
-    private final List signalCollector = new ArrayList();
     private CompletableFuture SIGNAL = new CompletableFuture();
 
     public WebSocketClient webSocket(WebSocketOptions options) {
@@ -745,18 +744,6 @@ public class ScenarioEngine {
 
     public synchronized void signal(Object result) {
         SIGNAL.complete(result);
-    }
-
-    public synchronized void signalAppend(Object result) {
-        signalCollector.add(result);
-    }
-
-    public synchronized Object signalCollect() {
-        return signalCollector;
-    }
-
-    public synchronized void signalClear() {
-        signalCollector.clear();
     }
 
     public void listen(String exp) {
