@@ -748,7 +748,7 @@ public class ScenarioEngine {
 
     public void listen(String exp) {
         Variable v = evalKarateExpression(exp);
-        int timeout = v.getAsInt();        
+        int timeout = v.getAsInt();
         logger.debug("entered listen state with timeout: {}", timeout);
         Object listenResult = null;
         try {
@@ -1002,32 +1002,24 @@ public class ScenarioEngine {
         runtime.magicVariables.forEach((k, v) -> {
             // even hidden variables may need pre-processing
             // for e.g. the __arg may contain functions that originated in a different js context
-            AttachResult ar = recurseAndAttach(k, v, seen);
-            JS.put(k, ar.value);
+            Object o = recurseAndAttach(k, v, seen);
+            JS.put(k, o == null ? v : o);
         });
         vars.forEach((k, v) -> {
             // re-hydrate any functions from caller or background  
-            AttachResult ar = recurseAndAttach(k, v.getValue(), seen);
+            Object o = recurseAndAttach(k, v.getValue(), seen);
             // note that we don't update the vars !
             // if we do, any "bad" out-of-context values will crash the constructor of Variable
             // it is possible the vars are detached / re-used later, so we kind of defer the inevitable
-            JS.put(k, ar.value);
+            JS.put(k, o == null ? v.getValue() : o);
         });
         if (runtime.caller.arg != null && runtime.caller.arg.isMap()) {
             // add the call arg as separate "over ride" variables
             Map<String, Object> arg = runtime.caller.arg.getValue();
+            recurseAndAttach("", arg, seen);
             arg.forEach((k, v) -> {
-                AttachResult ar = null;
-                try {
-                    // in rare cases, e.g. immutable map originating from gatling, this next line will fail
-                    ar = recurseAndAttach(k, v, seen);
-                    vars.put(k, new Variable(ar.value));
-                } catch (Exception e) {
-                    logger.warn("[*** init call-arg ***] ignoring non-json value: '{}' - {}", k, e.getMessage());
-                }
-                if (ar != null) {
-                    JS.put(k, ar.value);
-                }
+                vars.put(k, new Variable(v));
+                JS.put(k, v);
             });
         }
         JS.put(KARATE, bridge);
@@ -1060,58 +1052,36 @@ public class ScenarioEngine {
         return detached;
     }
 
-    private static class AttachResult {
-
-        final Object value;
-        final boolean dirty;
-
-        static final AttachResult NULL = new AttachResult(null, true);
-
-        AttachResult(Object value, boolean dirty) {
-            this.value = value;
-            this.dirty = dirty;
-        }
-
-        static AttachResult dirty(Object value) {
-            return new AttachResult(value, true);
-        }
-
-        static AttachResult clean(Object value) {
-            return new AttachResult(value, false);
-        }
-
-    }
-
-    private AttachResult recurseAndAttach(String name, Object o, Set<Object> seen) {
+    private Object recurseAndAttach(String name, Object o, Set<Object> seen) {
         if (o instanceof Value) {
             Value value = Value.asValue(o);
             try {
                 if (value.canExecute()) {
                     if (value.isMetaObject()) { // js function
-                        return AttachResult.dirty(attach(value));
+                        return attach(value);
                     } else { // java function
-                        return AttachResult.dirty(new JsExecutable(value));
+                        return new JsExecutable(value);
                     }
                 } else { // anything else, including java-type references
-                    return AttachResult.dirty(value);
+                    return value;
                 }
             } catch (Exception e) {
                 logger.warn("[*** attach ***] ignoring non-json value: '{}' - {}", name, e.getMessage());
                 // here we try our luck and hope that graal does not notice !
-                return AttachResult.dirty(value);
+                return value;
             }
         }
         if (o instanceof Class) {
             Class clazz = (Class) o;
             Value value = JS.evalForValue("Java.type('" + clazz.getCanonicalName() + "')");
-            return AttachResult.dirty(value);
+            return value;
         } else if (o instanceof JsFunction) {
             JsFunction jf = (JsFunction) o;
             try {
-                return AttachResult.dirty(attachSource(jf.source));
+                return attachSource(jf.source);
             } catch (Exception e) {
                 logger.warn("[*** attach ***] ignoring js-function: '{}' - {}", name, e.getMessage());
-                return AttachResult.NULL;
+                return null;
             }
         } else if (o instanceof List) {
             if (seen.add(o)) {
@@ -1119,26 +1089,34 @@ public class ScenarioEngine {
                 int count = list.size();
                 for (int i = 0; i < count; i++) {
                     Object child = list.get(i);
-                    AttachResult ar = recurseAndAttach(name + "[" + i + "]", child, seen);
-                    if (ar.dirty) {
-                        list.set(i, ar.value);
+                    Object childResult = recurseAndAttach(name + "[" + i + "]", child, seen);
+                    if (childResult != null) {
+                        try {
+                            list.set(i, childResult);
+                        } catch (Exception e) {
+                            logger.warn("immutable list item: {}", name + "[" + i + "]");
+                        }
                     }
                 }
             }
-            return AttachResult.clean(o);
+            return null;
         } else if (o instanceof Map) {
             if (seen.add(o)) {
                 Map<String, Object> map = (Map) o;
                 map.forEach((k, v) -> {
-                    AttachResult ar = recurseAndAttach(name + "." + k, v, seen);
-                    if (ar.dirty) {
-                        map.put(k, ar.value);
+                    Object childResult = recurseAndAttach(name + "." + k, v, seen);
+                    if (childResult != null) {
+                        try {
+                            map.put(k, childResult);
+                        } catch (Exception e) {
+                            logger.warn("immutable map entry: {}", name + "." + k);
+                        }
                     }
                 });
             }
-            return AttachResult.clean(o);
+            return null;
         } else {
-            return AttachResult.clean(o);
+            return null;
         }
     }
 
