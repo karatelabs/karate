@@ -1081,7 +1081,7 @@ public class ScenarioEngine {
                 return attachSource(jf.source);
             } catch (Exception e) {
                 logger.warn("[*** attach ***] ignoring js-function: '{}' - {}", name, e.getMessage());
-                return null;
+                return Value.asValue(null); // make sure we return a "dirty" value to force an update
             }
         } else if (o instanceof List) {
             if (seen.add(o)) {
