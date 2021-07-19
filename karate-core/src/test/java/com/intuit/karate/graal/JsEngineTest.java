@@ -194,6 +194,16 @@ class JsEngineTest {
         JsValue val = je.eval("Utils.testBytes");
         assertEquals(MockUtils.testBytes, val.getOriginal().asHostObject());
     }
+    
+    @Test
+    void testValueAndNull() {
+        Value v = Value.asValue(null);
+        assertNotNull(v);
+        assertTrue(v.isNull());
+        JsValue jv = new JsValue(v);
+        assertTrue(jv.isNull());
+        assertNull(jv.getValue());
+    }    
 
     @Test
     void testValueAndHostObject() {
