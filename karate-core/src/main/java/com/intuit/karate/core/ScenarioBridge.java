@@ -169,9 +169,9 @@ public class ScenarioBridge implements PerfContext, EventContext {
             engine.logger.warn("callSingle() cached result is an exception");
             throw (Exception) o;
         }
-        // if we don't deep clone, an attach operation would update the tree within the cached value
+        // if we don't clone, an attach operation would update the tree within the cached value
         // causing future cache hit + attach attempts to fail !
-        o = engine.recurseAndAttachAndDeepClone(o);
+        o = engine.recurseAndAttachAndShallowClone(o);
         return JsValue.fromJava(o);
     }
 
@@ -245,7 +245,8 @@ public class ScenarioBridge implements PerfContext, EventContext {
                         engine.logger.warn("callSingleCache write failed, not json-like: {}", resultVar);
                     }
                 }
-                result = engine.recurseAndDetachAndDeepClone(resultVar.getValue());
+                // functions have to be detached so that they can be re-hydrated in another js context
+                result = engine.recurseAndDetachAndShallowClone(resultVar.getValue());
             }
             CACHE.put(fileName, result);
             engine.logger.info("<< lock released, cached callSingle: {}", fileName);
