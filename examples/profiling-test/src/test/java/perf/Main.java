@@ -44,9 +44,9 @@ public class Main {
 
         };
         Runner.Builder builder = Runner.builder();
-        while (true) {
-            count++;
+        while (true) {            
             Runner.callAsync(builder, "classpath:perf/test.feature", null, hook);
+            count++;
             System.out.print(count + " ");
             if (count % 100 == 0) {
                 System.out.println("");
