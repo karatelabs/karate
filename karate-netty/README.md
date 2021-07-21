@@ -375,7 +375,7 @@ Here is the 'out-of-the-box' default which you can customize. Note that the defa
 # Embedding
 Starting and stopping a Karate server can be done via the Java API and this easily allows you to mix Karate into Java code, JUnit tests and Continuous Integration pipelines.
 
-The `com.intuit.karate.core.MockServer` class has static "builder" methods to configure and then launch a server. Here is an [example](../karate-core/src/test/java/com/intuit/karate/core/PerfHookTest.java).
+The [`com.intuit.karate.core.MockServer`](../karate-core/src/main/java/com/intuit/karate/core/MockServer.java) class has static "builder" methods to configure and then launch a server. Here is an [example](../karate-core/src/test/java/com/intuit/karate/core/PerfHookTest.java).
 
 You can call a `getPort()` method on the `MockServer` instance to get the port on which the server was started. Calling the `stop()` method will [stop](#stopping) the server.
 
@@ -415,6 +415,8 @@ So if you want to "hard-code" the port, you can do this:
 ```
 
 For the full example, look at [`cats-test.feature`](../karate-demo/src/test/java/mock/web/cats-test.feature).
+
+The object returned by `karate.start()` is an instance of [`MockServer`](../karate-core/src/main/java/com/intuit/karate/core/MockServer.java). So in addition to the `port` "getter", you can call `stop()` on it, but you normally don't need to - as it should stop automatically when the test (or JVM) ends.
 
 # Server Life Cycle
 Writing a mock can get complicated for real-life API interactions, and most other frameworks attempt to solve this using declarative approaches, such as expecting you to create a large, complicated JSON to model all requests and responses. You can think of Karate's approach as combining the best of both the worlds of declarative and imperative programming. Combined with the capability to maintain state in the form of JSON objects in memory, and Karate's native support for [Json-Path](https://github.com/intuit/karate#jsonpath-filters), XML and [`embedded expressions`](https://github.com/intuit/karate#embedded-expressions) - you have a very powerful toolkit at your disposal. And Karate's intelligent defaults keep things dead simple.
