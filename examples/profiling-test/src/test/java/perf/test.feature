@@ -9,5 +9,5 @@ Feature:
     * method get
     * match response == { success: true }
     * match backgroundData contains { var1: { foo: 'bar' } }
-    * def scenarioData = karate.call('called.feature')
-    * match scenarioData contains { var2: { baz: 'ban' } }
+    * def scenarioData = call read('called.feature') { callArgData: '#backgroundData' }
+    * match scenarioData contains { var2: { baz: { hello: 'world' } } }

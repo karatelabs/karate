@@ -13,7 +13,10 @@ class TestSimulation extends Simulation {
   val test = scenario("test").exec(karateFeature("classpath:perf/test.feature"))
 
   setUp(
-    test.inject(rampUsers(10) during (5 seconds)).protocols(protocol)
+    test.inject(
+      rampUsers(20).during(5.seconds),
+      constantUsersPerSec(20).during(10.minutes)
+    ).protocols(protocol)
   )
 
 }
