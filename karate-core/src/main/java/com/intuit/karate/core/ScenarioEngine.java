@@ -2132,8 +2132,8 @@ public class ScenarioEngine {
         // don't re-evaluate if this is clearly a direct reference to a variable
         // this avoids un-necessary conversion of xml into a map in some cases
         // e.g. 'Given request foo' - where foo is a Variable of type XML      
-        if (vars.containsKey(text)) {
-            return vars.get(text);
+        if (JS.bindings.hasMember(text)) {
+            return new Variable(JS.get(text));
         }
         boolean callOnce = isCallOnceSyntax(text);
         if (callOnce || isCallSyntax(text)) { // special case in form "callBegin foo arg"
