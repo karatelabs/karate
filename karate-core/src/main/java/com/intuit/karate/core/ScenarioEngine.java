@@ -1627,7 +1627,7 @@ public class ScenarioEngine {
             name = nameAndPath.left;
             path = nameAndPath.right;
         }
-        Variable target = vars.get(name);
+        Variable target = JS.bindings.hasMember(name) ? new Variable(JS.get(name)) : null; // should work in called features
         if (isXmlPath(path)) {
             if (target == null || target.isNull()) {
                 if (viaTable) { // auto create if using set via cucumber table as a convenience
@@ -1678,7 +1678,6 @@ public class ScenarioEngine {
                 json.set(path, value.<Object>getValue());
             }
         }
-
     }
 
     private static final String PATH = "path";
@@ -2112,11 +2111,13 @@ public class ScenarioEngine {
     }
 
     public Variable evalJsonPathOnVariableByName(String name, String path) {
-        return evalJsonPath(vars.get(name), path);
+        Variable v = new Variable(JS.get(name)); // should work in called features
+        return evalJsonPath(v, path);
     }
 
     public Variable evalXmlPathOnVariableByName(String name, String path) {
-        return evalXmlPath(vars.get(name), path);
+        Variable v = new Variable(JS.get(name)); // should work in called features
+        return evalXmlPath(v, path);
     }
 
     public Variable evalKarateExpression(String text) {

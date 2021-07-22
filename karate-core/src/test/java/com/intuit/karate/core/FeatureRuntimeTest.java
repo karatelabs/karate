@@ -240,7 +240,7 @@ class FeatureRuntimeTest {
                 .parallel(2);
         assertEquals(0, results.getFailCount());
     }
- 
+
     @Test
     void testOutlineConfigJsCallSingleParallel() {
         Results results = Runner.path("classpath:com/intuit/karate/core/outline-config-js.feature")
@@ -278,25 +278,30 @@ class FeatureRuntimeTest {
         report.render("target/report-test");
         // error log will should have logs on all failures
     }
-    
+
     @Test
     void testKarateFork() {
         run("fork.feature");
-    }  
-    
+    }
+
     @Test
     void testCsv() {
         run("csv.feature");
-    }    
-    
+    }
+
     @Test
     void testXmlPretty() {
         run("xml-pretty.feature");
     }
-    
+
     @Test
     void testMatchStep() {
         run("match-step.feature");
-    }     
+    }
+
+    @Test
+    void testCallJsonPath() {
+        run("call-jsonpath.feature");
+    }
 
 }
