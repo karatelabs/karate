@@ -998,7 +998,8 @@ public class ScenarioBridge implements PerfContext, EventContext {
         final Value[] values;
 
         LogWrapper(Value... values) {
-            this.values = values;
+            // sometimes a null array gets passed in, graal weirdness
+            this.values = values == null ? new Value[0] : values;
         }
 
         @Override
