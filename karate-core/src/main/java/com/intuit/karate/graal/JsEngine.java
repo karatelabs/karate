@@ -50,7 +50,11 @@ public class JsEngine {
     private static final String JS = "js";
     private static final String JS_EXPERIMENTAL_FOP = "js.experimental-foreign-object-prototype";
     private static final String JS_NASHORN_COMPAT = "js.nashorn-compat";
+    private static final String JS_ECMASCRIPT_VERSION = "js.ecmascript-version";
+    private static final String ENGINE_WARN_INTERPRETER_ONLY = "engine.WarnInterpreterOnly";
+    private static final String V_2021 = "2021";
     private static final String TRUE = "true";
+    private static final String FALSE = "false";
 
     private static final ThreadLocal<JsEngine> GLOBAL_JS_ENGINE = new ThreadLocal<JsEngine>() {
         @Override
@@ -61,12 +65,15 @@ public class JsEngine {
 
     private static Context createContext(Engine engine) {
         if (engine == null) {
-            engine = Engine.newBuilder().build();
+            engine = Engine.newBuilder()
+                    .option(ENGINE_WARN_INTERPRETER_ONLY, FALSE)                    
+                    .build();
         }
         return Context.newBuilder(JS)
                 .allowExperimentalOptions(true)
                 .allowAllAccess(true)
                 .option(JS_NASHORN_COMPAT, TRUE)
+                .option(JS_ECMASCRIPT_VERSION, V_2021)
                 .option(JS_EXPERIMENTAL_FOP, TRUE)
                 .engine(engine).build();
     }

@@ -194,7 +194,7 @@ class JsEngineTest {
         JsValue val = je.eval("Utils.testBytes");
         assertEquals(MockUtils.testBytes, val.getOriginal().asHostObject());
     }
-    
+
     @Test
     void testValueAndNull() {
         Value v = Value.asValue(null);
@@ -203,7 +203,7 @@ class JsEngineTest {
         JsValue jv = new JsValue(v);
         assertTrue(jv.isNull());
         assertNull(jv.getValue());
-    }    
+    }
 
     @Test
     void testValueAndHostObject() {
@@ -226,14 +226,14 @@ class JsEngineTest {
         assertFalse(v.isHostObject());
         assertTrue(v.canExecute());
     }
-    
+
     @Test
     void testJavaFunctionFactory() {
         Value v = je.evalForValue("Java.type('com.intuit.karate.graal.StaticPojo').sayHelloFactory()");
         assertFalse(v.isMetaObject());
         assertTrue(v.isHostObject());
         assertTrue(v.canExecute());
-    }    
+    }
 
     @Test
     void testEvalWithinFunction() {
@@ -254,6 +254,23 @@ class JsEngineTest {
         map.put("b", 2);
         Value result = je.evalWith(map, "a + b", true);
         assertEquals(result.asInt(), 3);
+    }
+
+    @Test
+    void testEc6ArrayFilling() {
+        je.eval("var repeat = n => Array.from({length: n}, (v, k) => k);");
+        JsValue jv = je.eval("repeat(2)");
+        assertTrue(jv.isArray());
+        List list = jv.getAsList();
+        assertEquals(0, list.get(0));
+        assertEquals(1, list.get(1));
+    }
+
+    @Test
+    void testEc6ArrayIncludes() {
+        je.eval("var temp = ['a', 'b'];");
+        JsValue jv = je.eval("temp.includes('a')");
+        assertTrue(jv.isTrue());
     }
 
 }
