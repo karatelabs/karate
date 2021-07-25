@@ -58,14 +58,14 @@ public class KaLinkAttrProcessor extends AbstractAttributeTagProcessor {
     @Override
     protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag, AttributeName an, String av, IElementTagStructureHandler sh) {
         String href = hostContextPath == null ? av : hostContextPath + av;
-        String kaStatic = tag.getAttributeValue(getDialectPrefix(), KaScriptElemProcessor.STATIC);
-        if (kaStatic != null) {
+        String noCache = tag.getAttributeValue(getDialectPrefix(), KaScriptElemProcessor.NOCACHE);
+        if (noCache != null) {
             Resource resource = resourceResolver.resolve(href);
             if (resource.isFile()) {
                 File file = resource.getFile();
                 href = href + "?ts=" + file.lastModified();
             }
-            sh.removeAttribute(getDialectPrefix(), KaScriptElemProcessor.STATIC);
+            sh.removeAttribute(getDialectPrefix(), KaScriptElemProcessor.NOCACHE);
         }
         sh.setAttribute(HREF, href);
     }

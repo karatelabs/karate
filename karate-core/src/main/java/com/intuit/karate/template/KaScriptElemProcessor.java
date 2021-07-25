@@ -46,7 +46,7 @@ public class KaScriptElemProcessor extends AbstractElementModelProcessor {
     protected static final String SCOPE = "scope";
     protected static final String LOCAL = "local";
     protected static final String HEAD = "head";
-    protected static final String STATIC = "static";
+    protected static final String NOCACHE = "nocache";
 
     public KaScriptElemProcessor(String dialectPrefix) {
         super(TemplateMode.HTML, dialectPrefix, "script", false, SCOPE, true, 1000);

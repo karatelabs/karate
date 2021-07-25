@@ -65,9 +65,9 @@ class TemplateTest {
     }
 
     @Test
-    void testStatic() {
+    void testNoCache() {
         File file = ResourceUtils.getFileRelativeTo(getClass(), "temp.js");
-        String rendered = render("static.html");
+        String rendered = render("nocache.html");
         assertTrue(rendered.contains("<script src=\"temp.js?ts=" + file.lastModified() + "\"></script>"));
     }
 

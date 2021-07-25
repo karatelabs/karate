@@ -64,14 +64,14 @@ public class KaScriptAttrProcessor extends AbstractAttributeTagProcessor {
             if (hostContextPath != null) {
                 src = hostContextPath + src;
             }
-            String kaStatic = tag.getAttributeValue(getDialectPrefix(), KaScriptElemProcessor.STATIC);
-            if (kaStatic != null) {
+            String noCache = tag.getAttributeValue(getDialectPrefix(), KaScriptElemProcessor.NOCACHE);
+            if (noCache != null) {
                 Resource resource = resourceResolver.resolve(src);
                 if (resource.isFile()) {
                     File file = resource.getFile();
                     src = src + "?ts=" + file.lastModified();
                 }
-                sh.removeAttribute(getDialectPrefix(), KaScriptElemProcessor.STATIC);
+                sh.removeAttribute(getDialectPrefix(), KaScriptElemProcessor.NOCACHE);
             }
             sh.setAttribute(SRC, src);
             return;
