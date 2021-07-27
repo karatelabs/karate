@@ -6,6 +6,9 @@ Background:
 * if (dimensions) driver.dimensions = dimensions
 
 Scenario:
+# driver.send() (has to be first)
+* if (driverType == 'chrome') karate.call('12.feature')
+
 # driver.url | driver.title | waitForUrl() | refresh() | back() | forward() | driver.dimensions
 * call read('01.feature')
 
@@ -38,6 +41,3 @@ Scenario:
 
 # switchPage()
 * call read('11.feature')
-
-# driver.send()
-* if (driverType == 'chrome') karate.call('12.feature')
