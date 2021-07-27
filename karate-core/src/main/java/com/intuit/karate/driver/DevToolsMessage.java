@@ -195,6 +195,9 @@ public class DevToolsMessage {
         if (params != null) {
             map.put("params", params.value());
         }
+        if (result != null) {
+            map.put("result", result.getValue());
+        }
         return map;
     }
 

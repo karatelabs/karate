@@ -38,3 +38,6 @@ Scenario:
 
 # switchPage()
 * call read('11.feature')
+
+# driver.send()
+* if (driverType == 'chrome') karate.call('12.feature')
