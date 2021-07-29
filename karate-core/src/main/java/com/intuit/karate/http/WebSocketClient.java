@@ -34,6 +34,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
+import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpObjectAggregator;
@@ -71,6 +72,7 @@ public class WebSocketClient implements WebSocketListener {
     private final URI uri;
     private final int port;
     private final SslContext sslContext;
+    private final WebSocketClientHandshaker handShaker;
     private final WebSocketClientHandler handler;
 
     private Function<String, Boolean> textHandler;
@@ -119,7 +121,7 @@ public class WebSocketClient implements WebSocketListener {
         if (headers != null) {
             headers.forEach((k, v) -> nettyHeaders.add(k, v));
         }
-        WebSocketClientHandshaker handShaker = WebSocketClientHandshakerFactory.newHandshaker(
+        handShaker = WebSocketClientHandshakerFactory.newHandshaker(
                 uri, WebSocketVersion.V13, options.getSubProtocol(), true, nettyHeaders, options.getMaxPayloadSize());
         handler = new WebSocketClientHandler(handShaker, this);
         try {
@@ -186,6 +188,10 @@ public class WebSocketClient implements WebSocketListener {
         if (logger.isTraceEnabled()) {
             logger.trace("sent: {}", msg);
         }
+    }
+    
+    public void sendHttpRequest(FullHttpRequest request) {        
+        channel.writeAndFlush(request);
     }
 
     public void sendBytes(byte[] msg) {

@@ -8,7 +8,6 @@ import com.intuit.karate.driver.DriverElement;
 import com.intuit.karate.driver.MissingElement;
 
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 

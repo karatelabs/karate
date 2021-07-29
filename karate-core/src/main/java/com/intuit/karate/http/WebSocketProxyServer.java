@@ -29,8 +29,8 @@ package com.intuit.karate.http;
  */
 public class WebSocketProxyServer extends WebSocketServerBase {
 
-    public WebSocketProxyServer(int port, String url) {
-        super(port, handler(url));
+    public WebSocketProxyServer(int port, String url, String path) {
+        super(port, path, handler(url));
     }
 
     private static WebSocketProxyHandler handler(String url) {

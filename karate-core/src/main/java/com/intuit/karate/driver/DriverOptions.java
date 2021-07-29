@@ -303,7 +303,11 @@ public class DriverOptions {
             options.put("type", type);
         }
         try { // to make troubleshooting errors easier
-            DriverRunner driverRunner = sr.featureRuntime.suite.drivers.get(type);
+            Map<String, DriverRunner> drivers = sr.featureRuntime.suite.drivers;
+            if (drivers == null) { // java api, so dummy suite
+                drivers = DriverOptions.driverRunners();
+            }
+            DriverRunner driverRunner = drivers.get(type);
             if (driverRunner == null) {
                 sr.logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
                 options.put("type", Chrome.DRIVER_TYPE);

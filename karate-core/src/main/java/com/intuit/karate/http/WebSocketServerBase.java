@@ -72,12 +72,12 @@ public class WebSocketServerBase {
         logger.info("stop: shutdown complete");
     }
 
-    public WebSocketServerBase(int port, SimpleChannelInboundHandler handler) {
+    public WebSocketServerBase(int port, String path, SimpleChannelInboundHandler handler) {
         this.port = port;
         bossGroup = new NioEventLoopGroup(1);
         workerGroup = new NioEventLoopGroup(8);
         WebSocketServerProtocolConfig config = WebSocketServerProtocolConfig.newBuilder()
-                .websocketPath("/")
+                .websocketPath(path)
                 .allowExtensions(true)
                 .checkStartsWith(true).build();
         try {
@@ -88,10 +88,10 @@ public class WebSocketServerBase {
                         @Override
                         protected void initChannel(Channel c) {
                             ChannelPipeline p = c.pipeline();
-                            p.addLast(new HttpServerCodec());
+                            p.addLast(new HttpServerCodec());                            
                             p.addLast(new HttpObjectAggregator(65536));
-                            p.addLast(new WebSocketServerCompressionHandler());
-                            p.addLast(new WebSocketServerProtocolHandler(config));
+                            p.addLast(new WebSocketServerCompressionHandler());                            
+                            p.addLast(new WebSocketServerProtocolHandler(config));                            
                             p.addLast(handler);
                         }
                     });

@@ -262,9 +262,10 @@ public class PlaywrightDriver implements Driver {
                     method(dialogAccept ? "accept" : "dismiss", currentDialog)
                             .param("promptText", dialogInput).sendWithoutWaiting();
                 }
-            } else if (pwm.paramHas("type", "RemoteBrowser")) {
-                browserGuid = pwm.getParam("initializer.browser.guid");
+            } else if (pwm.paramHas("type", "Browser")) {
+                browserGuid = pwm.getParam("guid");
                 Map<String, Object> map = new HashMap();
+                map.put("sdkLanguage", "javascript");
                 if (!options.headless) {
                     map.put("noDefaultViewport", false);
                 }

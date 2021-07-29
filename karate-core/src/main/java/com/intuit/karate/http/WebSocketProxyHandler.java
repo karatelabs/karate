@@ -26,6 +26,7 @@ package com.intuit.karate.http;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +37,9 @@ import org.slf4j.LoggerFactory;
  */
 public class WebSocketProxyHandler extends SimpleChannelInboundHandler<Object> {
 
-    private static final Logger logger = LoggerFactory.getLogger(WebSocketProxyHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(WebSocketProxyHandler.class);
+
+    private final com.intuit.karate.Logger logger = new com.intuit.karate.Logger();
     private WebSocketClient client;
     private final WebSocketOptions options;
 
@@ -46,29 +49,39 @@ public class WebSocketProxyHandler extends SimpleChannelInboundHandler<Object> {
 
     private Channel channel;
 
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        channel = ctx.channel();
-        client = new WebSocketClient(options, new com.intuit.karate.Logger()) {
+    private void initClient() {
+        client = new WebSocketClient(options, logger) {
             @Override
             public void onMessage(String text) {
-                logger.debug("<< {}", text);
+                LOGGER.debug("<< {}", text);
                 channel.eventLoop().submit(() -> {
                     channel.writeAndFlush(new TextWebSocketFrame(text));
                 });
             }
-        };       
+        };
+    }
+
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        channel = ctx.channel();
+        initClient();
     }
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof TextWebSocketFrame) {
             String request = ((TextWebSocketFrame) msg).text();
-            logger.debug(">> {}", request);
+            LOGGER.debug(">> {}", request);
             client.send(request);
+        } else if (msg instanceof FullHttpRequest) {
+            client.ping();
+//            initClient();
+//            FullHttpRequest request = (FullHttpRequest) msg;
+//            request.retain();
+//            client.sendHttpRequest(request);
         } else {
             String message = "unsupported frame type: " + msg.getClass().getName();
-            throw new UnsupportedOperationException(message);
+            LOGGER.warn(message);
         }
     }
 
