@@ -4,7 +4,7 @@ This is a sample [Spring Boot](http://projects.spring.io/spring-boot/) web-appli
 Note that this is *not* the best example of a skeleton Java / Maven project, as it is designed to be part of the Karate code-base and act as a suite of regression tests. For a good "starter" project, please use one of these:
 * the [Quickstart](https://github.com/intuit/karate#quickstart)
 * the [examples/jobserver](../examples/jobserver) project
-* the [examples/consumer-driven-contracts](../examples/consumer-driven-contracts) project
+* the [examples/consumer-driven-contracts](../examples/consumer-driven-contracts) project (multi Maven-module project)
 
 | Example | Demonstrates
 ----------| --------
@@ -32,7 +32,8 @@ Note that this is *not* the best example of a skeleton Java / Maven project, as 
 [`call-once.feature`](src/test/java/demo/callonce/call-once.feature) | Cucumber has a [limitation](https://github.com/cucumber/cucumber-jvm/issues/515) where `Background` steps are re-run for every `Scenario` and even for every `Examples` row within a `Scenario Outline`. This is a problem when you have expensive and time-consuming HTTP calls in your 'set-up' routines. Fortunately you have an elegant work-around with Karate's [`callonce`](https://github.com/intuit/karate#callonce) keyword.
 [`polling.feature`](src/test/java/demo/polling/polling.feature) | [Retry support](https://github.com/intuit/karate#retry-until) is built-in to Karate, but you can also achieve this by combining JavaScript functions with a [`call` to another `*.feature` file](https://github.com/intuit/karate#calling-other-feature-files).
 [`websocket.feature`](src/test/java/demo/websocket/websocket.feature) | How to write [websocket](https://github.com/intuit/karate#websocket) tests, also see [`echo.feature`](src/test/java/demo/websocket/echo.feature).
-[`JavaApiTest.java`](src/test/java/demo/java/JavaApiTest.java) | If you need to call a Karate test from Java code you can do so using the [Java API](https://github.com/intuit/karate#java-api). This is useful in some situations, for example if you want to mix API-calls into a Selenium / WebDriver test. Also see [this](https://twitter.com/KarateDSL/status/1353969718730788865).
+[`JavaApiTest.java`](src/test/java/demo/java/JavaApiTest.java) | If you need to call a Karate test from Java code you can do so using the [Java API](https://github.com/intuit/karate#java-api). Also see [this](https://twitter.com/KarateDSL/status/1353969718730788865).
+[`main.feature`](src/test/java/mock/async/main.feature) | You can take [Java interop](https://github.com/intuit/karate#calling-java) and [Karate test-doubles (mocks)](https://github.com/intuit/karate/tree/master/karate-netty) to extremes. This particular test is described [here](https://twitter.com/KarateDSL/status/1417023536082812935).
 
 ## Configuration and Best Practices
 Some common patterns are called out and explained below.
