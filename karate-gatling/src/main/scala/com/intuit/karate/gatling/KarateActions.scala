@@ -1,6 +1,5 @@
 package com.intuit.karate.gatling
 
-import java.util
 import java.util.function.Consumer
 
 import akka.actor.ActorSystem
