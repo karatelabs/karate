@@ -1,5 +1,6 @@
 package com.intuit.karate.gatling
 
+import java.util
 import java.util.function.Consumer
 
 import akka.actor.ActorSystem
@@ -76,20 +77,18 @@ class KarateFeatureAction(val name: String, val tags: Seq[String], val protocol:
 
     }
 
-    val gatlingSessionAttributes: java.util.Map[String, AnyRef] =
-      (session.attributes
-        + ("userId" -> session.userId)
-        + ("pause" -> pauseFunction)
-        ).asInstanceOf[Map[String, AnyRef]].asJava
-
-    val callArg: java.util.Map[String, Object] = new java.util.HashMap[String, Object](gatlingSessionAttributes)
-
-    if (callArg.containsKey(KarateProtocol.KARATE_KEY)) {
-      val incomingData = callArg.remove(KarateProtocol.KARATE_KEY).asInstanceOf[Map[String, AnyRef]].asJava
-      callArg.putAll(incomingData)
+    val gatlingSessionMap: java.util.Map[String, Any] = new java.util.HashMap(session.attributes.asInstanceOf[Map[String, AnyRef]].asJava)
+    val callArg: util.HashMap[String, Any] = {
+      if (gatlingSessionMap.containsKey(KarateProtocol.KARATE_KEY)) {
+        val incomingData = gatlingSessionMap.remove(KarateProtocol.KARATE_KEY).asInstanceOf[Map[String, Any]].asJava
+        new java.util.HashMap[String, Any](incomingData)
+      } else {
+        new java.util.HashMap[String, Any](1)
+      }
     }
-
-    callArg.put(KarateProtocol.GATLING_KEY, gatlingSessionAttributes)
+    gatlingSessionMap.put("userId", session.userId)
+    gatlingSessionMap.put("pause", pauseFunction)
+    callArg.put(KarateProtocol.GATLING_KEY, gatlingSessionMap)
 
     val runner = protocol.runner.copy()
     runner.callSingleCache(protocol.callSingleCache)
