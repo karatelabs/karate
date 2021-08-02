@@ -145,6 +145,9 @@ public class MatchStep {
                 return Match.Type.CONTAINS_ANY;
             }
             if (deep) {
+                if (not) {
+                    throw new RuntimeException("'!contains deep' is not yet supported, use 'contains deep' instead");
+                }
                 return Match.Type.CONTAINS_DEEP;
             }
             return not ? Match.Type.NOT_CONTAINS : Match.Type.CONTAINS;

@@ -2654,6 +2654,8 @@ Scenario: recurse nested array
   * match original contains deep expected
 ```
 
+> the NOT operator e.g. `!contains deep` is not yet supported, please contribute code if you can.
+
 ## Validate every element in a JSON array
 ### `match each`
 The `match` keyword can be made to iterate over all elements in a JSON array using the `each` modifier. Here's how it works:
