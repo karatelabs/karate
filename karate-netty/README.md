@@ -142,6 +142,8 @@ KX | [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contrac
 
 Also see this [blog post](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) for an additional diagram explaining how a mock-service can be implemented.
 
+And for more ideas, refer to [this example](https://twitter.com/KarateDSL/status/1417023536082812935) of using a mock to listen for an async "callback" and integrating that kind of flow into your test.
+
 ### Server-Side Karate
 #### A perfect match !
 It is worth calling out *why* Karate on the 'other side of the fence' (*handling* HTTP requests instead of *making* them) - turns out to be remarkably effective, yet simple.
