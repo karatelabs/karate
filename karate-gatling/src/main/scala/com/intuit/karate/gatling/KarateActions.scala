@@ -77,8 +77,8 @@ class KarateFeatureAction(val name: String, val tags: Seq[String], val protocol:
 
     }
 
-    val gatlingSessionMap: java.util.Map[String, Any] = new java.util.HashMap(session.attributes.asInstanceOf[Map[String, AnyRef]].asJava)
-    val callArg: util.HashMap[String, Any] = {
+    val gatlingSessionMap: java.util.Map[String, Any] = new java.util.HashMap(session.attributes.asInstanceOf[Map[String, Any]].asJava)
+    val callArg: java.util.Map[String, Any] = {
       if (gatlingSessionMap.containsKey(KarateProtocol.KARATE_KEY)) {
         val incomingData = gatlingSessionMap.remove(KarateProtocol.KARATE_KEY).asInstanceOf[Map[String, Any]].asJava
         new java.util.HashMap[String, Any](incomingData)
