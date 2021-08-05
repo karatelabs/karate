@@ -1,10 +1,7 @@
 Feature:
 
-  Background:
-     * def port = karate.start('parse-html.feature').port
-
   Scenario: post redirect to get
-
+    * def port = karate.start('parse-html.feature').port
     * def loginUrl = 'http://localhost:' + port + '/login'
 
     Given url loginUrl
