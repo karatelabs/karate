@@ -25,6 +25,12 @@ package com.intuit.karate;
 
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import org.jsoup.Jsoup;
+import org.jsoup.helper.W3CDom;
+import org.w3c.dom.*;
+import org.xml.sax.EntityResolver;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -119,6 +125,26 @@ public class XmlUtils {
 
     }
 
+    public static Document toHtmlDoc(String html) {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        try {
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            DtdEntityResolver dtdEntityResolver = new DtdEntityResolver();
+            builder.setEntityResolver(dtdEntityResolver);
+            org.jsoup.nodes.Document jsoupDoc = Jsoup.parse(html);
+            Document doc = new W3CDom().fromJsoup(jsoupDoc);
+            if (dtdEntityResolver.dtdPresent) { // DOCTYPE present
+                // the XML was not parsed, but I think it hangs at the root as a text node
+                // so conversion to string and back has the effect of discarding the DOCTYPE !
+                return toXmlDoc(toString(doc, false));
+            } else {
+                return doc;
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static Document toXmlDoc(String xml) {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         try {
@@ -135,7 +161,10 @@ public class XmlUtils {
                 return doc;
             }
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            /* Need to support response strings as both well-formed XML and HTML.
+            Without context of MIME type, fall-back exception handling is unlikely to cause regressions,
+            but should support well-formed HTML as well. */
+            return toHtmlDoc(xml);
         }
     }
 
