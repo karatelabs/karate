@@ -13,7 +13,7 @@
     <properties>
         <antlr.version>4.9.2</antlr.version>
         <graal.version>21.2.0</graal.version>
-        <jsoup.version>1.11.3</jsoup.version>
+        <jsoup.version>1.13.1</jsoup.version>
     </properties>
 
     <dependencies>
