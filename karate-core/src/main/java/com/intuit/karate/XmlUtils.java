@@ -129,13 +129,7 @@ public class XmlUtils {
             builder.setEntityResolver(dtdEntityResolver);
             org.jsoup.nodes.Document jsoupDoc = Jsoup.parse(html);
             Document doc = new W3CDom().fromJsoup(jsoupDoc);
-            if (dtdEntityResolver.dtdPresent) { // DOCTYPE present
-                // the XML was not parsed, but I think it hangs at the root as a text node
-                // so conversion to string and back has the effect of discarding the DOCTYPE !
-                return toXmlDoc(toString(doc, false));
-            } else {
-                return doc;
-            }
+            return doc;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
