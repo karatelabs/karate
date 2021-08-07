@@ -275,12 +275,21 @@ public class JsValue {
         switch (trimmed.charAt(0)) {
             case '{':
             case '[':
-                return strict ? JsonUtils.fromJsonStrict(raw) : JsonUtils.fromJson(raw);
+                if (strict) {
+                    return JsonUtils.fromJsonStrict(raw);
+                }
+                try {
+                    return JsonUtils.fromJson(raw);
+                } catch (Exception e) {
+                    logger.trace("failed to parse json: {}", e.getMessage());
+                    return raw;
+                }
             case '<':
                 if (resourceType == null || resourceType.isXml()) {
                     try {
                         return XmlUtils.toXmlDoc(raw);
                     } catch (Exception e) {
+                        logger.trace("failed to parse xml: {}", e.getMessage());
                         if (strict) {
                             throw e;
                         }

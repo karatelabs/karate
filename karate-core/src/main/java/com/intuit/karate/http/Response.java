@@ -148,12 +148,7 @@ public class Response implements ProxyObject {
         if (rt != null && rt.isBinary()) {
             return body;
         }
-        try {
-            return JsValue.fromBytes(body, false, rt);
-        } catch (Exception e) {
-            logger.trace("failed to auto-convert response: {}", e);
-            return getBodyAsString();
-        }
+        return JsValue.fromBytes(body, false, rt);
     }
 
     public Json json() {

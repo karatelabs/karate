@@ -23,3 +23,9 @@ Given path 'stringformed'
 When method get
 Then status 200
 And match responseType == 'string'
+
+* configure logPrettyResponse = true
+Given path 'malformed'
+When method get
+Then status 200
+And match responseType == 'string'

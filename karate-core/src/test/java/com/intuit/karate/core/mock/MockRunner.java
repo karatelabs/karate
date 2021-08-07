@@ -48,6 +48,11 @@ class MockRunner {
     @Test
     void testHtml() {
         run("html.feature");
-    }    
+    } 
+    
+    @Test
+    void testMalformed() {
+        run("malformed.feature");
+    }     
 
 }
