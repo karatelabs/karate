@@ -44,5 +44,10 @@ class MockRunner {
     void testBinary() {
         run("binary.feature");
     }
+    
+    @Test
+    void testHtml() {
+        run("html.feature");
+    }    
 
 }

@@ -256,15 +256,15 @@ public class JsValue {
         }
     }
 
-    public static Object fromBytes(byte[] bytes, boolean jsonStrict, ResourceType resourceType) {
+    public static Object fromBytes(byte[] bytes, boolean strict, ResourceType resourceType) {
         if (bytes == null) {
             return null;
         }
         String raw = FileUtils.toString(bytes);
-        return fromString(raw, jsonStrict, resourceType);
+        return fromString(raw, strict, resourceType);
     }
 
-    public static Object fromString(String raw, boolean jsonStrict, ResourceType resourceType) {
+    public static Object fromString(String raw, boolean strict, ResourceType resourceType) {
         String trimmed = raw.trim();
         if (trimmed.isEmpty()) {
             return raw;
@@ -275,10 +275,17 @@ public class JsValue {
         switch (trimmed.charAt(0)) {
             case '{':
             case '[':
-                return jsonStrict ? JsonUtils.fromJsonStrict(raw) : JsonUtils.fromJson(raw);
+                return strict ? JsonUtils.fromJsonStrict(raw) : JsonUtils.fromJson(raw);
             case '<':
                 if (resourceType == null || resourceType.isXml()) {
-                    return XmlUtils.toXmlDoc(raw);
+                    try {
+                        return XmlUtils.toXmlDoc(raw);
+                    } catch (Exception e) {
+                        if (strict) {
+                            throw e;
+                        }
+                        return raw;
+                    }
                 } else {
                     return raw;
                 }
