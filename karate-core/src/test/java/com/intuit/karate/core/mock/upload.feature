@@ -23,3 +23,11 @@ And multipart field message = 'multipart test'
 When method post
 Then status 200
 And match response == { success: true }
+
+Scenario: upload multipart with json part
+Given url mockServerUrl + 'multipart/json'
+And multipart file myFile = { read: 'test.pdf.zip', filename: 'test.pdf.zip', contentType: 'application/octet-stream' }
+And multipart field message = { hello: 'world' }
+When method post
+Then status 200
+And match response == { hello: 'world' }

@@ -452,7 +452,10 @@ public class ScenarioEngine {
     }
 
     public void multipartField(String name, String value) {
-        multipartFile(name, value);
+        Variable v = evalKarateExpression(value);
+        Map map = new HashMap();
+        map.put("value", v.getValue());
+        multiPartInternal(name, map);
     }
 
     public void multipartFields(String exp) {
@@ -1051,7 +1054,7 @@ public class ScenarioEngine {
         });
         return detached;
     }
-    
+
     // callSingle
     protected Object recurseAndAttachAndShallowClone(Object o) {
         return recurseAndAttachAndShallowClone(o, Collections.newSetFromMap(new IdentityHashMap()));
@@ -1066,7 +1069,7 @@ public class ScenarioEngine {
         }
         Object result = recurseAndAttach("", o, seen);
         return result == null ? o : result;
-    }    
+    }
 
     private Object recurseAndAttach(String name, Object o, Set<Object> seen) {
         if (o instanceof Value) {

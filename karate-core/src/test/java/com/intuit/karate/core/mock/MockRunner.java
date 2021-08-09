@@ -54,5 +54,10 @@ class MockRunner {
     void testMalformed() {
         run("malformed.feature");
     }     
+    
+    @Test
+    void testMultipart() {
+        run("upload.feature");
+    }    
 
 }

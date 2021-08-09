@@ -75,6 +75,9 @@ Scenario: pathMatches('/v1/upload/excel')
 Scenario: pathMatches('/v1/multipart')
     * def response = { success: true }
 
+Scenario: pathMatches('/v1/multipart/json')
+    * json response = requestParams['message'][0]
+
 Scenario: pathMatches('/v1/form')
     # TODO urlencoded form handling on server side
     * def response = { success: true }
