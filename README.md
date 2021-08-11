@@ -2375,6 +2375,12 @@ If you are just trying to pre-define schema snippets to use in a [fuzzy-match](#
 * match response1 == schema
 ```
 
+And if you need to suppress placeholder substitution for [`read()`](#reading-files), but still need a JSON snippet, you can do this. Note how we read as a string, but ["cast" to JSON](#type-conversion):
+
+```cucumber
+* json schema = karate.readAsString('schema.json')
+```
+
 Something similar can be done for XML by using [`text`](#text) and "casting" to XML before use in a [`match`](#match):
 
 ```cucumber
