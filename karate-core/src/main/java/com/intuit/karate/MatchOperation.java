@@ -182,6 +182,21 @@ public class MatchOperation {
                 return fail("actual path does not exist");
             }
         }
+        if (expected.isString()) {
+            String expStr = expected.getValue();
+            if (expStr.startsWith("#")) {
+                switch (type) {
+                    case NOT_EQUALS:
+                        return macroEqualsExpected(expStr) ? fail("is equal") : pass();
+                    case NOT_CONTAINS:
+                        return macroEqualsExpected(expStr) ? fail("actual contains expected") : pass();
+                    case CONTAINS:
+                        if (expStr.startsWith("#regex")) break;
+                    default:
+                        return macroEqualsExpected(expStr) ? pass() : fail(null);
+                }
+            }
+        }
         if (actual.type != expected.type) {
             switch (type) {
                 case CONTAINS:
@@ -214,20 +229,7 @@ public class MatchOperation {
                 return type == Match.Type.NOT_EQUALS ? pass() : fail("data types don't match");
             }
         }
-        if (expected.isString()) {
-            String expStr = expected.getValue();
-            if (expStr.startsWith("#")) {
-                switch (type) {
-                    case NOT_EQUALS:
-                        return macroEqualsExpected(expStr) ? fail("is equal") : pass();
-                    case NOT_CONTAINS:
-                        return macroEqualsExpected(expStr) ? fail("actual contains expected") : pass();
-                    default:
-                        return macroEqualsExpected(expStr) ? pass() : fail(null);
-                }
-            }
-        }
-        switch (type) {
+       switch (type) {
             case EQUALS:
                 return actualEqualsExpected() ? pass() : fail("not equal");
             case NOT_EQUALS:

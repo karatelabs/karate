@@ -379,4 +379,12 @@ class MatchTest {
         match("{ a: null}", EQUALS, " { a: '##notnull' }");
     }
 
+    @Test
+    void testEmbedded() {
+        assertAll(
+            () -> match("[]", CONTAINS, "#[] ##({ a: \"#number\" })"),
+            () -> match("[ { \"a\": 1 } ]", CONTAINS, "#[] ##(({ a: \"#number\" }))"),
+            () -> match("[ { \"a\": 1 }, { \"a\": 2 } ]", CONTAINS, "#[] ##(({ a: \"#number\" }))")
+        );
+    }
 }
