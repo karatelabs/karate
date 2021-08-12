@@ -1764,9 +1764,13 @@ public class ScenarioEngine {
         }
         path = StringUtils.trimToNull(path);
         if (path == null) {
-            StringUtils.Pair pair = parseVariableAndPath(name);
-            name = pair.left;
-            path = pair.right;
+            if (name.startsWith("(")) { // edge case, eval entire LHS
+                path = "$";
+            } else {
+                StringUtils.Pair pair = parseVariableAndPath(name);
+                name = pair.left;
+                path = pair.right;
+            }
         }
         if ("header".equals(name)) { // convenience shortcut for asserting against response header
             return matchHeader(matchType, path, rhs);

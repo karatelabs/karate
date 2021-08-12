@@ -660,13 +660,20 @@ class ScenarioRuntimeTest {
                 "match temperature contains { fahrenheit: '#($.celsius * 1.8 + 32)' }"
         );
     }
+    
+    @Test
+    void testArrayOnLhs() {
+        run(
+                "match [] == '#[]'"
+        );        
+    }
 
     @Test
     void testMatchContainsArrayOnLhs() {
         run(
                 "match ['foo', 'bar'] contains 'foo'"
         );
-    }
+    }        
     
     @Test
     void testMatchEmbeddedOptionalObject() {
