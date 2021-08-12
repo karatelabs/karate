@@ -61,9 +61,9 @@ public class Karate extends Runner.Builder<Karate> implements Iterable<DynamicNo
         List<DynamicNode> list = new ArrayList();
         List<CompletableFuture> futures = new ArrayList();
         for (Feature feature : suite.features) {
-            if (!FeatureRuntime.of(suite, feature).scenarios.hasNext()) // if there is no scenarios selected for execution, skip the feature
-                continue;
             FeatureNode featureNode = new FeatureNode(suite, futures, feature, suite.tagSelector);
+            if (!featureNode.hasNext()) // if no scenarios to execute, just skip the feature
+                continue;
             String testName = feature.getResource().getFileNameWithoutExtension();
             DynamicNode node = DynamicContainer.dynamicContainer(testName, featureNode);
             list.add(node);
