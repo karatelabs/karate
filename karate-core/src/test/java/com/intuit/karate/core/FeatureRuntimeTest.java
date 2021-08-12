@@ -303,5 +303,10 @@ class FeatureRuntimeTest {
     void testCallJsonPath() {
         run("call-jsonpath.feature");
     }
+    
+    @Test
+    void testSchemaRead() {
+        run("schema-read.feature");
+    }    
 
 }

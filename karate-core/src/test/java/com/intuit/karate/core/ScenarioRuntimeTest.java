@@ -697,6 +697,16 @@ class ScenarioRuntimeTest {
     }
 
     @Test
+    void testMatchSchemaArray() {
+        run(
+                "def temp = { foo: '#string' }",
+                "def schema = '#[] temp'",
+                "match [] == schema",
+                "match [{ foo: 'bar' }] == schema"
+        );
+    }
+    
+    @Test
     void testMatchSchemaMagicVariables() {
         run(
                 "def response = { odds: [1, 2], count: 2 }",
