@@ -60,7 +60,7 @@ public class ScenarioActions implements Actions {
 
     @Override
     @When("^configure ([^\\s]+) =$")
-    public void configureDocstring(String key, String exp) {
+    public void configureDocString(String key, String exp) {
         engine.configure(key, exp);
     }
 
@@ -108,9 +108,15 @@ public class ScenarioActions implements Actions {
 
     @Override
     @When("^csv (.+) = (.+)")
-    public void csv(String name, String exp) {
-        engine.assign(AssignType.CSV, name, exp);
+    public void csv(String name, String exp) {        
+        engine.assign(AssignType.CSV, name, exp, false);
     }
+    
+    @Override
+    @When("^csv (.+) =$")
+    public void csvDocString(String name, String exp) {
+        engine.assign(AssignType.CSV, name, exp, true);
+    }    
 
     @Override
     @When("^header ([^\\s]+) = (.+)")
@@ -138,7 +144,7 @@ public class ScenarioActions implements Actions {
 
     @Override
     @When("^request$")
-    public void requestDocstring(String body) {
+    public void requestDocString(String body) {
         engine.request(body);
     }
 
@@ -177,63 +183,69 @@ public class ScenarioActions implements Actions {
     }
 
     @Override
-    @When("^def (.+) =$")
-    public void defDocstring(String name, String exp) {
-        engine.assign(AssignType.AUTO, name, exp);
-    }
-
-    @Override
     @When("^def (\\w+) = (.+)")
     public void def(String name, String exp) {
-        engine.assign(AssignType.AUTO, name, exp);
+        engine.assign(AssignType.AUTO, name, exp, false);
     }
+    
+    @Override
+    @When("^def (.+) =$")
+    public void defDocString(String name, String exp) {
+        engine.assign(AssignType.AUTO, name, exp, false); // auto-parse json and xml
+    }    
 
     @Override
     @When("^text (.+) =$")
     public void text(String name, String exp) {
-        engine.assign(AssignType.TEXT, name, exp);
+        engine.assign(AssignType.TEXT, name, exp, true); // doc string
     }
 
     @Override
     @When("^yaml (.+) = (.+)")
     public void yaml(String name, String exp) {
-        engine.assign(AssignType.YAML, name, exp);
+        engine.assign(AssignType.YAML, name, exp, false);
     }
+    
+    @Override
+    @When("^yaml (.+) =$")
+    public void yamlDocString(String name, String exp) {
+        engine.assign(AssignType.YAML, name, exp, true);
+    }    
 
     @Override
     @When("^copy (.+) = (.+)")
     public void copy(String name, String exp) {
-        engine.assign(AssignType.COPY, name, exp);
+        engine.assign(AssignType.COPY, name, exp, false);
     }
 
     @Override
     @When("^json (.+) = (.+)")
     public void json(String name, String exp) {
-        engine.assign(AssignType.JSON, name, exp);
+        engine.assign(AssignType.JSON, name, exp, false);
     }
 
     @Override
     @When("^string (.+) = (.+)")
     public void string(String name, String exp) {
-        engine.assign(AssignType.STRING, name, exp);
+        engine.assign(AssignType.STRING, name, exp, false);
     }
 
     @Override
     @When("^xml (.+) = (.+)")
     public void xml(String name, String exp) {
-        engine.assign(AssignType.XML, name, exp);
+        engine.assign(AssignType.XML, name, exp, false);
     }
 
     @Override
     @When("^xmlstring (.+) = (.+)")
     public void xmlstring(String name, String exp) {
-        engine.assign(AssignType.XML_STRING, name, exp);
+        engine.assign(AssignType.XML_STRING, name, exp, false);
     }
 
     @Override
     @When("^bytes (.+) = (.+)")
     public void bytes(String name, String exp) {
-        engine.assign(AssignType.BYTE_ARRAY, name, exp);
+        engine.assign(AssignType.BYTE_ARRAY, name, exp, false);
     }
 
     @Override
@@ -319,7 +331,7 @@ public class ScenarioActions implements Actions {
 
     @Override
     @When("^set ([^\\s]+)( .+)? =$")
-    public void setDocstring(String name, String path, String value) {
+    public void setDocString(String name, String path, String value) {
         engine.set(name, path, value);
     }
 
@@ -366,7 +378,7 @@ public class ScenarioActions implements Actions {
 
     @Override
     @When("^eval$")
-    public void evalDocstring(String exp) {
+    public void evalDocString(String exp) {
         engine.evalJs(exp);
     }
 

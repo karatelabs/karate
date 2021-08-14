@@ -307,6 +307,11 @@ class FeatureRuntimeTest {
     @Test
     void testSchemaRead() {
         run("schema-read.feature");
-    }    
+    }   
+    
+    @Test
+    void testTypeConversion() {
+        run("type-conversion.feature");
+    }      
 
 }

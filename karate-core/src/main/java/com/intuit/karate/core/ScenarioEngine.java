@@ -1315,8 +1315,8 @@ public class ScenarioEngine {
         }
     }
 
-    private Variable evalAndCastTo(AssignType assignType, String exp) {
-        Variable v = evalKarateExpression(exp);
+    private Variable evalAndCastTo(AssignType assignType, String exp, boolean docString) {
+        Variable v = docString ? new Variable(exp) : evalKarateExpression(exp);
         switch (assignType) {
             case BYTE_ARRAY:
                 return new Variable(v.getAsByteArray());
@@ -1332,25 +1332,21 @@ public class ScenarioEngine {
             case YAML:
                 return new Variable(JsonUtils.fromYaml(v.getAsString()));
             case CSV:
-                return new Variable(JsonUtils.fromCsv(v.getAsString()));
+                return new Variable(JsonUtils.fromCsv(v.getAsString()));                
             case COPY:
                 return v.copy(true);
-            default: // AUTO (TEXT is pre-handled, see below)
+            default: // TEXT will be docstring, AUTO (def) will auto-parse JSON or XML
                 return v; // as is
         }
     }
 
-    public void assign(AssignType assignType, String name, String exp) {
+    public void assign(AssignType assignType, String name, String exp, boolean docString) {
         name = StringUtils.trimToEmpty(name);
         validateVariableName(name); // always validate when gherkin
         if (vars.containsKey(name)) {
             LOGGER.debug("over-writing existing variable '{}' with new value: {}", name, exp);
         }
-        if (assignType == AssignType.TEXT) {
-            setVariable(name, exp);
-        } else {
-            setVariable(name, evalAndCastTo(assignType, exp));
-        }
+        setVariable(name, evalAndCastTo(assignType, exp, docString));
     }
 
     private static boolean isEmbeddedExpression(String text) {
