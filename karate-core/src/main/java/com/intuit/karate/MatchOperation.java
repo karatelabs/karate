@@ -190,7 +190,8 @@ public class MatchOperation {
                 case CONTAINS_ONLY:
                 case CONTAINS_DEEP:
                 case CONTAINS_ANY_DEEP:
-                    if (!expected.isList()) {
+                    String expStr = expected.getAsString();
+                    if (!expected.isList() && !expStr.startsWith("#[")) { // don't tamper with strings that represent arrays
                         MatchOperation mo = new MatchOperation(context, type, actual, new Match.Value(Collections.singletonList(expected.getValue())));
                         mo.execute();
                         return mo.pass ? pass() : fail(mo.failReason);

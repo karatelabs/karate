@@ -167,7 +167,15 @@ class MatchTest {
     
     @Test
     void testListContainsRegex() {
-        match("['foo', 'bar']", CONTAINS, "#regex .{3}");
+        match("['foo', 'bar']", CONTAINS, "#regex .{3}");        
+        match("['foo', 'bar']", CONTAINS_DEEP, "#regex .{3}");
+        match("['foo', 'bar']", CONTAINS_ANY, "#regex .{3}");
+        match("['foo', 'bar']", CONTAINS_ANY_DEEP, "#regex .{3}");
+        match("{ array: ['foo', 'bar'] }", EQUALS, "{ array: '#[] #regex .{3}' }");
+        match("{ array: ['foo', 'bar'] }", CONTAINS, "{ array: '#[] #regex .{3}' }");
+        match("{ array: ['foo', 'bar'] }", CONTAINS_DEEP, "{ array: '#[] #regex .{3}' }");
+        match("{ array: ['foo', 'bar'] }", CONTAINS_ANY, "{ array: '#[] #regex .{3}' }");
+        match("{ array: ['foo', 'bar'] }", CONTAINS_ANY_DEEP, "{ array: '#[] #regex .{3}' }");
     }    
 
     @Test
