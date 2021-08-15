@@ -190,8 +190,8 @@ public class MatchOperation {
                 case CONTAINS_ONLY:
                 case CONTAINS_DEEP:
                 case CONTAINS_ANY_DEEP:
-                    String expStr = expected.getAsString();
-                    if (!expected.isList() && !expStr.startsWith("#[")) { // don't tamper with strings that represent arrays
+                    // don't tamper with strings on the RHS that represent arrays
+                    if (!expected.isList() && !(expected.isString() && expected.getAsString().startsWith("#["))) {
                         MatchOperation mo = new MatchOperation(context, type, actual, new Match.Value(Collections.singletonList(expected.getValue())));
                         mo.execute();
                         return mo.pass ? pass() : fail(mo.failReason);
@@ -505,7 +505,7 @@ public class MatchOperation {
         if (type == Match.Type.CONTAINS_ANY || type == Match.Type.CONTAINS_ANY_DEEP) {
             return unMatchedKeysExp.isEmpty() ? true : fail("no key-values matched");
         }
-        if (unMatchedKeysExp.isEmpty()) { 
+        if (unMatchedKeysExp.isEmpty()) {
             if (type == Match.Type.CONTAINS || type == Match.Type.CONTAINS_DEEP) {
                 return true; // all expected keys matched, expMap was empty in the first place    
             }
