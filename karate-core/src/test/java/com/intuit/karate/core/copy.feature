@@ -34,6 +34,7 @@ Scenario: you can manually 'clone' a payload if needed
     # since the called feature mutates 'foo' we ensure it is a clone
     * copy foo = original
     * call read('copy-called.feature')
+    * match foo == { key: 'changed' }
     # and original remains unchanged
     * match original == { key: 'value' }
 
