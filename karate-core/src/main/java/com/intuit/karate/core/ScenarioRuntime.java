@@ -263,7 +263,9 @@ public class ScenarioRuntime implements Runnable {
             // so we inject the parent variables
             // but they will be over-written by what is local to this scenario
             if (!caller.isSharedScope()) {
-                caller.parentRuntime.engine.vars.forEach((k, v) -> map.put(k, v == null ? null : v.getValue()));
+                // the shallow clone of variables is important
+                // otherwise graal / js functions in calling context get corrupted
+                caller.parentRuntime.engine.vars.forEach((k, v) -> map.put(k, v == null ? null : v.copy(false).getValue()));
             }
             map.putAll(caller.parentRuntime.magicVariables);
             map.put("__arg", caller.arg == null ? null : caller.arg.getValue());

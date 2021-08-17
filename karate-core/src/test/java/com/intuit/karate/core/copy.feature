@@ -17,10 +17,16 @@ Scenario: shared scope: called feature will over-write (and contribute) variable
     * match someJson == { value: 'after' }
     * match fromCalled == { hello: 'world' }
 
-Scenario: called feature updates a nested element of 'foo' using the 'set' keyword
+Scenario: called feature (isolated scope) cannot mutate top-level variables
     * def foo = { key: 'value' }
-    # json can be mutated in called features
+    # json cannot be mutated in called features if isolated scope
     * def result = call read('copy-called.feature')
+    * match foo == { key: 'value' }
+
+Scenario: called feature (shared scope) can mutate top-level variables
+    * def foo = { key: 'value' }
+    # json can be mutated in called features if shared scope
+    * call read('copy-called.feature')
     * match foo == { key: 'changed' }
 
 Scenario: you can manually 'clone' a payload if needed
