@@ -284,9 +284,7 @@ java -jar karate.jar -t @smoke,~@skipme my-test.feature
 ```
 
 #### Dry Run
-The option is `-D` or `--dryrun` to run tests in “dry run” mode. This will give you the usual HTML report showing what features will be run, including all steps shown (including comments) so that it can be reviewed. Of course the actual time-durations, and logs will be missing, and *everything* will pass.
-
-The “dry run” report is useful to review the tag "coverage" of what will be run. For example you can get a nice feature “coverage” report, provided you have a rich set of tags. e.g. `@smoke @module=one @module=two` etc.
+The option is `-D` or `--dryrun` to [run tests in “dry run” mode](https://github.com/intuit/karate#dry-run).
 
 #### `karate.env`
 If your test depends on the `karate.env` [environment 'switch'](https://github.com/intuit/karate#switching-the-environment), you can specify that using the `-e` (env) option:

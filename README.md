@@ -53,6 +53,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#switching-the-environment">Environment Switching</a>
     | <a href="#test-reports">Reports</a>
     | <a href="#junit-html-report">JUnit HTML Report</a>
+    | <a href="#dry-run">Dry Run</a>
     | <a href="#report-verbosity">Report Verbosity</a>
     | <a href="#logging">Logging</a>
     | <a href="#log-masking">Log Masking</a>
@@ -509,6 +510,13 @@ file:///projects/myproject/target/karate-reports/mypackage.myfeature.html
 ```
 
 You can easily select (double-click), copy and paste this `file:` URL into your browser address bar. This report is useful for troubleshooting and debugging a test because all requests and responses are shown in-line with the steps, along with error messages and the output of [`print`](#print) statements. Just re-fresh your browser window if you re-run the test.
+
+### Dry Run
+This will give you the usual HTML report showing what features will be run, including all steps shown (including comments) so that it can be reviewed. Of course the actual time-durations, and logs will be missing, and *everything* will pass.
+
+The “dry run” report is useful to review the tag "coverage" of what will be run. For example you can get a nice feature “coverage” report, provided you have a rich set of tags. e.g. `@smoke @module=one @module=two` etc.
+
+Note that this mode can be triggered via the command-line by adding `-D` or `--dryrun` to the [`karate.options`](#karateoptions).
 
 ## Command Line
 Normally in dev mode, you will use your IDE to run a `*.feature` file directly or via the companion 'runner' JUnit Java class. When you have a 'runner' class in place, it would be possible to run it from the command-line as well.
