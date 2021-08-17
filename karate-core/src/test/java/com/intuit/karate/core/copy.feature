@@ -33,7 +33,7 @@ Scenario: you can manually 'clone' a payload if needed
     * def original = { key: 'value' }
     # since the called feature mutates 'foo' we ensure it is a clone
     * copy foo = original
-    * def result = call read('copy-called.feature')
+    * call read('copy-called.feature')
     # and original remains unchanged
     * match original == { key: 'value' }
 
