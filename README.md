@@ -514,9 +514,9 @@ You can easily select (double-click), copy and paste this `file:` URL into your 
 ### Dry Run
 This will give you the usual HTML report showing what features will be run, including all steps shown (including comments) so that it can be reviewed. Of course the actual time-durations, and logs will be missing, and *everything* will pass.
 
-The “dry run” report is useful to review the tag "coverage" of what will be run. For example you can get a nice feature “coverage” report, provided you have a rich set of tags. e.g. `@smoke @module=one @module=two` etc.
+The “dry run” report is useful to review the tag "coverage" of what will be run. For example you can get a nice feature “coverage” report, provided you have a rich set of [tags](#tags). e.g. `@smoke @module=one @module=two` etc.
 
-Note that this mode can be triggered via the command-line by adding `-D` or `--dryrun` to the [`karate.options`](#karateoptions).
+The [`Runner.Builder`](#junit-4-parallel-execution) API has a `dryRun()` method to switch this on. Note that this mode can be also triggered via the command-line by adding `-D` or `--dryrun` to the [`karate.options`](#karateoptions).
 
 ## Command Line
 Normally in dev mode, you will use your IDE to run a `*.feature` file directly or via the companion 'runner' JUnit Java class. When you have a 'runner' class in place, it would be possible to run it from the command-line as well.
