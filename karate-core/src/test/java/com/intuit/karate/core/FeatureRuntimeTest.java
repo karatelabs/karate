@@ -303,15 +303,20 @@ class FeatureRuntimeTest {
     void testCallJsonPath() {
         run("call-jsonpath.feature");
     }
-    
+
     @Test
     void testSchemaRead() {
         run("schema-read.feature");
-    }   
-    
+    }
+
     @Test
     void testTypeConversion() {
         run("type-conversion.feature");
-    }      
+    }
+
+    @Test
+    void testKarateGet() {
+        run("karate-get.feature");
+    }
 
 }

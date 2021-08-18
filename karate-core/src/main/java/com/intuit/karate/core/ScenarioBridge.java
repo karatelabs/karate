@@ -161,6 +161,9 @@ public class ScenarioBridge implements PerfContext, EventContext {
         ScenarioEngine engine = getEngine();
         Variable called = new Variable(engine.fileReader.readFile(fileName));
         Variable result = engine.call(called, arg == null ? null : new Variable(arg), sharedScope);
+        if (sharedScope && result.isMap()) {
+            engine.setVariables(result.getValue());
+        }        
         return JsValue.fromJava(result.getValue());
     }
 
