@@ -239,9 +239,10 @@ public class StringUtils {
         if (map == null || name == null) {
             return null;
         }
-        for (String key : map.keySet()) {
+        for (Map.Entry<String, T> entry : map.entrySet()) {
+            String key = entry.getKey();
             if (name.equalsIgnoreCase(key)) {
-                return map.get(key);
+                return entry.getValue();
             }
         }
         return null;
