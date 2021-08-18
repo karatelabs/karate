@@ -568,8 +568,9 @@ public class PlaywrightDriver implements Driver {
         if (titleOrUrl == null) {
             return;
         }
-        for (String pageGuid : pageFrames.keySet()) {
-            String frameGuid = pageFrames.get(pageGuid).iterator().next();
+        for (Map.Entry<String, Set<String>> entry : pageFrames.entrySet()) {
+            String pageGuid = entry.getKey();
+            String frameGuid = entry.getValue().iterator().next();
             String title = evalFrame(frameGuid, "document.title").getResultValue();
             if (title != null && title.contains(titleOrUrl)) {
                 currentPage = pageGuid;

@@ -39,11 +39,12 @@ public class Signer {
 public static void sign(String token, Map<String, String> params) {
         List<String> list = new ArrayList();
         String tokenClientSlat = "";
-        for (String key : params.keySet()) {
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            String key = entry.getKey();
             if (key.equals("token_client_salt")) {
-                tokenClientSlat = params.get(key);
+                tokenClientSlat = entry.getValue();
             }
-            String paramString = key + "=" + params.get(key);
+            String paramString = key + "=" + entry.getValue();
             list.add(paramString);
         }
         Collections.sort(list);
