@@ -97,6 +97,13 @@ class FeatureRuntimeTest {
     }
 
     @Test
+    void testAlign() {
+        run("align.feature");
+        System.out.println(fr.result.getVariables());
+        match(fr.result.getVariables(), "{ configSource: 'normal', functionFromKarateBase: '#notnull', text: 'hello bar world' , cats: '#notnull', myJson: '#notnull'}");
+    }
+
+    @Test
     void testFailApi() {
         fail = true;
         run("fail-api.feature");
