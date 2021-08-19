@@ -40,14 +40,14 @@ class TemplateTest {
         assertTrue(rendered.contains("<div id=\"after_one\"><span>js_one</span></div>"));
     }
 
-//    @Test
-//    void testKaSet() {
-//        String rendered = render("ka-set.html");
-//        assertEquals(rendered.trim(), "<div>"
-//                + "first line\n"
-//                + "second line"
-//                + "</div>");
-//    }
+    @Test
+    void testKaSet() {
+        String rendered = render("ka-set.html");
+        assertEquals(rendered.trim(), "<div>"
+                + "first line\n"
+                + "second line"
+                + "</div>");
+    }
 
     @Test
     void testWith() {
