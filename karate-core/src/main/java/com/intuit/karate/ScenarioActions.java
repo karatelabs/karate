@@ -309,7 +309,7 @@ public class ScenarioActions implements Actions {
     }
 
     @Override
-    @When("^status \\h+(\\d+)")
+    @When("^status \\h?(\\d+)")
     public void status(int status) {
         engine.status(status);
     }
