@@ -1568,7 +1568,7 @@ This can be easily solved by using `java.math.BigDecimal`:
 ```
 
 ## `doc`
-Karate has built-in HTML templating engine that can be used to insert additional custom HTML into the test-reports. Here is an [example](karate-core/src/test/java/com/intuit/karate/core/users-doc.feature):
+Karate has a built-in HTML templating engine that can be used to insert additional custom HTML into the test-reports. Here is an [example](karate-core/src/test/java/com/intuit/karate/core/users-doc.feature):
 
 ```cucumber
 * url 'https://jsonplaceholder.typicode.com/users'
@@ -1576,7 +1576,7 @@ Karate has built-in HTML templating engine that can be used to insert additional
 * doc { read: 'users.html' }
 ```
 
-Any Karate [variable](#def) will be available to the [template](karate-core/src/test/java/com/intuit/karate/core/users.html):
+Any Karate [variable](#def) will be available to the template, which is [`users.html`](karate-core/src/test/java/com/intuit/karate/core/users.html) in this example.
 
 ```html
 <table class="table table-striped">
@@ -1599,7 +1599,7 @@ Any Karate [variable](#def) will be available to the [template](karate-core/src/
 
 You can see what the result looks like [here](https://twitter.com/ptrthomas/status/1335478948365443072).
 
-Since templates can be loaded using the [`classpath:`](#classpath) prefix, you should be able to re-use templates across your projects via Java JAR files.
+Since templates can be loaded using the [`classpath:`](#classpath) prefix, you can even re-use templates across your projects via [Java JAR files](https://stackoverflow.com/a/58339662/143475).
 
 # Karate Expressions
 Before we get to the HTTP keywords, it is worth doing a recap of the various 'shapes' that the right-hand-side of an assignment statement can take:
