@@ -699,6 +699,19 @@ public class ScenarioBridge implements PerfContext, EventContext {
     public void remove(String name, String path) {
         getEngine().remove(name, path);
     }
+    
+    public String render(Value v) {
+        Map<String, Object> arg;
+        if (v.isString()) {
+            arg = Collections.singletonMap("read", v.asString());
+        } else if (v.hasMembers()) {
+            arg = new JsValue(v).getAsMap();
+        } else {
+            getEngine().logger.warn("render - unexpected argument: {}", v);
+            return null;
+        }
+        return getEngine().renderHtml(arg);
+    }    
 
     public Object repeat(int n, Value f) {
         assertIfJsFunction(f);
