@@ -183,7 +183,7 @@ public class ScenarioActions implements Actions {
     }
 
     @Override
-    @When("^def \\h*(\\w+)\\h+=\\h+(.+)")
+    @When("^def\\h+(\\w+)\\h+=\\h+(.+)")
     public void def(String name, String exp) {
         engine.assign(AssignType.AUTO, name, exp, false);
     }
@@ -309,7 +309,7 @@ public class ScenarioActions implements Actions {
     }
 
     @Override
-    @When("^status \\h*(\\d+)")
+    @When("^status\\h+(\\d+)")
     public void status(int status) {
         engine.status(status);
     }
