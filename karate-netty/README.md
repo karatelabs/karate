@@ -96,6 +96,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 * Zero errors even under load / stress - see this [benchmark comparison with other tools](https://twitter.com/KarateDSL/status/1083775218873581571)
 * Easy integration into Java / JUnit test-suites via API
 * Server can dynamically choose free port
+* Support for [hot-reload](#hot-reload) while editing a mock in development mode
 * Think of it as a scriptable 'API gateway' or 'AOP for web-services' - insert custom functions before / after an HTTP request is handled
 * Just *one* file can script the above aspects, simplifying the mental-model you need to have for advanced scenarios such as [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
 * Easily integrate messaging or async flows using Java-interop if required
