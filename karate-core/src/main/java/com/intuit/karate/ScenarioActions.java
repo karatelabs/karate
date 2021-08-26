@@ -65,7 +65,7 @@ public class ScenarioActions implements Actions {
     }
 
     @Override
-    @When("^configure ([^\\s]+) = (.+)")
+    @When("^configure\\h+([^\\s]+)\\h+= (.+)")
     public void configure(String key, String exp) {
         engine.configure(key, exp);
     }
@@ -83,7 +83,7 @@ public class ScenarioActions implements Actions {
     }
 
     @Override
-    @When("^param ([^\\s]+) = (.+)")
+    @When("^param\\h+([^\\s]+)\\h+= (.+)")
     public void param(String name, String exp) {
         engine.param(name, exp);
     }
@@ -95,7 +95,7 @@ public class ScenarioActions implements Actions {
     }
 
     @Override
-    @When("^cookie ([^\\s]+) = (.+)")
+    @When("^cookie\\h+([^\\s]+)\\h+= (.+)")
     public void cookie(String name, String value) {
         engine.cookie(name, value);
     }
@@ -119,7 +119,7 @@ public class ScenarioActions implements Actions {
     }    
 
     @Override
-    @When("^header ([^\\s]+) = (.+)")
+    @When("^header\\h+([^\\s]+)\\h+= (.+)")
     public void header(String name, String exp) {
         engine.header(name, exp);
     }
@@ -131,7 +131,7 @@ public class ScenarioActions implements Actions {
     }
 
     @Override
-    @When("^form field ([^\\s]+) = (.+)")
+    @When("^form field\\h+([^\\s]+)\\h+= (.+)")
     public void formField(String name, String exp) {
         engine.formField(name, exp);
     }
@@ -177,13 +177,13 @@ public class ScenarioActions implements Actions {
     }
 
     @Override
-    @When("^replace (\\w+).([^\\s]+) = (.+)")
+    @When("^replace\\h+(\\w+).([^\\s]+)\\h+= (.+)")
     public void replace(String name, String token, String value) {
         engine.replace(name, token, value);
     }
 
     @Override
-    @When("^def (\\w+) = (.+)")
+    @When("^def\\h+(\\w+)\\h+=\\h+(.+)")
     public void def(String name, String exp) {
         engine.assign(AssignType.AUTO, name, exp, false);
     }
@@ -192,7 +192,7 @@ public class ScenarioActions implements Actions {
     @When("^def (.+) =$")
     public void defDocString(String name, String exp) {
         engine.assign(AssignType.AUTO, name, exp, false); // auto-parse json and xml
-    }    
+    }
 
     @Override
     @When("^text (.+) =$")
@@ -255,7 +255,7 @@ public class ScenarioActions implements Actions {
     }
 
     @Override
-    @When("^method (\\w+)")
+    @When("^method\\h+(\\w+)")
     public void method(String method) {
         engine.method(method);
     }
@@ -309,7 +309,7 @@ public class ScenarioActions implements Actions {
     }
 
     @Override
-    @When("^status (\\d+)")
+    @When("^status\\h+(\\d+)")
     public void status(int status) {
         engine.status(status);
     }
@@ -330,13 +330,13 @@ public class ScenarioActions implements Actions {
     }
 
     @Override
-    @When("^set ([^\\s]+)( .+)? =$")
+    @When("^set\\h+([^\\s]+)( .+)? =$")
     public void setDocString(String name, String path, String value) {
         engine.set(name, path, value);
     }
 
     @Override
-    @When("^set ([^\\s]+)( .+)? = (.+)")
+    @When("^set\\h+([^\\s]+)( .+)?\\h+= (.+)")
     public void set(String name, String path, String value) {
         engine.set(name, path, value);
     }
@@ -353,7 +353,7 @@ public class ScenarioActions implements Actions {
     }
 
     @Override
-    @When("^remove ([^\\s]+)( .+)?")
+    @When("^remove\\h+([^\\s]+)( .+)?")
     public void remove(String name, String path) {
         engine.remove(name, path);
     }

@@ -72,7 +72,7 @@ public class StepRuntime {
             }
 
             // assuming all @When or @Action start with a ^, get the first word
-            keyword = regex.substring(1).split(" ")[0];
+            keyword = regex.substring(1).split(" |\\\\h|\\\\s")[0];
         }
 
         List<String> match(String text) {

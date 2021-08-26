@@ -103,7 +103,8 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#call"><code>call</code></a> 
     | <a href="#callonce"><code>callonce</code></a>
     | <a href="#eval"><code>eval</code></a>
-    | <a href="#listen"><code>listen</code></a>    
+    | <a href="#listen"><code>listen</code></a> 
+    | <a href="#doc"><code>doc</code></a>    
     | <a href="#reading-files"><code>read()</code></a>
     | <a href="#the-karate-object"><code>karate</code> JS API</a>  
   </td>
@@ -1516,6 +1517,8 @@ So you have the following type markers you can use instead of [`def`](#def) (or 
 * <a name="type-bytes"><code>bytes</code></a> - convert to a byte-array, useful for binary payloads or comparisons, see [example](karate-demo/src/test/java/demo/websocket/echo.feature)
 * <a name="type-copy"><code>copy</code></a> - to clone a given payload variable reference (JSON, XML, Map or List), refer: [`copy`](#copy)
 
+The `csv` and `yaml` types can be initialized in-line using the "triple quote" or "docstring" multi-line approach as shown [here](karate-core/src/test/java/com/intuit/karate/core/type-conversion.feature).
+
 If you want to 'pretty print' a JSON or XML value with indenting, refer to the documentation of the [`print`](#print) keyword.
 
 ### Floats and Integers
@@ -1563,6 +1566,40 @@ This can be easily solved by using `java.math.BigDecimal`:
 * string json = { num: '#(big)' }
 * match json == '{"num":123123123123}'
 ```
+
+## `doc`
+Karate has a built-in HTML templating engine that can be used to insert additional custom HTML into the test-reports. Here is an [example](karate-core/src/test/java/com/intuit/karate/core/users-doc.feature):
+
+```cucumber
+* url 'https://jsonplaceholder.typicode.com/users'
+* method get
+* doc { read: 'users.html' }
+```
+
+Any Karate [variable](#def) will be available to the template, which is [`users.html`](karate-core/src/test/java/com/intuit/karate/core/users.html) in this example.
+
+```html
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>E-Mail</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr th:each="user: response">
+      <td th:text="user.id"></td>
+      <td th:text="user.name"></td>
+      <td th:text="user.email"></td>
+    </tr>
+  </tbody>
+</table>
+```
+
+You can see what the result looks like [here](https://twitter.com/ptrthomas/status/1335478948365443072).
+
+Since templates can be loaded using the [`classpath:`](#classpath) prefix, you can even re-use templates across your projects via [Java JAR files](https://stackoverflow.com/a/58339662/143475).
 
 # Karate Expressions
 Before we get to the HTTP keywords, it is worth doing a recap of the various 'shapes' that the right-hand-side of an assignment statement can take:
@@ -3253,6 +3290,7 @@ Operation | Description
 <a name="karate-callsingle"><code>karate.callSingle(fileName, [arg])</code></a> | like the above, but guaranteed to run **only once** even across multiple features - see [`karate.callSingle()`](#karatecallsingle)
 <a name="karate-configure"><code>karate.configure(key, value)</code></a> | does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
 <a name="karate-distinct"><code>karate.distinct(list)</code></a> | returns only unique items out of an array of strings or numbers
+<a name="karate-doc"><code>karate.doc(arg)</code></a> | just like [`karate.render()`](#karate-render) but will insert the HTML into the report
 <a name="karate-embed"><code>karate.embed(object, mimeType)</code></a> | embeds the object (can be raw bytes or an image) into the JSON report output, see this [example](karate-demo/src/test/java/demo/embed/embed.feature)
 <a name="karate-env"><code>karate.env</code></a> | gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
 <a name="karate-eval"><code>karate.eval(expression)</code></a> | for really advanced needs, you can programmatically generate a snippet of JavaScript which can be evaluated at run-time, you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature)
@@ -3287,6 +3325,7 @@ Operation | Description
 <a name="karate-read"><code>karate.read(filename)</code></a> | the same [`read()`](#reading-files) function - which is pre-defined even within JS blocks, so there is no need to ever do `karate.read()`, and just `read()` is sufficient
 <a name="karate-readasstring"><code>karate.readAsString(filename)</code></a> | [rarely used](#read-file-as-string), behaves exactly like [`read`](#reading-files) - but does *not* auto convert to JSON or XML
 <a name="karate-remove"><code>karate.remove(name, path)</code></a> | very rarely used - when needing to perform conditional removal of JSON keys or XML nodes. Behaves the same way as the [`remove`](#remove) keyword.
+<a name="karate-render"><code>karate.render(arg)</code></a> | renders an HTML template, the `arg` can be a string (prefixable path to the HTML) or a JSON that takes either a `path` or `html` property, see [`doc`](#doc)
 <a name="karate-repeat"><code>karate.repeat(count, function)</code></a> | useful for building an array with `count` items or doing something `count` times, refer this [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/repeat.feature). Also see [loops](#loops).
 <a name="karate-scenario"><code>karate.scenario</code></a> | get metadata about the currently executing `Scenario` (or `Outline` - `Example`) within a test 
 <a name="karate-set"><code>karate.set(name, value)</code></a> | sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable

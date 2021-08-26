@@ -242,6 +242,8 @@ java -jar karate.jar -m my-mock.feature -p 8443 -s -c my-cert.crt -k my-key.key
 #### Hot Reload
 You can hot-reload a mock feature file for changes by adding the -W or --watch option.
 
+Note that if you are loading from the `classpath:` your build system may need to update the file in the `target` (or `build`) folder when the source file changes. Or you could load the mock from the file-system using something like `file:src/test/java/some/folder/my.feature`.
+
 ### Running Tests
 Convenient to run standard [Karate](https://github.com/intuit/karate) tests on the command-line without needing to mess around with Java or the IDE ! Great for demos or exploratory testing. Even HTML reports are generated !
 

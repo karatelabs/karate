@@ -42,6 +42,7 @@ import com.intuit.karate.graal.JsLambda;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.*;
 import com.intuit.karate.resource.Resource;
+import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateUtils;
@@ -966,6 +967,30 @@ public class ScenarioEngine {
     //    
     private KarateTemplateEngine templateEngine;
 
+    private ResourceResolver getResourceResolver() {
+        String prefixedPath = runtime.featureRuntime.rootFeature.feature.getResource().getPrefixedParentPath();
+        return new ResourceResolver(prefixedPath);
+    }
+
+    public String renderHtml(Map<String, Object> options) {
+        String path = (String) options.get("read");
+        String html = null;
+        if (path == null) {
+            html = (String) options.get("html");
+            if (html == null) {
+                logger.warn("'read' or 'html' property is mandatory: {}", options);
+                return null;
+            } else { // TODO do we cache this
+                KarateTemplateEngine stringEngine = TemplateUtils.forStrings(JS, getResourceResolver());
+                return stringEngine.process(html);
+            }
+        }
+        if (templateEngine == null) {
+            templateEngine = TemplateUtils.forResourceResolver(JS, getResourceResolver());
+        }
+        return templateEngine.process(path);
+    }
+
     public void doc(String exp) {
         Variable v = evalKarateExpression(exp);
         if (v.isString()) {
@@ -979,17 +1004,8 @@ public class ScenarioEngine {
     }
 
     protected String docInternal(Map<String, Object> options) {
-        String path = (String) options.get("read");
-        if (path == null) {
-            logger.warn("doc json missing 'read' property: {}", options);
-            return null;
-        }
-        if (templateEngine == null) {
-            String prefixedPath = runtime.featureRuntime.rootFeature.feature.getResource().getPrefixedParentPath();
-            templateEngine = TemplateUtils.forResourceRoot(JS, prefixedPath);
-        }
-        String html = templateEngine.process(path);
-        if (!runtime.reportDisabled) {
+        String html = renderHtml(options);
+        if (html != null && !runtime.reportDisabled) {
             runtime.embed(FileUtils.toBytes(html), ResourceType.HTML);
         }
         return html;
@@ -1332,7 +1348,7 @@ public class ScenarioEngine {
             case YAML:
                 return new Variable(JsonUtils.fromYaml(v.getAsString()));
             case CSV:
-                return new Variable(JsonUtils.fromCsv(v.getAsString()));                
+                return new Variable(JsonUtils.fromCsv(v.getAsString()));
             case COPY:
                 return v.copy(true);
             default: // TEXT will be docstring, AUTO (def) will auto-parse JSON or XML

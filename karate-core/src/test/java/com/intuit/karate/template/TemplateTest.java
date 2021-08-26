@@ -43,9 +43,8 @@ class TemplateTest {
     @Test
     void testKaSet() {
         String rendered = render("ka-set.html");
-        assertEquals(rendered.trim(), "<div>"
-                + "first line"
-                + System.lineSeparator()
+        assertEquals(rendered.replaceAll("\\r", "").trim(), "<div>"
+                + "first line\n"
                 + "second line"
                 + "</div>");
     }
