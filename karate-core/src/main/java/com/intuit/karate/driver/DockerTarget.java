@@ -25,17 +25,17 @@ package com.intuit.karate.driver;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.KarateException;
-import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.shell.Command;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  *
@@ -50,9 +50,12 @@ public class DockerTarget implements Target {
     private boolean pull = false;
     private boolean karateChrome = false;
 
+    static final Logger logger = LoggerFactory.getLogger(DockerTarget.class);
+
+
     public DockerTarget(String dockerImage) {
         this(Collections.singletonMap("docker", dockerImage));
-    }    
+    }
 
     public DockerTarget(Map<String, Object> options) {
         this.options = options;
@@ -112,9 +115,12 @@ public class DockerTarget implements Target {
         boolean remoteHost = options != null && options.get("remoteHost") != null && (Boolean) options.get("remoteHost");
         boolean useDockerHost = options != null && options.get("useDockerHost") != null && (Boolean) options.get("useDockerHost");
         String host = "127.0.0.1";
+
         if (remoteHost) {
-            String containerName = Command.execLine(null, "docker inspect -f '{{.Name}}' " + containerId + " | cut -c 2-");
-            host = useDockerHost ? "host.docker.internal" : containerName;
+            String gateway = Command.execLine(null, "docker inspect -f '{{.NetworkSettings.Gateway}}' " + containerId);
+            host = gateway.replaceAll("'", ""); // Some responses are wrapped in single quotes.
+        } else if (useDockerHost) {
+            host = "host.docker.internal";
         }
 
         map.put("start", false);
@@ -124,8 +130,7 @@ public class DockerTarget implements Target {
         Command.waitForHttp("http://" + host + ":" + port + "/json");
         return map;
     }
-    
-    
+
 
     @Override
     public Map<String, Object> stop(ScenarioRuntime sr) {
@@ -133,9 +138,9 @@ public class DockerTarget implements Target {
         if (!karateChrome) { // no video
             Command.execLine(null, "docker rm " + containerId);
             return Collections.EMPTY_MAP;
-        }        
+        }
         String shortName = containerId.contains("_") ? containerId : StringUtils.truncate(containerId, 12, false);
-        String dirName = "karate-chrome_" + shortName;    
+        String dirName = "karate-chrome_" + shortName;
         String buildDir = sr.featureRuntime.suite.buildDir;
         String resultsDir = buildDir + File.separator + dirName;
         Command.execLine(null, "docker cp " + containerId + ":/tmp " + resultsDir);
@@ -152,17 +157,26 @@ public class DockerTarget implements Target {
     }
 
     private int getContainerPort(String containerId) {
-        String dockerPort = Command.execLine((File)null, "docker port " + containerId + " 9222/tcp");
-        Pattern portPattern = Pattern.compile("(\\d+?\\.){3}\\d:(\\d+)");
-        Matcher matcher = portPattern.matcher(dockerPort);
-        if (matcher.matches()) {
-            try {
-                return Integer.parseInt(matcher.group(2));
-            } catch (NumberFormatException e) {
-                throw new KarateException("Error fetching port from started docker container", e);
-            }
+        // 9222/tcp is the default port for chrome headless
+        String format = "--format='{{(index (index .NetworkSettings.Ports \"9222/tcp\") 0).HostPort}}'";
+
+        if (FileUtils.isOsWindows()) {
+            format = format.replace("\"", "\\\"");
         }
-        throw new KarateException("Error fetching port from started docker container");
+
+        logger.debug("cmd: docker format {} {}", format, containerId);
+        String dockerInspect = Command.exec(false, (File) null,
+                "docker", "inspect", format, containerId
+        );
+
+        // Certain OS responses come back with single quotes with Command.exec
+        dockerInspect = dockerInspect.replaceAll("[^\\d]", "");
+        logger.debug("docker inspect command output: {}", dockerInspect);
+        try {
+            return Integer.parseInt(dockerInspect);
+        } catch (NumberFormatException e) {
+            throw new KarateException("Error fetching port from started docker container", e);
+        }
     }
 
     public String getContainerId() {
