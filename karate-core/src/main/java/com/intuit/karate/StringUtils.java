@@ -260,6 +260,15 @@ public class StringUtils {
         }
     }
 
+    public static boolean containsIgnoreKeyCase(List<String> list, String str) {
+        for (String i : list) {
+            if (i.equalsIgnoreCase(str)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static String throwableToString(Throwable t) {
         try(final StringWriter sw = new StringWriter();
             final PrintWriter pw = new PrintWriter(sw, true)) {

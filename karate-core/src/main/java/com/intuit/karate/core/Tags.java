@@ -132,7 +132,7 @@ public class Tags implements Iterable<Tag> {
     }
 
     public boolean evaluate(String tagSelector, String karateEnv) {
-        if (tags.contains(Tag.IGNORE)) {
+        if (StringUtils.containsIgnoreKeyCase(tags, Tag.IGNORE)) {
             return false;
         }
         Values envValues = valuesFor(Tag.ENV);
