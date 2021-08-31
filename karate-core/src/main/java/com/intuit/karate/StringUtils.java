@@ -260,7 +260,7 @@ public class StringUtils {
         }
     }
 
-    public static boolean containsIgnoreKeyCase(List<String> list, String str) {
+    public static boolean containsIgnoreCase(List<String> list, String str) {
         for (String i : list) {
             if (i.equalsIgnoreCase(str)) {
                 return true;
