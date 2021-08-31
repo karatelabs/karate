@@ -131,4 +131,12 @@ class StringUtilsTest {
                 StringUtils.wrappedLinesEstimate("", 2));
     }
 
+    @Test
+    void testContainsIgnoreCase() {
+        List<String> list = Arrays.asList("foo", "bar");
+        assertTrue(StringUtils.containsIgnoreCase(list, "foo"));
+        assertTrue(StringUtils.containsIgnoreCase(list, "Foo"));
+        assertFalse(StringUtils.containsIgnoreCase(list, "baz"));
+    }
+
 }
