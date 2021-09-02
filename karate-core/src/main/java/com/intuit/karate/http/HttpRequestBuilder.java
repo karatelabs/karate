@@ -82,10 +82,11 @@ public class HttpRequestBuilder implements ProxyObject {
     private static final String CONNECT = "connect";
     private static final String OPTIONS = "options";
     private static final String TRACE = "trace";
+    private static final String MULTI_PART = "multiPart";
 
     private static final String[] KEYS = new String[]{
         URL, METHOD, PATH, PARAM, PARAMS, HEADER, HEADERS, BODY, INVOKE,
-        GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE
+        GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, MULTI_PART
     };
     private static final Set<String> KEY_SET = new HashSet<>(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
@@ -555,6 +556,8 @@ public class HttpRequestBuilder implements ProxyObject {
                 return DELETE_FUNCTION;
             case URL:
                 return (Function<String, Object>) this::url;
+            case MULTI_PART:
+                return (Function<Map<String, Object>, Object>) this::multiPart;
             default:
                 logger.warn("no such property on http object: {}", key);
                 return null;
