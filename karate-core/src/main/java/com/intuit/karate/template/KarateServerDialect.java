@@ -52,6 +52,7 @@ public class KarateServerDialect extends AbstractProcessorDialect {
         ps.add(new KaHxAnyAttrProcessor(dialectPrefix, "target"));
         ps.add(new KaHxAnyAttrProcessor(dialectPrefix, "swap"));
         ps.add(new KaHxAnyAttrProcessor(dialectPrefix, "trigger"));
+        ps.add(new KaHxAnyAttrProcessor(dialectPrefix, "encoding"));
         ps.add(new KaHxPathAttrProcessor(dialectPrefix, "get", config));
         ps.add(new KaHxPathAttrProcessor(dialectPrefix, "post", config));
         ps.add(new KaHxPathAttrProcessor(dialectPrefix, "put", config));
