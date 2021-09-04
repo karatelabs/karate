@@ -262,12 +262,32 @@ public class ScenarioRuntime implements Runnable {
             // karate principle: parent variables are always "visible"
             // so we inject the parent variables
             // but they will be over-written by what is local to this scenario
-            if (!caller.isSharedScope()) {
+
+            if (caller.isSharedScope()) {
+                map.putAll(caller.parentRuntime.magicVariables);
+            } else {
                 // the shallow clone of variables is important
                 // otherwise graal / js functions in calling context get corrupted
                 caller.parentRuntime.engine.vars.forEach((k, v) -> map.put(k, v == null ? null : v.copy(false).getValue()));
+
+                // shallow copy magicVariables
+                Map<String, Object> runtimeMagicVariables = new HashMap();
+                caller.parentRuntime.magicVariables.forEach((k,v) -> {
+                    if (v instanceof List) {
+                        List copy = new ArrayList();
+                        copy.addAll((List)v);
+                        runtimeMagicVariables.put(k, copy);
+                    } else if (v instanceof Map) {
+                        Map copy = new HashMap();
+                        copy.putAll((Map)v);
+                        runtimeMagicVariables.put(k, copy);
+                    } else {
+                        runtimeMagicVariables.put(k, v);
+                    }
+                });
+                map.putAll(runtimeMagicVariables);
             }
-            map.putAll(caller.parentRuntime.magicVariables);
+
             map.put("__arg", caller.arg == null ? null : caller.arg.getValue());
             map.put("__loop", caller.getLoopIndex());
         }
