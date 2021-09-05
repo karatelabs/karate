@@ -2083,10 +2083,9 @@ public class ScenarioEngine {
             THREAD_LOCAL.set(this);
             FeatureResult result = fr.result;
             runtime.addCallResult(result);
-
             if (sharedScope) {
-                // if it's shared scope we don't want JS functions used in different contexts (threads)
-                // to populate parent scope/context
+                // if it's shared scope we don't want JS functions rehydrated in different contexts (threads)
+                // to polute parent scope/context
                 runtime.engine.recurseAndAttach(runtime.magicVariables);
                 runtime.engine.recurseAndAttach(runtime.engine.vars);
             }
