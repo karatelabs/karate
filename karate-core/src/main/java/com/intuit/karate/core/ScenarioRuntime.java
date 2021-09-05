@@ -271,21 +271,7 @@ public class ScenarioRuntime implements Runnable {
                 caller.parentRuntime.engine.vars.forEach((k, v) -> map.put(k, v == null ? null : v.copy(false).getValue()));
 
                 // shallow copy magicVariables
-                Map<String, Object> runtimeMagicVariables = new HashMap();
-                caller.parentRuntime.magicVariables.forEach((k,v) -> {
-                    if (v instanceof List) {
-                        List copy = new ArrayList();
-                        copy.addAll((List)v);
-                        runtimeMagicVariables.put(k, copy);
-                    } else if (v instanceof Map) {
-                        Map copy = new HashMap();
-                        copy.putAll((Map)v);
-                        runtimeMagicVariables.put(k, copy);
-                    } else {
-                        runtimeMagicVariables.put(k, v);
-                    }
-                });
-                map.putAll(runtimeMagicVariables);
+                map.putAll((Map<String,Object>) caller.parentRuntime.engine.shallowClone(caller.parentRuntime.magicVariables));
             }
 
             map.put("__arg", caller.arg == null ? null : caller.arg.getValue());
