@@ -1087,6 +1087,61 @@ public class ScenarioEngine {
         return result == null ? o : result;
     }
 
+    // call shared context
+    protected Object recurseAndAttach(Object o) {
+        Object result = recurseAndAttach("", o, Collections.newSetFromMap(new IdentityHashMap()));
+        return result == null ? o : result;
+    }
+
+    // call shared context
+    protected Object shallowClone(Object o) {
+        if (o instanceof List) {
+            return this.shallowCloneList((List<Object>)o);
+        } else if (o instanceof Map) {
+            return this.shallowCloneMap((Map<String, Object>)o);
+        } else {
+            return o;
+        }
+    }
+
+    // call shared context
+    protected List<Object> shallowCloneList(List<Object> o) {
+        List<Object> result = new ArrayList();
+        o.forEach(v -> {
+            if (v instanceof List) {
+                List copy = new ArrayList();
+                copy.addAll((List)v);
+                result.add(copy);
+            } else if (v instanceof Map) {
+                Map copy = new HashMap();
+                copy.putAll((Map)v);
+                result.add(copy);
+            } else {
+                result.add(v);
+            }
+        });
+        return result;
+    }
+
+    // call shared context
+    protected Map<String, Object> shallowCloneMap(Map<String,Object> o) {
+        Map<String, Object> result = new HashMap();
+        o.forEach((k,v) -> {
+            if (v instanceof List) {
+                List copy = new ArrayList();
+                copy.addAll((List)v);
+                result.put(k, copy);
+            } else if (v instanceof Map) {
+                Map copy = new HashMap();
+                copy.putAll((Map)v);
+                result.put(k, copy);
+            } else {
+                result.put(k, v);
+            }
+        });
+        return result;
+    }
+
     private Object recurseAndAttach(String name, Object o, Set<Object> seen) {
         if (o instanceof Value) {
             Value value = Value.asValue(o);
@@ -2028,6 +2083,12 @@ public class ScenarioEngine {
             THREAD_LOCAL.set(this);
             FeatureResult result = fr.result;
             runtime.addCallResult(result);
+            if (sharedScope) {
+                // if it's shared scope we don't want JS functions rehydrated in different contexts (threads)
+                // to polute parent scope/context
+                runtime.engine.recurseAndAttach(runtime.magicVariables);
+                runtime.engine.recurseAndAttach(runtime.engine.vars);
+            }
             if (result.isFailed()) {
                 KarateException ke = result.getErrorMessagesCombined();
                 throw ke;
