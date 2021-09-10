@@ -315,10 +315,14 @@ class ScenarioRuntimeTest {
         run(
                 "def foo = { a: 1 }",
                 "def mat1 = karate.match(foo, {a: 2})",
-                "def mat2 = karate.match('foo == { a: 1 }')"
+                "def mat2 = karate.match('foo == { a: 1 }')",
+                "def bar = []",
+                "def mat3 = karate.match(bar, [])"
+                
         );
         matchVar("mat1", "{ pass: false, message: '#notnull' }");
         matchVar("mat2", "{ pass: true, message: '#null' }");
+        matchVar("mat3", "{ pass: true, message: '#null' }");
     }
 
     @Test

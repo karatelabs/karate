@@ -606,8 +606,8 @@ public class ScenarioBridge implements PerfContext, EventContext {
         return new JsList(list);
     }
 
-    public Object match(Object actual, Object expected) {
-        Match.Result mr = getEngine().match(Match.Type.EQUALS, actual, expected);
+    public Object match(Value actual, Value expected) {
+        Match.Result mr = getEngine().match(Match.Type.EQUALS, JsValue.toJava(actual), JsValue.toJava(expected));
         return JsValue.fromJava(mr.toMap());
     }
 
