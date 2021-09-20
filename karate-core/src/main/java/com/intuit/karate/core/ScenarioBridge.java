@@ -47,6 +47,7 @@ import com.intuit.karate.http.WebSocketClient;
 import com.intuit.karate.http.WebSocketOptions;
 import com.intuit.karate.shell.Command;
 import java.io.File;
+import java.io.InputStream;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.ArrayList;
@@ -687,13 +688,21 @@ public class ScenarioBridge implements PerfContext, EventContext {
         return JsValue.fromJava(list);
     }
 
-    public Object read(String name) {
-        Object result = getEngine().fileReader.readFile(name);
+    public Object read(String path) {
+        Object result = getEngine().fileReader.readFile(path);
         return JsValue.fromJava(result);
     }
+    
+    public byte[] readAsBytes(String path) {
+        return getEngine().fileReader.readFileAsBytes(path);
+    }    
 
-    public String readAsString(String fileName) {
-        return getEngine().fileReader.readFileAsString(fileName);
+    public String readAsString(String path) {
+        return getEngine().fileReader.readFileAsString(path);
+    }
+    
+    public InputStream readAsStream(String path) {
+        return getEngine().fileReader.readFileAsStream(path);
     }
 
     public void remove(String name, String path) {

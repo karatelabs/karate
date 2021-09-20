@@ -3323,6 +3323,8 @@ Operation | Description
 <a name="karate-properties"><code>karate.properties[key]</code></a> | get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
 <a name="karate-range"><code>karate.range(start, end, [interval])</code></a> | returns a JSON array of integers (inclusive), the optional third argument must be a positive integer and defaults to 1, and if start < end the order of values is reversed
 <a name="karate-read"><code>karate.read(filename)</code></a> | the same [`read()`](#reading-files) function - which is pre-defined even within JS blocks, so there is no need to ever do `karate.read()`, and just `read()` is sufficient
+<a name="karate-readasbytes"><code>karate.readAsBytes(filename)</code></a> | rarely used, like [`karate.readAsString`](#karate-readasstring) - but returns a byte array
+<a name="karate-readasstream"><code>karate.readAsStream(filename)</code></a> | rarely used, like [`karate.readAsString`](#karate-readasstring) - but returns a Java `InputStream`
 <a name="karate-readasstring"><code>karate.readAsString(filename)</code></a> | [rarely used](#read-file-as-string), behaves exactly like [`read`](#reading-files) - but does *not* auto convert to JSON or XML
 <a name="karate-remove"><code>karate.remove(name, path)</code></a> | very rarely used - when needing to perform conditional removal of JSON keys or XML nodes. Behaves the same way as the [`remove`](#remove) keyword.
 <a name="karate-render"><code>karate.render(arg)</code></a> | renders an HTML template, the `arg` can be a string (prefixable path to the HTML) or a JSON that takes either a `path` or `html` property, see [`doc`](#doc)
