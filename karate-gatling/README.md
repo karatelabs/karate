@@ -333,9 +333,7 @@ The [`karate.pause()`](https://github.com/intuit/karate#karate-pause) function i
 You normally don't want to slow down your functional tests. But you can use the [`configure pauseIfNotPerf`](https://github.com/intuit/karate#configure) flag (default `false`) to have `karate.pause()` work even in "normal" mode.
 
 ## `configure localAddress`
-> This is implemented only for the `karate-apache` HTTP client. Note that the IP address needs to be [*physically assigned* to the local machine](https://www.blazemeter.com/blog/how-to-send-jmeter-requests-from-different-ips/).
-
-Gatling has a way to bind the HTTP "protocol" to [use a specific "local address"](https://gatling.io/docs/3.2/http/http_protocol/#local-address), which is useful when you want to use an IP range to avoid triggering rate-limiting on the server under test etc. But since Karate makes the HTTP requests, you can use the [`configure`](https://github.com/intuit/karate#configure) keyword, and this can actually be done *any* time within a Karate script or `*.feature` file.
+Gatling has a way to bind the HTTP "protocol" to [use a specific "local address"](https://gatling.io/docs/3.2/http/http_protocol/#local-address), which is useful when you want to use an IP range to avoid triggering rate-limiting on the server under test etc. But since Karate makes the HTTP requests, you can use the [`configure`](https://github.com/intuit/karate#configure) keyword, and this can actually be done *any* time within a Karate script or `*.feature` file. Note that the IP address needs to be [*physically assigned* to the local machine](https://www.blazemeter.com/blog/how-to-send-jmeter-requests-from-different-ips/).
 
 ```cucumber
 * configure localAddress = '123.45.67.89'
