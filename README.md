@@ -19,8 +19,8 @@
     <a href="https://github.com/intuit/karate/wiki/Support">
       <img src="https://img.shields.io/badge/support-wiki-red.svg"/>
     </a>
-    <a href="https://twitter.com/KarateDSL">
-      <img src="https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow"/>
+    <a href="https://twitter.com/getkarate">
+      <img src="https://img.shields.io/twitter/follow/getkarate.svg?style=social&label=Follow"/>
     </a>
     <a href="https://github.com/intuit/karate/stargazers">
       <img src="https://img.shields.io/github/stars/intuit/karate?style=social"/>
