@@ -29,6 +29,7 @@ import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateUtils;
 import java.io.InputStream;
 import java.time.Instant;
+import java.util.Map;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -157,6 +158,10 @@ public class RequestHandler implements ServerHandler {
             String switchTemplate = rc.getSwitchTemplate();
             if (switchTemplate != null) {
                 logger.debug("redirect (ajax) requested to: {}", switchTemplate);
+                Map<String, Object> params = rc.getSwitchParams();
+                if (params != null) {
+                    params.forEach((k, v) -> request.setParam(k, v));
+                }
                 return engine.process(switchTemplate);
             }
             throw e;

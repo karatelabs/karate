@@ -335,15 +335,25 @@ public class ServerContext implements ProxyObject {
     private final Methods.FunVar HTTP_FUNCTION; // set in constructor
     private final Function<Object, String> RENDER_FUNCTION; // set in constructor
 
-    private final Consumer<String> SWITCH_FUNCTION = s -> {
+    private final Methods.FunVar SWITCH_FUNCTION = args -> {
         if (switched) {
-            logger.warn("context.switch() can be called only once during a request, ignoring: {}", s);
+            logger.warn("context.switch() can be called only once during a request, ignoring: {}", args[0]);            
         } else {
             switched = true;
-            RequestCycle.get().setSwitchTemplate(s);
+            RequestCycle rc = RequestCycle.get();
+            if (args.length > 1) {
+                Value value = Value.asValue(args[1]);
+                if (value.hasMembers()) {
+                    JsValue jv = new JsValue(value);
+                    rc.setSwitchParams(jv.getAsMap());
+                }
+            }
+            String template = args[0].toString();
+            rc.setSwitchTemplate(template);
             KarateEngineContext.get().setRedirect(true);
-            throw new RedirectException(s);
+            throw new RedirectException(template);
         }
+        return null;
     };
 
     private final Consumer<String> REDIRECT_FUNCTION = s -> {

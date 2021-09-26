@@ -149,7 +149,7 @@ public class Request implements ProxyObject {
     public List<Cookie> getCookies() {
         List<String> cookieValues = getHeaderValues(HttpConstants.HDR_COOKIE);
         if (cookieValues == null) {
-             return Collections.emptyList();
+            return Collections.emptyList();
         }
         return cookieValues.stream().map(ClientCookieDecoder.STRICT::decode).collect(toList());
     }
@@ -227,6 +227,24 @@ public class Request implements ProxyObject {
 
     public void setParams(Map<String, List<String>> params) {
         this.params = params;
+    }
+
+    public void setParam(String name, Object value) {
+        if (params == null) {
+            params = new HashMap();
+        }
+        if (value == null) {
+            params.put(name, null);
+        } else if (value instanceof List) {
+            List list = (List) value;
+            List<String> values = new ArrayList(list.size());
+            for (Object o : list) {
+                values.add(o == null ? null : o.toString());
+            }
+            params.put(name, values);
+        } else {
+            params.put(name, Collections.singletonList(value.toString()));
+        }
     }
 
     public String getPathParam() {

@@ -64,6 +64,7 @@ public class RequestCycle {
     private Response response;
     private ServerContext context;
     private String switchTemplate;
+    private Map<String, Object> switchParams;
     private String redirectPath;
 
     public RequestCycle(JsEngine engine, KarateTemplateEngine templateEngine) {
@@ -116,6 +117,14 @@ public class RequestCycle {
     public String getSwitchTemplate() {
         return switchTemplate;
     }
+
+    public void setSwitchParams(Map<String, Object> switchParams) {
+        this.switchParams = switchParams;
+    }        
+
+    public Map<String, Object> getSwitchParams() {
+        return switchParams;
+    }        
 
     public void setRedirectPath(String redirectPath) {
         this.redirectPath = redirectPath;
