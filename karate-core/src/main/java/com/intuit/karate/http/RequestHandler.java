@@ -102,7 +102,12 @@ public class RequestHandler implements ServerHandler {
                     logger.debug("creating new session for '{}': {}", request.getPath(), session);
                 } else {
                     logger.warn("session not found: {}", request);
-                    ResponseBuilder rb = response().deleteSessionCookie(sessionId);
+                    ResponseBuilder rb;
+                    if (sessionId == null) {
+                        rb = response();                        
+                    } else {
+                        rb = response().deleteSessionCookie(sessionId);
+                    }
                     if (request.isAjax()) {
                         rb.ajaxRedirect(redirectPath());
                     } else {
