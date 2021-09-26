@@ -556,7 +556,7 @@ mvn test -Dtest=CatsRunner
 ### `karate.options`
 When your Java test "runner" is linked to multiple feature files, which will be the case when you use the recommended [parallel runner](#parallel-execution), you can narrow down your scope to a single feature, scenario or directory via the command-line, useful in dev-mode. Note how even [tags](#tags) to exclude (or include) can be specified:
 
-> Note that any `Feature` or `Scenario` with the special `@ignore` tag will be skipped by default.
+> Note that any `Feature` or `Scenario` with the [special `@ignore` tag](#special-tags) will be skipped by default.
 
 ```
 mvn test "-Dkarate.options=--tags ~@skipme classpath:demo/cats/cats.feature" -Dtest=DemoTestParallel
@@ -3459,6 +3459,19 @@ call read('classpath:my-signin.feature@name=someScenarioName')
 While the tag does not need to be in the `@key=value` form, it is recommended for readability when you start getting into the business of giving meaningful names to your `Scenario`-s.
 
 This "tag selection" capability is designed for you to be able to "compose" flows out of existing test-suites when using the [Karate Gatling integration](karate-gatling). Normally we recommend that you keep your "re-usable" features lightweight - by limiting them to just one `Scenario`.
+
+
+#### Call Same Feature
+As a convenience, you can call a tag directly, which is a short-cut to call another `Scenario` within the same feature file. Note that you would typically want to use the [`@ignore`](#special-tags) tag for such cases.
+
+```cucumber
+Scenario: one
+* call read('@two')
+
+@ignore @two
+Scenario: two
+* print 'called'
+```
 
 ### Data-Driven Features
 If the argument passed to the [call of a `*.feature` file](#calling-other-feature-files) is a JSON array, something interesting happens. The feature is invoked for each item in the array. Each array element is expected to be a JSON object, and for each object - the behavior will be as described above.
