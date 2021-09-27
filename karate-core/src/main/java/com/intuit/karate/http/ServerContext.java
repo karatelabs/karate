@@ -88,6 +88,7 @@ public class ServerContext implements ProxyObject {
 
     private boolean stateless;
     private boolean api;
+    private boolean httpGetAllowed;
     private boolean lockNeeded;
     private Session session;
     private boolean switched;
@@ -290,6 +291,14 @@ public class ServerContext implements ProxyObject {
     public void setApi(boolean api) {
         this.api = api;
     }
+
+    public boolean isHttpGetAllowed() {
+        return httpGetAllowed;
+    }
+
+    public void setHttpGetAllowed(boolean httpGetAllowed) {
+        this.httpGetAllowed = httpGetAllowed;
+    }        
 
     public List<String> getAfterSettleScripts() {
         return afterSettleScripts;

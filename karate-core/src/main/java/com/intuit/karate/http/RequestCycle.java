@@ -26,10 +26,7 @@ package com.intuit.karate.http;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.template.KarateTemplateEngine;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

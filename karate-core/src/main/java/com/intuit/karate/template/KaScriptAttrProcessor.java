@@ -66,10 +66,14 @@ public class KaScriptAttrProcessor extends AbstractAttributeTagProcessor {
             }
             String noCache = tag.getAttributeValue(getDialectPrefix(), KaScriptElemProcessor.NOCACHE);
             if (noCache != null) {
-                Resource resource = resourceResolver.resolve(src);
-                if (resource.isFile()) {
-                    File file = resource.getFile();
-                    src = src + "?ts=" + file.lastModified();
+                try {
+                    Resource resource = resourceResolver.resolve(src);
+                    if (resource.isFile()) {
+                        File file = resource.getFile();
+                        src = src + "?ts=" + file.lastModified();
+                    }
+                } catch (Exception e) {
+                    logger.warn("nocache failed: {}", e.getMessage());
                 }
                 sh.removeAttribute(getDialectPrefix(), KaScriptElemProcessor.NOCACHE);
             }

@@ -77,11 +77,14 @@ public class RequestHandler implements ServerHandler {
         }
         ServerContext context = contextFactory.apply(request);
         context.prepare();
-        if (!context.isApi() && request.isForStaticResource()) {
-            if (logger.isDebugEnabled()) {
-                logger.debug("{}", request);
+        if (!context.isApi() && request.isForStaticResource() && context.isHttpGetAllowed()) {
+            try {
+                return response().buildStatic(request);
+            } finally {
+                if (logger.isDebugEnabled()) {
+                    logger.debug("{} {} [{} ms]", request, 200, System.currentTimeMillis() - startTime);
+                }
             }
-            return response().buildStatic(request);
         }
         Session session = context.getSession(); // can be pre-resolved by context-factory
         boolean newSession = false;
@@ -134,12 +137,12 @@ public class RequestHandler implements ServerHandler {
             }
         } catch (Exception e) {
             logger.error("handle failed: {}", e.getMessage());
+            rc.getResponse().setStatus(500); // just for logging below
             return response().status(500);
         } finally {
             rc.close();
-            long elapsedTime = System.currentTimeMillis() - startTime;
             if (logger.isDebugEnabled()) {
-                logger.debug("{} {} ms", request, elapsedTime);
+                logger.debug("{} {} [{} ms]", request, rc.getResponse().getStatus(), System.currentTimeMillis() - startTime);
             }
         }
     }
