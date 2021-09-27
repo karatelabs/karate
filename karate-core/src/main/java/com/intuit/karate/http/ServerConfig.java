@@ -54,6 +54,7 @@ public class ServerConfig {
 
     private Function<Request, ServerContext> contextFactory = request -> {
         ServerContext context = new ServerContext(this, request);
+        context.setHttpGetAllowed(true);
         String path = request.getPath();
         if (path.startsWith("api/")) {
             context.setApi(true);
