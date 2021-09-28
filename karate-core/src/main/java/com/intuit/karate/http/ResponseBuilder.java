@@ -111,6 +111,8 @@ public class ResponseBuilder {
 
     private ResponseBuilder cookie(String name, String value, boolean delete) {
         DefaultCookie cookie = new DefaultCookie(name, value);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true);
         if (delete) {
             cookie.setMaxAge(0);
         }
