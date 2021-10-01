@@ -19,7 +19,7 @@ Scenario:
 * call read('03.feature')
 
 # cookies
-* call read('04.feature')
+* if (driverType != 'safaridriver') karate.call('04.feature')
 
 # driver.intercept
 * if (driverType == 'chrome') karate.call('05.feature')
@@ -38,6 +38,8 @@ Scenario:
 
 # element position
 * call read('10.feature')
+
+* if (driverType == 'playwright') karate.abort()
 
 # switchPage()
 * call read('11.feature')

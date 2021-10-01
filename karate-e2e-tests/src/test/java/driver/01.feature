@@ -17,11 +17,13 @@ Scenario:
 
 # refresh page
 * refresh()
-* waitForText('#pageLoadCount', '2')
+* def expected = driverType == 'safaridriver' ? '1' : '2'
+* waitForText('#pageLoadCount', expected)
 
 # reload page
 * reload()
-* waitForText('#pageLoadCount', '3')
+* def expected = driverType == 'safaridriver' ? '1' : '3'
+* waitForText('#pageLoadCount', expected)
 
 # navigate to new page
 * click('a')
@@ -53,6 +55,8 @@ Scenario:
 # * match driver.title == 'Page 02'
 # safer
 * waitUntil("document.title == 'Page 02'")
+
+* if (driverType == 'playwright') karate.abort()
 
 # driver.dimensions
 * match driver.dimensions contains { x: '#number', y: '#number', width: '#number', height: '#number' }
