@@ -116,3 +116,6 @@ Scenario: pathMatches('/v1/html')
         </body>
     </html>
     """
+
+Scenario: pathMatches('/v1/invalid-cookie')
+    * def responseHeaders = { 'Set-Cookie': 'detectedTimeZoneId=FLE Standard Time' }    
