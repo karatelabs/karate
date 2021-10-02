@@ -7,4 +7,3 @@ Background:
     * path 'invalid-cookie';
     * method get
     * status 200
-
