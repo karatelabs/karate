@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import static java.util.Objects.nonNull;
 import java.util.Set;
 import java.util.function.Supplier;
 import org.graalvm.polyglot.Value;
@@ -122,7 +123,10 @@ public class Response implements ProxyObject {
         Map<String, Map> map = new HashMap();
         for (String value : values) {
             Cookie cookie = ClientCookieDecoder.STRICT.decode(value);
-            map.put(cookie.name(), Cookies.toMap(cookie));
+            // skipping cookie containing invalid char
+            if(nonNull(cookie)) {
+            	map.put(cookie.name(), Cookies.toMap(cookie));
+            }
         }
         return map;
     }
