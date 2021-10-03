@@ -229,6 +229,13 @@ public class Request implements ProxyObject {
         this.params = params;
     }
 
+    public void setParamCommaDelimited(String name, String value) {
+        if (value == null) {
+            return;
+        }
+        setParam(name, StringUtils.split(value, ',', false));
+    }
+
     public void setParam(String name, Object value) {
         if (params == null) {
             params = new HashMap();
@@ -269,6 +276,26 @@ public class Request implements ProxyObject {
 
     public void setHeaders(Map<String, List<String>> headers) {
         this.headers = headers;
+    }
+
+    public void setCookiesRaw(List<String> values) {
+        if (values == null) {
+            return;
+        }
+        if (headers == null) {
+            headers = new HashMap();
+        }
+        headers.put(HttpConstants.HDR_COOKIE, values);
+    }
+
+    public void setHeaderCommaDelimited(String name, String value) {
+        if (value == null) {
+            return;
+        }
+        if (headers == null) {
+            headers = new HashMap();
+        }
+        headers.put(name, StringUtils.split(value, ',', false));
     }
 
     public byte[] getBody() {

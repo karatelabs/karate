@@ -25,6 +25,7 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.StringUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -44,10 +45,13 @@ public class AwsLambdaHandler {
 
     protected static final Logger logger = LoggerFactory.getLogger(AwsLambdaHandler.class);
 
-    private static final String HTTP_METHOD = "httpMethod";
-    private static final String PATH = "path";
-    private static final String MULTI_PARAMS = "multiValueQueryStringParameters";
-    private static final String MULTI_HEADERS = "multiValueHeaders";
+    private static final String REQUEST_CONTEXT = "requestContext";
+    private static final String HTTP = "http";
+    private static final String METHOD = "method";
+    private static final String RAW_PATH = "rawPath";
+    private static final String QUERY_STRING_PARAMETERS = "queryStringParameters";
+    private static final String HEADERS = "headers";
+    private static final String COOKIES = "cookies";
     private static final String BODY = "body";
     private static final String IS_BASE64_ENCODED = "isBase64Encoded";
     private static final String STATUS_CODE = "statusCode";
@@ -60,18 +64,30 @@ public class AwsLambdaHandler {
 
     public void handle(InputStream in, OutputStream out) throws IOException {
         Map<String, Object> req = (Map) JSONValue.parse(in);
-        // logger.debug("request: {}", req);
-        String method = (String) req.get(HTTP_METHOD);
-        String path = (String) req.get(PATH);
-        Map<String, List<String>> params = (Map) req.get(MULTI_PARAMS);
-        Map<String, List<String>> headers = (Map) req.get(MULTI_HEADERS);
+        if (logger.isTraceEnabled()) {
+            logger.trace("request: {}", req);
+        }
+        Map<String, Object> ctx = (Map) req.get(REQUEST_CONTEXT);
+        Map<String, Object> http = (Map) ctx.get(HTTP);
+        String method = (String) http.get(METHOD);
+        String path = (String) req.get(RAW_PATH);
+        Map<String, Object> rawParams = (Map) req.get(QUERY_STRING_PARAMETERS);
+        Map<String, Object> rawHeaders = (Map) req.get(HEADERS);
+        List<String> rawCookies = (List) req.get(COOKIES);
         String body = (String) req.get(BODY);
         Boolean isBase64Encoded = (Boolean) req.get(IS_BASE64_ENCODED);
         Request request = new Request();
         request.setMethod(method);
         request.setPath(path);
-        request.setParams(params);
-        request.setHeaders(headers);
+        if (rawParams != null) {
+            rawParams.forEach((k, v) -> request.setParamCommaDelimited(k, (String) v));
+        }
+        if (rawHeaders != null) {
+            rawHeaders.forEach((k, v) -> request.setHeaderCommaDelimited(k, (String) v));
+        }
+        if (rawCookies != null) {
+            request.setCookiesRaw(rawCookies);
+        }
         if (body != null) {
             if (isBase64Encoded) {
                 request.setBody(Base64.getDecoder().decode(body));
@@ -82,7 +98,12 @@ public class AwsLambdaHandler {
         Response response = handler.handle(request);
         Map<String, Object> res = new HashMap(4);
         res.put(STATUS_CODE, response.getStatus());
-        res.put(MULTI_HEADERS, response.getHeaders());
+        Map<String, List<String>> responseHeaders = response.getHeaders();
+        if (responseHeaders != null) {
+            Map<String, String> temp = new HashMap(responseHeaders.size());
+            responseHeaders.forEach((k, v) -> temp.put(k, StringUtils.join(v, ",")));
+            res.put(HEADERS, temp);
+        }
         boolean isBinary = response.isBinary();
         res.put(IS_BASE64_ENCODED, isBinary);
         byte[] responseBody = response.getBody();
@@ -94,6 +115,9 @@ public class AwsLambdaHandler {
             body = FileUtils.toString(responseBody);
         }
         res.put(BODY, body);
+        if (logger.isTraceEnabled()) {
+            logger.trace("response: {}", res);
+        }
         out.write(JsonUtils.toJsonBytes(res));
     }
 

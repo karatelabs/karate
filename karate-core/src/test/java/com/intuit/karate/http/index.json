@@ -1,8 +1,12 @@
 {
-    "path": "/index",
+    "rawPath": "/index",
     "isBase64Encoded": false,
-    "multiValueQueryStringParameters": null,
-    "multiValueHeaders": null,
-    "httpMethod": "GET",
+    "queryStringParameters": null,
+    "headers": null,
+    "requestContext": {
+        "http": {
+            "method": "GET"
+        }
+    },
     "body": null
 }
