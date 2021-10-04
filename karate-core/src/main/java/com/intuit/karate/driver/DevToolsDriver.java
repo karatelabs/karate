@@ -209,8 +209,8 @@ public abstract class DevToolsDriver implements Driver {
             framesStillLoading.clear();
         }
         if (dtm.methodIs("Runtime.consoleAPICalled") && options.showBrowserLog) {
-            List<String> values = dtm.getParam("args[*].value");
-            for (String value : values) {
+            List<Object> values = dtm.getParam("args[*].value");
+            for (Object value : values) {
                 logger.debug("[console] {}", value);
             }
         }
