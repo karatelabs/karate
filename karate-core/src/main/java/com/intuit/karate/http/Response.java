@@ -122,8 +122,10 @@ public class Response implements ProxyObject {
         Map<String, Map> map = new HashMap();
         for (String value : values) {
             Cookie cookie = ClientCookieDecoder.STRICT.decode(value);
-            if (cookie != null) { // can be null if cookie contains invalid characters
-            	map.put(cookie.name(), Cookies.toMap(cookie));
+            if (cookie == null) {
+                logger.info("does this cookie have invalid characters?! failed to convert cookie from string: {}", value);
+            } else {
+                map.put(cookie.name(), Cookies.toMap(cookie));
             }
         }
         return map;
