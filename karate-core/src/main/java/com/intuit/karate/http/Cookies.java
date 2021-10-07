@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import io.netty.handler.codec.http.cookie.ClientCookieEncoder;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.CookieHeaderNames;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
@@ -54,6 +55,11 @@ public class Cookies {
     public static final String SECURE = "secure";
     public static final String HTTP_ONLY = "httponly";
     public static final String SAME_SITE = "samesite";
+
+    public static String encodeForClient(String name, String value) {
+        Cookie c = new DefaultCookie(name, value);
+        return ClientCookieEncoder.LAX.encode(c);
+    }
 
     public static Map<String, Object> toMap(Cookie cookie) {
         Map<String, Object> map = new HashMap();

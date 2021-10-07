@@ -136,6 +136,7 @@ public class RequestCycle {
         if (session != null) {
             engine.put(SESSION, session.getData());
             this.session = session;
+            context.setSession(session);
         }
         // this has to be after the session init
         Map<String, Object> variables = context.getVariables();
