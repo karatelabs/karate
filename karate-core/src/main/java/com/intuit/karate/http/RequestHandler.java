@@ -75,7 +75,7 @@ public class RequestHandler implements ServerHandler {
             }
             return response().locationHeader(redirectPath()).status(302);
         }
-        ServerContext context = contextFactory.apply(request);
+        ServerContext context = contextFactory.apply(request);        
         context.prepare();
         if (!context.isApi() && request.isForStaticResource() && context.isHttpGetAllowed()) {
             try {
@@ -122,7 +122,12 @@ public class RequestHandler implements ServerHandler {
         rc.init(context, session);
         try {
             if (context.isApi()) {
-                InputStream is = resourceResolver.resolve(request.getResourcePath()).getStream();
+                InputStream is;
+                if (context.getCustomResolver() != null) {
+                    is = context.getCustomResolver().get();
+                } else {
+                    is = resourceResolver.resolve(request.getResourcePath()).getStream();
+                }
                 ResponseBuilder rb = response(rc, session, newSession);
                 if (context.isLockNeeded()) {
                     synchronized (this) {

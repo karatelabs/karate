@@ -92,6 +92,7 @@ public class ServerContext implements ProxyObject {
     private boolean lockNeeded;
     private Session session;
     private boolean switched;
+    private Supplier<InputStream> customResolver;
 
     private List<Map<String, Object>> responseTriggers;
     private List<String> afterSettleScripts;
@@ -162,7 +163,7 @@ public class ServerContext implements ProxyObject {
         }
         String resourcePath = request.getResourcePath();
         if (resourcePath == null) {
-            if (api) {
+            if (api && customResolver == null) {
                 String pathParam = null;
                 String jsPath = path + DOT_JS;
                 resourcePath = jsPath;
@@ -298,7 +299,7 @@ public class ServerContext implements ProxyObject {
 
     public void setHttpGetAllowed(boolean httpGetAllowed) {
         this.httpGetAllowed = httpGetAllowed;
-    }        
+    }
 
     public List<String> getAfterSettleScripts() {
         return afterSettleScripts;
@@ -306,6 +307,14 @@ public class ServerContext implements ProxyObject {
 
     public List<Map<String, Object>> getResponseTriggers() {
         return responseTriggers;
+    }
+
+    public void setCustomResolver(Supplier<InputStream> customResolver) {
+        this.customResolver = customResolver;
+    }
+
+    public Supplier<InputStream> getCustomResolver() {
+        return customResolver;
     }
 
     public void trigger(Map<String, Object> trigger) {
@@ -337,7 +346,7 @@ public class ServerContext implements ProxyObject {
             return args[1];
         }
     };
-    
+
     private static final Supplier<String> UUID_FUNCTION = () -> java.util.UUID.randomUUID().toString();
     private static final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s, false, null);
 
@@ -346,7 +355,7 @@ public class ServerContext implements ProxyObject {
 
     private final Methods.FunVar SWITCH_FUNCTION = args -> {
         if (switched) {
-            logger.warn("context.switch() can be called only once during a request, ignoring: {}", args[0]);            
+            logger.warn("context.switch() can be called only once during a request, ignoring: {}", args[0]);
         } else {
             switched = true;
             RequestCycle rc = RequestCycle.get();
