@@ -94,7 +94,7 @@ class KarateFeatureAction(val name: String, val tags: Seq[String], val protocol:
     runner.callOnceCache(protocol.callOnceCache)
     runner.tags(tags.asJava)
 
-    Runner.callAsync(protocol.runner, name, callArg, perfHook)
+    Runner.callAsync(runner, name, callArg, perfHook)
 
   }
 
