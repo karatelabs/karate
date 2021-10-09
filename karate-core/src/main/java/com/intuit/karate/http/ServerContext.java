@@ -69,6 +69,7 @@ public class ServerContext implements ProxyObject {
     private static final String SWITCHED = "switched";
     private static final String AJAX = "ajax";
     private static final String HTTP = "http";
+    private static final String NEXT_ID = "nextId";
     private static final String SESSION_ID = "sessionId";
     private static final String RENDER = "render";
     private static final String TRIGGER = "trigger";
@@ -80,7 +81,7 @@ public class ServerContext implements ProxyObject {
 
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
-        SESSION_ID, RENDER, TRIGGER, REDIRECT, AFTER_SETTLE, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
+        NEXT_ID, SESSION_ID, RENDER, TRIGGER, REDIRECT, AFTER_SETTLE, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -94,6 +95,7 @@ public class ServerContext implements ProxyObject {
     private Session session; // can be pre-resolved, else will be set by RequestCycle.init()
     private boolean switched;
     private Supplier<InputStream> customResolver;
+    private int nextId;
 
     private List<Map<String, Object>> responseTriggers;
     private List<String> afterSettleScripts;
@@ -398,6 +400,8 @@ public class ServerContext implements ProxyObject {
         return o;
     };
 
+    private final Supplier<Integer> NEXT_ID_FUNCTION = () -> ++nextId;
+
     @Override
     public Object getMember(String key) {
         switch (key) {
@@ -429,6 +433,8 @@ public class ServerContext implements ProxyObject {
                 return isAjax();
             case HTTP:
                 return HTTP_FUNCTION;
+            case NEXT_ID:
+                return NEXT_ID_FUNCTION;
             case SESSION_ID:
                 return session == null ? null : session.getId();
             case RENDER:
