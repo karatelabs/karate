@@ -25,7 +25,6 @@ package com.intuit.karate;
 
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
-
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -533,11 +532,9 @@ public class MatchOperation {
                 List actList = actual.getValue();
                 List expList = expected.getValue();
                 int actListCount = actList.size();
-                int expListCount = expList.size();
-                
+                int expListCount = expList.size();               
                 // visited array used to handle duplicates
                 boolean[] actVisitedList = new boolean[actListCount];
-
                 if (type != Match.Type.CONTAINS_ANY && type != Match.Type.CONTAINS_ANY_DEEP && expListCount > actListCount) {
                     return fail("actual array length is less than expected - " + actListCount + ":" + expListCount);
                 }
