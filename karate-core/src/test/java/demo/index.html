@@ -35,10 +35,10 @@
         <tr th:each="prod: session.products">
           <td th:text="prod.name">Pear</td>
           <td th:text="prod.price">50</td>
-          <td th:insert="details" ka:target="this"></td>
+          <td th:insert="details" hx-target="this"></td>
         </tr>
       </tbody>
     </table>
-    <div th:insert="person" ka:target="this"></div>
+    <div th:insert="person" hx-target="this"></div>
   </body>
 </html>
