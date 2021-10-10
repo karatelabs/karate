@@ -142,6 +142,14 @@ class MatchTest {
         match("[1, 2, 3]", CONTAINS, "[1, 2, 3]");
         match("[1, 2, 3]", CONTAINS_ONLY, "[1, 2, 3]");
         match("[1, 2, 3]", CONTAINS_ONLY, "[3, 2, 1]");
+        match("[1, 5, 10]", CONTAINS_ONLY, "[10, 5, 1]");
+        match("[4, 2]", CONTAINS_ONLY, "[2, 4]");
+        match("[5]", CONTAINS_ONLY, "[5]");
+        match("[4, 4]", CONTAINS_ONLY, "[4, 4]");
+        match("[1, 2, 2]", CONTAINS_ONLY, "[2, 2, 1]");
+        match("[1, 2, 3]", CONTAINS_ONLY, "[2, 2, 3]", FAILS);
+        match("[2, 2, 3]", CONTAINS_ONLY, "[1, 2, 3]", FAILS);
+        match("[1, 4, 7]", CONTAINS_ONLY, "[4, 7]", FAILS);
         match("[1, 2, 3]", CONTAINS, "[1, 2, 4]", FAILS);
         match("[1, 2, 3]", NOT_CONTAINS, "[1, 2, 4]");
         match("[1, 2, 3]", CONTAINS_ANY, "[1, 2, 4]");
