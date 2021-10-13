@@ -33,6 +33,8 @@ import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.http.Response;
 import com.intuit.karate.shell.Command;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -47,7 +49,9 @@ public class EdgeChromium extends DevToolsDriver {
     public static final String DRIVER_TYPE = "msedge";
 
     public static final String DEFAULT_PATH_MAC = "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge";
-    public static final String DEFAULT_PATH_WIN = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
+    public static final String DEFAULT_PATH_WIN32 = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
+    public static final String DEFAULT_PATH_WIN64 = "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe";
+    public static final String DEFAULT_PATH_WIN = Files.isRegularFile(Paths.get(DEFAULT_PATH_WIN64)) && Files.isReadable(Paths.get(DEFAULT_PATH_WIN64)) ? DEFAULT_PATH_WIN64 : DEFAULT_PATH_WIN32;
     public static final String DEFAULT_PATH_LINUX = "/dev/null";
 
     public EdgeChromium(DriverOptions options, Command command, String webSocketUrl) {

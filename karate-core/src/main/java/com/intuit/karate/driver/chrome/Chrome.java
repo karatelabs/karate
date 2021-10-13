@@ -32,6 +32,9 @@ import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.http.Response;
+
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -46,7 +49,9 @@ public class Chrome extends DevToolsDriver {
     public static final String DRIVER_TYPE = "chrome";
 
     public static final String DEFAULT_PATH_MAC = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-    public static final String DEFAULT_PATH_WIN = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
+    public static final String DEFAULT_PATH_WIN32 = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
+    public static final String DEFAULT_PATH_WIN64 = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+    public static final String DEFAULT_PATH_WIN = Files.isRegularFile(Paths.get(DEFAULT_PATH_WIN64)) && Files.isReadable(Paths.get(DEFAULT_PATH_WIN64)) ? DEFAULT_PATH_WIN64 : DEFAULT_PATH_WIN32;
     public static final String DEFAULT_PATH_LINUX = "/usr/bin/google-chrome";
 
     public Chrome(DriverOptions options, Command command, String webSocketUrl) {
