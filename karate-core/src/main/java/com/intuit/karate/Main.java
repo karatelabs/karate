@@ -37,7 +37,6 @@ import com.intuit.karate.shell.Command;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -77,10 +76,10 @@ public class Main implements Callable<Void> {
     int port = 8080;
 
     @Option(names = {"-W", "--watch"}, description = "watch (and hot-reload) mock server file for changes")
-    boolean watch;    
+    boolean watch;
 
     @Option(names = {"-S", "--serve"}, description = "app server using --workdir (experimental)")
-     boolean serve;
+    boolean serve;
 
     @Option(names = {"-s", "--ssl"}, description = "use ssl / https, will use '"
             + SslContextFactory.DEFAULT_CERT_NAME + "' and '" + SslContextFactory.DEFAULT_KEY_NAME
@@ -358,21 +357,6 @@ public class Main implements Callable<Void> {
         if (clean) {
             return null;
         }
-        if (serve) {
-            ServerConfig config = new ServerConfig(workingDir.getPath());
-            RequestHandler handler = new RequestHandler(config);
-            HttpServer server = HttpServer
-                    .handler(handler)
-                    .port(port)
-                    .corsEnabled(true)                    
-                    .build();
-            server.waitSync();
-            return null;
-        }
-        if (mocks == null || mocks.isEmpty()) {
-            CommandLine.usage(this, System.err);
-            return null;
-        }
         // these files will not be created, unless ssl or ssl proxying happens
         // and then they will be lazy-initialized
         if (cert == null || key == null) {
@@ -382,6 +366,27 @@ public class Main implements Callable<Void> {
         if (env != null) { // some advanced mocks may want karate.env
             System.setProperty(Constants.KARATE_ENV, env);
         }
+        if (serve) {
+            ServerConfig config = new ServerConfig(workingDir.getPath());
+            RequestHandler handler = new RequestHandler(config);
+            HttpServer.Builder builder = HttpServer
+                    .handler(handler)
+                    .corsEnabled(true);
+            if (ssl) {
+                builder.https(port)
+                        .certFile(cert)
+                        .keyFile(key);
+            } else {
+                builder.http(port);
+            }
+            HttpServer server = builder.build();
+            server.waitSync();
+            return null;
+        }
+        if (mocks == null || mocks.isEmpty()) {
+            CommandLine.usage(this, System.err);
+            return null;
+        }        
         MockServer.Builder builder = MockServer
                 .featureFiles(mocks)
                 .pathPrefix(prefix)
