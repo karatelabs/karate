@@ -124,6 +124,9 @@ public class Main implements Callable<Void> {
             description = "debug mode (optional port else dynamically chosen)")
     int debugPort;
 
+    @Option(names = {"--keep-debug-server"}, defaultValue = "false", arity = "0..1", fallbackValue = "true", description = "keep debug server open for connections after disconnect")
+    boolean keepDebugServerAfterDisconnect;
+
     @Option(names = {"-D", "--dryrun"}, description = "dry run, generate html reports only")
     boolean dryRun;
 
@@ -323,7 +326,7 @@ public class Main implements Callable<Void> {
             return null;
         }
         if (debugPort != -1) {
-            DapServer server = new DapServer(debugPort);
+            DapServer server = new DapServer(debugPort, !keepDebugServerAfterDisconnect);
             server.waitSync();
             return null;
         }

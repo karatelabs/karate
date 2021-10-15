@@ -473,6 +473,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             server.stop();
             System.exit(0);
         } else {
+            logger.debug("Disconnecting current debug session. Debug server listening on port {}", this.server.getPort());
             this.clearDebugSession();
             channel.disconnect();
         }
