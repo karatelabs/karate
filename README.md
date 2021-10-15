@@ -3617,6 +3617,7 @@ Code | Description
 `* def login = read('login.feature')`<br/>`* def result = call login { user: 'john', password: 'secret' }` | using the `call` keyword makes <br/>passing an in-line JSON argument <br/>more "readable"
 `* call read 'credentials.json'` | Since "`read`" happens to be a <br/>[*function*](#calling-javascript-functions) (that takes a single <br/>string argument), this has the effect <br/>of loading *all* keys in the JSON file<br/>into [Shared Scope](#shared-scope) as [variables](#def) ! <br/>This *can* be [sometimes handy](karate-core#locator-lookup).
 `* call read ('credentials.json')` | A common mistake. First, there <br/>is no meaning in `call` for JSON. <br/>Second, the space after the "`read`" <br/>makes this equal to the above.
+`* karate.set(read('credentials.json'))` | For completeness - this has *exactly* the [same effect](#karate-setall) as the above two rows !
 
 ### Calling Java
 There are examples of calling JVM classes in the section on [Java Interop](#java-interop) and in the [file-upload demo](karate-demo). Also look at the section on [commonly needed utilities](#commonly-needed-utilities) for more ideas.
