@@ -11,4 +11,4 @@ remote_theme: pmarsceill/just-the-docs
 search_enabled: true
 aux_links:
     "Karate on Github":
-        - "//github.com/intuit/karate"
+        - "//github.com/karatelabs/karate"
