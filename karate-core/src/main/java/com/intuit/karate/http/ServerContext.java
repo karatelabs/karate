@@ -158,47 +158,6 @@ public class ServerContext implements ProxyObject {
         };
     }
 
-    private static final String DOT_JS = ".js";
-
-    public void prepare() {
-        String path = request.getPath();
-        if (request.getResourceType() == null) {
-            request.setResourceType(ResourceType.fromFileExtension(path));
-        }
-        String resourcePath = request.getResourcePath();
-        if (resourcePath == null) {
-            if (api) {
-                String pathParam = null;
-                String jsPath = path + DOT_JS;
-                resourcePath = jsPath;
-                if (!config.getJsFiles().contains(jsPath)) {
-                    List<String> pathParams = new ArrayList();
-                    request.setPathParams(pathParams);
-                    String temp = path;
-                    do {
-                        int pos = temp.lastIndexOf('/');
-                        if (pos == -1) {
-                            logger.debug("failed to extract path params: {} - {}", temp, this);
-                            break;
-                        }
-                        String pp = temp.substring(pos + 1);
-                        if (pathParams.isEmpty()) {
-                            pathParam = pp;
-                        }
-                        pathParams.add(pp);
-                        jsPath = temp.substring(0, pos) + DOT_JS;
-                        temp = temp.substring(0, pos);
-                    } while (!config.getJsFiles().contains(jsPath));
-                    resourcePath = jsPath;
-                }
-                request.setPathParam(pathParam);
-            } else { // static, note that HTML is resolved differently, by template resolver
-                resourcePath = path;
-            }
-            request.setResourcePath(resourcePath);
-        }
-    }
-
     public String getSessionCookieValue() {
         List<String> values = request.getHeaderValues(HttpConstants.HDR_COOKIE);
         if (values == null) {

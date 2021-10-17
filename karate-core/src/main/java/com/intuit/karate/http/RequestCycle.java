@@ -27,6 +27,8 @@ import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.template.KarateTemplateEngine;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -52,7 +54,7 @@ public class RequestCycle {
     }
 
     protected static RequestCycle init(KarateTemplateEngine te, ServerContext context) {
-        RequestCycle rc = new RequestCycle(JsEngine.global(), te, context);
+        RequestCycle rc = new RequestCycle(te, context);
         THREAD_LOCAL.set(rc);
         return rc;
     }
@@ -69,8 +71,8 @@ public class RequestCycle {
     private Map<String, Object> switchParams;
     private String redirectPath;
 
-    private RequestCycle(JsEngine engine, KarateTemplateEngine templateEngine, ServerContext context) {
-        this.engine = engine;
+    private RequestCycle(KarateTemplateEngine templateEngine, ServerContext context) {
+        this.engine = JsEngine.global();
         this.templateEngine = templateEngine;
         this.context = context;
         config = context.getConfig();
@@ -159,21 +161,22 @@ public class RequestCycle {
             if (customHandler != null) {
                 return customHandler.get();
             } else if (context.isApi()) {
-                InputStream is = config.getResourceResolver().resolve(request.getResourcePath()).getStream();
+                InputStream is = apiResource();
                 if (context.isLockNeeded()) {
                     synchronized (this) {
-                        return apiResponse(is);
+                        engine.eval(is);
                     }
                 } else {
-                    return apiResponse(is);
+                    engine.eval(is);
                 }
+                return response().build();
             } else {
                 return htmlResponse();
             }
         } catch (Exception e) {
             logger.error("handle failed: {}", e.getMessage());
             response.setStatus(500); // just for logging below
-            return response().status(500);
+            return response().buildWithStatus(500);
         } finally {
             close();
             if (logger.isDebugEnabled()) {
@@ -200,16 +203,42 @@ public class RequestCycle {
             }
             throw e;
         }
-        return response().html(html).build(this);
+        return response().html(html).build();
     }
 
-    private Response apiResponse(InputStream is) {
-        JsEngine.evalGlobal(is); // which may set response body, headers etc.
-        return response().build(this);
+    private static final String DOT_JS = ".js";
+
+    private InputStream apiResource() {
+        String path = request.getPath();
+        String pathParam = null;
+        String jsPath = path + DOT_JS;
+        String resourcePath = jsPath;
+        if (!config.getJsFiles().contains(jsPath)) {
+            List<String> pathParams = new ArrayList();
+            request.setPathParams(pathParams);
+            String temp = path;
+            do {
+                int pos = temp.lastIndexOf('/');
+                if (pos == -1) {
+                    logger.debug("failed to extract path params: {} - {}", temp, this);
+                    break;
+                }
+                String pp = temp.substring(pos + 1);
+                if (pathParams.isEmpty()) {
+                    pathParam = pp;
+                }
+                pathParams.add(pp);
+                jsPath = temp.substring(0, pos) + DOT_JS;
+                temp = temp.substring(0, pos);
+            } while (!config.getJsFiles().contains(jsPath));
+            resourcePath = jsPath;
+        }
+        request.setPathParam(pathParam);
+        return config.getResourceResolver().resolve(resourcePath).getStream();
     }
 
     private ResponseBuilder response() {
-        return new ResponseBuilder(this).session(session, context.isNewSession());
+        return new ResponseBuilder(config, this).session(session, context.isNewSession());
     }
 
 }

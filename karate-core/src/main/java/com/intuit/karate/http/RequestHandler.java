@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.http;
 
-import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateUtils;
 import java.time.Instant;
@@ -58,20 +57,24 @@ public class RequestHandler implements ServerHandler {
     @Override
     public Response handle(Request request) {
         if (stripHostContextPath != null) {
-            String path = request.getPath();
-            if (path.startsWith(stripHostContextPath)) {
-                request.setPath(path.substring(stripHostContextPath.length()));
+            if (request.getPath().startsWith(stripHostContextPath)) {
+                request.setPath(request.getPath().substring(stripHostContextPath.length()));
             }
         }
         if (request.getPath().isEmpty()) {
             if (logger.isDebugEnabled()) {
                 logger.debug("redirecting to home page: {}", request);
             }
-            return response().locationHeader(redirectPath()).status(302);
+            return response().locationHeader(redirectPath()).buildWithStatus(302);
         }
         ServerContext context = contextFactory.apply(request);
-        context.prepare();
+        if (request.getResourceType() == null) { // can be set by context factory
+            request.setResourceType(ResourceType.fromFileExtension(request.getPath()));
+        }
         if (!context.isApi() && request.isForStaticResource() && context.isHttpGetAllowed()) {
+            if (request.getResourcePath() == null) { // can be set by context factory
+                request.setResourcePath(request.getPath()); // static resource
+            }
             try {
                 return response().buildStatic(request);
             } finally {
@@ -107,7 +110,7 @@ public class RequestHandler implements ServerHandler {
                     } else {
                         rb.locationHeader(redirectPath());
                     }
-                    return rb.status(302);
+                    return rb.buildWithStatus(302);
                 }
             }
             context.setSession(session);
@@ -139,7 +142,7 @@ public class RequestHandler implements ServerHandler {
     }
 
     private ResponseBuilder response() {
-        return new ResponseBuilder(config);
+        return new ResponseBuilder(config, null);
     }
 
 }
