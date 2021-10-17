@@ -54,7 +54,7 @@ public class RequestCycle {
     }
 
     protected static RequestCycle init(KarateTemplateEngine te, ServerContext context) {
-        RequestCycle rc = new RequestCycle(te, context);
+        RequestCycle rc = new RequestCycle(JsEngine.global(), te, context);
         THREAD_LOCAL.set(rc);
         return rc;
     }
@@ -71,8 +71,8 @@ public class RequestCycle {
     private Map<String, Object> switchParams;
     private String redirectPath;
 
-    private RequestCycle(KarateTemplateEngine templateEngine, ServerContext context) {
-        this.engine = JsEngine.global();
+    private RequestCycle(JsEngine engine, KarateTemplateEngine templateEngine, ServerContext context) {
+        this.engine = engine;
         this.templateEngine = templateEngine;
         this.context = context;
         config = context.getConfig();
@@ -92,6 +92,12 @@ public class RequestCycle {
         response = new Response(200);
         engine.put(RESPONSE, response);
         engine.put(CONTEXT, context);
+    }
+
+    public RequestCycle copy(Request request) {
+        ServerContext newContext = new ServerContext(config, request);
+        newContext.setSession(session);
+        return new RequestCycle(JsEngine.local(), templateEngine, newContext);
     }
 
     public JsEngine getEngine() {
@@ -118,10 +124,6 @@ public class RequestCycle {
 
     public Session getSession() {
         return session;
-    }
-
-    public boolean isApi() {
-        return context.isApi();
     }
 
     public Response getResponse() {
@@ -237,7 +239,7 @@ public class RequestCycle {
         return config.getResourceResolver().resolve(resourcePath).getStream();
     }
 
-    private ResponseBuilder response() {
+    public ResponseBuilder response() {
         return new ResponseBuilder(config, this).session(session, context.isNewSession());
     }
 

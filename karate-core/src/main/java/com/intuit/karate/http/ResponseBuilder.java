@@ -189,10 +189,13 @@ public class ResponseBuilder {
                 body = merged;
             }
         }
-        if (requestCycle.isApi()) {
-            resourceType = ResourceType.JSON;
-            contentType(resourceType.contentType);
+        if (context.isApi()) {
             body = response.getBody();
+            if (resourceType != null) {
+                contentType(resourceType.contentType);
+            } else if (body != null) {
+                contentType(ResourceType.JSON.contentType);  // default, which can be over-ridden
+            }
             Map<String, List<String>> apiHeaders = response.getHeaders();
             if (apiHeaders != null) {
                 if (headers == null) {
