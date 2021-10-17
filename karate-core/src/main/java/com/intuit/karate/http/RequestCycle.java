@@ -95,9 +95,7 @@ public class RequestCycle {
     }
 
     public RequestCycle copy(Request request) {
-        ServerContext newContext = new ServerContext(config, request);
-        newContext.setSession(session);
-        return new RequestCycle(JsEngine.local(), templateEngine, newContext);
+        return new RequestCycle(JsEngine.local(), templateEngine, new ServerContext(config, request));
     }
 
     public JsEngine getEngine() {
