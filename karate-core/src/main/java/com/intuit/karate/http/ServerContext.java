@@ -92,9 +92,10 @@ public class ServerContext implements ProxyObject {
     private boolean api;
     private boolean httpGetAllowed;
     private boolean lockNeeded;
+    private boolean newSession;
     private Session session; // can be pre-resolved, else will be set by RequestCycle.init()
     private boolean switched;
-    private Supplier<InputStream> customResolver;
+    private Supplier<Response> customHandler;
     private int nextId;
 
     private List<Map<String, Object>> responseTriggers;
@@ -166,7 +167,7 @@ public class ServerContext implements ProxyObject {
         }
         String resourcePath = request.getResourcePath();
         if (resourcePath == null) {
-            if (api && customResolver == null) {
+            if (api) {
                 String pathParam = null;
                 String jsPath = path + DOT_JS;
                 resourcePath = jsPath;
@@ -260,6 +261,14 @@ public class ServerContext implements ProxyObject {
         return variables;
     }
 
+    public boolean isNewSession() {
+        return newSession;
+    }
+
+    public void setNewSession(boolean newSession) {
+        this.newSession = newSession;
+    }
+
     public Session getSession() {
         return session;
     }
@@ -312,12 +321,12 @@ public class ServerContext implements ProxyObject {
         return responseTriggers;
     }
 
-    public void setCustomResolver(Supplier<InputStream> customResolver) {
-        this.customResolver = customResolver;
+    public Supplier<Response> getCustomHandler() {
+        return customHandler;
     }
 
-    public Supplier<InputStream> getCustomResolver() {
-        return customResolver;
+    public void setCustomHandler(Supplier<Response> customHandler) {
+        this.customHandler = customHandler;
     }
 
     public void trigger(Map<String, Object> trigger) {

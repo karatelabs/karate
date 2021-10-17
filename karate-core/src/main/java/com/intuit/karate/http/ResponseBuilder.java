@@ -55,13 +55,14 @@ public class ResponseBuilder {
     private final ServerConfig config;
     private final ResourceResolver resourceResolver;
 
-    public ResponseBuilder(ServerConfig config, RequestCycle rc) {
+    public ResponseBuilder(RequestCycle rc) {
+        this(rc.getContext().getConfig());
+        headers = rc.getResponse().getHeaders();
+    }
+
+    public ResponseBuilder(ServerConfig config) {
         this.config = config;
         resourceResolver = config.getResourceResolver();
-        if (rc != null) {
-            Response response = rc.getResponse();
-            headers = response.getHeaders();
-        }
     }
 
     public ResponseBuilder body(String body) {
@@ -130,10 +131,10 @@ public class ResponseBuilder {
         headers.put(name, Collections.singletonList(value));
         return this;
     }
-    
+
     public ResponseBuilder ajaxRedirect(String url) {
         header(HttpConstants.HDR_HX_REDIRECT, url);
-        return this;        
+        return this;
     }
 
     public ResponseBuilder trigger(String json) {
@@ -170,7 +171,7 @@ public class ResponseBuilder {
             String json = JsonUtils.toJson(merged);
             header(HttpConstants.HDR_HX_TRIGGER, json);
         }
-        if (resourceType != null && resourceType.isHtml() 
+        if (resourceType != null && resourceType.isHtml()
                 && context.isAjax() && context.getAfterSettleScripts() != null) {
             StringBuilder sb = new StringBuilder();
             for (String js : context.getAfterSettleScripts()) {

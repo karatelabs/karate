@@ -95,6 +95,7 @@ public class Request implements ProxyObject {
     private static final Set<String> KEY_SET = new HashSet<>(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
+    private final long startTime = System.currentTimeMillis();
     private String urlAndPath;
     private String urlBase;
     private String path;
@@ -181,6 +182,10 @@ public class Request implements ProxyObject {
         setPath(qsd.path());
         setParams(qsd.parameters());
     }
+
+    public long getStartTime() {
+        return startTime;
+    }        
 
     public String getUrlAndPath() {
         return urlAndPath;

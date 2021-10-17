@@ -26,7 +26,9 @@ package com.intuit.karate.http;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.template.KarateTemplateEngine;
+import java.io.InputStream;
 import java.util.Map;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,24 +51,45 @@ public class RequestCycle {
         return THREAD_LOCAL.get();
     }
 
-    public static RequestCycle init(JsEngine je, KarateTemplateEngine te) {
-        RequestCycle rc = new RequestCycle(je, te);
+    protected static RequestCycle init(KarateTemplateEngine te, ServerContext context) {
+        RequestCycle rc = new RequestCycle(JsEngine.global(), te, context);
         THREAD_LOCAL.set(rc);
         return rc;
     }
 
     private final JsEngine engine;
     private final KarateTemplateEngine templateEngine;
-    private Session session;
-    private Response response;
-    private ServerContext context;
+    private final Request request;
+    private final Session session;
+    private final Response response;
+    private final ServerContext context;
+    private final ServerConfig config;
+    private final Supplier<Response> customHandler;
     private String switchTemplate;
     private Map<String, Object> switchParams;
     private String redirectPath;
 
-    public RequestCycle(JsEngine engine, KarateTemplateEngine templateEngine) {
+    private RequestCycle(JsEngine engine, KarateTemplateEngine templateEngine, ServerContext context) {
         this.engine = engine;
         this.templateEngine = templateEngine;
+        this.context = context;
+        config = context.getConfig();
+        customHandler = context.getCustomHandler();
+        session = context.getSession();
+        if (session != null) {
+            engine.put(SESSION, session.getData());
+        }
+        // this has to be after the session init
+        Map<String, Object> variables = context.getVariables();
+        if (variables != null) {
+            engine.putAll(variables);
+        }
+        request = context.getRequest();
+        request.processBody();
+        engine.put(REQUEST, request);
+        response = new Response(200);
+        engine.put(RESPONSE, response);
+        engine.put(CONTEXT, context);
     }
 
     public JsEngine getEngine() {
@@ -77,7 +100,7 @@ public class RequestCycle {
         return templateEngine;
     }
 
-    public void close() {
+    private void close() {
         if (session != null) {
             JsValue sessionValue = engine.get(SESSION);
             if (sessionValue.isObject()) {
@@ -117,11 +140,11 @@ public class RequestCycle {
 
     public void setSwitchParams(Map<String, Object> switchParams) {
         this.switchParams = switchParams;
-    }        
+    }
 
     public Map<String, Object> getSwitchParams() {
         return switchParams;
-    }        
+    }
 
     public void setRedirectPath(String redirectPath) {
         this.redirectPath = redirectPath;
@@ -131,24 +154,62 @@ public class RequestCycle {
         return redirectPath;
     }
 
-    public void init(ServerContext context, Session session) {
-        this.context = context;
-        if (session != null) {
-            engine.put(SESSION, session.getData());
-            this.session = session;
-            context.setSession(session);
+    protected Response handle() {
+        try {
+            if (customHandler != null) {
+                return customHandler.get();
+            } else if (context.isApi()) {
+                InputStream is = config.getResourceResolver().resolve(request.getResourcePath()).getStream();
+                if (context.isLockNeeded()) {
+                    synchronized (this) {
+                        return apiResponse(is);
+                    }
+                } else {
+                    return apiResponse(is);
+                }
+            } else {
+                return htmlResponse();
+            }
+        } catch (Exception e) {
+            logger.error("handle failed: {}", e.getMessage());
+            response.setStatus(500); // just for logging below
+            return response().status(500);
+        } finally {
+            close();
+            if (logger.isDebugEnabled()) {
+                logger.debug("{} {} [{} ms]", request, response.getStatus(), System.currentTimeMillis() - request.getStartTime());
+            }
         }
-        // this has to be after the session init
-        Map<String, Object> variables = context.getVariables();
-        if (variables != null) {
-            engine.putAll(variables);
+    }
+
+    private Response htmlResponse() {
+        String html;
+        try {
+            html = templateEngine.process(request.getPath());
+        } catch (Exception e) {
+            if (redirectPath != null) {
+                logger.debug("redirect (full) requested to: {}", redirectPath);
+                html = null; // will be handled by response builder
+            }
+            if (switchTemplate != null) {
+                logger.debug("redirect (ajax) requested to: {}", switchTemplate);
+                if (switchParams != null) {
+                    switchParams.forEach((k, v) -> request.setParam(k, v));
+                }
+                html = templateEngine.process(switchTemplate);
+            }
+            throw e;
         }
-        Request request = context.getRequest();
-        request.processBody();
-        engine.put(REQUEST, request);
-        response = new Response(200);
-        engine.put(RESPONSE, response);
-        engine.put(CONTEXT, context);
+        return response().html(html).build(this);
+    }
+
+    private Response apiResponse(InputStream is) {
+        JsEngine.evalGlobal(is); // which may set response body, headers etc.
+        return response().build(this);
+    }
+
+    private ResponseBuilder response() {
+        return new ResponseBuilder(this).session(session, context.isNewSession());
     }
 
 }
