@@ -128,8 +128,8 @@ public class ScenarioEngine {
         this.logger = logger;
     }
 
-    public static ScenarioEngine forTempUse() {
-        FeatureRuntime fr = FeatureRuntime.forTempUse();
+    public static ScenarioEngine forTempUse(HttpClientFactory hcf) {
+        FeatureRuntime fr = FeatureRuntime.forTempUse(hcf);
         ScenarioRuntime sr = new ScenarioIterator(fr).first();
         sr.engine.init();
         return sr.engine;

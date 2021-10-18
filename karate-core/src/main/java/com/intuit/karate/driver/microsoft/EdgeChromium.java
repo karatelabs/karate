@@ -30,6 +30,7 @@ import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
+import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.http.Response;
 import com.intuit.karate.shell.Command;
 
@@ -127,7 +128,7 @@ public class EdgeChromium extends DevToolsDriver {
             options = new HashMap();
         }
         options.putIfAbsent("type", DRIVER_TYPE);
-        ScenarioRuntime runtime = FeatureRuntime.forTempUse().scenarios.next();
+        ScenarioRuntime runtime = FeatureRuntime.forTempUse(HttpClientFactory.DEFAULT).scenarios.next();
         ScenarioEngine.set(runtime.engine);        
         return EdgeChromium.start(options, runtime);
     }

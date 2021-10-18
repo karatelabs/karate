@@ -30,6 +30,7 @@ import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.StepResult;
+import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.http.ResourceType;
 
 import java.util.ArrayList;
@@ -50,7 +51,7 @@ public interface Driver extends Plugin {
     }
 
     public static Driver start(Map<String, Object> options) {
-        ScenarioRuntime runtime = FeatureRuntime.forTempUse().scenarios.next();
+        ScenarioRuntime runtime = FeatureRuntime.forTempUse(HttpClientFactory.DEFAULT).scenarios.next();
         ScenarioEngine.set(runtime.engine);
         return DriverOptions.start(options, runtime);
     }

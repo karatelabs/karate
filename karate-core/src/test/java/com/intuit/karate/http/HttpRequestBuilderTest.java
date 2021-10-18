@@ -19,7 +19,7 @@ class HttpRequestBuilderTest {
     
     @BeforeEach
     void beforeEach() {
-        ScenarioEngine se = ScenarioEngine.forTempUse();
+        ScenarioEngine se = ScenarioEngine.forTempUse(HttpClientFactory.DEFAULT);
         http = new HttpRequestBuilder(HttpClientFactory.DEFAULT.create(se));
     }
     

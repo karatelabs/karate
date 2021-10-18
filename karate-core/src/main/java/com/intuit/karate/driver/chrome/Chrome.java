@@ -31,6 +31,7 @@ import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
+import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.http.Response;
 
 import java.nio.file.Files;
@@ -124,7 +125,7 @@ public class Chrome extends DevToolsDriver {
             options = new HashMap();
         }
         options.putIfAbsent("type", DRIVER_TYPE);
-        ScenarioRuntime runtime = FeatureRuntime.forTempUse().scenarios.next();
+        ScenarioRuntime runtime = FeatureRuntime.forTempUse(HttpClientFactory.DEFAULT).scenarios.next();
         ScenarioEngine.set(runtime.engine);
         return Chrome.start(options, runtime);
     }

@@ -33,6 +33,7 @@ import com.intuit.karate.robot.RobotBase;
 import com.intuit.karate.robot.StringMatcher;
 import com.intuit.karate.robot.Window;
 import com.intuit.karate.core.ScenarioRuntime;
+import com.intuit.karate.http.HttpClientFactory;
 import com.sun.jna.platform.win32.BaseTSD.ULONG_PTR;
 
 import com.sun.jna.platform.win32.User32;
@@ -59,7 +60,7 @@ public class WinRobot extends RobotBase {
     }
     
     public static WinRobot start(Map<String, Object> options) {
-        ScenarioRuntime runtime = FeatureRuntime.forTempUse().scenarios.next();
+        ScenarioRuntime runtime = FeatureRuntime.forTempUse(HttpClientFactory.DEFAULT).scenarios.next();
         ScenarioEngine.set(runtime.engine);
         return new WinRobot(runtime, options);
     }

@@ -29,6 +29,7 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.Request;
 import com.intuit.karate.http.ResourceType;
@@ -95,7 +96,7 @@ public class MockHandler implements ServerHandler {
 
     public MockHandler(List<Feature> features, Map<String, Object> args) {
         for (Feature feature : features) {
-            FeatureRuntime featureRuntime = FeatureRuntime.of(Suite.forTempUse(), feature, args);
+            FeatureRuntime featureRuntime = FeatureRuntime.of(Suite.forTempUse(HttpClientFactory.DEFAULT), feature, args);
             FeatureSection section = new FeatureSection();
             section.setIndex(-1); // TODO util for creating dummy scenario
             Scenario dummy = new Scenario(feature, section, -1);

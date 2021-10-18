@@ -25,6 +25,8 @@ package com.intuit.karate;
 
 import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.Variable;
+import com.intuit.karate.http.ApacheHttpClient;
+import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.Response;
 import java.util.Map;
@@ -49,7 +51,7 @@ public class Http {
 
     private Http(String urlBase) {
         this.urlBase = urlBase;
-        engine = ScenarioEngine.forTempUse();
+        engine = ScenarioEngine.forTempUse(HttpClientFactory.DEFAULT);
         builder = engine.getRequestBuilder();
         builder.url(urlBase);
     }

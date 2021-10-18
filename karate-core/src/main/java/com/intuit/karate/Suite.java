@@ -119,8 +119,8 @@ public class Suite implements Runnable {
         }
     }
 
-    public static Suite forTempUse() {
-        return new Suite(Runner.builder().forTempUse());
+    public static Suite forTempUse(HttpClientFactory hcf) {
+        return new Suite(Runner.builder().clientFactory(hcf).forTempUse());
     }
 
     public Suite() {
@@ -136,7 +136,7 @@ public class Suite implements Runnable {
             outputCucumberJson = false;
             outputJunitXml = false;
             classLoader = Thread.currentThread().getContextClassLoader();
-            clientFactory = HttpClientFactory.DEFAULT;
+            clientFactory = rb.clientFactory == null ? HttpClientFactory.DEFAULT : rb.clientFactory;
             startTime = -1;
             env = rb.env;
             systemProperties = null;
