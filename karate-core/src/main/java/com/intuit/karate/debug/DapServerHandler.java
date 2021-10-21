@@ -469,7 +469,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         channel.eventLoop().execute(()
                 -> channel.writeAndFlush(event("exited")
                         .body("exitCode", 0)));
-        if (server.exitAfterDisconnect()) {
+        if (server.isKeepAlive()) {
             server.stop();
             System.exit(0);
         } else {

@@ -120,12 +120,15 @@ public class Main implements Callable<Void> {
     @Option(names = {"-C", "--clean"}, description = "clean output directory")
     boolean clean;
 
+    @Option(names = {"-B", "--backup-reportdir"}, defaultValue = "true", arity = "0..1", fallbackValue = "true", description = "backup report directory before running tests")
+    boolean backupReportDir = true;
+
     @Option(names = {"-d", "--debug"}, arity = "0..1", defaultValue = "-1", fallbackValue = "0",
             description = "debug mode (optional port else dynamically chosen)")
     int debugPort;
 
-    @Option(names = {"--keep-debug-server"}, defaultValue = "false", arity = "0..1", fallbackValue = "true", description = "keep debug server open for connections after disconnect")
-    boolean keepDebugServerAfterDisconnect;
+    @Option(names = {"--debug-keepalive"}, defaultValue = "false", arity = "0..1", fallbackValue = "true", description = "keep debug server open for connections after disconnect")
+    boolean keepDebugServerAlive;
 
     @Option(names = {"-D", "--dryrun"}, description = "dry run, generate html reports only")
     boolean dryRun;
@@ -326,7 +329,7 @@ public class Main implements Callable<Void> {
             return null;
         }
         if (debugPort != -1) {
-            DapServer server = new DapServer(debugPort, !keepDebugServerAfterDisconnect);
+            DapServer server = new DapServer(debugPort, !keepDebugServerAlive);
             server.waitSync();
             return null;
         }
@@ -336,6 +339,7 @@ public class Main implements Callable<Void> {
                     .karateEnv(env)
                     .workingDir(workingDir)
                     .buildDir(output)
+                    .backupReportDir(backupReportDir)
                     .configDir(configDir)
                     .outputHtmlReport(isOutputHtmlReport())
                     .outputCucumberJson(isOutputCucumberJson())
