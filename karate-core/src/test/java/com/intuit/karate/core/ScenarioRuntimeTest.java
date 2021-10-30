@@ -519,16 +519,6 @@ class ScenarioRuntimeTest {
     }
 
     @Test
-    void testTrim() {
-        run(
-                "def text = ' \\tblah\\n'",
-                "def foo = karate.trim(text)",
-                "match foo == 'blah'"
-        );
-        matchVar("foo", "blah");
-    }
-
-    @Test
     void testEval() {
         run(
                 "def foo = karate.eval('() => 1 + 2')",

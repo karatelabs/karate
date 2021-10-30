@@ -904,10 +904,6 @@ public class ScenarioBridge implements PerfContext, EventContext {
         return v.getAsString();
     }
 
-    public String trim(String s) {
-        return s == null ? null : s.trim();
-    }
-
     public String typeOf(Value value) {
         Variable v = new Variable(value);
         return v.getTypeString();
