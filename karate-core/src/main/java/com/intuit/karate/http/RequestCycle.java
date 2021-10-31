@@ -192,16 +192,16 @@ public class RequestCycle {
         } catch (Exception e) {
             if (redirectPath != null) {
                 logger.debug("redirect (full) requested to: {}", redirectPath);
-                html = null; // will be handled by response builder
-            }
-            if (switchTemplate != null) {
+                html = null; // redirect header will be inserted by response builder
+            } else if (switchTemplate != null) {
                 logger.debug("redirect (ajax) requested to: {}", switchTemplate);
                 if (switchParams != null) {
                     switchParams.forEach((k, v) -> request.setParam(k, v));
                 }
                 html = templateEngine.process(switchTemplate);
+            } else {
+                throw e;
             }
-            throw e;
         }
         return response().html(html).build();
     }

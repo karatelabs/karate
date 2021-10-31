@@ -26,6 +26,7 @@ package com.intuit.karate.http;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
+import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsValue;
 import com.linecorp.armeria.common.RequestContext;
 import io.netty.buffer.Unpooled;
@@ -51,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import static java.util.stream.Collectors.toList;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
@@ -71,6 +73,7 @@ public class Request implements ProxyObject {
     private static final String PARAMS = "params";
     private static final String HEADER = "header";
     private static final String HEADERS = "headers";
+    private static final String HEADER_ENTRIES = "headerEntries";
     private static final String PATH_PARAM = "pathParam";
     private static final String PATH_PARAMS = "pathParams";
     private static final String BODY = "body";
@@ -89,7 +92,7 @@ public class Request implements ProxyObject {
     private static final String TRACE = "trace";
 
     private static final String[] KEYS = new String[]{
-        PATH, METHOD, PARAM, PARAMS, HEADER, HEADERS, PATH_PARAM, PATH_PARAMS, BODY, MULTI_PART, MULTI_PARTS, JSON, AJAX,
+        PATH, METHOD, PARAM, PARAMS, HEADER, HEADERS, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, BODY, MULTI_PART, MULTI_PARTS, JSON, AJAX,
         GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE
     };
     private static final Set<String> KEY_SET = new HashSet<>(Arrays.asList(KEYS));
@@ -185,7 +188,7 @@ public class Request implements ProxyObject {
 
     public long getStartTime() {
         return startTime;
-    }        
+    }
 
     public String getUrlAndPath() {
         return urlAndPath;
@@ -361,6 +364,27 @@ public class Request implements ProxyObject {
         return JsValue.fromJava(getMultiPart(name));
     }
 
+    private static final String KEY = "key";
+    private static final String VALUE = "value";
+
+    private final Supplier HEADER_ENTRIES_FUNCTION = () -> {
+        if (headers == null) {
+            return JsList.EMPTY;
+        }
+        List list = new ArrayList(headers.size());
+        headers.forEach((k, v) -> {
+            if (v == null || v.isEmpty()) {
+                // continue
+            } else {
+                Map map = new HashMap(2);
+                map.put(KEY, k);
+                map.put(VALUE, v.get(0));
+                list.add(map);
+            }
+        });
+        return JsValue.fromJava(list);
+    };
+
     public void processBody() {
         if (body == null) {
             return;
@@ -456,6 +480,8 @@ public class Request implements ProxyObject {
             case OPTIONS:
             case TRACE:
                 return method.toLowerCase().equals(key);
+            case HEADER_ENTRIES:
+                return HEADER_ENTRIES_FUNCTION;
             default:
                 logger.warn("no such property on request object: {}", key);
                 return null;

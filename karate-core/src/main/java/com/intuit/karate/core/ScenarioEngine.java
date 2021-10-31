@@ -1096,9 +1096,9 @@ public class ScenarioEngine {
     // call shared context
     protected Object shallowClone(Object o) {
         if (o instanceof List) {
-            return this.shallowCloneList((List<Object>)o);
+            return this.shallowCloneList((List<Object>) o);
         } else if (o instanceof Map) {
-            return this.shallowCloneMap((Map<String, Object>)o);
+            return this.shallowCloneMap((Map<String, Object>) o);
         } else {
             return o;
         }
@@ -1110,11 +1110,11 @@ public class ScenarioEngine {
         o.forEach(v -> {
             if (v instanceof List) {
                 List copy = new ArrayList();
-                copy.addAll((List)v);
+                copy.addAll((List) v);
                 result.add(copy);
             } else if (v instanceof Map) {
                 Map copy = new HashMap();
-                copy.putAll((Map)v);
+                copy.putAll((Map) v);
                 result.add(copy);
             } else {
                 result.add(v);
@@ -1124,16 +1124,16 @@ public class ScenarioEngine {
     }
 
     // call shared context
-    protected Map<String, Object> shallowCloneMap(Map<String,Object> o) {
+    protected Map<String, Object> shallowCloneMap(Map<String, Object> o) {
         Map<String, Object> result = new HashMap();
-        o.forEach((k,v) -> {
+        o.forEach((k, v) -> {
             if (v instanceof List) {
                 List copy = new ArrayList();
-                copy.addAll((List)v);
+                copy.addAll((List) v);
                 result.put(k, copy);
             } else if (v instanceof Map) {
                 Map copy = new HashMap();
-                copy.putAll((Map)v);
+                copy.putAll((Map) v);
                 result.put(k, copy);
             } else {
                 result.put(k, v);
@@ -1336,6 +1336,10 @@ public class ScenarioEngine {
             value = ((Variable) value).getValue();
         }
         JS.put(key, value);
+    }
+
+    public Object getVariable(String key) {
+        return JS.get(key).getValue();
     }
 
     public void setVariable(String key, Object value) {
