@@ -519,16 +519,6 @@ class ScenarioRuntimeTest {
     }
 
     @Test
-    void testTrim() {
-        run(
-                "def text = ' \\tblah\\n'",
-                "def foo = karate.trim(text)",
-                "match foo == 'blah'"
-        );
-        matchVar("foo", "blah");
-    }
-
-    @Test
     void testEval() {
         run(
                 "def foo = karate.eval('() => 1 + 2')",
@@ -800,9 +790,9 @@ class ScenarioRuntimeTest {
                 "def fun1 = x => x.num",
                 "def res1 = karate.sort(list1, fun1)",
                 "match res1 == [{ num: 1 }, { num: 2 }, { num: 3 }]",
-                "def list2 = [{ val: 'C' }, { val: 'A' }, { val: 'B' }]",
+                "def list2 = [{ val: 'C' }, { val: 'B' }, { val: 'A' }, { val: 'B' }]",
                 "def res2 = karate.sort(list2, x => x.val)",
-                "match res2 == [{ val: 'A' }, { val: 'B' }, { val: 'C' }]",
+                "match res2 == [{ val: 'A' }, { val: 'B' }, { val: 'B' }, { val: 'C' }]",
                 "def list3 = ['c', 'b', 'a']",
                 "def res3 = karate.sort(list3)",
                 "match res3 == ['a', 'b', 'c']",

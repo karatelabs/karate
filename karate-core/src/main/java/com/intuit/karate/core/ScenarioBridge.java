@@ -164,7 +164,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
         Variable result = engine.call(called, arg == null ? null : new Variable(arg), sharedScope);
         if (sharedScope && result.isMap()) {
             engine.setVariables(result.getValue());
-        }        
+        }
         return JsValue.fromJava(result.getValue());
     }
 
@@ -692,15 +692,15 @@ public class ScenarioBridge implements PerfContext, EventContext {
         Object result = getEngine().fileReader.readFile(path);
         return JsValue.fromJava(result);
     }
-    
+
     public byte[] readAsBytes(String path) {
         return getEngine().fileReader.readFileAsBytes(path);
-    }    
+    }
 
     public String readAsString(String path) {
         return getEngine().fileReader.readFileAsString(path);
     }
-    
+
     public InputStream readAsStream(String path) {
         return getEngine().fileReader.readFileAsStream(path);
     }
@@ -708,7 +708,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
     public void remove(String name, String path) {
         getEngine().remove(name, path);
     }
-    
+
     public String render(Value v) {
         Map<String, Object> arg;
         if (v.isString()) {
@@ -720,7 +720,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
             return null;
         }
         return getEngine().renderHtml(arg);
-    }    
+    }
 
     public Object repeat(int n, Value f) {
         assertIfJsFunction(f);
@@ -788,7 +788,11 @@ public class ScenarioBridge implements PerfContext, EventContext {
             if (key.isNumber()) {
                 map.put(key.as(Number.class), item);
             } else {
-                map.put(key.asString(), item);
+                if (map.containsKey(key.asString())) { // duplicates handled only for string values
+                    map.put(key.asString() + i, item);
+                } else {
+                    map.put(key.asString(), item);
+                }
             }
         }
         return JsValue.fromJava(new ArrayList(map.values()));
@@ -898,10 +902,6 @@ public class ScenarioBridge implements PerfContext, EventContext {
     public String toString(Object o) {
         Variable v = new Variable(o);
         return v.getAsString();
-    }
-
-    public String trim(String s) {
-        return s == null ? null : s.trim();
     }
 
     public String typeOf(Value value) {
