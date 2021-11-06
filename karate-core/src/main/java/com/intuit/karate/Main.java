@@ -37,7 +37,6 @@ import com.intuit.karate.shell.Command;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -77,10 +76,10 @@ public class Main implements Callable<Void> {
     int port = 8080;
 
     @Option(names = {"-W", "--watch"}, description = "watch (and hot-reload) mock server file for changes")
-    boolean watch;    
+    boolean watch;
 
     @Option(names = {"-S", "--serve"}, description = "app server using --workdir (experimental)")
-     boolean serve;
+    boolean serve;
 
     @Option(names = {"-s", "--ssl"}, description = "use ssl / https, will use '"
             + SslContextFactory.DEFAULT_CERT_NAME + "' and '" + SslContextFactory.DEFAULT_KEY_NAME
@@ -121,9 +120,15 @@ public class Main implements Callable<Void> {
     @Option(names = {"-C", "--clean"}, description = "clean output directory")
     boolean clean;
 
+    @Option(names = {"-B", "--backup-reportdir"}, defaultValue = "true", arity = "0..1", fallbackValue = "true", description = "backup report directory before running tests")
+    boolean backupReportDir = true;
+
     @Option(names = {"-d", "--debug"}, arity = "0..1", defaultValue = "-1", fallbackValue = "0",
             description = "debug mode (optional port else dynamically chosen)")
     int debugPort;
+
+    @Option(names = {"--debug-keepalive"}, defaultValue = "false", arity = "0..1", fallbackValue = "true", description = "keep debug server open for connections after disconnect")
+    boolean keepDebugServerAlive;
 
     @Option(names = {"-D", "--dryrun"}, description = "dry run, generate html reports only")
     boolean dryRun;
@@ -324,7 +329,7 @@ public class Main implements Callable<Void> {
             return null;
         }
         if (debugPort != -1) {
-            DapServer server = new DapServer(debugPort);
+            DapServer server = new DapServer(debugPort, !keepDebugServerAlive);
             server.waitSync();
             return null;
         }
@@ -334,6 +339,7 @@ public class Main implements Callable<Void> {
                     .karateEnv(env)
                     .workingDir(workingDir)
                     .buildDir(output)
+                    .backupReportDir(backupReportDir)
                     .configDir(configDir)
                     .outputHtmlReport(isOutputHtmlReport())
                     .outputCucumberJson(isOutputCucumberJson())
@@ -358,21 +364,6 @@ public class Main implements Callable<Void> {
         if (clean) {
             return null;
         }
-        if (serve) {
-            ServerConfig config = new ServerConfig(workingDir.getPath());
-            RequestHandler handler = new RequestHandler(config);
-            HttpServer server = HttpServer
-                    .handler(handler)
-                    .port(port)
-                    .corsEnabled(true)                    
-                    .build();
-            server.waitSync();
-            return null;
-        }
-        if (mocks == null || mocks.isEmpty()) {
-            CommandLine.usage(this, System.err);
-            return null;
-        }
         // these files will not be created, unless ssl or ssl proxying happens
         // and then they will be lazy-initialized
         if (cert == null || key == null) {
@@ -382,6 +373,27 @@ public class Main implements Callable<Void> {
         if (env != null) { // some advanced mocks may want karate.env
             System.setProperty(Constants.KARATE_ENV, env);
         }
+        if (serve) {
+            ServerConfig config = new ServerConfig(workingDir.getPath());
+            RequestHandler handler = new RequestHandler(config);
+            HttpServer.Builder builder = HttpServer
+                    .handler(handler)
+                    .corsEnabled(true);
+            if (ssl) {
+                builder.https(port)
+                        .certFile(cert)
+                        .keyFile(key);
+            } else {
+                builder.http(port);
+            }
+            HttpServer server = builder.build();
+            server.waitSync();
+            return null;
+        }
+        if (mocks == null || mocks.isEmpty()) {
+            CommandLine.usage(this, System.err);
+            return null;
+        }        
         MockServer.Builder builder = MockServer
                 .featureFiles(mocks)
                 .pathPrefix(prefix)

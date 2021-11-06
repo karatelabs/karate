@@ -49,7 +49,10 @@ public class ScenarioFileReader {
     public Object readFile(String text) {
         StringUtils.Pair pair = parsePathAndTags(text);
         text = pair.left;
-        if (isJsonFile(text) || isXmlFile(text)) {
+        if (text == null && pair.right != null && pair.right.startsWith("@")) {
+            this.featureRuntime.feature.setCallTag(pair.right);
+            return this.featureRuntime.feature;
+        } else if (isJsonFile(text) || isXmlFile(text)) {
             String contents = readFileAsString(text);
             Variable temp = engine.evalKarateExpression(contents);
             return temp.getValue();
@@ -108,6 +111,9 @@ public class ScenarioFileReader {
     }
 
     private static StringUtils.Pair parsePathAndTags(String text) {
+        if (text.startsWith("@")) {
+            return new StringUtils.Pair(null, StringUtils.trimToEmpty(text));
+        }
         int pos = text.indexOf(".feature@");
         if (pos == -1) {
             text = StringUtils.trimToEmpty(text);

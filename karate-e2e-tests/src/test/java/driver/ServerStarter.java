@@ -20,7 +20,7 @@ public class ServerStarter {
         ServerConfig config = new ServerConfig("src/test/java/driver/html")
                 .autoCreateSession(true)
                 .homePagePath("00");
-        return HttpServer.config(config).port(port).build();
+        return HttpServer.config(config).http(port).build();
     }
 
 }

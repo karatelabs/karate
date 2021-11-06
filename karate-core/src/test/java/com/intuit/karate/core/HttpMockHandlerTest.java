@@ -3,6 +3,7 @@ package com.intuit.karate.core;
 import com.intuit.karate.Constants;
 import static com.intuit.karate.TestUtils.*;
 import com.intuit.karate.http.ApacheHttpClient;
+import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpServer;
 import com.intuit.karate.http.Response;
@@ -28,7 +29,7 @@ class HttpMockHandlerTest {
     HttpRequestBuilder handle() {
         handler = new MockHandler(mock.build());
         server = HttpServer.handler(handler).build();
-        ScenarioEngine se = ScenarioEngine.forTempUse();
+        ScenarioEngine se = ScenarioEngine.forTempUse(HttpClientFactory.DEFAULT);
         ApacheHttpClient client = new ApacheHttpClient(se);
         http = new HttpRequestBuilder(client);
         http.url("http://localhost:" + server.getPort());

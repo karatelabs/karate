@@ -68,11 +68,11 @@
     <li class="todo" th:each="todo: filtered" ka:vals="id:todo.id" th:classappend="isEditing(todo)">
       <div class="view">
         <input class="toggle" type="checkbox" th:checked="todo.complete" ka:post="this" ka:vals="action:'toggle'">
-        <label th:text="todo.title" ka:trigger="dblclick" ka:post="this" ka:vals="action:'edit'">replace title</label>        
+        <label th:text="todo.title" hx-trigger="dblclick" ka:post="this" ka:vals="action:'edit'">replace title</label>        
         <button class="destroy" ka:post="this" ka:vals="action:'remove'"></button>
       </div>
       <input class="edit" type="text" name="title" th:value="todo.title" onkeyup="kjs.edit(event, this)" th:id="'todo' + todo.id"
-             ka:trigger="blur,keyup-enter,keyup-escape" ka:post="this" ka:vals="action:'update'">
+             hx-trigger="blur,keyup-enter,keyup-escape" ka:post="this" ka:vals="action:'update'">
     </li> 
   </ul>
 </section>

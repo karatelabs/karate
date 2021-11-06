@@ -26,6 +26,7 @@ package com.intuit.karate.http;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
+import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsValue;
 import com.linecorp.armeria.common.RequestContext;
 import io.netty.buffer.Unpooled;
@@ -51,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import static java.util.stream.Collectors.toList;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
@@ -71,6 +73,7 @@ public class Request implements ProxyObject {
     private static final String PARAMS = "params";
     private static final String HEADER = "header";
     private static final String HEADERS = "headers";
+    private static final String HEADER_ENTRIES = "headerEntries";
     private static final String PATH_PARAM = "pathParam";
     private static final String PATH_PARAMS = "pathParams";
     private static final String BODY = "body";
@@ -89,12 +92,13 @@ public class Request implements ProxyObject {
     private static final String TRACE = "trace";
 
     private static final String[] KEYS = new String[]{
-        PATH, METHOD, PARAM, PARAMS, HEADER, HEADERS, PATH_PARAM, PATH_PARAMS, BODY, MULTI_PART, MULTI_PARTS, JSON, AJAX,
+        PATH, METHOD, PARAM, PARAMS, HEADER, HEADERS, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, BODY, MULTI_PART, MULTI_PARTS, JSON, AJAX,
         GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE
     };
     private static final Set<String> KEY_SET = new HashSet<>(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
+    private final long startTime = System.currentTimeMillis();
     private String urlAndPath;
     private String urlBase;
     private String path;
@@ -149,7 +153,7 @@ public class Request implements ProxyObject {
     public List<Cookie> getCookies() {
         List<String> cookieValues = getHeaderValues(HttpConstants.HDR_COOKIE);
         if (cookieValues == null) {
-             return Collections.emptyList();
+            return Collections.emptyList();
         }
         return cookieValues.stream().map(ClientCookieDecoder.STRICT::decode).collect(toList());
     }
@@ -180,6 +184,10 @@ public class Request implements ProxyObject {
         QueryStringDecoder qsd = new QueryStringDecoder(pair.right);
         setPath(qsd.path());
         setParams(qsd.parameters());
+    }
+
+    public long getStartTime() {
+        return startTime;
     }
 
     public String getUrlAndPath() {
@@ -229,6 +237,31 @@ public class Request implements ProxyObject {
         this.params = params;
     }
 
+    public void setParamCommaDelimited(String name, String value) {
+        if (value == null) {
+            return;
+        }
+        setParam(name, StringUtils.split(value, ',', false));
+    }
+
+    public void setParam(String name, Object value) {
+        if (params == null) {
+            params = new HashMap();
+        }
+        if (value == null) {
+            params.put(name, null);
+        } else if (value instanceof List) {
+            List list = (List) value;
+            List<String> values = new ArrayList(list.size());
+            for (Object o : list) {
+                values.add(o == null ? null : o.toString());
+            }
+            params.put(name, values);
+        } else {
+            params.put(name, Collections.singletonList(value.toString()));
+        }
+    }
+
     public String getPathParam() {
         return pathParam;
     }
@@ -251,6 +284,26 @@ public class Request implements ProxyObject {
 
     public void setHeaders(Map<String, List<String>> headers) {
         this.headers = headers;
+    }
+
+    public void setCookiesRaw(List<String> values) {
+        if (values == null) {
+            return;
+        }
+        if (headers == null) {
+            headers = new HashMap();
+        }
+        headers.put(HttpConstants.HDR_COOKIE, values);
+    }
+
+    public void setHeaderCommaDelimited(String name, String value) {
+        if (value == null) {
+            return;
+        }
+        if (headers == null) {
+            headers = new HashMap();
+        }
+        headers.put(name, StringUtils.split(value, ',', false));
     }
 
     public byte[] getBody() {
@@ -310,6 +363,27 @@ public class Request implements ProxyObject {
     public Object getMultiPartAsJsValue(String name) {
         return JsValue.fromJava(getMultiPart(name));
     }
+
+    private static final String KEY = "key";
+    private static final String VALUE = "value";
+
+    private final Supplier HEADER_ENTRIES_FUNCTION = () -> {
+        if (headers == null) {
+            return JsList.EMPTY;
+        }
+        List list = new ArrayList(headers.size());
+        headers.forEach((k, v) -> {
+            if (v == null || v.isEmpty()) {
+                // continue
+            } else {
+                Map map = new HashMap(2);
+                map.put(KEY, k);
+                map.put(VALUE, v.get(0));
+                list.add(map);
+            }
+        });
+        return JsValue.fromJava(list);
+    };
 
     public void processBody() {
         if (body == null) {
@@ -406,6 +480,8 @@ public class Request implements ProxyObject {
             case OPTIONS:
             case TRACE:
                 return method.toLowerCase().equals(key);
+            case HEADER_ENTRIES:
+                return HEADER_ENTRIES_FUNCTION;
             default:
                 logger.warn("no such property on request object: {}", key);
                 return null;

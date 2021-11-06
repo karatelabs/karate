@@ -1592,6 +1592,14 @@ If you want to disable the "auto-embedding" into the HTML report, pass an additi
 * screenshot('#someDiv', false)
 ```
 
+The call to `screenshot()` returns a Java byte-array, which is convenient if you want to do something specific such as save it to a file. The usage of [`karate.write()`](https://stackoverflow.com/a/54593057/143475) here is just an example, you can use [JS or Java interop](https://github.com/karatelabs/karate#calling-javascript-functions) as needed.
+
+```cucumber
+* def bytes = screenshot(false)
+* def file = karate.write(bytes, 'test.png')
+* print 'screenshot saved to:', file
+```
+
 ## `pdf()`
 To create paginated pdf document from the page loaded.
 

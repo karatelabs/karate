@@ -122,7 +122,9 @@ public class Response implements ProxyObject {
         Map<String, Map> map = new HashMap();
         for (String value : values) {
             Cookie cookie = ClientCookieDecoder.STRICT.decode(value);
-            map.put(cookie.name(), Cookies.toMap(cookie));
+            if (cookie != null) { // can be null if cookie contains invalid characters
+                map.put(cookie.name(), Cookies.toMap(cookie));
+            }
         }
         return map;
     }
@@ -294,7 +296,7 @@ public class Response implements ProxyObject {
                 status = value.asInt();
                 break;
             case HEADERS:
-                headers = (Map) JsValue.toJava(value);
+                setHeaders((Map) JsValue.toJava(value));
                 break;
             default:
                 logger.warn("put not supported on response object: {} - {}", key, value);

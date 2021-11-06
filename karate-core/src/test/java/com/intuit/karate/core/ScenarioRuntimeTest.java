@@ -315,10 +315,14 @@ class ScenarioRuntimeTest {
         run(
                 "def foo = { a: 1 }",
                 "def mat1 = karate.match(foo, {a: 2})",
-                "def mat2 = karate.match('foo == { a: 1 }')"
+                "def mat2 = karate.match('foo == { a: 1 }')",
+                "def bar = []",
+                "def mat3 = karate.match(bar, [])"
+                
         );
         matchVar("mat1", "{ pass: false, message: '#notnull' }");
         matchVar("mat2", "{ pass: true, message: '#null' }");
+        matchVar("mat3", "{ pass: true, message: '#null' }");
     }
 
     @Test
@@ -512,16 +516,6 @@ class ScenarioRuntimeTest {
         );
         // fixed for windows
         match(((String) get("res")).replaceAll("[\r\n]+", "@"), "a,b@1,2@3,4@");
-    }
-
-    @Test
-    void testTrim() {
-        run(
-                "def text = ' \\tblah\\n'",
-                "def foo = karate.trim(text)",
-                "match foo == 'blah'"
-        );
-        matchVar("foo", "blah");
     }
 
     @Test
@@ -796,9 +790,9 @@ class ScenarioRuntimeTest {
                 "def fun1 = x => x.num",
                 "def res1 = karate.sort(list1, fun1)",
                 "match res1 == [{ num: 1 }, { num: 2 }, { num: 3 }]",
-                "def list2 = [{ val: 'C' }, { val: 'A' }, { val: 'B' }]",
+                "def list2 = [{ val: 'C' }, { val: 'B' }, { val: 'A' }, { val: 'B' }]",
                 "def res2 = karate.sort(list2, x => x.val)",
-                "match res2 == [{ val: 'A' }, { val: 'B' }, { val: 'C' }]",
+                "match res2 == [{ val: 'A' }, { val: 'B' }, { val: 'B' }, { val: 'C' }]",
                 "def list3 = ['c', 'b', 'a']",
                 "def res3 = karate.sort(list3)",
                 "match res3 == ['a', 'b', 'c']",

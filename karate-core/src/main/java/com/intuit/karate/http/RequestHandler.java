@@ -23,11 +23,8 @@
  */
 package com.intuit.karate.http;
 
-import com.intuit.karate.resource.ResourceResolver;
-import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateUtils;
-import java.io.InputStream;
 import java.time.Instant;
 import java.util.function.Function;
 import org.slf4j.Logger;
@@ -42,18 +39,16 @@ public class RequestHandler implements ServerHandler {
     private static final Logger logger = LoggerFactory.getLogger(RequestHandler.class);
 
     private final SessionStore sessionStore;
-    private final KarateTemplateEngine engine;
+    private final KarateTemplateEngine templateEngine;
     private final String homePagePath;
     private final ServerConfig config;
     private final Function<Request, ServerContext> contextFactory;
-    private final ResourceResolver resourceResolver;
     private final String stripHostContextPath;
 
     public RequestHandler(ServerConfig config) {
         this.config = config;
         contextFactory = config.getContextFactory();
-        resourceResolver = config.getResourceResolver();
-        engine = TemplateUtils.forServer(config);
+        templateEngine = TemplateUtils.forServer(config);
         homePagePath = config.getHomePagePath();
         sessionStore = config.getSessionStore();
         stripHostContextPath = config.isStripContextPathFromRequest() ? config.getHostContextPath() : null;
@@ -61,29 +56,34 @@ public class RequestHandler implements ServerHandler {
 
     @Override
     public Response handle(Request request) {
-        long startTime = System.currentTimeMillis();
         if (stripHostContextPath != null) {
-            String path = request.getPath();
-            if (path.startsWith(stripHostContextPath)) {
-                request.setPath(path.substring(stripHostContextPath.length()));
+            if (request.getPath().startsWith(stripHostContextPath)) {
+                request.setPath(request.getPath().substring(stripHostContextPath.length()));
             }
         }
         if (request.getPath().isEmpty()) {
             if (logger.isDebugEnabled()) {
                 logger.debug("redirecting to home page: {}", request);
             }
-            return response().locationHeader(redirectPath()).status(302);
+            return response().locationHeader(redirectPath()).buildWithStatus(302);
         }
         ServerContext context = contextFactory.apply(request);
-        context.prepare();
-        if (!context.isApi() && request.isForStaticResource()) {
-            if (logger.isDebugEnabled()) {
-                logger.debug("{}", request);
+        if (request.getResourceType() == null) { // can be set by context factory
+            request.setResourceType(ResourceType.fromFileExtension(request.getPath()));
+        }
+        if (!context.isApi() && request.isForStaticResource() && context.isHttpGetAllowed()) {
+            if (request.getResourcePath() == null) { // can be set by context factory
+                request.setResourcePath(request.getPath()); // static resource
             }
-            return response().buildStatic(request);
+            try {
+                return response().buildStatic(request);
+            } finally {
+                if (logger.isDebugEnabled()) {
+                    logger.debug("{} {} [{} ms]", request, 200, System.currentTimeMillis() - request.getStartTime());
+                }
+            }
         }
         Session session = context.getSession(); // can be pre-resolved by context-factory
-        boolean newSession = false;
         if (session == null && !context.isStateless()) {
             String sessionId = context.getSessionCookieValue();
             if (sessionId != null) {
@@ -97,75 +97,31 @@ public class RequestHandler implements ServerHandler {
             if (session == null) {
                 if (config.isAutoCreateSession() || homePagePath.equals(request.getPath())) {
                     session = createSession();
-                    newSession = true;
+                    context.setNewSession(true);
                     logger.debug("creating new session for '{}': {}", request.getPath(), session);
                 } else {
                     logger.warn("session not found: {}", request);
-                    ResponseBuilder rb = response().deleteSessionCookie(sessionId);
+                    ResponseBuilder rb = response();
+                    if (sessionId != null) {
+                        rb.deleteSessionCookie(sessionId);
+                    }
                     if (request.isAjax()) {
                         rb.ajaxRedirect(redirectPath());
                     } else {
                         rb.locationHeader(redirectPath());
                     }
-                    return rb.status(302);
+                    return rb.buildWithStatus(302);
                 }
             }
+            context.setSession(session);
         }
-        RequestCycle rc = RequestCycle.init(JsEngine.global(), engine);
-        rc.init(context, session);
-        try {
-            if (context.isApi()) {
-                InputStream is = resourceResolver.resolve(request.getResourcePath()).getStream();
-                ResponseBuilder rb = response(rc, session, newSession);
-                if (context.isLockNeeded()) {
-                    synchronized (this) {
-                        return apiResponse(is, rb, rc);
-                    }
-                } else {
-                    return apiResponse(is, rb, rc);
-                }
-            } else {
-                String html = htmlResponse(request, rc);
-                return response(rc, session, newSession).html(html).build(rc);
-            }
-        } catch (Exception e) {
-            logger.error("handle failed: {}", e.getMessage());
-            return response().status(500);
-        } finally {
-            rc.close();
-            long elapsedTime = System.currentTimeMillis() - startTime;
-            if (logger.isDebugEnabled()) {
-                logger.debug("{} {} ms", request, elapsedTime);
-            }
-        }
+        RequestCycle rc = RequestCycle.init(templateEngine, context);
+        return rc.handle();
     }
 
     private String redirectPath() {
         String contextPath = config.getHostContextPath();
         return contextPath == null ? "/" + homePagePath : contextPath + homePagePath;
-    }
-
-    private String htmlResponse(Request request, RequestCycle rc) {
-        try {
-            return engine.process(request.getPath());
-        } catch (Exception e) {
-            String redirectPath = rc.getRedirectPath();
-            if (redirectPath != null) {
-                logger.debug("redirect (full) requested to: {}", redirectPath);
-                return null; // will be handled by response builder
-            }
-            String switchTemplate = rc.getSwitchTemplate();
-            if (switchTemplate != null) {
-                logger.debug("redirect (ajax) requested to: {}", switchTemplate);
-                return engine.process(switchTemplate);
-            }
-            throw e;
-        }
-    }
-
-    private Response apiResponse(InputStream is, ResponseBuilder rb, RequestCycle rc) {
-        JsEngine.evalGlobal(is);
-        return rb.build(rc);
     }
 
     private boolean isExpired(Session session) {
@@ -187,10 +143,6 @@ public class RequestHandler implements ServerHandler {
 
     private ResponseBuilder response() {
         return new ResponseBuilder(config, null);
-    }
-
-    private ResponseBuilder response(RequestCycle rc, Session session, boolean newSession) {
-        return new ResponseBuilder(config, rc).session(session, newSession);
     }
 
 }

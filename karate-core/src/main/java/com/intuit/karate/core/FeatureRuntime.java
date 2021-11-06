@@ -26,6 +26,7 @@ package com.intuit.karate.core;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.PerfHook;
 import com.intuit.karate.Suite;
+import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.resource.MemoryResource;
 import com.intuit.karate.resource.Resource;
 import java.io.File;
@@ -70,8 +71,8 @@ public class FeatureRuntime implements Runnable {
         this.next = next;
     }
 
-    public static FeatureRuntime forTempUse() {
-        Suite sr = Suite.forTempUse();
+    public static FeatureRuntime forTempUse(HttpClientFactory hcf) {
+        Suite sr = Suite.forTempUse(hcf);
         File workingDir = new File(sr.buildDir).getAbsoluteFile();
         Resource resource = new MemoryResource(workingDir, "Feature:\nScenario:\n");
         Feature feature = Feature.read(resource);

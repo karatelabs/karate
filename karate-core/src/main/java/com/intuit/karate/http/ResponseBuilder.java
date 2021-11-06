@@ -54,13 +54,14 @@ public class ResponseBuilder {
     private ResourceType resourceType;
     private final ServerConfig config;
     private final ResourceResolver resourceResolver;
+    private final RequestCycle requestCycle;
 
-    public ResponseBuilder(ServerConfig config, RequestCycle rc) {
+    public ResponseBuilder(ServerConfig config, RequestCycle requestCycle) {
         this.config = config;
         resourceResolver = config.getResourceResolver();
-        if (rc != null) {
-            Response response = rc.getResponse();
-            headers = response.getHeaders();
+        this.requestCycle = requestCycle;
+        if (requestCycle != null) {
+            headers = requestCycle.getResponse().getHeaders();
         }
     }
 
@@ -111,6 +112,8 @@ public class ResponseBuilder {
 
     private ResponseBuilder cookie(String name, String value, boolean delete) {
         DefaultCookie cookie = new DefaultCookie(name, value);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true);
         if (delete) {
             cookie.setMaxAge(0);
         }
@@ -128,10 +131,10 @@ public class ResponseBuilder {
         headers.put(name, Collections.singletonList(value));
         return this;
     }
-    
+
     public ResponseBuilder ajaxRedirect(String url) {
         header(HttpConstants.HDR_HX_REDIRECT, url);
-        return this;        
+        return this;
     }
 
     public ResponseBuilder trigger(String json) {
@@ -146,16 +149,15 @@ public class ResponseBuilder {
         return this;
     }
 
-    public Response build(RequestCycle rc) {
-        Response response = rc.getResponse();
-        ServerContext context = rc.getContext();
-        String redirectPath = rc.getRedirectPath();
-        if (redirectPath != null) {
-            header(HttpConstants.HDR_HX_REDIRECT, redirectPath);
-            return status(302);
+    public Response build() {
+        Response response = requestCycle.getResponse();
+        ServerContext context = requestCycle.getContext();
+        if (requestCycle.getRedirectPath() != null) {
+            header(HttpConstants.HDR_HX_REDIRECT, requestCycle.getRedirectPath());
+            return buildWithStatus(302);
         }
-        List<Map<String, Object>> triggers = context.getResponseTriggers();
-        if (triggers != null) {
+        if (context.getResponseTriggers() != null) {
+            List<Map<String, Object>> triggers = context.getResponseTriggers();
             Map<String, Object> merged;
             if (triggers.size() == 1) {
                 merged = triggers.get(0);
@@ -168,7 +170,7 @@ public class ResponseBuilder {
             String json = JsonUtils.toJson(merged);
             header(HttpConstants.HDR_HX_TRIGGER, json);
         }
-        if (resourceType != null && resourceType.isHtml() 
+        if (resourceType != null && resourceType.isHtml()
                 && context.isAjax() && context.getAfterSettleScripts() != null) {
             StringBuilder sb = new StringBuilder();
             for (String js : context.getAfterSettleScripts()) {
@@ -187,10 +189,13 @@ public class ResponseBuilder {
                 body = merged;
             }
         }
-        if (rc.isApi()) {
-            resourceType = ResourceType.JSON;
-            contentType(resourceType.contentType);
+        if (context.isApi()) {
             body = response.getBody();
+            if (resourceType != null) {
+                contentType(resourceType.contentType);
+            } else if (body != null) {
+                contentType(ResourceType.JSON.contentType);  // default, which can be over-ridden
+            }
             Map<String, List<String>> apiHeaders = response.getHeaders();
             if (apiHeaders != null) {
                 if (headers == null) {
@@ -203,7 +208,7 @@ public class ResponseBuilder {
         if (cookies != null) {
             cookies.forEach(c -> header(HttpConstants.HDR_SET_COOKIE, ServerCookieEncoder.LAX.encode(c)));
         }
-        return status(response.getStatus());
+        return buildWithStatus(response.getStatus());
     }
 
     public Response buildStatic(Request request) { // TODO ETag header handling
@@ -219,10 +224,10 @@ public class ResponseBuilder {
         } catch (Exception e) {
             logger.error("local resource failed: {} - {}", request, e.toString());
         }
-        return status(200);
+        return buildWithStatus(200);
     }
 
-    public Response status(int status) {
+    public Response buildWithStatus(int status) {
         return new Response(status, headers, body, resourceType);
     }
 

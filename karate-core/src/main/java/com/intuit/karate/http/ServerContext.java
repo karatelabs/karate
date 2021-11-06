@@ -69,6 +69,8 @@ public class ServerContext implements ProxyObject {
     private static final String SWITCHED = "switched";
     private static final String AJAX = "ajax";
     private static final String HTTP = "http";
+    private static final String NEXT_ID = "nextId";
+    private static final String SESSION_ID = "sessionId";
     private static final String RENDER = "render";
     private static final String TRIGGER = "trigger";
     private static final String REDIRECT = "redirect";
@@ -79,7 +81,7 @@ public class ServerContext implements ProxyObject {
 
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
-        RENDER, TRIGGER, REDIRECT, AFTER_SETTLE, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
+        NEXT_ID, SESSION_ID, RENDER, TRIGGER, REDIRECT, AFTER_SETTLE, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -88,9 +90,13 @@ public class ServerContext implements ProxyObject {
 
     private boolean stateless;
     private boolean api;
+    private boolean httpGetAllowed;
     private boolean lockNeeded;
-    private Session session;
+    private boolean newSession;
+    private Session session; // can be pre-resolved, else will be set by RequestCycle.init()
     private boolean switched;
+    private Supplier<Response> customHandler;
+    private int nextId;
 
     private List<Map<String, Object>> responseTriggers;
     private List<String> afterSettleScripts;
@@ -150,47 +156,6 @@ public class ServerContext implements ProxyObject {
             }
             return TemplateUtils.renderHtmlString(html, je, config.getResourceResolver());
         };
-    }
-
-    private static final String DOT_JS = ".js";
-
-    public void prepare() {
-        String path = request.getPath();
-        if (request.getResourceType() == null) {
-            request.setResourceType(ResourceType.fromFileExtension(path));
-        }
-        String resourcePath = request.getResourcePath();
-        if (resourcePath == null) {
-            if (api) {
-                String pathParam = null;
-                String jsPath = path + DOT_JS;
-                resourcePath = jsPath;
-                if (!config.getJsFiles().contains(jsPath)) {
-                    List<String> pathParams = new ArrayList();
-                    request.setPathParams(pathParams);
-                    String temp = path;
-                    do {
-                        int pos = temp.lastIndexOf('/');
-                        if (pos == -1) {
-                            logger.debug("failed to extract path params: {} - {}", temp, this);
-                            break;
-                        }
-                        String pp = temp.substring(pos + 1);
-                        if (pathParams.isEmpty()) {
-                            pathParam = pp;
-                        }
-                        pathParams.add(pp);
-                        jsPath = temp.substring(0, pos) + DOT_JS;
-                        temp = temp.substring(0, pos);
-                    } while (!config.getJsFiles().contains(jsPath));
-                    resourcePath = jsPath;
-                }
-                request.setPathParam(pathParam);
-            } else { // static, note that HTML is resolved differently, by template resolver
-                resourcePath = path;
-            }
-            request.setResourcePath(resourcePath);
-        }
     }
 
     public String getSessionCookieValue() {
@@ -255,6 +220,14 @@ public class ServerContext implements ProxyObject {
         return variables;
     }
 
+    public boolean isNewSession() {
+        return newSession;
+    }
+
+    public void setNewSession(boolean newSession) {
+        this.newSession = newSession;
+    }
+
     public Session getSession() {
         return session;
     }
@@ -291,12 +264,28 @@ public class ServerContext implements ProxyObject {
         this.api = api;
     }
 
+    public boolean isHttpGetAllowed() {
+        return httpGetAllowed;
+    }
+
+    public void setHttpGetAllowed(boolean httpGetAllowed) {
+        this.httpGetAllowed = httpGetAllowed;
+    }
+
     public List<String> getAfterSettleScripts() {
         return afterSettleScripts;
     }
 
     public List<Map<String, Object>> getResponseTriggers() {
         return responseTriggers;
+    }
+
+    public Supplier<Response> getCustomHandler() {
+        return customHandler;
+    }
+
+    public void setCustomHandler(Supplier<Response> customHandler) {
+        this.customHandler = customHandler;
     }
 
     public void trigger(Map<String, Object> trigger) {
@@ -328,22 +317,32 @@ public class ServerContext implements ProxyObject {
             return args[1];
         }
     };
-    
+
     private static final Supplier<String> UUID_FUNCTION = () -> java.util.UUID.randomUUID().toString();
     private static final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s, false, null);
 
     private final Methods.FunVar HTTP_FUNCTION; // set in constructor
     private final Function<Object, String> RENDER_FUNCTION; // set in constructor
 
-    private final Consumer<String> SWITCH_FUNCTION = s -> {
+    private final Methods.FunVar SWITCH_FUNCTION = args -> {
         if (switched) {
-            logger.warn("context.switch() can be called only once during a request, ignoring: {}", s);
+            logger.warn("context.switch() can be called only once during a request, ignoring: {}", args[0]);
         } else {
             switched = true;
-            RequestCycle.get().setSwitchTemplate(s);
+            RequestCycle rc = RequestCycle.get();
+            if (args.length > 1) {
+                Value value = Value.asValue(args[1]);
+                if (value.hasMembers()) {
+                    JsValue jv = new JsValue(value);
+                    rc.setSwitchParams(jv.getAsMap());
+                }
+            }
+            String template = args[0].toString();
+            rc.setSwitchTemplate(template);
             KarateEngineContext.get().setRedirect(true);
-            throw new RedirectException(s);
+            throw new RedirectException(template);
         }
+        return null;
     };
 
     private final Consumer<String> REDIRECT_FUNCTION = s -> {
@@ -368,6 +367,8 @@ public class ServerContext implements ProxyObject {
         }
         return o;
     };
+
+    private final Supplier<Integer> NEXT_ID_FUNCTION = () -> ++nextId;
 
     @Override
     public Object getMember(String key) {
@@ -400,6 +401,10 @@ public class ServerContext implements ProxyObject {
                 return isAjax();
             case HTTP:
                 return HTTP_FUNCTION;
+            case NEXT_ID:
+                return NEXT_ID_FUNCTION;
+            case SESSION_ID:
+                return session == null ? null : session.getId();
             case RENDER:
                 return RENDER_FUNCTION;
             case TRIGGER:

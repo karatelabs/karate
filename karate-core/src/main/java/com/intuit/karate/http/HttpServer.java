@@ -29,6 +29,7 @@ import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.cors.CorsService;
+import java.io.File;
 import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,14 +46,33 @@ public class HttpServer {
     private final CompletableFuture<Void> future;
     private final int port;
 
-    public static class Builder { // TODO
+    public static class Builder { // TODO fix code duplication with MockServer
 
         int port;
+        boolean ssl;
+        File certFile;
+        File keyFile;
         boolean corsEnabled;
         ServerHandler handler;
 
-        public Builder port(int value) {
+        public Builder http(int value) {
             port = value;
+            return this;
+        }
+
+        public Builder https(int value) {
+            ssl = true;
+            port = value;
+            return this;
+        }
+
+        public Builder certFile(File value) {
+            certFile = value;
+            return this;
+        }
+
+        public Builder keyFile(File value) {
+            keyFile = value;
             return this;
         }
 
@@ -69,7 +89,16 @@ public class HttpServer {
         public HttpServer build() {
             ServerBuilder sb = Server.builder();
             sb.requestTimeoutMillis(0);
-            sb.http(port);
+            if (ssl) {
+                sb.https(port);
+                SslContextFactory factory = new SslContextFactory();
+                factory.setCertFile(certFile);
+                factory.setKeyFile(keyFile);
+                factory.build();
+                sb.tls(factory.getCertFile(), factory.getKeyFile());
+            } else {
+                sb.http(port);
+            }
             HttpService service = new HttpServerHandler(handler);
             if (corsEnabled) {
                 service = service.decorate(CorsService.builderForAnyOrigin().newDecorator());

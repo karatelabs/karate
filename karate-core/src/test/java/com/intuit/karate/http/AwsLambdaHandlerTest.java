@@ -31,10 +31,10 @@ class AwsLambdaHandlerTest {
 
     String handle(String file) {
         Map<String, Object> res = handleAsMap(file);
-        Map<String, List<String>> headers = (Map) res.get("multiValueHeaders");
-        List<String> vals = headers.get("Set-Cookie");
-        if (vals != null) {
-            sessionId = vals.get(0);
+        Map<String, String> headers = (Map) res.get("headers");
+        String cookie = headers.get("Set-Cookie");
+        if (cookie != null) {
+            sessionId = cookie;
         }
         return (String) res.get("body");
     }
@@ -83,9 +83,9 @@ class AwsLambdaHandlerTest {
 
     void testApiInternal() {
         Map<String, Object> res = handleAsMap("api.json");
-        Map<String, List<String>> headers = (Map) res.get("multiValueHeaders");
-        List<String> vals = headers.get("foo");
-        assertEquals(vals.get(0), "bar");
+        Map<String, String> headers = (Map) res.get("headers");
+        String val = headers.get("foo");
+        assertEquals(val, "bar");
         String body = (String) res.get("body");
         assertEquals("{\"hello\":\"world\"}", body);
         Integer status = (Integer) res.get("statusCode");

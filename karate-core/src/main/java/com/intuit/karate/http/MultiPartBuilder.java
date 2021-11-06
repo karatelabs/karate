@@ -140,17 +140,17 @@ public class MultiPartBuilder {
                     resourceType = ResourceType.fromObject(value);
                 } else {
                     resourceType = ResourceType.fromContentType(contentType);
-                }               
+                }
                 if (resourceType == null) {
                     resourceType = ResourceType.BINARY;
                 }
                 if (contentType == null) {
                     contentType = resourceType.contentType;
-                }                
+                }
                 Charset cs = null;
                 if (!resourceType.isBinary()) {
                     String charset = (String) map.get("charset");
-                    if (charset == null && client != null) { // TODO client null for unit test
+                    if (charset == null && client != null && client.getConfig() != null) { // mock clients can have nulls
                         cs = client.getConfig().getCharset();
                     } else if (charset != null) {
                         cs = Charset.forName(charset);

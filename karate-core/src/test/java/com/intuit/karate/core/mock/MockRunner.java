@@ -60,4 +60,8 @@ class MockRunner {
         run("upload.feature");
     }    
 
+    @Test
+    void testInvalidCookie() {
+    	run("invalid-cookie.feature");
+    }
 }

@@ -148,6 +148,7 @@ public class HttpLogger {
         } else {
             logBody(config, responseModifier, sb, uri, response.getBody(), false);
         }
+        sb.append('\n');
         logger.debug("{}", sb);
     }
 

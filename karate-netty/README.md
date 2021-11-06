@@ -141,6 +141,8 @@ KX | [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contrac
 
 > Karate mocking a Queue has not been implemented for the last two flows (5) but can easily be derived from the other examples. So in (5) the Consumer is using the *real* queue.
 
+This article by the creator of Karate is highly recommended as a reference: [API Contract Testing - Visual Guide](https://www.linkedin.com/pulse/api-contract-testing-visual-guide-peter-thomas/).
+
 Also see this [blog post](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) for an additional diagram explaining how a mock-service can be implemented.
 
 And for more ideas, refer to [this example](https://twitter.com/KarateDSL/status/1417023536082812935) of using a mock to listen for an async "callback" and integrating that kind of flow into your test.

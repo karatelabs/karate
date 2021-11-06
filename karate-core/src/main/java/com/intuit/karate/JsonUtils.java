@@ -163,13 +163,15 @@ public class JsonUtils {
 
     public static List<Map> fromCsv(String raw) {
         CsvReader reader = CsvReader.builder().build(raw);
-        List<String> header = Collections.emptyList();
+        List<String> header = new ArrayList();
         List<Map> rows = new ArrayList();
         try {
             boolean first = true;
             for (CsvRow row : reader) {
                 if (first) {
-                    header = row.getFields();
+                    for (String field : row.getFields()) {
+                        header.add(field.replace("\ufeff", "")); // remove byte order mark
+                    }
                     first = false;
                 } else {
                     int count = header.size();

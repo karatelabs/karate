@@ -1,6 +1,32 @@
 # Karate
 ## Test Automation Made `Simple.`
-[![Maven Central](https://img.shields.io/maven-central/v/com.intuit.karate/karate-core.svg)](https://search.maven.org/artifact/com.intuit.karate/karate-core) [ ![build](https://github.com/intuit/karate/workflows/maven-build/badge.svg)](https://github.com/intuit/karate/actions?query=workflow%3Amaven-build) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Support Slack](https://img.shields.io/badge/support-wiki-red.svg)](https://github.com/intuit/karate/wiki/Support) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL) [![GitHub Stars](https://img.shields.io/github/stars/intuit/karate?style=social)](https://github.com/intuit/karate/stargazers)
+<div>
+  <span>
+    <a href="https://foojay.io/today/works-with-openjdk">
+      <img src="https://github.com/foojayio/badges/raw/main/works_with_openjdk/Works-with-OpenJDK.png" width="90px"/>
+    </a>
+  </span>
+  <span>
+    <a href="https://search.maven.org/artifact/com.intuit.karate/karate-core">
+      <img src="https://img.shields.io/maven-central/v/com.intuit.karate/karate-core.svg"/>
+    </a>
+    <a href="https://github.com/intuit/karate/actions?query=workflow%3Amaven-build">
+      <img src="https://github.com/intuit/karate/workflows/maven-build/badge.svg"/>
+    </a>
+    <a href="https://github.com/intuit/karate/releases">
+      <img src="https://img.shields.io/github/release/intuit/karate.svg"/>
+    </a>
+    <a href="https://github.com/intuit/karate/wiki/Support">
+      <img src="https://img.shields.io/badge/support-wiki-red.svg"/>
+    </a>
+    <a href="https://twitter.com/getkarate">
+      <img src="https://img.shields.io/twitter/follow/getkarate.svg?style=social&label=Follow"/>
+    </a>
+    <a href="https://github.com/intuit/karate/stargazers">
+      <img src="https://img.shields.io/github/stars/intuit/karate?style=social"/>
+    </a>
+  </span>  
+</div>
 
 <a><img src="karate-core/src/test/resources/karate-map.jpg" height="650" /></a>
 
@@ -530,7 +556,7 @@ mvn test -Dtest=CatsRunner
 ### `karate.options`
 When your Java test "runner" is linked to multiple feature files, which will be the case when you use the recommended [parallel runner](#parallel-execution), you can narrow down your scope to a single feature, scenario or directory via the command-line, useful in dev-mode. Note how even [tags](#tags) to exclude (or include) can be specified:
 
-> Note that any `Feature` or `Scenario` with the special `@ignore` tag will be skipped by default.
+> Note that any `Feature` or `Scenario` with the [special `@ignore` tag](#special-tags) will be skipped by default.
 
 ```
 mvn test "-Dkarate.options=--tags ~@skipme classpath:demo/cats/cats.feature" -Dtest=DemoTestParallel
@@ -768,7 +794,7 @@ Or another option is to use a [`ThresholdFilter`](http://logback.qos.ch/manual/f
 
 If you want to exclude the logs from your CI/CD pipeline but keep them in the execution of your users in their locals you can configure your logback using [Janino](http://logback.qos.ch/manual/configuration.html#conditional). In such cases it might be desirable to have your tests using `karate.logger.debug('your additional info')` instead of the `print` keyword so you can keep logs in your pipeline in INFO.
 
-For suppressing sensitive information such as secrets and passwords from the log, see [Log Masking](#log-masking).
+For suppressing sensitive information such as secrets and passwords from the log and reports, see [Log Masking](#log-masking) and [Report Verbosity](#report-verbosity).
 
 # Configuration
 > You can skip this section and jump straight to the [Syntax Guide](#syntax-guide) if you are in a hurry to get started with Karate. Things will work even if the `karate-config.js` file is not present.
@@ -2426,7 +2452,7 @@ And if you need to suppress placeholder substitution for [`read()`](#reading-fil
 * json schema = karate.readAsString('schema.json')
 ```
 
-Something similar can be done for XML by using [`text`](#text) and "casting" to XML before use in a [`match`](#match):
+If you want to use the triple-quote / multi-line way of defining JSON or if you have to use XML - you can use [`text`](#text) and "cast" to JSON or XML as a second step -  before using in a [`match`](#match):
 
 ```cucumber
 * text schema =
@@ -3323,6 +3349,8 @@ Operation | Description
 <a name="karate-properties"><code>karate.properties[key]</code></a> | get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
 <a name="karate-range"><code>karate.range(start, end, [interval])</code></a> | returns a JSON array of integers (inclusive), the optional third argument must be a positive integer and defaults to 1, and if start < end the order of values is reversed
 <a name="karate-read"><code>karate.read(filename)</code></a> | the same [`read()`](#reading-files) function - which is pre-defined even within JS blocks, so there is no need to ever do `karate.read()`, and just `read()` is sufficient
+<a name="karate-readasbytes"><code>karate.readAsBytes(filename)</code></a> | rarely used, like [`karate.readAsString`](#karate-readasstring) - but returns a byte array
+<a name="karate-readasstream"><code>karate.readAsStream(filename)</code></a> | rarely used, like [`karate.readAsString`](#karate-readasstring) - but returns a Java `InputStream`
 <a name="karate-readasstring"><code>karate.readAsString(filename)</code></a> | [rarely used](#read-file-as-string), behaves exactly like [`read`](#reading-files) - but does *not* auto convert to JSON or XML
 <a name="karate-remove"><code>karate.remove(name, path)</code></a> | very rarely used - when needing to perform conditional removal of JSON keys or XML nodes. Behaves the same way as the [`remove`](#remove) keyword.
 <a name="karate-render"><code>karate.render(arg)</code></a> | renders an HTML template, the `arg` can be a string (prefixable path to the HTML) or a JSON that takes either a `path` or `html` property, see [`doc`](#doc)
@@ -3345,7 +3373,6 @@ Operation | Description
 <a name="karate-tocsv"><code>karate.toCsv(list)</code></a> | converts a JSON array (of objects) or a list-like object into a CSV string, writing this to a file is your responsibility or you could use [`karate.write()`](#karate-write)
 <a name="karate-tojava"><code>karate.toJava(function)</code></a> | rarely used, when you need to pass a JS function to custom Java code, typically for [Async](#async), and another edge case is to convert a JSON array or object to a Java `List` or `Map`, see [example](karate-core/src/test/java/com/intuit/karate/core/to-bean.feature)
 <a name="karate-tojson"><code>karate.toJson(object)</code></a> | converts a Java object into JSON, and `karate.toJson(object, true)` will strip all keys that have `null` values from the resulting JSON, convenient for unit-testing Java code, see [example](karate-demo/src/test/java/demo/unit/cat.feature)
-<a name="karate-trim"><code>karate.trim(string)</code></a> | trim leading and trailing white-space (including line-feeds, tab-characters etc.)
 <a name="karate-typeof"><code>karate.typeOf(any)</code></a> | for advanced conditional logic when object types are dynamic and not known in advance, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature)
 <a name="karate-urldecode"><code>karate.urlDecode(string)</code></a> | URL decode
 <a name="karate-urlencode"><code>karate.urlEncode(string)</code></a> | URL encode
@@ -3431,6 +3458,19 @@ call read('classpath:my-signin.feature@name=someScenarioName')
 While the tag does not need to be in the `@key=value` form, it is recommended for readability when you start getting into the business of giving meaningful names to your `Scenario`-s.
 
 This "tag selection" capability is designed for you to be able to "compose" flows out of existing test-suites when using the [Karate Gatling integration](karate-gatling). Normally we recommend that you keep your "re-usable" features lightweight - by limiting them to just one `Scenario`.
+
+
+#### Call Same Feature
+As a convenience, you can call a tag directly, which is a short-cut to call another `Scenario` within the same feature file. Note that you would typically want to use the [`@ignore`](#special-tags) tag for such cases.
+
+```cucumber
+Scenario: one
+* call read('@two')
+
+@ignore @two
+Scenario: two
+* print 'called'
+```
 
 ### Data-Driven Features
 If the argument passed to the [call of a `*.feature` file](#calling-other-feature-files) is a JSON array, something interesting happens. The feature is invoked for each item in the array. Each array element is expected to be a JSON object, and for each object - the behavior will be as described above.
@@ -3576,6 +3616,7 @@ Code | Description
 `* def login = read('login.feature')`<br/>`* def result = call login { user: 'john', password: 'secret' }` | using the `call` keyword makes <br/>passing an in-line JSON argument <br/>more "readable"
 `* call read 'credentials.json'` | Since "`read`" happens to be a <br/>[*function*](#calling-javascript-functions) (that takes a single <br/>string argument), this has the effect <br/>of loading *all* keys in the JSON file<br/>into [Shared Scope](#shared-scope) as [variables](#def) ! <br/>This *can* be [sometimes handy](karate-core#locator-lookup).
 `* call read ('credentials.json')` | A common mistake. First, there <br/>is no meaning in `call` for JSON. <br/>Second, the space after the "`read`" <br/>makes this equal to the above.
+`* karate.set(read('credentials.json'))` | For completeness - this has *exactly* the [same effect](#karate-setall) as the above two rows !
 
 ### Calling Java
 There are examples of calling JVM classes in the section on [Java Interop](#java-interop) and in the [file-upload demo](karate-demo). Also look at the section on [commonly needed utilities](#commonly-needed-utilities) for more ideas.

@@ -325,5 +325,15 @@ class FeatureRuntimeTest {
     void testKarateGet() {
         run("karate-get.feature");
     }
+    
+    @Test
+    void testOutlineCsv() {
+        run("outline-csv.feature");
+    }
+
+    @Test
+    void testReadProperties() {
+        run("read-properties.feature");
+    }      
 
 }

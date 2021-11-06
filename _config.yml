@@ -1,8 +1,8 @@
 # Site settings
 title: Karate
 description: Test Automation Made Simple.
-twitter_username: KarateDSL
-github_username: intuit
+twitter_username: getkarate
+github_username: ptrthomas
 
 # Theme
 remote_theme: pmarsceill/just-the-docs
@@ -11,4 +11,4 @@ remote_theme: pmarsceill/just-the-docs
 search_enabled: true
 aux_links:
     "Karate on Github":
-        - "//github.com/intuit/karate"
+        - "//github.com/karatelabs/karate"
