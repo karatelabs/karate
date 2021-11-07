@@ -2030,6 +2030,18 @@ public class ScenarioEngine {
                         logger.warn("[*** callonce result ***] ignoring non-json value: '{}' - {}", k, e.getMessage());
                     }
                 });
+            } else if (result.value != null) {
+                if (result.value.isMap()) {
+                    ((Map) result.value.getValue()).forEach((k, v) -> {
+                        try {
+                            vars.put((String) k, new Variable(v));
+                        } catch (Exception e) {
+                            logger.warn("[*** callonce result ***] ignoring non-json value from result.value: '{}' - {}", k, e.getMessage());
+                        }
+                    });
+                } else {
+                    logger.warn("[*** callonce result ***] ignoring non-map value from result.value: {}", result.value);
+                }
             }
             init(); // this will attach and also insert magic variables
             // re-apply config from time of snapshot
