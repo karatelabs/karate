@@ -564,7 +564,9 @@ public class ScenarioEngine {
         }
         Map<String, Object> headers;
         if (config.getHeaders().isJsOrJavaFunction()) {
-            headers = getOrEvalAsMap(config.getHeaders(), requestBuilder.build());
+            synchronized (config.getHeaders()) {
+                headers = getOrEvalAsMap(config.getHeaders(), requestBuilder.build());
+            }
         } else {
             headers = getOrEvalAsMap(config.getHeaders()); // avoid an extra http request build
         }
@@ -1302,8 +1304,8 @@ public class ScenarioEngine {
     public Variable executeFunction(Variable var, Object... args) {
         switch (var.type) {
             case JS_FUNCTION:
-                Value jsFunction = var.getValue();
-                JsValue jsResult = executeJsValue(jsFunction, args);
+                Value jsFunction = var.getValue();                
+                JsValue jsResult = executeJsValue(JS.attach(jsFunction), args);
                 return new Variable(jsResult);
             case JAVA_FUNCTION:  // definitely a "call" with a single argument
                 Function javaFunction = var.getValue();
