@@ -359,7 +359,7 @@ public class ScenarioRuntime implements Runnable {
         if (this.isDynamicBackground()) {
             steps = scenario.getBackgroundSteps();
         } else {
-            steps = background == null ? scenario.getStepsIncludingBackground() : scenario.getSteps();
+            steps = scenario.getStepsIncludingBackground();
         }
         ScenarioEngine.set(engine);
         engine.init();
