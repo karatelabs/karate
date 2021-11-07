@@ -2072,7 +2072,9 @@ public class ScenarioEngine {
             result = new ScenarioCall.Result(new Variable(resultObject), clonedConfig, clonedVars);
             CACHE.put(cacheKey, result);
             logger.info("<< lock released, cached callonce: {}", cacheKey);
-            return resultValue; // another routine will apply globally if needed
+             // another routine will apply globally if needed
+             // wrap and attach if being used immediately in a Scenario
+            return callOnceResult(result, sharedScope); 
         }
     }
 
