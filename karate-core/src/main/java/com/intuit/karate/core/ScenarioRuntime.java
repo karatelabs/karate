@@ -73,7 +73,11 @@ public class ScenarioRuntime implements Runnable {
         perfMode = featureRuntime.perfHook != null;
         if (caller.isNone()) {
             logAppender = new StringLogAppender(false);
-            engine = new ScenarioEngine(background == null ? new Config() : background.engine.getConfig(), this, new HashMap(), logger);
+            if (background == null) {
+                engine = new ScenarioEngine(new Config(), this, new HashMap(), logger);
+            } else {
+                engine = new ScenarioEngine(background.engine.getConfig(), this, new HashMap(), logger, background.engine.requestBuilder.copy());
+            }
         } else if (caller.isSharedScope()) {
             logAppender = caller.parentRuntime.logAppender;
             Config config = background == null ? caller.parentRuntime.engine.getConfig() : background.engine.getConfig();
@@ -83,7 +87,7 @@ public class ScenarioRuntime implements Runnable {
             logAppender = caller.parentRuntime.logAppender;
             Config config = background == null ? new Config(caller.parentRuntime.engine.getConfig()) : background.engine.getConfig();
             // in this case, parent variables are set via magic variables
-            engine = new ScenarioEngine(config, this, new HashMap(), logger);
+            engine = new ScenarioEngine(config, this, new HashMap(), logger, background != null ? caller.parentRuntime.engine.requestBuilder.copy() : null);
         }
         logger.setAppender(logAppender);
         actions = new ScenarioActions(engine);
