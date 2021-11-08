@@ -39,7 +39,7 @@ class JsonUtilsTest {
     void testBeanConversion() {
         SimplePojo pojo = new SimplePojo();
         String s = JsonUtils.toJson(pojo);
-        assertEquals("{\"bar\":0,\"foo\":null}", s);
+        Match.that(s).isEqualTo("{\"bar\":0,\"foo\":null}");
         Map<String, Object> map = Json.of(pojo).asMap();
         Match.that(map).isEqualTo("{ foo: null, bar: 0 }");
     }
@@ -55,8 +55,7 @@ class JsonUtilsTest {
         p2.setFoo("p2");
         pojo.setBan(Arrays.asList(p1, p2));
         String s = JsonUtils.toJson(pojo);
-        String expected = "{\"bar\":1,\"foo\":\"testFoo\",\"baz\":null,\"ban\":[{\"bar\":0,\"foo\":\"p1\",\"baz\":null,\"ban\":null},{\"bar\":0,\"foo\":\"p2\",\"baz\":null,\"ban\":null}]}";
-        assertEquals(s, expected);
+        Match.that(s).isEqualTo("{\"bar\":1,\"foo\":\"testFoo\",\"baz\":null,\"ban\":[{\"bar\":0,\"foo\":\"p1\",\"baz\":null,\"ban\":null},{\"bar\":0,\"foo\":\"p2\",\"baz\":null,\"ban\":null}]}");
         ComplexPojo temp = (ComplexPojo) JsonUtils.fromJson(s, ComplexPojo.class.getName());
         assertEquals(temp.getFoo(), "testFoo");
         assertEquals(2, temp.getBan().size());
@@ -64,7 +63,7 @@ class JsonUtilsTest {
         assertEquals(temp.getFoo(), "testFoo");
         assertEquals(2, temp.getBan().size());
         s = XmlUtils.toXml(pojo);
-        assertEquals(s, "<root><bar>1</bar><foo>testFoo</foo><baz/><ban><bar>0</bar><foo>p1</foo><baz/><ban/></ban><ban><bar>0</bar><foo>p2</foo><baz/><ban/></ban></root>");
+        Match.that(s).isEqualTo("<root><bar>1</bar><foo>testFoo</foo><baz/><ban><bar>0</bar><foo>p1</foo><baz/><ban/></ban><ban><bar>0</bar><foo>p2</foo><baz/><ban/></ban></root>");
     }
 
     @Test
