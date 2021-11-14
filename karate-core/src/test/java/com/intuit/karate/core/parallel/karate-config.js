@@ -10,5 +10,7 @@ function fn() {
   config.message2 = result2.message;
   var result3 = karate.callSingle('call-single-from-config3.js');
   config.sayHello = result3.sayHello;
+  // attempt at reproducing #1835
+  karate.call('call-from-config3.feature');
   return config;
 }
