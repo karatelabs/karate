@@ -73,21 +73,23 @@ public class ScenarioRuntime implements Runnable {
         perfMode = featureRuntime.perfHook != null;
         if (caller.isNone()) {
             logAppender = new StringLogAppender(false);
-            if (background == null) {
-                engine = new ScenarioEngine(new Config(), this, new HashMap(), logger);
-            } else {
-                engine = new ScenarioEngine(background.engine.getConfig(), this, new HashMap(), logger, background.engine.requestBuilder.copy());
-            }
+            Config config = background == null ? new Config() : new Config(background.engine.getConfig());
+            config.detach();
+            engine = new ScenarioEngine(config, this, new HashMap(), logger, background != null ? background.engine.requestBuilder.copy() : null);
         } else if (caller.isSharedScope()) {
             logAppender = caller.parentRuntime.logAppender;
-            Config config = background == null ? caller.parentRuntime.engine.getConfig() : background.engine.getConfig();
+            ScenarioEngine parentEngine = background == null ? caller.parentRuntime.engine : background.engine;
+            Config config = parentEngine.getConfig();
+            config.detach();
             Map<String, Variable> vars = caller.parentRuntime.engine.vars;
-            engine = new ScenarioEngine(config, this, vars, logger);
+            engine = new ScenarioEngine(config, this, vars, logger, parentEngine.requestBuilder.copy());
         } else { // new, but clone and copy data
             logAppender = caller.parentRuntime.logAppender;
-            Config config = background == null ? new Config(caller.parentRuntime.engine.getConfig()) : background.engine.getConfig();
+            ScenarioEngine parentEngine = background == null ? caller.parentRuntime.engine : background.engine;
+            Config config = new Config(parentEngine.getConfig());
+            config.detach();
             // in this case, parent variables are set via magic variables
-            engine = new ScenarioEngine(config, this, new HashMap(), logger, background != null ? caller.parentRuntime.engine.requestBuilder.copy() : null);
+            engine = new ScenarioEngine(config, this, new HashMap(), logger, parentEngine.requestBuilder.copy());
         }
         logger.setAppender(logAppender);
         actions = new ScenarioActions(engine);
@@ -363,6 +365,7 @@ public class ScenarioRuntime implements Runnable {
         }
         ScenarioEngine.set(engine);
         engine.init();
+        engine.getConfig().attach(engine.JS);
         if (this.background != null) {
             ScenarioEngine backgroundEngine = background.engine;
             if (backgroundEngine.driver != null) {

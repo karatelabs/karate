@@ -93,6 +93,7 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                 background = new ScenarioRuntime(featureRuntime, currentScenario);
                 if (background.selectedForExecution) {
                     background.run();
+                    background.engine.getConfig().detach();
                 }
                 if (background.result.isFailed()) { // karate-config.js || background failed
                     currentScenario = null;
