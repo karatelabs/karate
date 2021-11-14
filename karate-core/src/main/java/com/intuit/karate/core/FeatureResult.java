@@ -50,6 +50,7 @@ public class FeatureResult {
 
     private Map<String, Object> resultVariables;
     private Map<String, Object> callArg;
+    private Config config;
     private int loopIndex = -1;
     private int callDepth;
 
@@ -307,6 +308,14 @@ public class FeatureResult {
 
     public Map<String, Object> getVariables() {
         return resultVariables;
+    }
+
+    public void setConfig(Config config) {
+        this.config = config;
+    }
+
+    public Config getConfig() {
+        return config;
     }
 
     public void sortScenarioResults() {

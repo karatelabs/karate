@@ -118,6 +118,10 @@ public class ScenarioEngine {
     }
 
     public ScenarioEngine(Config config, ScenarioRuntime runtime, Map<String, Variable> vars, Logger logger) {
+        this(config, runtime, vars, logger, null);
+    }
+
+    public ScenarioEngine(Config config, ScenarioRuntime runtime, Map<String, Variable> vars, Logger logger, HttpRequestBuilder requestBuilder) {
         this.config = config;
         this.runtime = runtime;
         hooks = runtime.featureRuntime.suite.hooks;
@@ -126,6 +130,7 @@ public class ScenarioEngine {
         bridge = new ScenarioBridge(this);
         this.vars = vars;
         this.logger = logger;
+        this.requestBuilder = requestBuilder;
     }
 
     public static ScenarioEngine forTempUse(HttpClientFactory hcf) {
@@ -1297,8 +1302,8 @@ public class ScenarioEngine {
     public Variable executeFunction(Variable var, Object... args) {
         switch (var.type) {
             case JS_FUNCTION:
-                Value jsFunction = var.getValue();
-                JsValue jsResult = executeJsValue(jsFunction, args);
+                Value jsFunction = var.getValue();                
+                JsValue jsResult = executeJsValue(JS.attach(jsFunction), args);
                 return new Variable(jsResult);
             case JAVA_FUNCTION:  // definitely a "call" with a single argument
                 Function javaFunction = var.getValue();
@@ -1985,11 +1990,51 @@ public class ScenarioEngine {
             case FEATURE:
                 // will be always a map or a list of maps (loop call result)                
                 Object callResult = callFeature(called.getValue(), arg, -1, sharedScope);
-                Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-                recurseAndAttach("", callResult, seen);
+                this.rehydrateCallFeatureResult(callResult);
                 return new Variable(callResult);
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);
+        }
+    }
+
+    private void rehydrateCallFeatureResult(Object callResult) {
+        Object callResultVariables = null;
+        if (callResult instanceof FeatureResult) {
+            callResultVariables = ((FeatureResult) callResult).getVariables();
+            ((FeatureResult) callResult).getConfig().detach();
+        } else if (callResult instanceof List) {
+            callResultVariables = new ArrayList<Map<String,Object>>();
+            final List<Map<String,Object>> finalCallResultVariables = (List<Map<String,Object>>)callResultVariables;
+            ((List<?>) callResult).forEach(result -> {
+                if (result instanceof FeatureResult) {
+                    finalCallResultVariables.add(((FeatureResult) result).getVariables());
+                    Config config = ((FeatureResult) result).getConfig();
+                    config.detach();
+                }
+            });
+            callResultVariables = finalCallResultVariables;
+        } else {
+            callResultVariables = callResult;
+        }
+        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
+        recurseAndAttach("", callResultVariables, seen);
+    }
+
+    public Variable getCallFeatureVariables(Variable featureResult) {
+        if (featureResult.getValue() instanceof FeatureResult) {
+            return new Variable(((FeatureResult) featureResult.getValue()).getVariables());
+        } else if (featureResult.isList()) {
+            List resultVariables = new ArrayList();
+            ((List) featureResult.getValue()).forEach(result -> {
+                if (result instanceof FeatureResult) {
+                    resultVariables.add(this.getCallFeatureVariables(new Variable(result)).getValue());
+                } else {
+                    resultVariables.add(result);
+                }
+            });
+            return new Variable(resultVariables);
+        } else {
+            return featureResult;
         }
     }
 
@@ -2003,10 +2048,17 @@ public class ScenarioEngine {
         } else {
             result = call(called, arg, sharedScope);
         }
-        if (sharedScope && result.isMap()) {
-            setVariables(result.getValue());
+        Variable resultVariables = this.getCallFeatureVariables(result);
+        if (sharedScope) {
+            //setVariables(result.getValue());
+            if (resultVariables.isMap()) {
+                setVariables(resultVariables.getValue());
+            }
+            if (result.getValue() instanceof FeatureResult) {
+                setConfig(((FeatureResult) result.getValue()).getConfig());
+            }
         }
-        return result;
+        return new Variable(resultVariables.getValue());
     }
 
     private Variable callOnceResult(ScenarioCall.Result result, boolean sharedScope) {
@@ -2023,6 +2075,18 @@ public class ScenarioEngine {
                         logger.warn("[*** callonce result ***] ignoring non-json value: '{}' - {}", k, e.getMessage());
                     }
                 });
+            } else if (result.value != null) {
+                if (result.value.isMap()) {
+                    ((Map) result.value.getValue()).forEach((k, v) -> {
+                        try {
+                            vars.put((String) k, new Variable(v));
+                        } catch (Exception e) {
+                            logger.warn("[*** callonce result ***] ignoring non-json value from result.value: '{}' - {}", k, e.getMessage());
+                        }
+                    });
+                } else {
+                    logger.warn("[*** callonce result ***] ignoring non-map value from result.value: {}", result.value);
+                }
             }
             init(); // this will attach and also insert magic variables
             // re-apply config from time of snapshot
@@ -2062,17 +2126,20 @@ public class ScenarioEngine {
             // this thread is the 'winner'
             logger.info(">> lock acquired, begin callonce: {}", cacheKey);
             Variable resultValue = call(called, arg, sharedScope);
+            Variable resultVariables = this.getCallFeatureVariables(resultValue);
             // we clone result (and config) here, to snapshot state at the point the callonce was invoked
             // detaching is important (see JsFunction) so that we can keep the source-code aside
             // and use it to re-create functions in a new JS context - and work around graal-js limitations
             Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? detachVariables() : null;
             Config clonedConfig = new Config(config);
             clonedConfig.detach();
-            Object resultObject = recurseAndDetachAndShallowClone(resultValue.getValue());
+            Object resultObject = recurseAndDetachAndShallowClone(resultVariables.getValue());
             result = new ScenarioCall.Result(new Variable(resultObject), clonedConfig, clonedVars);
             CACHE.put(cacheKey, result);
             logger.info("<< lock released, cached callonce: {}", cacheKey);
-            return resultValue; // another routine will apply globally if needed
+             // another routine will apply globally if needed
+             // wrap and attach if being used immediately in a Scenario
+            return callOnceResult(result, sharedScope); 
         }
     }
 
@@ -2092,12 +2159,13 @@ public class ScenarioEngine {
                 // to polute parent scope/context
                 runtime.engine.recurseAndAttach(runtime.magicVariables);
                 runtime.engine.recurseAndAttach(runtime.engine.vars);
+                // todo: shared config
             }
             if (result.isFailed()) {
                 KarateException ke = result.getErrorMessagesCombined();
                 throw ke;
             } else {
-                return result.getVariables();
+                return result;
             }
         } else if (arg.isList() || arg.isJsOrJavaFunction()) {
             List result = new ArrayList();

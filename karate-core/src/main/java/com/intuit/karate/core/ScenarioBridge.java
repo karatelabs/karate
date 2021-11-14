@@ -162,10 +162,16 @@ public class ScenarioBridge implements PerfContext, EventContext {
         ScenarioEngine engine = getEngine();
         Variable called = new Variable(engine.fileReader.readFile(fileName));
         Variable result = engine.call(called, arg == null ? null : new Variable(arg), sharedScope);
-        if (sharedScope && result.isMap()) {
-            engine.setVariables(result.getValue());
+        Variable resultVariables = engine.getCallFeatureVariables(result);
+        if (sharedScope) {
+            if (resultVariables.isMap()) {
+                engine.setVariables(resultVariables.getValue());
+            }
+            if (result.getValue() instanceof FeatureResult) {
+                engine.setConfig(((FeatureResult) result.getValue()).getConfig());
+            }
         }
-        return JsValue.fromJava(result.getValue());
+        return JsValue.fromJava(resultVariables.getValue());
     }
 
     private static Object callSingleResult(ScenarioEngine engine, Object o) throws Exception {
@@ -232,7 +238,8 @@ public class ScenarioBridge implements PerfContext, EventContext {
                 }
                 Variable resultVar;
                 try {
-                    resultVar = engine.call(called, argVar, false);
+                    Variable featureResult = engine.call(called, argVar, false);
+                    resultVar = engine.getCallFeatureVariables(featureResult);
                 } catch (Exception e) {
                     // don't retain any vestiges of graal-js 
                     RuntimeException re = new RuntimeException(e.getMessage());

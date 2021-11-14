@@ -196,6 +196,7 @@ public class FeatureRuntime implements Runnable {
         if (lastExecutedScenario != null) {
             lastExecutedScenario.engine.invokeAfterHookIfConfigured(true);
             result.setVariables(lastExecutedScenario.engine.getAllVariablesAsMap());
+            result.setConfig(lastExecutedScenario.engine.getConfig());
         }
         if (!result.isEmpty()) {
             for (RuntimeHook hook : suite.hooks) {
