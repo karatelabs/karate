@@ -332,6 +332,21 @@ class KarateMockHandlerTest {
         );
         matchVar("response", "{ foo: [{ name: 'foo', value: '#notnull', contentType: 'text/plain', charset: 'UTF-8', filename: 'foo.txt', transferEncoding: '7bit' }] }");
     }
+    
+    @Test
+    void testMultiPartFileNullCharset() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestParts");
+        run(
+                "configure charset = null",
+                URL_STEP,
+                "multipart file foo = { filename: 'foo.txt', value: 'hello' }",
+                "path 'hello'",
+                "method post"
+        );
+        matchVar("response", "{ foo: [{ name: 'foo', value: '#notnull', contentType: 'text/plain', charset: 'UTF-8', filename: 'foo.txt', transferEncoding: '7bit' }] }");
+    }    
 
     @Test
     void testConfigureResponseHeaders() {

@@ -237,13 +237,13 @@ public class Config {
                     callSingleCacheDir = get(map, "dir", callSingleCacheDir);
                 }
                 return false;
-            case "charset":
-                charset = value.isNull() ? null : Charset.forName(value.getAsString());
-                return false;
             case "logModifier":
                 logModifier = value.getValue();
                 return false;
             // here on the http client has to be re-constructed ================
+            case "charset":
+                charset = value.isNull() ? null : Charset.forName(value.getAsString());
+                return true;                
             case "ssl":
                 if (value.isString()) {
                     sslEnabled = true;

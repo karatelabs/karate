@@ -36,7 +36,7 @@ class MultiPartBuilderTest {
                 "--" + boundary,
                 "content-disposition: form-data; name=\"bar\"",
                 "content-length: 11",
-                "content-type: text/plain; charset=UTF-8",
+                "content-type: text/plain",
                 "",
                 "hello world",
                 "--" + boundary + "--"

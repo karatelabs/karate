@@ -162,7 +162,13 @@ public class MultiPartBuilder {
                     filename = ""; // will be treated as an inline value, behaves like null
                 }
                 String transferEncoding = (String) map.get("transferEncoding");
-                MemoryFileUpload item = new MemoryFileUpload(name, filename, contentType, transferEncoding, cs, encoded.length);
+                final Charset nullable = cs;
+                MemoryFileUpload item = new MemoryFileUpload(name, filename, contentType, transferEncoding, cs, encoded.length) {                    
+                    @Override
+                    public Charset getCharset() {
+                        return nullable; // workaround for netty api strictness
+                    }                    
+                };
                 try {
                     item.setContent(Unpooled.wrappedBuffer(encoded));
                     encoder.addBodyHttpData(item);
