@@ -276,7 +276,7 @@ public class Config {
                 readTimeout = value.getAsInt();
                 return true;
             case "proxy":
-                if (value == null) {
+                if (value.isNull()) {
                     proxyUri = null;
                 } else if (value.isString()) {
                     proxyUri = value.getAsString();
