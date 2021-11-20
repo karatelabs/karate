@@ -2050,9 +2050,12 @@ public class ScenarioEngine {
         }
         Variable resultVariables = this.getCallFeatureVariables(result);
         if (sharedScope) {
-            //setVariables(result.getValue());
             if (resultVariables.isMap()) {
                 setVariables(resultVariables.getValue());
+            } else if (resultVariables.isList()) {
+                ((List) resultVariables.getValue()).forEach(r -> {
+                    setVariables((Map) r);
+                });
             }
             if (result.getValue() instanceof FeatureResult) {
                 setConfig(((FeatureResult) result.getValue()).getConfig());
