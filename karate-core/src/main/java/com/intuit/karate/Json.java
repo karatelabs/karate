@@ -81,6 +81,18 @@ public class Json {
         return Json.of(get(path, String.class));
     }
 
+    public <T> List<T> get(String prefix, List<String> paths) {
+        List<T> res = new ArrayList();
+        for(String path : paths) {
+            res.add((T) doc.read(prefix(prefix + path)));
+        }
+        return res;
+    }
+
+    public <T> List<T> get(List<String> paths) {
+        return get("", paths);
+    }
+
     public <T> T get(String path) {
         return (T) doc.read(prefix(path));
     }
