@@ -1,17 +1,22 @@
 package com.intuit.karate.http;
 
 import static com.intuit.karate.TestUtils.*;
+
 import com.intuit.karate.StringUtils;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.*;
+
+import org.apache.commons.codec.binary.Base64;
+import org.apache.http.util.EncodingUtils;
 import org.junit.jupiter.api.Test;
 
 /**
- *
  * @author pthomas3
  */
-class HttpUtilsTest {    
+class HttpUtilsTest {
 
     @Test
     void testParseContentTypeCharset() {
@@ -58,7 +63,7 @@ class HttpUtilsTest {
         map = HttpUtils.parseUriPattern("/hello/{raw}", "/hello/�Ill~Formed@RequiredString!");
         match(map, "{ raw: '�Ill~Formed@RequiredString!' }");
     }
-    
+
     static void splitUrl(String raw, String left, String right) {
         StringUtils.Pair pair = HttpUtils.parseUriIntoUrlBaseAndPath(raw);
         assertEquals(left, pair.left);
@@ -76,6 +81,15 @@ class HttpUtilsTest {
         splitUrl("http://foo:8080/bar", "http://foo:8080", "/bar");
         splitUrl("http://foo.com:8080/bar", "http://foo.com:8080", "/bar");
         splitUrl("https://api.randomuser.me/?nat=us", "https://api.randomuser.me", "/?nat=us");
-    }    
+    }
+
+    @Test
+    void testCreateBaseAuth() {
+        // ensure commons-codec is in the classpath
+        // https://github.com/karatelabs/karate/issues/1724
+        final Base64 base64codec = new Base64(0);
+        final byte[] base64password = base64codec.encode(EncodingUtils.getBytes("username", "password"));
+        assertNotNull(base64password);
+    }
 
 }
