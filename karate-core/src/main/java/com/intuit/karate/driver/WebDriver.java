@@ -326,8 +326,7 @@ public abstract class WebDriver implements Driver {
                     http.path("element", elementId, "value").postJson(getJsonForLegacyInput(value));
                     specCompliant = false;
                 } else {
-                    // did not complain that value should be a list so it probably doesn't have an
-                    // implementation in line with the old Selenium implementation(s)
+                    // did not complain that value should be a list so assume W3C WebDriver compliant moving forward
                     specCompliant = true;
                 }
             }
