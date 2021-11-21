@@ -30,14 +30,12 @@ import com.intuit.karate.core.Variable;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.Response;
 import com.intuit.karate.shell.Command;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+
+import java.util.*;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
- *
  * @author pthomas3
  */
 public abstract class WebDriver implements Driver {
@@ -50,6 +48,7 @@ public abstract class WebDriver implements Driver {
     //private final String windowId;
 
     protected boolean open = true;
+    protected Boolean specCompliant;
 
     protected final Logger logger;
 
@@ -168,12 +167,19 @@ public abstract class WebDriver implements Driver {
         return eval(expression, null);
     }
 
-    protected String getElementKey() {
-        return "element-6066-11e4-a52e-4f735466cecf";
+    protected List<String> getElementKeys() {
+        // "element-6066-11e4-a52e-4f735466cecf" is the key to element in the W3C WebDriver standard
+        // "ELEMENT" is a deviation from the W3C standard
+        // explanation can be found here: https://github.com/karatelabs/karate/issues/1840#issuecomment-974688715
+        return Arrays.asList("element-6066-11e4-a52e-4f735466cecf", "ELEMENT");
     }
 
     protected String getJsonForInput(String text) {
         return Json.object().set("text", text).toString();
+    }
+
+    protected String getJsonForLegacyInput(String text) {
+        return Json.of("{ value: [ '" + text + "' ] }").toString();
     }
 
     protected String getJsonForHandle(String text) {
@@ -211,13 +217,25 @@ public abstract class WebDriver implements Driver {
                 throw new RuntimeException(message);
             }
         }
-        return res.json().<List<String>>get("$.." + getElementKey()).get(0);
+        List<String> resultElements = res.json().<List<String>>get("$..", getElementKeys()).stream()
+                .flatMap(List::stream)
+                .collect(Collectors.toList());
+        String resultElement = resultElements != null && !resultElements.isEmpty() ? resultElements.get(0) : null;
+        if (resultElement == null) {
+            String message = "locator failed to retrieve element returned by target driver: " + res.getBodyAsString();
+            logger.error(message);
+            throw new RuntimeException(message);
+        }
+        return resultElement;
     }
 
     @Override
     public List<String> elementIds(String locator) {
         return http.path("elements")
-                .postJson(selectorPayload(locator)).json().get("$.." + getElementKey());
+                .postJson(selectorPayload(locator)).json()
+                .<List<String>>get("$..", getElementKeys()).stream()
+                .flatMap(List::stream)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -293,12 +311,25 @@ public abstract class WebDriver implements Driver {
             String elementId;
             if (locator.startsWith("(")) {
                 evalFocus(locator);
-                elementId = http.path("element", "active").get()
-                        .json().getFirst("$.." + getElementKey());
+                List<String> elements = http.path("element", "active").get()
+                        .json().<List<String>>get("$..", getElementKeys()).stream()
+                        .flatMap(List::stream)
+                        .collect(Collectors.toList());;
+                elementId = elements != null && !elements.isEmpty() ? elements.get(0) : null;
             } else {
                 elementId = elementId(locator);
             }
-            http.path("element", elementId, "value").postJson(getJsonForInput(value));
+            Response response = http.path("element", elementId, "value").postJson(isSpecCompliant() ? getJsonForInput(value) : getJsonForLegacyInput(value));
+            if (checkForSpecCompliance()) {
+                String responseMessage = response.json().get("$.value.message");
+                if (responseMessage.contains("invalid argument: 'value' must be a list")) {
+                    http.path("element", elementId, "value").postJson(getJsonForLegacyInput(value));
+                    specCompliant = false;
+                } else {
+                    // did not complain that value should be a list so assume W3C WebDriver compliant moving forward
+                    specCompliant = true;
+                }
+            }
             return DriverElement.locatorExists(this, locator);
         });
     }
@@ -346,6 +377,14 @@ public abstract class WebDriver implements Driver {
     @Override
     public boolean isTerminated() {
         return terminated;
+    }
+
+    public boolean isSpecCompliant() {
+        return specCompliant == null || specCompliant;
+    }
+
+    public boolean checkForSpecCompliance() {
+        return specCompliant == null;
     }
 
     @Override
