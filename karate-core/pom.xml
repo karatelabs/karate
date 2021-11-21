@@ -46,10 +46,6 @@
                     <groupId>commons-logging</groupId>
                     <artifactId>commons-logging</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>commons-codec</groupId>
-                    <artifactId>commons-codec</artifactId>
-                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -204,6 +200,8 @@
                                             <include>org.reactivestreams:*</include>                                  
                                             <include>io.netty:*</include>                                       
                                             <include>org.apache.httpcomponents:*</include>
+                                            <!-- needed for apache httpclient at runtime -->
+                                            <include>commons-codec:*</include>
                                             <include>org.thymeleaf:*</include>
                                             <!-- next 2 needed for thymeleaf at runtime -->
                                             <include>org.attoparser:*</include>
@@ -233,6 +231,10 @@
                                             <pattern>org.apache.http.</pattern>
                                             <shadedPattern>karate.org.apache.http.</shadedPattern>
                                         </relocation>
+                                        <relocation>
+                                            <pattern>org.apache.commons.codec.</pattern>
+                                            <shadedPattern>karate.org.apache.commons.codec.</shadedPattern>
+                                        </relocation>                                        
                                         <relocation>
                                             <pattern>org.thymeleaf.</pattern>
                                             <shadedPattern>karate.org.thymeleaf.</shadedPattern>
