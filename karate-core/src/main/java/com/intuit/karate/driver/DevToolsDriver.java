@@ -50,6 +50,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
+
+import com.jayway.jsonpath.PathNotFoundException;
 import org.graalvm.polyglot.Value;
 
 /**
@@ -915,6 +917,7 @@ public abstract class DevToolsDriver implements Driver {
     public void switchFrame(String locator) {
         if (locator == null) {
             frame = null;
+            attachAndActivate(rootFrameId);
             return;
         }
         retryIfEnabled(locator);
@@ -942,21 +945,41 @@ public abstract class DevToolsDriver implements Driver {
         if (frameId == null) {
             return false;
         }
+        // for some reason still neet to trigger Target.getTargets sometimes before attaching
+        method("Target.getTargets").send();
+        // attach to frame / target / process with the frame
+        attachAndActivate(frameId);
         dtm = method("Page.getFrameTree").send();
         frame = null;
-        List<Map> frames = dtm.getResult("frameTree.childFrames[*].frame", List.class);
-        for (Map<String, Object> map : frames) {
-            String temp = (String) map.get("id");
-            if (frameId.equals(temp)) {
-                String frameUrl = (String) map.get("url");
-                String frameName = (String) map.get("name");
-                frame = new Frame(frameId, frameUrl, frameName);
-                logger.trace("** switched to frame: {}", frame);
-                break;
-            }
+        Map<String, Object> map = dtm.getResult("frameTree.frame", Map.class);
+        String temp = (String) map.get("id");
+        if (frameId.equals(temp)) {
+            String frameUrl = (String) map.get("url");
+            String frameName = (String) map.get("name");
+            frame = new Frame(frameId, frameUrl, frameName);
+            logger.trace("** switched to frame: {}", frame);
         }
         if (frame == null) {
-            return false;
+            // let's try and get the frame from the current childFrames, if they exist
+            try {
+                List<Map> frames = dtm.getResult("frameTree.childFrames[*].frame", List.class);
+                for (Map<String, Object> frameMap : frames) {
+                    String frameMapTemp = (String) frameMap.get("id");
+                    if (frameId.equals(frameMapTemp)) {
+                        String frameUrl = (String) frameMap.get("url");
+                        String frameName = (String) frameMap.get("name");
+                        frame = new Frame(frameId, frameUrl, frameName);
+                        logger.trace("** switched to frame: {}", frame);
+                        break;
+                    }
+                }
+            } catch(PathNotFoundException e) {
+                logger.trace("** childFrames not found");
+                return false;
+            }
+            if (frame == null) {
+                return false;
+            }
         }
         Integer contextId = getFrameContext();
         if (contextId != null) {
@@ -966,6 +989,12 @@ public abstract class DevToolsDriver implements Driver {
         contextId = dtm.getResult("executionContextId").getValue();
         frameContexts.put(frameId, contextId);
         return true;
+    }
+
+    private Frame initFrameFromFrameTree(String frameId, Map<String, Object> map) {
+        String frameUrl = (String) map.get("url");
+        String frameName = (String) map.get("name");
+        return new Frame(frameId, frameUrl, frameName);
     }
 
     public void enableNetworkEvents() {
