@@ -43,6 +43,16 @@ class IdeMainTest {
     }
 
     @Test
+    void testMutlipleFeaturesArgs() {
+        Main options = IdeMain.parseStringArgs(new String[]{"--tags", "~@skipme", "foo.feature,bar.feature"});
+        assertEquals(2, options.paths.size());
+        assertEquals("foo.feature", options.paths.get(0));
+        assertEquals("bar.feature", options.paths.get(1));
+        assertEquals("~@skipme", options.tags.get(0));
+        assertNull(options.name);
+    }
+
+    @Test
     void testParsingCommandLine() {
         Main options = IdeMain.parseIdeCommandLine(INTELLIJ1);
         assertEquals("^get users and then get first by id$", options.name);

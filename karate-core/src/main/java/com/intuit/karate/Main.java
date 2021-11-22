@@ -63,7 +63,7 @@ public class Main implements Callable<Void> {
     @Option(names = {"-h", "--help"}, usageHelp = true, description = "display this help message")
     boolean help;
 
-    @Parameters(split = "$", description = "one or more tests (features) or search-paths to run")
+    @Parameters(split = "($|,)", description = "one or more tests (features) or search-paths to run")
     List<String> paths;
 
     @Option(names = {"-m", "--mock", "--mocks"}, split = ",", description = "one or more mock server files")
