@@ -54,16 +54,15 @@ class RunnerTest {
                 "classpath:com/intuit/karate/core/runner/multi-scenario-fail.feature",
                 "classpath:com/intuit/karate/core/runner/no-scenario-name.feature",
                 "classpath:com/intuit/karate/core/runner/scenario.feature",
-                "classpath:com/intuit/karate/core/runner/outline.feature",
-                "classpath:com/intuit/karate/core/runner/stackoverflow-error.feature"
+                "classpath:com/intuit/karate/core/runner/outline.feature"
         ).outputJunitXml(true).parallel(1);
-        assertEquals(3, results.getFailCount());
+        assertEquals(2, results.getFailCount());
         String pathBase = "target/karate-reports/com.intuit.karate.core.runner.";
         assertTrue(contains(pathBase + "scenario.xml", "Then match b == { foo: 'bar'}"));
         assertTrue(contains(pathBase + "outline.xml", "Then assert a == 55"));
         // a scenario failure should not stop other features from running
         assertTrue(contains(pathBase + "multi-scenario-fail.xml", "Then assert a != 2 ........................................................ passed"));
-        assertEquals(3, results.getFailCount());
+        assertEquals(2, results.getFailCount());
     }
 
     @Test
