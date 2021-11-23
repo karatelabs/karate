@@ -275,6 +275,14 @@ public class Response implements ProxyObject {
                 return null;
         }
     }
+    
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap();
+        map.put(STATUS, status);
+        map.put(HEADER_ENTRIES, HEADER_ENTRIES_FUNCTION.get());
+        map.put(BODY, getBodyConverted());
+        return map;
+    }    
 
     @Override
     public Object getMemberKeys() {

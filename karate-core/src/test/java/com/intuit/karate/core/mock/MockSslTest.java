@@ -29,7 +29,7 @@ class MockSslTest {
         startMockServer();
     }
 
-    // @Test
+    // @Test // TODO fails in jdk 17
     void testMock() {
         Results results = Runner.path("classpath:com/intuit/karate/core/mock/hello-world.feature")
                 .systemProperty("karate.ssl", "true")
