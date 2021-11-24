@@ -195,9 +195,10 @@
                                     <artifactSet>
                                         <includes>
                                             <include>com.linecorp.armeria:*</include>
-                                            <!-- next 2 needed for armeria at runtime -->
+                                            <!-- next 3 needed for armeria at runtime -->
                                             <include>io.micrometer:*</include>
-                                            <include>org.reactivestreams:*</include>                                  
+                                            <include>org.reactivestreams:*</include>
+                                            <include>com.fasterxml.jackson.core:*</include>                                 
                                             <include>io.netty:*</include>                                       
                                             <include>org.apache.httpcomponents:*</include>
                                             <!-- needed for apache httpclient at runtime -->
@@ -222,7 +223,11 @@
                                         <relocation>
                                             <pattern>org.reactivestreams.</pattern>
                                             <shadedPattern>karate.org.reactivestreams.</shadedPattern>
-                                        </relocation>                                                                                
+                                        </relocation>
+                                        <relocation>
+                                            <pattern>com.fasterxml.jackson.core.</pattern>
+                                            <shadedPattern>karate.com.fasterxml.jackson.core.</shadedPattern>
+                                        </relocation>                                                                                                                      
                                         <relocation>
                                             <pattern>io.netty.</pattern>
                                             <shadedPattern>karate.io.netty.</shadedPattern>

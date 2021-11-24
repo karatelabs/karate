@@ -14,6 +14,9 @@ mvn -f karate-core/pom.xml package -P fatjar -DskipTests
 KARATE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
 cp karate-core/target/karate-${KARATE_VERSION}.jar karate-docker/karate-chrome/target/karate.jar
 
+# hack for apple silicon
+# export DOCKER_DEFAULT_PLATFORM=linux/amd64
+
 # build karate-chrome docker image that includes karate fatjar + maven jars for convenience
 docker build -t karate-chrome karate-docker/karate-chrome
 
