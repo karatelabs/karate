@@ -198,7 +198,7 @@
                                             <!-- next 3 needed for armeria at runtime -->
                                             <include>io.micrometer:*</include>
                                             <include>org.reactivestreams:*</include>
-                                            <include>com.fasterxml.jackson.core:*</include>                                 
+                                            <include>com.fasterxml.jackson.core:jackson-core</include>                                 
                                             <include>io.netty:*</include>                                       
                                             <include>org.apache.httpcomponents:*</include>
                                             <!-- needed for apache httpclient at runtime -->
