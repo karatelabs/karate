@@ -1,12 +1,6 @@
 # Karate
 ## Test Automation Made `Simple.`
-<div>
-  <a href="https://foojay.io/today/works-with-openjdk">
-    <img src="https://github.com/foojayio/badges/raw/main/works_with_openjdk/Works-with-OpenJDK.png" width="90px"/>
-  </a>
-  <a href="https://github.com/intuit/karate/wiki/Support">
-    <img src="https://opensource.saucelabs.com/images/opensauce/powered-by-saucelabs-badge-gray.png?sanitize=true" width="165px" style="vertical-align:bottom"/>
-  </a>  
+<div> 
   <a href="https://github.com/intuit/karate/wiki/Support">
     <img src="https://img.shields.io/badge/support-wiki-red.svg"/>
   </a>
@@ -235,6 +229,15 @@ And you don't need to create additional Java classes for any of the payloads tha
   </td>
 </tr>
 </table>
+
+<div>
+  <a href="https://github.com/intuit/karate/wiki/Support">
+    <img src="https://opensource.saucelabs.com/images/opensauce/powered-by-saucelabs-badge-gray.png?sanitize=true" width="165px"/>
+  </a>
+  <a href="https://foojay.io/today/works-with-openjdk">
+    <img src="https://github.com/foojayio/badges/raw/main/works_with_openjdk/Works-with-OpenJDK.png" width="90px"/>
+  </a>  
+</div>
 
 # Features
 * Java knowledge is not required and even non-programmers can write tests
