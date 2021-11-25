@@ -93,6 +93,10 @@ public class ServerConfig {
     public Set<String> getJsFiles() {
         return jsFiles;
     }
+    
+    public String getRedirectPath() {
+        return hostContextPath == null ? "/" + homePagePath : hostContextPath + homePagePath;        
+    }
 
     public String getHostContextPath() {
         return hostContextPath;

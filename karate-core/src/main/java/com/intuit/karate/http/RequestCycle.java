@@ -67,9 +67,11 @@ public class RequestCycle {
     private final ServerContext context;
     private final ServerConfig config;
     private final Supplier<Response> customHandler;
+
     private String switchTemplate;
     private Map<String, Object> switchParams;
     private String redirectPath;
+    private boolean expired;
 
     private RequestCycle(JsEngine engine, KarateTemplateEngine templateEngine, ServerContext context) {
         this.engine = engine;
@@ -108,12 +110,17 @@ public class RequestCycle {
 
     private void close() {
         if (session != null) {
-            JsValue sessionValue = engine.get(SESSION);
-            if (sessionValue.isObject()) {
-                session.getData().putAll(sessionValue.getAsMap());
-                context.getConfig().getSessionStore().save(session);
+            if (expired) {
+                context.getConfig().getSessionStore().delete(session.getId());
+                logger.debug("session deleted: {}", session.getId());
             } else {
-                logger.error("invalid session, not map-like: {}", sessionValue);
+                JsValue sessionValue = engine.get(SESSION);
+                if (sessionValue.isObject()) {
+                    session.getData().putAll(sessionValue.getAsMap());
+                    context.getConfig().getSessionStore().save(session);
+                } else {
+                    logger.error("invalid session, not map-like: {}", sessionValue);
+                }
             }
         }
         JsEngine.remove();
@@ -154,6 +161,14 @@ public class RequestCycle {
 
     public String getRedirectPath() {
         return redirectPath;
+    }
+
+    public boolean isExpired() {
+        return expired;
+    }        
+
+    public void setExpired(boolean expired) {
+        this.expired = expired;
     }
 
     protected Response handle() {

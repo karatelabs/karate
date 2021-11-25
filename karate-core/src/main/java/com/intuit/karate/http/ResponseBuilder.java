@@ -205,6 +205,12 @@ public class ResponseBuilder {
                 }
             }
         }
+        if (requestCycle.isExpired()) {
+            Session session = requestCycle.getSession();
+            if (session != null) {
+                deleteSessionCookie(session.getId());
+            }
+        }        
         if (cookies != null) {
             cookies.forEach(c -> header(HttpConstants.HDR_SET_COOKIE, ServerCookieEncoder.LAX.encode(c)));
         }

@@ -65,7 +65,7 @@ public class RequestHandler implements ServerHandler {
             if (logger.isDebugEnabled()) {
                 logger.debug("redirecting to home page: {}", request);
             }
-            return response().locationHeader(redirectPath()).buildWithStatus(302);
+            return response().locationHeader(config.getRedirectPath()).buildWithStatus(302);
         }
         ServerContext context = contextFactory.apply(request);
         if (request.getResourceType() == null) { // can be set by context factory
@@ -106,9 +106,9 @@ public class RequestHandler implements ServerHandler {
                         rb.deleteSessionCookie(sessionId);
                     }
                     if (request.isAjax()) {
-                        rb.ajaxRedirect(redirectPath());
+                        rb.ajaxRedirect(config.getRedirectPath());
                     } else {
-                        rb.locationHeader(redirectPath());
+                        rb.locationHeader(config.getRedirectPath());
                     }
                     return rb.buildWithStatus(302);
                 }
@@ -117,11 +117,6 @@ public class RequestHandler implements ServerHandler {
         }
         RequestCycle rc = RequestCycle.init(templateEngine, context);
         return rc.handle();
-    }
-
-    private String redirectPath() {
-        String contextPath = config.getHostContextPath();
-        return contextPath == null ? "/" + homePagePath : contextPath + homePagePath;
     }
 
     private boolean isExpired(Session session) {
