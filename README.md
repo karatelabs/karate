@@ -231,7 +231,7 @@ And you don't need to create additional Java classes for any of the payloads tha
 </table>
 
 <div>
-  <a href="https://github.com/intuit/karate/wiki/Support">
+  <a href="https://saucelabs.com">
     <img src="https://opensource.saucelabs.com/images/opensauce/powered-by-saucelabs-badge-gray.png?sanitize=true" width="165px"/>
   </a>
   <a href="https://foojay.io/today/works-with-openjdk">
