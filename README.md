@@ -1,31 +1,32 @@
 # Karate
 ## Test Automation Made `Simple.`
 <div>
-  <span>
-    <a href="https://foojay.io/today/works-with-openjdk">
-      <img src="https://github.com/foojayio/badges/raw/main/works_with_openjdk/Works-with-OpenJDK.png" width="90px"/>
-    </a>
-  </span>
-  <span>
-    <a href="https://search.maven.org/artifact/com.intuit.karate/karate-core">
-      <img src="https://img.shields.io/maven-central/v/com.intuit.karate/karate-core.svg"/>
-    </a>
-    <a href="https://github.com/intuit/karate/actions?query=workflow%3Amaven-build">
-      <img src="https://github.com/intuit/karate/workflows/maven-build/badge.svg"/>
-    </a>
-    <a href="https://github.com/intuit/karate/releases">
-      <img src="https://img.shields.io/github/release/intuit/karate.svg"/>
-    </a>
-    <a href="https://github.com/intuit/karate/wiki/Support">
-      <img src="https://img.shields.io/badge/support-wiki-red.svg"/>
-    </a>
-    <a href="https://twitter.com/getkarate">
-      <img src="https://img.shields.io/twitter/follow/getkarate.svg?style=social&label=Follow"/>
-    </a>
-    <a href="https://github.com/intuit/karate/stargazers">
-      <img src="https://img.shields.io/github/stars/intuit/karate?style=social"/>
-    </a>
-  </span>  
+  <a href="https://foojay.io/today/works-with-openjdk">
+    <img src="https://github.com/foojayio/badges/raw/main/works_with_openjdk/Works-with-OpenJDK.png" width="90px"/>
+  </a>
+  <a href="https://github.com/intuit/karate/wiki/Support">
+    <img src="https://opensource.saucelabs.com/images/opensauce/powered-by-saucelabs-badge-gray.png?sanitize=true" width="165px" style="vertical-align:bottom"/>
+  </a>  
+  <a href="https://github.com/intuit/karate/wiki/Support">
+    <img src="https://img.shields.io/badge/support-wiki-red.svg"/>
+  </a>
+  <a href="https://twitter.com/getkarate">
+    <img src="https://img.shields.io/twitter/follow/getkarate.svg?style=social&label=Follow"/>
+  </a>
+  <a href="https://github.com/intuit/karate/stargazers">
+    <img src="https://img.shields.io/github/stars/intuit/karate?style=social"/>
+  </a>
+</div>
+<div>
+  <a href="https://search.maven.org/artifact/com.intuit.karate/karate-core">
+    <img src="https://img.shields.io/maven-central/v/com.intuit.karate/karate-core.svg"/>
+  </a>
+  <a href="https://github.com/intuit/karate/actions?query=workflow%3Amaven-build">
+    <img src="https://github.com/intuit/karate/workflows/maven-build/badge.svg"/>
+  </a>
+  <a href="https://github.com/intuit/karate/releases">
+    <img src="https://img.shields.io/github/release/intuit/karate.svg"/>
+  </a>
 </div>
 
 <a><img src="karate-core/src/test/resources/karate-map.jpg" height="650" /></a>
