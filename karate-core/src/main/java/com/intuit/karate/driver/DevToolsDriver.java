@@ -945,41 +945,43 @@ public abstract class DevToolsDriver implements Driver {
         if (frameId == null) {
             return false;
         }
-        // for some reason still neet to trigger Target.getTargets sometimes before attaching
-        method("Target.getTargets").send();
-        // attach to frame / target / process with the frame
-        attachAndActivate(frameId);
         dtm = method("Page.getFrameTree").send();
         frame = null;
-        Map<String, Object> map = dtm.getResult("frameTree.frame", Map.class);
-        String temp = (String) map.get("id");
-        if (frameId.equals(temp)) {
-            String frameUrl = (String) map.get("url");
-            String frameName = (String) map.get("name");
-            frame = new Frame(frameId, frameUrl, frameName);
-            logger.trace("** switched to frame: {}", frame);
-        }
-        if (frame == null) {
-            // let's try and get the frame from the current childFrames, if they exist
-            try {
-                List<Map> frames = dtm.getResult("frameTree.childFrames[*].frame", List.class);
-                for (Map<String, Object> frameMap : frames) {
-                    String frameMapTemp = (String) frameMap.get("id");
-                    if (frameId.equals(frameMapTemp)) {
-                        String frameUrl = (String) frameMap.get("url");
-                        String frameName = (String) frameMap.get("name");
-                        frame = new Frame(frameId, frameUrl, frameName);
-                        logger.trace("** switched to frame: {}", frame);
-                        break;
-                    }
+        try {
+            List<Map> childFrames = dtm.getResult("frameTree.childFrames[*]", List.class);
+            List<Map> flattenFrameTree = getFrameTree(childFrames);
+            for (Map<String, Object> frameMap : flattenFrameTree) {
+                String frameMapTemp = (String) frameMap.get("id");
+                if (frameId.equals(frameMapTemp)) {
+                    String frameUrl = (String) frameMap.get("url");
+                    String frameName = (String) frameMap.get("name");
+                    frame = new Frame(frameId, frameUrl, frameName);
+                    logger.trace("** switched to frame: {}", frame);
+                    break;
                 }
-            } catch(PathNotFoundException e) {
-                logger.trace("** childFrames not found");
-                return false;
             }
-            if (frame == null) {
-                return false;
+        } catch(PathNotFoundException e) {
+            logger.trace("** childFrames not found. Will try to change to a different Target in Chrome.");
+        }
+
+        if (frame == null) {
+            // for some reason need to trigger Target.getTargets before attaching
+            method("Target.getTargets").send();
+            // attach to frame / target / process with the frame
+            attachAndActivate(frameId);
+
+            Map<String, Object> map = dtm.getResult("frameTree.frame", Map.class);
+            String temp = (String) map.get("id");
+            if (frameId.equals(temp)) {
+                String frameUrl = (String) map.get("url");
+                String frameName = (String) map.get("name");
+                frame = new Frame(frameId, frameUrl, frameName);
+                logger.trace("** switched to frame: {}", frame);
             }
+        }
+
+        if (frame == null) {
+            return false;
         }
         Integer contextId = getFrameContext();
         if (contextId != null) {
@@ -991,10 +993,20 @@ public abstract class DevToolsDriver implements Driver {
         return true;
     }
 
-    private Frame initFrameFromFrameTree(String frameId, Map<String, Object> map) {
-        String frameUrl = (String) map.get("url");
-        String frameName = (String) map.get("name");
-        return new Frame(frameId, frameUrl, frameName);
+    private List<Map> getFrameTree(List<Map> frames) {
+        List<Map> resultFrames = new ArrayList<>();
+        for (Map frame : frames) {
+            Map currFrame = (Map) frame.get("frame");
+            List<Map> childFrames = (List<Map>) frame.get("childFrames");
+            if (currFrame != null) {
+                resultFrames.add((Map) frame.get("frame"));
+            }
+
+            if (childFrames != null) {
+                resultFrames.addAll(getFrameTree(childFrames));
+            }
+        }
+        return  resultFrames;
     }
 
     public void enableNetworkEvents() {
