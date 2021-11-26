@@ -70,7 +70,6 @@ public class RequestCycle {
 
     private String switchTemplate;
     private Map<String, Object> switchParams;
-    private String redirectPath;
     private boolean expired;
 
     private RequestCycle(JsEngine engine, KarateTemplateEngine templateEngine, ServerContext context) {
@@ -151,21 +150,9 @@ public class RequestCycle {
         this.switchParams = switchParams;
     }
 
-    public Map<String, Object> getSwitchParams() {
-        return switchParams;
-    }
-
-    public void setRedirectPath(String redirectPath) {
-        this.redirectPath = redirectPath;
-    }
-
-    public String getRedirectPath() {
-        return redirectPath;
-    }
-
     public boolean isExpired() {
         return expired;
-    }        
+    }
 
     public void setExpired(boolean expired) {
         this.expired = expired;
@@ -205,15 +192,18 @@ public class RequestCycle {
         try {
             html = templateEngine.process(request.getPath());
         } catch (Exception e) {
-            if (redirectPath != null) {
-                logger.debug("redirect (full) requested to: {}", redirectPath);
-                html = null; // redirect header will be inserted by response builder
-            } else if (switchTemplate != null) {
-                logger.debug("redirect (ajax) requested to: {}", switchTemplate);
-                if (switchParams != null) {
-                    switchParams.forEach((k, v) -> request.setParam(k, v));
+            if (context.isSwitched()) {
+                if (switchTemplate == null) {
+                    logger.debug("abort template requested");
+                    html = null;
+                } else {
+                    logger.debug("switch template requested: {}", switchTemplate);
+                    request.getParams().clear();
+                    if (switchParams != null) {
+                        switchParams.forEach((k, v) -> request.setParam(k, v));
+                    }
+                    html = templateEngine.process(switchTemplate);
                 }
-                html = templateEngine.process(switchTemplate);
             } else {
                 throw e;
             }

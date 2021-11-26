@@ -65,7 +65,7 @@ public class RequestHandler implements ServerHandler {
             if (logger.isDebugEnabled()) {
                 logger.debug("redirecting to home page: {}", request);
             }
-            return response().locationHeader(config.getRedirectPath()).buildWithStatus(302);
+            return response().locationHeader(config.getHomeRedirectPath()).buildWithStatus(302);
         }
         ServerContext context = contextFactory.apply(request);
         if (request.getResourceType() == null) { // can be set by context factory
@@ -106,9 +106,9 @@ public class RequestHandler implements ServerHandler {
                         rb.deleteSessionCookie(sessionId);
                     }
                     if (request.isAjax()) {
-                        rb.ajaxRedirect(config.getRedirectPath());
+                        rb.ajaxRedirect(config.getLogoutRedirectPath());
                     } else {
-                        rb.locationHeader(config.getRedirectPath());
+                        rb.locationHeader(config.getHomeRedirectPath());
                     }
                     return rb.buildWithStatus(302);
                 }

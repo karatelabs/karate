@@ -73,16 +73,14 @@ public class ServerContext implements ProxyObject {
     private static final String SESSION_ID = "sessionId";
     private static final String EXPIRE = "expire";
     private static final String RENDER = "render";
-    private static final String TRIGGER = "trigger";
-    private static final String REDIRECT = "redirect";
-    private static final String AFTER_SETTLE = "afterSettle";
+    private static final String ADD_SCRIPT = "addScript";
     private static final String TO_JSON = "toJson";
     private static final String TO_JSON_PRETTY = "toJsonPretty";
     private static final String FROM_JSON = "fromJson";
 
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
-        NEXT_ID, SESSION_ID, EXPIRE, RENDER, TRIGGER, REDIRECT, AFTER_SETTLE, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
+        NEXT_ID, SESSION_ID, EXPIRE, RENDER, ADD_SCRIPT, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -99,8 +97,7 @@ public class ServerContext implements ProxyObject {
     private Supplier<Response> customHandler;
     private int nextId;
 
-    private List<Map<String, Object>> responseTriggers;
-    private List<String> afterSettleScripts;
+    private List<String> scripts;
     private final Map<String, Object> variables;
 
     public ServerContext(ServerConfig config, Request request) {
@@ -273,12 +270,8 @@ public class ServerContext implements ProxyObject {
         this.httpGetAllowed = httpGetAllowed;
     }
 
-    public List<String> getAfterSettleScripts() {
-        return afterSettleScripts;
-    }
-
-    public List<Map<String, Object>> getResponseTriggers() {
-        return responseTriggers;
+    public List<String> getScripts() {
+        return scripts;
     }
 
     public Supplier<Response> getCustomHandler() {
@@ -289,18 +282,15 @@ public class ServerContext implements ProxyObject {
         this.customHandler = customHandler;
     }
 
-    public void trigger(Map<String, Object> trigger) {
-        if (responseTriggers == null) {
-            responseTriggers = new ArrayList();
-        }
-        responseTriggers.add(trigger);
+    public boolean isSwitched() {
+        return switched;
     }
 
     public void afterSettle(String js) {
-        if (afterSettleScripts == null) {
-            afterSettleScripts = new ArrayList();
+        if (scripts == null) {
+            scripts = new ArrayList();
         }
-        afterSettleScripts.add(js);
+        scripts.add(js);
     }
 
     private final Methods.FunVar GET_FUNCTION = args -> {
@@ -329,7 +319,8 @@ public class ServerContext implements ProxyObject {
         if (switched) {
             logger.warn("context.switch() can be called only once during a request, ignoring: {}", args[0]);
         } else {
-            switched = true;
+            switched = true; // flag for request cycle render
+            KarateEngineContext.get().setRedirect(true); // flag for template engine
             RequestCycle rc = RequestCycle.get();
             if (args.length > 1) {
                 Value value = Value.asValue(args[1]);
@@ -338,18 +329,16 @@ public class ServerContext implements ProxyObject {
                     rc.setSwitchParams(jv.getAsMap());
                 }
             }
-            String template = args[0].toString();
-            rc.setSwitchTemplate(template);
-            KarateEngineContext.get().setRedirect(true);
+            String template;
+            if (args.length > 0) {
+                template = args[0].toString();
+                rc.setSwitchTemplate(template);
+            } else {
+                template = null;
+            }
             throw new RedirectException(template);
         }
         return null;
-    };
-
-    private final Consumer<String> REDIRECT_FUNCTION = s -> {
-        RequestCycle.get().setRedirectPath(s);
-        KarateEngineContext.get().setRedirect(true);
-        throw new RedirectException(s);
     };
 
     private final Supplier<String> EXPIRE_FUNCTION = () -> {
@@ -415,13 +404,9 @@ public class ServerContext implements ProxyObject {
                 return EXPIRE_FUNCTION;
             case RENDER:
                 return RENDER_FUNCTION;
-            case TRIGGER:
-                return (Consumer<Map<String, Object>>) this::trigger;
-            case REDIRECT:
-                return REDIRECT_FUNCTION;
             case RESOLVER:
                 return config.getResourceResolver();
-            case AFTER_SETTLE:
+            case ADD_SCRIPT:
                 return (Consumer<String>) this::afterSettle;
             default:
                 logger.warn("no such property on context object: {}", key);

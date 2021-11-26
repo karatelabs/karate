@@ -135,13 +135,8 @@ public class ResponseBuilder {
     public ResponseBuilder ajaxRedirect(String url) {
         header(HttpConstants.HDR_HX_REDIRECT, url);
         return this;
-    }
-
-    public ResponseBuilder trigger(String json) {
-        header(HttpConstants.HDR_HX_TRIGGER, JsonUtils.toStrictJson(json));
-        return this;
-    }
-
+    }    
+    
     public ResponseBuilder session(Session session, boolean newSession) {
         if (session != null && newSession) {
             sessionCookie(session.getId());
@@ -151,29 +146,20 @@ public class ResponseBuilder {
 
     public Response build() {
         Response response = requestCycle.getResponse();
-        ServerContext context = requestCycle.getContext();
-        if (requestCycle.getRedirectPath() != null) {
-            header(HttpConstants.HDR_HX_REDIRECT, requestCycle.getRedirectPath());
-            return buildWithStatus(302);
-        }
-        if (context.getResponseTriggers() != null) {
-            List<Map<String, Object>> triggers = context.getResponseTriggers();
-            Map<String, Object> merged;
-            if (triggers.size() == 1) {
-                merged = triggers.get(0);
-            } else {
-                merged = new HashMap();
-                for (Map<String, Object> trigger : triggers) {
-                    merged.putAll(trigger);
-                }
+        if (requestCycle.isExpired()) {
+            Session session = requestCycle.getSession();
+            if (session != null) {
+                deleteSessionCookie(session.getId());
             }
-            String json = JsonUtils.toJson(merged);
-            header(HttpConstants.HDR_HX_TRIGGER, json);
         }
+        if (cookies != null) {
+            cookies.forEach(c -> header(HttpConstants.HDR_SET_COOKIE, ServerCookieEncoder.LAX.encode(c)));
+        }
+        ServerContext context = requestCycle.getContext();
         if (resourceType != null && resourceType.isHtml()
-                && context.isAjax() && context.getAfterSettleScripts() != null) {
+                && context.isAjax() && context.getScripts() != null) {
             StringBuilder sb = new StringBuilder();
-            for (String js : context.getAfterSettleScripts()) {
+            for (String js : context.getScripts()) {
                 if (sb.length() > 0) {
                     sb.append(';');
                 }
@@ -204,15 +190,6 @@ public class ResponseBuilder {
                     headers.putAll(apiHeaders);
                 }
             }
-        }
-        if (requestCycle.isExpired()) {
-            Session session = requestCycle.getSession();
-            if (session != null) {
-                deleteSessionCookie(session.getId());
-            }
-        }        
-        if (cookies != null) {
-            cookies.forEach(c -> header(HttpConstants.HDR_SET_COOKIE, ServerCookieEncoder.LAX.encode(c)));
         }
         return buildWithStatus(response.getStatus());
     }
