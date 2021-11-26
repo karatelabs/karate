@@ -167,12 +167,12 @@ If you think about it, all the above are *sufficient* to implement *any* micro-s
 *All* of Karate (core API testing, parallel-runner / HTML reports, the debugger-UI, mocks and web / UI automation) is available as a *single*, executable JAR file. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE. And there is a [Visual Studio Code plugin](https://marketplace.visualstudio.com/items?itemName=kirkslota.karate-runner) that supports the Karate standalone JAR.
 
 ## jbang
-Note that you can easily run Karate or even install applications based on Karate using [`jbang`](https://www.jbang.dev). It will take care of setting up a local Java runtime, which is really convenient. Note that jbang itself is [super-easy to install](https://github.com/jbangdev/jbang#installation) and there is even a "[Zero Install](https://github.com/jbangdev/jbang#zero-install)" option.
+Note that you can easily run Karate or even install applications based on Karate using [`jbang`](https://www.jbang.dev). It will take care of setting up a local Java runtime, which is really convenient. Note that jbang itself is [super-easy to install](https://www.jbang.dev/documentation/guide/latest/installation.html) and there is even a "[Zero Install](https://www.jbang.dev/documentation/guide/latest/installation.html#zero-install)" option.
 
-With jbang installed, you can do this (since a [`jbang-catalog.json`](https://github.com/jbangdev/jbang#implicit-alias-catalogs) is present within the Karate GitHub repository):
+With jbang installed, you can do this (since a [`jbang-catalog.json`](https://www.jbang.dev/documentation/guide/latest/alias_catalogs.html) is present within the [karatelabs/jbang-catalog](https://github.com/karatelabs/jbang-catalog) GitHub repository :
 
 ```
-jbang karate@intuit/karate -h
+jbang karate@karatelabs -h
 ```
 
 What's *really* interesting is that you can install `karate` as a local command-line application !
