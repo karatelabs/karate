@@ -46,7 +46,9 @@ public class AwsLambdaHandler {
     protected static final Logger logger = LoggerFactory.getLogger(AwsLambdaHandler.class);
 
     private static final String REQUEST_CONTEXT = "requestContext";
+    private static final String DOMAIN_NAME = "domainName";
     private static final String HTTP = "http";
+    private static final String HTTPS_PREFIX = "https://";
     private static final String METHOD = "method";
     private static final String RAW_PATH = "rawPath";
     private static final String QUERY_STRING_PARAMETERS = "queryStringParameters";
@@ -68,6 +70,7 @@ public class AwsLambdaHandler {
             logger.trace("request: {}", req);
         }
         Map<String, Object> ctx = (Map) req.get(REQUEST_CONTEXT);
+        String domainName = (String) ctx.get(DOMAIN_NAME);
         Map<String, Object> http = (Map) ctx.get(HTTP);
         String method = (String) http.get(METHOD);
         String path = (String) req.get(RAW_PATH);
@@ -77,6 +80,7 @@ public class AwsLambdaHandler {
         String body = (String) req.get(BODY);
         Boolean isBase64Encoded = (Boolean) req.get(IS_BASE64_ENCODED);
         Request request = new Request();
+        request.setUrlBase(HTTPS_PREFIX + domainName);
         request.setMethod(method);
         request.setPath(path);
         if (rawParams != null) {
