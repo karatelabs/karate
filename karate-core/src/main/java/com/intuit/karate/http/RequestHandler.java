@@ -108,7 +108,7 @@ public class RequestHandler implements ServerHandler {
                     if (request.isAjax()) {
                         rb.ajaxRedirect(redirectPath(true));
                     } else {
-                        rb.locationHeader(redirectPath(false));
+                        rb.locationHeader(redirectPath(true));
                     }
                     return rb.buildWithStatus(302);
                 }

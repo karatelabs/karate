@@ -25,13 +25,12 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.JsonUtils;
+import com.intuit.karate.StringUtils;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import java.io.InputStream;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -135,8 +134,8 @@ public class ResponseBuilder {
     public ResponseBuilder ajaxRedirect(String url) {
         header(HttpConstants.HDR_HX_REDIRECT, url);
         return this;
-    }    
-    
+    }
+
     public ResponseBuilder session(Session session, boolean newSession) {
         if (session != null && newSession) {
             sessionCookie(session.getId());
@@ -156,23 +155,10 @@ public class ResponseBuilder {
             cookies.forEach(c -> header(HttpConstants.HDR_SET_COOKIE, ServerCookieEncoder.LAX.encode(c)));
         }
         ServerContext context = requestCycle.getContext();
-        if (resourceType != null && resourceType.isHtml()
-                && context.isAjax() && context.getScripts() != null) {
-            StringBuilder sb = new StringBuilder();
-            for (String js : context.getScripts()) {
-                if (sb.length() > 0) {
-                    sb.append(';');
-                }
-                sb.append(js);
-            }
-            byte[] scriptBytes = FileUtils.toBytes("<script>" + sb.toString() + "</script>");
-            if (body == null) {
-                body = scriptBytes;
-            } else {
-                byte[] merged = new byte[body.length + scriptBytes.length];
-                System.arraycopy(body, 0, merged, 0, body.length);
-                System.arraycopy(scriptBytes, 0, merged, body.length, scriptBytes.length);
-                body = merged;
+        if (resourceType != null && resourceType.isHtml() && context.isAjax()) {
+            if (context.getBodyAppends() != null) {
+                String appends = StringUtils.join(context.getBodyAppends(), "\n");
+                body = merge(body, FileUtils.toBytes(appends));
             }
         }
         if (context.isApi()) {
@@ -192,6 +178,16 @@ public class ResponseBuilder {
             }
         }
         return buildWithStatus(response.getStatus());
+    }
+
+    private static byte[] merge(byte[] body, byte[] extra) {
+        if (body == null) {
+            body = new byte[0];
+        }
+        byte[] merged = new byte[body.length + extra.length];
+        System.arraycopy(body, 0, merged, 0, body.length);
+        System.arraycopy(extra, 0, merged, body.length, extra.length);
+        return merged;
     }
 
     public Response buildStatic(Request request) { // TODO ETag header handling

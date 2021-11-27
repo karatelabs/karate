@@ -73,14 +73,14 @@ public class ServerContext implements ProxyObject {
     private static final String SESSION_ID = "sessionId";
     private static final String EXPIRE = "expire";
     private static final String RENDER = "render";
-    private static final String ADD_SCRIPT = "addScript";
+    private static final String BODY_APPEND = "bodyAppend";
     private static final String TO_JSON = "toJson";
     private static final String TO_JSON_PRETTY = "toJsonPretty";
     private static final String FROM_JSON = "fromJson";
 
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
-        NEXT_ID, SESSION_ID, EXPIRE, RENDER, ADD_SCRIPT, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
+        NEXT_ID, SESSION_ID, EXPIRE, RENDER, BODY_APPEND, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -97,8 +97,8 @@ public class ServerContext implements ProxyObject {
     private Supplier<Response> customHandler;
     private int nextId;
 
-    private List<String> scripts;
     private final Map<String, Object> variables;
+    private List<String> bodyAppends;
 
     public ServerContext(ServerConfig config, Request request) {
         this(config, request, null);
@@ -130,29 +130,42 @@ public class ServerContext implements ProxyObject {
             }
             Map<String, Object> templateVars = (Map) map.get("variables");
             String path = (String) map.get("path");
-            if (path != null) {
-                JsEngine je;
-                if (templateVars == null) {
-                    je = RequestCycle.get().getEngine();
-                } else {
-                    je = JsEngine.local();
-                    je.putAll(templateVars);
-                }
-                return TemplateUtils.renderResourcePath(path, je, config.getResourceResolver());
-            }
             String html = (String) map.get("html");
-            if (html == null) {
-                logger.warn("invalid argument to render, path or html needed: {}", map);
+            Boolean fork = (Boolean) map.get("fork");
+            Object swap = map.get("swap");
+            if (path == null && html == null) {
+                logger.warn("invalid argument to render, 'path' or 'html' needed: {}", map);
                 return null;
             }
             JsEngine je;
-            if (templateVars == null) {
-                je = RequestCycle.get().getEngine();
-            } else {
+            if (fork != null && fork) {
                 je = JsEngine.local();
+            } else {
+                je = RequestCycle.get().getEngine().copy();
+            }
+            if (templateVars != null) {
                 je.putAll(templateVars);
             }
-            return TemplateUtils.renderHtmlString(html, je, config.getResourceResolver());
+            String body;
+            if (path != null) {
+                body = TemplateUtils.renderResourcePath(path, je, config.getResourceResolver());
+            } else {
+                body = TemplateUtils.renderHtmlString(html, je, config.getResourceResolver());
+            }
+            if (swap != null) {
+                String id = (String) map.get("id");
+                StringBuilder sb = new StringBuilder();
+                sb.append("<div");
+                if (id != null) {
+                    sb.append(" id=\"").append(id).append("\"");
+                }
+                sb.append(" hx-swap-oob=\"").append(swap).append("\">");
+                sb.append(body);
+                sb.append("</div>");
+                String appended = sb.toString();
+                bodyAppend(appended);
+            }
+            return body;
         };
     }
 
@@ -270,10 +283,6 @@ public class ServerContext implements ProxyObject {
         this.httpGetAllowed = httpGetAllowed;
     }
 
-    public List<String> getScripts() {
-        return scripts;
-    }
-
     public Supplier<Response> getCustomHandler() {
         return customHandler;
     }
@@ -286,11 +295,15 @@ public class ServerContext implements ProxyObject {
         return switched;
     }
 
-    public void afterSettle(String js) {
-        if (scripts == null) {
-            scripts = new ArrayList();
+    public List<String> getBodyAppends() {
+        return bodyAppends;
+    }
+
+    public void bodyAppend(String body) {
+        if (bodyAppends == null) {
+            bodyAppends = new ArrayList();
         }
-        scripts.add(js);
+        bodyAppends.add(body);
     }
 
     private final Methods.FunVar GET_FUNCTION = args -> {
@@ -313,7 +326,7 @@ public class ServerContext implements ProxyObject {
     private static final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s, false, null);
 
     private final Methods.FunVar HTTP_FUNCTION; // set in constructor
-    private final Function<Object, String> RENDER_FUNCTION; // set in constructor
+    private final Function<Object, String> RENDER_FUNCTION; // set in constructor    
 
     private final Methods.FunVar SWITCH_FUNCTION = args -> {
         if (switched) {
@@ -404,10 +417,10 @@ public class ServerContext implements ProxyObject {
                 return EXPIRE_FUNCTION;
             case RENDER:
                 return RENDER_FUNCTION;
+            case BODY_APPEND:
+                return (Consumer<String>) this::bodyAppend;
             case RESOLVER:
                 return config.getResourceResolver();
-            case ADD_SCRIPT:
-                return (Consumer<String>) this::afterSettle;
             default:
                 logger.warn("no such property on context object: {}", key);
                 return null;
