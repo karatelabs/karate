@@ -3,7 +3,6 @@ function fn() {
     type: 'chrome',
     showDriverLog: true,
     start: false,
-    timeout: 60000,
     beforeStart: 'supervisorctl start ffmpeg',
     afterStop: 'supervisorctl stop ffmpeg',
     videoFile: '/tmp/karate.mp4'
@@ -12,6 +11,7 @@ function fn() {
   var serverPort = karate.properties['server.port'] || 8080;
   var config = {
         driverType: 'chrome',
+        timeout: 60000,
         serverUrl: 'http://' + hostname + ':' + serverPort
     };
   return config;
