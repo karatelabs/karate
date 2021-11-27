@@ -93,15 +93,7 @@ public class ServerConfig {
 
     public Set<String> getJsFiles() {
         return jsFiles;
-    }
-    
-    public String getHomeRedirectPath() {
-        return hostContextPath == null ? "/" + homePagePath : hostContextPath + homePagePath;        
-    }
-    
-    public String getLogoutRedirectPath() {
-        return hostContextPath == null ? "/" + logoutPagePath : hostContextPath + logoutPagePath;        
-    }    
+    }   
 
     public String getHostContextPath() {
         return hostContextPath;
