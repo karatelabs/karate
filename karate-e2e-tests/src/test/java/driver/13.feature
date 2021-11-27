@@ -3,12 +3,12 @@ Feature:
 Background:
   * driver serverUrl + '/13'
 
-Scenario: open frame
+Scenario: try out iframe scenarios
   * match text("div#messageId") == "this div is outside the iframe"
   * waitFor("#myiframe")
   * switchFrame("#myiframe")
-  ## mathcing Wikipedia page title
-  ## hopefully won't change often (:
+  ## matching Wikipedia page title
+  ## hopefully won't change often :)
   * match driver.title == "Office Space - Wikipedia"
   * input("input[name='search']", "karate")
   * click("input[id='searchButton']")
