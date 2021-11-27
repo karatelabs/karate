@@ -5,16 +5,16 @@ Background:
 
 Scenario: try out iframe scenarios
   * match text("div#messageId") == "this div is outside the iframe"
-  * waitFor("#myiframe")
-  * switchFrame("#myiframe")
+  #* waitFor("#myiframe")
+  #* switchFrame("#myiframe")
   ## matching Wikipedia page title
   ## hopefully won't change often :)
-  * match driver.title == "Office Space - Wikipedia"
-  * input("input[name='search']", "karate")
-  * click("input[id='searchButton']")
-  * waitForUrl('https://en.wikipedia.org/wiki/Karate')
-  * match driver.title == "Karate - Wikipedia"
-  * switchFrame(null)
+  #* match driver.title == "Office Space - Wikipedia"
+  #* input("input[name='search']", "karate")
+  #* click("input[id='searchButton']")
+  #* waitForUrl('https://en.wikipedia.org/wiki/Karate')
+  #* match driver.title == "Karate - Wikipedia"
+  #* switchFrame(null)
   * locate("iframe[id='myiframe']").switchFrame()
   * switchFrame(null)
   * switchFrame("#frameId")
