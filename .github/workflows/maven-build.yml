@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    timeout-minutes: 10
+    timeout-minutes: 20
     runs-on: ubuntu-20.04
     steps:
     - name: git checkout
@@ -28,7 +28,7 @@ jobs:
       run: mvn -B clean install -P pre-release -Djavacpp.platform=linux-x86_64
     - name: build and test with docker
       run: ./build-docker.sh
-    - name: upload artifacts when build fails
+    - name: upload artifacts if build fails
       if: ${{ failure() }}
       uses: actions/upload-artifact@v2
       with:
