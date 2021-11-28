@@ -28,3 +28,10 @@ jobs:
       run: mvn -B clean install -P pre-release -Djavacpp.platform=linux-x86_64
     - name: build and test with docker
       run: ./build-docker.sh
+    - name: upload artifacts when build fails
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@v2
+      with:
+        name: build-results
+        path: .
+        retention-days: 5
