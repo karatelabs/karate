@@ -11,6 +11,7 @@ function fn() {
   var serverPort = karate.properties['server.port'] || 8080;
   var config = {
         driverType: 'chrome',
+        timeout: 60000,
         serverUrl: 'http://' + hostname + ':' + serverPort
     };
   return config;
