@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -43,6 +44,10 @@ public class Session {
         this.created = created;
         this.updated = updated;
         this.expires = expires;
+    }
+    
+    public Session copy() { // TODO deep-clone ?
+        return new Session(id, new HashMap(data), created, updated, expires);
     }
 
     public void setUpdated(long updated) {
