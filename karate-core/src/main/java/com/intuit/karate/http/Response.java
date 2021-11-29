@@ -26,6 +26,7 @@ package com.intuit.karate.http;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.Json;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsValue;
@@ -230,24 +231,11 @@ public class Response implements ProxyObject {
         }
     };
 
-    private static final String KEY = "key";
-    private static final String VALUE = "value";
-
     private final Supplier HEADER_ENTRIES_FUNCTION = () -> {
         if (headers == null) {
             return JsList.EMPTY;
         }
-        List list = new ArrayList(headers.size());
-        headers.forEach((k, v) -> {
-            if (v == null || v.isEmpty()) {
-                // continue
-            } else {
-                Map map = new HashMap(2);
-                map.put(KEY, k);
-                map.put(VALUE, v.get(0));
-                list.add(map);
-            }
-        });
+        List list = JsonUtils.toList(headers);
         return JsValue.fromJava(list);
     };
 
@@ -275,14 +263,14 @@ public class Response implements ProxyObject {
                 return null;
         }
     }
-    
+
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap();
         map.put(STATUS, status);
         map.put(HEADER_ENTRIES, HEADER_ENTRIES_FUNCTION.get());
         map.put(BODY, getBodyConverted());
         return map;
-    }    
+    }
 
     @Override
     public Object getMemberKeys() {

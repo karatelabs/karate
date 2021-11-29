@@ -24,6 +24,7 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
@@ -74,13 +75,14 @@ public class ServerContext implements ProxyObject {
     private static final String EXPIRE = "expire";
     private static final String RENDER = "render";
     private static final String BODY_APPEND = "bodyAppend";
+    private static final String TO_LIST = "toList";
     private static final String TO_JSON = "toJson";
     private static final String TO_JSON_PRETTY = "toJsonPretty";
     private static final String FROM_JSON = "fromJson";
 
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
-        NEXT_ID, SESSION_ID, EXPIRE, RENDER, BODY_APPEND, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
+        NEXT_ID, SESSION_ID, EXPIRE, RENDER, BODY_APPEND, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -328,6 +330,17 @@ public class ServerContext implements ProxyObject {
     private final Methods.FunVar HTTP_FUNCTION; // set in constructor
     private final Function<Object, String> RENDER_FUNCTION; // set in constructor    
 
+    private final Function<Object, Object> TO_LIST_FUNCTION = o -> {
+        if (o instanceof Map) {
+            Map map = (Map) o;
+            List list = JsonUtils.toList(map);
+            return JsValue.fromJava(list);
+        } else {
+            logger.warn("unable to cast to map: {} - {}", o.getClass(), o);
+            return null;
+        }
+    };
+
     private final Methods.FunVar SWITCH_FUNCTION = args -> {
         if (switched) {
             logger.warn("context.switch() can be called only once during a request, ignoring: {}", args[0]);
@@ -393,6 +406,8 @@ public class ServerContext implements ProxyObject {
                 return GET_FUNCTION;
             case UUID:
                 return UUID_FUNCTION;
+            case TO_LIST:
+                return TO_LIST_FUNCTION;
             case TO_JSON:
                 return (Function<Object, String>) this::toJson;
             case TO_JSON_PRETTY:
