@@ -75,6 +75,7 @@ public class ServerContext implements ProxyObject {
     private static final String EXPIRE = "expire";
     private static final String RENDER = "render";
     private static final String BODY_APPEND = "bodyAppend";
+    private static final String COPY = "copy";
     private static final String TO_LIST = "toList";
     private static final String TO_JSON = "toJson";
     private static final String TO_JSON_PRETTY = "toJsonPretty";
@@ -82,7 +83,7 @@ public class ServerContext implements ProxyObject {
 
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
-        NEXT_ID, SESSION_ID, EXPIRE, RENDER, BODY_APPEND, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
+        NEXT_ID, SESSION_ID, EXPIRE, RENDER, BODY_APPEND, COPY, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -328,7 +329,11 @@ public class ServerContext implements ProxyObject {
     private static final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s, false, null);
 
     private final Methods.FunVar HTTP_FUNCTION; // set in constructor
-    private final Function<Object, String> RENDER_FUNCTION; // set in constructor    
+    private final Function<Object, String> RENDER_FUNCTION; // set in constructor  
+
+    private final Function<Object, Object> COPY_FUNCTION = o -> {
+        return JsValue.fromJava(JsonUtils.deepCopy(o));
+    };
 
     private final Function<Object, Object> TO_LIST_FUNCTION = o -> {
         if (o instanceof Map) {
@@ -406,6 +411,8 @@ public class ServerContext implements ProxyObject {
                 return GET_FUNCTION;
             case UUID:
                 return UUID_FUNCTION;
+            case COPY:
+                return COPY_FUNCTION;
             case TO_LIST:
                 return TO_LIST_FUNCTION;
             case TO_JSON:
