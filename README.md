@@ -236,9 +236,6 @@ And you don't need to create additional Java classes for any of the payloads tha
   <a href="https://saucelabs.com">
     <img src="https://opensource.saucelabs.com/images/opensauce/powered-by-saucelabs-badge-gray.png?sanitize=true" width="165px"/>
   </a>
-  <a href="https://foojay.io/today/works-with-openjdk">
-    <img src="https://github.com/foojayio/badges/raw/main/works_with_openjdk/Works-with-OpenJDK.png" width="90px"/>
-  </a>  
 </div>
 
 # Features
