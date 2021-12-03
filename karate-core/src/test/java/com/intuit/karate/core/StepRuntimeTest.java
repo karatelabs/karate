@@ -113,7 +113,7 @@ public class StepRuntimeTest {
                 "match"),
                 Arguments.of(com.intuit.karate.ScenarioActions.class.getMethod("assertTrue", String.class),
                 "assert"),
-                Arguments.of(com.intuit.karate.ScenarioActions.class.getMethod("status", int.class),
+                Arguments.of(com.intuit.karate.ScenarioActions.class.getMethod("status", String.class),
                 "status"),
                 Arguments.of(com.intuit.karate.ScenarioActions.class.getMethod("eval", String.class),
                 "eval"),

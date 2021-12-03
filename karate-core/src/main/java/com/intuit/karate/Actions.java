@@ -132,7 +132,7 @@ public interface Actions {
 
     void soapAction(String action);
 
-    void status(int status);
+    void status(String status);
 
     void table(String name, List<Map<String, String>> table);
 

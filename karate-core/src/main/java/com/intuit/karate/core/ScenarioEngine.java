@@ -677,7 +677,8 @@ public class ScenarioEngine {
         }
     }
 
-    public void status(int status) {
+    public void status(String statusExpression) {
+        int status = evalJs(statusExpression).getAsInt();
         if (status != response.getStatus()) {
             // make sure log masking is applied
             String message = HttpLogger.getStatusFailureMessage(status, config, request, response);

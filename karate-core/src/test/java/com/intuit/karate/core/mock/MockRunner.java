@@ -64,4 +64,9 @@ class MockRunner {
     void testInvalidCookie() {
     	run("invalid-cookie.feature");
     }
+
+    @Test
+    void testStatusExpression() {
+        run("hello-world-status.feature");
+    }
 }
