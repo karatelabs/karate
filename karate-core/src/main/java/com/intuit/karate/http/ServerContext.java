@@ -25,6 +25,8 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.LogAppender;
+import com.intuit.karate.core.Variable;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
@@ -64,6 +66,7 @@ public class ServerContext implements ProxyObject {
     private static final String EVAL = "eval";
     private static final String EVAL_WITH = "evalWith";
     private static final String GET = "get";
+    private static final String LOG = "log";
     private static final String UUID = "uuid";
     private static final String REMOVE = "remove";
     private static final String SWITCH = "switch";
@@ -82,7 +85,7 @@ public class ServerContext implements ProxyObject {
     private static final String FROM_JSON = "fromJson";
 
     private static final String[] KEYS = new String[]{
-        READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
+        READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, LOG, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
         NEXT_ID, SESSION_ID, EXPIRE, RENDER, BODY_APPEND, COPY, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
@@ -102,6 +105,7 @@ public class ServerContext implements ProxyObject {
 
     private final Map<String, Object> variables;
     private List<String> bodyAppends;
+    private LogAppender logAppender;
 
     public ServerContext(ServerConfig config, Request request) {
         this(config, request, null);
@@ -309,6 +313,14 @@ public class ServerContext implements ProxyObject {
         bodyAppends.add(body);
     }
 
+    public LogAppender getLogAppender() {
+        return logAppender;
+    }        
+
+    public void setLogAppender(LogAppender logAppender) {
+        this.logAppender = logAppender;
+    }        
+
     private final Methods.FunVar GET_FUNCTION = args -> {
         if (args.length == 0 || args[0] == null) {
             return null;
@@ -330,6 +342,15 @@ public class ServerContext implements ProxyObject {
 
     private final Methods.FunVar HTTP_FUNCTION; // set in constructor
     private final Function<Object, String> RENDER_FUNCTION; // set in constructor  
+
+    private final Methods.FunVar LOG_FUNCTION = args -> {
+        String log = new LogWrapper(args).toString();
+        logger.info(log);
+        if (logAppender != null) {
+            logAppender.append(log);
+        }
+        return null;
+    };
 
     private final Function<Object, Object> COPY_FUNCTION = o -> {
         return JsValue.fromJava(JsonUtils.deepCopy(o));
@@ -409,6 +430,8 @@ public class ServerContext implements ProxyObject {
                 return (BiFunction<Object, String, Object>) this::evalWith;
             case GET:
                 return GET_FUNCTION;
+            case LOG:
+                return LOG_FUNCTION;
             case UUID:
                 return UUID_FUNCTION;
             case COPY:
@@ -462,6 +485,27 @@ public class ServerContext implements ProxyObject {
     @Override
     public void putMember(String key, Value value) {
         logger.warn("put not supported on context object: {} - {}", key, value);
+    }
+
+    static class LogWrapper { // TODO code duplication with ScenarioBridge
+
+        final Object[] values;
+
+        LogWrapper(Object... values) {
+            // sometimes a null array gets passed in, graal weirdness
+            this.values = values == null ? new Value[0] : values;
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            for (Object v : values) {
+                Variable var = new Variable(v);
+                sb.append(var.getAsPrettyString()).append(' ');
+            }
+            return sb.toString();
+        }
+
     }
 
 }
