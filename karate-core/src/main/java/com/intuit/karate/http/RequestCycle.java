@@ -98,7 +98,7 @@ public class RequestCycle {
     public RequestCycle copy(Request request, Map<String, Object> variables) {
         ServerContext temp = new ServerContext(config, request, variables);
         if (session != null) {
-            temp.setSession(session.copy());
+            temp.setSession(session);
         }
         return new RequestCycle(JsEngine.local(), templateEngine, temp);
     }
