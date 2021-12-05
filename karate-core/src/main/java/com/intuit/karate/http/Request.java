@@ -70,6 +70,7 @@ public class Request implements ProxyObject {
     private static final String PATH = "path";
     private static final String METHOD = "method";
     private static final String PARAM = "param";
+    private static final String NON_BLANK = "nonBlank";
     private static final String PARAMS = "params";
     private static final String HEADER = "header";
     private static final String HEADERS = "headers";
@@ -93,7 +94,7 @@ public class Request implements ProxyObject {
     private static final String URL_BASE = "urlBase";
 
     private static final String[] KEYS = new String[]{
-        PATH, METHOD, PARAM, PARAMS, HEADER, HEADERS, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, BODY, MULTI_PART, MULTI_PARTS, JSON, AJAX,
+        PATH, METHOD, PARAM, NON_BLANK, PARAMS, HEADER, HEADERS, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, BODY, MULTI_PART, MULTI_PARTS, JSON, AJAX,
         GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE
     };
     private static final Set<String> KEY_SET = new HashSet<>(Arrays.asList(KEYS));
@@ -165,6 +166,11 @@ public class Request implements ProxyObject {
             return null;
         }
         return values.get(0);
+    }
+    
+    public String getNonBlank(String name) {
+        String value = getParam(name);
+        return StringUtils.isBlank(value) ? null : value;
     }
 
     public List<String> getParamValues(String name) {
@@ -451,6 +457,8 @@ public class Request implements ProxyObject {
                 return JsValue.fromJava(getBodyConverted());
             case PARAM:
                 return (Function<String, String>) this::getParam;
+            case NON_BLANK:
+                return (Function<String, String>) this::getNonBlank;
             case JSON:
                 return (Function<String, Object>) this::getParamAsJsValue;
             case AJAX:
