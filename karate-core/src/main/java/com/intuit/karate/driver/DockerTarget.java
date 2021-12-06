@@ -155,7 +155,7 @@ public class DockerTarget implements Target {
         String dockerPort = Command.execLine((File)null, "docker port " + containerId + " 9222/tcp");
         Pattern portPattern = Pattern.compile("(\\d+?\\.){3}\\d:(\\d+)");
         Matcher matcher = portPattern.matcher(dockerPort);
-        if (matcher.matches()) {
+        if (matcher.find()) {
             try {
                 return Integer.parseInt(matcher.group(2));
             } catch (NumberFormatException e) {
