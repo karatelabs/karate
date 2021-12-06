@@ -92,10 +92,11 @@ public class Request implements ProxyObject {
     private static final String OPTIONS = "options";
     private static final String TRACE = "trace";
     private static final String URL_BASE = "urlBase";
+    private static final String URL = "url";
 
     private static final String[] KEYS = new String[]{
         PATH, METHOD, PARAM, NON_BLANK, PARAMS, HEADER, HEADERS, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, BODY, MULTI_PART, MULTI_PARTS, JSON, AJAX,
-        GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE
+        GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL
     };
     private static final Set<String> KEY_SET = new HashSet<>(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
@@ -467,6 +468,8 @@ public class Request implements ProxyObject {
                 return path;
             case URL_BASE:
                 return urlBase;
+            case URL:
+                return urlAndPath;
             case PARAMS:
                 return JsValue.fromJava(params);
             case PATH_PARAM:
@@ -501,6 +504,8 @@ public class Request implements ProxyObject {
     
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap();
+        map.put(URL, urlAndPath);
+        map.put(URL_BASE, urlBase);
         map.put(PATH, path);
         map.put(METHOD, method);
         map.put(HEADER_ENTRIES, HEADER_ENTRIES_FUNCTION.get());
