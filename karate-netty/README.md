@@ -64,8 +64,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 <tr>
   <th>Advanced</th>
   <td>
-      <a href="#configure-cors"><code>configure cors</code></a>
-    | <a href="#configure-responsedelay"><code>configure responseDelay</code></a>    
+      <a href="#configure-cors"><code>configure cors</code></a>  
     | <a href="#configure-afterscenario"><code>configure afterScenario</code></a>
     | <a href="#configure-responseheaders"><code>configure responseHeaders</code></a>    
     | <a href="#proxy-mode"><code>Proxy Mode</code></a>
@@ -758,15 +757,7 @@ Scenario: pathMatches('/v1/test')
 
 Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).
 
-## `configure responseDelay`
-You can also configure a delay that will "globally" apply across all scenarios in the [`Background`](#background).
-
-```cucumber
-Background:
-    * configure responseDelay = 400
-```
-
-For more dynamic "global" behavior such as a random delay, look at [`configure afterScenario`](#configure-afterscenario).
+For more dynamic "global" behavior such as a random delay for *every* `Scenario`, look at [`configure afterScenario`](#configure-afterscenario).
 
 ## `afterScenario`
 Use this to add re-use any behaviour after scenario run, e.g. logging. For example:
