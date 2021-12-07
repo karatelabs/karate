@@ -15,7 +15,6 @@
     </appender>    
    
     <logger name="com.intuit.karate" level="DEBUG"/>
-    <logger name="com.intuit.karate.driver" level="TRACE"/>
     <logger name="driver" level="DEBUG"/>
    
     <root level="warn">
