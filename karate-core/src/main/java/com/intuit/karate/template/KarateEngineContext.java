@@ -78,6 +78,10 @@ public class KarateEngineContext implements IEngineContext {
         THREAD_LOCAL.set(kec);
     }
     
+    public String getTemplateName() {
+        return wrapped.getTemplateData().getTemplate();
+    }
+    
     public void setRedirect(boolean redirect) {
         this.redirect = redirect;
     }

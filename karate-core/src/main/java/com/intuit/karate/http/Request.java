@@ -70,6 +70,7 @@ public class Request implements ProxyObject {
     private static final String PATH = "path";
     private static final String METHOD = "method";
     private static final String PARAM = "param";
+    private static final String PARAM_INT = "paramInt";
     private static final String NON_BLANK = "nonBlank";
     private static final String PARAMS = "params";
     private static final String HEADER = "header";
@@ -81,7 +82,6 @@ public class Request implements ProxyObject {
     private static final String MULTI_PART = "multiPart";
     private static final String MULTI_PARTS = "multiParts";
     private static final String JSON = "json";
-    private static final String AJAX = "ajax";
     private static final String GET = "get";
     private static final String POST = "post";
     private static final String PUT = "put";
@@ -95,8 +95,8 @@ public class Request implements ProxyObject {
     private static final String URL = "url";
 
     private static final String[] KEYS = new String[]{
-        PATH, METHOD, PARAM, NON_BLANK, PARAMS, HEADER, HEADERS, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, BODY, MULTI_PART, MULTI_PARTS, JSON, AJAX,
-        GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL
+        PATH, METHOD, PARAM, PARAM_INT, NON_BLANK, PARAMS, HEADER, HEADERS, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, BODY,
+        MULTI_PART, MULTI_PARTS, JSON, GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL
     };
     private static final Set<String> KEY_SET = new HashSet<>(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
@@ -159,6 +159,11 @@ public class Request implements ProxyObject {
             return Collections.emptyList();
         }
         return cookieValues.stream().map(ClientCookieDecoder.STRICT::decode).collect(toList());
+    }
+    
+    public int getParamInt(String name) {
+        String value = getParam(name);
+        return value == null ? -1 : Integer.valueOf(value);
     }
 
     public String getParam(String name) {
@@ -458,12 +463,12 @@ public class Request implements ProxyObject {
                 return JsValue.fromJava(getBodyConverted());
             case PARAM:
                 return (Function<String, String>) this::getParam;
+            case PARAM_INT:
+                return (Function<String, Integer>) this::getParamInt;                
             case NON_BLANK:
                 return (Function<String, String>) this::getNonBlank;
             case JSON:
                 return (Function<String, Object>) this::getParamAsJsValue;
-            case AJAX:
-                return isAjax();
             case PATH:
                 return path;
             case URL_BASE:

@@ -83,10 +83,11 @@ public class ServerContext implements ProxyObject {
     private static final String TO_JSON = "toJson";
     private static final String TO_JSON_PRETTY = "toJsonPretty";
     private static final String FROM_JSON = "fromJson";
+    private static final String TEMPLATE = "template";
 
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, LOG, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
-        NEXT_ID, SESSION_ID, EXPIRE, RENDER, BODY_APPEND, COPY, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
+        NEXT_ID, SESSION_ID, EXPIRE, RENDER, BODY_APPEND, COPY, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON, TEMPLATE};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -315,11 +316,11 @@ public class ServerContext implements ProxyObject {
 
     public LogAppender getLogAppender() {
         return logAppender;
-    }        
+    }
 
     public void setLogAppender(LogAppender logAppender) {
         this.logAppender = logAppender;
-    }        
+    }
 
     private final Methods.FunVar GET_FUNCTION = args -> {
         if (args.length == 0 || args[0] == null) {
@@ -466,6 +467,8 @@ public class ServerContext implements ProxyObject {
                 return (Consumer<String>) this::bodyAppend;
             case RESOLVER:
                 return config.getResourceResolver();
+            case TEMPLATE:
+                return KarateEngineContext.get().getTemplateName();
             default:
                 logger.warn("no such property on context object: {}", key);
                 return null;

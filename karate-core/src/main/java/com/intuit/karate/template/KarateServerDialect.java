@@ -49,11 +49,11 @@ public class KarateServerDialect extends AbstractProcessorDialect {
         ps.add(new KaScriptElemProcessor(dialectPrefix));
         ps.add(new KaSetElemProcessor(dialectPrefix));
         ps.add(new KaLinkAttrProcessor(dialectPrefix, config));
-        ps.add(new KaHxPathAttrProcessor(dialectPrefix, "get", config));
-        ps.add(new KaHxPathAttrProcessor(dialectPrefix, "post", config));
-        ps.add(new KaHxPathAttrProcessor(dialectPrefix, "put", config));
-        ps.add(new KaHxPathAttrProcessor(dialectPrefix, "patch", config));
-        ps.add(new KaHxPathAttrProcessor(dialectPrefix, "delete", config));
+        ps.add(new KaHxMethodAttrProcessor(dialectPrefix, "get", config));
+        ps.add(new KaHxMethodAttrProcessor(dialectPrefix, "post", config));
+        ps.add(new KaHxMethodAttrProcessor(dialectPrefix, "put", config));
+        ps.add(new KaHxMethodAttrProcessor(dialectPrefix, "patch", config));
+        ps.add(new KaHxMethodAttrProcessor(dialectPrefix, "delete", config));
         ps.add(new KaHxValsAttrProcessor(dialectPrefix));
         return ps;
     }
