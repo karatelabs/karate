@@ -622,10 +622,25 @@ public class ScenarioEngine {
         setVariable(RESPONSE_STATUS, response.getStatus());
         setVariable(RESPONSE, body);
         if (config.isLowerCaseResponseHeaders()) {
-            setVariable(RESPONSE_HEADERS, response.getHeadersWithLowerCaseNames());
-        } else {
-            setVariable(RESPONSE_HEADERS, response.getHeaders());
-        }
+        	
+            Map<String,List<String>> insensitiveHeaders = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+            for( Map.Entry<String, List<String>> entry : response.getHeadersWithLowerCaseNames().entrySet()) {
+                    insensitiveHeaders.put(entry.getKey(), entry.getValue());                       
+            }
+            setVariable(RESPONSE_HEADERS, insensitiveHeaders);
+	    } else {
+	    	
+	            if (response.getHeaders() == null) {
+	                    setVariable(RESPONSE_HEADERS, null);
+	            } else {
+	                    Map<String,List<String>> insensitiveHeaders = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+	                    for(Map.Entry<String, List<String>> entry : response.getHeaders().entrySet()) {
+	                            insensitiveHeaders.put(entry.getKey(), entry.getValue());                       
+	                    }
+	                    setVariable(RESPONSE_HEADERS, insensitiveHeaders);
+	            }
+	    }
+
         setHiddenVariable(RESPONSE_BYTES, bytes);
         setHiddenVariable(RESPONSE_TYPE, responseType);
         cookies = response.getCookies();
