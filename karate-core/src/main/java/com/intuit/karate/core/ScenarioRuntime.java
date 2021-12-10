@@ -277,7 +277,7 @@ public class ScenarioRuntime implements Runnable {
                 caller.parentRuntime.engine.vars.forEach((k, v) -> map.put(k, v == null ? null : v.copy(false).getValue()));
 
                 // shallow copy magicVariables
-                map.putAll((Map<String,Object>) caller.parentRuntime.engine.shallowClone(caller.parentRuntime.magicVariables));
+                map.putAll((Map<String, Object>) caller.parentRuntime.engine.shallowClone(caller.parentRuntime.magicVariables));
             }
 
             map.put("__arg", caller.arg == null ? null : caller.arg.getValue());
@@ -446,7 +446,7 @@ public class ScenarioRuntime implements Runnable {
         }
     }
 
-    public void execute(Step step) {
+    public StepResult execute(Step step) {
         if (!stopped && !dryRun) {
             boolean shouldExecute = true;
             for (RuntimeHook hook : featureRuntime.suite.hooks) {
@@ -455,7 +455,7 @@ public class ScenarioRuntime implements Runnable {
                 }
             }
             if (!shouldExecute) {
-                return;
+                return null;
             }
         }
         Result stepResult;
@@ -521,6 +521,7 @@ public class ScenarioRuntime implements Runnable {
         if (executed && !dryRun) {
             featureRuntime.suite.hooks.forEach(h -> h.afterStep(currentStepResult, this));
         }
+        return currentStepResult;
     }
 
     public void afterRun() {
