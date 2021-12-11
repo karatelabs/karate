@@ -19,7 +19,7 @@ class ConsumerIntegrationTest {
 
     @BeforeAll
     static void beforeAll() {
-        context = PaymentService.start();
+        context = PaymentService.start(0);
         String paymentServiceUrl = "http://localhost:" + PaymentService.getPort(context);
         consumer = new Consumer(paymentServiceUrl);
     }
