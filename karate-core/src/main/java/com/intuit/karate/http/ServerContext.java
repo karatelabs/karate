@@ -85,10 +85,12 @@ public class ServerContext implements ProxyObject {
     private static final String TO_JSON_PRETTY = "toJsonPretty";
     private static final String FROM_JSON = "fromJson";
     private static final String TEMPLATE = "template";
+    private static final String TYPE_OF = "typeOf";
+    private static final String IS_PRIMITIVE = "isPrimitive";
 
     private static final String[] KEYS = new String[]{
-        READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, LOG, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
-        NEXT_ID, SESSION_ID, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON, TEMPLATE};
+        READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, LOG, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP, NEXT_ID, SESSION_ID,
+        CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON, TEMPLATE, TYPE_OF, IS_PRIMITIVE};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -287,7 +289,7 @@ public class ServerContext implements ProxyObject {
 
     public boolean isClosed() {
         return closed;
-    }        
+    }
 
     public boolean isHttpGetAllowed() {
         return httpGetAllowed;
@@ -424,6 +426,10 @@ public class ServerContext implements ProxyObject {
 
     private final Supplier<Integer> NEXT_ID_FUNCTION = () -> ++nextId;
 
+    private final Function<String, Object> TYPE_OF_FUNCTION = o -> new Variable(o).getTypeString();
+
+    private final Function<Object, Object> IS_PRIMITIVE_FUNCTION = o -> !new Variable(o).isMapOrList();
+
     @Override
     public Object getMember(String key) {
         switch (key) {
@@ -468,7 +474,7 @@ public class ServerContext implements ProxyObject {
             case CLOSE:
                 return CLOSE_FUNCTION;
             case CLOSED:
-                return closed;                
+                return closed;
             case RENDER:
                 return RENDER_FUNCTION;
             case BODY_APPEND:
@@ -477,6 +483,10 @@ public class ServerContext implements ProxyObject {
                 return config.getResourceResolver();
             case TEMPLATE:
                 return KarateEngineContext.get().getTemplateName();
+            case TYPE_OF:
+                return TYPE_OF_FUNCTION;
+            case IS_PRIMITIVE:
+                return IS_PRIMITIVE_FUNCTION;
             default:
                 logger.warn("no such property on context object: {}", key);
                 return null;
