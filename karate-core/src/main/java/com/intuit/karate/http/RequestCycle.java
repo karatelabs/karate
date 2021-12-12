@@ -70,7 +70,6 @@ public class RequestCycle {
 
     private String switchTemplate;
     private Map<String, Object> switchParams;
-    private boolean expired;
 
     private RequestCycle(JsEngine engine, KarateTemplateEngine templateEngine, ServerContext context) {
         this.engine = engine;
@@ -113,7 +112,7 @@ public class RequestCycle {
 
     private void close() {
         if (session != null) {
-            if (expired) {
+            if (context.isClosed()) {
                 context.getConfig().getSessionStore().delete(session.getId());
                 logger.debug("session deleted: {}", session.getId());
             } else {
@@ -152,14 +151,6 @@ public class RequestCycle {
 
     public void setSwitchParams(Map<String, Object> switchParams) {
         this.switchParams = switchParams;
-    }
-
-    public boolean isExpired() {
-        return expired;
-    }
-
-    public void setExpired(boolean expired) {
-        this.expired = expired;
     }
 
     protected Response handle() {

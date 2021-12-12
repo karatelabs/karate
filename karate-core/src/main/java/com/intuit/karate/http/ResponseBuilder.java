@@ -145,7 +145,8 @@ public class ResponseBuilder {
 
     public Response build() {
         Response response = requestCycle.getResponse();
-        if (requestCycle.isExpired()) {
+        ServerContext context = requestCycle.getContext();
+        if (context.isClosed()) {
             Session session = requestCycle.getSession();
             if (session != null) {
                 deleteSessionCookie(session.getId());
@@ -153,8 +154,7 @@ public class ResponseBuilder {
         }
         if (cookies != null) {
             cookies.forEach(c -> header(HttpConstants.HDR_SET_COOKIE, ServerCookieEncoder.LAX.encode(c)));
-        }
-        ServerContext context = requestCycle.getContext();
+        }        
         if (resourceType != null && resourceType.isHtml() && context.isAjax()) {
             if (context.getBodyAppends() != null) {
                 String appends = StringUtils.join(context.getBodyAppends(), "\n");

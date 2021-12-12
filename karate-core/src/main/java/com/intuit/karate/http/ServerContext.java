@@ -75,7 +75,8 @@ public class ServerContext implements ProxyObject {
     private static final String HTTP = "http";
     private static final String NEXT_ID = "nextId";
     private static final String SESSION_ID = "sessionId";
-    private static final String EXPIRE = "expire";
+    private static final String CLOSE = "close";
+    private static final String CLOSED = "closed";
     private static final String RENDER = "render";
     private static final String BODY_APPEND = "bodyAppend";
     private static final String COPY = "copy";
@@ -87,7 +88,7 @@ public class ServerContext implements ProxyObject {
 
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, LOG, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
-        NEXT_ID, SESSION_ID, EXPIRE, RENDER, BODY_APPEND, COPY, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON, TEMPLATE};
+        NEXT_ID, SESSION_ID, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON, TEMPLATE};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -101,6 +102,7 @@ public class ServerContext implements ProxyObject {
     private boolean newSession;
     private Session session; // can be pre-resolved, else will be set by RequestCycle.init()
     private boolean switched;
+    private boolean closed;
     private Supplier<Response> customHandler;
     private int nextId;
 
@@ -283,6 +285,10 @@ public class ServerContext implements ProxyObject {
         this.api = api;
     }
 
+    public boolean isClosed() {
+        return closed;
+    }        
+
     public boolean isHttpGetAllowed() {
         return httpGetAllowed;
     }
@@ -394,8 +400,8 @@ public class ServerContext implements ProxyObject {
         return null;
     };
 
-    private final Supplier<String> EXPIRE_FUNCTION = () -> {
-        RequestCycle.get().setExpired(true);
+    private final Supplier<String> CLOSE_FUNCTION = () -> {
+        closed = true;
         return null;
     };
 
@@ -459,8 +465,10 @@ public class ServerContext implements ProxyObject {
                 return NEXT_ID_FUNCTION;
             case SESSION_ID:
                 return session == null ? null : session.getId();
-            case EXPIRE:
-                return EXPIRE_FUNCTION;
+            case CLOSE:
+                return CLOSE_FUNCTION;
+            case CLOSED:
+                return closed;                
             case RENDER:
                 return RENDER_FUNCTION;
             case BODY_APPEND:
