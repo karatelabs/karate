@@ -133,6 +133,10 @@ public class RequestCycle {
         return session;
     }
 
+    public Request getRequest() {
+        return request;
+    }        
+
     public Response getResponse() {
         return response;
     }

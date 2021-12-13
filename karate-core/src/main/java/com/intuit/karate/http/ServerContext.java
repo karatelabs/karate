@@ -111,6 +111,7 @@ public class ServerContext implements ProxyObject {
     private final Map<String, Object> variables;
     private List<String> bodyAppends;
     private LogAppender logAppender;
+    private RequestCycle mockRequestCycle;
 
     public ServerContext(ServerConfig config, Request request) {
         this(config, request, null);
@@ -307,6 +308,14 @@ public class ServerContext implements ProxyObject {
         this.customHandler = customHandler;
     }
 
+    public void setMockRequestCycle(RequestCycle mockRequestCycle) {
+        this.mockRequestCycle = mockRequestCycle;
+    }
+
+    public RequestCycle getMockRequestCycle() {
+        return mockRequestCycle;
+    }
+
     public boolean isSwitched() {
         return switched;
     }
@@ -328,6 +337,14 @@ public class ServerContext implements ProxyObject {
 
     public void setLogAppender(LogAppender logAppender) {
         this.logAppender = logAppender;
+    }
+
+    public void log(Object... args) {
+        String log = new LogWrapper(args).toString();
+        logger.info(log);
+        if (logAppender != null) {
+            logAppender.append(log);
+        }
     }
 
     private final Methods.FunVar GET_FUNCTION = args -> {
@@ -353,11 +370,7 @@ public class ServerContext implements ProxyObject {
     private final Function<Object, String> RENDER_FUNCTION; // set in constructor  
 
     private final Methods.FunVar LOG_FUNCTION = args -> {
-        String log = new LogWrapper(args).toString();
-        logger.info(log);
-        if (logAppender != null) {
-            logAppender.append(log);
-        }
+        log(args);
         return null;
     };
 
