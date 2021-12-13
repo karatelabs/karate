@@ -971,8 +971,17 @@ public class ScenarioEngine {
     // doc =====================================================================
     //    
     private KarateTemplateEngine templateEngine;
+    
+    private ResourceResolver resourceResolver;
+
+    public void setResourceResolver(ResourceResolver resourceResolver) {
+        this.resourceResolver = resourceResolver;
+    }        
 
     private ResourceResolver getResourceResolver() {
+        if (resourceResolver != null) {
+            return resourceResolver;
+        }
         String prefixedPath = runtime.featureRuntime.rootFeature.feature.getResource().getPrefixedParentPath();
         return new ResourceResolver(prefixedPath);
     }

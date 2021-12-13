@@ -25,6 +25,7 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.template.KarateTemplateEngine;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -108,6 +109,10 @@ public class RequestCycle {
 
     public KarateTemplateEngine getTemplateEngine() {
         return templateEngine;
+    }
+    
+    public ResourceResolver getResourceResolver() {
+        return config.getResourceResolver();
     }
 
     private void close() {
