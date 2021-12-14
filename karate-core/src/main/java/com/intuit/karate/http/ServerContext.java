@@ -437,7 +437,7 @@ public class ServerContext implements ProxyObject {
         return o;
     };
 
-    private final Supplier<Integer> NEXT_ID_FUNCTION = () -> ++nextId;
+    private final Supplier<String> NEXT_ID_FUNCTION = () -> ++nextId + "-" + System.currentTimeMillis();
 
     private final Function<String, Object> TYPE_OF_FUNCTION = o -> new Variable(o).getTypeString();
 
