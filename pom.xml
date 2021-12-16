@@ -140,6 +140,17 @@
                             <stagingProfileId>476c7dd0c49efa</stagingProfileId>
                             <autoReleaseAfterClose>true</autoReleaseAfterClose>
                         </configuration>
+                        <dependencies>
+                            <!--
+                              TODO: remove after OSSRH-66257, NEXUS-26993 are fixed
+                              possibly via https://github.com/sonatype/nexus-maven-plugins/pull/91
+                            -->
+                            <dependency>
+                                <groupId>com.thoughtworks.xstream</groupId>
+                                <artifactId>xstream</artifactId>
+                                <version>1.4.15</version>
+                            </dependency>
+                        </dependencies>                        
                     </plugin>                     
                 </plugins>
             </build>
