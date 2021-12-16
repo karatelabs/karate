@@ -8,8 +8,8 @@
     <packaging>pom</packaging>
     
     <name>${project.artifactId}</name>
-    <description>Web-Services Testing Made Simple</description>
-    <url>https://github.com/intuit/karate</url>
+    <description>Test Automation Made Simple</description>
+    <url>https://github.com/karatelabs/karate</url>
     <licenses>
         <license>
             <name>MIT License</name>
@@ -18,16 +18,16 @@
         </license>
     </licenses>
     <scm>
-        <url>https://github.com/intuit/karate</url>
-        <connection>scm:git:git://github.com/intuit/karate.git</connection>
-        <developerConnection>scm:git:git@github.com:intuit/karate.git</developerConnection>
+        <url>https://github.com/karatelabs/karate</url>
+        <connection>scm:git:git://github.com/karatelabs/karate.git</connection>
+        <developerConnection>scm:git:git@github.com:karatelabs/karate.git</developerConnection>
     </scm>
     <developers>
         <developer>
             <name>Peter Thomas</name>
             <id>ptrthomas</id>
-            <organization>Intuit, Inc.</organization>
-            <organizationUrl>http://www.intuit.com</organizationUrl>
+            <organization>Karate Labs Inc.</organization>
+            <organizationUrl>http://karatelabs.io</organizationUrl>
         </developer>
     </developers>       
 
