@@ -16,3 +16,10 @@ Scenario:
 : '72d72u69d69u76d76u76d76u79d79u32d32u87d87u79d79u82d82u76d76u68d68u'
 """
 * match text('#pressedId') == expected
+
+* clear('#inputId')
+* waitFor('#inputId').input('hello world')
+* waitFor('input[name=submitName]').click()
+* match value('#inputId') == 'hello world'
+* match text('#valueId') == 'hello world'
+* match html('#valueId') == '<div id="valueId">hello world</div>'
