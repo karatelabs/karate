@@ -60,18 +60,6 @@
     <build>       
         <plugins>
             <plugin>
-                <groupId>org.owasp</groupId>
-                <artifactId>dependency-check-maven</artifactId>
-                <version>6.5.0</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>aggregate</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven.compiler.version}</version>
@@ -107,6 +95,28 @@
     </build>
     
     <profiles>
+        <profile> 
+            <id>depcheck</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <version>6.5.0</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>aggregate</goal>
+                                </goals>
+                                <configuration>
+                                    <failBuildOnCVSS>0</failBuildOnCVSS>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin> 
+                </plugins>
+            </build>
+        </profile>        
         <profile> 
             <id>release</id>
             <build>
