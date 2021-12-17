@@ -161,6 +161,8 @@
                             <nexusUrl>https://oss.sonatype.org/</nexusUrl>
                             <stagingProfileId>476c7dd0c49efa</stagingProfileId>
                             <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                            <stagingProgressTimeoutMinutes>10</stagingProgressTimeoutMinutes>
+                            <stagingProgressPauseDurationSeconds>15</stagingProgressPauseDurationSeconds>                            
                         </configuration>
                         <dependencies>
                             <!--
