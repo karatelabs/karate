@@ -1338,6 +1338,12 @@ To avoid problems, stick to the pattern of using double-quotes to "wrap" the Jav
 * script("console.log('hello world')")
 ```
 
+But note that you can always "escape" a quote if needed, using back-slashes:
+
+```cucumber
+* script("console.log('I\\'ve been logged')")
+```
+
 A more useful variation is to perform a JavaScript `eval` on a reference to the HTML DOM element retrieved by a [locator](#locators). For example:
 
 ```cucumber
