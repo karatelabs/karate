@@ -37,14 +37,14 @@ import org.thymeleaf.templatemode.TemplateMode;
  *
  * @author pthomas3
  */
-public class KaHxPathAttrProcessor extends AbstractAttributeTagProcessor {
+public class KaHxMethodAttrProcessor extends AbstractAttributeTagProcessor {
 
-    private static final Logger logger = LoggerFactory.getLogger(KaHxPathAttrProcessor.class);
+    private static final Logger logger = LoggerFactory.getLogger(KaHxMethodAttrProcessor.class);
 
     private final String attributeName;
     private final String hostContextPath;
 
-    public KaHxPathAttrProcessor(String dialectPrefix, String attributeName, ServerConfig config) {
+    public KaHxMethodAttrProcessor(String dialectPrefix, String attributeName, ServerConfig config) {
         super(TemplateMode.HTML, dialectPrefix, null, false, attributeName, true, 1000, true);
         this.attributeName = attributeName;
         hostContextPath = config.getHostContextPath();
@@ -54,7 +54,10 @@ public class KaHxPathAttrProcessor extends AbstractAttributeTagProcessor {
     protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag, AttributeName an, String av, IElementTagStructureHandler sh) {
         if ("this".equals(av)) {
             av = ctx.getTemplateData().getTemplate();
-        } else if (hostContextPath != null) {
+        } else if (av.startsWith("${")) {
+            av = KarateEngineContext.get().evalLocal("`" + av + "`", true).getValue();
+        }
+        if (hostContextPath != null) {
             av = hostContextPath + av;
         }
         sh.setAttribute("hx-" + attributeName, av);

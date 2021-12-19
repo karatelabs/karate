@@ -24,7 +24,6 @@
 package com.intuit.karate.mock.servlet;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.http.HttpConstants;
 import com.intuit.karate.http.ResourceType;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -116,6 +115,11 @@ public class MockPart implements Part {
     @Override
     public Collection<String> getHeaderNames() {
         return map.keySet();
+    }
+
+    @Override
+    public String getSubmittedFileName() {
+        return (String) map.get("filename");
     }
 
 }

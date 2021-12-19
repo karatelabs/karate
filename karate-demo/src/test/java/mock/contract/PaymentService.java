@@ -17,7 +17,9 @@ import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfi
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  *
@@ -64,7 +66,11 @@ public class PaymentService {
 
         @GetMapping("/{id:.+}")
         public Payment get(@PathVariable int id) {
-            return payments.get(id);
+            Payment payment = payments.get(id);
+            if (payment == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+            }
+            return payment;
         }
 
         @DeleteMapping("/{id:.+}")
@@ -78,7 +84,11 @@ public class PaymentService {
     }
 
     public static ConfigurableApplicationContext start(String queueName, boolean ssl) {
-        Stream<String> args = Stream.of("--server.port=0", "--queue.name=" + queueName);
+        return start(queueName, ssl, 0);
+    }
+
+    public static ConfigurableApplicationContext start(String queueName, boolean ssl, int port) {
+        Stream<String> args = Stream.of("--server.port=" + port, "--queue.name=" + queueName);
         if (ssl) {
             args = Stream.concat(args, Stream.of(
                     "--server.ssl.key-store=src/test/java/server-keystore.p12",
@@ -101,6 +111,10 @@ public class PaymentService {
     @Bean
     public ServerStartedInitializingBean getInitializingBean() {
         return new ServerStartedInitializingBean();
+    }
+
+    public static void main(String[] args) {
+        start("TEMP", false, 8090);
     }
 
 }

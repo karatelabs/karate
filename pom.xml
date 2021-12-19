@@ -8,8 +8,8 @@
     <packaging>pom</packaging>
     
     <name>${project.artifactId}</name>
-    <description>Web-Services Testing Made Simple</description>
-    <url>https://github.com/intuit/karate</url>
+    <description>Test Automation Made Simple</description>
+    <url>https://github.com/karatelabs/karate</url>
     <licenses>
         <license>
             <name>MIT License</name>
@@ -18,16 +18,16 @@
         </license>
     </licenses>
     <scm>
-        <url>https://github.com/intuit/karate</url>
-        <connection>scm:git:git://github.com/intuit/karate.git</connection>
-        <developerConnection>scm:git:git@github.com:intuit/karate.git</developerConnection>
+        <url>https://github.com/karatelabs/karate</url>
+        <connection>scm:git:git://github.com/karatelabs/karate.git</connection>
+        <developerConnection>scm:git:git@github.com:karatelabs/karate.git</developerConnection>
     </scm>
     <developers>
         <developer>
             <name>Peter Thomas</name>
             <id>ptrthomas</id>
-            <organization>Intuit, Inc.</organization>
-            <organizationUrl>http://www.intuit.com</organizationUrl>
+            <organization>Karate Labs Inc.</organization>
+            <organizationUrl>http://karatelabs.io</organizationUrl>
         </developer>
     </developers>       
 
@@ -40,8 +40,8 @@
         <junit.version>4.13.1</junit.version>
         <junit5.version>5.7.2</junit5.version>
         <nexus.staging.plugin.version>1.6.8</nexus.staging.plugin.version>
-        <spring.version>5.2.9.RELEASE</spring.version>
-        <spring.boot.version>2.3.4.RELEASE</spring.boot.version>
+        <spring.version>5.3.13</spring.version>
+        <spring.boot.version>2.6.1</spring.boot.version>
         <jacoco.plugin.version>0.7.9</jacoco.plugin.version>
     </properties>
 
@@ -96,6 +96,28 @@
     
     <profiles>
         <profile> 
+            <id>depcheck</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <version>6.5.0</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>aggregate</goal>
+                                </goals>
+                                <configuration>
+                                    <failBuildOnCVSS>0</failBuildOnCVSS>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin> 
+                </plugins>
+            </build>
+        </profile>        
+        <profile> 
             <id>release</id>
             <build>
                 <plugins>
@@ -139,7 +161,20 @@
                             <nexusUrl>https://oss.sonatype.org/</nexusUrl>
                             <stagingProfileId>476c7dd0c49efa</stagingProfileId>
                             <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                            <stagingProgressTimeoutMinutes>10</stagingProgressTimeoutMinutes>
+                            <stagingProgressPauseDurationSeconds>15</stagingProgressPauseDurationSeconds>                            
                         </configuration>
+                        <dependencies>
+                            <!--
+                              TODO: remove after OSSRH-66257, NEXUS-26993 are fixed
+                              possibly via https://github.com/sonatype/nexus-maven-plugins/pull/91
+                            -->
+                            <dependency>
+                                <groupId>com.thoughtworks.xstream</groupId>
+                                <artifactId>xstream</artifactId>
+                                <version>1.4.15</version>
+                            </dependency>
+                        </dependencies>                        
                     </plugin>                     
                 </plugins>
             </build>

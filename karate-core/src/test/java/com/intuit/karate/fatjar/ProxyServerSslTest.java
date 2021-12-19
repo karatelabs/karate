@@ -54,7 +54,7 @@ class ProxyServerSslTest {
         proxy.stop();
     }
 
-    @Test
+    // @Test
     void testProxy() throws Exception {
         String url = "https://localhost:" + server.getPort() + "/v1/cats";
         assertEquals(200, http(get(url)));

@@ -304,6 +304,20 @@ class KarateMockHandlerTest {
         );
         matchVar("response", "foo=bar");
     }
+    
+    @Test
+    void testFormFieldAsArray() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = request");
+        run(
+                URL_STEP,
+                "form field foo = ['bar1', 'bar2']",
+                "path 'hello'",
+                "method post"
+        );
+        matchVar("response", "foo=bar1&foo=bar2");
+    }    
 
     @Test
     void testMultiPartField() {

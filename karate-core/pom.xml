@@ -30,12 +30,12 @@
         <dependency>
             <groupId>org.thymeleaf</groupId>
             <artifactId>thymeleaf</artifactId>
-            <version>3.0.12.RELEASE</version>
+            <version>3.0.14.RELEASE</version>
         </dependency>    
         <dependency>
             <groupId>com.linecorp.armeria</groupId>
             <artifactId>armeria</artifactId>
-            <version>1.8.0</version>
+            <version>1.13.4</version>
         </dependency>              
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
@@ -51,13 +51,13 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.2.3</version>
+            <version>1.2.8</version>
         </dependency>         
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jcl-over-slf4j</artifactId>
             <!-- this is tied to logback-classic -->
-            <version>1.7.25</version>
+            <version>1.7.32</version>
             <scope>runtime</scope>
         </dependency>                      
         <dependency>
@@ -195,9 +195,10 @@
                                     <artifactSet>
                                         <includes>
                                             <include>com.linecorp.armeria:*</include>
-                                            <!-- next 2 needed for armeria at runtime -->
+                                            <!-- next 3 needed for armeria at runtime -->
                                             <include>io.micrometer:*</include>
-                                            <include>org.reactivestreams:*</include>                                  
+                                            <include>org.reactivestreams:*</include>
+                                            <include>com.fasterxml.jackson.core:*</include>
                                             <include>io.netty:*</include>                                       
                                             <include>org.apache.httpcomponents:*</include>
                                             <!-- needed for apache httpclient at runtime -->
@@ -222,7 +223,11 @@
                                         <relocation>
                                             <pattern>org.reactivestreams.</pattern>
                                             <shadedPattern>karate.org.reactivestreams.</shadedPattern>
-                                        </relocation>                                                                                
+                                        </relocation>
+                                        <relocation>
+                                            <pattern>com.fasterxml.jackson.</pattern>
+                                            <shadedPattern>karate.com.fasterxml.jackson.</shadedPattern>
+                                        </relocation>                                                                                                                      
                                         <relocation>
                                             <pattern>io.netty.</pattern>
                                             <shadedPattern>karate.io.netty.</shadedPattern>

@@ -40,7 +40,6 @@ public class RequestHandler implements ServerHandler {
 
     private final SessionStore sessionStore;
     private final KarateTemplateEngine templateEngine;
-    private final String homePagePath;
     private final ServerConfig config;
     private final Function<Request, ServerContext> contextFactory;
     private final String stripHostContextPath;
@@ -49,7 +48,6 @@ public class RequestHandler implements ServerHandler {
         this.config = config;
         contextFactory = config.getContextFactory();
         templateEngine = TemplateUtils.forServer(config);
-        homePagePath = config.getHomePagePath();
         sessionStore = config.getSessionStore();
         stripHostContextPath = config.isStripContextPathFromRequest() ? config.getHostContextPath() : null;
     }
@@ -65,7 +63,7 @@ public class RequestHandler implements ServerHandler {
             if (logger.isDebugEnabled()) {
                 logger.debug("redirecting to home page: {}", request);
             }
-            return response().locationHeader(redirectPath()).buildWithStatus(302);
+            return response().locationHeader(redirectPath(false)).buildWithStatus(302);
         }
         ServerContext context = contextFactory.apply(request);
         if (request.getResourceType() == null) { // can be set by context factory
@@ -95,7 +93,9 @@ public class RequestHandler implements ServerHandler {
                 }
             }
             if (session == null) {
-                if (config.isAutoCreateSession() || homePagePath.equals(request.getPath())) {
+                if (config.isAutoCreateSession()
+                        || config.getHomePagePath().equals(request.getPath())
+                        || config.getLogoutPagePath().equals(request.getPath())) {
                     session = createSession();
                     context.setNewSession(true);
                     logger.debug("creating new session for '{}': {}", request.getPath(), session);
@@ -106,9 +106,9 @@ public class RequestHandler implements ServerHandler {
                         rb.deleteSessionCookie(sessionId);
                     }
                     if (request.isAjax()) {
-                        rb.ajaxRedirect(redirectPath());
+                        rb.ajaxRedirect(redirectPath(true));
                     } else {
-                        rb.locationHeader(redirectPath());
+                        rb.locationHeader(redirectPath(true));
                     }
                     return rb.buildWithStatus(302);
                 }
@@ -119,9 +119,10 @@ public class RequestHandler implements ServerHandler {
         return rc.handle();
     }
 
-    private String redirectPath() {
+    private String redirectPath(boolean logout) {
+        String path = logout ? config.getLogoutPagePath() : config.getHomePagePath();
         String contextPath = config.getHostContextPath();
-        return contextPath == null ? "/" + homePagePath : contextPath + homePagePath;
+        return contextPath == null ? "/" + path : contextPath + path;
     }
 
     private boolean isExpired(Session session) {

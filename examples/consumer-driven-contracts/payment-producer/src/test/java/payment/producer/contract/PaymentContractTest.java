@@ -19,7 +19,7 @@ class PaymentContractTest {
 
     @BeforeAll
     static void beforeAll() {
-        context = PaymentService.start();
+        context = PaymentService.start(0);
     }
 
     @Test

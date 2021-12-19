@@ -26,13 +26,13 @@ package com.intuit.karate.http;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.Json;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.graal.Methods;
 import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
 import io.netty.handler.codec.http.cookie.Cookie;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -68,7 +68,7 @@ public class Response implements ProxyObject {
 
     private int status;
     private Map<String, List<String>> headers;
-    private byte[] body;
+    private Object body;
 
     private ResourceType resourceType;
     private int delay;
@@ -130,7 +130,10 @@ public class Response implements ProxyObject {
     }
 
     public byte[] getBody() {
-        return body;
+        if (body instanceof byte[]) {
+            return (byte[]) body;
+        }
+        return JsValue.toBytes(body);
     }
 
     public void setBody(byte[] body) {
@@ -142,15 +145,19 @@ public class Response implements ProxyObject {
     }
 
     public String getBodyAsString() {
-        return body == null ? null : FileUtils.toString(body);
+        return body == null ? null : FileUtils.toString(getBody());
     }
 
     public Object getBodyConverted() {
-        ResourceType rt = getResourceType(); // derive if needed
-        if (rt != null && rt.isBinary()) {
+        if (body instanceof byte[]) {
+            ResourceType rt = getResourceType(); // derive if needed
+            if (rt != null && rt.isBinary()) {
+                return body;
+            }
+            return JsValue.fromBytes((byte[]) body, false, rt);
+        } else {
             return body;
         }
-        return JsValue.fromBytes(body, false, rt);
     }
 
     public Json json() {
@@ -230,24 +237,11 @@ public class Response implements ProxyObject {
         }
     };
 
-    private static final String KEY = "key";
-    private static final String VALUE = "value";
-
     private final Supplier HEADER_ENTRIES_FUNCTION = () -> {
         if (headers == null) {
             return JsList.EMPTY;
         }
-        List list = new ArrayList(headers.size());
-        headers.forEach((k, v) -> {
-            if (v == null || v.isEmpty()) {
-                // continue
-            } else {
-                Map map = new HashMap(2);
-                map.put(KEY, k);
-                map.put(VALUE, v.get(0));
-                list.add(map);
-            }
-        });
+        List list = JsonUtils.toList(headers);
         return JsValue.fromJava(list);
     };
 
@@ -261,7 +255,11 @@ public class Response implements ProxyObject {
             case HEADERS:
                 return JsValue.fromJava(headers);
             case BODY:
-                return JsValue.fromJava(getBodyConverted());
+                if (body instanceof byte[]) {
+                    return JsValue.fromJava(getBodyConverted());
+                } else {
+                    return JsValue.fromJava(body);
+                }
             case DATA_TYPE:
                 ResourceType rt = getResourceType();
                 if (rt == null || rt == ResourceType.BINARY) {
@@ -274,6 +272,14 @@ public class Response implements ProxyObject {
                 logger.warn("no such property on response object: {}", key);
                 return null;
         }
+    }
+
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap();
+        map.put(STATUS, status);
+        map.put(HEADER_ENTRIES, HEADER_ENTRIES_FUNCTION.get());
+        map.put(BODY, getBodyConverted());
+        return map;
     }
 
     @Override
@@ -290,7 +296,7 @@ public class Response implements ProxyObject {
     public void putMember(String key, Value value) {
         switch (key) {
             case BODY:
-                body = JsValue.toBytes(value);
+                body = JsValue.toJava(value);
                 break;
             case STATUS:
                 status = value.asInt();
@@ -310,8 +316,8 @@ public class Response implements ProxyObject {
         if (resourceType != null && resourceType != ResourceType.BINARY) {
             sb.append(", type: ").append(resourceType);
         }
-        if (body != null) {
-            sb.append(", length: ").append(body.length);
+        if (body instanceof byte[]) {
+            sb.append(", length: ").append(((byte[]) body).length);
         }
         if (headers != null) {
             sb.append(", headers: ").append(headers);

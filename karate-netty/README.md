@@ -64,8 +64,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 <tr>
   <th>Advanced</th>
   <td>
-      <a href="#configure-cors"><code>configure cors</code></a>
-    | <a href="#configure-responsedelay"><code>configure responseDelay</code></a>    
+      <a href="#configure-cors"><code>configure cors</code></a>  
     | <a href="#configure-afterscenario"><code>configure afterScenario</code></a>
     | <a href="#configure-responseheaders"><code>configure responseHeaders</code></a>    
     | <a href="#proxy-mode"><code>Proxy Mode</code></a>
@@ -167,12 +166,12 @@ If you think about it, all the above are *sufficient* to implement *any* micro-s
 *All* of Karate (core API testing, parallel-runner / HTML reports, the debugger-UI, mocks and web / UI automation) is available as a *single*, executable JAR file. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE. And there is a [Visual Studio Code plugin](https://marketplace.visualstudio.com/items?itemName=kirkslota.karate-runner) that supports the Karate standalone JAR.
 
 ## jbang
-Note that you can easily run Karate or even install applications based on Karate using [`jbang`](https://www.jbang.dev). It will take care of setting up a local Java runtime, which is really convenient. Note that jbang itself is [super-easy to install](https://github.com/jbangdev/jbang#installation) and there is even a "[Zero Install](https://github.com/jbangdev/jbang#zero-install)" option.
+Note that you can easily run Karate or even install applications based on Karate using [`jbang`](https://www.jbang.dev). It will take care of setting up a local Java runtime, which is really convenient. Note that jbang itself is [super-easy to install](https://www.jbang.dev/documentation/guide/latest/installation.html) and there is even a "[Zero Install](https://www.jbang.dev/documentation/guide/latest/installation.html#zero-install)" option.
 
-With jbang installed, you can do this (since a [`jbang-catalog.json`](https://github.com/jbangdev/jbang#implicit-alias-catalogs) is present within the Karate GitHub repository):
+With jbang installed, you can do this (since a [`jbang-catalog.json`](https://www.jbang.dev/documentation/guide/latest/alias_catalogs.html) is present within the [karatelabs/jbang-catalog](https://github.com/karatelabs/jbang-catalog) GitHub repository :
 
 ```
-jbang karate@intuit/karate -h
+jbang karate@karatelabs -h
 ```
 
 What's *really* interesting is that you can install `karate` as a local command-line application !
@@ -758,15 +757,7 @@ Scenario: pathMatches('/v1/test')
 
 Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).
 
-## `configure responseDelay`
-You can also configure a delay that will "globally" apply across all scenarios in the [`Background`](#background).
-
-```cucumber
-Background:
-    * configure responseDelay = 400
-```
-
-For more dynamic "global" behavior such as a random delay, look at [`configure afterScenario`](#configure-afterscenario).
+For more dynamic "global" behavior such as a random delay for *every* `Scenario`, look at [`configure afterScenario`](#configure-afterscenario).
 
 ## `afterScenario`
 Use this to add re-use any behaviour after scenario run, e.g. logging. For example:

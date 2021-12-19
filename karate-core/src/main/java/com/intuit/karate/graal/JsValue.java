@@ -55,12 +55,17 @@ public class JsValue {
         NULL,
         OTHER
     }
+    
+    public static final JsValue NULL = new JsValue(Value.asValue(null));
 
     private final Value original;
     private final Object value;
     public final Type type;
 
     public JsValue(Value v) {
+        if (v == null) {
+            throw new RuntimeException("JsValue() constructor argument has to be not-null");
+        }
         this.original = v;
         try {
             if (v.isNull()) { // apparently this can be a "host object" as well !

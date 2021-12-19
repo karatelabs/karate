@@ -66,7 +66,7 @@ public class JsEngine {
     private static Context createContext(Engine engine) {
         if (engine == null) {
             engine = Engine.newBuilder()
-                    .option(ENGINE_WARN_INTERPRETER_ONLY, FALSE)                    
+                    .option(ENGINE_WARN_INTERPRETER_ONLY, FALSE)
                     .build();
         }
         return Context.newBuilder(JS)
@@ -155,6 +155,9 @@ public class JsEngine {
 
     public JsValue get(String key) {
         Value value = bindings.getMember(key);
+        if (value == null) {
+            throw new RuntimeException("no such variable: " + key);
+        }
         return new JsValue(value);
     }
 

@@ -12,6 +12,7 @@ mvn versions:set -DnewVersion=@@@
 (edit examples/*/pom.xml)
 (edit jbang-catalog.json)
 mvn versions:commit
+mvn clean verify -P depcheck
 mvn clean deploy -P pre-release,release
 
 jar:

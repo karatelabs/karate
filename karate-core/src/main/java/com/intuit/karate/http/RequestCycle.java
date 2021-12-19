@@ -25,6 +25,7 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.template.KarateTemplateEngine;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -67,9 +68,9 @@ public class RequestCycle {
     private final ServerContext context;
     private final ServerConfig config;
     private final Supplier<Response> customHandler;
+
     private String switchTemplate;
     private Map<String, Object> switchParams;
-    private String redirectPath;
 
     private RequestCycle(JsEngine engine, KarateTemplateEngine templateEngine, ServerContext context) {
         this.engine = engine;
@@ -94,8 +95,12 @@ public class RequestCycle {
         engine.put(CONTEXT, context);
     }
 
-    public RequestCycle copy(Request request) {
-        return new RequestCycle(JsEngine.local(), templateEngine, new ServerContext(config, request));
+    public RequestCycle copy(Request request, Map<String, Object> variables) {
+        ServerContext temp = new ServerContext(config, request, variables);
+        if (session != null) {
+            temp.setSession(session);
+        }
+        return new RequestCycle(JsEngine.local(), templateEngine, temp);
     }
 
     public JsEngine getEngine() {
@@ -105,15 +110,24 @@ public class RequestCycle {
     public KarateTemplateEngine getTemplateEngine() {
         return templateEngine;
     }
+    
+    public ResourceResolver getResourceResolver() {
+        return config.getResourceResolver();
+    }
 
     private void close() {
         if (session != null) {
-            JsValue sessionValue = engine.get(SESSION);
-            if (sessionValue.isObject()) {
-                session.getData().putAll(sessionValue.getAsMap());
-                context.getConfig().getSessionStore().save(session);
+            if (context.isClosed()) {
+                context.getConfig().getSessionStore().delete(session.getId());
+                logger.debug("session deleted: {}", session.getId());
             } else {
-                logger.error("invalid session, not map-like: {}", sessionValue);
+                JsValue sessionValue = engine.get(SESSION);
+                if (sessionValue.isObject()) {
+                    session.getData().putAll(sessionValue.getAsMap());
+                    context.getConfig().getSessionStore().save(session);
+                } else {
+                    logger.error("invalid session, not map-like: {}", sessionValue);
+                }
             }
         }
         JsEngine.remove();
@@ -123,6 +137,10 @@ public class RequestCycle {
     public Session getSession() {
         return session;
     }
+
+    public Request getRequest() {
+        return request;
+    }        
 
     public Response getResponse() {
         return response;
@@ -142,18 +160,6 @@ public class RequestCycle {
 
     public void setSwitchParams(Map<String, Object> switchParams) {
         this.switchParams = switchParams;
-    }
-
-    public Map<String, Object> getSwitchParams() {
-        return switchParams;
-    }
-
-    public void setRedirectPath(String redirectPath) {
-        this.redirectPath = redirectPath;
-    }
-
-    public String getRedirectPath() {
-        return redirectPath;
     }
 
     protected Response handle() {
@@ -190,15 +196,18 @@ public class RequestCycle {
         try {
             html = templateEngine.process(request.getPath());
         } catch (Exception e) {
-            if (redirectPath != null) {
-                logger.debug("redirect (full) requested to: {}", redirectPath);
-                html = null; // redirect header will be inserted by response builder
-            } else if (switchTemplate != null) {
-                logger.debug("redirect (ajax) requested to: {}", switchTemplate);
-                if (switchParams != null) {
-                    switchParams.forEach((k, v) -> request.setParam(k, v));
+            if (context.isSwitched()) {
+                if (switchTemplate == null) {
+                    logger.debug("abort template requested");
+                    html = null;
+                } else {
+                    logger.debug("switch template requested: {}", switchTemplate);
+                    request.getParams().clear();
+                    if (switchParams != null) {
+                        switchParams.forEach((k, v) -> request.setParam(k, v));
+                    }
+                    html = templateEngine.process(switchTemplate);
                 }
-                html = templateEngine.process(switchTemplate);
             } else {
                 throw e;
             }

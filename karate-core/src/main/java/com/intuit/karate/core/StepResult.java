@@ -222,6 +222,10 @@ public class StepResult {
     public boolean isStopped() {
         return result.isFailed() || result.isAborted();
     }
+    
+    public boolean isFailed() {
+        return result.isFailed();
+    }
 
     public StepResult(Step step, Result result) {
         this.step = step;

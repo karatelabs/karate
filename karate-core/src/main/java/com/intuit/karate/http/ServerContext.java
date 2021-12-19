@@ -24,6 +24,9 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.JsonUtils;
+import com.intuit.karate.LogAppender;
+import com.intuit.karate.core.Variable;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
@@ -63,6 +66,7 @@ public class ServerContext implements ProxyObject {
     private static final String EVAL = "eval";
     private static final String EVAL_WITH = "evalWith";
     private static final String GET = "get";
+    private static final String LOG = "log";
     private static final String UUID = "uuid";
     private static final String REMOVE = "remove";
     private static final String SWITCH = "switch";
@@ -71,17 +75,22 @@ public class ServerContext implements ProxyObject {
     private static final String HTTP = "http";
     private static final String NEXT_ID = "nextId";
     private static final String SESSION_ID = "sessionId";
+    private static final String CLOSE = "close";
+    private static final String CLOSED = "closed";
     private static final String RENDER = "render";
-    private static final String TRIGGER = "trigger";
-    private static final String REDIRECT = "redirect";
-    private static final String AFTER_SETTLE = "afterSettle";
+    private static final String BODY_APPEND = "bodyAppend";
+    private static final String COPY = "copy";
+    private static final String TO_LIST = "toList";
     private static final String TO_JSON = "toJson";
     private static final String TO_JSON_PRETTY = "toJsonPretty";
     private static final String FROM_JSON = "fromJson";
+    private static final String TEMPLATE = "template";
+    private static final String TYPE_OF = "typeOf";
+    private static final String IS_PRIMITIVE = "isPrimitive";
 
     private static final String[] KEYS = new String[]{
-        READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP,
-        NEXT_ID, SESSION_ID, RENDER, TRIGGER, REDIRECT, AFTER_SETTLE, TO_JSON, TO_JSON_PRETTY, FROM_JSON};
+        READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, LOG, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP, NEXT_ID, SESSION_ID,
+        CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON, TEMPLATE, TYPE_OF, IS_PRIMITIVE};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -95,12 +104,14 @@ public class ServerContext implements ProxyObject {
     private boolean newSession;
     private Session session; // can be pre-resolved, else will be set by RequestCycle.init()
     private boolean switched;
+    private boolean closed;
     private Supplier<Response> customHandler;
     private int nextId;
 
-    private List<Map<String, Object>> responseTriggers;
-    private List<String> afterSettleScripts;
     private final Map<String, Object> variables;
+    private List<String> bodyAppends;
+    private LogAppender logAppender;
+    private RequestCycle mockRequestCycle;
 
     public ServerContext(ServerConfig config, Request request) {
         this(config, request, null);
@@ -132,29 +143,42 @@ public class ServerContext implements ProxyObject {
             }
             Map<String, Object> templateVars = (Map) map.get("variables");
             String path = (String) map.get("path");
-            if (path != null) {
-                JsEngine je;
-                if (templateVars == null) {
-                    je = RequestCycle.get().getEngine();
-                } else {
-                    je = JsEngine.local();
-                    je.putAll(templateVars);
-                }
-                return TemplateUtils.renderResourcePath(path, je, config.getResourceResolver());
-            }
             String html = (String) map.get("html");
-            if (html == null) {
-                logger.warn("invalid argument to render, path or html needed: {}", map);
+            Boolean fork = (Boolean) map.get("fork");
+            Object swap = map.get("swap");
+            if (path == null && html == null) {
+                logger.warn("invalid argument to render, 'path' or 'html' needed: {}", map);
                 return null;
             }
             JsEngine je;
-            if (templateVars == null) {
-                je = RequestCycle.get().getEngine();
-            } else {
+            if (fork != null && fork) {
                 je = JsEngine.local();
+            } else {
+                je = RequestCycle.get().getEngine().copy();
+            }
+            if (templateVars != null) {
                 je.putAll(templateVars);
             }
-            return TemplateUtils.renderHtmlString(html, je, config.getResourceResolver());
+            String body;
+            if (path != null) {
+                body = TemplateUtils.renderResourcePath(path, je, config.getResourceResolver());
+            } else {
+                body = TemplateUtils.renderHtmlString(html, je, config.getResourceResolver());
+            }
+            if (swap != null) {
+                String id = (String) map.get("id");
+                StringBuilder sb = new StringBuilder();
+                sb.append("<div");
+                if (id != null) {
+                    sb.append(" id=\"").append(id).append("\"");
+                }
+                sb.append(" hx-swap-oob=\"").append(swap).append("\">");
+                sb.append(body);
+                sb.append("</div>");
+                String appended = sb.toString();
+                bodyAppend(appended);
+            }
+            return body;
         };
     }
 
@@ -264,20 +288,16 @@ public class ServerContext implements ProxyObject {
         this.api = api;
     }
 
+    public boolean isClosed() {
+        return closed;
+    }
+
     public boolean isHttpGetAllowed() {
         return httpGetAllowed;
     }
 
     public void setHttpGetAllowed(boolean httpGetAllowed) {
         this.httpGetAllowed = httpGetAllowed;
-    }
-
-    public List<String> getAfterSettleScripts() {
-        return afterSettleScripts;
-    }
-
-    public List<Map<String, Object>> getResponseTriggers() {
-        return responseTriggers;
     }
 
     public Supplier<Response> getCustomHandler() {
@@ -288,18 +308,43 @@ public class ServerContext implements ProxyObject {
         this.customHandler = customHandler;
     }
 
-    public void trigger(Map<String, Object> trigger) {
-        if (responseTriggers == null) {
-            responseTriggers = new ArrayList();
-        }
-        responseTriggers.add(trigger);
+    public void setMockRequestCycle(RequestCycle mockRequestCycle) {
+        this.mockRequestCycle = mockRequestCycle;
     }
 
-    public void afterSettle(String js) {
-        if (afterSettleScripts == null) {
-            afterSettleScripts = new ArrayList();
+    public RequestCycle getMockRequestCycle() {
+        return mockRequestCycle;
+    }
+
+    public boolean isSwitched() {
+        return switched;
+    }
+
+    public List<String> getBodyAppends() {
+        return bodyAppends;
+    }
+
+    public void bodyAppend(String body) {
+        if (bodyAppends == null) {
+            bodyAppends = new ArrayList();
         }
-        afterSettleScripts.add(js);
+        bodyAppends.add(body);
+    }
+
+    public LogAppender getLogAppender() {
+        return logAppender;
+    }
+
+    public void setLogAppender(LogAppender logAppender) {
+        this.logAppender = logAppender;
+    }
+
+    public void log(Object... args) {
+        String log = new LogWrapper(args).toString();
+        logger.info(log);
+        if (logAppender != null) {
+            logAppender.append(log);
+        }
     }
 
     private final Methods.FunVar GET_FUNCTION = args -> {
@@ -322,13 +367,34 @@ public class ServerContext implements ProxyObject {
     private static final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s, false, null);
 
     private final Methods.FunVar HTTP_FUNCTION; // set in constructor
-    private final Function<Object, String> RENDER_FUNCTION; // set in constructor
+    private final Function<Object, String> RENDER_FUNCTION; // set in constructor  
+
+    private final Methods.FunVar LOG_FUNCTION = args -> {
+        log(args);
+        return null;
+    };
+
+    private final Function<Object, Object> COPY_FUNCTION = o -> {
+        return JsValue.fromJava(JsonUtils.deepCopy(o));
+    };
+
+    private final Function<Object, Object> TO_LIST_FUNCTION = o -> {
+        if (o instanceof Map) {
+            Map map = (Map) o;
+            List list = JsonUtils.toList(map);
+            return JsValue.fromJava(list);
+        } else {
+            logger.warn("unable to cast to map: {} - {}", o.getClass(), o);
+            return null;
+        }
+    };
 
     private final Methods.FunVar SWITCH_FUNCTION = args -> {
         if (switched) {
             logger.warn("context.switch() can be called only once during a request, ignoring: {}", args[0]);
         } else {
-            switched = true;
+            switched = true; // flag for request cycle render
+            KarateEngineContext.get().setRedirect(true); // flag for template engine
             RequestCycle rc = RequestCycle.get();
             if (args.length > 1) {
                 Value value = Value.asValue(args[1]);
@@ -337,18 +403,21 @@ public class ServerContext implements ProxyObject {
                     rc.setSwitchParams(jv.getAsMap());
                 }
             }
-            String template = args[0].toString();
-            rc.setSwitchTemplate(template);
-            KarateEngineContext.get().setRedirect(true);
+            String template;
+            if (args.length > 0) {
+                template = args[0].toString();
+                rc.setSwitchTemplate(template);
+            } else {
+                template = null;
+            }
             throw new RedirectException(template);
         }
         return null;
     };
 
-    private final Consumer<String> REDIRECT_FUNCTION = s -> {
-        RequestCycle.get().setRedirectPath(s);
-        KarateEngineContext.get().setRedirect(true);
-        throw new RedirectException(s);
+    private final Supplier<String> CLOSE_FUNCTION = () -> {
+        closed = true;
+        return null;
     };
 
     private static final BiFunction<Object, Object, Object> REMOVE_FUNCTION = (o, k) -> {
@@ -368,7 +437,11 @@ public class ServerContext implements ProxyObject {
         return o;
     };
 
-    private final Supplier<Integer> NEXT_ID_FUNCTION = () -> ++nextId;
+    private final Supplier<String> NEXT_ID_FUNCTION = () -> ++nextId + "-" + System.currentTimeMillis();
+
+    private final Function<String, Object> TYPE_OF_FUNCTION = o -> new Variable(o).getTypeString();
+
+    private final Function<Object, Object> IS_PRIMITIVE_FUNCTION = o -> !new Variable(o).isMapOrList();
 
     @Override
     public Object getMember(String key) {
@@ -383,8 +456,14 @@ public class ServerContext implements ProxyObject {
                 return (BiFunction<Object, String, Object>) this::evalWith;
             case GET:
                 return GET_FUNCTION;
+            case LOG:
+                return LOG_FUNCTION;
             case UUID:
                 return UUID_FUNCTION;
+            case COPY:
+                return COPY_FUNCTION;
+            case TO_LIST:
+                return TO_LIST_FUNCTION;
             case TO_JSON:
                 return (Function<Object, String>) this::toJson;
             case TO_JSON_PRETTY:
@@ -405,16 +484,22 @@ public class ServerContext implements ProxyObject {
                 return NEXT_ID_FUNCTION;
             case SESSION_ID:
                 return session == null ? null : session.getId();
+            case CLOSE:
+                return CLOSE_FUNCTION;
+            case CLOSED:
+                return closed;
             case RENDER:
                 return RENDER_FUNCTION;
-            case TRIGGER:
-                return (Consumer<Map<String, Object>>) this::trigger;
-            case REDIRECT:
-                return REDIRECT_FUNCTION;
+            case BODY_APPEND:
+                return (Consumer<String>) this::bodyAppend;
             case RESOLVER:
                 return config.getResourceResolver();
-            case AFTER_SETTLE:
-                return (Consumer<String>) this::afterSettle;
+            case TEMPLATE:
+                return KarateEngineContext.get().getTemplateName();
+            case TYPE_OF:
+                return TYPE_OF_FUNCTION;
+            case IS_PRIMITIVE:
+                return IS_PRIMITIVE_FUNCTION;
             default:
                 logger.warn("no such property on context object: {}", key);
                 return null;
@@ -434,6 +519,27 @@ public class ServerContext implements ProxyObject {
     @Override
     public void putMember(String key, Value value) {
         logger.warn("put not supported on context object: {} - {}", key, value);
+    }
+
+    static class LogWrapper { // TODO code duplication with ScenarioBridge
+
+        final Object[] values;
+
+        LogWrapper(Object... values) {
+            // sometimes a null array gets passed in, graal weirdness
+            this.values = values == null ? new Value[0] : values;
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            for (Object v : values) {
+                Variable var = new Variable(v);
+                sb.append(var.getAsPrettyString()).append(' ');
+            }
+            return sb.toString();
+        }
+
     }
 
 }
