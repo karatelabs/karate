@@ -160,7 +160,13 @@ public abstract class DevToolsDriver implements Driver {
         // do stuff inside wait to avoid missing messages
         DevToolsMessage result = wait.send(dtm, condition);
         if (result == null && !wasSubmit) {
-            throw new RuntimeException("failed to get reply for: " + dtm);
+            logger.error("failed to get reply for :" + dtm + ". Will try to check by running a script.");
+            boolean readyState = (Boolean) this.script("document.readyState === 'complete'");
+            if (!readyState) {
+                throw new RuntimeException("failed to get reply for: " + dtm);
+            } else {
+                logger.warn("document is ready, but no reply for: " + dtm + " with a ready event received. Will proceed.");
+            }
         }
         return result;
     }
@@ -827,6 +833,10 @@ public abstract class DevToolsDriver implements Driver {
             Map<String, Object> map = position(id);
             map.put("scale", 1);
             dtm = method("Page.captureScreenshot").param("clip", map).send();
+        }
+        if (dtm == null) {
+            logger.error("unable to capture screenshot: {}", dtm);
+            return new byte[0];
         }
         String temp = dtm.getResult("data").getAsString();
         byte[] bytes = Base64.getDecoder().decode(temp);
