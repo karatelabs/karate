@@ -39,16 +39,7 @@ class DockerRunner {
         assertEquals(0, results.getFailCount(), results.getErrorMessages());
     }
 
-    @Test
-    void testSingle() {
-        run("12");
-    }
-
-    @Test
-    void testSingle01() {
-        run("01");
-    }
-
+    // use these only for local testing
     //@Test
     void testSingle13() {
         run("13");
