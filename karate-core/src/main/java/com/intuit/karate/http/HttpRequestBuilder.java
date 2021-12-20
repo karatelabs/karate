@@ -40,6 +40,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -277,10 +278,16 @@ public class HttpRequestBuilder implements ProxyObject {
                     if (!item.isEmpty()) {
                         segments.add(item);
                     }
-                }                
-                for (String item : paths) {
-                    for (String s : StringUtils.split(item, '/', true)) {
-                        segments.add(s);
+                }
+                Iterator<String> pathIterator = paths.iterator();
+                while (pathIterator.hasNext()) {
+                    String item = pathIterator.next();
+                    if (!pathIterator.hasNext() && "/".equals(item)) { // preserve trailing slash
+                        segments.add("");
+                    } else {
+                        for (String s : StringUtils.split(item, '/', true)) {
+                            segments.add(s);
+                        }
                     }
                 }
                 builder.setPathSegments(segments);

@@ -533,5 +533,18 @@ class KarateMockHandlerTest {
                 "match response == 'hello/world'"
         );
     }  
+    
+    @Test
+    void testPathWithTrailingSlash() {
+        background().scenario(
+                "pathMatches('/hello/world')",
+                "def response = requestUri");
+        run(
+                URL_STEP,
+                "path '/hello/world', '/'",
+                "method get",
+                "match response == 'hello/world/'"
+        );
+    }     
 
 }
