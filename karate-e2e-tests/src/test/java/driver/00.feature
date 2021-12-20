@@ -43,3 +43,6 @@ Scenario:
 
 # switchPage()
 * call read('11.feature')
+
+# switchPage() with external URLs
+* call read('13.feature')

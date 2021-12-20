@@ -32,6 +32,10 @@ class LocalSingleRunner {
     @Test
     void testSingle() {
         run("12");
-    }    
-    
+    }
+
+    @Test
+    void testSingle13() {
+        run("13");
+    }
 }
