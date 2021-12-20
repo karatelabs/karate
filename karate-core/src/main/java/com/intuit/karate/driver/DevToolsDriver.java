@@ -71,6 +71,7 @@ public abstract class DevToolsDriver implements Driver {
     private Integer windowId;
     private String windowState;
     protected String sessionId;
+    protected String mainFrameId;
 
     // iframe support
     private Frame frame;
@@ -106,6 +107,7 @@ public abstract class DevToolsDriver implements Driver {
         this.wait = new DevToolsWait(this, options);
         int pos = webSocketUrl.lastIndexOf('/');
         rootFrameId = webSocketUrl.substring(pos + 1);
+        mainFrameId = rootFrameId;
         logger.debug("root frame id: {}", rootFrameId);
         WebSocketOptions wsOptions = new WebSocketOptions(webSocketUrl);
         wsOptions.setMaxPayloadSize(options.maxPayloadSize);
@@ -362,15 +364,18 @@ public abstract class DevToolsDriver implements Driver {
         return options;
     }
 
-    private void attachAndActivate(String targetId) {
+    private void attachAndActivate(String targetId, boolean isFrame) {
         DevToolsMessage dtm = method("Target.attachToTarget").param("targetId", targetId).param("flatten", true).send();
         sessionId = dtm.getResult("sessionId", String.class);
+        if (!isFrame) {
+            mainFrameId = targetId;
+        }
         method("Target.activateTarget").param("targetId", targetId).send();
     }
 
     @Override
     public void activate() {
-        attachAndActivate(rootFrameId);
+        attachAndActivate(rootFrameId, false);
     }
 
     protected void initWindowIdAndState() {
@@ -887,7 +892,7 @@ public abstract class DevToolsDriver implements Driver {
             }
             return null;
         }, returned -> returned != null, "waiting to switch to tab: " + titleOrUrl, true);
-        attachAndActivate(targetId);
+        attachAndActivate(targetId, false);
     }
 
     @Override
@@ -900,7 +905,7 @@ public abstract class DevToolsDriver implements Driver {
         if (index < targets.size()) {
             Map target = targets.get(index);
             String targetId = (String) target.get("targetId");
-            attachAndActivate(targetId);
+            attachAndActivate(targetId, false);
         } else {
             logger.warn("failed to switch frame by index: {}", index);
         }
@@ -927,7 +932,7 @@ public abstract class DevToolsDriver implements Driver {
     public void switchFrame(String locator) {
         if (locator == null) {
             frame = null;
-            attachAndActivate(rootFrameId);
+            attachAndActivate(mainFrameId, false); // attaching to main page again
             return;
         }
         retryIfEnabled(locator);
@@ -978,7 +983,7 @@ public abstract class DevToolsDriver implements Driver {
             // for some reason need to trigger Target.getTargets before attaching
             method("Target.getTargets").send();
             // attach to frame / target / process with the frame
-            attachAndActivate(frameId);
+            attachAndActivate(frameId, true);
 
             Map<String, Object> map = dtm.getResult("frameTree.frame", Map.class);
             String temp = (String) map.get("id");

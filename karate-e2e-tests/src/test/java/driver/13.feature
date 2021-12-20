@@ -15,6 +15,7 @@ Scenario: try out iframe scenarios
   * waitForUrl('https://en.wikipedia.org/wiki/Karate')
   * match driver.title == "Karate - Wikipedia"
   * switchFrame(null)
+  # trying the same thing with locate chained by switchFrame()
   * locate("iframe[id='myiframe']").switchFrame()
   * switchFrame(null)
   * switchFrame("#frameId")
