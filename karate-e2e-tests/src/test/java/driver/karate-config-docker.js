@@ -7,5 +7,11 @@ function fn() {
     afterStop: 'supervisorctl stop ffmpeg',
     videoFile: '/tmp/karate.mp4'
   });
-  return {driverType: 'chrome'};
+  var hostname = com.intuit.karate.FileUtils.isOsWindows() ? 'host.docker.internal' : 'localhost'
+  var serverPort = karate.properties['server.port'] || 8080;
+  var config = {
+        driverType: 'chrome',
+        serverUrl: 'http://' + hostname + ':' + serverPort
+    };
+  return config;
 }
