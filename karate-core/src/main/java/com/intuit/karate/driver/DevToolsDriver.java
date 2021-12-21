@@ -162,12 +162,16 @@ public abstract class DevToolsDriver implements Driver {
         // do stuff inside wait to avoid missing messages
         DevToolsMessage result = wait.send(dtm, condition);
         if (result == null && !wasSubmit) {
-            logger.error("failed to get reply for :" + dtm + ". Will try to check by running a script.");
-            boolean readyState = (Boolean) this.script("document.readyState === 'complete'");
-            if (!readyState) {
-                throw new RuntimeException("failed to get reply for: " + dtm);
+            if (condition == DevToolsWait.ALL_FRAMES_LOADED) {
+                logger.error("failed to get reply for :" + dtm + ". Will try to check by running a script.");
+                boolean readyState = (Boolean) this.script("document.readyState === 'complete'");
+                if (!readyState) {
+                    throw new RuntimeException("failed to get reply for: " + dtm);
+                } else {
+                    logger.warn("document is ready, but no reply for: " + dtm + " with a ready event received. Will proceed.");
+                }
             } else {
-                logger.warn("document is ready, but no reply for: " + dtm + " with a ready event received. Will proceed.");
+                throw new RuntimeException("failed to get reply for: " + dtm);
             }
         }
         return result;
