@@ -126,7 +126,12 @@ public class HttpLogger {
         if (rt == null || rt.isBinary()) {
             // don't log body
         } else {
-            byte[] body = rt == ResourceType.MULTIPART ? request.getBodyForDisplay().getBytes() : request.getBody();
+            byte[] body;
+            if (rt == ResourceType.MULTIPART) {
+                body = request.getBodyForDisplay() == null ? null : request.getBodyForDisplay().getBytes();
+            } else {
+                body = request.getBody();
+            }
             logBody(config, requestModifier, sb, uri, body, true);
         }
         sb.append('\n');
