@@ -128,6 +128,12 @@
                                 </goals>
                             </execution>
                         </executions>
+                        <configuration>
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                        </configuration>                        
                     </plugin>
                     <plugin>
                         <groupId>org.sonatype.plugins</groupId>
