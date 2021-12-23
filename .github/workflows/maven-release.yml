@@ -16,7 +16,7 @@ jobs:
     - name: git checkout
       uses: actions/checkout@v2    
     - name: set up jdk 8
-      uses: actions/setup-java@v2
+      uses: actions/setup-java@v1
       with:
         distribution: adopt
         java-version: 8
@@ -44,5 +44,4 @@ jobs:
         mvn \
           --no-transfer-progress \
           --batch-mode \
-          -Dgpg.passphrase=${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }} \
           clean deploy -P pre-release,release -DskipRemoteStaging=true
