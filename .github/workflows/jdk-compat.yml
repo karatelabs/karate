@@ -7,7 +7,7 @@ on:
 jobs:
   build:
     timeout-minutes: 10
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: git checkout
       uses: actions/checkout@v2
@@ -24,8 +24,8 @@ jobs:
     - name: cache maven packages
       uses: actions/cache@v2
       with:
-        path: ~/.m2
-        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-        restore-keys: ${{ runner.os }}-m2        
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-maven-
     - name: build with maven
-      run: mvn -B clean install -P pre-release,smoke -Djavacpp.platform=linux-x86_64
+      run: mvn -B clean install -P pre-release -Djavacpp.platform=linux-x86_64
