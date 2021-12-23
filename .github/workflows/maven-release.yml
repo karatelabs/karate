@@ -24,13 +24,7 @@ jobs:
         server-username: MAVEN_USERNAME
         server-password: MAVEN_PASSWORD
         gpg-private-key: ${{ secrets.OSSRH_GPG_SECRET_KEY }}
-        gpg-passphrase: MAVEN_GPG_PASSPHRASE
-    - name: cache maven packages
-      uses: actions/cache@v2
-      with:
-        path: ~/.m2
-        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-        restore-keys: ${{ runner.os }}-m2       
+        gpg-passphrase: MAVEN_GPG_PASSPHRASE      
     - name: set maven version
       run: |
         mvn versions:set -DnewVersion=${{ github.event.inputs.version }}
@@ -44,5 +38,4 @@ jobs:
         mvn \
           --no-transfer-progress \
           --batch-mode \
-          -Dgpg.passphrase=${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }} \
           clean deploy -P pre-release,release -DskipRemoteStaging=true
