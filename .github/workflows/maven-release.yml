@@ -44,4 +44,4 @@ jobs:
         mvn \
           --no-transfer-progress \
           --batch-mode \
-          clean deploy -P pre-release,release -DskipRemoteStaging=true
+          clean deploy -P pre-release,release
