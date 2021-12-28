@@ -154,7 +154,7 @@ public class ResponseBuilder {
         }
         if (cookies != null) {
             cookies.forEach(c -> header(HttpConstants.HDR_SET_COOKIE, ServerCookieEncoder.LAX.encode(c)));
-        }        
+        }
         if (resourceType != null && resourceType.isHtml() && context.isAjax()) {
             if (context.getBodyAppends() != null) {
                 String appends = StringUtils.join(context.getBodyAppends(), "\n");
@@ -207,7 +207,7 @@ public class ResponseBuilder {
     }
 
     public Response buildWithStatus(int status) {
-        return new Response(status, headers, body, resourceType);
+        return new Response(status, headers, status == 204 ? null : body, resourceType);
     }
 
 }

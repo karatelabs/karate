@@ -33,6 +33,7 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.multipart.Attribute;
 import io.netty.handler.codec.http.multipart.HttpPostRequestEncoder;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.handler.codec.http.multipart.MemoryFileUpload;
@@ -40,6 +41,7 @@ import java.io.File;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -200,8 +202,35 @@ public class MultiPartBuilder {
         map.put("value", value);
         return part(map);
     }
+    
+    public String toCurlCommand() {
+        StringBuilder sb = new StringBuilder();
+        Iterator<InterfaceHttpData> parts = encoder.getBodyListAttributes().iterator();
+        while (parts.hasNext()) {
+            InterfaceHttpData part = parts.next();
+            if (part instanceof Attribute) {
+                Attribute attr = (Attribute) part;
+                String value;
+                try {
+                    value = attr.getValue();
+                } catch (Exception e) {
+                    value = null;
+                    logger.error("failed to get multipart value: {}", e.getMessage());
+                }
+                sb.append("-d ")
+                        .append(part.getName())
+                        .append("=")
+                        .append(value);
+                if (parts.hasNext()) {
+                    sb.append(" \\\n");
+                }
+            }            
+        }    
+        return sb.toString();
+    }
 
     public byte[] build() {
+        // TODO move this to getter if possible
         for (InterfaceHttpData part : encoder.getBodyListAttributes()) {
             bodyForDisplay.append('\n').append(part.toString()).append('\n');
         }

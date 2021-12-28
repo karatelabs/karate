@@ -120,7 +120,7 @@ public class Command extends Thread {
         return command.getSysOut();
     }
 
-    private static final Pattern CLI_ARG = Pattern.compile("\"([^\"]*)\"[^\\S]|(\\S+)");
+    private static final Pattern CLI_ARG = Pattern.compile("'([^']*)'[^\\S]|\"([^\"]*)\"[^\\S]|(\\S+)");
 
     public static String[] tokenize(String command) {
         List<String> args = new ArrayList();
@@ -128,8 +128,10 @@ public class Command extends Thread {
         while (m.find()) {
             if (m.group(1) != null) {
                 args.add(m.group(1));
-            } else {
+            } else if (m.group(2) != null) {
                 args.add(m.group(2));
+            } else {
+                args.add(m.group(3));
             }
         }
         return args.toArray(new String[args.size()]);

@@ -44,12 +44,10 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.apache.http.client.utils.URIBuilder;
 import org.graalvm.polyglot.Value;
@@ -147,7 +145,21 @@ public class HttpRequestBuilder implements ProxyObject {
     }
 
     public HttpRequest build() {
+        buildInternal();
         HttpRequest request = new HttpRequest();
+        request.setMethod(method);
+        request.setUrl(getUri());
+        if (multiPart != null) {
+            request.setBodyForDisplay(multiPart.getBodyForDisplay());
+        }
+        if (body != null) {
+            request.setBody(JsValue.toBytes(body));
+        }
+        request.setHeaders(headers);
+        return request;
+    }
+
+    private void buildInternal() {
         if (method == null) {
             if (multiPart != null && multiPart.isMultipart()) {
                 method = "POST";
@@ -156,7 +168,6 @@ public class HttpRequestBuilder implements ProxyObject {
             }
         }
         method = method.toUpperCase();
-        request.setMethod(method);
         if ("GET".equals(method) && multiPart != null) {
             Map<String, Object> parts = multiPart.getFormFields();
             if (parts != null) {
@@ -164,7 +175,6 @@ public class HttpRequestBuilder implements ProxyObject {
             }
             multiPart = null;
         }
-        request.setUrl(getUri());
         if (multiPart != null) {
             if (body == null) { // this is not-null only for a re-try, don't rebuild multi-part
                 body = multiPart.build();
@@ -178,7 +188,6 @@ public class HttpRequestBuilder implements ProxyObject {
                     contentType(multiPart.getContentTypeHeader());
                 }
             }
-            request.setBodyForDisplay(multiPart.getBodyForDisplay());
         }
         if (cookies != null && !cookies.isEmpty()) {
             List<String> cookieValues = new ArrayList<>(cookies.size());
@@ -189,7 +198,6 @@ public class HttpRequestBuilder implements ProxyObject {
             header(HttpConstants.HDR_COOKIE, StringUtils.join(cookieValues, "; "));
         }
         if (body != null) {
-            request.setBody(JsValue.toBytes(body));
             if (multiPart == null) {
                 String contentType = getContentType();
                 if (contentType == null) {
@@ -213,8 +221,6 @@ public class HttpRequestBuilder implements ProxyObject {
                 contentType(contentType);
             }
         }
-        request.setHeaders(headers);
-        return request;
     }
 
     public Response invoke() {
@@ -607,6 +613,43 @@ public class HttpRequestBuilder implements ProxyObject {
     @Override
     public String toString() {
         return getUri();
+    }
+
+    public String toCurlCommand() {
+        buildInternal();
+        StringBuilder sb = new StringBuilder();
+        sb.append("curl ");
+        String url = getUri();
+        if (!StringUtils.isBlank(url)) {
+            sb.append(getUri()).append(' ');
+        }
+        sb.append("\\\n");
+        if (multiPart != null) {
+            sb.append(multiPart.toCurlCommand());
+        }
+        return sb.toString();
+    }
+
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap();
+        map.put("url", getUri());
+        if (headers != null) {
+            List<Map> list = new ArrayList(headers.size());
+            map.put("headers", list);
+            headers.forEach((k, v) -> {
+                if (v != null) {
+                    v.forEach(value -> {
+                        if (value != null) {
+                            Map<String, Object> header = new HashMap();
+                            header.put("name", k);
+                            header.put("value", value);
+                            list.add(header);
+                        }
+                    });
+                }
+            });
+        }
+        return map;
     }
 
 }
