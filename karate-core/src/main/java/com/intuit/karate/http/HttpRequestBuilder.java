@@ -626,6 +626,9 @@ public class HttpRequestBuilder implements ProxyObject {
         sb.append("\\\n");
         if (multiPart != null) {
             sb.append(multiPart.toCurlCommand());
+        } else if (body != null) {
+            String raw = JsValue.toString(body);
+            sb.append("-d '").append(raw).append("'");
         }
         return sb.toString();
     }
@@ -649,6 +652,25 @@ public class HttpRequestBuilder implements ProxyObject {
                     });
                 }
             });
+        }
+        if (params != null) {
+            List<Map> list = new ArrayList(params.size());
+            map.put("params", list);
+            params.forEach((k, v) -> {
+                if (v != null) {
+                    v.forEach(value -> {
+                        if (value != null) {
+                            Map<String, Object> header = new HashMap();
+                            header.put("name", k);
+                            header.put("value", value);
+                            list.add(header);
+                        }
+                    });
+                }
+            });
+        }
+        if (body != null) {
+            map.put("body", body);
         }
         return map;
     }

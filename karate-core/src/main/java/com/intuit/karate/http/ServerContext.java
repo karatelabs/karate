@@ -80,6 +80,7 @@ public class ServerContext implements ProxyObject {
     private static final String RENDER = "render";
     private static final String BODY_APPEND = "bodyAppend";
     private static final String COPY = "copy";
+    private static final String DELAY = "delay";
     private static final String TO_LIST = "toList";
     private static final String TO_JSON = "toJson";
     private static final String TO_JSON_PRETTY = "toJsonPretty";
@@ -90,7 +91,7 @@ public class ServerContext implements ProxyObject {
 
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, LOG, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP, NEXT_ID, SESSION_ID,
-        CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON, TEMPLATE, TYPE_OF, IS_PRIMITIVE};
+        CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON, TEMPLATE, TYPE_OF, IS_PRIMITIVE};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -378,6 +379,14 @@ public class ServerContext implements ProxyObject {
         return JsValue.fromJava(JsonUtils.deepCopy(o));
     };
 
+    private final Consumer<Number> DELAY_FUNCTION = v -> {
+        try {
+            Thread.sleep(v.longValue());
+        } catch (Exception e) {
+            logger.error("delay failed: {}", e.getMessage());
+        }
+    };
+
     private final Function<Object, Object> TO_LIST_FUNCTION = o -> {
         if (o instanceof Map) {
             Map map = (Map) o;
@@ -462,6 +471,8 @@ public class ServerContext implements ProxyObject {
                 return UUID_FUNCTION;
             case COPY:
                 return COPY_FUNCTION;
+            case DELAY:
+                return DELAY_FUNCTION;
             case TO_LIST:
                 return TO_LIST_FUNCTION;
             case TO_JSON:
