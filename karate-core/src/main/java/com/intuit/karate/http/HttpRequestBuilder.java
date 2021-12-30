@@ -633,6 +633,7 @@ public class HttpRequestBuilder implements ProxyObject {
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap();
         map.put("url", getUri());
+        map.put("method", method);
         if (headers != null) {
             List<Map> list = new ArrayList(headers.size());
             map.put("headers", list);
