@@ -25,6 +25,7 @@ class RequestHandlerTest {
     @BeforeEach
     void beforeEach() {
         ServerConfig config = new ServerConfig("classpath:demo");
+        config.autoCreateSession(true);
         handler = new RequestHandler(config);
         request = new HttpRequestBuilder(null).method("GET");
     }

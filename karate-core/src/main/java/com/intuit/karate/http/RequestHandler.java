@@ -93,12 +93,14 @@ public class RequestHandler implements ServerHandler {
                 }
             }
             if (session == null) {
-                if (config.isAutoCreateSession()
-                        || config.getHomePagePath().equals(request.getPath())
-                        || config.getLogoutPagePath().equals(request.getPath())) {
-                    session = createSession();
-                    context.setNewSession(true);
-                    logger.debug("creating new session for '{}': {}", request.getPath(), session);
+                if (config.isAutoCreateSession()) {
+                    context.init();
+                    session = context.getSession();
+                    logger.debug("created new session for '{}': {}", request, session);
+                } else if (config.getSigninPagePath().equals(request.getPath())
+                        || config.getSignoutPagePath().equals(request.getPath())) {
+                    session = Session.TEMPORARY;
+                    logger.debug("sign in / out: {}", request);
                 } else {
                     logger.warn("session not found: {}", request);
                     ResponseBuilder rb = response();
@@ -120,7 +122,7 @@ public class RequestHandler implements ServerHandler {
     }
 
     private String redirectPath(boolean logout) {
-        String path = logout ? config.getLogoutPagePath() : config.getHomePagePath();
+        String path = logout ? config.getSigninPagePath() : config.getHomePagePath();
         String contextPath = config.getHostContextPath();
         return contextPath == null ? "/" + path : contextPath + path;
     }
@@ -134,12 +136,6 @@ public class RequestHandler implements ServerHandler {
         session.setUpdated(now);
         session.setExpires(expires);
         return false;
-    }
-
-    private Session createSession() {
-        long now = Instant.now().getEpochSecond();
-        long expires = now + config.getSessionExpirySeconds();
-        return sessionStore.create(now, expires);
     }
 
     private ResponseBuilder response() {

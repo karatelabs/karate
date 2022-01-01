@@ -36,6 +36,7 @@ import com.intuit.karate.template.TemplateUtils;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -69,12 +70,14 @@ public class ServerContext implements ProxyObject {
     private static final String LOG = "log";
     private static final String UUID = "uuid";
     private static final String REMOVE = "remove";
+    private static final String REDIRECT = "redirect";
     private static final String SWITCH = "switch";
     private static final String SWITCHED = "switched";
     private static final String AJAX = "ajax";
     private static final String HTTP = "http";
     private static final String NEXT_ID = "nextId";
     private static final String SESSION_ID = "sessionId";
+    private static final String INIT = "init";
     private static final String CLOSE = "close";
     private static final String CLOSED = "closed";
     private static final String RENDER = "render";
@@ -90,8 +93,8 @@ public class ServerContext implements ProxyObject {
     private static final String IS_PRIMITIVE = "isPrimitive";
 
     private static final String[] KEYS = new String[]{
-        READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, LOG, UUID, REMOVE, SWITCH, SWITCHED, AJAX, HTTP, NEXT_ID, SESSION_ID,
-        CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON, TEMPLATE, TYPE_OF, IS_PRIMITIVE};
+        READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, LOG, UUID, REMOVE, REDIRECT, SWITCH, SWITCHED, AJAX, HTTP, NEXT_ID, SESSION_ID,
+        INIT, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON, TEMPLATE, TYPE_OF, IS_PRIMITIVE};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -110,6 +113,7 @@ public class ServerContext implements ProxyObject {
     private int nextId;
 
     private final Map<String, Object> variables;
+    private String redirectPath;
     private List<String> bodyAppends;
     private LogAppender logAppender;
     private RequestCycle mockRequestCycle;
@@ -249,8 +253,11 @@ public class ServerContext implements ProxyObject {
         return newSession;
     }
 
-    public void setNewSession(boolean newSession) {
-        this.newSession = newSession;
+    public void init() {
+        long now = Instant.now().getEpochSecond();
+        long expires = now + config.getSessionExpirySeconds();
+        session = config.getSessionStore().create(now, expires);
+        newSession = true;
     }
 
     public Session getSession() {
@@ -319,6 +326,10 @@ public class ServerContext implements ProxyObject {
 
     public boolean isSwitched() {
         return switched;
+    }
+
+    public String getRedirectPath() {
+        return redirectPath;
     }
 
     public List<String> getBodyAppends() {
@@ -429,6 +440,19 @@ public class ServerContext implements ProxyObject {
         return null;
     };
 
+    private final Supplier<Object> INIT_FUNCTION = () -> {
+        init();
+        RequestCycle.get().getEngine().put(RequestCycle.SESSION, session.getData());
+        logger.debug("init session: {}", session);
+        return null;
+    };
+
+    private final Function<String, Object> REDIRECT_FUNCTION = (path) -> {
+        redirectPath = path;
+        logger.debug("redirect requested to: {}", redirectPath);
+        return null;
+    };
+
     private static final BiFunction<Object, Object, Object> REMOVE_FUNCTION = (o, k) -> {
         if (o instanceof Map && k != null) {
             Map in = (Map) o;
@@ -483,6 +507,8 @@ public class ServerContext implements ProxyObject {
                 return FROM_JSON_FUNCTION;
             case REMOVE:
                 return REMOVE_FUNCTION;
+            case REDIRECT:
+                return REDIRECT_FUNCTION;
             case SWITCH:
                 return SWITCH_FUNCTION;
             case SWITCHED:
@@ -495,6 +521,8 @@ public class ServerContext implements ProxyObject {
                 return NEXT_ID_FUNCTION;
             case SESSION_ID:
                 return session == null ? null : session.getId();
+            case INIT:
+                return INIT_FUNCTION;
             case CLOSE:
                 return CLOSE_FUNCTION;
             case CLOSED:

@@ -44,9 +44,9 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class ResponseBuilder {
-
+    
     private static final Logger logger = LoggerFactory.getLogger(ResponseBuilder.class);
-
+    
     private byte[] body;
     private Set<Cookie> cookies;
     private Map<String, List<String>> headers;
@@ -54,7 +54,7 @@ public class ResponseBuilder {
     private final ServerConfig config;
     private final ResourceResolver resourceResolver;
     private final RequestCycle requestCycle;
-
+    
     public ResponseBuilder(ServerConfig config, RequestCycle requestCycle) {
         this.config = config;
         resourceResolver = config.getResourceResolver();
@@ -63,52 +63,52 @@ public class ResponseBuilder {
             headers = requestCycle.getResponse().getHeaders();
         }
     }
-
+    
     public ResponseBuilder body(String body) {
         this.body = FileUtils.toBytes(body);
         return this;
     }
-
+    
     public ResponseBuilder html(String body) {
         body(body);
         contentTypeHtml();
         return this;
     }
-
+    
     public ResponseBuilder body(InputStream body) {
         this.body = FileUtils.toBytes(body);
         return this;
     }
-
+    
     public ResponseBuilder locationHeader(String url) {
         return header(HttpConstants.HDR_LOCATION, url);
     }
-
+    
     public ResponseBuilder contentTypeHtml() {
         resourceType = ResourceType.HTML;
         contentType(resourceType.contentType);
         return this;
     }
-
+    
     public ResponseBuilder contentType(String contentType) {
         if (contentType != null) {
             header(HttpConstants.HDR_CONTENT_TYPE, contentType);
         }
         return this;
     }
-
+    
     public ResponseBuilder cookie(String name, String value) {
         return cookie(name, value, false);
     }
-
+    
     public ResponseBuilder sessionCookie(String value) {
         return cookie(config.getSessionCookieName(), value);
     }
-
+    
     public ResponseBuilder deleteSessionCookie(String value) {
         return cookie(config.getSessionCookieName(), value, true);
     }
-
+    
     private ResponseBuilder cookie(String name, String value, boolean delete) {
         DefaultCookie cookie = new DefaultCookie(name, value);
         cookie.setHttpOnly(true);
@@ -122,7 +122,7 @@ public class ResponseBuilder {
         cookies.add(cookie);
         return this;
     }
-
+    
     public ResponseBuilder header(String name, String value) {
         if (headers == null) {
             headers = new LinkedHashMap();
@@ -130,25 +130,25 @@ public class ResponseBuilder {
         headers.put(name, Collections.singletonList(value));
         return this;
     }
-
+    
     public ResponseBuilder ajaxRedirect(String url) {
         header(HttpConstants.HDR_HX_REDIRECT, url);
         return this;
     }
-
+    
     public ResponseBuilder session(Session session, boolean newSession) {
         if (session != null && newSession) {
             sessionCookie(session.getId());
         }
         return this;
     }
-
+    
     public Response build() {
         Response response = requestCycle.getResponse();
         ServerContext context = requestCycle.getContext();
         if (context.isClosed()) {
             Session session = requestCycle.getSession();
-            if (session != null) {
+            if (session != null && !session.isTemporary()) {
                 deleteSessionCookie(session.getId());
             }
         }
@@ -161,6 +161,10 @@ public class ResponseBuilder {
                 body = merge(body, FileUtils.toBytes(appends));
             }
         }
+        if (context.getRedirectPath() != null) {
+            locationHeader(context.getRedirectPath());
+            response.setStatus(302);
+        }        
         if (context.isApi()) {
             body = response.getBody();
             if (resourceType != null) {
@@ -179,7 +183,7 @@ public class ResponseBuilder {
         }
         return buildWithStatus(response.getStatus());
     }
-
+    
     private static byte[] merge(byte[] body, byte[] extra) {
         if (body == null) {
             body = new byte[0];
@@ -189,7 +193,7 @@ public class ResponseBuilder {
         System.arraycopy(extra, 0, merged, body.length, extra.length);
         return merged;
     }
-
+    
     public Response buildStatic(Request request) { // TODO ETag header handling
         resourceType = request.getResourceType();
         if (resourceType == null) {
@@ -205,9 +209,9 @@ public class ResponseBuilder {
         }
         return buildWithStatus(200);
     }
-
+    
     public Response buildWithStatus(int status) {
         return new Response(status, headers, status == 204 ? null : body, resourceType);
     }
-
+    
 }

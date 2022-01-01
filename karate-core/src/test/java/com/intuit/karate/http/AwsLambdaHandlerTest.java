@@ -6,7 +6,6 @@ import com.intuit.karate.Match;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
@@ -26,6 +25,7 @@ class AwsLambdaHandlerTest {
 
     void init(boolean classpath) {
         ServerConfig config = classpath ? new ServerConfig("classpath:demo") : new ServerConfig("src/test/java/demo");
+        config.autoCreateSession(true);
         handler = new AwsLambdaHandler(new RequestHandler(config));
     }
 

@@ -55,90 +55,90 @@ import picocli.CommandLine.Parameters;
  * @author pthomas3
  */
 public class Main implements Callable<Void> {
-
+    
     private static final String LOGBACK_CONFIG = "logback.configurationFile";
-
+    
     private static org.slf4j.Logger logger;
-
+    
     @Option(names = {"-h", "--help"}, usageHelp = true, description = "display this help message")
     boolean help;
-
+    
     @Parameters(split = "($|,)", description = "one or more tests (features) or search-paths to run")
     List<String> paths;
-
+    
     @Option(names = {"-m", "--mock", "--mocks"}, split = ",", description = "one or more mock server files")
     List<File> mocks;
-
+    
     @Option(names = {"-P", "--prefix"}, description = "mock server path prefix (context-path)")
     String prefix = "/";
-
+    
     @Option(names = {"-p", "--port"}, description = "server port (default 8080)")
     int port = 8080;
-
+    
     @Option(names = {"-W", "--watch"}, description = "watch (and hot-reload) mock server file for changes")
     boolean watch;
-
+    
     @Option(names = {"-S", "--serve"}, description = "app server using --workdir (experimental)")
     boolean serve;
-
+    
     @Option(names = {"-s", "--ssl"}, description = "use ssl / https, will use '"
             + SslContextFactory.DEFAULT_CERT_NAME + "' and '" + SslContextFactory.DEFAULT_KEY_NAME
             + "' if they exist in the working directory, or generate them")
     boolean ssl;
-
+    
     @Option(names = {"-c", "--cert"}, description = "ssl certificate (default: " + SslContextFactory.DEFAULT_CERT_NAME + ")")
     File cert;
-
+    
     @Option(names = {"-k", "--key"}, description = "ssl private key (default: " + SslContextFactory.DEFAULT_KEY_NAME + ")")
     File key;
-
+    
     @Option(names = {"-t", "--tags"}, description = "cucumber tags - e.g. '@smoke,~@skipme' [@ignore is always skipped by default]")
     List<String> tags;
-
+    
     @Option(names = {"-T", "--threads"}, description = "number of threads when running tests")
     int threads = 1;
-
+    
     @Option(names = {"-o", "--output"}, description = "directory where logs and reports are output (default 'target')")
     String output = FileUtils.getBuildDir();
-
+    
     @Option(names = {"-f", "--format"}, split = ",", description = "comma separate report output formats. tilde excludes the output report. html report is included by default unless it's negated."
             + "e.g. '-f json,cucumber:json,junit:xml. Possible values [html: Karate HTML, json: Karate JSON, cucumber:json: Cucumber JSON, junit:xml: JUnit XML]")
     List<String> formats;
-
+    
     @Option(names = {"-n", "--name"}, description = "scenario name")
     String name;
-
+    
     @Option(names = {"-e", "--env"}, description = "value of 'karate.env'")
     String env;
-
+    
     @Option(names = {"-w", "--workdir"}, description = "working directory, defaults to '.'")
     File workingDir = FileUtils.WORKING_DIR;
-
+    
     @Option(names = {"-g", "--configdir"}, description = "directory where 'karate-config.js' is expected (default 'classpath:' or <workingdir>)")
     String configDir;
-
+    
     @Option(names = {"-C", "--clean"}, description = "clean output directory")
     boolean clean;
-
+    
     @Option(names = {"-B", "--backup-reportdir"}, defaultValue = "true", arity = "0..1", fallbackValue = "true", description = "backup report directory before running tests")
     boolean backupReportDir = true;
-
+    
     @Option(names = {"-d", "--debug"}, arity = "0..1", defaultValue = "-1", fallbackValue = "0",
             description = "debug mode (optional port else dynamically chosen)")
     int debugPort;
-
+    
     @Option(names = {"--debug-keepalive"}, defaultValue = "false", arity = "0..1", fallbackValue = "true", description = "keep debug server open for connections after disconnect")
     boolean keepDebugServerAlive;
-
+    
     @Option(names = {"-D", "--dryrun"}, description = "dry run, generate html reports only")
     boolean dryRun;
-
+    
     @Option(names = {"-j", "--jobserver"}, description = "job server url")
     String jobServerUrl;
-
+    
     @Option(names = {"-i", "--import"}, description = "import and convert a file")
     String importFile;
-
+    
     @Option(names = {"-H", "--hook"}, split = ",", description = "class name of a RuntimeHook (or RuntimeHookFactory) to add")
     List<String> hookFactoryClassNames;
 
@@ -150,59 +150,59 @@ public class Main implements Callable<Void> {
         }
         paths.add(path);
     }
-
+    
     public void setPaths(List<String> paths) {
         this.paths = paths;
     }
-
+    
     public List<String> getPaths() {
         return paths;
     }
-
+    
     public List<String> getTags() {
         return tags;
     }
-
+    
     public int getThreads() {
         return threads;
     }
-
+    
     public String getName() {
         return name;
     }
-
+    
     public void setName(String name) {
         this.name = name;
     }
-
+    
     public boolean isOutputHtmlReport() {
         return formats == null ? true : !formats.contains("~html");
     }
-
+    
     public boolean isOutputCucumberJson() {
         return formats == null ? false : formats.contains("cucumber:json");
     }
-
+    
     public boolean isOutputJunitXml() {
         return formats == null ? false : formats.contains("junit:xml");
     }
-
+    
     public String getEnv() {
         return env;
     }
-
+    
     public void setEnv(String env) {
         this.env = env;
     }
-
+    
     public String getConfigDir() {
         return configDir;
     }
-
+    
     public void setConfigDir(String configDir) {
         this.configDir = configDir;
     }
-
+    
     public static Main parseKarateOptions(String line) {
         String[] args = Command.tokenize(line);
         return CommandLine.populateCommand(new Main(), args);
@@ -227,7 +227,7 @@ public class Main implements Callable<Void> {
         }
         return Main.parseKarateOptions(line.trim());
     }
-
+    
     public Collection<RuntimeHook> createHooks() {
         if (this.hookFactoryClassNames != null) {
             return this.hookFactoryClassNames.stream()
@@ -235,7 +235,7 @@ public class Main implements Callable<Void> {
         }
         return Collections.emptyList();
     }
-
+    
     private RuntimeHook createHook(String hookClassName) {
         if (hookClassName != null) {
             try {
@@ -244,7 +244,7 @@ public class Main implements Callable<Void> {
                     return ((RuntimeHookFactory) hookClass.newInstance()).create();
                 } else if (RuntimeHook.class.isAssignableFrom(hookClass)) {
                     return (RuntimeHook) hookClass.newInstance();
-
+                    
                 }
             } catch (Exception e) {
                 logger.error("error instantiating RuntimeHook: {}", hookClassName, e);
@@ -253,7 +253,7 @@ public class Main implements Callable<Void> {
         }
         return null;
     }
-
+    
     public static void main(String[] args) {
         boolean isClean = false;
         boolean isOutputArg = false;
@@ -303,7 +303,7 @@ public class Main implements Callable<Void> {
         int returnCode = cmd.execute(args);
         System.exit(returnCode);
     }
-
+    
     private static void resetLoggerConfig() {
         ILoggerFactory factory = LoggerFactory.getILoggerFactory();
         try {
@@ -317,7 +317,7 @@ public class Main implements Callable<Void> {
             // ignore
         }
     }
-
+    
     @Override
     public Void call() throws Exception {
         if (clean) {
@@ -374,7 +374,7 @@ public class Main implements Callable<Void> {
             System.setProperty(Constants.KARATE_ENV, env);
         }
         if (serve) {
-            ServerConfig config = new ServerConfig(workingDir.getPath());
+            ServerConfig config = new ServerConfig(workingDir.getPath()).autoCreateSession(true);
             RequestHandler handler = new RequestHandler(config);
             HttpServer.Builder builder = HttpServer
                     .handler(handler)
@@ -409,5 +409,5 @@ public class Main implements Callable<Void> {
         server.waitSync();
         return null;
     }
-
+    
 }

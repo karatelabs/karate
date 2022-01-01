@@ -43,7 +43,8 @@ public class ServerConfig {
 
     private String hostContextPath = null;
     private String homePagePath = "index";
-    private String logoutPagePath = "logout";
+    private String signinPagePath = "signin";
+    private String signoutPagePath = "signout";
     private String sessionCookieName = "karate.sid";
     private boolean stripContextPathFromRequest;
     private boolean useGlobalSession;
@@ -102,9 +103,13 @@ public class ServerConfig {
     public String getHomePagePath() {
         return homePagePath;
     }
+    
+    public String getSigninPagePath() {
+        return signinPagePath;
+    }     
 
-    public String getLogoutPagePath() {
-        return logoutPagePath;
+    public String getSignoutPagePath() {
+        return signoutPagePath;
     }        
 
     public String getSessionCookieName() {
@@ -155,8 +160,13 @@ public class ServerConfig {
         return this;
     }
     
-    public ServerConfig logoutPagePath(String value) {
-        logoutPagePath = value;
+    public ServerConfig signinPagePath(String value) {
+        signinPagePath = value;
+        return this;
+    }     
+    
+    public ServerConfig signoutPagePath(String value) {
+        signoutPagePath = value;
         return this;
     }    
 

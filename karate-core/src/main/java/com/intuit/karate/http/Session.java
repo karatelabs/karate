@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,6 +39,8 @@ public class Session {
     private long updated;
     private long expires;
 
+    public static final Session TEMPORARY = new Session(null, null, -1, -1, -1);
+
     public Session(String id, Map<String, Object> data, long created, long updated, long expires) {
         this.id = id;
         this.data = data;
@@ -45,7 +48,11 @@ public class Session {
         this.updated = updated;
         this.expires = expires;
     }
-    
+
+    public boolean isTemporary() {
+        return id == null;
+    }
+
     public Session copy() { // TODO deep-clone ?
         return new Session(id, new HashMap(data), created, updated, expires);
     }
