@@ -68,9 +68,7 @@ Refer: https://twitter.com/ptrthomas/status/986463717465391104
 </dependency>  
 ```
 
-Since the above does *not* include the [`karate-apache` (or `karate-jersey`)]((https://github.com/intuit/karate#maven)) dependency you will need to include that as well.
-
-You will also need the [Gatling Maven Plugin](https://github.com/gatling/gatling-maven-plugin), refer to the [sample project](../examples/gatling) for how to use this for a typical Karate project where feature files are in `src/test/java`. For convenience we recommend you keep even the Gatling simulation files in the same folder hierarchy, even though they are technically files with a `*.scala` extension.
+You will also need the [Gatling Maven Plugin](https://github.com/gatling/gatling-maven-plugin) and the [Scala Maven Pugin](https://github.com/davidB/scala-maven-plugin). Refer to the [sample project](../examples/gatling) for how to use this for a typical Karate project where feature files are in `src/test/java`. For convenience we recommend you keep even the Gatling simulation files in the same folder hierarchy, even though they are technically files with a `*.scala` extension.
 
 ```xml
   <plugin>
