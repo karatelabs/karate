@@ -121,6 +121,7 @@ public class XmlUtils {
 
     public static Document toXmlDoc(String xml) {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
         try {
             DocumentBuilder builder = factory.newDocumentBuilder();
             DtdEntityResolver dtdEntityResolver = new DtdEntityResolver();
