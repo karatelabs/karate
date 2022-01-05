@@ -182,17 +182,21 @@ public class ScenarioBridge implements PerfContext, EventContext {
     public Object callSingle(String fileName, Value arg) throws Exception {
         ScenarioEngine engine = getEngine();
         final Map<String, Object> CACHE = engine.runtime.featureRuntime.suite.callSingleCache;
+        int minutes = engine.getConfig().getCallSingleCacheMinutes();
+        if ((minutes == 0) && CACHE.containsKey(fileName)) {
+            engine.logger.trace("callSingle cache hit: {}", fileName);
+            return callSingleResult(engine, CACHE.get(fileName));
+        }
         long startTime = System.currentTimeMillis();
         engine.logger.trace("callSingle waiting for lock: {}", fileName);
         synchronized (CACHE) { // lock
-            // this thread is the 'winner'
-            engine.logger.info(">> lock acquired, begin callSingle: {}", fileName);
-            int minutes = engine.getConfig().getCallSingleCacheMinutes();
-            if ((minutes == 0) && CACHE.containsKey(fileName)) {
+            if ((minutes == 0) && CACHE.containsKey(fileName)) { // retry
                 long endTime = System.currentTimeMillis() - startTime;
                 engine.logger.warn("this thread waited {} milliseconds for callSingle lock: {}", endTime, fileName);
                 return callSingleResult(engine, CACHE.get(fileName));
             }
+            // this thread is the 'winner'
+            engine.logger.info(">> lock acquired, begin callSingle: {}", fileName);
             Object result = null;
             File cacheFile = null;
             if (minutes > 0) {
@@ -226,7 +230,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
                 try {
                     resultVar = engine.call(called, argVar, false);
                 } catch (Exception e) {
-                    // don't retain any vestiges of graal-js
+                    // don't retain any vestiges of graal-js 
                     RuntimeException re = new RuntimeException(e.getMessage());
                     // we do this so that an exception is also "cached"
                     resultVar = new Variable(re); // will be thrown at end
