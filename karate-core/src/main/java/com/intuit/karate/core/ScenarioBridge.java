@@ -182,21 +182,21 @@ public class ScenarioBridge implements PerfContext, EventContext {
     public Object callSingle(String fileName, Value arg) throws Exception {
         ScenarioEngine engine = getEngine();
         final Map<String, Object> CACHE = engine.runtime.featureRuntime.suite.callSingleCache;
-        if (CACHE.containsKey(fileName)) {
+        int minutes = engine.getConfig().getCallSingleCacheMinutes();
+        if ((minutes == 0) && CACHE.containsKey(fileName)) {
             engine.logger.trace("callSingle cache hit: {}", fileName);
             return callSingleResult(engine, CACHE.get(fileName));
         }
         long startTime = System.currentTimeMillis();
         engine.logger.trace("callSingle waiting for lock: {}", fileName);
         synchronized (CACHE) { // lock
-            if (CACHE.containsKey(fileName)) { // retry
+            if ((minutes == 0) && CACHE.containsKey(fileName)) { // retry
                 long endTime = System.currentTimeMillis() - startTime;
                 engine.logger.warn("this thread waited {} milliseconds for callSingle lock: {}", endTime, fileName);
                 return callSingleResult(engine, CACHE.get(fileName));
             }
             // this thread is the 'winner'
             engine.logger.info(">> lock acquired, begin callSingle: {}", fileName);
-            int minutes = engine.getConfig().getCallSingleCacheMinutes();
             Object result = null;
             File cacheFile = null;
             if (minutes > 0) {
