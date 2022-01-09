@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.http;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 

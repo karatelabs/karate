@@ -526,7 +526,7 @@ public class ServerContext implements ProxyObject {
             case CLOSE:
                 return CLOSE_FUNCTION;
             case CLOSED:
-                return closed;
+                return closed || session == null || session.isTemporary();
             case RENDER:
                 return RENDER_FUNCTION;
             case BODY_APPEND:

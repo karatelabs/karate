@@ -160,7 +160,7 @@ public class Request implements ProxyObject {
         }
         return cookieValues.stream().map(ClientCookieDecoder.STRICT::decode).collect(toList());
     }
-    
+
     public int getParamInt(String name) {
         String value = getParam(name);
         return value == null ? -1 : Integer.valueOf(value);
@@ -173,7 +173,7 @@ public class Request implements ProxyObject {
         }
         return values.get(0);
     }
-    
+
     public String getNonBlank(String name) {
         String value = getParam(name);
         return StringUtils.isBlank(value) ? null : value;
@@ -204,7 +204,7 @@ public class Request implements ProxyObject {
     }
 
     public String getUrlAndPath() {
-        return urlAndPath;
+        return urlAndPath != null ? urlAndPath : (urlBase != null ? urlBase : "") + "/" + path;
     }
 
     public String getUrlBase() {
@@ -464,7 +464,7 @@ public class Request implements ProxyObject {
             case PARAM:
                 return (Function<String, String>) this::getParam;
             case PARAM_INT:
-                return (Function<String, Integer>) this::getParamInt;                
+                return (Function<String, Integer>) this::getParamInt;
             case NON_BLANK:
                 return (Function<String, String>) this::getNonBlank;
             case JSON:
@@ -506,7 +506,7 @@ public class Request implements ProxyObject {
                 return null;
         }
     }
-    
+
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap();
         map.put(URL, urlAndPath);

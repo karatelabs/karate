@@ -60,10 +60,7 @@ public class RequestHandler implements ServerHandler {
             }
         }
         if (request.getPath().isEmpty()) {
-            if (logger.isDebugEnabled()) {
-                logger.debug("redirecting to home page: {}", request);
-            }
-            return response().locationHeader(redirectPath(false)).buildWithStatus(302);
+            request.setPath(config.getHomePagePath());
         }
         ServerContext context = contextFactory.apply(request);
         if (request.getResourceType() == null) { // can be set by context factory
@@ -108,9 +105,9 @@ public class RequestHandler implements ServerHandler {
                         rb.deleteSessionCookie(sessionId);
                     }
                     if (request.isAjax()) {
-                        rb.ajaxRedirect(redirectPath(true));
+                        rb.ajaxRedirect(signInPath());
                     } else {
-                        rb.locationHeader(redirectPath(true));
+                        rb.locationHeader(signInPath());
                     }
                     return rb.buildWithStatus(302);
                 }
@@ -121,8 +118,8 @@ public class RequestHandler implements ServerHandler {
         return rc.handle();
     }
 
-    private String redirectPath(boolean logout) {
-        String path = logout ? config.getSigninPagePath() : config.getHomePagePath();
+    private String signInPath() {
+        String path = config.getSigninPagePath();
         String contextPath = config.getHostContextPath();
         return contextPath == null ? "/" + path : contextPath + path;
     }
