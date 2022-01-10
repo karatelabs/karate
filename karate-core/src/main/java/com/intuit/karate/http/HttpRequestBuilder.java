@@ -634,6 +634,7 @@ public class HttpRequestBuilder implements ProxyObject {
     }
 
     public Map<String, Object> toMap() {
+        buildInternal();
         Map<String, Object> map = new HashMap();
         map.put("url", getUri());
         map.put("method", method);
