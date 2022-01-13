@@ -137,7 +137,7 @@ public class ServerContext implements ProxyObject {
         RENDER_FUNCTION = o -> {
             if (o instanceof String) {
                 JsEngine je = RequestCycle.get().getEngine();
-                return TemplateUtils.renderResourcePath((String) o, je, config.getResourceResolver());
+                return TemplateUtils.renderServerPath((String) o, je, config.getResourceResolver());
             }
             Map<String, Object> map;
             if (o instanceof Map) {
@@ -166,7 +166,7 @@ public class ServerContext implements ProxyObject {
             }
             String body;
             if (path != null) {
-                body = TemplateUtils.renderResourcePath(path, je, config.getResourceResolver());
+                body = TemplateUtils.renderServerPath(path, je, config.getResourceResolver());
             } else {
                 body = TemplateUtils.renderHtmlString(html, je, config.getResourceResolver());
             }

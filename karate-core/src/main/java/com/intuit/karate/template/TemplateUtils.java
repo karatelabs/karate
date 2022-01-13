@@ -77,15 +77,22 @@ public class TemplateUtils {
         engine.setTemplateResolver(new ResourceHtmlTemplateResolver(resourceResolver));
         return engine;
     }
+    
+    public static KarateTemplateEngine forServerResolver(JsEngine je, ResourceResolver resourceResolver) {
+        ServerConfig config = new ServerConfig(resourceResolver);
+        KarateTemplateEngine engine = new KarateTemplateEngine(config, je, new KarateScriptDialect(config));
+        engine.setTemplateResolver(new ServerHtmlTemplateResolver(resourceResolver));
+        return engine;
+    }    
 
     public static KarateTemplateEngine forResourceRoot(JsEngine je, String root) {
         return forResourceResolver(je, new ResourceResolver(root));
     }
 
-    public static String renderResourcePath(String path, JsEngine je, ResourceResolver resourceResolver) {
+    public static String renderServerPath(String path, JsEngine je, ResourceResolver resourceResolver) {
         KarateEngineContext old = KarateEngineContext.get();
         try {
-            KarateTemplateEngine kte = forResourceResolver(je, resourceResolver);
+            KarateTemplateEngine kte = forServerResolver(je, resourceResolver);
             return kte.process(path);
         } finally {
             KarateEngineContext.set(old);

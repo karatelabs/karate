@@ -24,7 +24,6 @@
 package com.intuit.karate.template;
 
 import com.intuit.karate.http.ServerConfig;
-import com.intuit.karate.resource.ResourceResolver;
 import java.util.HashSet;
 import java.util.Set;
 import org.thymeleaf.dialect.AbstractProcessorDialect;

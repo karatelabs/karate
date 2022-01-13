@@ -160,4 +160,9 @@ public class HttpRequest {
         return request;
     }
 
+    @Override
+    public String toString() {
+        return method + " " + url;
+    }        
+
 }
