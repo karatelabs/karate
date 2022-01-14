@@ -77,6 +77,10 @@ public class KarateEngineContext implements IEngineContext {
     public static void set(KarateEngineContext kec) {
         THREAD_LOCAL.set(kec);
     }
+
+    public JsEngine getJsEngine() {
+        return jsEngine;
+    }        
     
     public String getTemplateName() {
         return wrapped.getTemplateData().getTemplate();

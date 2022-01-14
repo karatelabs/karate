@@ -122,10 +122,10 @@ public class ServerContext implements ProxyObject {
         this(config, request, null);
     }
 
-    public ServerContext(ServerConfig config, Request request, Map<String, Object> variables) {
+    public ServerContext(ServerConfig config, Request request, Map<String, Object> vars) {
         this.config = config;
         this.request = request;
-        this.variables = variables;
+        this.variables = vars;
         HTTP_FUNCTION = args -> {
             HttpClient client = config.getHttpClientFactory().apply(request);
             HttpRequestBuilder http = new HttpRequestBuilder(client);
@@ -135,9 +135,9 @@ public class ServerContext implements ProxyObject {
             return http;
         };
         RENDER_FUNCTION = o -> {
+            KarateEngineContext engineContext = KarateEngineContext.get();
             if (o instanceof String) {
-                JsEngine je = RequestCycle.get().getEngine();
-                return TemplateUtils.renderServerPath((String) o, je, config.getResourceResolver());
+                return TemplateUtils.renderServerPath((String) o, engineContext.getJsEngine(), config.getResourceResolver());
             }
             Map<String, Object> map;
             if (o instanceof Map) {
@@ -159,10 +159,13 @@ public class ServerContext implements ProxyObject {
             if (fork != null && fork) {
                 je = JsEngine.local();
             } else {
-                je = RequestCycle.get().getEngine().copy();
+                je = engineContext.getJsEngine().copy();
             }
             if (templateVars != null) {
                 je.putAll(templateVars);
+            }
+            if (swap != null) {
+                je.put("__swap", swap.toString());
             }
             String body;
             if (path != null) {
@@ -171,17 +174,7 @@ public class ServerContext implements ProxyObject {
                 body = TemplateUtils.renderHtmlString(html, je, config.getResourceResolver());
             }
             if (swap != null) {
-                String id = (String) map.get("id");
-                StringBuilder sb = new StringBuilder();
-                sb.append("<div");
-                if (id != null) {
-                    sb.append(" id=\"").append(id).append("\"");
-                }
-                sb.append(" hx-swap-oob=\"").append(swap).append("\">");
-                sb.append(body);
-                sb.append("</div>");
-                String appended = sb.toString();
-                bodyAppend(appended);
+                bodyAppend(body);                
             }
             return body;
         };
@@ -219,12 +212,12 @@ public class ServerContext implements ProxyObject {
     }
 
     public Object eval(String source) {
-        return RequestCycle.get().getEngine().evalForValue(source);
+        return KarateEngineContext.get().getJsEngine().evalForValue(source);
     }
 
     public Object evalWith(Object o, String source) {
         Value value = Value.asValue(o);
-        return RequestCycle.get().getEngine().evalWith(value, source, true);
+        return KarateEngineContext.get().getJsEngine().evalWith(value, source, true);
     }
 
     public String toJson(Object o) {
@@ -365,14 +358,20 @@ public class ServerContext implements ProxyObject {
         }
         String name = args[0].toString();
         KarateEngineContext kec = KarateEngineContext.get();
-        if (args.length == 1) {
-            return kec.getVariable(name);
-        }
+        Object value;
         if (kec.containsVariable(name)) {
-            return kec.getVariable(name);
+            value = kec.getVariable(name);
         } else {
-            return args[1];
+            JsEngine je = kec.getJsEngine();
+            if (je.bindings.hasMember(name)) {
+                value = kec.getJsEngine().get(name).getValue();
+            } else if (args.length > 1) {
+                value = args[1];
+            } else {
+                value = null;
+            }           
         }
+        return value;
     };
 
     private static final Supplier<String> UUID_FUNCTION = () -> java.util.UUID.randomUUID().toString();
@@ -442,7 +441,7 @@ public class ServerContext implements ProxyObject {
 
     private final Supplier<Object> INIT_FUNCTION = () -> {
         init();
-        RequestCycle.get().getEngine().put(RequestCycle.SESSION, session.getData());
+        KarateEngineContext.get().getJsEngine().put(RequestCycle.SESSION, session.getData());
         logger.debug("init session: {}", session);
         return null;
     };

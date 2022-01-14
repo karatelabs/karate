@@ -24,8 +24,11 @@
 package com.intuit.karate.template;
 
 import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.http.RequestCycle;
 import com.intuit.karate.http.ServerConfig;
+import com.intuit.karate.http.ServerContext;
 import com.intuit.karate.resource.ResourceResolver;
+import java.util.Map;
 import org.thymeleaf.context.ITemplateContext;
 import org.thymeleaf.model.IModel;
 import org.thymeleaf.model.IModelFactory;
@@ -57,33 +60,37 @@ public class TemplateUtils {
         return false;
     }
 
+    private static KarateTemplateEngine initEngine(JsEngine je, ResourceResolver resolver) {
+        ServerConfig config = new ServerConfig(resolver);
+        ServerContext sc = new ServerContext(config, null);
+        je.put(RequestCycle.CONTEXT, sc); // TODO improve
+        return new KarateTemplateEngine(() -> je, new KarateScriptDialect(config));
+    }
+    
     public static KarateTemplateEngine forServer(ServerConfig config) {
-        KarateTemplateEngine engine = new KarateTemplateEngine(null, null, new KarateServerDialect(config));
+        KarateTemplateEngine engine = new KarateTemplateEngine(() -> RequestCycle.get().getEngine(), new KarateServerDialect(config));
         engine.setTemplateResolver(new ServerHtmlTemplateResolver(config.getResourceResolver()));
         return engine;
-    }
-
+    }    
+    
     public static KarateTemplateEngine forStrings(JsEngine je, ResourceResolver resourceResolver) {
-        ServerConfig config = new ServerConfig(resourceResolver);
-        KarateTemplateEngine engine = new KarateTemplateEngine(config, je, new KarateScriptDialect(config));
+        KarateTemplateEngine engine = initEngine(je, resourceResolver);
         engine.setTemplateResolver(StringHtmlTemplateResolver.INSTANCE);
         engine.addTemplateResolver(new ResourceHtmlTemplateResolver(resourceResolver));
         return engine;
     }
 
     public static KarateTemplateEngine forResourceResolver(JsEngine je, ResourceResolver resourceResolver) {
-        ServerConfig config = new ServerConfig(resourceResolver);
-        KarateTemplateEngine engine = new KarateTemplateEngine(config, je, new KarateScriptDialect(config));
+        KarateTemplateEngine engine = initEngine(je, resourceResolver);
         engine.setTemplateResolver(new ResourceHtmlTemplateResolver(resourceResolver));
         return engine;
     }
-    
+
     public static KarateTemplateEngine forServerResolver(JsEngine je, ResourceResolver resourceResolver) {
-        ServerConfig config = new ServerConfig(resourceResolver);
-        KarateTemplateEngine engine = new KarateTemplateEngine(config, je, new KarateScriptDialect(config));
+        KarateTemplateEngine engine = initEngine(je, resourceResolver);
         engine.setTemplateResolver(new ServerHtmlTemplateResolver(resourceResolver));
         return engine;
-    }    
+    }
 
     public static KarateTemplateEngine forResourceRoot(JsEngine je, String root) {
         return forResourceResolver(je, new ResourceResolver(root));

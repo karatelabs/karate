@@ -25,12 +25,10 @@ package com.intuit.karate.template;
 
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.http.RequestCycle;
-import com.intuit.karate.http.ServerConfig;
-import com.intuit.karate.http.ServerContext;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Map;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.IEngineConfiguration;
@@ -59,19 +57,12 @@ public class KarateTemplateEngine {
     private final StandardEngineContextFactory standardFactory;
     private final TemplateEngine wrapped;
 
-    public KarateTemplateEngine(ServerConfig config, JsEngine je, IDialect... dialects) {
+    public KarateTemplateEngine(Supplier<JsEngine> jsEngine, IDialect... dialects) {
         standardFactory = new StandardEngineContextFactory();
         wrapped = new TemplateEngine();
         wrapped.setEngineContextFactory((IEngineConfiguration ec, TemplateData data, Map<String, Object> attrs, IContext context) -> {
             IEngineContext engineContext = standardFactory.createEngineContext(ec, data, attrs, context);
-            if (je == null) {
-                return KarateEngineContext.initThreadLocal(engineContext, RequestCycle.get().getEngine());
-            } else {                
-                ServerContext sc = new ServerContext(config, null);
-                je.put(RequestCycle.CONTEXT, sc); // TODO improve
-                return KarateEngineContext.initThreadLocal(engineContext, je);
-            }
-
+            return KarateEngineContext.initThreadLocal(engineContext, jsEngine.get());
         });
         // the next line is a set which clears and replaces all existing / default
         wrapped.setDialect(new KarateStandardDialect());
