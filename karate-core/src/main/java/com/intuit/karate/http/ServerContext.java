@@ -122,10 +122,10 @@ public class ServerContext implements ProxyObject {
         this(config, request, null);
     }
 
-    public ServerContext(ServerConfig config, Request request, Map<String, Object> vars) {
+    public ServerContext(ServerConfig config, Request request, Map<String, Object> variables) {
         this.config = config;
         this.request = request;
-        this.variables = vars;
+        this.variables = variables;
         HTTP_FUNCTION = args -> {
             HttpClient client = config.getHttpClientFactory().apply(request);
             HttpRequestBuilder http = new HttpRequestBuilder(client);
@@ -146,11 +146,11 @@ public class ServerContext implements ProxyObject {
                 logger.warn("invalid argument to render: {}", o);
                 return null;
             }
-            Map<String, Object> templateVars = (Map) map.get("variables");
+            Map<String, Object> vars = (Map) map.get("vars");
             String path = (String) map.get("path");
             String html = (String) map.get("html");
             Boolean fork = (Boolean) map.get("fork");
-            Object swap = map.get("swap");
+            Boolean append = (Boolean) map.get("append");
             if (path == null && html == null) {
                 logger.warn("invalid argument to render, 'path' or 'html' needed: {}", map);
                 return null;
@@ -161,11 +161,8 @@ public class ServerContext implements ProxyObject {
             } else {
                 je = engineContext.getJsEngine().copy();
             }
-            if (templateVars != null) {
-                je.putAll(templateVars);
-            }
-            if (swap != null) {
-                je.put("__swap", swap.toString());
+            if (vars != null) {
+                je.putAll(vars);
             }
             String body;
             if (path != null) {
@@ -173,7 +170,7 @@ public class ServerContext implements ProxyObject {
             } else {
                 body = TemplateUtils.renderHtmlString(html, je, config.getResourceResolver());
             }
-            if (swap != null) {
+            if (append != null && append) {
                 bodyAppend(body);                
             }
             return body;
