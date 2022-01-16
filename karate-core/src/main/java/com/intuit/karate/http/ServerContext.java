@@ -84,6 +84,7 @@ public class ServerContext implements ProxyObject {
     private static final String BODY_APPEND = "bodyAppend";
     private static final String COPY = "copy";
     private static final String DELAY = "delay";
+    private static final String TO_STRING = "toString";
     private static final String TO_LIST = "toList";
     private static final String TO_JSON = "toJson";
     private static final String TO_JSON_PRETTY = "toJsonPretty";
@@ -94,7 +95,7 @@ public class ServerContext implements ProxyObject {
 
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, LOG, UUID, REMOVE, REDIRECT, SWITCH, SWITCHED, AJAX, HTTP, NEXT_ID, SESSION_ID,
-        INIT, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON, TEMPLATE, TYPE_OF, IS_PRIMITIVE};
+        INIT, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_STRING, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON, TEMPLATE, TYPE_OF, IS_PRIMITIVE};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -171,7 +172,7 @@ public class ServerContext implements ProxyObject {
                 body = TemplateUtils.renderHtmlString(html, je, config.getResourceResolver());
             }
             if (append != null && append) {
-                bodyAppend(body);                
+                bodyAppend(body);
             }
             return body;
         };
@@ -366,7 +367,7 @@ public class ServerContext implements ProxyObject {
                 value = args[1];
             } else {
                 value = null;
-            }           
+            }
         }
         return value;
     };
@@ -392,6 +393,11 @@ public class ServerContext implements ProxyObject {
         } catch (Exception e) {
             logger.error("delay failed: {}", e.getMessage());
         }
+    };
+
+    private final Function<Object, Object> TO_STRING_FUNCTION = o -> {
+        Variable v = new Variable(o);
+        return v.getAsString();
     };
 
     private final Function<Object, Object> TO_LIST_FUNCTION = o -> {
@@ -493,6 +499,8 @@ public class ServerContext implements ProxyObject {
                 return COPY_FUNCTION;
             case DELAY:
                 return DELAY_FUNCTION;
+            case TO_STRING:
+                return TO_STRING_FUNCTION;
             case TO_LIST:
                 return TO_LIST_FUNCTION;
             case TO_JSON:
