@@ -63,6 +63,8 @@ public class ReportUtils {
         "com/intuit/karate/report/bootstrap.min.js",
         "com/intuit/karate/report/jquery.min.js",
         "com/intuit/karate/report/jquery.tablesorter.min.js",
+        "com/intuit/karate/report/vis.min.css",
+        "com/intuit/karate/report/vis.min.js",
         "com/intuit/karate/report/karate-report.css",
         "com/intuit/karate/report/karate-report.js"
     };
