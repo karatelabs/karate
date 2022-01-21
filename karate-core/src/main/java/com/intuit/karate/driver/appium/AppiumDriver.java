@@ -51,8 +51,7 @@ public abstract class AppiumDriver extends WebDriver {
         super(options);
         // flag to know if driver runs for browser on mobile
         Map<String, Object> sessionPayload = (Map<String, Object>) options.getWebDriverSessionPayload();
-        Map<String, Object> desiredCapabilities = (Map<String, Object>) sessionPayload.get("desiredCapabilities");
-        isWebSession = (desiredCapabilities.get("browserName") != null) ? true : false;
+        isWebSession = options.isWebSession();
     }
 
     @Override
@@ -218,5 +217,6 @@ public abstract class AppiumDriver extends WebDriver {
         http.path("element", id, "clear").postJson("{}");
         return DriverElement.locatorExists(this, locator);
     }
+
 
 }
