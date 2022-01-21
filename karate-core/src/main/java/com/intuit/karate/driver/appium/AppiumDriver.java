@@ -51,8 +51,11 @@ public abstract class AppiumDriver extends WebDriver {
         super(options);
         // flag to know if driver runs for browser on mobile
         Map<String, Object> sessionPayload = (Map<String, Object>) options.getWebDriverSessionPayload();
-        Map<String, Object> desiredCapabilities = (Map<String, Object>) sessionPayload.get("desiredCapabilities");
-        isWebSession = (desiredCapabilities.get("browserName") != null) ? true : false;
+        //Map<String, Object> desiredCapabilities = (Map<String, Object>) sessionPayload.get("desiredCapabilities");
+        //isWebSession = (desiredCapabilities.get("browserName") != null) ? true : false;
+
+        String browserName = this.getBrowserName(sessionPayload);
+        isWebSession = browserName != null;
     }
 
     @Override
@@ -217,6 +220,33 @@ public abstract class AppiumDriver extends WebDriver {
         String id = elementId(locator);
         http.path("element", id, "clear").postJson("{}");
         return DriverElement.locatorExists(this, locator);
+    }
+
+    private String getBrowserName(Map<String, Object> sessionPayload) {
+        // get browserName from capabilities or desiredCapabilities node
+        Map<String, Object> capabilities = (Map<String, Object>) sessionPayload.get("capabilities");
+        Map<String, Object> desiredCapabilities = (Map<String, Object>) sessionPayload.get("desiredCapabilities");
+
+        if (capabilities != null) {
+            if (capabilities.containsKey("firstMatch")) {
+                // sauce labs uses the firstMatch node for some reason
+                // see https://support.saucelabs.com/hc/en-us/articles/4412359870231-Migrating-Appium-Real-Device-Tests-to-W3C
+                List<Map<String, Object>> firstMatch = (List<Map<String, Object>>) capabilities.get("firstMatch");
+                if (firstMatch.size() == 0) {
+                    throw new RuntimeException("firstMatch node in webdriver session is empty");
+                }
+                return (String) firstMatch.get(0).get("browserName");
+            } else {
+                return (String) capabilities.get("browserName");
+            }
+        } else if (desiredCapabilities != null) {
+            return (String) desiredCapabilities.get("browserName");
+        } else {
+            // no browserName found
+            logger.warn("browserName not found in session payload. defaulting to 'chrome'");
+            return "chrome";
+        }
+
     }
 
 }

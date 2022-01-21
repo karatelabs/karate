@@ -321,10 +321,14 @@ public abstract class WebDriver implements Driver {
             }
             Response response = http.path("element", elementId, "value").postJson(isSpecCompliant() ? getJsonForInput(value) : getJsonForLegacyInput(value));
             if (checkForSpecCompliance()) {
-                String responseMessage = response.json().get("$.value.message");
-                if (responseMessage.contains("invalid argument: 'value' must be a list")) {
-                    http.path("element", elementId, "value").postJson(getJsonForLegacyInput(value));
-                    specCompliant = false;
+                if (response.json().get("$.value") != null) {
+                    String responseMessage = response.json().get("$.value.message");
+                    if (responseMessage.contains("invalid argument: 'value' must be a list")) {
+                        http.path("element", elementId, "value").postJson(getJsonForLegacyInput(value));
+                        specCompliant = false;
+                    } else {
+                        specCompliant = true;
+                    }
                 } else {
                     // did not complain that value should be a list so assume W3C WebDriver compliant moving forward
                     specCompliant = true;
