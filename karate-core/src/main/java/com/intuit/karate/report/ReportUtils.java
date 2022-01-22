@@ -173,7 +173,11 @@ public class ReportUtils {
             testCase.setAttribute("classname", baseName);
             StringBuilder sb = new StringBuilder();
             Throwable error = appendSteps(sr.getStepResults(), sb);
-            testCase.setAttribute("name", sr.getScenario().getRefIdAndName());
+            String name = sr.getScenario().getName();
+            if (name == null) {
+                name = sr.getScenario().getUniqueId();
+            }
+            testCase.setAttribute("name", name);
             testCase.setAttribute("time", formatter.format(sr.getDurationMillis() / 1000));
             Element stepsHolder;
             if (error != null) {
