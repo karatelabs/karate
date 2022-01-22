@@ -26,6 +26,7 @@ package com.intuit.karate.report;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.StepResult;
@@ -174,7 +175,7 @@ public class ReportUtils {
             StringBuilder sb = new StringBuilder();
             Throwable error = appendSteps(sr.getStepResults(), sb);
             String name = sr.getScenario().getName();
-            if (name == null) {
+            if (StringUtils.isBlank(name)) {
                 name = sr.getScenario().getUniqueId();
             }
             testCase.setAttribute("name", name);
