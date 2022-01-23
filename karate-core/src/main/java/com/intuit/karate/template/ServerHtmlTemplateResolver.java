@@ -29,6 +29,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.IEngineConfiguration;
+import org.thymeleaf.cache.AlwaysValidCacheEntryValidity;
 import org.thymeleaf.cache.NonCacheableCacheEntryValidity;
 import org.thymeleaf.templatemode.TemplateMode;
 import org.thymeleaf.templateresolver.ITemplateResolver;
@@ -43,9 +44,11 @@ public class ServerHtmlTemplateResolver implements ITemplateResolver {
     private static final Logger logger = LoggerFactory.getLogger(ServerHtmlTemplateResolver.class);
 
     private final ResourceResolver resourceResolver;
+    private final boolean devMode;
 
-    public ServerHtmlTemplateResolver(ResourceResolver resourceResolver) {
+    public ServerHtmlTemplateResolver(ResourceResolver resourceResolver, boolean devMode) {
         this.resourceResolver = resourceResolver;
+        this.devMode = devMode;
     }
 
     @Override
@@ -62,7 +65,8 @@ public class ServerHtmlTemplateResolver implements ITemplateResolver {
     public TemplateResolution resolveTemplate(IEngineConfiguration ec, String ownerTemplate, String name, Map<String, Object> templateResolutionAttributes) {
         Resource resource = resourceResolver.resolve(name + ".html");
         KarateTemplateResource templateResource = new KarateTemplateResource(resource);
-        return new TemplateResolution(templateResource, TemplateMode.HTML, NonCacheableCacheEntryValidity.INSTANCE); // TODO cache switch
+        return new TemplateResolution(templateResource, TemplateMode.HTML,
+                devMode ? NonCacheableCacheEntryValidity.INSTANCE : AlwaysValidCacheEntryValidity.INSTANCE);
     }
 
 }

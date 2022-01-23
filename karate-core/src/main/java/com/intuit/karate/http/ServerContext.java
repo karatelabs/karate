@@ -138,7 +138,7 @@ public class ServerContext implements ProxyObject {
         RENDER_FUNCTION = o -> {
             KarateEngineContext engineContext = KarateEngineContext.get();
             if (o instanceof String) {
-                return TemplateUtils.renderServerPath((String) o, engineContext.getJsEngine(), config.getResourceResolver());
+                return TemplateUtils.renderServerPath((String) o, engineContext.getJsEngine(), config.getResourceResolver(), config.isDevMode());
             }
             Map<String, Object> map;
             if (o instanceof Map) {
@@ -167,7 +167,7 @@ public class ServerContext implements ProxyObject {
             }
             String body;
             if (path != null) {
-                body = TemplateUtils.renderServerPath(path, je, config.getResourceResolver());
+                body = TemplateUtils.renderServerPath(path, je, config.getResourceResolver(), config.isDevMode());
             } else {
                 body = TemplateUtils.renderHtmlString(html, je, config.getResourceResolver());
             }

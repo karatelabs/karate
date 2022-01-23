@@ -68,7 +68,7 @@ public class TemplateUtils {
 
     public static KarateTemplateEngine forServer(ServerConfig config) {
         KarateTemplateEngine engine = new KarateTemplateEngine(() -> RequestCycle.get().getEngine(), new KarateServerDialect(config));
-        engine.setTemplateResolver(new ServerHtmlTemplateResolver(config.getResourceResolver()));
+        engine.setTemplateResolver(new ServerHtmlTemplateResolver(config.getResourceResolver(), config.isDevMode()));
         return engine;
     }
 
@@ -85,9 +85,9 @@ public class TemplateUtils {
         return engine;
     }
 
-    public static KarateTemplateEngine forServerResolver(JsEngine je, ResourceResolver resourceResolver) {
+    public static KarateTemplateEngine forServerResolver(JsEngine je, ResourceResolver resourceResolver, boolean devMode) {
         KarateTemplateEngine engine = initEngine(je, resourceResolver, true);
-        engine.setTemplateResolver(new ServerHtmlTemplateResolver(resourceResolver));
+        engine.setTemplateResolver(new ServerHtmlTemplateResolver(resourceResolver, devMode));
         return engine;
     }
 
@@ -95,10 +95,10 @@ public class TemplateUtils {
         return forResourceResolver(je, new ResourceResolver(root));
     }
 
-    public static String renderServerPath(String path, JsEngine je, ResourceResolver resourceResolver) {
+    public static String renderServerPath(String path, JsEngine je, ResourceResolver resourceResolver, boolean devMode) {
         KarateEngineContext old = KarateEngineContext.get();
         try {
-            KarateTemplateEngine kte = forServerResolver(je, resourceResolver);
+            KarateTemplateEngine kte = forServerResolver(je, resourceResolver, devMode);
             return kte.process(path);
         } finally {
             KarateEngineContext.set(old);

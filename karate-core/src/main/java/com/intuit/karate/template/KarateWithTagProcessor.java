@@ -57,7 +57,7 @@ public class KarateWithTagProcessor extends AbstractAttributeTagProcessor {
             final IProcessableElementTag tag,
             final AttributeName attributeName, String av,
             final IElementTagStructureHandler structureHandler) {
-        JsValue jv = KarateEngineContext.get().evalLocal("({" + av + "})", true);
+        JsValue jv = KarateEngineContext.get().evalLocalAsObject(av);
         if (!jv.isObject()) {
             logger.warn("value did not evaluate to json: {}", av);
             return;

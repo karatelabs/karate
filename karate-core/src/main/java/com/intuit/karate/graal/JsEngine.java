@@ -193,10 +193,10 @@ public class JsEngine {
 
     public Value evalWith(Set<String> names, Function<String, Object> getVariable, String src, boolean returnValue) {
         StringBuilder sb = new StringBuilder();
-        sb.append("(function(x){ ");
+        sb.append("(function($){ ");
         Map<String, Object> arg = new HashMap(names.size());
         for (String name : names) {
-            sb.append("let ").append(name).append(" = x.").append(name).append("; ");
+            sb.append("let ").append(name).append(" = $.").append(name).append("; ");
             arg.put(name, getVariable.apply(name));
         }
         if (returnValue) {

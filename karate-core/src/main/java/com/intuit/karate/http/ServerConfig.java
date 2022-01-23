@@ -49,6 +49,7 @@ public class ServerConfig {
     private boolean stripContextPathFromRequest;
     private boolean useGlobalSession;
     private boolean autoCreateSession;
+    private boolean devMode;
     private SessionStore sessionStore = JvmSessionStore.INSTANCE;
     private int sessionExpirySeconds = 60 * 10;
 
@@ -94,7 +95,7 @@ public class ServerConfig {
 
     public Set<String> getJsFiles() {
         return jsFiles;
-    }   
+    }
 
     public String getHostContextPath() {
         return hostContextPath;
@@ -103,14 +104,14 @@ public class ServerConfig {
     public String getHomePagePath() {
         return homePagePath;
     }
-    
+
     public String getSigninPagePath() {
         return signinPagePath;
-    }     
+    }
 
     public String getSignoutPagePath() {
         return signoutPagePath;
-    }        
+    }
 
     public String getSessionCookieName() {
         return sessionCookieName;
@@ -126,6 +127,10 @@ public class ServerConfig {
 
     public boolean isAutoCreateSession() {
         return autoCreateSession;
+    }
+
+    public boolean isDevMode() {
+        return devMode;
     }
 
     public int getSessionExpirySeconds() {
@@ -159,16 +164,16 @@ public class ServerConfig {
         homePagePath = value;
         return this;
     }
-    
+
     public ServerConfig signinPagePath(String value) {
         signinPagePath = value;
         return this;
-    }     
-    
+    }
+
     public ServerConfig signoutPagePath(String value) {
         signoutPagePath = value;
         return this;
-    }    
+    }
 
     public ServerConfig sessionCookieName(String value) {
         sessionCookieName = value;
@@ -187,6 +192,11 @@ public class ServerConfig {
 
     public ServerConfig autoCreateSession(boolean value) {
         autoCreateSession = value;
+        return this;
+    }
+
+    public ServerConfig devMode(boolean value) {
+        devMode = value;
         return this;
     }
 
