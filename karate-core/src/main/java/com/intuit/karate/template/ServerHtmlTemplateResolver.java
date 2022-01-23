@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.template;
 
+import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceResolver;
 import java.util.Map;
@@ -63,6 +64,10 @@ public class ServerHtmlTemplateResolver implements ITemplateResolver {
 
     @Override
     public TemplateResolution resolveTemplate(IEngineConfiguration ec, String ownerTemplate, String name, Map<String, Object> templateResolutionAttributes) {
+        if (name.startsWith("${")) {
+            JsValue jv = KarateEngineContext.get().evalLocal("`" + name + "`", true);
+            name = jv.getAsString();
+        }
         Resource resource = resourceResolver.resolve(name + ".html");
         KarateTemplateResource templateResource = new KarateTemplateResource(resource);
         return new TemplateResolution(templateResource, TemplateMode.HTML,
