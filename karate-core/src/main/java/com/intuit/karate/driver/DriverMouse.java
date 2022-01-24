@@ -64,6 +64,15 @@ public class DriverMouse implements Mouse {
     }
 
     @Override
+    public DriverMouse pause(Integer duration) {
+        Map<String, Object> map = new HashMap();
+        map.put("type", "pause");
+        map.put("duration", duration);
+        actions.add(map);
+        return this;
+    }
+
+    @Override
     public DriverMouse move(String locator) {
         Map<String, Object> map = driver.position(locator);
         Number x = (Number) map.get("x");
