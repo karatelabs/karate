@@ -48,5 +48,7 @@ public interface Mouse {
     Mouse go();
     
     Mouse duration(Integer duration);
+
+    Mouse pause(Integer duration);
     
 }
