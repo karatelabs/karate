@@ -17,4 +17,4 @@ Scenario: try to login to github
   And input("input[name=q]", 'karate dsl')
   When submit().click("input[name=btnI]")
   # this may fail depending on which part of the world you are in !
-  Then waitForUrl('https://github.com/intuit/karate')
+  Then waitForUrl('https://github.com/karatelabs/karate')
