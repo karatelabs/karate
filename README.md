@@ -232,11 +232,13 @@ And you don't need to create additional Java classes for any of the payloads tha
 </tr>
 </table>
 
+<!--
 <div>
   <a href="https://saucelabs.com">
     <img src="https://opensource.saucelabs.com/images/opensauce/powered-by-saucelabs-badge-gray.png?sanitize=true" width="165px"/>
   </a>
 </div>
+-->
 
 # Features
 * Java knowledge is not required and even non-programmers can write tests
