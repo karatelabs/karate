@@ -1,6 +1,9 @@
 #!/bin/bash
 set -x -e
 
+# run e2e test that depends on karate-gatling
+mvn clean test -f examples/gatling/pom.xml
+
 # assume that karate jars are installed in maven local repo
 # mvn clean install -P pre-release -DskipTests
 
