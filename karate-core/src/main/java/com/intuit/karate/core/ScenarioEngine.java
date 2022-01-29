@@ -2355,7 +2355,7 @@ public class ScenarioEngine {
             Json json = Json.of(text);
             return evalEmbeddedExpressions(new Variable(json.value()), forMatch);
         } else if (isXml(text)) {
-            Document doc = XmlUtils.toXmlDoc(text);
+            Document doc = XmlUtils.toXmlDoc(text, config.isXmlNamespaceAware());
             return evalEmbeddedExpressions(new Variable(doc), forMatch);
         } else if (isXmlPath(text)) {
             return evalXmlPathOnVariableByName(RESPONSE, text);

@@ -186,7 +186,7 @@ public class Variable {
                 String xml = getAsString();
                 return XmlUtils.toXmlDoc(xml);
             case OTHER: // POJO
-                return XmlUtils.toXmlDoc(value);
+                return XmlUtils.fromJavaObject(value);
             default:
                 throw new RuntimeException("cannot convert to xml:" + this);
         }

@@ -73,6 +73,7 @@ public class Config {
     private List<String> nonProxyHosts;
     private String localAddress;
     private int responseDelay;
+    private boolean xmlNamespaceAware = false;
     private boolean lowerCaseResponseHeaders = false;
     private boolean corsEnabled = false;
     private boolean logPrettyRequest;
@@ -164,6 +165,9 @@ public class Config {
             case "responseDelay":
                 responseDelay = value.isNull() ? 0 : value.getAsInt();
                 return false;
+            case "xmlNamespaceAware":
+                xmlNamespaceAware = value.isTrue();
+                return false;                
             case "lowerCaseResponseHeaders":
                 lowerCaseResponseHeaders = value.isTrue();
                 return false;
@@ -344,6 +348,7 @@ public class Config {
         nonProxyHosts = parent.nonProxyHosts;
         localAddress = parent.localAddress;
         responseDelay = parent.responseDelay;
+        xmlNamespaceAware = parent.xmlNamespaceAware;
         lowerCaseResponseHeaders = parent.lowerCaseResponseHeaders;
         corsEnabled = parent.corsEnabled;
         logPrettyRequest = parent.logPrettyRequest;
@@ -461,6 +466,10 @@ public class Config {
     public int getResponseDelay() {
         return responseDelay;
     }
+
+    public boolean isXmlNamespaceAware() {
+        return xmlNamespaceAware;
+    }        
 
     public boolean isLowerCaseResponseHeaders() {
         return lowerCaseResponseHeaders;

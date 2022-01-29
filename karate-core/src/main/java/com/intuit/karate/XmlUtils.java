@@ -118,9 +118,14 @@ public class XmlUtils {
         }
 
     }
-
+    
     public static Document toXmlDoc(String xml) {
+        return toXmlDoc(xml, false);
+    }
+
+    public static Document toXmlDoc(String xml, boolean namespaceAware) {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(namespaceAware);
         try {
             DocumentBuilder builder = factory.newDocumentBuilder();
             DtdEntityResolver dtdEntityResolver = new DtdEntityResolver();
@@ -130,7 +135,7 @@ public class XmlUtils {
             if (dtdEntityResolver.dtdPresent) { // DOCTYPE present
                 // the XML was not parsed, but I think it hangs at the root as a text node
                 // so conversion to string and back has the effect of discarding the DOCTYPE !
-                return toXmlDoc(toString(doc, false));
+                return toXmlDoc(toString(doc, false), namespaceAware);
             } else {
                 return doc;
             }
@@ -461,12 +466,12 @@ public class XmlUtils {
         return doc;
     }
 
-    public static Document toXmlDoc(Object o) {
+    public static Document fromJavaObject(Object o) {
         return fromObject("root", Json.of(o).value()); // keep it simple for people to write generic xpath starting with /root
     }
 
     public static String toXml(Object o) {
-        return toString(toXmlDoc(o));
+        return toString(fromJavaObject(o));
     }
 
     public static boolean isXml(String s) {
