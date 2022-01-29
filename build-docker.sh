@@ -1,11 +1,11 @@
 #!/bin/bash
 set -x -e
 
-# run e2e test that depends on karate-gatling
-mvn clean test -f examples/gatling/pom.xml
-
 # assume that karate jars are installed in maven local repo
 # mvn clean install -P pre-release -DskipTests
+
+# run e2e test that depends on karate-gatling
+mvn clean test -f examples/gatling/pom.xml
 
 # copy only karate jars to a place where the docker image build can add from
 KARATE_REPO=karate-docker/karate-chrome/target/repository/com/intuit
