@@ -4259,6 +4259,8 @@ Also see the option below, where you can data-drive an `Examples:` table using J
 ### Dynamic Scenario Outline
 You can feed an `Examples` table from a custom data-source, which is great for those situations where the table-content is dynamically resolved at run-time. This capability is triggered when the table consists of a single "cell", i.e. there is exactly one row and one column in the table.
 
+This technique has one caveat to be aware of regarding isolation of tests running in parallel. The `Background` section is only run once in order to set up the list of dynamic scenarios. This means that any other steps within the `Background` are not repeated for each individual example. This is different behaviour from normal scenarios where each `Scenario` also runs the `Background` steps.
+
 #### JSON Array Data Source
 The "scenario expression" result is expected to be an array of JSON objects. Here is an example (also see [this video](https://twitter.com/KarateDSL/status/1051433711814627329)):
 
