@@ -1056,11 +1056,11 @@ public class ScenarioEngine {
             });
         }
         JS.put(KARATE, bridge);
-        JS.put(READ, readFunction);
-        HttpClient client = runtime.featureRuntime.suite.clientFactory.create(this);
+        JS.put(READ, readFunction);        
         // edge case: can be set by dynamic scenario outline background
         // or be left as-is because a callonce triggered init()
         if (requestBuilder == null) {
+            HttpClient client = runtime.featureRuntime.suite.clientFactory.create(this);
             requestBuilder = new HttpRequestBuilder(client);
         }
         // TODO improve life cycle and concept of shared objects

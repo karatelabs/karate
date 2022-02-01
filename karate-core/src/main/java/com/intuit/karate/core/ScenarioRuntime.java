@@ -31,6 +31,8 @@ import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.debug.DebugThread;
 import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.http.HttpClient;
+import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.StringLogAppender;
 
@@ -72,24 +74,33 @@ public class ScenarioRuntime implements Runnable {
         this.caller = featureRuntime.caller;
         perfMode = featureRuntime.perfHook != null;
         if (caller.isNone()) {
+            Config config;
             logAppender = new StringLogAppender(false);
-            Config config = background == null ? new Config() : new Config(background.engine.getConfig());
-            config.detach();
-            engine = new ScenarioEngine(config, this, new HashMap(), logger, background != null ? background.engine.requestBuilder.copy() : null);
+            if (background != null) {
+                config = new Config(background.engine.getConfig());
+                config.detach();              
+            } else {
+                config = new Config();
+            }            
+            engine = new ScenarioEngine(config, this, new HashMap(), logger, null); // TODO fix constructor weirdness, see next 3 lines
+            if (background != null) {
+                HttpClient client = featureRuntime.suite.clientFactory.create(engine);
+                engine.requestBuilder = background.engine.requestBuilder.copy(client);
+            }
         } else if (caller.isSharedScope()) {
             logAppender = caller.parentRuntime.logAppender;
             ScenarioEngine parentEngine = background == null ? caller.parentRuntime.engine : background.engine;
             Config config = parentEngine.getConfig();
             config.detach();
             Map<String, Variable> vars = caller.parentRuntime.engine.vars;
-            engine = new ScenarioEngine(config, this, vars, logger, parentEngine.requestBuilder.copy());
+            engine = new ScenarioEngine(config, this, vars, logger, parentEngine.requestBuilder.copy(null));
         } else { // new, but clone and copy data
             logAppender = caller.parentRuntime.logAppender;
             ScenarioEngine parentEngine = background == null ? caller.parentRuntime.engine : background.engine;
             Config config = new Config(parentEngine.getConfig());
             config.detach();
             // in this case, parent variables are set via magic variables
-            engine = new ScenarioEngine(config, this, new HashMap(), logger, parentEngine.requestBuilder.copy());
+            engine = new ScenarioEngine(config, this, new HashMap(), logger, parentEngine.requestBuilder.copy(null));
         }
         logger.setAppender(logAppender);
         actions = new ScenarioActions(engine);
@@ -100,7 +111,8 @@ public class ScenarioRuntime implements Runnable {
         if (background != null) {
             if (!background.isDynamicBackground()) {
                 result.addStepResults(background.result.getStepResults());
-                engine.requestBuilder = background.engine.requestBuilder.copy();
+                HttpClient client = featureRuntime.suite.clientFactory.create(engine);
+                engine.requestBuilder = background.engine.requestBuilder.copy(client);
             }
             Map<String, Variable> detached = background.engine.detachVariables();
             detached.forEach((k, v) -> engine.vars.put(k, v));

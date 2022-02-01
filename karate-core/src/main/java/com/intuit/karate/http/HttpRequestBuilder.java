@@ -104,7 +104,7 @@ public class HttpRequestBuilder implements ProxyObject {
 
     public HttpRequestBuilder(HttpClient client) {
         this.client = client;
-    }
+    }       
 
     public HttpRequestBuilder reset() {
         // url will be retained
@@ -119,8 +119,8 @@ public class HttpRequestBuilder implements ProxyObject {
         return this;
     }
 
-    public HttpRequestBuilder copy() {
-        HttpRequestBuilder hrb = new HttpRequestBuilder(client);
+    public HttpRequestBuilder copy(HttpClient newClient) {
+        HttpRequestBuilder hrb = new HttpRequestBuilder(newClient == null ? client : newClient);
         hrb.url = url;
         hrb.method = method;
         hrb.paths = paths;
