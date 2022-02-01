@@ -25,7 +25,6 @@ package com.intuit.karate;
 
 import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.Variable;
-import com.intuit.karate.http.ApacheHttpClient;
 import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.Response;
@@ -71,9 +70,9 @@ public class Http {
         return this;
     }
 
-    public Response method(String method, Object body) {
+    public Response method(String method, Object body) {        
         if (body != null) {
-            builder.body(body);
+            builder.body(body instanceof Json ? ((Json) body).value() : body);
         }
         builder.method(method);
         Response response = engine.httpInvoke();
@@ -87,19 +86,30 @@ public class Http {
     public Response method(String method) {
         return method(method, null);
     }
+    
+    public Response methodJson(String method, String body) {
+        return method(method, Json.of(body));
+    }    
 
     public Response get() {
         return method("get");
     }
 
     public Response postJson(String body) {
-        Json json = Json.of(body);
-        return post(json.value());
+        return post(Json.of(body));
     }
 
     public Response post(Object body) {
-        return method("post", body instanceof Json ? ((Json) body).value() : body);
+        return method("post", body);
     }
+    
+    public Response put(Object body) {
+        return method("put", body);
+    }   
+    
+    public Response putJson(String body) {
+        return put(Json.of(body));
+    }    
 
     public Response delete() {
         return method("delete");
