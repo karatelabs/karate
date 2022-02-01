@@ -78,10 +78,10 @@ public class ScenarioRuntime implements Runnable {
             logAppender = new StringLogAppender(false);
             if (background != null) {
                 config = new Config(background.engine.getConfig());
-                config.detach();              
+                config.detach();
             } else {
                 config = new Config();
-            }            
+            }
             engine = new ScenarioEngine(config, this, new HashMap(), logger, null); // TODO fix constructor weirdness, see next 3 lines
             if (background != null) {
                 HttpClient client = featureRuntime.suite.clientFactory.create(engine);
@@ -105,15 +105,15 @@ public class ScenarioRuntime implements Runnable {
         logger.setAppender(logAppender);
         actions = new ScenarioActions(engine);
         this.scenario = scenario;
-        this.background = background; // used only to check which steps remain        
+        this.background = background; // used only to check which steps remain
         magicVariables = initMagicVariables();
         result = new ScenarioResult(scenario);
         if (background != null) {
             if (!background.isDynamicBackground()) {
-                result.addStepResults(background.result.getStepResults());
                 HttpClient client = featureRuntime.suite.clientFactory.create(engine);
                 engine.requestBuilder = background.engine.requestBuilder.copy(client);
             }
+            result.addStepResults(background.result.getStepResults());
             Map<String, Variable> detached = background.engine.detachVariables();
             detached.forEach((k, v) -> engine.vars.put(k, v));
         }
