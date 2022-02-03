@@ -50,13 +50,13 @@ public enum ResourceType {
     MULTIPART("multipart/form-data", vals("multipart"), vals()),
     URLENCODED("application/x-www-form-urlencoded", vals("urlencoded"), vals()),
     BINARY("application/octet-stream", vals("octet"), vals()),
-    RDFXML("application/rdf+xml", vals("xml", "rdf"), vals(".rdf")),
-    NTRIPLES("application/n-triples", vals("rdf"), vals(".nt")),
-    TURTLE("text/turtle", vals("rdf"), vals(".ttl")),
-    NQUADS("application/n-quads", vals("rdf"), vals(".nq")),
-    TRIG("application/trig", vals("rdf"), vals(".trig")),
-    N3("text/n3", vals("rdf"), vals(".n3")),
-    JSONLD("application/ld+json", vals("json", "rdf"), vals(".jsonld"));
+    RDFXML("application/rdf+xml", vals("rdf", "rdf+xml"), vals("rdf")),
+    NTRIPLES("application/n-triples", vals("triples"), vals("nt")),
+    TURTLE("text/turtle", vals("turtle"), vals("ttl")),
+    NQUADS("application/n-quads", vals("quads"), vals("nq")),
+    TRIG("application/trig", vals("trig"), vals("trig")),
+    N3("text/n3", vals("n3"), vals("n3")),
+    JSONLD("application/ld+json", vals("ld+json"), vals("jsonld"));
 
     private static String[] vals(String... values) {
         return values;
@@ -91,8 +91,7 @@ public enum ResourceType {
             return null;
         }
         String extension = path.substring(pos + 1).trim().toLowerCase();
-        ResourceType rt = EXTENSION_MAP.get(extension);
-        return rt == null ? null : rt;
+        return EXTENSION_MAP.get(extension);
     }
 
     public String getExtension() {
@@ -120,7 +119,7 @@ public enum ResourceType {
                 return false;
         }
     }
-    
+
     public boolean isUrlEncodedOrMultipart() {
         switch (this) {
             case URLENCODED:
@@ -128,7 +127,7 @@ public enum ResourceType {
                 return true;
             default:
                 return false;
-        }        
+        }
     }
 
     public boolean isHtml() {
