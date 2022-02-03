@@ -304,7 +304,7 @@ class KarateMockHandlerTest {
         );
         matchVar("response", "foo=bar");
     }
-    
+
     @Test
     void testFormFieldAsArray() {
         background().scenario(
@@ -317,7 +317,7 @@ class KarateMockHandlerTest {
                 "method post"
         );
         matchVar("response", "foo=bar1&foo=bar2");
-    }    
+    }
 
     @Test
     void testMultiPartField() {
@@ -346,7 +346,7 @@ class KarateMockHandlerTest {
         );
         matchVar("response", "{ foo: [{ name: 'foo', value: '#notnull', contentType: 'text/plain', charset: 'UTF-8', filename: 'foo.txt', transferEncoding: '7bit' }] }");
     }
-    
+
     @Test
     void testMultiPartFileNullCharset() {
         background().scenario(
@@ -360,7 +360,7 @@ class KarateMockHandlerTest {
                 "method post"
         );
         matchVar("response", "{ foo: [{ name: 'foo', value: '#notnull', contentType: 'text/plain', charset: 'UTF-8', filename: 'foo.txt', transferEncoding: '7bit' }] }");
-    }    
+    }
 
     @Test
     void testConfigureResponseHeaders() {
@@ -468,6 +468,23 @@ class KarateMockHandlerTest {
     }
 
     @Test
+    void testResponseContentTypeForNonXmlWithTagsAndCharset() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def responseHeaders = { 'Content-Type': 'text/turtle; charset=UTF-8' }",
+                "def response = '<http://example.org/#hello> a <http://example.org/#greeting> .'");
+        run(
+                URL_STEP,
+                "path 'hello'",
+                "method get",
+                "match header content-type contains 'text/turtle'",
+                "match header content-type != 'text/turtle'",
+                "match responseType == 'string'",
+                "match response == '<http://example.org/#hello> a <http://example.org/#greeting> .'"
+        );
+    }
+
+    @Test
     void testWildcardLikePathMatch() {
         background().scenario(
                 "requestUri.startsWith('hello/')",
@@ -532,8 +549,8 @@ class KarateMockHandlerTest {
                 "method get",
                 "match response == 'hello/world'"
         );
-    }  
-    
+    }
+
     @Test
     void testPathWithTrailingSlash() {
         background().scenario(
@@ -545,6 +562,6 @@ class KarateMockHandlerTest {
                 "method get",
                 "match response == 'hello/world/'"
         );
-    }     
+    }
 
 }
