@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -151,5 +152,9 @@ public interface Actions {
     void driver(String exp);
 
     void robot(String exp);
+
+    default List<ExtensibleActions> additionalActions() {
+        return Collections.emptyList();
+    }
 
 }

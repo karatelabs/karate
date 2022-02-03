@@ -420,4 +420,8 @@ public class ScenarioActions implements Actions {
         engine.robot(exp);
     }
 
+    @Override
+    public List<ExtensibleActions> additionalActions() {
+        return engine.getExtensibleActions();
+    }
 }

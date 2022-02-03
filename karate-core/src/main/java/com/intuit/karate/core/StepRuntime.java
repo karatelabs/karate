@@ -41,7 +41,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.StringJoiner;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -57,12 +60,14 @@ public class StepRuntime {
 
     static class MethodPattern {
 
+        final Class<?> clazz;
         final String regex;
         final Method method;
         final Pattern pattern;
         final String keyword;
 
-        MethodPattern(Method method, String regex) {
+        MethodPattern(Class<?> clazz, Method method, String regex) {
+            this.clazz = clazz;
             this.regex = regex;
             this.method = method;
             try {
@@ -78,7 +83,7 @@ public class StepRuntime {
         List<String> match(String text) {
             Matcher matcher = pattern.matcher(text);
             if (matcher.lookingAt()) {
-                List<String> args = new ArrayList(matcher.groupCount());
+                List<String> args = new ArrayList<>(matcher.groupCount());
                 for (int i = 1; i <= matcher.groupCount(); i++) {
                     int startIndex = matcher.start(i);
                     args.add(startIndex == -1 ? null : matcher.group(i));
@@ -100,20 +105,22 @@ public class StepRuntime {
 
         private static final Pattern METHOD_REGEX_PATTERN = Pattern.compile("([a-zA-Z_$][a-zA-Z\\d_$\\.]*)*\\.([a-zA-Z_$][a-zA-Z\\d_$]*?)\\((.*)\\)");
 
+        final Class<?> clazz;
         final Method method;
         final List<String> args;
 
         MethodMatch(Method method, List<String> args) {
+            this.clazz = method.getDeclaringClass();
             this.method = method;
             this.args = args;
         }
 
         Object[] convertArgs(Object last) {
-            Class[] types = method.getParameterTypes();
+            Class<?>[] types = method.getParameterTypes();
             Object[] result = new Object[types.length];
             int i = 0;
             for (String arg : args) {
-                Class type = types[i];
+                Class<?> type = types[i];
                 if (List.class.isAssignableFrom(type)) {
                     result[i] = StringUtils.split(arg, ',', false);
                 } else if (int.class.isAssignableFrom(type)) {
@@ -180,33 +187,45 @@ public class StepRuntime {
             sb.append(sj);
             sb.append(")");
 
-            return sb.toString() + " " + (args == null || args.isEmpty() ? "null" : JsonUtils.toJson(args));
+            return sb + " " + (args == null || args.isEmpty() ? "null" : JsonUtils.toJson(args));
         }
 
     }
 
-    private static final Collection<MethodPattern> PATTERNS;
-    private static final Map<String, Collection<Method>> KEYWORDS_METHODS;
-    public static final Collection<Method> METHOD_MATCH;
+    private static final Collection<MethodPattern> PATTERNS = new HashSet<>();
+    private static final Map<String, Collection<Method>> KEYWORDS_METHODS = new ConcurrentHashMap<>();
+    public static final Collection<Method> METHOD_MATCH = new HashSet<>();
+    private static final Set<Class<?>> processedClasses = new HashSet<>();
 
     static {
-        Map<String, MethodPattern> temp = new HashMap();
-        List<MethodPattern> overwrite = new ArrayList();
-        KEYWORDS_METHODS = new HashMap();
-        for (Method method : ScenarioActions.class.getMethods()) {
+        initialise(ScenarioActions.class);
+    }
+
+    public static void initialise(Class<?> clazz) {
+        if (processedClasses.contains(clazz)) {
+            return;
+        }
+        processedClasses.add(clazz);
+        Map<String, MethodPattern> temp = new HashMap<>();
+        List<MethodPattern> overwrite = new ArrayList<>();
+        List<Method> methods = Arrays.stream(clazz.getMethods())
+            .filter(each -> each.getDeclaredAnnotation(When.class) != null ||
+                each.getDeclaredAnnotation(Action.class) != null).collect(Collectors.toList());
+        for (Method method : methods) {
             When when = method.getDeclaredAnnotation(When.class);
             if (when != null) {
                 String regex = when.value();
-                MethodPattern methodPattern = new MethodPattern(method, regex);
+                MethodPattern methodPattern = new MethodPattern(clazz, method, regex);
                 temp.put(regex, methodPattern);
 
-                Collection<Method> keywordMethods = KEYWORDS_METHODS.computeIfAbsent(methodPattern.keyword, k -> new HashSet<>());
-                keywordMethods.add(methodPattern.method);
+                StepRuntime.KEYWORDS_METHODS
+                    .computeIfAbsent(methodPattern.keyword, k -> new HashSet<>())
+                    .add(methodPattern.method);
             } else {
                 Action action = method.getDeclaredAnnotation(Action.class);
                 if (action != null) {
                     String regex = action.value();
-                    MethodPattern methodPattern = new MethodPattern(method, regex);
+                    MethodPattern methodPattern = new MethodPattern(clazz, method, regex);
                     overwrite.add(methodPattern);
                 }
             }
@@ -215,15 +234,16 @@ public class StepRuntime {
         for (MethodPattern mp : overwrite) {
             temp.put(mp.regex, mp);
 
-            Collection<Method> keywordMethods = KEYWORDS_METHODS.computeIfAbsent(mp.keyword, k -> new HashSet<>());
-            keywordMethods.add(mp.method);
+            StepRuntime.KEYWORDS_METHODS
+                .computeIfAbsent(mp.keyword, k -> new HashSet<>())
+                .add(mp.method);
         }
-        PATTERNS = temp.values();
-        METHOD_MATCH = findMethodsByKeyword("match");
+        PATTERNS.addAll(temp.values());
+        METHOD_MATCH.addAll(findMethodsByKeyword("match"));
     }
 
     private static List<MethodMatch> findMethodsMatching(String text) {
-        List<MethodMatch> matches = new ArrayList(1);
+        List<MethodMatch> matches = new ArrayList<>(1);
         for (MethodPattern pattern : PATTERNS) {
             List<String> args = pattern.match(text);
             if (args != null) {
@@ -234,10 +254,8 @@ public class StepRuntime {
     }
 
     public static Collection<Method> findMethodsByKeywords(List<String> text) {
-        Collection<Method> methods = new HashSet();
-        text.forEach(m -> {
-            methods.addAll(findMethodsByKeyword(m));
-        });
+        Collection<Method> methods = new HashSet<>();
+        text.forEach(m -> methods.addAll(findMethodsByKeyword(m)));
         return methods;
     }
 
@@ -250,6 +268,7 @@ public class StepRuntime {
     }
 
     public static Result execute(Step step, Actions actions) {
+        actions.additionalActions().forEach(each -> initialise(each.implementationClass()));
         String text = step.getText();
         List<MethodMatch> matches = findMethodsMatching(text);
         if (matches.isEmpty()) {
@@ -277,7 +296,14 @@ public class StepRuntime {
         }
         long startTime = System.nanoTime();
         try {
-            match.method.invoke(actions, args);
+            Class<?> belongsTo = match.method.getDeclaringClass();
+            AtomicReference<Object> valueToPass = new AtomicReference<>(actions);
+            if (!belongsTo.equals(ScenarioActions.class)) {
+                actions.additionalActions().stream()
+                    .filter(each -> each.implementationClass().equals(belongsTo))
+                    .findFirst().ifPresent(valueToPass::set);
+            }
+            match.method.invoke(valueToPass.get(), args);
             if (actions.isAborted()) {
                 return Result.aborted(getElapsedTimeNanos(startTime), match);
             } else if (actions.isFailed()) {

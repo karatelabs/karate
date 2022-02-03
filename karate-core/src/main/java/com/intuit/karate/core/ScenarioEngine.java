@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.ExtensibleActions;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
@@ -47,6 +48,8 @@ import com.intuit.karate.shell.Command;
 import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateUtils;
 import com.jayway.jsonpath.PathNotFoundException;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.graalvm.polyglot.Value;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
@@ -131,6 +134,12 @@ public class ScenarioEngine {
         this.vars = vars;
         this.logger = logger;
         this.requestBuilder = requestBuilder;
+        Iterator<ExtensibleActions> it = ServiceLoader.load(ExtensibleActions.class).iterator();
+        Iterable<ExtensibleActions> iterable = () -> it;
+        extensibleActions = StreamSupport.stream(iterable.spliterator(),
+                false)
+            .peek(each -> each.initialiseEngine(this))
+            .collect(Collectors.toList());
     }
 
     public static ScenarioEngine forTempUse(HttpClientFactory hcf) {
@@ -292,9 +301,14 @@ public class ScenarioEngine {
     private HttpRequest request;
     private Response response;
     private Config config;
+    private final List<ExtensibleActions> extensibleActions;
 
     public Config getConfig() {
         return config;
+    }
+
+    public List<ExtensibleActions> getExtensibleActions() {
+        return extensibleActions;
     }
 
     // important: use this to trigger client re-config
