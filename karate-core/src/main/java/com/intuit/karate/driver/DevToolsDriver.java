@@ -562,31 +562,35 @@ public abstract class DevToolsDriver implements Driver {
         return DriverElement.locatorExists(this, locator);
     }
 
-    private void sendKey(char c, int modifiers, String type, Integer keyCode) {
+    private void sendKey(Character c, int modifiers, String type, Integer keyCode) {
         DevToolsMessage dtm = method("Input.dispatchKeyEvent")
                 .param("modifiers", modifiers)
                 .param("type", type);
         if (keyCode == null) {
-            dtm.param("text", c + "");
+            if (c != null) {
+                dtm.param("text", c.toString());
+            }
         } else {
             switch (keyCode) {
-                case 13:
-                    dtm.param("text", "\r"); // important ! \n does NOT work for chrome
-                    break;
-                case 9: // TAB
+                case 9: // tab
                     if ("char".equals(type)) {
                         return; // special case
                     }
                     dtm.param("text", "");
+                    break;                
+                case 13: // enter
+                    dtm.param("text", "\r"); // important ! \n does NOT work for chrome
                     break;
-                case 46: // DOT
+                case 46: // dot
                     if ("rawKeyDown".equals(type)) {
                         dtm.param("type", "keyDown"); // special case
                     }
                     dtm.param("text", ".");
                     break;
                 default:
-                    dtm.param("text", c + "");
+                    if (c != null) {
+                        dtm.param("text", c.toString());
+                    }
             }
             dtm.param("windowsVirtualKeyCode", keyCode);
         }
@@ -604,13 +608,29 @@ public abstract class DevToolsDriver implements Driver {
             int modifiers = input.getModifierFlags();
             Integer keyCode = Keys.code(c);
             if (keyCode != null) {
-                sendKey(c, modifiers, "rawKeyDown", keyCode);
-                sendKey(c, modifiers, "char", keyCode);
-                sendKey(c, modifiers, "keyUp", keyCode);
+                switch (keyCode) {
+                    case Keys.CODE_SHIFT:                      
+                    case Keys.CODE_CONTROL:
+                    case Keys.CODE_ALT:
+                    case Keys.CODE_META:
+                        if (input.release) {
+                            sendKey(null, modifiers, "keyUp", keyCode);
+                        } else {
+                            sendKey(null, modifiers, "rawKeyDown", keyCode);
+                        }
+                        break;
+                    default:
+                        sendKey(c, modifiers, "rawKeyDown", keyCode);
+                        sendKey(c, modifiers, "char", keyCode);
+                        sendKey(c, modifiers, "keyUp", keyCode);
+                }
             } else {
                 logger.warn("unknown character / key code: {}", c);
                 sendKey(c, modifiers, "char", null);
             }
+        }
+        for (int keyCode : input.getKeyCodesToRelease()) {
+            sendKey(null, 0, "keyUp", keyCode);
         }
         return DriverElement.locatorExists(this, locator);
     }
@@ -979,7 +999,7 @@ public abstract class DevToolsDriver implements Driver {
                     break;
                 }
             }
-        } catch(PathNotFoundException e) {
+        } catch (PathNotFoundException e) {
             logger.trace("** childFrames not found. Will try to change to a different Target in Chrome.");
         }
 
@@ -1025,7 +1045,7 @@ public abstract class DevToolsDriver implements Driver {
                 resultFrames.addAll(getFrameTree(childFrames));
             }
         }
-        return  resultFrames;
+        return resultFrames;
     }
 
     public void enableNetworkEvents() {

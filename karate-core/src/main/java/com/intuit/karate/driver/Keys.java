@@ -133,6 +133,11 @@ public class Keys {
         CODES.put(c, code);
         VALUES.put(c, value);
     }
+    
+    public static final int CODE_SHIFT = 16;
+    public static final int CODE_CONTROL = 17;
+    public static final int CODE_ALT = 18;
+    public static final int CODE_META = 91; // left command key on mac, right is 93
 
     static {
         put(CANCEL, 3, "Cancel");
@@ -142,9 +147,9 @@ public class Keys {
         put(NULL, 12, "Clear"); // same as clear
         put(RETURN, 13, "Enter"); // same as enter
         put(ENTER, 13, "Enter");
-        put(SHIFT, 16, "Shift");
-        put(CONTROL, 17, "Control");
-        put(ALT, 18, "Alt");
+        put(SHIFT, CODE_SHIFT, "Shift");
+        put(CONTROL, CODE_CONTROL, "Control");
+        put(ALT, CODE_ALT, "Alt");
         put(PAUSE, 19, "Pause");
         put(ESCAPE, 27, "Escape");
         put(SPACE, 32, " ");
@@ -187,7 +192,7 @@ public class Keys {
         put(DELETE, 127, "Delete");
         put(INSERT, 155, "Insert");
         put(HELP, 156, "Help");
-        put(META, 157, "Meta");       
+        put(META, CODE_META, "Meta");
         //======================================================================
         CODES.put(' ', 32);
         CODES.put(',', 44);
