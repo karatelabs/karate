@@ -53,6 +53,15 @@ public class StepRuntimeTest {
         Assertions.assertEquals(new ArrayList<>(), methodMatch.args);
         Assertions.assertEquals("com.intuit.karate.ScenarioActions.getFailedReason() null", methodMatch.toString());
     }
+    @Test
+    public void testFindMethodsByKeywordNoResults() {
+        Collection<Method> defMethod = StepRuntime.findMethodsByKeyword("def");
+        Assertions.assertFalse(defMethod.isEmpty());
+
+        Collection<Method> badMethodMethod = StepRuntime.findMethodsByKeyword("badMethod");
+        Assertions.assertNotNull(badMethodMethod);
+        Assertions.assertTrue(badMethodMethod.isEmpty());
+    }
 
     @ParameterizedTest
     @MethodSource("methodPatternAndKeywords")

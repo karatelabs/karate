@@ -30,6 +30,7 @@ import com.intuit.karate.KarateException;
 import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.StringUtils;
 import cucumber.api.java.en.When;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -44,12 +45,13 @@ import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * @author pthomas3
  */
 public class StepRuntime {
+
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(StepRuntime.class);
 
     private StepRuntime() {
         // only static methods
@@ -63,6 +65,7 @@ public class StepRuntime {
         final String keyword;
 
         MethodPattern(Method method, String regex) {
+            String keyword1;
             this.regex = regex;
             this.method = method;
             try {
@@ -72,7 +75,11 @@ public class StepRuntime {
             }
 
             // assuming all @When or @Action start with a ^, get the first word
-            keyword = regex.substring(1).split(" |\\\\h|\\\\s")[0];
+            keyword1 = regex.substring(1).split(" |\\\\h|\\\\s")[0];
+            if (keyword1.endsWith("$")) { // if ends with $ most likely it's a doc string (i.e. the """ for multiline strings)
+                keyword1 = keyword1.substring(0, keyword1.length() - 1);
+            }
+            keyword = keyword1;
         }
 
         List<String> match(String text) {
@@ -200,7 +207,10 @@ public class StepRuntime {
                 MethodPattern methodPattern = new MethodPattern(method, regex);
                 temp.put(regex, methodPattern);
 
-                Collection<Method> keywordMethods = KEYWORDS_METHODS.computeIfAbsent(methodPattern.keyword, k -> new HashSet<>());
+                // edge case for eval() method it's mean to match anything in a line e.g. waitFor('#stuff')
+                // regex is ([\w]+)([^\s^\w])(.+)
+                String keyword = method.getName().equalsIgnoreCase("eval") ? "eval" : methodPattern.keyword;
+                Collection<Method> keywordMethods = KEYWORDS_METHODS.computeIfAbsent(keyword, k -> new HashSet<>());
                 keywordMethods.add(methodPattern.method);
             } else {
                 Action action = method.getDeclaredAnnotation(Action.class);
@@ -215,7 +225,8 @@ public class StepRuntime {
         for (MethodPattern mp : overwrite) {
             temp.put(mp.regex, mp);
 
-            Collection<Method> keywordMethods = KEYWORDS_METHODS.computeIfAbsent(mp.keyword, k -> new HashSet<>());
+            String keyword = mp.method.getName().equalsIgnoreCase("eval") ? "eval" : mp.keyword;
+            Collection<Method> keywordMethods = KEYWORDS_METHODS.computeIfAbsent(keyword, k -> new HashSet<>());
             keywordMethods.add(mp.method);
         }
         PATTERNS = temp.values();
@@ -242,7 +253,12 @@ public class StepRuntime {
     }
 
     public static Collection<Method> findMethodsByKeyword(String text) {
-        return KEYWORDS_METHODS.get(text);
+        if (KEYWORDS_METHODS.get(text) != null) {
+            return KEYWORDS_METHODS.get(text);
+        } else {
+            LOGGER.warn("No keyword found for {}. Potential unexpected behavior.", text);
+            return new HashSet<>();
+        }
     }
 
     private static long getElapsedTimeNanos(long startTime) {

@@ -1,11 +1,6 @@
 package com.intuit.karate;
 
-import com.intuit.karate.core.Config;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureRuntime;
-import com.intuit.karate.core.ScenarioEngine;
-import com.intuit.karate.core.ScenarioIterator;
-import com.intuit.karate.core.ScenarioRuntime;
+import com.intuit.karate.core.*;
 import com.intuit.karate.core.runner.NoopDriver;
 import com.intuit.karate.driver.DriverRunner;
 import com.intuit.karate.http.HttpClientFactory;
@@ -44,8 +39,16 @@ public class TestUtils {
     public static Feature toFeature(String... lines) {
         StringBuilder sb = new StringBuilder();
         sb.append("Feature:\nScenario:\n");
+        boolean inDocString = false;
         for (String line : lines) {
-            sb.append("* ").append(line).append('\n');
+            if (line.trim().startsWith(FeatureParser.TRIPLE_QUOTES)) {
+                inDocString = !inDocString; // toggle
+                sb.append(line).append('\n');
+            } else if (inDocString) {
+                sb.append(line).append('\n');
+            } else {
+                sb.append("* ").append(line).append('\n');
+            }
         }
         File file = ResourceUtils.getFileRelativeTo(TestUtils.class, "core/dummy.feature");
         Resource resource = new MemoryResource(file, sb.toString());

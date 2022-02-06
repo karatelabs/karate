@@ -840,7 +840,7 @@ class ScenarioRuntimeTest {
     }
 
     @Test
-    void testcontinueOnStepFailure() {
+    void testContinueOnStepFailure() {
         fail = true;
         run(
                 "def var = 'foo'",
@@ -860,7 +860,7 @@ class ScenarioRuntimeTest {
     }
 
     @Test
-    void testcontinueOnStepFailure2() {
+    void testContinueOnStepFailure2() {
         fail = true;
         run(
                 "def var = 'foo'",
@@ -878,7 +878,7 @@ class ScenarioRuntimeTest {
     }
 
     @Test
-    void testcontinueOnStepFailure3() {
+    void testContinueOnStepFailure3() {
         fail = true;
         // bad idea to continue/ignore anything else other than match but ...
         run(
@@ -898,7 +898,7 @@ class ScenarioRuntimeTest {
     }
 
     @Test
-    void testcontinueOnStepFailure4() {
+    void testContinueOnStepFailure4() {
         fail = true;
         run(
                 "def var = 'foo'",
@@ -914,7 +914,7 @@ class ScenarioRuntimeTest {
     }
 
     @Test
-    void testcontinueOnStepFailure5() {
+    void testContinueOnStepFailure5() {
         fail = true;
         run(
                 "def var = 'foo'",
@@ -941,10 +941,8 @@ class ScenarioRuntimeTest {
     }
 
     @Test
-    void testcontinueOnStepFailure6() {
+    void testContinueOnStepFailure6() {
         fail = true;
-        // "continuing" on javascript line errors is not supported
-        // note the if without space after evalutes line as JS
         run(
                 "def var = 'foo'",
                 "configure continueOnStepFailure = { enabled: true, continueAfter: true, keywords: ['match', 'eval', 'if'] }",
@@ -954,12 +952,44 @@ class ScenarioRuntimeTest {
                 "match var == 'foo'",
                 "configure continueOnStepFailure = false",
                 "match var == 'foo'",
-                "match var == 'bar2'",
                 "match var == 'foo'"
         );
         // the last failed step will be show as the result failed step
-        // TODO: verify how this will look in the reports
-        assertEquals("if(true == true) { syntax error within JS line }", sr.result.getFailedStep().getStep().getText());
+        assertEquals("match var == 'crawl'", sr.result.getFailedStep().getStep().getText());
     }
 
+    @Test
+    void testContinueOnStepFailure7() {
+        // issue #1913
+        fail = true;
+        run(
+                "def var = 'foo'",
+                "configure continueOnStepFailure = { enabled: true, continueAfter: true, keywords: [ 'eval' ] }",
+                "waitFor('#error').click()",
+                "match var == 'foo'",
+                "configure continueOnStepFailure = { enabled: false }",
+                "match var == 'foo'"
+        );
+        assertEquals("waitFor('#error').click()", sr.result.getFailedStep().getStep().getText());
+    }
+
+    @Test
+    void testContinueOnStepFailure8() {
+        // issue #1913
+        // side issue found - dsl keywords with multi line was not supported
+        fail = true;
+        run(
+                "def var = 'foo'",
+                "configure continueOnStepFailure = { enabled: true, continueAfter: true, keywords: [ 'eval' ] }",
+                "match var == 'foo'",
+                "eval",
+                "\"\"\"",
+                "if(true == true) { syntax error within JS line }",
+                "\"\"\"",
+                "match var == 'foo'",
+                "configure continueOnStepFailure = { enabled: false }",
+                "match var == 'foo'"
+        );
+        assertEquals("eval", sr.result.getFailedStep().getStep().getText());
+    }
 }
