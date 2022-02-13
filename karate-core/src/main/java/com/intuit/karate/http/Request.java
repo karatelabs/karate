@@ -78,6 +78,7 @@ public class Request implements ProxyObject {
     private static final String HEADER_ENTRIES = "headerEntries";
     private static final String PATH_PARAM = "pathParam";
     private static final String PATH_PARAMS = "pathParams";
+    private static final String PATH_MATCHES = "pathMatches";
     private static final String BODY = "body";
     private static final String MULTI_PART = "multiPart";
     private static final String MULTI_PARTS = "multiParts";
@@ -95,8 +96,8 @@ public class Request implements ProxyObject {
     private static final String URL = "url";
 
     private static final String[] KEYS = new String[]{
-        PATH, METHOD, PARAM, PARAM_INT, NON_BLANK, PARAMS, HEADER, HEADERS, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, BODY,
-        MULTI_PART, MULTI_PARTS, JSON, GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL
+        PATH, METHOD, PARAM, PARAM_INT, NON_BLANK, PARAMS, HEADER, HEADERS, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, PATH_MATCHES,
+        BODY, MULTI_PART, MULTI_PARTS, JSON, GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL
     };
     private static final Set<String> KEY_SET = new HashSet<>(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
@@ -112,8 +113,7 @@ public class Request implements ProxyObject {
     private Map<String, List<Map<String, Object>>> multiParts;
     private ResourceType resourceType;
     private String resourcePath;
-    private String pathParam;
-    private List pathParams = Collections.emptyList();
+    private Map<String, String> pathParams = Collections.emptyMap();
     private RequestContext requestContext;
 
     public RequestContext getRequestContext() {
@@ -250,6 +250,15 @@ public class Request implements ProxyObject {
         this.params = params;
     }
 
+    public boolean pathMatches(String pattern) {
+        Map<String, String> temp = HttpUtils.parseUriPattern(pattern, path);
+        if (pathParams == null) {
+            return false;
+        }
+        pathParams = temp;
+        return true;
+    }
+
     public void setParamCommaDelimited(String name, String value) {
         if (value == null) {
             return;
@@ -275,19 +284,18 @@ public class Request implements ProxyObject {
         }
     }
 
-    public String getPathParam() {
-        return pathParam;
+    public Object getPathParam() {
+        if (pathParams.isEmpty()) {
+            return null;
+        }
+        return pathParams.values().iterator().next();
     }
 
-    public void setPathParam(String pathParam) {
-        this.pathParam = pathParam;
-    }
-
-    public List getPathParams() {
+    public Map<String, String> getPathParams() {
         return pathParams;
     }
 
-    public void setPathParams(List pathParams) {
+    public void setPathParams(Map<String, String> pathParams) {
         this.pathParams = pathParams;
     }
 
@@ -478,9 +486,11 @@ public class Request implements ProxyObject {
             case PARAMS:
                 return JsValue.fromJava(params);
             case PATH_PARAM:
-                return pathParam;
+                return getPathParam();
             case PATH_PARAMS:
                 return JsValue.fromJava(pathParams);
+            case PATH_MATCHES:
+                return (Function<String, Object>) this::pathMatches;
             case HEADER:
                 return (Function<String, String>) this::getHeader;
             case HEADERS:

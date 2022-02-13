@@ -29,6 +29,7 @@ import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.template.KarateTemplateEngine;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -218,11 +219,10 @@ public class RequestCycle {
     
     private InputStream apiResource() {
         String path = request.getPath();
-        String pathParam = null;
         String jsPath = path + DOT_JS;
         String resourcePath = jsPath;
         if (!config.getJsFiles().contains(jsPath)) {
-            List<String> pathParams = new ArrayList();
+            Map<String, String> pathParams = new LinkedHashMap();
             request.setPathParams(pathParams);
             String temp = path;
             do {
@@ -232,16 +232,12 @@ public class RequestCycle {
                     break;
                 }
                 String pp = temp.substring(pos + 1);
-                if (pathParams.isEmpty()) {
-                    pathParam = pp;
-                }
-                pathParams.add(pp);
+                pathParams.put(pathParams.size() + "", pp);
                 jsPath = temp.substring(0, pos) + DOT_JS;
                 temp = temp.substring(0, pos);
             } while (!config.getJsFiles().contains(jsPath));
             resourcePath = jsPath;
         }
-        request.setPathParam(pathParam);
         return config.getResourceResolver().resolve(resourcePath).getStream();
     }
     
