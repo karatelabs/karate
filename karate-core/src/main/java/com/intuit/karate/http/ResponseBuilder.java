@@ -155,7 +155,7 @@ public class ResponseBuilder {
         if (cookies != null) {
             cookies.forEach(c -> header(HttpConstants.HDR_SET_COOKIE, ServerCookieEncoder.LAX.encode(c)));
         }
-        if (resourceType != null && resourceType.isHtml() && context.isAjax()) {
+        if (resourceType != null && resourceType.isHtml()) {
             if (context.getBodyAppends() != null) {
                 String appends = StringUtils.join(context.getBodyAppends(), "\n");
                 body = merge(body, FileUtils.toBytes(appends));

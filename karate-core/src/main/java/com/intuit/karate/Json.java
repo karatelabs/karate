@@ -149,26 +149,31 @@ public class Json {
     public Map<String, Object> asMap() {
         return value();
     }
+    
+    public Json set(String path, Object value) {
+        setInternal(path, value);
+        return this;
+    }    
 
     public Json set(String path, String value) {
         if (JsonUtils.isJson(value)) {
             setInternal(path, Json.of(value).value());
         } else {
-            if (value != null && value.charAt(0) == '\\') {
+            if (value != null && !value.isEmpty() && value.charAt(0) == '\\') {
                 value = value.substring(1);
             }
             setInternal(path, value);
         }
         return this;
     }
-
-    public Json remove(String path) {
-        doc.delete(prefix(path));
+    
+    public Json setAsString(String path, String value) {
+        setInternal(path, value);
         return this;
     }
 
-    public Json set(String path, Object value) {
-        setInternal(path, value);
+    public Json remove(String path) {
+        doc.delete(prefix(path));
         return this;
     }
 
