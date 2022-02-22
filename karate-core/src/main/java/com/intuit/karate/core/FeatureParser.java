@@ -111,9 +111,17 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         List<List<String>> rows = new ArrayList(rowCount);
         List<Integer> lineNumbers = new ArrayList(rowCount);
+        int prevCount = -1;
         for (TerminalNode node : nodes) {
             List<String> tokens = StringUtils.split(node.getText().trim(), '|', true);
             int count = tokens.size();
+            if (prevCount != -1 && prevCount != count) {                
+                throw new RuntimeException("examples column count mismatch at line: " 
+                        + getActualLine(node) 
+                        + "\n" + node.getText() + "\n\n"
+                        + "rows:" + nodes);
+            }
+            prevCount = count;
             for (int i = 0; i < count; i++) {
                 tokens.set(i, tokens.get(i).trim());
             }
