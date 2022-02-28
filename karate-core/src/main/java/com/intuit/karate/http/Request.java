@@ -94,10 +94,11 @@ public class Request implements ProxyObject {
     private static final String TRACE = "trace";
     private static final String URL_BASE = "urlBase";
     private static final String URL = "url";
+    private static final String PATH_RAW = "pathRaw";
 
     private static final String[] KEYS = new String[]{
         PATH, METHOD, PARAM, PARAM_INT, NON_BLANK, PARAMS, HEADER, HEADERS, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, PATH_MATCHES,
-        BODY, MULTI_PART, MULTI_PARTS, JSON, GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL
+        BODY, MULTI_PART, MULTI_PARTS, JSON, GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL, PATH_RAW
     };
     private static final Set<String> KEY_SET = new HashSet<>(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
@@ -190,6 +191,14 @@ public class Request implements ProxyObject {
         return path;
     }
 
+    public String getPathRaw() {
+        if (urlBase != null && urlAndPath != null) {
+            return urlAndPath.substring(urlBase.length());
+        } else {
+            return path;
+        }
+    }
+    
     public void setUrl(String url) {
         urlAndPath = url;
         StringUtils.Pair pair = HttpUtils.parseUriIntoUrlBaseAndPath(url);
@@ -479,10 +488,12 @@ public class Request implements ProxyObject {
                 return (Function<String, Object>) this::getParamAsJsValue;
             case PATH:
                 return path;
+            case PATH_RAW:
+                return getPathRaw();
             case URL_BASE:
                 return urlBase;
             case URL:
-                return urlAndPath;
+                return urlAndPath;                
             case PARAMS:
                 return JsValue.fromJava(params);
             case PATH_PARAM:
@@ -520,8 +531,9 @@ public class Request implements ProxyObject {
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap();
         map.put(URL, urlAndPath);
-        map.put(URL_BASE, urlBase);
+        map.put(URL_BASE, urlBase);        
         map.put(PATH, path);
+        map.put(PATH_RAW, getPathRaw());
         map.put(METHOD, method);
         map.put(HEADER_ENTRIES, HEADER_ENTRIES_FUNCTION.get());
         map.put(BODY, getBodyConverted());
