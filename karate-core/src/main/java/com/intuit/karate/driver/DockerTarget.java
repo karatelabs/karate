@@ -29,6 +29,8 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.shell.Command;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.util.Collections;
 import java.util.HashMap;
@@ -38,11 +40,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- *
  * @author pthomas3
  */
 public class DockerTarget implements Target {
 
+    protected static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Command.class);
     private final String imageId;
     private String containerId;
     private Function<Integer, String> command;
@@ -52,7 +54,7 @@ public class DockerTarget implements Target {
 
     public DockerTarget(String dockerImage) {
         this(Collections.singletonMap("docker", dockerImage));
-    }    
+    }
 
     public DockerTarget(Map<String, Object> options) {
         this.options = options;
@@ -124,8 +126,7 @@ public class DockerTarget implements Target {
         Command.waitForHttp("http://" + host + ":" + port + "/json");
         return map;
     }
-    
-    
+
 
     @Override
     public Map<String, Object> stop(ScenarioRuntime sr) {
@@ -133,9 +134,9 @@ public class DockerTarget implements Target {
         if (!karateChrome) { // no video
             Command.execLine(null, "docker rm " + containerId);
             return Collections.EMPTY_MAP;
-        }        
+        }
         String shortName = containerId.contains("_") ? containerId : StringUtils.truncate(containerId, 12, false);
-        String dirName = "karate-chrome_" + shortName;    
+        String dirName = "karate-chrome_" + shortName;
         String buildDir = sr.featureRuntime.suite.buildDir;
         String resultsDir = buildDir + File.separator + dirName;
         Command.execLine(null, "docker cp " + containerId + ":/tmp " + resultsDir);
@@ -152,20 +153,33 @@ public class DockerTarget implements Target {
     }
 
     private int getContainerPort(String containerId) {
-        String dockerPort = Command.execLine((File)null, "docker port " + containerId + " 9222/tcp");
-        Pattern portPattern = Pattern.compile("(\\d+?\\.){3}\\d:(\\d+)");
-        Matcher matcher = portPattern.matcher(dockerPort);
-        if (matcher.matches()) {
-            try {
-                return Integer.parseInt(matcher.group(2));
-            } catch (NumberFormatException e) {
-                throw new KarateException("Error fetching port from started docker container", e);
+        try {
+            String dockerPort = Command.execLine((File) null, "docker port " + containerId + " 9222/tcp");
+            Pattern portPattern = Pattern.compile("(\\d+?\\.){3}\\d:(\\d+)");
+            Matcher matcher = portPattern.matcher(dockerPort);
+            if (matcher.matches()) {
+                try {
+                    return Integer.parseInt(matcher.group(2));
+                } catch (NumberFormatException e) {
+                    stopAndRemoveContainerOnException(containerId);
+                    throw new KarateException("Error fetching port from started docker container", e);
+                }
             }
+        } catch (Exception e) {
+            LOGGER.error("command error: {} - {}", e.getMessage());
         }
+        stopAndRemoveContainerOnException(containerId);
         throw new KarateException("Error fetching port from started docker container");
     }
 
     public String getContainerId() {
         return this.containerId;
     }
+
+    private void stopAndRemoveContainerOnException(String containerId) {
+        Command.execLine(null, "docker stop " + containerId);
+        Command.execLine(null, "docker rm " + containerId);
+        LOGGER.info("Stopping and removing the container due to error");
+    }
+
 }
