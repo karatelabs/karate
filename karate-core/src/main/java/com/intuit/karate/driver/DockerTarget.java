@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- *
  * @author pthomas3
  */
 public class DockerTarget implements Target {
@@ -158,28 +157,40 @@ public class DockerTarget implements Target {
 
     private int getContainerPort(String containerId) {
         // 9222/tcp is the default port for chrome headless
-        String format = "--format='{{(index (index .NetworkSettings.Ports \"9222/tcp\") 0).HostPort}}'";
-
-        if (FileUtils.isOsWindows()) {
-            format = format.replace("\"", "\\\"");
-        }
-
-        logger.debug("cmd: docker format {} {}", format, containerId);
-        String dockerInspect = Command.exec(false, (File) null,
-                "docker", "inspect", format, containerId
-        );
-
-        // Certain OS responses come back with single quotes with Command.exec
-        dockerInspect = dockerInspect.replaceAll("[^\\d]", "");
-        logger.debug("docker inspect command output: {}", dockerInspect);
         try {
-            return Integer.parseInt(dockerInspect);
-        } catch (NumberFormatException e) {
+            String format = "--format='{{(index (index .NetworkSettings.Ports \"9222/tcp\") 0).HostPort}}'";
+
+            if (FileUtils.isOsWindows()) {
+                format = format.replace("\"", "\\\"");
+            }
+
+            logger.debug("cmd: docker format {} {}", format, containerId);
+            String dockerInspect = Command.exec(false, (File) null,
+                    "docker", "inspect", format, containerId
+            );
+
+            // Certain OS responses come back with single quotes with Command.exec
+            dockerInspect = dockerInspect.replaceAll("[^\\d]", "");
+            logger.debug("docker inspect command output: {}", dockerInspect);
+            try {
+                return Integer.parseInt(dockerInspect);
+            } catch (NumberFormatException e) {
+                stopAndRemoveContainerOnException(containerId, e);
+                throw new KarateException("Error fetching port from started docker container", e);
+            }
+        } catch (Exception e) {
+            stopAndRemoveContainerOnException(containerId, e);
             throw new KarateException("Error fetching port from started docker container", e);
         }
     }
 
     public String getContainerId() {
         return this.containerId;
+    }
+
+    private void stopAndRemoveContainerOnException(String containerId, Exception e) {
+        Command.execLine(null, "docker stop " + containerId);
+        Command.execLine(null, "docker rm " + containerId);
+        logger.info("Stopping and removing the container due to error :", e.getMessage());
     }
 }
