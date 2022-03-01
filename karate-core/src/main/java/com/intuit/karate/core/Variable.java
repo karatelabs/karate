@@ -167,6 +167,10 @@ public class Variable {
         return type == Type.FEATURE;
     }
     
+    public boolean isBoolean() {
+        return type == Type.BOOLEAN;
+    }
+    
     public boolean isTrue() {
         return type == Type.BOOLEAN && ((Boolean) value);
     }
