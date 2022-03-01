@@ -193,7 +193,11 @@ public class Request implements ProxyObject {
 
     public String getPathRaw() {
         if (urlBase != null && urlAndPath != null) {
-            return urlAndPath.substring(urlBase.length());
+            if (urlAndPath.charAt(0) == '/') {
+                return urlAndPath;
+            } else {
+                return urlAndPath.substring(urlBase.length());
+            }            
         } else {
             return path;
         }
