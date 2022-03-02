@@ -577,7 +577,7 @@ public abstract class DevToolsDriver implements Driver {
                         return; // special case
                     }
                     dtm.param("text", "");
-                    break;                
+                    break;
                 case 13: // enter
                     dtm.param("text", "\r"); // important ! \n does NOT work for chrome
                     break;
@@ -609,7 +609,7 @@ public abstract class DevToolsDriver implements Driver {
             Integer keyCode = Keys.code(c);
             if (keyCode != null) {
                 switch (keyCode) {
-                    case Keys.CODE_SHIFT:                      
+                    case Keys.CODE_SHIFT:
                     case Keys.CODE_CONTROL:
                     case Keys.CODE_ALT:
                     case Keys.CODE_META:
@@ -856,16 +856,21 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public byte[] screenshot(String id, boolean embed) {
         DevToolsMessage dtm;
-        if (id == null) {
-            dtm = method("Page.captureScreenshot").send();
-        } else {
-            Map<String, Object> map = position(id);
-            map.put("scale", 1);
-            dtm = method("Page.captureScreenshot").param("clip", map).send();
+        try {
+            if (id == null) {
+                dtm = method("Page.captureScreenshot").send();
+            } else {
+                Map<String, Object> map = position(id);
+                map.put("scale", 1);
+                dtm = method("Page.captureScreenshot").param("clip", map).send();
+            }
+        } catch (Exception e) { // rare case where message does not get a reply
+            logger.error("screenshot failed: {}", e.getMessage());
+            return Constants.ZERO_BYTES;
         }
         if (dtm == null) {
-            logger.error("unable to capture screenshot: {}", dtm);
-            return new byte[0];
+            logger.error("unable to capture screenshot - no data returned");
+            return Constants.ZERO_BYTES;
         }
         String temp = dtm.getResult("data").getAsString();
         byte[] bytes = Base64.getDecoder().decode(temp);
