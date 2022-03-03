@@ -5,6 +5,7 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.core.Config;
 import com.intuit.karate.core.DummyClient;
 import com.intuit.karate.core.MockHandler;
+import com.intuit.karate.core.Variable;
 import com.intuit.karate.shell.StringLogAppender;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,7 @@ class HttpLoggerTest {
     HttpRequestBuilder httpRequestBuilder;
     HttpRequest request;
     Logger testLogger = new Logger();
-    Config config = new Config();
+    Config config;
     LogAppender logAppender = new StringLogAppender(false);
     HttpLogger httpLogger;
 
@@ -37,6 +38,7 @@ class HttpLoggerTest {
         httpRequestBuilder = new HttpRequestBuilder(client).method("GET");
         testLogger.setAppender(logAppender);
         httpLogger = new HttpLogger(testLogger);
+        config = new Config();
     }
 
     void setup(String path, String body, String contentType) {
@@ -82,7 +84,6 @@ class HttpLoggerTest {
         assertTrue(logs.contains("Content-Type: application/xml"));
     }
 
-
     @Test
     void testRequestLoggingTurtle() {
         HttpRequest httpRequest = httpRequestBuilder.body(TURTLE_SAMPLE).contentType("text/turtle").path("/ttl").build();
@@ -99,6 +100,36 @@ class HttpLoggerTest {
         String logs = logAppender.collect();
         assertTrue(logs.contains(TURTLE_SAMPLE));
         assertTrue(logs.contains("Content-Type: text/turtle; charset=UTF-8"));
+    }
+
+    @Test
+    void testRequestLoggingJsonPretty() {
+        config.configure("logPrettyRequest", new Variable(true));
+        HttpRequest httpRequest = httpRequestBuilder.body("{a: 1}").contentType("application/json").path("/ttl").build();
+        httpLogger.logRequest(config, httpRequest);
+        String logs = logAppender.collect();
+        assertTrue(logs.contains("{\n  \"a\": 1\n}"));
+        assertTrue(logs.contains("Content-Type: application/json"));
+    }
+
+    @Test
+    void testRequestLoggingXmlPretty() {
+        config.configure("logPrettyRequest", new Variable(true));
+        HttpRequest httpRequest = httpRequestBuilder.body("<hello>world</hello>").contentType("application/xml").path("/ttl").build();
+        httpLogger.logRequest(config, httpRequest);
+        String logs = logAppender.collect();
+        assertTrue(logs.contains("<hello>world</hello>"));
+        assertTrue(logs.contains("Content-Type: application/xml"));
+    }
+
+    @Test
+    void testRequestLoggingTurtlePretty() {
+        config.configure("logPrettyRequest", new Variable(true));
+        HttpRequest httpRequest = httpRequestBuilder.body(TURTLE_SAMPLE).contentType("text/turtle").path("/ttl").build();
+        httpLogger.logRequest(config, httpRequest);
+        String logs = logAppender.collect();
+        assertTrue(logs.contains(TURTLE_SAMPLE));
+        assertTrue(logs.contains("Content-Type: text/turtle"));
     }
 
     @Test
@@ -171,4 +202,48 @@ class HttpLoggerTest {
         assertTrue(logs.contains("Content-Type: text/turtle; charset=UTF-8"));
     }
 
+    @Test
+    void testResponseLoggingJsonPretty() {
+        config.configure("logPrettyResponse", new Variable(true));
+        setup("json", "{a: 1}", "application/json");
+        httpRequestBuilder.path("/json");
+        Response response = handle();
+        match(response.getBodyAsString(), "{a: 1}");
+        match(response.getContentType(), "application/json");
+
+        httpLogger.logResponse(config, request, response);
+        String logs = logAppender.collect();
+        assertTrue(logs.contains("{\n  \"a\": 1\n}"));
+        assertTrue(logs.contains("Content-Type: application/json"));
+    }
+
+    @Test
+    void testResponseLoggingXmlPretty() {
+        config.configure("logPrettyResponse", new Variable(true));
+        setup("xml", "<hello>world</hello>", "application/xml");
+        httpRequestBuilder.path("/xml");
+        Response response = handle();
+        match(response.getBodyAsString(), "<hello>world</hello>");
+        match(response.getContentType(), "application/xml");
+
+        httpLogger.logResponse(config, request, response);
+        String logs = logAppender.collect();
+        assertTrue(logs.contains("<hello>world</hello>"));
+        assertTrue(logs.contains("Content-Type: application/xml"));
+    }
+
+    @Test
+    void testResponseLoggingTurtlePretty() {
+        config.configure("logPrettyResponse", new Variable(true));
+        setup("ttl", TURTLE_SAMPLE, "text/turtle");
+        httpRequestBuilder.path("/ttl");
+        Response response = handle();
+        assertEquals(response.getBodyAsString(), TURTLE_SAMPLE);
+        assertTrue(response.getContentType().contains("text/turtle"));
+
+        httpLogger.logResponse(config, request, response);
+        String logs = logAppender.collect();
+        assertTrue(logs.contains(TURTLE_SAMPLE));
+        assertTrue(logs.contains("Content-Type: text/turtle"));
+    }
 }

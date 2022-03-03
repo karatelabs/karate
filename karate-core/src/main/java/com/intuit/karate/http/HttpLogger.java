@@ -64,13 +64,13 @@ public class HttpLogger {
     }
 
     private static void logBody(Config config, HttpLogModifier logModifier,
-            StringBuilder sb, String uri, byte[] body, boolean request) {
+            StringBuilder sb, String uri, byte[] body, boolean request, ResourceType rt) {
         if (body == null) {
             return;
         }
         String text;
         if (config != null && needsPrettyLogging(config, request)) {
-            Object converted = JsValue.fromBytes(body, false, null);
+            Object converted = JsValue.fromBytes(body, false, rt);
             Variable v = new Variable(converted);
             text = v.getAsPrettyString();
         } else {
@@ -132,7 +132,7 @@ public class HttpLogger {
             } else {
                 body = request.getBody();
             }
-            logBody(config, requestModifier, sb, uri, body, true);
+            logBody(config, requestModifier, sb, uri, body, true, rt);
         }
         sb.append('\n');
         logger.debug("{}", sb);
@@ -151,7 +151,7 @@ public class HttpLogger {
         if (rt == null || rt.isBinary()) {
             // don't log body
         } else {
-            logBody(config, responseModifier, sb, uri, response.getBody(), false);
+            logBody(config, responseModifier, sb, uri, response.getBody(), false, rt);
         }
         sb.append('\n');
         logger.debug("{}", sb);
