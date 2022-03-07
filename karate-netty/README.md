@@ -1,5 +1,7 @@
 # Karate Netty
+
 ## API Test-Doubles Made `Simple.`
+
 And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html) made easy.
 
 # Index
@@ -21,7 +23,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
   <th>Life Cycle</th>
   <td>
       <a href="#embedding">Java / JUnit</a>
-    | <a href="#within-a-karate-test">Within a Karate Test</a>  
+    | <a href="#within-a-karate-test">Within a Karate Test</a>
     | <a href="#background"><code>Background</code></a>
     | <a href="#scenario"><code>Scenario</code></a>
     | <a href="#stopping">Stopping</a>
@@ -65,18 +67,19 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
   <th>Advanced</th>
   <td>
       <a href="#configure-cors"><code>configure cors</code></a>
-    | <a href="#configure-responsedelay"><code>configure responseDelay</code></a>    
+    | <a href="#configure-responsedelay"><code>configure responseDelay</code></a>
     | <a href="#configure-afterscenario"><code>configure afterScenario</code></a>
-    | <a href="#configure-responseheaders"><code>configure responseHeaders</code></a>    
+    | <a href="#configure-responseheaders"><code>configure responseHeaders</code></a>
     | <a href="#proxy-mode"><code>Proxy Mode</code></a>
     | <a href="#karateabort"><code>karate.abort()</code></a>
     | <a href="#karateproceed"><code>karate.proceed()</code></a>
-    | <a href="#consumer-provider-example"><code>Consumer Driven Contracts</code></a>       
+    | <a href="#consumer-provider-example"><code>Consumer Driven Contracts</code></a>
   </td>
 </tr>
 </table>
 
 ### Capabilities
+
 * Everything on `localhost` or within your network, no need to worry about your data leaking into the cloud
 * Super-easy 'hard-coded' mocks ([example](../karate-core/src/test/java/com/intuit/karate/core/mock/_mock.feature))
 * Stateful mocks that can fully simulate CRUD for a micro-service ([example](../karate-demo/src/test/java/mock/proxy/demo-mock.feature))
@@ -109,9 +112,11 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 * The mock + contract-test serves as the ultimate form of documentation of the 'contract' including payload / schema details
 
 ## Using
+
 Note that you can use this as a [stand-alone JAR executable](#standalone-jar) which means that you don't even need to compile Java or use an IDE. If you need to embed the mock-server into a JUnit test, you can easily do so.
 
 ### Maven
+
 The [Netty](https://netty.io) based capabilities are included when you use `karate-apache` (or `karate-jersey`), so there is no extra dependency needed besides what is outlined in the [main documentation](https://github.com/intuit/karate#maven).
 
 ## Consumer-Provider Example
@@ -145,7 +150,9 @@ Also see this [blog post](https://hackernoon.com/api-consumer-contract-tests-and
 And for more ideas, refer to [this example](https://twitter.com/KarateDSL/status/1417023536082812935) of using a mock to listen for an async "callback" and integrating that kind of flow into your test.
 
 ### Server-Side Karate
-#### A perfect match !
+
+#### A perfect match
+
 It is worth calling out *why* Karate on the 'other side of the fence' (*handling* HTTP requests instead of *making* them) - turns out to be remarkably effective, yet simple.
 
 * 'Native' support for expressing JSON and XML payloads
@@ -161,9 +168,11 @@ It is worth calling out *why* Karate on the 'other side of the fence' (*handling
 If you think about it, all the above are *sufficient* to implement *any* micro-service. Karate's DSL syntax is *focused* on exactly these aspects, thus opening up interesting possibilities. It may be hard to believe that you can spin-up a 'usable' micro-service in minutes with Karate - but do try it and see !
 
 # Standalone JAR
+
 *All* of Karate (core API testing, parallel-runner / HTML reports, the debugger-UI, mocks and web / UI automation) is available as a *single*, executable JAR file. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE. And there is a [Visual Studio Code plugin](https://marketplace.visualstudio.com/items?itemName=kirkslota.karate-runner) that supports the Karate standalone JAR.
 
 ## jbang
+
 Note that you can easily run Karate or even install applications based on Karate using [`jbang`](https://www.jbang.dev). It will take care of setting up a local Java runtime, which is really convenient. Note that jbang itself is [super-easy to install](https://github.com/jbangdev/jbang#installation) and there is even a "[Zero Install](https://github.com/jbangdev/jbang#zero-install)" option.
 
 With jbang installed, you can do this (since a [`jbang-catalog.json`](https://github.com/jbangdev/jbang#implicit-alias-catalogs) is present within the Karate GitHub repository):
@@ -197,6 +206,7 @@ You can script complex automation, using the [Java API](https://github.com/intui
 Refer to the [jbang documentation](https://github.com/jbangdev/jbang) for more options.
 
 ## Downloading
+
 The only pre-requisite (if not using [jbang](#jbang)) is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the full-blown JDK (Java Development Kit). At least Java 8 is required, and there's a good chance you already have it installed. You can confirm this by typing `java -version` on the command line.
 
 Note that the [ZIP Release](#quick-start) is recommended for those new to Karate - or who don't have much programming experience. If you are just looking for the single JAR file or executable, please read on.
@@ -206,18 +216,23 @@ Note that the [ZIP Release](#quick-start) is recommended for those new to Karate
 Look for the [latest release](https://github.com/intuit/karate/releases) on GitHub and scroll down to find the "Assets". And look for the file with the name: `karate-<version>.jar`:
 
 ## Quick Start
+
 Just use the [ZIP release](https://github.com/intuit/karate/wiki/ZIP-Release) and follow the insructions under the heading: [API Mocks](https://github.com/intuit/karate/wiki/ZIP-Release#api-mocks).
 
 Also try the ["World's Smallest MicroService"](#the-worlds-smallest-microservice-) !
 
 ## Usage
+
 ### Help
+
 You can view the command line help with the `-h` option:
+
 ```
 java -jar karate.jar -h
 ```
 
 ### Mock Server
+
 To start a mock server, the 2 mandatory arguments are the path of the feature file 'mocks' `-m` and the port `-p`
 
 ```
@@ -227,6 +242,7 @@ java -jar karate.jar -m my-mock.feature -m my-2nd-mock.feature -p 8080
 > Acting as an HTTP proxy server is not possible in 1.0 (it used to be possible in the past), and needs [community contribution](https://github.com/line/armeria/issues/3168) to revive.
 
 #### SSL
+
 For SSL, use the `-s` flag. If you don't provide a certificate and key (see next section), it will automatically create `cert.pem` and `key.pem` in the current working directory, and the next time you re-start the mock server - these will be re-used. This is convenient for web / UI developers because you then need to set the certificate 'exception' only once in the browser.
 
 ```
@@ -240,9 +256,11 @@ java -jar karate.jar -m my-mock.feature -p 8443 -s -c my-cert.crt -k my-key.key
 ```
 
 #### Hot Reload
+
 You can hot-reload a mock feature file for changes by adding the -W or --watch option.
 
 ### Running Tests
+
 Convenient to run standard [Karate](https://github.com/intuit/karate) tests on the command-line without needing to mess around with Java or the IDE ! Great for demos or exploratory testing. Even HTML reports are generated !
 
 Feature files (or search paths) to be tested don't need command-line flags or options and can be just listed at the end of the command.
@@ -250,7 +268,9 @@ Feature files (or search paths) to be tested don't need command-line flags or op
 ```
 java -jar karate.jar my-test.feature
 ```
+
 #### Custom Classpath
+
 Karate allows you to use custom Java code or 3rd party Java libraries using [Java interop](https://github.com/intuit/karate#calling-java). Normally those who do this use Karate in the context of [Maven](https://maven.apache.org) or [Gradle](https://gradle.org) - and the [classpath](https://github.com/intuit/karate#classpath) would be set automatically.
 
 You can use the standalone JAR and still depend on external Java code - but you have to set the classpath for this to work. The entry-point for the Karate command-line app is `com.intuit.karate.Main`. Here is an example of using the [Karate Robot](https://github.com/intuit/karate/tree/master/karate-robot) library [as a JAR file](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot) assuming it is in the current working directory.
@@ -264,6 +284,7 @@ If on Windows, note that the path-separator is `;` instead of `:` as seen above 
 This approach is useful if you are trying to point the standalone Karate JAR file to a project structure that comes from the Java / Maven world. And the [`karate-config.js`](https://github.com/intuit/karate#configuration) will be looked for in the classpath itself.
 
 #### Scenario Name
+
 If you only want to run a single `Scenario` by name, use the `-n` or `--name` option:
 
 ```
@@ -277,6 +298,7 @@ java -jar karate.jar my-test.feature:42
 ```
 
 #### Tags
+
 You can specify [Cucumber tags](https://github.com/intuit/karate#cucumber-tags) to include (or exclude) using the `-t` or `--tags`  option as follows. Note that the special, built-in tag `@ignore` is *always* skipped.
 
 ```
@@ -284,6 +306,7 @@ java -jar karate.jar -t @smoke,~@skipme my-test.feature
 ```
 
 #### `karate.env`
+
 If your test depends on the `karate.env` [environment 'switch'](https://github.com/intuit/karate#switching-the-environment), you can specify that using the `-e` (env) option:
 
 ```
@@ -291,6 +314,7 @@ java -jar karate.jar -e e2e my-test.feature
 ```
 
 #### `karate-config.js`
+
 If [`karate-config.js`](https://github.com/intuit/karate#configuration) exists in the current working directory, it will be used. You can specify a full path by setting the system property `karate.config.dir`. Note that this is an easy way to set a bunch of variables, just return a JSON with the keys and values you need.
 
 ```
@@ -310,6 +334,7 @@ var foo = karate.properties['foo']
 ```
 
 #### Parallel Execution
+
 If you provide a directory in which multiple feature files are present (even in sub-folders), they will be all run. You can even specify the number of threads to run in parallel using `-T` or `--threads` (not to be confused with `-t` for tags):
 
 ```
@@ -317,6 +342,7 @@ java -jar karate.jar -T 5 -t @smoke src/features
 ```
 
 #### Output Directory
+
 The output directory where the `karate.log` file, JUnit XML and Cucumber report JSON files would be output will default to `target` in the current working directory. The Cucumber HTML report would be found in a folder called `cucumber-html-reports` within this "output" folder. You can change the output folder using the `-o` or `--output` option:
 
 ```
@@ -324,6 +350,7 @@ java -jar karate.jar -T 5 -t ~@skipme -o /my/custom/dir src/features
 ```
 
 #### Clean
+
 The [output directory](#output-directory) will be deleted before the test runs if you use the `-C` or `--clean` option.
 
 ```
@@ -331,10 +358,11 @@ java -jar karate.jar -T 5 -C src/features
 ```
 
 #### Debug Server
+
 The `-d` or `--debug` option will start a debug server. See the [Debug Server wiki](https://github.com/intuit/karate/wiki/Debug-Server#standalone-jar) for more details.
 
-
 ## Logging
+
 A default [logback configuration file](https://logback.qos.ch/manual/configuration.html) (named [`logback-fatjar.xml`](../karate-core/src/main/java/logback-fatjar.xml)) is present within the stand-alone JAR.
 
 For convenience, if `logback-test.xml` or `logback.xml` exists on the root of the [classpath](#custom-classpath) (or the root of the working directory) - it will be used instead.
@@ -350,31 +378,32 @@ Here is the 'out-of-the-box' default which you can customize. Note that the defa
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
- 
+
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
-  
+
     <appender name="FILE" class="ch.qos.logback.core.FileAppender">
         <file>${karate.output.dir}/karate.log</file>
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
-    </appender>    
-   
+    </appender>
+
     <logger name="com.intuit.karate" level="DEBUG"/>
-   
+
     <root level="warn">
         <appender-ref ref="STDOUT" />
         <appender-ref ref="FILE" />
     </root>
-  
+
 </configuration>
 ```
 
 # Embedding
+
 Starting and stopping a Karate server can be done via the Java API and this easily allows you to mix Karate into Java code, JUnit tests and Continuous Integration pipelines.
 
 The [`com.intuit.karate.core.MockServer`](../karate-core/src/main/java/com/intuit/karate/core/MockServer.java) class has static "builder" methods to configure and then launch a server. Here is an [example](../karate-core/src/test/java/com/intuit/karate/core/PerfHookTest.java).
@@ -384,6 +413,7 @@ You can call a `getPort()` method on the `MockServer` instance to get the port o
 You can look at this demo example for reference: [ConsumerUsingMockTest.java](../karate-demo/src/test/java/mock/contract/ConsumerUsingMockTest.java) - note how the dynamic port number can be retrieved and passed to other elements in your test set-up.
 
 ## Continuous Integration
+
 To include mocks into a test-suite that consists mostly of Karate tests, the easiest way is to use JUnit with the above approach, and ensure that the JUnit class is "included" in your test run. One way is to ensure that the JUnit "runner" follows the naming convention (`*Test.java`) or you can explicity include the mock "runners" in your Maven setup.
 
 You will also need to ensure that your mock feature is *not* picked up by the regular test-runners, and an `@ignore` [tag](https://github.com/intuit/karate#tags) typically does the job.
@@ -391,6 +421,7 @@ You will also need to ensure that your mock feature is *not* picked up by the re
 For more details, refer to this [answer on Stack Overflow](https://stackoverflow.com/a/57746457/143475).
 
 ## Within a Karate Test
+
 Teams that are using the [standalone JAR](#standalone-jar) and *don't* want to use Java at all can directly start a mock from within a Karate test script using the `karate.start()` API. The argument can be a string or JSON. If a string, it is processed as the path to the mock feature file, and behaves like the [`read()`](https://github.com/intuit/karate#reading-files) function.
 
 So starting a mock from a Karate test is simple. This example also shows how [conditional logic](https://github.com/intuit/karate#conditional-logic) can be used effectively.
@@ -421,6 +452,7 @@ For the full example, look at [`cats-test.feature`](../karate-demo/src/test/java
 The object returned by `karate.start()` is an instance of [`MockServer`](../karate-core/src/main/java/com/intuit/karate/core/MockServer.java). So in addition to the `port` "getter", you can call `stop()` on it, but you normally don't need to - as it should stop automatically when the test (or JVM) ends.
 
 # Server Life Cycle
+
 Writing a mock can get complicated for real-life API interactions, and most other frameworks attempt to solve this using declarative approaches, such as expecting you to create a large, complicated JSON to model all requests and responses. You can think of Karate's approach as combining the best of both the worlds of declarative and imperative programming. Combined with the capability to maintain state in the form of JSON objects in memory, and Karate's native support for [Json-Path](https://github.com/intuit/karate#jsonpath-filters), XML and [`embedded expressions`](https://github.com/intuit/karate#embedded-expressions) - you have a very powerful toolkit at your disposal. And Karate's intelligent defaults keep things dead simple.
 
 The Karate 'server' life-cycle is simple and has only 2 phases - the `Background` and `Scenario`. You can see that the existing [`Gherkin`](https://github.com/cucumber/cucumber/wiki/Gherkin) format has been 're-purposed' for HTTP request handling. This means that you get the benefit of IDE support and syntax coloring for your mocks.
@@ -430,6 +462,7 @@ Refer to this example: [`demo-mock.feature`](../karate-demo/src/test/java/mock/p
 Also see [how to stop](#stopping) a running server.
 
 ## `Background`
+
 This is executed on start-up. You can read files and set-up common functions and 'global' state here. Note that unlike the life-cycle of ['normal' Karate](https://github.com/intuit/karate#script-structure), the `Background` is *not* executed before each `Scenario`.
 
 Here's an example of setting up a [function to generate primary keys](https://github.com/intuit/karate#commonly-needed-utilities) which can be invoked like this: `uuid()`
@@ -466,6 +499,7 @@ The other parts of the simple example above are explained in the sections below.
 > Note that [`karate-config.js`](https://github.com/intuit/karate#configuration) does *not* come into the picture here. But if for some reason you need to re-use an existing one, you can do this in the `Background`: `* call read('classpath:karate-config.js')` - and you can use any JS or JSON file in this manner to initialize a bunch of seed data or "intial state".
 
 ## `Scenario`
+
 A server-side `Feature` file can have multiple `Scenario` sections in it. Each Scenario is expected to have a JavaScript expression as the content of the `Scenario` description which we will refer to as the "request matcher".
 
 > Note that the [`Scenario Outline`](https://github.com/intuit/karate#data-driven-tests) is *not* supported when Karate is in "mock mode".
@@ -475,6 +509,7 @@ On each incoming HTTP request, the `Scenario` expressions are evaluated in order
 > It is good practice to have the last `Scenario` in the file with an empty description, (which will evaluate to `true`) so that it can act as a 'catch-all' and log or throw an error / `404 Not Found` in response.
 
 # Request Handling
+
 The Karate "server-side" has a set of "built-in" variables or helper-functions. They have been carefully designed to solve for matching and processing that you commonly need to do against the incoming HTTP request.
 
 You can use these in the "request matcher" described above. This is how you can "route" incoming HTTP requests to the blocks of code within the individual `Scenario`-s. And you can also use them in the `Scenario` body, to process the request, URL, and maybe the headers, and then form the [response](#response-building).
@@ -484,7 +519,8 @@ You can use these in the "request matcher" described above. This is how you can 
 ## Scenario selection
 
 When multiple files are provided, they are evaluated in supplied order
-- `Example 1`: When a feature file contains same scenario:
+* `Example 1`: When a feature file contains same scenario:
+
 ```cucumber
 Scenario: pathMatches('/test')
 * def response = read('/example/Bye.txt')
@@ -492,46 +528,57 @@ Scenario: pathMatches('/test')
 Scenario: pathMatches('/test')
 * def response = read('/example/hi.txt')
 ```
+
 Here the first scenario will be picked and Bye.txt will be returned as response.
 
-- `Example 2`: When same scenario exists in two separate files.  
+* `Example 2`: When same scenario exists in two separate files.
   Feature-file1.feature
+
 ```cucumber
 ##Feature-file1.feature
 Scenario: pathMatches('/test')
 * def response = read('/example/Bye.txt')
 
 ```
+
   Feature-file2.feature
+
 ```cucumber
 ##Feature-file2.feature
 Scenario: pathMatches('/test')
 * def response = read('/example/Hi.txt')
 
 ```
-The response will be determined by the order of file.
-`java -jar karate.jar -m Feature-file1.feature -m Feature-file2.feature`  
-Here `Bye.txt` will be returned as response.  
 
-`java -jar karate.jar -m Feature-file2.feature -m Feature-file1.feature`  
-Here `Hi.txt` will be returned as response.  
+The response will be determined by the order of file.
+`java -jar karate.jar -m Feature-file1.feature -m Feature-file2.feature`
+Here `Bye.txt` will be returned as response.
+
+`java -jar karate.jar -m Feature-file2.feature -m Feature-file1.feature`
+Here `Hi.txt` will be returned as response.
 
 ## `request`
+
 This variable holds the value of the request body. It will be a JSON or XML object if it can be parsed as such. Else it would be a string.
 
 ## `requestBytes`
+
 Rarely used, unless you are expecting incoming binary content. This variable holds the value of the raw request bytes. Here is an example: [`_mock.feature`](../karate-junit4/src/test/java/com/intuit/karate/mock/_mock.feature).
 
 ## `requestUrlBase`
+
 Holds the value of the "base URL". This will be in the form `http://somehost:8080` and will include the port number if needed. It may start with `https` if applicable.
 
 ## `requestUri`
+
 Everything on the right side of the "base URL" (see above). This will include everything, including query string parameters if present. For example if the request URL was `http://foo/bar?baz=ban` the value of `requestUri` will be `bar?baz=ban`.
 
 ## `requestMethod`
+
 The HTTP method, for e.g. `GET`. It will be in capital letters. Instead of doing things like: `requestMethod == 'GET'` - "best practice" is to use the [`methodIs()`](#methodis) helper function for request matching.
 
 ## `requestHeaders`
+
 Note that this will be a Map of List-s. For request matching, the [`typeContains()`](#typecontains), [`acceptContains()`](#acceptcontains) or [`headerContains()`](#headercontains) helpers are what you would use most of the time.
 
 If you really need to "route" to a `Scenario` based on a custom header value, you can use the [`karate.get()`](https://github.com/intuit/karate#karate-get) API - which will gracefully return `null` if the JsonPath does not exist. For example, the following would match a header of the form: `val: foo`
@@ -543,9 +590,11 @@ Scenario: pathMatches('/v1/headers') && karate.get('requestHeaders.val[0]') == '
 Note that you can define your custom JS re-usable functions in the `Background` which can make complex matching logic easier to implement.
 
 ## `requestParams`
+
 A map-like' object of all query-string parameters and the values will always be an array. The built-in convenience function [`paramExists()`](#paramexists) is what you would use most of the time.
 
 ## `requestParts`
+
 This can be used to handle file-upload use-cases. If the incoming request is a multipart, this variable will be set and it is a `Map` of `List`-s. For example - if a file was in the request under the name `myFile`, you can get the details like this:
 
 ```cucumber
@@ -571,6 +620,7 @@ This is one of the rare places in Karate where raw bytes are exposed, but it sho
 Also refer to [this article](https://software-that-matters.com/2021/07/02/mock-a-file-server-with-karate-test-framework/) by Peter Quiel.
 
 ## `pathMatches()`
+
 Helper function that makes it easy to match a URI pattern as well as set [path parameters](#pathparams) up for extraction later using curly-braces. For example:
 
 ```cucumber
@@ -591,9 +641,11 @@ Scenario: !requestUri.startsWith('foo/')
 ```
 
 ## `pathParams`
+
 JSON variable (not a function) allowing you to extract values by name. See [`pathMatches()`](#pathmatches) above.
 
 ## `methodIs()`
+
 Helper function that you will use a lot along with [`pathMatches()`](#pathmatches). Lower-case is fine. For example:
 
 ```cucumber
@@ -602,12 +654,15 @@ Scenario: pathMatches('/v1/cats/{id}') && methodIs('get')
 ```
 
 ## `paramExists()`
+
 Function (not a variable) designed to match request on query parameter instead of [`requestParams`](#requestparams). Returns a boolean.
+
 ```cucumber
 Scenario: pathMatches('/greeting') && paramExists('name')
 ```
 
 ## `paramValue()`
+
 Function (not a variable) designed to make it easier to work with query parameters instead of [`requestParams`](#requestparams). It will return a single (string) value (instead of an array) if the size of the parameter-list for that name is 1, which is what you need most of the time. For example:
 
 ```cucumber
@@ -617,6 +672,7 @@ Scenario: pathMatches('/greeting') && paramExists('name')
 ```
 
 ## `typeContains()`
+
 Function to make matching the `Content-Type` header easier. And it uses a string "contains" match so that `typeContains('xml')` will match both `text/xml` or `application/xml`. Note how using JavaScript expressions makes all kinds of complex matching possible.
 
 ```cucumber
@@ -624,6 +680,7 @@ Scenario: pathMatches('/cats') && methodIs('post') && typeContains('xml')
 ```
 
 ## `acceptContains()`
+
 Just like the above, to make matching the `Accept` header easier.
 
 ```cucumber
@@ -633,6 +690,7 @@ Scenario: pathMatches('/cats/{id}') && acceptContains('xml')
 ```
 
 ## `headerContains()`
+
 This should be sufficient to test that a particular header has a certain value, even though between the scenes it does a string "contains" check which can be convenient. If you really need an "exact" match, see [`requestHeaders`](#requestheaders).
 
 For example, the following would match a header of the form: `val: foo`
@@ -642,6 +700,7 @@ Scenario: pathMatches('/v1/headers') && headerContains('val', 'foo')
 ```
 
 ## `bodyPath()`
+
 A very powerful helper function that can run JsonPath or XPath expressions against the request body or payload.
 
 JSON example:
@@ -657,6 +716,7 @@ Scenario: pathMatches('/v1/body/json') && request.name == 'Scooby'
 ```
 
 XML example:
+
 ```cucumber
 Scenario: pathMatches('/v1/body/xml') && bodyPath('/dog/name') == 'Scooby'
 ```
@@ -664,9 +724,11 @@ Scenario: pathMatches('/v1/body/xml') && bodyPath('/dog/name') == 'Scooby'
 Refer to this example: [`server.feature`](src/test/java/com/intuit/karate/server.feature).
 
 # Response Building
+
 Shaping the HTTP response is very easy - you just set a bunch of variables. This is surprisingly effective, and gives you the flexibility to perform multiple steps as part of request processing. You don't need to build the whole response and "return" it on the last line. And the order of what you define does not matter.
 
 ## `response`
+
 The actual response body or payload. Can be any [Karate data-type](https://github.com/intuit/karate#native-data-types) such as JSON or XML.
 
 Since you can use [embedded-expressions](https://github.com/intuit/karate#embedded-expressions), you can create dynamic responses with a minimum of effort:
@@ -696,6 +758,7 @@ To give you some interesting ideas, say you had a program written in a different
 Because of Karate's [Java interop capabilities](https://github.com/intuit/karate#calling-java) there is no limit to what you can do. Need to call a database and return data ? No problem ! Of course at this point you may need to stop and think if you need to use a *real* app server. But that said, Karate gives you a way to create full fledged micro-services in minutes - far faster than how you would using traditional technologies such as Tomcat, Node / Express, Flask / Django and the like.
 
 ## `responseStatus`
+
 The HTTP response code. This defaults to `200` for convenience, so you don't need to set it at all for "happy path" cases. Here's an example of conditionally setting a `404`:
 
 ```cucumber
@@ -705,6 +768,7 @@ Scenario: pathMatches('/v1/cats/{id}') && methodIs('get')
 ```
 
 ## `responseHeaders`
+
 You can easily set multiple headers as JSON in one step as follows:
 
 ```cucumber
@@ -713,6 +777,7 @@ Scenario: pathMatches('/v1/test')
 ```
 
 ## `configure responseHeaders`
+
 Many times you want a set of "common" headers to be returned for *every* end-point within a server-feature. You can use the [`Background`](#background) section to set this up as follows:
 
 ```cucumber
@@ -723,6 +788,7 @@ Background:
 Note that `Scenario` level [`responseHeaders`](#responseheaders) can over-ride anything set by the "global" `configure responseHeaders`. This is convenient, as you may have a majority of end-points with the same `Content-Type`, and only one or two exceptions such as `text/html` or `text/javascript`.
 
 ## `configure cors`
+
 This allows a wide range of browsers or HTTP clients to make requests to a Karate server without running into [CORS issues](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS). And this is perfect for UI / Front-End teams who can even work off an HTML file on the file-system.
 
 Like [`configure responseHeaders`](#configure-responseheaders), this is also meant to be declared in the [`Background`](#background).
@@ -741,6 +807,7 @@ Access-Control-Allow-Methods: GET, HEAD, POST, PUT, DELETE, PATCH
 ```
 
 ## `responseDelay`
+
 You can easily set response delay in milliseconds
 
 ```cucumber
@@ -751,6 +818,7 @@ Scenario: pathMatches('/v1/test')
 Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).
 
 ## `configure responseDelay`
+
 You can also configure a delay that will "globally" apply across all scenarios in the [`Background`](#background).
 
 ```cucumber
@@ -761,6 +829,7 @@ Background:
 For more dynamic "global" behavior such as a random delay, look at [`configure afterScenario`](#configure-afterscenario).
 
 ## `afterScenario`
+
 Use this to add re-use any behaviour after scenario run, e.g. logging. For example:
 
 ```cucumber
@@ -773,6 +842,7 @@ function(){
 ```
 
 ### `configure afterScenario`
+
 Just like the above, but you can set this "globally" for all route-handlers in the [`Background`](#background). Here is an example of setting a random delay.
 
 ```cucumber
@@ -781,6 +851,7 @@ Background:
 ```
 
 ## `karate.abort()`
+
 Stop evaluating any more steps in the `Scenario` and return the `response`. Useful when combined with [`eval`](https://github.com/intuit/karate#eval) and conditional checks in JavaScript.
 
 ```cucumber
@@ -791,7 +862,9 @@ Scenario: pathMatches('/v1/abort')
 ```
 
 # Proxy Mode
+
 ## `karate.proceed()`
+
 It is easy to set up a Karate server to "intercept" HTTP and then delegate them to a target server only if needed. Think of this as "[AOP](https://en.wikipedia.org/wiki/Aspect-oriented_programming)" for web services !
 
 > (*Intercepting HTTPS is not possible in 1.0, and needs community contribution to revive*)
@@ -809,6 +882,7 @@ After the execution of `karate.proceed()` completes, the values of [`response`](
 So you have control before and after the actual call, and you can modify the request or response - or introduce a time-delay using [`afterScenario`](#afterscenario).
 
 # Stopping
+
 A simple HTTP `GET` to `/__admin/stop` is sufficient to stop a running server gracefully. So you don't need to resort to killing the process, which can lead to issues especially on Windows - such as the port not being released.
 
 > Tip: for stopping HTTPS servers, you can use [curl](https://curl.haxx.se) like this: `curl -k https://localhost:8443/__admin/stop`
@@ -816,7 +890,8 @@ A simple HTTP `GET` to `/__admin/stop` is sufficient to stop a running server gr
 If you have started the server programmatically via Java, you can keep a reference to the `FeatureServer` instance and call the `stop()` method. Here is an example: [ConsumerUsingMockTest.java](../karate-demo/src/test/java/mock/contract/ConsumerUsingMockTest.java).
 
 # Other Examples
-## The World's Smallest MicroService !
+
+## The World's Smallest MicroService
 
 Which at 267 characters - is small enough to fit within a single tweet ! It implements a '`POST`', '`GET` by id' and '`GET` all' for a `/cats` resource:
 
@@ -848,6 +923,7 @@ To get an idea of how much functionality the above code packs, have a look at th
 Want to try this out now ? It takes only [2 minutes](#quick-start).
 
 ## BenTen
+
 The [BenTen](https://github.com/intuit/benten) project is a great example of the usage of Karate test-doubles. This team was able to create a mock-service that simulates almost the entire life-cycle of an [Atlassian JIRA](https://www.atlassian.com/software/jira) ticket.
 
 Here is the source code: [`benten-mock.feature`](https://github.com/intuit/benten/blob/master/benten-mock/src/main/resources/benten-mock.feature). Note how complex JSON payloads have been separated out into [files](https://github.com/intuit/benten/blob/master/benten-mock/src/main/resources/transitions.json) and elegantly loaded using the [`read`](https://github.com/intuit/karate#reading-files) function. State management *just works* and has been implemented in a few lines of extremely readable code.

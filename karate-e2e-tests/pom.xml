@@ -10,7 +10,7 @@
     <artifactId>karate-e2e-tests</artifactId>
     <packaging>jar</packaging>
 
-    <dependencies>        
+    <dependencies>
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-core</artifactId>
@@ -46,8 +46,8 @@
                 <configuration>
                     <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
                 </configuration>
-            </plugin>            
+            </plugin>
         </plugins>
-    </build>           
-    
+    </build>
+
 </project>

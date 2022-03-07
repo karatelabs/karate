@@ -1,7 +1,9 @@
 # Karate UI Test
+
 This project is designed to be the simplest way to replicate issues with the [Karate UI framework](https://github.com/intuit/karate/tree/master/karate-core) for web-browser testing. It includes an HTTP mock that serves HTML and JavaScript, which you can easily modify to simulate complex situations such as a slow-loading element. To submit an issue after you have a way to replicate the scenario, follow these instructions: [How to Submit an Issue](https://github.com/intuit/karate/wiki/How-to-Submit-an-Issue).
 
 ## Overview
+
 To point to a specifc version of Karate, edit the `pom.xml`. If you are working with the source-code of Karate, follow the [developer guide](https://github.com/intuit/karate/wiki/Developer-Guide).
 
 You can view the HTML source of `page-01.html` to see how it works. It depends on `karate.js` which is very simple, so you can see how to add any JS (if required) along the same lines.
@@ -9,12 +11,15 @@ You can view the HTML source of `page-01.html` to see how it works. It depends o
 The code in [`MockRunner.java`](src/test/java/ui/MockRunner.java) starts a Karate HTTP server. Note how it is very simple - but able to serve both HTML and JS. If you need to include navigation to a second page, you can easily add a second HTML file. To manually verify the HTML that will be served, you can start the mock-server by running `MockRunner` as a JUnit test, and then opening [`http://localhost:8080/page-01`](http://localhost:8080/page-01) in a browser. And yes, hot-reloading is possible !
 
 ## Running
+
 The `test.feature` is a simple [Karate UI test](https://github.com/intuit/karate/tree/master/karate-core) that can be executed by running `UiRunner` as a JUnit test. You will be able to open the HTML report (the file-name will appear at the end of the console log) and refresh it when re-running the test. For convenience, this test is a `Scenario Outline` - set up so that you can add multiple browser targets or driver implementations. This makes it easy to validate cross-browser compatibility.
 
 ## Debugging
+
 You should be able to use the [Karate extension for Visual Studio Code](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) for stepping-through a test for troubleshooting.
 
 ## WebDriver Tips
+
 If you are targeting a WebDriver implementation, you may need to experiment with HTTP calls. Don't forget that that is Karate's core competency ! So you can use a "scratchpad" Karate test on the side, like this, after you have manually started a "driver executable", [`chromedriver`](https://chromedriver.chromium.org) in this case:
 
 ```cucumber
@@ -47,6 +52,7 @@ And here is how you can make a `POST` request, to [navigate to a given URL](http
 And note that the [VS Code "Karate Runner"](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) plugin is really convenient for re-running tests - or you can pause a test using a break-point and [type in interactive commands](https://twitter.com/KarateDSL/status/1167533484560142336).
 
 ## DevTools Protocol Tips
+
 When using the driver type `chrome`, you can call the `send()` method and pass a raw JSON message that will be sent to the Chrome browser using a WebSocket connection. For example here is how to get the [metadata about frames](https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-getFrameTree):
 
 ```cucumber

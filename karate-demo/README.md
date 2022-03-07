@@ -1,7 +1,9 @@
 # Karate Demo
-This is a sample [Spring Boot](http://projects.spring.io/spring-boot/) web-application that exposes some functionality as web-service end-points. And includes a set of Karate examples that test these services as well as demonstrate various Karate features and best-practices. 
+
+This is a sample [Spring Boot](http://projects.spring.io/spring-boot/) web-application that exposes some functionality as web-service end-points. And includes a set of Karate examples that test these services as well as demonstrate various Karate features and best-practices.
 
 Note that this is *not* the best example of a skeleton Java / Maven project, as it is designed to be part of the Karate code-base and act as a suite of regression tests. For a good "starter" project, please use one of these:
+
 * the [Quickstart](https://github.com/intuit/karate#quickstart)
 * the [examples/jobserver](../examples/jobserver) project
 * the [examples/consumer-driven-contracts](../examples/consumer-driven-contracts) project (multi Maven-module project)
@@ -36,6 +38,7 @@ Note that this is *not* the best example of a skeleton Java / Maven project, as 
 [`main.feature`](src/test/java/mock/async/main.feature) | You can take [Java interop](https://github.com/intuit/karate#calling-java) and [Karate test-doubles (mocks)](https://github.com/intuit/karate/tree/master/karate-netty) to extremes. This particular test is described [here](https://twitter.com/KarateDSL/status/1417023536082812935).
 
 ## Configuration and Best Practices
+
 Some common patterns are called out and explained below.
 File | Demonstrates
 ---- | ------------
@@ -45,15 +48,19 @@ File | Demonstrates
 [`pom.xml`](pom.xml) | Look out for how the [`maven-surefire-plugin`](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html) can be configured to point to what is basically your 'test-suite'. You may not even need to do this if you follow the [recommended naming conventions and folder structure](https://github.com/intuit/karate#naming-conventions), and then Maven defaults would work as you would expect. Note that this demo application has many dependencies that you will *not* need for a typical Karate project.
 
 ## Gradle
+
 Refer to the wiki page: [Gradle](https://github.com/intuit/karate/wiki/Gradle).
 
 ## Example Report
+
 This is optional because Karate's native HTML reports should serve all your needs. But you can ask Karate to emit the "Cucumber JSON" report data format, which can be consumed by third-party utilities in the Cucumber ecosystem.
 
 Since the [maven-cucumber-reporting](https://github.com/damianszczepanik/maven-cucumber-reporting) plugin [has an issue](https://github.com/damianszczepanik/maven-cucumber-reporting/issues/61#issuecomment-310815425) where reports will not be generated if the build fails, we recommend that you directly use the [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) library programmatically in combination with the [Karate parallel runner](https://github.com/intuit/karate#parallel-execution). Here is how:
 
 ### Maven Dependency
+
 Add the `net.masterthought:cucumber-reporting` jar as a dependency in `test` scope
+
 ```xml
 <dependency>
     <groupId>net.masterthought</groupId>
@@ -64,7 +71,9 @@ Add the `net.masterthought:cucumber-reporting` jar as a dependency in `test` sco
 ```
 
 ### Log4j Config File
+
 If you don't already have log4j (v2) in the mix, place this minimal config on the classpath as `log4j2.properties` (in the same folder as `karate-config.js`).
+
 ```
 log4j.rootLogger = INFO, CONSOLE
 log4j.appender.CONSOLE = org.apache.log4j.ConsoleAppender
@@ -72,6 +81,7 @@ log4j.appender.CONSOLE.layout = org.apache.log4j.PatternLayout
 ```
 
 ### Generate Report
+
 Refer to the code in the demo: [`DemoTestParallel.java`](src/test/java/demo/DemoTestParallel.java#L43), specifically the `generateReport()` method. Note that [`outputCucumberJson(true)`](https://github.com/intuit/karate#parallel-execution) is called on the `Runner` "builder".
 
 And here is the output, which goes into `target/cucumber-html-reports` if you follow the above steps:
@@ -79,6 +89,7 @@ And here is the output, which goes into `target/cucumber-html-reports` if you fo
 <img src="src/test/resources/karate-maven-report.jpg" height="600px"/>
 
 ## Code Coverage using Jacoco
+
 In the [`pom.xml`](pom.xml#L160), code coverage using [Jacoco](http://www.baeldung.com/jacoco) is also demonstrated. Since this is set-up as a [Maven profile](http://maven.apache.org/guides/introduction/introduction-to-profiles.html), instrumentation and code-coverage reporting would be performed only when you use the `coverage` profile. Note that code-coverage data (binary) would be saved to this file: `target/jacoco.exec`.
 
 So to run tests and perform code-coverage:
@@ -94,7 +105,7 @@ mvn clean test -Pcoverage
 As this demo example shows - if you are able to start your app-server and run Karate tests in the same JVM process, code-coverage reports for even HTTP integration tests will be very easy to generate. This is even easier with the [karate-mock-servlet](../karate-mock-servlet) as you don't even need to boot an app-server.
 
 ## Code Coverage for non-Java Projects
+
 This has been demonstrated for JavaScript by [Kirk Slota](https://twitter.com/kirk_slota). You can find a working sample here: [`karate-istanbul`](https://github.com/kirksl/karate-istanbul) - and you can read the [discussion at Stack Overflow](https://stackoverflow.com/q/59977566/143475) for more details.
 
 You should be able to use the same approach for other platforms. Note that there are plenty of ways to start a Karate test via the command-line, such as the [standalone JAR](https://github.com/intuit/karate/tree/master/karate-netty#standalone-jar).
-
