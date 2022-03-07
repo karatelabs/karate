@@ -198,7 +198,7 @@ class ResourceUtilsTest {
     void testFindJsFilesFromFileSystem() {
         Set<String> files = ResourceUtils.findJsFilesInDirectory(new File("src/test/java/demo").getAbsoluteFile());
         assertEquals(4, files.size());
-        Match.that(new ArrayList(files)).contains("['api/demo.js', 'api/cats.js', 'api/payments.js', 'api/render.js']");
+        Match.that(new ArrayList(files)).contains("['/api/demo.js', '/api/cats.js', '/api/payments.js', '/api/render.js']");
     }
     
     @Test

@@ -56,6 +56,9 @@ public class ResourceResolver {
     }
 
     public Resource resolve(String parent, String path) {
+        if (path.charAt(0) == '/') {
+            path = path.substring(1);
+        }
         if (path.startsWith(Resource.CLASSPATH_COLON)) {
             return get(path);
         } else if (path.startsWith(Resource.ROOT_COLON)) {

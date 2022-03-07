@@ -119,7 +119,7 @@ public class JobManager<T> implements ServerHandler {
     @Override
     public Response handle(Request request) {
         if (!request.getMethod().equals("POST")) {
-            if (request.getPath().equals("healthcheck")) {
+            if (request.getPath().equals("/healthcheck")) {
                 return Response.OK;
             }
             return errorResponse(request + " not supported");

@@ -279,7 +279,7 @@ public class ResourceUtils {
         List<Resource> resources = findFilesByExtension(dir.getAbsoluteFile(), "js", Collections.singletonList(dir));
         Set<String> set = new HashSet(resources.size());
         for (Resource res : resources) {
-            set.add(res.getRelativePath());
+            set.add("/" + res.getRelativePath());
         }
         return set;
     }
@@ -298,7 +298,11 @@ public class ResourceUtils {
         Set<String> set = new HashSet(resources.size());
         int pos = path.length();
         for (Resource res : resources) {
-            set.add(res.getRelativePath().substring(pos));
+            String temp = res.getRelativePath().substring(pos);
+            if (temp.charAt(0) != '/') {
+                temp = "/" + temp;
+            }
+            set.add(temp);
         }
         return set;
     }

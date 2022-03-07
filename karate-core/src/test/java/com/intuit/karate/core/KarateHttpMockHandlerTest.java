@@ -84,9 +84,9 @@ class KarateHttpMockHandlerTest {
                 "url 'http://localhost:" + server.getPort() + "/hello'",
                 "path '/world/'",
                 "method get",
-                "match response == 'hello/world'"
+                "match response == '/hello/world'"
         );
-        matchVar("response", "hello/world");
+        matchVar("response", "/hello/world");
     }
 
     @Test

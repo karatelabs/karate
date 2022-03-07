@@ -42,9 +42,9 @@ public class ServerConfig {
     private final Set<String> jsFiles;
 
     private String hostContextPath = null;
-    private String homePagePath = "index";
-    private String signinPagePath = "signin";
-    private String signoutPagePath = "signout";
+    private String homePagePath = "/index";
+    private String signinPagePath = "/signin";
+    private String signoutPagePath = "/signout";
     private String sessionCookieName = "karate.sid";
     private boolean stripContextPathFromRequest;
     private boolean useGlobalSession;
@@ -59,7 +59,7 @@ public class ServerConfig {
         ServerContext context = new ServerContext(this, request);
         context.setHttpGetAllowed(true);
         String path = request.getPath();
-        if (path.startsWith("api/")) {
+        if (path.startsWith("/api/")) {
             context.setApi(true);
             context.setLockNeeded(true);
             context.setSession(GLOBAL_SESSION);

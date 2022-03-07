@@ -487,13 +487,13 @@ class KarateMockHandlerTest {
     @Test
     void testWildcardLikePathMatch() {
         background().scenario(
-                "requestUri.startsWith('hello/')",
+                "requestUri.startsWith('/hello/')",
                 "def response = requestUri");
         run(
                 URL_STEP,
                 "path 'hello', 'foo', 'bar'",
                 "method get",
-                "match response == 'hello/foo/bar'"
+                "match response == '/hello/foo/bar'"
         );
     }
 
@@ -507,7 +507,7 @@ class KarateMockHandlerTest {
                 " def temp = 'hello'",
                 "path temp",
                 "method get",
-                "match response == 'hello'"
+                "match response == '/hello'"
         );
     }
 
@@ -521,7 +521,7 @@ class KarateMockHandlerTest {
                 " def temp = ['hello', 'world']",
                 "path temp",
                 "method get",
-                "match response == 'hello/world'"
+                "match response == '/hello/world'"
         );
     }
 
@@ -534,7 +534,7 @@ class KarateMockHandlerTest {
                 URL_STEP,
                 "path '/hello/world'",
                 "method get",
-                "match response == 'hello/world'"
+                "match response == '/hello/world'"
         );
     }
 
@@ -547,7 +547,7 @@ class KarateMockHandlerTest {
                 URL_STEP,
                 "path '/hello\\\\/world'",
                 "method get",
-                "match response == 'hello/world'"
+                "match response == '/hello/world'"
         );
     }
 
@@ -560,7 +560,7 @@ class KarateMockHandlerTest {
                 URL_STEP,
                 "path '/hello/world', '/'",
                 "method get",
-                "match response == 'hello/world/'"
+                "match response == '/hello/world/'"
         );
     }
 

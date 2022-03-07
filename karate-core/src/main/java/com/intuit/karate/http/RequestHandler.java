@@ -59,7 +59,7 @@ public class RequestHandler implements ServerHandler {
                 request.setPath(request.getPath().substring(stripHostContextPath.length()));
             }
         }
-        if (request.getPath().isEmpty()) {
+        if ("/".equals(request.getPath())) {
             request.setPath(config.getHomePagePath());
         }
         ServerContext context = contextFactory.apply(request);
@@ -121,7 +121,7 @@ public class RequestHandler implements ServerHandler {
     private String signInPath() {
         String path = config.getSigninPagePath();
         String contextPath = config.getHostContextPath();
-        return contextPath == null ? "/" + path : contextPath + path;
+        return contextPath == null ? path : contextPath + path;
     }
 
     private boolean isExpired(Session session) {

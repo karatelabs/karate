@@ -57,8 +57,9 @@ class AwsLambdaHandlerTest {
         return Json.of(json).asMap();
     }
 
-    void testFormInternal() {
-        String body = handle("index.json");
+    void testFormInternal(boolean root) {
+        String name = root ? "root.json" : "index.json";
+        String body = handle(name);
         // logger.debug("{}", body);
         assertTrue(body.startsWith("<!doctype html>"));
         assertTrue(body.contains("<span>John Smith</span>"));
@@ -72,13 +73,19 @@ class AwsLambdaHandlerTest {
     @Test
     void testFormClassPath() {
         init(true);
-        testFormInternal();
+        testFormInternal(false);
     }
+    
+    @Test
+    void testRootClassPath() {
+        init(true);
+        testFormInternal(true);
+    }    
 
     @Test
-    void testFormFileSystem() {
+    void testRootFileSystem() {
         init(false);
-        testFormInternal();
+        testFormInternal(true);
     }
 
     void testApiInternal() {

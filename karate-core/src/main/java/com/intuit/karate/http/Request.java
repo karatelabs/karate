@@ -197,12 +197,12 @@ public class Request implements ProxyObject {
                 return urlAndPath;
             } else {
                 return urlAndPath.substring(urlBase.length());
-            }            
+            }
         } else {
             return path;
         }
     }
-    
+
     public void setUrl(String url) {
         urlAndPath = url;
         StringUtils.Pair pair = HttpUtils.parseUriIntoUrlBaseAndPath(url);
@@ -217,7 +217,7 @@ public class Request implements ProxyObject {
     }
 
     public String getUrlAndPath() {
-        return urlAndPath != null ? urlAndPath : (urlBase != null ? urlBase : "") + "/" + path;
+        return urlAndPath != null ? urlAndPath : (urlBase != null ? urlBase : "") + path;
     }
 
     public String getUrlBase() {
@@ -229,8 +229,11 @@ public class Request implements ProxyObject {
     }
 
     public void setPath(String path) {
-        if (path.charAt(0) == '/') {
-            path = path.substring(1);
+        if (path == null || path.isEmpty()) {
+            path = "/";
+        }
+        if (path.charAt(0) != '/') {
+            path = "/" + path.substring(1);
         }
         this.path = path;
     }
@@ -497,7 +500,7 @@ public class Request implements ProxyObject {
             case URL_BASE:
                 return urlBase;
             case URL:
-                return urlAndPath;                
+                return urlAndPath;
             case PARAMS:
                 return JsValue.fromJava(params);
             case PATH_PARAM:
@@ -535,7 +538,7 @@ public class Request implements ProxyObject {
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap();
         map.put(URL, urlAndPath);
-        map.put(URL_BASE, urlBase);        
+        map.put(URL_BASE, urlBase);
         map.put(PATH, path);
         map.put(PATH_RAW, getPathRaw());
         map.put(METHOD, method);

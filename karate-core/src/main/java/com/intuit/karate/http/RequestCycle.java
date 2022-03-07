@@ -28,9 +28,7 @@ import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.template.KarateTemplateEngine;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -228,7 +226,7 @@ public class RequestCycle {
             do {
                 int pos = temp.lastIndexOf('/');
                 if (pos == -1) {
-                    logger.debug("failed to extract path params: {} - {}", temp, this);
+                    logger.debug("failed to extract path params: {} - {}", temp, request.getUrlAndPath());
                     break;
                 }
                 String pp = temp.substring(pos + 1);
