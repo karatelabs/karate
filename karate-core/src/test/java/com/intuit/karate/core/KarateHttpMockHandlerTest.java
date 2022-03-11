@@ -267,4 +267,21 @@ class KarateHttpMockHandlerTest {
         matchContains(list, "['foo1=bar1; Domain=localhost', 'foo2=bar2; Domain=localhost']");
     }
 
+    @Test
+    void testOptionsCorsResponseHeaders() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def responseHeaders = { 'access-control-allow-credentials': 'true' }"
+        );
+        startMockServer();
+        run(
+                urlStep(),
+                "path 'hello'",
+                "method get"
+        );
+        Map<String, Object> map = (Map) get("responseHeaders");
+        List<String> list = (List) map.get("access-control-allow-credentials");
+        matchContains(list, "true");
+    }
+
 }
