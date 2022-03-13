@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.report;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.Results;
 import com.intuit.karate.Suite;
 import com.intuit.karate.core.FeatureResult;
@@ -59,8 +60,9 @@ public interface SuiteReports {
 
     default Report summaryReport(Suite suite, Results results) {
         return Report.template("karate-summary.html")
-                .reportDir(suite.reportDir)
+                .reportDir(suite.reportDir)                
                 .variable("results", results.toKarateJson())
+                .variable("karateVersion", FileUtils.KARATE_VERSION)
                 .build();
     }
 
