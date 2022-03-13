@@ -1,7 +1,7 @@
 session.payments = session.payments || {};
 session.counter = session.counter || 1;
-var id = ~~request.pathParam;
-if (id) {
+if (request.pathMatches('/{resource}/{id}')) {
+  let id = ~~request.pathParams.id;
   if (request.put) {
     var payment = request.body;
     session.payments[id] = payment;
@@ -13,7 +13,7 @@ if (id) {
   }
 } else if (request.post) {
   var payment = request.body;
-  id = session.counter++;
+  let id = session.counter++;
   payment.id = id;
   session.payments[id] = payment;
   response.body = payment;

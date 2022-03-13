@@ -53,18 +53,13 @@ public class ServerConfig {
     private SessionStore sessionStore = JvmSessionStore.INSTANCE;
     private int sessionExpirySeconds = 60 * 10;
 
-    private static final Session GLOBAL_SESSION = new Session("-1", new HashMap(), -1, -1, -1);
+    public static final Session GLOBAL_SESSION = new Session("-1", new HashMap(), -1, -1, -1);
 
     private Function<Request, ServerContext> contextFactory = request -> {
         ServerContext context = new ServerContext(this, request);
         context.setHttpGetAllowed(true);
-        String path = request.getPath();
-        if (path.startsWith("/api/")) {
-            context.setApi(true);
+        if (context.setApiIfPathStartsWith("/api/")) {         
             context.setLockNeeded(true);
-            context.setSession(GLOBAL_SESSION);
-        } else if (useGlobalSession) {
-            context.setSession(GLOBAL_SESSION);
         }
         return context;
     };

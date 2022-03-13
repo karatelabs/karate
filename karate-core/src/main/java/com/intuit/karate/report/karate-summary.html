@@ -11,7 +11,7 @@
     <script type="text/javascript" src="res/bootstrap.min.js"></script>
     <script type="text/javascript" src="res/karate-report.js"></script>
     <script th:inline="javascript">
-      posthog.register({
+      posthog.register_once({
         karate_version:/*[[${karateVersion}]]*/''
       });
     </script>

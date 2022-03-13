@@ -10,6 +10,11 @@
     <script type="text/javascript" src="res/jquery.tablesorter.min.js"></script>
     <script type="text/javascript" src="res/bootstrap.min.js"></script>
     <script type="text/javascript" src="res/karate-report.js"></script>
+    <script th:inline="javascript">
+      posthog.register_once({
+        karate_version:/*[[${karateVersion}]]*/''
+      });
+    </script>    
     <title th:text="results.packageQualifiedName"></title>  
   </head>
   <body>   

@@ -1,13 +1,13 @@
 session.cats = session.cats || [];
 if (request.post) {
-  var cat = request.body;
+  let cat = request.body;
   cat.id = session.cats.length + 1;
   session.cats.push(cat);
   response.body = cat;
-} else if (request.pathParam) {
-  var id = ~~request.pathParam;
+} else if (request.pathMatches('/{resource}/{id}')) {
+  let id = ~~request.pathParams.id;
   if (request.get) {
-    var cat = session.cats.find(c => c.id === id);
+    let cat = session.cats.find(c => c.id === id);
     response.body = cat;
   }
 } else { // get all

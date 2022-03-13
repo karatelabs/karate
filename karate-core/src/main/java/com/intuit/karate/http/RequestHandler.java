@@ -35,17 +35,17 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class RequestHandler implements ServerHandler {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(RequestHandler.class);
-    
+
     private static final String SLASH = "/";
-    
+
     private final SessionStore sessionStore;
     private final KarateTemplateEngine templateEngine;
     private final ServerConfig config;
     private final Function<Request, ServerContext> contextFactory;
     private final String stripHostContextPath;
-    
+
     public RequestHandler(ServerConfig config) {
         this.config = config;
         contextFactory = config.getContextFactory();
@@ -53,7 +53,7 @@ public class RequestHandler implements ServerHandler {
         sessionStore = config.getSessionStore();
         stripHostContextPath = config.isStripContextPathFromRequest() ? config.getHostContextPath() : null;
     }
-    
+
     @Override
     public Response handle(Request request) {
         if (stripHostContextPath != null) {
@@ -92,26 +92,30 @@ public class RequestHandler implements ServerHandler {
                 }
             }
             if (session == null) {
-                if (config.isAutoCreateSession()) {
-                    context.init();
-                    session = context.getSession();
-                    logger.debug("created new session for '{}': {}", request, session);
-                } else if (config.getSigninPagePath().equals(request.getPath())
-                        || config.getSignoutPagePath().equals(request.getPath())) {
-                    session = Session.TEMPORARY;
-                    logger.debug("sign in / out: {}", request);
+                if (config.isUseGlobalSession()) {
+                    session = ServerConfig.GLOBAL_SESSION;
                 } else {
-                    logger.warn("session not found: {}", request);
-                    ResponseBuilder rb = response();
-                    if (sessionId != null) {
-                        rb.deleteSessionCookie(sessionId);
-                    }
-                    if (request.isAjax()) {
-                        rb.ajaxRedirect(signInPath());
+                    if (config.isAutoCreateSession()) {
+                        context.init();
+                        session = context.getSession();
+                        logger.debug("created new session for '{}': {}", request, session);
+                    } else if (config.getSigninPagePath().equals(request.getPath())
+                            || config.getSignoutPagePath().equals(request.getPath())) {
+                        session = Session.TEMPORARY;
+                        logger.debug("sign in / out: {}", request);
                     } else {
-                        rb.locationHeader(signInPath());
+                        logger.warn("session not found: {}", request);
+                        ResponseBuilder rb = response();
+                        if (sessionId != null) {
+                            rb.deleteSessionCookie(sessionId);
+                        }
+                        if (request.isAjax()) {
+                            rb.ajaxRedirect(signInPath());
+                        } else {
+                            rb.locationHeader(signInPath());
+                        }
+                        return rb.buildWithStatus(302);
                     }
-                    return rb.buildWithStatus(302);
                 }
             }
             context.setSession(session);
@@ -119,13 +123,13 @@ public class RequestHandler implements ServerHandler {
         RequestCycle rc = RequestCycle.init(templateEngine, context);
         return rc.handle();
     }
-    
+
     private String signInPath() {
         String path = config.getSigninPagePath();
         String contextPath = config.getHostContextPath();
         return contextPath == null ? path : contextPath + path.substring(1);
     }
-    
+
     private boolean isExpired(Session session) {
         long now = Instant.now().getEpochSecond();
         long expires = session.getUpdated() + config.getSessionExpirySeconds();
@@ -136,9 +140,9 @@ public class RequestHandler implements ServerHandler {
         session.setExpires(expires);
         return false;
     }
-    
+
     private ResponseBuilder response() {
         return new ResponseBuilder(config, null);
     }
-    
+
 }

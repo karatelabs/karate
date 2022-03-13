@@ -39,26 +39,26 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class RequestCycle {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(RequestCycle.class);
-    
+
     public static final String CONTEXT = "context";
     private static final String REQUEST = "request";
     protected static final String SESSION = "session";
     private static final String RESPONSE = "response";
-    
+
     private static final ThreadLocal<RequestCycle> THREAD_LOCAL = new ThreadLocal();
-    
+
     public static RequestCycle get() {
         return THREAD_LOCAL.get();
     }
-    
+
     protected static RequestCycle init(KarateTemplateEngine te, ServerContext context) {
         RequestCycle rc = new RequestCycle(JsEngine.global(), te, context);
         THREAD_LOCAL.set(rc);
         return rc;
     }
-    
+
     private final JsEngine engine;
     private final KarateTemplateEngine templateEngine;
     private final Request request;
@@ -66,10 +66,10 @@ public class RequestCycle {
     private final ServerContext context;
     private final ServerConfig config;
     private final Supplier<Response> customHandler;
-    
+
     private String switchTemplate;
     private Map<String, Object> switchParams;
-    
+
     private RequestCycle(JsEngine engine, KarateTemplateEngine templateEngine, ServerContext context) {
         this.engine = engine;
         this.templateEngine = templateEngine;
@@ -92,25 +92,25 @@ public class RequestCycle {
         engine.put(RESPONSE, response);
         engine.put(CONTEXT, context);
     }
-    
+
     public RequestCycle copy(Request request, Map<String, Object> variables) {
         ServerContext temp = new ServerContext(config, request, variables);
         temp.setSession(context.getSession());
         return new RequestCycle(JsEngine.local(), templateEngine, temp);
     }
-    
+
     public JsEngine getEngine() {
         return engine;
     }
-    
+
     public KarateTemplateEngine getTemplateEngine() {
         return templateEngine;
     }
-    
+
     public ResourceResolver getResourceResolver() {
         return config.getResourceResolver();
     }
-    
+
     private void close() {
         Session session = context.getSession();
         if (session != null && !session.isTemporary()) {
@@ -131,35 +131,35 @@ public class RequestCycle {
         JsEngine.remove();
         THREAD_LOCAL.remove();
     }
-    
+
     public Session getSession() {
         return context.getSession();
     }
-    
+
     public Request getRequest() {
         return request;
     }
-    
+
     public Response getResponse() {
         return response;
     }
-    
+
     public ServerContext getContext() {
         return context;
     }
-    
+
     public void setSwitchTemplate(String switchTemplate) {
         this.switchTemplate = switchTemplate;
     }
-    
+
     public String getSwitchTemplate() {
         return switchTemplate;
     }
-    
+
     public void setSwitchParams(Map<String, Object> switchParams) {
         this.switchParams = switchParams;
     }
-    
+
     protected Response handle() {
         try {
             if (customHandler != null) {
@@ -188,7 +188,7 @@ public class RequestCycle {
             }
         }
     }
-    
+
     private Response htmlResponse() {
         String html;
         try {
@@ -212,35 +212,20 @@ public class RequestCycle {
         }
         return response().html(html).build();
     }
-    
+
     private static final String DOT_JS = ".js";
-    
+
     private InputStream apiResource() {
-        String path = request.getPath();
-        String jsPath = path + DOT_JS;
-        String resourcePath = jsPath;
+        String resourcePath = request.getResourcePath();
+        String jsPath = resourcePath == null ? request.getPathOriginal() + DOT_JS : resourcePath;
         if (!config.getJsFiles().contains(jsPath)) {
-            Map<String, String> pathParams = new LinkedHashMap();
-            request.setPathParams(pathParams);
-            String temp = path;
-            do {
-                int pos = temp.lastIndexOf('/');
-                if (pos == -1) {
-                    logger.debug("failed to extract path params: {} - {}", temp, request.getUrlAndPath());
-                    break;
-                }
-                String pp = temp.substring(pos + 1);
-                pathParams.put(pathParams.size() + "", pp);
-                jsPath = temp.substring(0, pos) + DOT_JS;
-                temp = temp.substring(0, pos);
-            } while (!config.getJsFiles().contains(jsPath));
-            resourcePath = jsPath;
+            throw new RuntimeException("failed to resolve api resource: " + resourcePath + " , " + request);
         }
-        return config.getResourceResolver().resolve(resourcePath).getStream();
+        return config.getResourceResolver().resolve(jsPath).getStream();
     }
-    
+
     public ResponseBuilder response() {
         return new ResponseBuilder(config, this).session(context.getSession(), context.isNewSession());
     }
-    
+
 }

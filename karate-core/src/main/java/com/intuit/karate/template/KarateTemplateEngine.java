@@ -100,7 +100,8 @@ public class KarateTemplateEngine {
                 throw new TemplateOutputException("error flushing output writer", templateSpec.getTemplate(), -1, -1, e);
             }
         } catch (Exception e) {
-            if (!KarateEngineContext.get().isRedirect()) { // don't log redirects
+            KarateEngineContext kec = KarateEngineContext.get();
+            if (kec != null && !kec.isRedirect()) { // don't log redirects
                 // make thymeleaf errors easier to troubleshoot from the logs
                 while (e.getCause() instanceof Exception) {
                     e = (Exception) e.getCause();

@@ -178,6 +178,23 @@ public class ServerContext implements ProxyObject {
         };
     }
 
+    public boolean setApiIfPathStartsWith(String prefix) {
+        String path = request.getPath();
+        if (path.startsWith(prefix)) {
+            api = true;
+            int length = prefix.length();
+            int pos = path.indexOf('/', length);
+            if (pos != -1) {
+                request.setResourcePath(path.substring(0, pos) + ".js");
+            } else {
+                request.setResourcePath(path + ".js");
+            }
+            request.setPath(path.substring(length - 1));
+            return true;
+        }
+        return false;
+    }
+
     public String getSessionCookieValue() {
         List<String> values = request.getHeaderValues(HttpConstants.HDR_COOKIE);
         if (values == null) {

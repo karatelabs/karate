@@ -106,6 +106,7 @@ public class Request implements ProxyObject {
     private final long startTime = System.currentTimeMillis();
     private String urlAndPath;
     private String urlBase;
+    private String pathOriginal;
     private String path;
     private String method;
     private Map<String, List<String>> params;
@@ -236,6 +237,13 @@ public class Request implements ProxyObject {
             path = "/" + path.substring(1);
         }
         this.path = path;
+        if (pathOriginal == null) {
+            pathOriginal = path;
+        }
+    }
+
+    public String getPathOriginal() {
+        return pathOriginal;
     }
 
     public void setResourceType(ResourceType resourceType) {
@@ -564,7 +572,7 @@ public class Request implements ProxyObject {
 
     @Override
     public String toString() {
-        return method + " " + path;
+        return method + " " + pathOriginal;
     }
 
 }
