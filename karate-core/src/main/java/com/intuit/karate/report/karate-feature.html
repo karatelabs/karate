@@ -14,6 +14,7 @@
       posthog.register_once({
         karate_version:/*[[${karateVersion}]]*/''
       });
+      posthog.capture('report_feature');
     </script>    
     <title th:text="results.packageQualifiedName"></title>  
   </head>
