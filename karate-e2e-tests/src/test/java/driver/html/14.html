@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Page 14</title>
+    <script src="00.js"></script>
+    <link rel="stylesheet" href="00.css" type="text/css"/>  
+    <link rel="icon" href="00.ico">
+    <script>
+      function simulateProcessing() {
+        karate.get('nestedParent').src = '14_processing.html';
+        setTimeout(function () {
+          karate.setHtml('result', 'Success');
+          karate.get('container2').style.display = 'inline';
+          karate.get('container1').remove();
+        }, 3000);
+      }
+
+      function finish() {
+        karate.setHtml('result', 'Done');
+        karate.get('finish').remove();
+      }
+    </script>
+  </head>
+  <body>
+    <div id="container1">
+      <iframe src="14_embedded" id="nestedParent" width="800" height="400"></iframe>
+      <br/>
+      <button id="continueButton" onclick="simulateProcessing()">Continue</button>
+    </div>
+    <div id="container2" style="display:none">
+      <p id="result"></p>
+      <button id="finish" onclick="finish()">Finish</button>
+    </div>
+  </body>
+</html>
