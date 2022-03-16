@@ -76,6 +76,7 @@ public abstract class DevToolsDriver implements Driver {
     // iframe support
     private Frame frame;
     private final Map<String, Integer> frameContexts = new HashMap();
+    private final Map<String, String> frameSessions = new HashMap();
 
     protected boolean domContentEventFired;
     protected final Set<String> framesStillLoading = new HashSet();
@@ -231,6 +232,15 @@ public abstract class DevToolsDriver implements Driver {
         if (dtm.methodIs("Fetch.requestPaused")) {
             handleInterceptedRequest(dtm);
         }
+        if (dtm.methodIs("Target.attachedToTarget")) {
+            String targetType = dtm.getParam("targetInfo.type");
+            if ("iframe".equals(targetType) || "frame".equals(targetType)) {
+                String targetSessionId = dtm.getParam("sessionId");
+                String targetFrameId = dtm.getParam("targetInfo.targetId");
+                frameSessions.put(targetFrameId, targetSessionId);
+                logger.trace("** new frame session: {} - {}", targetFrameId, targetSessionId);
+            }
+        }
         // all needed state is set above before we get into conditional checks
         wait.receive(dtm);
     }
@@ -371,6 +381,7 @@ public abstract class DevToolsDriver implements Driver {
     private void attachAndActivate(String targetId, boolean isFrame) {
         DevToolsMessage dtm = method("Target.attachToTarget").param("targetId", targetId).param("flatten", true).send();
         sessionId = dtm.getResult("sessionId", String.class);
+        frameSessions.put(targetId, sessionId);
         if (!isFrame) {
             mainFrameId = targetId;
         }
@@ -944,6 +955,7 @@ public abstract class DevToolsDriver implements Driver {
     public void switchFrame(int index) {
         if (index == -1) {
             frame = null;
+            sessionId = frameSessions.get(rootFrameId);
             return;
         }
         List<String> objectIds = elementIds("iframe,frame");
@@ -961,7 +973,7 @@ public abstract class DevToolsDriver implements Driver {
     public void switchFrame(String locator) {
         if (locator == null) {
             frame = null;
-            attachAndActivate(mainFrameId, false); // attaching to main page again
+            sessionId = frameSessions.get(rootFrameId);
             return;
         }
         retryIfEnabled(locator);
@@ -1010,23 +1022,32 @@ public abstract class DevToolsDriver implements Driver {
 
         if (frame == null) {
             // for some reason need to trigger Target.getTargets before attaching
-            method("Target.getTargets").send();
-            // attach to frame / target / process with the frame
-            attachAndActivate(frameId, true);
+            dtm = method("Target.getTargets").send();
 
-            Map<String, Object> map = dtm.getResult("frameTree.frame", Map.class);
-            String temp = (String) map.get("id");
-            if (frameId.equals(temp)) {
-                String frameUrl = (String) map.get("url");
-                String frameName = (String) map.get("name");
-                frame = new Frame(frameId, frameUrl, frameName);
-                logger.trace("** switched to frame: {}", frame);
+            List<Map<String, Object>> targetInfos = dtm.getResult("targetInfos", List.class);
+            for (Map<String, Object> targetInfo : targetInfos) {
+                String temp = (String) targetInfo.get("targetId");
+                String tempType = (String) targetInfo.get("type");
+                if (frameId.equals(temp) && ("iframe".equals(tempType) || "frame".equals(tempType))) {
+                    String frameUrl = (String) targetInfo.get("url");
+                    String frameName = (String) targetInfo.get("title");
+                    frame = new Frame(frameId, frameUrl, frameName);
+                    logger.trace("** switched to frame: {}", frame);
+                }
             }
         }
 
         if (frame == null) {
             return false;
         }
+
+        if (frameSessions.containsKey(frameId)) {
+            sessionId = frameSessions.get(frameId);
+        } else {
+            // attach to frame / target / process with the frame
+           attachAndActivate(frameId, true);
+        }
+
         Integer contextId = getFrameContext();
         if (contextId != null) {
             return true;
