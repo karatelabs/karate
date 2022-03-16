@@ -26,7 +26,6 @@ package com.intuit.karate;
 import com.intuit.karate.core.MockServer;
 import com.intuit.karate.core.RuntimeHookFactory;
 import com.intuit.karate.debug.DapServer;
-import com.intuit.karate.formats.PostmanConverter;
 import com.intuit.karate.http.HttpServer;
 import com.intuit.karate.http.RequestHandler;
 import com.intuit.karate.http.ServerConfig;
@@ -135,9 +134,6 @@ public class Main implements Callable<Void> {
     
     @Option(names = {"-j", "--jobserver"}, description = "job server url")
     String jobServerUrl;
-    
-    @Option(names = {"-i", "--import"}, description = "import and convert a file")
-    String importFile;
     
     @Option(names = {"-H", "--hook"}, split = ",", description = "class name of a RuntimeHook (or RuntimeHookFactory) to add")
     List<String> hookFactoryClassNames;
@@ -355,10 +351,6 @@ public class Main implements Callable<Void> {
                 ke.setStackTrace(newTrace);
                 throw ke;
             }
-            return null;
-        }
-        if (importFile != null) {
-            new PostmanConverter().convert(importFile, output);
             return null;
         }
         if (clean) {
