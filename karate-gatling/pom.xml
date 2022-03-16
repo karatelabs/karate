@@ -36,7 +36,7 @@
 
     <build>
         <sourceDirectory>src/main/scala</sourceDirectory>
-        <testSourceDirectory>src/test/scala</testSourceDirectory>
+        <!-- <testSourceDirectory>src/test/scala</testSourceDirectory> -->
         <testResources>
             <testResource>
                 <directory>src/test/resources</directory>
