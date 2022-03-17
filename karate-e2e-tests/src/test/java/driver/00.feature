@@ -45,7 +45,7 @@ Scenario:
 * call read('11.feature')
 
 # switchPage() with external URLs
- * call read('13.feature')
+# * call read('13.feature')
 
 # survive Target.detachedFromTarget with nested iframes
  * call read('14.feature')
