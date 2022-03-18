@@ -232,6 +232,14 @@ public abstract class DevToolsDriver implements Driver {
         if (dtm.methodIs("Fetch.requestPaused")) {
             handleInterceptedRequest(dtm);
         }
+        if (dtm.methodIs("Target.targetInfoChanged")) {
+            String frameId = dtm.getParam("targetInfo.targetId");
+            Integer frameContextId = frameContexts.get(frameId);
+            if (frameContextId != null) {
+                logger.trace("** removed stale execution context: {} - {}", frameId, frameContextId);
+                frameContexts.remove(frameId);
+            }
+        }
         if (dtm.methodIs("Target.attachedToTarget")) {
             String targetType = dtm.getParam("targetInfo.type");
             if ("iframe".equals(targetType) || "frame".equals(targetType)) {
@@ -386,6 +394,7 @@ public abstract class DevToolsDriver implements Driver {
             mainFrameId = targetId;
         }
         method("Target.activateTarget").param("targetId", targetId).send();
+        method("Target.setDiscoverTargets").param("discover", true).send();
     }
 
     @Override
@@ -955,7 +964,7 @@ public abstract class DevToolsDriver implements Driver {
     public void switchFrame(int index) {
         if (index == -1) {
             frame = null;
-            sessionId = frameSessions.get(rootFrameId);
+            sessionId = frameSessions.get(mainFrameId);
             return;
         }
         List<String> objectIds = elementIds("iframe,frame");
@@ -973,7 +982,7 @@ public abstract class DevToolsDriver implements Driver {
     public void switchFrame(String locator) {
         if (locator == null) {
             frame = null;
-            sessionId = frameSessions.get(rootFrameId);
+            sessionId = frameSessions.get(mainFrameId);
             return;
         }
         retryIfEnabled(locator);
@@ -1023,6 +1032,10 @@ public abstract class DevToolsDriver implements Driver {
         if (frame == null) {
             // for some reason need to trigger Target.getTargets before attaching
             dtm = method("Target.getTargets").send();
+            if (frameSessions.get(frameId) == null) {
+                // attempt to force attach (see: https://github.com/karatelabs/karate/pull/1944#issuecomment-1070793461)
+                attachAndActivate(frameId, true);
+            }
 
             List<Map<String, Object>> targetInfos = dtm.getResult("targetInfos", List.class);
             for (Map<String, Object> targetInfo : targetInfos) {
@@ -1041,11 +1054,17 @@ public abstract class DevToolsDriver implements Driver {
             return false;
         }
 
-        if (frameSessions.containsKey(frameId)) {
+        if (frameSessions.get(frameId) != null) {
             sessionId = frameSessions.get(frameId);
         } else {
             // attach to frame / target / process with the frame
-           attachAndActivate(frameId, true);
+            attachAndActivate(frameId, true);
+
+            // a null sessionId indicates that we failed to attach directly to the frame
+            // this occurs on local frames that are already being debugged with the main frame
+            if (sessionId == null) {
+               sessionId = frameSessions.get(mainFrameId);
+            }
         }
 
         Integer contextId = getFrameContext();
@@ -1053,7 +1072,7 @@ public abstract class DevToolsDriver implements Driver {
             return true;
         }
         dtm = method("Page.createIsolatedWorld").param("frameId", frameId).send();
-        contextId = dtm.getResult("executionContextId").getValue();
+        contextId = dtm.getResult("executionContextId", Integer.class);
         frameContexts.put(frameId, contextId);
         return true;
     }

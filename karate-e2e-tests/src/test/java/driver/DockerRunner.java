@@ -40,12 +40,12 @@ class DockerRunner {
     }
 
     // use these only for local testing
-    //@Test
+    @Test
     void testSingle13() {
         run("13");
     }
 
-    //@Test
+    @Test
     void testSingle14() {
         run("14");
     }
