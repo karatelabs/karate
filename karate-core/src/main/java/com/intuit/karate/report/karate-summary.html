@@ -12,9 +12,11 @@
     <script type="text/javascript" src="res/karate-report.js"></script>
     <script th:inline="javascript">
       posthog.register_once({
-        karate_version:/*[[${karateVersion}]]*/''
+        karate_version: /*[[${karateVersion}]]*/''
       });
-      posthog.capture('report_summary');
+      posthog.capture('report_summary', {$set_once: {
+          name: /*[[${userName}]]*/''
+        }});
     </script>
     <title>Karate Summary Report</title>  
   </head>

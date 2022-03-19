@@ -52,6 +52,7 @@ public class FileUtils {
     }
 
     public static final String KARATE_VERSION;
+    public static final String USER_NAME;
 
     static {
         Properties props = new Properties();
@@ -64,6 +65,7 @@ public class FileUtils {
         } catch (IOException e) {
             value = "(unknown)";
         }
+        USER_NAME = System.getProperty("user.name");
         KARATE_VERSION = value;
     }
 

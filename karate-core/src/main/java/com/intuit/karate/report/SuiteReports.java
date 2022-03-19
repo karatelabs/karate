@@ -42,6 +42,7 @@ public interface SuiteReports {
                 .reportFileName(featureResult.getFeature().getPackageQualifiedName() + ".html")
                 .variable("results", featureResult.toKarateJson())
                 .variable("karateVersion", FileUtils.KARATE_VERSION)
+                .variable("userName", FileUtils.USER_NAME)
                 .build();
     }
 
@@ -64,6 +65,7 @@ public interface SuiteReports {
                 .reportDir(suite.reportDir)                
                 .variable("results", results.toKarateJson())
                 .variable("karateVersion", FileUtils.KARATE_VERSION)
+                .variable("userName", FileUtils.USER_NAME)              
                 .build();
     }
 

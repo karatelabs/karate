@@ -57,7 +57,8 @@
       <div class="time-cell" th:classappend="callStatus" th:text="Math.round(cr.durationMillis)"></div>
     </div>
     <div th:each="scenario: cr.scenarioResults">
-      <div th:each="sr: scenario.stepResults" 
+      <div th:each="sr: scenario.stepResults"
+           th:unless="sr.hidden"
            th:with="callDepth: cr.callDepth, parentId: callerId, isBackground: isBackground"
            th:include="karate-step.html">
       </div>

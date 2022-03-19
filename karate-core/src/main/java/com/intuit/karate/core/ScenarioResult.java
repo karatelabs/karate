@@ -209,7 +209,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         map.put("stepResults", list);
         for (StepResult sr : stepResults) {
             list.add(sr.toKarateJson());
-        }
+        }        
         return map;
     }
 
