@@ -557,11 +557,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
     }
 
     //==========================================================================
-    //    
-    public String header(String name) {
-        return getEngine().getResponse().getHeader(name);
-    }
-
+    //
     public HttpRequestBuilder http(String url) {
         ScenarioEngine engine = getEngine();
         HttpClient client = engine.runtime.featureRuntime.suite.clientFactory.create(engine);
@@ -743,6 +739,10 @@ public class ScenarioBridge implements PerfContext, EventContext {
         }
         return new JsList(list);
     }
+    
+    public String responseHeader(String name) {
+        return getEngine().getResponse().getHeader(name);
+    }    
 
     // set multiple variables in one shot
     public void set(Map<String, Object> map) {
