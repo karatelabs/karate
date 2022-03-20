@@ -293,7 +293,7 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 ## References
 * [Intro to all features of Karate](https://youtu.be/yu3uupBZyxc) - video + demos (with subtitles) by [Peter Thomas](https://twitter.com/ptrthomas) (creator / lead dev of Karate)
 * [Karate entered the ThoughtWorks Tech Radar](https://twitter.com/KarateDSL/status/1120985060843249664) in 2019 and was [upgraded in ranking](https://twitter.com/KarateDSL/status/1262719979104817152) in May 2020
-* [マイクロサービスにおけるテスト自動化 with Karate](https://www.slideshare.net/takanorig/microservices-test-automation-with-karate/) - (*Microservices Test Automation with Karate*) presentation by [Takanori Suzuki](https://twitter.com/takanorig)
+* [マイクロサービスにおけるテスト自動化 with Karate](https://speakerdeck.com/takanorig/microservices-testing-automation-with-karate) - (*Microservices Test Automation with Karate*) presentation by [Takanori Suzuki](https://twitter.com/takanorig)
 * [7 New Features in Karate Test Automation Version 1.0](https://software-that-matters.com/2021/01/27/7-new-features-in-karate-test-automation-version-1_0/) - by [Peter Quiel](https://twitter.com/peter_quiel)
 
 You can find a lot more references, tutorials and blog-posts [in the wiki](https://github.com/intuit/karate/wiki/Community-News). Karate also has a dedicated "tag", and a very active and supportive community at [Stack Overflow](https://stackoverflow.com/questions/tagged/karate) - where you can get support and ask questions.
