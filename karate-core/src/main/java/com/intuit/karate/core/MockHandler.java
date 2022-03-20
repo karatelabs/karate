@@ -159,6 +159,9 @@ public class MockHandler implements ServerHandler {
         if (!path.isEmpty()) {
             req.setPath(path.substring(prefix.length()));
         }
+        // rare case when http-client is active within same jvm
+        // snapshot existing thread-local to restore
+        ScenarioEngine prevEngine = ScenarioEngine.get();
         for (Map.Entry<Feature, ScenarioRuntime> entry : this.features.entrySet()) {
             Feature feature = entry.getKey();
             ScenarioRuntime runtime = entry.getValue();
@@ -218,11 +221,17 @@ public class MockHandler implements ServerHandler {
                     if (responseStatus != null) {
                         res.setStatus(responseStatus.getAsInt());
                     }
+                    if (prevEngine != null) {
+                        ScenarioEngine.set(prevEngine);
+                    }
                     return res;
                 }
             }
         }
         logger.warn("no scenarios matched, returning 404: {}", req); // NOTE: not logging with engine.logger
+        if (prevEngine != null) {
+            ScenarioEngine.set(prevEngine);
+        }
         return new Response(404);
     }
 
