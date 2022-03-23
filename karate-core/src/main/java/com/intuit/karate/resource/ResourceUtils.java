@@ -40,10 +40,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -273,38 +271,6 @@ public class ResourceUtils {
         }
         temp = new File(path);
         return temp.exists() ? temp : null;
-    }
-
-    public static Set<String> findJsFilesInDirectory(File dir) {
-        List<Resource> resources = findFilesByExtension(dir.getAbsoluteFile(), "js", Collections.singletonList(dir));
-        Set<String> set = new HashSet(resources.size());
-        for (Resource res : resources) {
-            set.add("/" + res.getRelativePath());
-        }
-        return set;
-    }
-
-    public static Set<String> findJsFilesInClassPath(String path) {
-        String searchPath;
-        if (path.startsWith(Resource.CLASSPATH_COLON)) {
-            searchPath = path;
-            path = removePrefix(path);
-        } else {
-            searchPath = Resource.CLASSPATH_COLON + path;
-        }
-        Resource root = getResource(FileUtils.WORKING_DIR, searchPath);
-        File rootFile = root.isFile() ? root.getFile() : FileUtils.WORKING_DIR;
-        Collection<Resource> resources = findResourcesByExtension(rootFile, "js", searchPath);
-        Set<String> set = new HashSet(resources.size());
-        int pos = path.length();
-        for (Resource res : resources) {
-            String temp = res.getRelativePath().substring(pos);
-            if (temp.charAt(0) != '/') {
-                temp = "/" + temp;
-            }
-            set.add(temp);
-        }
-        return set;
     }
 
 }

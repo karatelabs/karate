@@ -24,8 +24,6 @@
 package com.intuit.karate.resource;
 
 import com.intuit.karate.FileUtils;
-import java.io.File;
-import java.util.Set;
 
 /**
  *
@@ -77,14 +75,6 @@ public class ResourceResolver {
 
     private static Resource get(String path) {
         return ResourceUtils.getResource(FileUtils.WORKING_DIR, path);
-    }
-
-    public Set<String> getJsFiles() {
-        if (classpath) {
-            return ResourceUtils.findJsFilesInClassPath(root);
-        } else {
-            return ResourceUtils.findJsFilesInDirectory(new File(root));
-        }
     }
 
     @Override

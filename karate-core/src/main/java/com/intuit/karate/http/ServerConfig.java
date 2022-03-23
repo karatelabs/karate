@@ -27,9 +27,7 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.core.Config;
 import com.intuit.karate.resource.ResourceResolver;
 import com.linecorp.armeria.common.RequestContext;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -39,7 +37,6 @@ import java.util.function.Function;
 public class ServerConfig {
 
     private final ResourceResolver resourceResolver;
-    private final Set<String> jsFiles;
 
     private String hostContextPath = null;
     private String homePagePath = "/index";
@@ -58,7 +55,7 @@ public class ServerConfig {
     private Function<Request, ServerContext> contextFactory = request -> {
         ServerContext context = new ServerContext(this, request);
         context.setHttpGetAllowed(true);
-        if (context.setApiIfPathStartsWith("/api/")) {         
+        if (context.setApiIfPathStartsWith("/api/")) {
             context.setLockNeeded(true);
         }
         return context;
@@ -76,20 +73,14 @@ public class ServerConfig {
 
     public ServerConfig(ResourceResolver resourceResolver) {
         this.resourceResolver = resourceResolver;
-        jsFiles = Collections.emptySet();
     }
 
     public ServerConfig(String root) {
-        resourceResolver = new ResourceResolver(root);
-        jsFiles = resourceResolver.getJsFiles();
+        this(new ResourceResolver(root));
     }
 
     public ResourceResolver getResourceResolver() {
         return resourceResolver;
-    }
-
-    public Set<String> getJsFiles() {
-        return jsFiles;
     }
 
     public String getHostContextPath() {

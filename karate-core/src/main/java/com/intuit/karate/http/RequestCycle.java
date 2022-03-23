@@ -218,10 +218,11 @@ public class RequestCycle {
     private InputStream apiResource() {
         String resourcePath = request.getResourcePath();
         String jsPath = resourcePath == null ? request.getPathOriginal() + DOT_JS : resourcePath;
-        if (!config.getJsFiles().contains(jsPath)) {
-            throw new RuntimeException("failed to resolve api resource: " + resourcePath + " , " + request);
+        try {
+            return config.getResourceResolver().resolve(jsPath).getStream();
+        } catch (Exception e) {
+            throw new RuntimeException("failed to resolve api resource: " + resourcePath + ", " + request + ", " + e.getMessage());
         }
-        return config.getResourceResolver().resolve(jsPath).getStream();
     }
 
     public ResponseBuilder response() {
