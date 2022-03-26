@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  *
@@ -106,6 +107,16 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
                 call.setLine(stepResult.getStep().getLine());
                 call.setPrefix(StringUtils.repeat('>', depth));
                 call.setText(fr.getCallNameForReport());
+                for(ScenarioResult scenarioResult: fr.getScenarioResults()){
+                    for (StepResult sr: scenarioResult.getStepResults()){
+                        if(sr.isHidden()){
+                            //fr.setCallArg(null);
+                            Map<String, Object> callArgMap = fr.getCallArg();
+                            callArgMap.keySet().stream().forEach(x-> fr.getCallArg().put(x, "***"));
+                            break;
+                        }
+                    }
+                }
                 call.setDocString(fr.getCallArgPretty());
                 StepResult callResult = new StepResult(call, Result.passed(0));
                 callResult.setHidden(stepResult.isHidden());
