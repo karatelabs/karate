@@ -7,8 +7,8 @@ function fn() {
     baseURL: 'https://jsonplaceholder.typicode.com',
     number: '2'
   }
-  var results = karate.callSingle('classpath:com/intuit/karate/report/suite.feature@test1',config);
-  results = karate.callSingle('classpath:com/intuit/karate/report/suite2.feature@test2',config);
+  //var results = karate.callSingle('classpath:com/intuit/karate/report/suite.feature@test1',config);
+  //results = karate.callSingle('classpath:com/intuit/karate/report/suite2.feature@test2',config);
   return {
 
     configSource: 'normal' }

@@ -4,6 +4,7 @@ Feature: sample karate test script
   Background:
     Given url baseURL
     * configure report = false
+
   @test1
   Scenario: Test and variables should not come in cucumber report
     Given path 'users'
