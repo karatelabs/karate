@@ -112,7 +112,6 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
                     for (StepResult sr: scenarioResult.getStepResults()){
                         if(sr.isHidden()){
                             Map<String, Object> callArgMap = fr.getCallArg();
-                            //callArgMap.keySet().stream().forEach(x-> fr.getCallArg().put(x, "***"));
                             isShowCallArg=false;
                             break;
                         }
