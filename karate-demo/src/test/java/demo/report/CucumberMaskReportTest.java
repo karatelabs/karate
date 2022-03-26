@@ -1,28 +1,30 @@
-package com.intuit.karate.report;
+package demo.report;
+
 
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
+import demo.TestBase;
+import net.masterthought.cucumber.Configuration;
+import net.masterthought.cucumber.ReportBuilder;
+import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.Test;
+
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.apache.commons.io.FileUtils;
-import net.masterthought.cucumber.Configuration;
-import net.masterthought.cucumber.ReportBuilder;
-public class CucumberMaskReportTest {
+public class CucumberMaskReportTest extends TestBase {
 
     @Test
-    void testParallel() {
-        Results results = Runner.path("classpath:com/intuit/karate/report/maskCucumberReport.feature")
+    public void testParallel() {
+        Results results = Runner.path("classpath:demo/report/maskCucumberReport.feature")
                 .tags("~@ignore")
                 .outputCucumberJson(true)
                 .parallel(5);
         generateReport(results.getReportDir());
-        assertEquals(0, results.getFailCount(), results.getErrorMessages());
+        //Assert.assertEquals(0, results.getFailCount(), results.getErrorMessages());
     }
 
     // To generate cucumber HTML report
