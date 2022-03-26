@@ -107,17 +107,20 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
                 call.setLine(stepResult.getStep().getLine());
                 call.setPrefix(StringUtils.repeat('>', depth));
                 call.setText(fr.getCallNameForReport());
+                boolean isShowCallArg= true;
                 for(ScenarioResult scenarioResult: fr.getScenarioResults()){
                     for (StepResult sr: scenarioResult.getStepResults()){
                         if(sr.isHidden()){
-                            //fr.setCallArg(null);
                             Map<String, Object> callArgMap = fr.getCallArg();
-                            callArgMap.keySet().stream().forEach(x-> fr.getCallArg().put(x, "***"));
+                            //callArgMap.keySet().stream().forEach(x-> fr.getCallArg().put(x, "***"));
+                            isShowCallArg=false;
                             break;
                         }
                     }
                 }
-                call.setDocString(fr.getCallArgPretty());
+                if (isShowCallArg) {
+                    call.setDocString(fr.getCallArgPretty());
+                }
                 StepResult callResult = new StepResult(call, Result.passed(0));
                 callResult.setHidden(stepResult.isHidden());
                 list.add(callResult.toCucumberJson());
