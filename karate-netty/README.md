@@ -179,7 +179,7 @@ What's *really* interesting is that you can install `karate` as a local command-
 > please replace `RELEASE` with the exact / version of Karate you intend to use if applicable
 
 ```
- jbang app install --name karate com.intuit.karate:karate-core:RELEASE
+ jbang app install --name karate com.intuit.karate:karate-core:RELEASE:all
 ```
 
 And now the command `karate` will be available in your terminal (after opening a new one or having re-loaded environment settings).

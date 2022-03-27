@@ -4065,13 +4065,13 @@ Do note that if you choose the Java API, you will naturally lose some of the tes
 ### jbang
 [jbang](https://www.jbang.dev) is a great way for you to install and execute scripts that use Karate's Java API on any machine with minimal setup.  Note that jbang itself is [super-easy to install](https://github.com/jbangdev/jbang#installation) and there is even a "[Zero Install](https://github.com/jbangdev/jbang#zero-install)" option.
 
-Here below is an example jbang script that uses the Karate [Java API](#java-api) to do some useful work:
+Here below is an example jbang script that uses the Karate [Java API](#java-api) to do some useful work. Name the file as `javadsl.java` and run using the command: `jbang javadsl.java`.
 
 > please replace `RELEASE` with the exact version of Karate you intend to use if applicable
 
 ```java
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS com.intuit.karate:karate-core:RELEASE
+//DEPS com.intuit.karate:karate-core:RELEASE:all
 
 import com.intuit.karate.*;
 import java.util.List;
