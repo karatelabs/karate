@@ -101,6 +101,7 @@ public class Config {
     // report config
     private boolean showLog = true;
     private boolean showAllSteps = true;
+    private boolean showCallArgs = true;
 
     // call single cache config
     private int callSingleCacheMinutes = 0;
@@ -194,12 +195,15 @@ public class Config {
                     Map<String, Object> map = value.getValue();
                     showLog = get(map, "showLog", showLog);
                     showAllSteps = get(map, "showAllSteps", showAllSteps);
+                    showCallArgs = get(map, "showCallArgs", showCallArgs);
                 } else if (value.isTrue()) {
                     showLog = true;
                     showAllSteps = true;
+                    showCallArgs = true;
                 } else {
                     showLog = false;
                     showAllSteps = false;
+                    showCallArgs = false;
                 }
                 return false;
             case "driver":
@@ -591,4 +595,7 @@ public class Config {
         this.continueAfterContinueOnStepFailure = continueAfterContinueOnStepFailure;
     }
 
+    public boolean isShowCallArgs() {
+        return showCallArgs;
+    }
 }
