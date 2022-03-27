@@ -106,7 +106,14 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
                 call.setLine(stepResult.getStep().getLine());
                 call.setPrefix(StringUtils.repeat('>', depth));
                 call.setText(fr.getCallNameForReport());
-                call.setDocString(fr.getCallArgPretty());
+                if(null!=fr.getConfig() ){
+                    if(fr.getConfig().isShowCallArgs()) {
+                        call.setDocString(fr.getCallArgPretty());
+                    }
+                }else {
+                    call.setDocString(fr.getCallArgPretty());
+                }
+
                 StepResult callResult = new StepResult(call, Result.passed(0));
                 callResult.setHidden(stepResult.isHidden());
                 list.add(callResult.toCucumberJson());
