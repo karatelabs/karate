@@ -5,6 +5,7 @@ Background:
 
 Scenario: calling a feature with parameters
     # the second parameter age is just for demo, it is ignored in 'create-cat.feature'
+    * configure report = false
     * def result = call read('called-normal.feature') { name: 'Nyan', age: 10 }
     # we need to 'unpack' variables out of the call result
     * def nyan = result.response

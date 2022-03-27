@@ -8,7 +8,7 @@ Background:
 Scenario: first one
 * print 'in first one'
 * def foo = 'no log'
-* call read('called.feature')
+* call read('called.feature') { dummy: 'arg' }
 
 @one @two
 Scenario: second one
