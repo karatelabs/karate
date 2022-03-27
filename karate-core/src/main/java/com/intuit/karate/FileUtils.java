@@ -37,6 +37,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.Properties;
+import java.util.UUID;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -53,20 +54,36 @@ public class FileUtils {
 
     public static final String KARATE_VERSION;
     public static final String USER_NAME;
+    public static final String USER_HOME;
+    public static final String USER_UUID;
 
     static {
         Properties props = new Properties();
         InputStream stream = FileUtils.class.getResourceAsStream("/karate-meta.properties");
-        String value;
+        String version;
         try {
             props.load(stream);
             stream.close();
-            value = (String) props.get("karate.version");
+            version = (String) props.get("karate.version");
         } catch (IOException e) {
-            value = "(unknown)";
+            version = "(unknown)";
+        }        
+        KARATE_VERSION = version;        
+        USER_HOME = System.getProperty("user.home", "");
+        USER_NAME = System.getProperty("user.name", USER_HOME);
+        String uuid;
+        try {
+            File file = new File(USER_HOME + File.separator + ".karate" + File.separator + "uuid.txt");
+            if (file.exists()) {
+                uuid = toString(file);
+            } else {
+                uuid = UUID.randomUUID().toString();
+                writeToFile(file, uuid);
+            }
+        } catch (Exception e) {
+            uuid = USER_HOME;
         }
-        USER_NAME = System.getProperty("user.name");
-        KARATE_VERSION = value;
+        USER_UUID = uuid;
     }
 
     public static final File WORKING_DIR = new File("").getAbsoluteFile();

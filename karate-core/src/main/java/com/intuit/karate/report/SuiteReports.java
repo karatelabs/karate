@@ -41,8 +41,9 @@ public interface SuiteReports {
                 .reportDir(suite.reportDir)
                 .reportFileName(featureResult.getFeature().getPackageQualifiedName() + ".html")
                 .variable("results", featureResult.toKarateJson())
-                .variable("karateVersion", FileUtils.KARATE_VERSION)
+                .variable("userUuid", FileUtils.USER_UUID)
                 .variable("userName", FileUtils.USER_NAME)
+                .variable("karateVersion", FileUtils.KARATE_VERSION)
                 .build();
     }
 
@@ -62,10 +63,11 @@ public interface SuiteReports {
 
     default Report summaryReport(Suite suite, Results results) {
         return Report.template("karate-summary.html")
-                .reportDir(suite.reportDir)                
+                .reportDir(suite.reportDir)
                 .variable("results", results.toKarateJson())
-                .variable("karateVersion", FileUtils.KARATE_VERSION)
-                .variable("userName", FileUtils.USER_NAME)              
+                .variable("userUuid", FileUtils.USER_UUID)
+                .variable("userName", FileUtils.USER_NAME)
+                .variable("karateVersion", FileUtils.KARATE_VERSION)                
                 .build();
     }
 
