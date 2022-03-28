@@ -12,15 +12,10 @@ jobs:
     - name: git checkout
       uses: actions/checkout@v2
     - name: get latest jdk ga
-      uses: sormuras/download-jdk@v1
+      uses: oracle-actions/setup-java@v1
       with:
-        feature: 18
-    - name: set up jdk
-      uses: actions/setup-java@v2
-      with:
-        distribution: jdkfile
-        jdkFile: ${{ env.JDK_FILE }}
-        java-version: ${{ env.JDK_VERSION }}      
+        website: jdk.java.net
+        release: ${{ matrix.feature }}    
     - name: cache maven packages
       uses: actions/cache@v2
       with:
