@@ -121,10 +121,8 @@ public class Response implements ProxyObject {
         }
         Map<String, Map> map = new HashMap();
         for (String value : values) {
-            Cookie cookie = ClientCookieDecoder.STRICT.decode(value);
-            if (cookie != null) { // can be null if cookie contains invalid characters
-                map.put(cookie.name(), Cookies.toMap(cookie));
-            }
+            Cookie cookie = ClientCookieDecoder.LAX.decode(value);
+            map.put(cookie.name(), Cookies.toMap(cookie));
         }
         return map;
     }
