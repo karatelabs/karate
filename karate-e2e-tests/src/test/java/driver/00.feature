@@ -4,6 +4,7 @@ Background:
 * driver serverUrl + '/00'
 * def dimensions = karate.get('dimensions')
 * if (dimensions) driver.dimensions = dimensions
+* def skipSlowTests = karate.properties['skip.slow.tests']
 
 Scenario:
 # driver.send() (has to be first)
@@ -45,7 +46,7 @@ Scenario:
 * call read('11.feature')
 
 # switchPage() with external URLs
-* call read('13.feature')
+* if (driverType == 'chrome' && !skipSlowTests) karate.call('13.feature')
 
 # survive Target.detachedFromTarget with nested iframes
-* call read('14.feature')
+* if (driverType == 'chrome' && !skipSlowTests) karate.call('14.feature')

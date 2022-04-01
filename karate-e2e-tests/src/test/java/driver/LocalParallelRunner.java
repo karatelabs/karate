@@ -24,7 +24,8 @@ class LocalParallelRunner {
     void testMock() {
         Results results = Runner.path("src/test/java/driver/00_outline.feature")
                 .systemProperty("server.port", server.getPort() + "")
-                .karateEnv("xbrowser")
+                .systemProperty("skip.slow.tests", "true")
+                .karateEnv("xbrowser")               
                 .configDir("src/test/java/driver").parallel(5);
         assertEquals(0, results.getFailCount(), results.getErrorMessages());
     }    
