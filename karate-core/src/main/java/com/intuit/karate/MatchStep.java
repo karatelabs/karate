@@ -97,8 +97,9 @@ public class MatchStep {
         }
         String lhs = raw.substring(0, lhsEndPos).trim();
         if (leftParenPos == -1) {
-            leftParenPos = lhs.indexOf('[');
-            if (leftParenPos == 0) { // json array
+            leftParenPos = lhs.indexOf('['); // used later to test for json-path
+            char first = lhs.charAt(0);
+            if (first == '[' || first == '{') { // json array or object
                 spacePos = -1; // just use lhs
                 lhs = "(" + lhs + ")";
             }
