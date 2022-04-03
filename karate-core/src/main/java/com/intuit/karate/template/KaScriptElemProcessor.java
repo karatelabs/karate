@@ -58,7 +58,6 @@ public class KaScriptElemProcessor extends AbstractElementModelProcessor {
         IProcessableElementTag tag = ctx.getElementStack().get(depth - 1);
         String scope = tag.getAttributeValue(getDialectPrefix(), SCOPE);
         int n = model.size();
-        boolean isHead = TemplateUtils.hasAncestorElement(ctx, HEAD);
         IModel headModel = null;
         while (n-- != 0) {
             final ITemplateEvent event = model.get(n);
@@ -70,9 +69,6 @@ public class KaScriptElemProcessor extends AbstractElementModelProcessor {
                     } else {
                         KarateEngineContext.get().evalGlobal(text);
                     }
-                }
-                if (isHead && headModel == null) {
-                    headModel = TemplateUtils.generateHeadScriptTag(ctx);
                 }
             }
         }

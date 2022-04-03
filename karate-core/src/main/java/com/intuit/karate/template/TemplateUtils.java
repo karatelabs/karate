@@ -43,22 +43,6 @@ public class TemplateUtils {
         // only static methods
     }
 
-    private static final String HTMX_SCRIPT_TAG = "<script src=\"https://unpkg.com/htmx.org@1.6.1\"></script>";
-
-    public static IModel generateHeadScriptTag(ITemplateContext ctx) {
-        IModelFactory modelFactory = ctx.getModelFactory();
-        return modelFactory.parse(ctx.getTemplateData(), HTMX_SCRIPT_TAG);
-    }
-
-    public static boolean hasAncestorElement(ITemplateContext ctx, String name) {
-        for (IProcessableElementTag tag : ctx.getElementStack()) {
-            if (tag.getElementCompleteName().equalsIgnoreCase(name)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private static KarateTemplateEngine initEngine(JsEngine je, ResourceResolver resolver, boolean server) {
         ServerConfig config = new ServerConfig(resolver);
         ServerContext sc = new ServerContext(config, null);
