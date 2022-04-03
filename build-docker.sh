@@ -4,7 +4,10 @@ set -x -e
 # assume that karate jars are installed in maven local repo
 # mvn clean install -P pre-release -DskipTests
 
+KARATE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+
 # run e2e test that depends on karate-gatling
+mvn versions:set versions:commit -DnewVersion=${KARATE_VERSION} -f examples/gatling/pom.xml
 mvn clean test -f examples/gatling/pom.xml
 
 # copy only karate jars to a place where the docker image build can add from
@@ -14,7 +17,6 @@ cp -r ~/.m2/repository/com/intuit/karate ${KARATE_REPO}
 
 # create / copy the karate fatjar so that the docker image build can add it
 mvn -f karate-core/pom.xml package -P fatjar -DskipTests
-KARATE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
 cp karate-core/target/karate-${KARATE_VERSION}.jar karate-docker/karate-chrome/target/karate.jar
 
 # hack for apple silicon

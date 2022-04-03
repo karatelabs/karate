@@ -27,8 +27,7 @@ jobs:
         gpg-passphrase: MAVEN_GPG_PASSPHRASE
     - name: set maven version
       run: |
-        mvn versions:set -DnewVersion=${{ github.event.inputs.version }}
-        mvn versions:commit
+        mvn versions:set versions:commit -DnewVersion=${{ github.event.inputs.version }}
     - name: docker build
       run: |
         mvn clean install -P pre-release -DskipTests
