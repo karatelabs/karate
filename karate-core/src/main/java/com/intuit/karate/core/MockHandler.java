@@ -75,7 +75,7 @@ public class MockHandler implements ServerHandler {
     private boolean corsEnabled;
 
     protected static final ThreadLocal<Request> LOCAL_REQUEST = new ThreadLocal<>();
-    private String prefix = "";
+    private String prefix = null;
 
     public MockHandler withPrefix(String prefix) {
         this.prefix = prefix;
@@ -155,9 +155,8 @@ public class MockHandler implements ServerHandler {
             }
             return response;
         }
-        String path = req.getPath();
-        if (!path.isEmpty()) {
-            req.setPath(path.substring(prefix.length()));
+        if (prefix != null && req.getPath().startsWith(prefix)) {
+            req.setPath(req.getPath().substring(prefix.length()));
         }
         // rare case when http-client is active within same jvm
         // snapshot existing thread-local to restore
@@ -269,7 +268,7 @@ public class MockHandler implements ServerHandler {
     private boolean isMatchingScenario(Scenario scenario, ScenarioEngine engine) {
         String expression = StringUtils.trimToNull(scenario.getName() + scenario.getDescription());
         if (expression == null) {
-            engine.logger.debug("default scenario matched at line: {}", scenario.getLine());
+            engine.logger.debug("default scenario matched at line: {} - {}", scenario.getLine(), engine.getVariable(ScenarioEngine.REQUEST_URI));
             return true;
         }
         try {
@@ -289,6 +288,9 @@ public class MockHandler implements ServerHandler {
 
     public boolean pathMatches(String pattern) {
         String uri = LOCAL_REQUEST.get().getPath();
+        if (uri.equals(pattern)) {
+            return true;
+        }
         Map<String, String> pathParams = HttpUtils.parseUriPattern(pattern, uri);
         if (pathParams == null) {
             return false;

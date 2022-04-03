@@ -11,5 +11,5 @@ function fn() {
     karate.log('using proxy:', proxy);
     karate.configure('proxy', proxy);
   }
-  return { mockServerUrl: (ssl ? 'https' : 'http') + '://localhost:' + port + '/v1/' }
+  return { mockServerUrl: (ssl ? 'https' : 'http') + '://localhost:' + port + '/v1' };
 }

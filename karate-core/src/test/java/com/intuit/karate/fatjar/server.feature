@@ -5,27 +5,27 @@ Background:
 * def cats = {}
 * def id = 0
 
-Scenario: pathMatches('/v1/cats') && methodIs('post')
+Scenario: pathMatches('/cats') && methodIs('post')
     * def cat = request
     * def id = ~~(id + 1)
     * cat.id = id
     * cats[id + ''] = cat
     * def response = cat
 
-Scenario: pathMatches('/v1/cats') && methodIs('get')
+Scenario: pathMatches('/cats') && methodIs('get')
     * def response = $cats.*
 
-Scenario: pathMatches('/v1/cats/{id}') && methodIs('get')
+Scenario: pathMatches('/cats/{id}') && methodIs('get')
     * def response = cats[pathParams.id]
     * def responseStatus = response ? 200 : 404
 
-Scenario: pathMatches('/v1/body/json') && bodyPath('$.name') == 'Scooby'
+Scenario: pathMatches('/body/json') && bodyPath('$.name') == 'Scooby'
     * def response = { success: true }
 
-Scenario: pathMatches('/v1/body/xml') && bodyPath('/dog/name') == 'Scooby'
+Scenario: pathMatches('/body/xml') && bodyPath('/dog/name') == 'Scooby'
     * def response = { success: true }
 
-Scenario: pathMatches('/v1/abort')
+Scenario: pathMatches('/abort')
     * def response = { success: true }
     * if (response.success) karate.abort()
     # the next line will not be executed

@@ -37,7 +37,10 @@ class ProxyServerTest {
     @BeforeAll
     static void beforeClass() {
         proxy = new ProxyServer(0, null, null);
-        server = MockServer.feature("classpath:com/intuit/karate/fatjar/server.feature").http(0).build();
+        server = MockServer
+                .feature("classpath:com/intuit/karate/fatjar/server.feature")
+                .pathPrefix("/v1")
+                .http(0).build();
         int port = server.getPort();
         System.setProperty("karate.server.port", port + "");
         System.setProperty("karate.server.ssl", ""); // for ci
