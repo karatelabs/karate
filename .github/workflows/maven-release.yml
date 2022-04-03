@@ -34,14 +34,13 @@ jobs:
         ./build-docker.sh
         docker tag karate-chrome ptrthomas/karate-chrome:latest
         docker tag karate-chrome ptrthomas/karate-chrome:${{ github.event.inputs.version }}
-    # - name: docker login
-    #   uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
-    #   with:
-    #     username: ${{ secrets.DOCKER_USERNAME }}
-    #     password: ${{ secrets.DOCKER_PASSWORD }}
-    # - name: docker push
-    #   run: |
-    #     docker push ptrthomas/karate-chrome:${{ github.event.inputs.version }}    
+    - name: docker login and push
+      uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+      run: |
+        docker push ptrthomas/karate-chrome:${{ github.event.inputs.version }}
     # - name: maven deploy to central
     #   env:
     #     MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
