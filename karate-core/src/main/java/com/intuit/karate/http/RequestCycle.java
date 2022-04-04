@@ -167,7 +167,7 @@ public class RequestCycle {
             } else if (context.isApi()) {
                 InputStream is = apiResource();
                 if (context.isLockNeeded()) {
-                    synchronized (this) {
+                    synchronized (config) {
                         engine.eval(is);
                     }
                 } else {
