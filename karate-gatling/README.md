@@ -59,6 +59,9 @@ Refer: https://twitter.com/ptrthomas/status/986463717465391104
 
 
 ### Maven
+
+> also see [using a Maven Profile](#using-a-maven-profile).
+
 ```xml
 <dependency>
     <groupId>com.intuit.karate</groupId>
@@ -80,19 +83,11 @@ You will also need the [Gatling Maven Plugin](https://github.com/gatling/gatling
           <includes>
               <include>mock.CatsKarateSimulation</include>
           </includes>
-      </configuration>
-      <executions>
-          <execution>
-              <phase>test</phase>
-              <goals>
-                  <goal>test</goal>
-              </goals>
-          </execution>
-      </executions>                
+      </configuration>               
   </plugin>
 ```
 
-Because the `<execution>` phase is defined, just running `mvn clean test` will work. If you don't want to run Gatling tests as part of the normal Maven "test" lifecycle, you can avoid the `<executions>` section and instead manually invoke the Gatling plugin from the command-line.
+To run the Gatling test:
 
 ```
 mvn clean test-compile gatling:test
@@ -105,6 +100,82 @@ mvn clean test-compile gatling:test -Dgatling.simulationClass=mock.CatsKarateSim
 ```
 
 It is worth calling out that in the sample project, we are perf-testing [Karate test-doubles](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) ! A truly self-contained demo.
+
+#### Using a Maven Profile
+Mixing `karate-gatling` into a project that already has other frameworks in `test` scope can cause problems such as library version conflicts or just slowing down your normal unit tests. You can use [Maven profiles](https://maven.apache.org/guides/introduction/introduction-to-profiles.html) to keep the Gatling dependencies and executions in a separate scope. Your "primary" Maven `<dependencies>` section can depend on `karate-core` or `karate-junit5` like normal.
+
+Here is an example:
+
+```xml
+<profiles>
+    <profile> 
+        <id>gatling</id>
+        <dependencies>
+            <dependency>
+                <groupId>com.intuit.karate</groupId>
+                <artifactId>karate-gatling</artifactId>
+                <version>${karate.version}</version>
+                <scope>test</scope>
+            </dependency>                  
+        </dependencies>
+        <build>
+            <plugins>
+                <plugin>
+                    <groupId>net.alchim31.maven</groupId>
+                    <artifactId>scala-maven-plugin</artifactId>
+                    <version>4.5.6</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>testCompile</goal>
+                            </goals>
+                            <configuration>
+                                <args>
+                                    <arg>-Jbackend:GenBCode</arg>
+                                    <arg>-Jdelambdafy:method</arg>
+                                    <arg>-target:jvm-1.8</arg>
+                                    <arg>-deprecation</arg>
+                                    <arg>-feature</arg>
+                                    <arg>-unchecked</arg>
+                                    <arg>-language:implicitConversions</arg>
+                                    <arg>-language:postfixOps</arg>
+                                </args>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>            
+                <plugin>
+                    <groupId>io.gatling</groupId>
+                    <artifactId>gatling-maven-plugin</artifactId>
+                    <version>${gatling.plugin.version}</version>
+                    <configuration>
+                        <simulationsFolder>src/test/java</simulationsFolder>
+                        <includes>
+                            <include>app.perf.TodoSimulation</include>
+                        </includes>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <phase>test</phase>
+                            <goals>
+                                <goal>test</goal>
+                            </goals>
+                        </execution>
+                    </executions>                                       
+                </plugin> 
+            </plugins>
+        </build>
+    </profile>
+</profiles>
+```
+
+To use the `gatling` Maven profile and run the performance-test simulation:
+
+```
+mvn clean test -P gatling
+```
+
+Note that because the `<execution>` phase is defined for `test`, just running `mvn clean test` will work. If you don't want to run Gatling tests as part of the normal Maven `test` lifecycle, you can avoid the `<executions>` section as described previously.
 
 ### Gradle
 
