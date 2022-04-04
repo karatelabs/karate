@@ -416,6 +416,7 @@ For more control, the argument to `karate.start()` can be a JSON with the follow
 * `cert` - (string) see above
 * `key` - (string) see above
 * `arg` - (json) see above
+* `pathPrefix` - (string) see above
 
 So if you want to "hard-code" the port, you can do this:
 

@@ -96,6 +96,9 @@ public class MockServer extends HttpServer {
         }
 
         public Builder pathPrefix(String prefix) {
+            if (prefix.charAt(0) != '/') {
+                prefix = "/" + prefix;
+            }
             this.prefix = prefix;
             return this;
         }

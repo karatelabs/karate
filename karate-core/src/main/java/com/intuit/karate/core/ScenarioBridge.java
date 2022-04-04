@@ -825,6 +825,10 @@ public class ScenarioBridge implements PerfContext, EventContext {
         }
         File feature = toJavaFile(mock);
         MockServer.Builder builder = MockServer.feature(feature);
+        String pathPrefix = (String) config.get("pathPrefix");
+        if (pathPrefix != null) {
+            builder.pathPrefix(pathPrefix);
+        }
         String certFile = (String) config.get("cert");
         if (certFile != null) {
             builder.certFile(toJavaFile(certFile));
