@@ -50,3 +50,6 @@ Scenario:
 
 # survive Target.detachedFromTarget with nested iframes
 * if (driverType == 'chrome' && !skipSlowTests) karate.call('14.feature')
+
+# xpath locators
+* call read('15.feature')
