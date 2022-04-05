@@ -44,6 +44,7 @@ public interface SuiteReports {
                 .variable("userUuid", FileUtils.USER_UUID)
                 .variable("userName", FileUtils.USER_NAME)
                 .variable("karateVersion", FileUtils.KARATE_VERSION)
+                .variable("karateMeta", FileUtils.KARATE_META)
                 .build();
     }
 
@@ -67,7 +68,8 @@ public interface SuiteReports {
                 .variable("results", results.toKarateJson())
                 .variable("userUuid", FileUtils.USER_UUID)
                 .variable("userName", FileUtils.USER_NAME)
-                .variable("karateVersion", FileUtils.KARATE_VERSION)                
+                .variable("karateVersion", FileUtils.KARATE_VERSION)
+                .variable("karateMeta", FileUtils.KARATE_META)
                 .build();
     }
 
