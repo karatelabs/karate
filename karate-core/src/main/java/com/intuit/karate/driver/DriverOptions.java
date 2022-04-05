@@ -603,6 +603,9 @@ public class DriverOptions {
         boolean isXpath = locator.startsWith("/");
         String selector;
         if (isXpath) { // XPathResult.ORDERED_NODE_ITERATOR_TYPE = 5
+            if (!DOCUMENT.equals(contextNode)) {
+                locator = "." + locator; // evaluate relative to this node not root
+            }
             selector = "document.evaluate(\"" + locator + "\", " + contextNode + ", null, 5, null)";
         } else {
             selector = contextNode + ".querySelectorAll(\"" + locator + "\")";
