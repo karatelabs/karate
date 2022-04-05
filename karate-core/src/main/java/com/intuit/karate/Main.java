@@ -66,7 +66,7 @@ public class Main implements Callable<Void> {
     List<String> paths;
     
     @Option(names = {"-m", "--mock", "--mocks"}, split = ",", description = "one or more mock server files")
-    List<File> mocks;
+    List<String> mocks;
     
     @Option(names = {"-P", "--prefix"}, description = "mock server path prefix (context-path)")
     String prefix = "/";
@@ -387,7 +387,7 @@ public class Main implements Callable<Void> {
             return null;
         }        
         MockServer.Builder builder = MockServer
-                .featureFiles(mocks)
+                .featurePaths(mocks)
                 .pathPrefix(prefix)
                 .certFile(cert)
                 .keyFile(key)

@@ -177,9 +177,13 @@ public class MockServer extends HttpServer {
     public static Builder feature(Feature feature) {
         return new Builder(feature);
     }
+    
+    public static Builder featurePaths(List<String> paths) {
+        return new Builder(paths.stream().map(p -> Feature.read(p)).collect(Collectors.toList()));
+    }    
 
-    public static Builder features(String... path) {
-        return new Builder(Arrays.asList(path).stream().map(p -> Feature.read(p)).collect(Collectors.toList()));
+    public static Builder featurePaths(String... paths) {
+        return featurePaths(Arrays.asList(paths));
     }
 
     public static Builder featureFiles(List<File> features) {

@@ -19,7 +19,7 @@ class MockTest {
     static final Logger logger = LoggerFactory.getLogger(MockTest.class);
 
     static HttpServer startMockServer() {
-        MockServer server = MockServer.features(
+        MockServer server = MockServer.featurePaths(
                 "classpath:com/intuit/karate/core/mock/_simple.feature",
                 "classpath:com/intuit/karate/core/mock/_mock.feature")
                 .build();
