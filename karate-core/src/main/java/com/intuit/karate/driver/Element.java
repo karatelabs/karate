@@ -84,6 +84,8 @@ public interface Element {
 
     Object script(String expression);
     
+    Object scriptAll(String locator, String expression);
+    
     Element optional(String locator);
     
     boolean exists(String locator);

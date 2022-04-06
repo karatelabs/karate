@@ -171,6 +171,11 @@ public class MissingElement implements Element {
     public Object script(String expression) {
         return null;
     }
+    
+    @Override
+    public Object scriptAll(String locator, String expression) {
+        return null;
+    }    
 
     @Override
     public Element optional(String locator) {
