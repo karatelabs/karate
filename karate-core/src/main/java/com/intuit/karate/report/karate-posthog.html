@@ -5,6 +5,7 @@ posthog.init('phc_pb7428bpWvS2BLY4EwJ6tS1Y8IlVclo5LPTSmSbm5n8',{
   persistence:'localStorage',
   autocapture:false,
   capture_pageview:false,
+  api_transport:'sendBeacon',
   loaded: function(posthog) { 
     posthog.identify(/*[[${userUuid}]]*/'',{name:/*[[${userName}]]*/''});
     posthog.capture(/*[[${karateEvent}]]*/'',{karate_version:/*[[${karateVersion}]]*/'',karate_meta:/*[[${karateMeta}]]*/''});
