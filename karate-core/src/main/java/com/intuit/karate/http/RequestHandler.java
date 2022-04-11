@@ -98,11 +98,11 @@ public class RequestHandler implements ServerHandler {
                     if (config.isAutoCreateSession()) {
                         context.init();
                         session = context.getSession();
-                        logger.debug("created new session for '{}': {}", request, session);
+                        logger.debug("auto-created session: {} - {}", request, session);
                     } else if (config.getSigninPagePath().equals(request.getPath())
                             || config.getSignoutPagePath().equals(request.getPath())) {
                         session = Session.TEMPORARY;
-                        logger.debug("sign in / out: {}", request);
+                        logger.debug("auth flow: {}", request);
                     } else {
                         logger.warn("session not found: {}", request);
                         ResponseBuilder rb = response();
