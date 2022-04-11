@@ -80,6 +80,8 @@ public class Request implements ProxyObject {
     private static final String PATH_PARAMS = "pathParams";
     private static final String PATH_MATCHES = "pathMatches";
     private static final String BODY = "body";
+    private static final String BODY_STRING = "bodyString";
+    private static final String BODY_BYTES = "bodyBytes";
     private static final String MULTI_PART = "multiPart";
     private static final String MULTI_PARTS = "multiParts";
     private static final String JSON = "json";
@@ -98,7 +100,8 @@ public class Request implements ProxyObject {
 
     private static final String[] KEYS = new String[]{
         PATH, METHOD, PARAM, PARAM_INT, NON_BLANK, PARAMS, HEADER, HEADERS, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, PATH_MATCHES,
-        BODY, MULTI_PART, MULTI_PARTS, JSON, GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL, PATH_RAW
+        BODY, BODY_STRING, BODY_BYTES, MULTI_PART, MULTI_PARTS, JSON, 
+        GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL, PATH_RAW
     };
     private static final Set<String> KEY_SET = new HashSet<>(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
@@ -493,6 +496,10 @@ public class Request implements ProxyObject {
                 return method;
             case BODY:
                 return JsValue.fromJava(getBodyConverted());
+            case BODY_STRING:
+                return getBodyAsString();
+            case BODY_BYTES:
+                return body;
             case PARAM:
                 return (Function<String, String>) this::getParam;
             case PARAM_INT:
