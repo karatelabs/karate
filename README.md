@@ -2876,7 +2876,7 @@ Symbol  | Means
 | `^+`  | [`contains deep`](#match-contains-deep)
 | `!^`  | [`not contains`](#not-contains)
 
-> For completeness, [`==`](#match) and [`!=`](#match--not-equals)
+> For completeness, [`==`](#match) and [`!=`](#match--not-equals) also belong in the above list.
 
 Here'a table of the alternative 'in-line' forms compared with the 'standard' form. Note that *all* the short-cut forms on the right-side of the table resolve to 'equality' (`==`) matches, which enables them to be 'in-lined' into a _full_ (single-step) payload `match`, using [embedded expressions](#embedded-expressions).
 
