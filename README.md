@@ -2873,9 +2873,10 @@ Symbol  | Means
 | `^`   | [`contains`](#match-contains)           
 | `^^`  | [`contains only`](#match-contains-only) 
 | `^*`  | [`contains any`](#match-contains-any) 
-| `^+`  | [`contains deep`](#match-contains-deep) 
-| `!=`  | [`not equals`](#match--not-equals) 
-| `!^`  | [`not contains`](#not-contains)     
+| `^+`  | [`contains deep`](#match-contains-deep)
+| `!^`  | [`not contains`](#not-contains)
+
+> For completeness, [`==`](#match) and [`!=`](#match--not-equals)
 
 Here'a table of the alternative 'in-line' forms compared with the 'standard' form. Note that *all* the short-cut forms on the right-side of the table resolve to 'equality' (`==`) matches, which enables them to be 'in-lined' into a _full_ (single-step) payload `match`, using [embedded expressions](#embedded-expressions).
 

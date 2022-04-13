@@ -118,6 +118,9 @@ Then match response ==
 * match actual !contains other
 * match actual == '#(!^other)'
 
+* match actual contains deep part
+* match actual == '#(^+part)'
+
 # no in-line equivalent !
 * match actual contains '#(^part)'
 
@@ -126,6 +129,12 @@ Then match response ==
 
 * assert actual.length == 2
 * match actual == '#[2]'
+
+# contains deep
+* def actualDeep = [{ a: [1, 2], b: 'x' }, { a: [3, 4], b: 'y' }]
+
+* def partDeep = { a: [1] }
+* match actual contains deep part
 
 Scenario: complex nested arrays
 * def json =
