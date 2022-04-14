@@ -189,9 +189,11 @@ public class Suite implements Runnable {
             buildDir = rb.buildDir;
             reportDir = rb.reportDir;
             karateBase = read("classpath:karate-base.js");
-            karateConfig = read(rb.configDir + "karate-config.js");
+            String karateConfigTemp = read(rb.configDir + "karate-config.js");
+            karateConfig = karateConfigTemp != null ? karateConfigTemp : read("classpath:karate-config.js");
             if (env != null) {
-                karateConfigEnv = read(rb.configDir + "karate-config-" + env + ".js");
+                String karateConfigEnvTemp = read(rb.configDir + "karate-config-" + env + ".js");
+                karateConfigEnv = karateConfigEnvTemp != null ? karateConfigEnvTemp : read("classpath:karate-config-" + env + ".js");
             } else {
                 karateConfigEnv = null;
             }
@@ -278,7 +280,7 @@ public class Suite implements Runnable {
 
     private void onFeatureDone(FeatureResult fr, int index) {
         if (fr.getScenarioCount() > 0) { // possible that zero scenarios matched tags
-            try { // edge case that reports are not writable     
+            try { // edge case that reports are not writable
                 saveFeatureResults(fr);
                 String status = fr.isFailed() ? "fail" : "pass";
                 logger.info("<<{}>> feature {} of {} ({} remaining) {}", status, index, featuresFound, getFeaturesRemaining() - 1, fr.getFeature());
