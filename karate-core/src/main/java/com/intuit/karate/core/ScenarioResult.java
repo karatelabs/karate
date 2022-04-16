@@ -26,6 +26,7 @@ package com.intuit.karate.core;
 import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.StringUtils;
 import java.io.File;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -223,6 +224,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         map.put("type", "scenario");
         map.put("keyword", scenario.isOutlineExample() ? "Scenario Outline" : "Scenario");
         map.put("tags", tagsToCucumberJson(scenario.getTagsEffective().getOriginal()));
+        map.put("start_timestamp", Instant.ofEpochMilli(startTime).toString());
         return map;
     }
 

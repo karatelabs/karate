@@ -35,6 +35,7 @@
             "description": "",
             "id": "hello-world",
             "type": "scenario",
+            "start_timestamp": "#string",
             "keyword": "Scenario",
             "steps": [
                 {
@@ -211,6 +212,7 @@
             "description": "",
             "id": "hello-foo",
             "type": "scenario",
+            "start_timestamp": "#string",
             "keyword": "Scenario Outline",
             "steps": [
                 {
@@ -274,6 +276,7 @@
             "description": "",
             "id": "hello-bar",
             "type": "scenario",
+            "start_timestamp": "#string",
             "keyword": "Scenario Outline",
             "steps": [
                 {
@@ -304,7 +307,7 @@
             ]
         }
     ],
-    "name": "com\/intuit\/karate\/core\/feature-result.feature",
+    "name": "com\/intuit\/karate\/core\/feature-result.feature",    
     "description": "my feature\nmy description",
     "id": "my-feature",
     "keyword": "Feature",
