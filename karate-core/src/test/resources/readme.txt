@@ -2,6 +2,10 @@ dev:
 ====
 mvn versions:set versions:commit -DnewVersion=2.0.0
 
+cve check
+=========
+mvn clean verify -P depcheck
+
 prod:
 =====
 mvn versions:set versions:commit -DnewVersion=@@@
