@@ -277,6 +277,19 @@ class KarateMockHandlerTest {
         );
         matchVar("response", "{ Cookie: ['#string'] }");
     }
+    
+    @Test
+    void testCookieMalformed() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def responseHeaders = { 'Set-Cookie': '; Secure; HttpOnly' }");
+        run(
+                URL_STEP,
+                "path 'hello'",
+                "method get"
+        );
+        matchVar("responseHeaders", "{'Set-Cookie': ['; Secure; HttpOnly']}");        
+    }
 
     @Test
     void testFormFieldGet() {
