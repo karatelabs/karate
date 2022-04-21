@@ -324,11 +324,22 @@ java -jar karate.jar -T 5 -t @smoke src/features
 ```
 
 #### Output Directory
-The output directory where the `karate.log` file, JUnit XML and Cucumber report JSON files would be output will default to `target` in the current working directory. The Cucumber HTML report would be found in a folder called `cucumber-html-reports` within this "output" folder. You can change the output folder using the `-o` or `--output` option:
+The output directory where the `karate.log` file and reports would be output - will default to `target` in the current working directory. The HTML reports would be found in a folder called `karate-reports` within this "output" folder. You can change the output folder using the `-o` or `--output` option:
 
 ```
 java -jar karate.jar -T 5 -t ~@skipme -o /my/custom/dir src/features
 ```
+
+#### Output Format
+By default, the JUnit XML or Cucumber JSON report data will not be output. You can use the `-f` or `--format` option:
+
+```
+java -jar karate.jar -f junit:xml src/features
+```
+
+You can use comma-delimited values, for example: `-f junit:xml,cucumber:json`.
+
+To suppress the Karate HTML report output by default add `~html`.
 
 #### Clean
 The [output directory](#output-directory) will be deleted before the test runs if you use the `-C` or `--clean` option.

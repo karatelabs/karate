@@ -101,7 +101,7 @@ public class Main implements Callable<Void> {
     String output = FileUtils.getBuildDir();
     
     @Option(names = {"-f", "--format"}, split = ",", description = "comma separate report output formats. tilde excludes the output report. html report is included by default unless it's negated."
-            + "e.g. '-f json,cucumber:json,junit:xml. Possible values [html: Karate HTML, json: Karate JSON, cucumber:json: Cucumber JSON, junit:xml: JUnit XML]")
+            + "e.g. '-f ~html,cucumber:json,junit:xml' - possible values [html: Karate HTML, cucumber:json: Cucumber JSON, junit:xml: JUnit XML]")
     List<String> formats;
     
     @Option(names = {"-n", "--name"}, description = "scenario name")
