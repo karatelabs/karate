@@ -4105,6 +4105,8 @@ Once (or at the start of) every `Feature` | Use a [`callonce`](#callonce) in the
 After every `Scenario` | [`configure afterScenario`](#configure) (see [example](karate-demo/src/test/java/demo/hooks/hooks.feature))
 At the end of the `Feature` | [`configure afterFeature`](#configure) (see [example](karate-demo/src/test/java/demo/hooks/hooks.feature))
 
+> Note that for the `afterFeature` hook to work, you should be using the [`Runner` API](#parallel-execution) and not the JUnit runner.
+
 ### `karate.callSingle()`
 Only recommended for advanced users, but this guarantees a routine is run only once, *even* when [running tests in parallel](#parallel-execution). You can use [`karate.callSingle()`](#karate-callsingle) in [`karate-config.js`](#karate-configjs) like this:
 
