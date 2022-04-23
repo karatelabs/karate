@@ -6,12 +6,13 @@ public class NoScenarioTestRuntimeHook extends TestRuntimeHook {
 
     @Override
     public boolean beforeScenario(ScenarioRuntime sr) {
+        super.beforeScenario(sr);
         return false;
     }
 
     @Override
     public void afterScenario(ScenarioRuntime sr) {
-        // don't count if if not executing
+        // don't count if not executing
     }
 
 }

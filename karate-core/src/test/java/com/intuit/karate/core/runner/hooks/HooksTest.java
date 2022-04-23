@@ -142,12 +142,12 @@ public class HooksTest {
         assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("beforeBackground").values().stream().mapToInt(Integer::intValue).sum());
         assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("afterBackground").values().stream().mapToInt(Integer::intValue).sum());
 
-        assertEquals(0, testRuntimeHook.getRuntimeHookTracker().get("beforeScenario").values().stream().mapToInt(Integer::intValue).sum());
+        assertEquals(2, testRuntimeHook.getRuntimeHookTracker().get("beforeScenario").values().stream().mapToInt(Integer::intValue).sum());
         assertEquals(0, testRuntimeHook.getRuntimeHookTracker().get("afterScenario").values().stream().mapToInt(Integer::intValue).sum());
 
         // needed to provide the value on the Examples table
-        assertEquals(3, testRuntimeHook.getRuntimeHookTracker().get("beforeStep").values().stream().mapToInt(Integer::intValue).sum());
-        assertEquals(3, testRuntimeHook.getRuntimeHookTracker().get("afterStep").values().stream().mapToInt(Integer::intValue).sum());
+        assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("beforeStep").values().stream().mapToInt(Integer::intValue).sum());
+        assertEquals(1, testRuntimeHook.getRuntimeHookTracker().get("afterStep").values().stream().mapToInt(Integer::intValue).sum());
     }
 
     @Test

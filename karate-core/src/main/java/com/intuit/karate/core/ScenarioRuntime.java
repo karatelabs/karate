@@ -140,7 +140,7 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public boolean isDynamicBackground() {
-        return this.scenario.isDynamic() && this.background == null;
+        return scenario.isDynamic() && background == null;
     }
 
     public String getEmbedFileName(ResourceType resourceType) {
@@ -189,6 +189,7 @@ public class ScenarioRuntime implements Runnable {
     private Step currentStep;
     private Throwable error;
     private boolean configFailed;
+    private boolean skipped; // beforeScenario hook only
     private boolean stopped;
     private boolean aborted;
     private int stepIndex;
@@ -370,7 +371,7 @@ public class ScenarioRuntime implements Runnable {
     //==========================================================================
     //
     public void beforeRun() {
-        if (this.isDynamicBackground()) {
+        if (isDynamicBackground()) {
             steps = scenario.getBackgroundSteps();
         } else {
             steps = background == null ? scenario.getStepsIncludingBackground() : scenario.getSteps();
@@ -396,18 +397,24 @@ public class ScenarioRuntime implements Runnable {
                 evalConfigJs(featureRuntime.suite.karateConfig, "karate-config.js");
                 evalConfigJs(featureRuntime.suite.karateConfigEnv, "karate-config-" + featureRuntime.suite.env + ".js");
             }
-            if (this.isDynamicBackground()) {
+            if (isDynamicBackground()) {
                 featureRuntime.suite.hooks.forEach(h -> h.beforeBackground(this));
-                if (featureRuntime.suite.debugMode) {
-                    featureRuntime.suite.hooks.stream()
+                if (featureRuntime.suite.debugMode) {                    
+                    skipped = !featureRuntime.suite.hooks.stream()
                             .filter(DebugThread.class::isInstance)
-                            .forEach(h -> h.beforeScenario(this));
+                            .map(h -> h.beforeScenario(this))
+                            .reduce(Boolean.TRUE, Boolean::logicalAnd);
                 }
             } else {
-                featureRuntime.suite.hooks.forEach(h -> h.beforeScenario(this));
+                skipped = !featureRuntime.suite.hooks.stream()
+                        .map(h -> h.beforeScenario(this))
+                        .reduce(Boolean.TRUE, Boolean::logicalAnd);
+            }
+            if (skipped) {
+                logger.debug("beforeScenario hook returned false, will skip scenario: {}", scenario);
             }
         }
-        if (!this.isDynamicBackground()) {
+        if (!skipped && !isDynamicBackground()) {
             // don't evaluate names when running the background section
             evaluateScenarioName();
         }
@@ -420,6 +427,9 @@ public class ScenarioRuntime implements Runnable {
             // and operate countdown latches, else we may hang the parallel runner
             if (steps == null) {
                 beforeRun();
+            }
+            if (skipped) {
+                return;
             }
             int count = steps.size();
             int index = 0;
@@ -438,7 +448,7 @@ public class ScenarioRuntime implements Runnable {
             logError("scenario [run] failed\n" + StringUtils.throwableToString(e));
             currentStepResult = result.addFakeStepResult("scenario [run] failed", e);
         } finally {
-            if (this.isDynamicBackground() && !reRun) {
+            if (isDynamicBackground() && !reRun && !skipped) {
                 featureRuntime.suite.hooks.forEach(h -> h.afterBackground(this));
                 // if it's a dynamic scenario running under the debugger
                 // we still want to execute the afterScenario() hook of the debugger server
@@ -449,7 +459,7 @@ public class ScenarioRuntime implements Runnable {
                             .filter(DebugThread.class::isInstance)
                             .forEach(h -> h.afterScenario(this));
                 }
-            } else if (!this.isDynamicBackground()) { // don't add "fake" scenario to feature results
+            } else if (!isDynamicBackground() && !skipped) { // don't add "fake" scenario to feature results
                 afterRun();
             }
             if (caller.isNone()) {
@@ -580,16 +590,19 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public void evaluateScenarioName() {
-        String scenarioName = this.scenario.getName();
-        boolean wrappedByBackTick = scenarioName != null && scenarioName.length() > 1 && '`' == scenarioName.charAt(0) && '`' == scenarioName.charAt((scenarioName.length() - 1));
+        String scenarioName = scenario.getName();
+        boolean wrappedByBackTick = scenarioName != null 
+                && scenarioName.length() > 1 
+                && '`' == scenarioName.charAt(0) 
+                && '`' == scenarioName.charAt((scenarioName.length() - 1));
         boolean hasJavascriptPlaceholder = ScenarioEngine.hasJavaScriptPlacehoder(scenarioName);
         if (wrappedByBackTick || hasJavascriptPlaceholder) {
             String eval = scenarioName;
             if (!wrappedByBackTick) {
                 eval = '`' + eval + '`';
             }
-            String evaluatedScenarioName = this.engine.evalJs(eval).getAsString();
-            this.scenario.setName(evaluatedScenarioName);
+            String evaluatedScenarioName = engine.evalJs(eval).getAsString();
+            scenario.setName(evaluatedScenarioName);
         }
     }
 
