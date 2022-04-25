@@ -47,6 +47,8 @@ public class FeatureResult {
 
     private String resultDate;
     private String displayName; // mutable for users who want to customize
+    
+    private boolean cucumberStyleJson;
 
     private Map<String, Object> resultVariables;
     private Map<String, Object> callArg;
@@ -170,13 +172,22 @@ public class FeatureResult {
         map.put("keyword", Feature.KEYWORD);
         map.put("line", feature.getLine());
         map.put("uri", displayName);
-        map.put("name", displayName);
+        
+        map.put("name", (cucumberStyleJson && feature.getName() != null && !feature.getName().isEmpty()) 
+				? feature.getName().trim() : displayName);
+        
         map.put("id", StringUtils.toIdString(feature.getName()));
-        String temp = feature.getName() == null ? "" : feature.getName();
-        if (feature.getDescription() != null) {
-            temp = temp + "\n" + feature.getDescription();
-        }
-        map.put("description", temp.trim());
+        
+        if(cucumberStyleJson) {
+			map.put("description",  feature.getDescription() != null ? feature.getDescription() : "");
+		} else {
+			String temp = feature.getName() == null ? "" : feature.getName();
+			if (feature.getDescription() != null) {
+				temp = temp + "\n" + feature.getDescription();
+			}
+			map.put("description", temp.trim());
+		}
+        
         if (feature.getTags() != null) {
             map.put("tags", ScenarioResult.tagsToCucumberJson(feature.getTags()));
         }
@@ -211,6 +222,14 @@ public class FeatureResult {
     public String getDisplayName() {
         return displayName;
     }
+    
+    public boolean isCucumberStyleJson() {
+		return cucumberStyleJson;
+	}
+
+	public void setCucumberStyleJson(boolean cucumberStyleJson) {
+		this.cucumberStyleJson = cucumberStyleJson;
+	}
 
     public KarateException getErrorMessagesCombined() {
         List<String> errors = getErrors();

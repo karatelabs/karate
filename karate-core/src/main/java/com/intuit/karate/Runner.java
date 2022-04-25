@@ -185,6 +185,7 @@ public class Runner {
         boolean outputHtmlReport = true;
         boolean outputJunitXml;
         boolean outputCucumberJson;
+        boolean cucumberStyleJson = false;
         boolean dryRun;
         boolean debugMode;
         Map<String, String> systemProperties;
@@ -219,6 +220,7 @@ public class Runner {
             b.outputHtmlReport = outputHtmlReport;
             b.outputJunitXml = outputJunitXml;
             b.outputCucumberJson = outputCucumberJson;
+            b.cucumberStyleJson = cucumberStyleJson;
             b.dryRun = dryRun;
             b.debugMode = debugMode;
             b.systemProperties = systemProperties;
@@ -524,6 +526,11 @@ public class Runner {
 
         public T outputCucumberJson(boolean value) {
             outputCucumberJson = value;
+            return (T) this;
+        }
+        
+        public T cucumberStyleJson(boolean value) {
+            cucumberStyleJson = value;
             return (T) this;
         }
 

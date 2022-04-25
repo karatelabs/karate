@@ -91,6 +91,7 @@ public class Suite implements Runnable {
     public final boolean outputHtmlReport;
     public final boolean outputCucumberJson;
     public final boolean outputJunitXml;
+    public final boolean cucumberStyleJson;
 
     public final boolean parallel;
     public final ExecutorService scenarioExecutor;
@@ -134,6 +135,7 @@ public class Suite implements Runnable {
             backupReportDir = false;
             outputHtmlReport = false;
             outputCucumberJson = false;
+            cucumberStyleJson = false;
             outputJunitXml = false;
             classLoader = Thread.currentThread().getContextClassLoader();
             clientFactory = rb.clientFactory == null ? HttpClientFactory.DEFAULT : rb.clientFactory;
@@ -169,6 +171,7 @@ public class Suite implements Runnable {
             backupReportDir = rb.backupReportDir;
             outputHtmlReport = rb.outputHtmlReport;
             outputCucumberJson = rb.outputCucumberJson;
+            cucumberStyleJson = rb.cucumberStyleJson;
             outputJunitXml = rb.outputJunitXml;
             dryRun = rb.dryRun;
             debugMode = rb.debugMode;
@@ -268,6 +271,7 @@ public class Suite implements Runnable {
             suiteReports.featureReport(this, fr).render();
         }
         if (outputCucumberJson) {
+        	fr.setCucumberStyleJson(cucumberStyleJson);
             ReportUtils.saveCucumberJson(reportDir, fr, null);
         }
         if (outputJunitXml) {

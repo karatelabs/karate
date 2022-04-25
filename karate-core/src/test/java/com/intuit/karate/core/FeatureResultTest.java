@@ -45,4 +45,22 @@ class FeatureResultTest {
         match(cucumberClone, expected);
     }
 
+	@Test
+	void testCucumberStyleJsonConversion() {
+		run("feature-result-cucumber-style.feature");
+		FeatureResult featureResult = fr.result;
+		featureResult.setCucumberStyleJson(true);
+		Map<String, Object> results = featureResult.toCucumberJson();
+		match(results.get("name"), "Hello World");
+		match(results.get("description"), "Describe Hello World");
+	}
+
+	@Test
+	void testDefaultStyleJsonConversion() {
+		run("feature-result-cucumber-style.feature");
+		FeatureResult featureResult = fr.result;
+		Map<String, Object> results = featureResult.toCucumberJson();
+		match(results.get("name"), "com/intuit/karate/core/feature-result-cucumber-style.feature");
+		match(results.get("description"), "Hello World\nDescribe Hello World");
+	}
 }
