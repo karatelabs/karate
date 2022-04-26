@@ -349,7 +349,8 @@ public class ScenarioRuntime implements Runnable {
         }
         String callTag = feature.getCallTag();
         if (callTag != null) {
-            if (tags.contains(callTag)) {
+            // only if this is a legit "call" or a gatling "call by tag"
+            if ((!fr.caller.isNone() || fr.perfHook != null) && tags.contains(callTag)) {
                 fr.logger.info("{} - call by tag at line {}: {}", fr, scenario.getLine(), callTag);
                 return true;
             }
@@ -399,7 +400,7 @@ public class ScenarioRuntime implements Runnable {
             }
             if (isDynamicBackground()) {
                 featureRuntime.suite.hooks.forEach(h -> h.beforeBackground(this));
-                if (featureRuntime.suite.debugMode) {                    
+                if (featureRuntime.suite.debugMode) {
                     skipped = !featureRuntime.suite.hooks.stream()
                             .filter(DebugThread.class::isInstance)
                             .map(h -> h.beforeScenario(this))
@@ -591,9 +592,9 @@ public class ScenarioRuntime implements Runnable {
 
     public void evaluateScenarioName() {
         String scenarioName = scenario.getName();
-        boolean wrappedByBackTick = scenarioName != null 
-                && scenarioName.length() > 1 
-                && '`' == scenarioName.charAt(0) 
+        boolean wrappedByBackTick = scenarioName != null
+                && scenarioName.length() > 1
+                && '`' == scenarioName.charAt(0)
                 && '`' == scenarioName.charAt((scenarioName.length() - 1));
         boolean hasJavascriptPlaceholder = ScenarioEngine.hasJavaScriptPlacehoder(scenarioName);
         if (wrappedByBackTick || hasJavascriptPlaceholder) {
