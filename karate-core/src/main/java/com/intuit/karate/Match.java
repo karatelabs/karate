@@ -275,6 +275,10 @@ public class Match {
             return "#notpresent".equals(value);
         }
         
+        boolean isArray() {
+            return value.toString().startsWith("#[") || "#array".equals(value);
+        }        
+        
         boolean isMapOrListOrXml() {
             switch (type) {
                 case MAP:
