@@ -1,4 +1,3 @@
-@ignore
 Feature: even java interop performance test reports are possible
 
   Background:
