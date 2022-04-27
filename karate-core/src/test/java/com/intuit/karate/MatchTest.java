@@ -163,6 +163,7 @@ class MatchTest {
         match("[{ a: 1 }, { b: 2 }, { c: 3 }]", CONTAINS_ANY, "[{ a: 9 }, { c: 9 }]", FAILS);
         match("[{ a: 1 }, { b: 2 }, { c: 3 }]", CONTAINS_DEEP, "[{ a: 1 }, { c: 3 }]");
         match("[{ a: 1 }, { b: [1, 2, 3] }]", CONTAINS_DEEP, "[{ b: [2] }]");
+        match("{ a: { foo: 'bar' } }", CONTAINS_DEEP, "{ a: '#object' }");
     }
 
     @Test
