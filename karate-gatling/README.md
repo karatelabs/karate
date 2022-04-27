@@ -316,7 +316,7 @@ val create = scenario("create").exec(karateFeature("classpath:mock/cats-create.f
 
 Here above, the variable `id` that was defined (using `def`) in the [Karate feature](src/test/scala/mock/cats-create.feature) - is being retrieved on the Gatling side using the Scala API.
 
-On the karate side, after scenario involving a [`karateFeature()`](#karatefeature) completes, the variables  are passed onto [`karateFeature()`](#karatefeature) invocations as indicated in the [simulation example](src/test/scala/mock/CatsCreateReadSimulation.scala) - in the read `id` from the one defined post create.
+On the Karate side, after a scenario involving a [`karateFeature()`](#karatefeature) completes, the variables  are passed onto any other [`karateFeature()`](#karatefeature) invocations as shown in this [example](src/test/scala/mock/CatsChainedSimulation.scala). Note how the Gatling scenario called `read` which uses a Karate `Scenario` (`cats-chained.feature@name=read`) depends on the `id` variable mentioned above.
 
 Also see [chaining](#chaining) - where Karate variables created in one `Scenario` can flow into others in advanced Gatling set-ups.
 
