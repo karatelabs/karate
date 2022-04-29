@@ -281,11 +281,19 @@ java -jar karate.jar my-test.feature:42
 ```
 
 #### Tags
-You can specify [Cucumber tags](https://github.com/intuit/karate#cucumber-tags) to include (or exclude) using the `-t` or `--tags`  option as follows. Note that the special, built-in tag `@ignore` is *always* skipped.
+You can specify [tags](https://github.com/intuit/karate#tags) to include (or exclude) using the `-t` or `--tags`  option as follows. Note that the special, built-in tag `@ignore` is *always* skipped.
 
 ```
 java -jar karate.jar -t @smoke,~@skipme my-test.feature
 ```
+
+For an "AND" operation, repeat the CLI option:
+
+```
+java -jar karate.jar -t @one -t @two,@three my-test.feature
+```
+
+This has the effect of "one AND (two OR three)"
 
 #### Dry Run
 The option is `-D` or `--dryrun` to [run tests in “dry run” mode](https://github.com/intuit/karate#dry-run).
