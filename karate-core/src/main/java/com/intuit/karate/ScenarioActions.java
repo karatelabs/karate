@@ -393,6 +393,12 @@ public class ScenarioActions implements Actions {
     public void evalIf(String exp) {
         engine.evalJs("if " + exp);
     }
+    
+    @Override
+    @When("^delete (.+)")
+    public void evalDelete(String exp) {
+        engine.evalJs("delete " + exp);
+    }    
 
     @Override
     @When("^listen (.+)")

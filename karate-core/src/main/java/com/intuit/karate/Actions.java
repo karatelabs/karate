@@ -79,6 +79,8 @@ public interface Actions {
     void eval(String name, String dotOrParen, String exp);
 
     void evalIf(String exp);
+    
+    void evalDelete(String exp);
 
     void formField(String name, String exp);
 

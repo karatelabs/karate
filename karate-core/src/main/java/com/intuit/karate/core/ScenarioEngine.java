@@ -192,7 +192,11 @@ public class ScenarioEngine {
     }
 
     public void remove(String name, String path) {
-        set(name, path, null, true, false);
+        try {
+            set(name, path, null, true, false);
+        } catch (Exception e) {
+            logger.warn("remove failed: {}", e.getMessage());
+        }
     }
 
     public void table(String name, List<Map<String, String>> rows) {

@@ -2359,8 +2359,6 @@ This is like the opposite of [`set`](#set) if you need to remove keys or data el
 * match json == { foo: 'world', zee: [1, 3] }
 ```
 
-> For JSON, you can also use [`eval`](#eval) instead of `remove`, useful when the path you are trying to mutate is dynamic.
-
 `remove` works for XML elements as well:
 ```cucumber
 * def xml = <foo><bar><hello>world</hello></bar></foo>
@@ -2371,6 +2369,22 @@ This is like the opposite of [`set`](#set) if you need to remove keys or data el
 ```
 
 Also take a look at how a special case of [embedded-expressions](#embedded-expressions) can remove key-value pairs from a JSON (or XML) payload: [Remove if Null](#remove-if-null).
+
+See also `delete`, below.
+
+### `delete`
+For JSON, you can also use the JS [`delete`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/delete) operator via [`eval`](#eval), useful when the path you are trying to mutate is dynamic.
+
+```cucumber
+* def key = 'a'
+* def foo = { a: 1 }
+* eval delete foo[key]
+```
+As a convenience, you can omit the `eval`:
+
+```cucumber
+* delete foo[key]
+```
 
 ## Fuzzy Matching
 ### Ignore or Validate

@@ -295,6 +295,25 @@ class ScenarioRuntimeTest {
     }
 
     @Test
+    void testRemoveNotExistentPath() {
+        run(
+                "def foo = { a: 1 }",
+                "remove foo.b"
+        );        
+        matchVar("foo", "{ a: 1 }");
+    }
+    
+    @Test
+    void testDelete() {
+        run(
+                "def foo = { a: 1 }",
+                "delete foo.b",
+                "delete foo.a"
+        );        
+        matchVar("foo", "{}");
+    }    
+    
+    @Test
     void testCollections() {
         run(
                 "def foo = { a: 1, b: 2, c: 3 }",
