@@ -75,6 +75,7 @@ public class Request implements ProxyObject {
     private static final String PARAMS = "params";
     private static final String HEADER = "header";
     private static final String HEADERS = "headers";
+    private static final String HEADER_VALUES = "headerValues";
     private static final String HEADER_ENTRIES = "headerEntries";
     private static final String PATH_PARAM = "pathParam";
     private static final String PATH_PARAMS = "pathParams";
@@ -99,7 +100,7 @@ public class Request implements ProxyObject {
     private static final String PATH_RAW = "pathRaw";
 
     private static final String[] KEYS = new String[]{
-        PATH, METHOD, PARAM, PARAM_INT, NON_BLANK, PARAMS, HEADER, HEADERS, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, PATH_MATCHES,
+        PATH, METHOD, PARAM, PARAM_INT, NON_BLANK, PARAMS, HEADER, HEADERS, HEADER_VALUES, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, PATH_MATCHES,
         BODY, BODY_STRING, BODY_BYTES, MULTI_PART, MULTI_PARTS, JSON, 
         GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL, PATH_RAW
     };
@@ -528,6 +529,10 @@ public class Request implements ProxyObject {
                 return (Function<String, String>) this::getHeader;
             case HEADERS:
                 return JsValue.fromJava(headers);
+            case HEADER_VALUES:
+                return (Function<String, List<String>>) this::getHeaderValues;
+            case HEADER_ENTRIES:
+                return HEADER_ENTRIES_FUNCTION;                
             case MULTI_PART:
                 return (Function<String, Object>) this::getMultiPartAsJsValue;
             case MULTI_PARTS:
@@ -542,8 +547,6 @@ public class Request implements ProxyObject {
             case OPTIONS:
             case TRACE:
                 return method.toLowerCase().equals(key);
-            case HEADER_ENTRIES:
-                return HEADER_ENTRIES_FUNCTION;
             default:
                 logger.warn("no such property on request object: {}", key);
                 return null;
