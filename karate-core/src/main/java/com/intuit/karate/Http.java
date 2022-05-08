@@ -59,6 +59,11 @@ public class Http {
         builder.url(url);
         return this;
     }
+    
+    public Http param(String key, String ... values) {
+        builder.param(key, values);
+        return this;
+    }
 
     public Http path(String... paths) {
         builder.paths(paths);
