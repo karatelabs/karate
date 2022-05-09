@@ -3,7 +3,7 @@
 
 ### Hello World
 
-<a href="https://twitter.com/ptrthomas/status/1160680107784036353"><img src="src/test/resources/driver-hello-world.jpg" height="230"/></a>
+<a href="https://twitter.com/getkarate/status/1167533484560142336"><img src="src/test/resources/driver-hello-world.jpg" height="230"/></a>
 
 # Index
 

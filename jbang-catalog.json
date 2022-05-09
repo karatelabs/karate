@@ -2,7 +2,7 @@
   "catalogs": {},
   "aliases": {
     "karate": {
-      "script-ref": "com.intuit.karate:karate-core:1.2.0.RC5:all"
+      "script-ref": "com.intuit.karate:karate-core:1.2.0:all"
     }
   }
 }
