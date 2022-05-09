@@ -2,7 +2,7 @@
 #leftnav { min-width: 250px; max-width: 250px; min-height: 100vh; background: #000; color: #fff; position: fixed; }
 
 .nav-logo { display: flex; }
-.nav-logo img { width: 120px; padding: 1em; }
+.nav-logo img { width: 120px; padding: 0.3em; }
 .nav-count { margin-top: 0.5em; margin-right: 1em; width: 100%; }
 #nav-pass, #nav-fail { font-size: xx-large; text-align: center; width: 100%; display: block; margin-top: 0.1em; }
 #nav-type, #nav-date { margin: 0.5em 1em; font-size: large; text-align: center; }

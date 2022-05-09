@@ -28,6 +28,7 @@ import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.template.KarateTemplateEngine;
 import java.io.InputStream;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -79,6 +80,10 @@ public class RequestCycle {
         Session session = context.getSession();
         if (session != null && !session.isTemporary()) {
             engine.put(SESSION, session.getData());
+        } else {
+            // easier for users to write code such as
+            // if (session.foo) {}
+            engine.put(SESSION, Collections.emptyMap());
         }
         // this has to be after the session init
         Map<String, Object> variables = context.getVariables();

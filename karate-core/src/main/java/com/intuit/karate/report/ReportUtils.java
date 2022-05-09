@@ -60,6 +60,7 @@ public class ReportUtils {
         "favicon.ico",
         "karate-logo.png",
         "karate-logo.svg",
+        "karate-labs-logo-ring.svg",
         "com/intuit/karate/report/bootstrap.min.css",
         "com/intuit/karate/report/bootstrap.min.js",
         "com/intuit/karate/report/jquery.min.js",
