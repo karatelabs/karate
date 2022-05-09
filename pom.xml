@@ -178,7 +178,7 @@
                             <dependency>
                                 <groupId>com.thoughtworks.xstream</groupId>
                                 <artifactId>xstream</artifactId>
-                                <version>1.4.15</version>
+                                <version>1.4.19</version>
                             </dependency>
                         </dependencies>                        
                     </plugin>                     
