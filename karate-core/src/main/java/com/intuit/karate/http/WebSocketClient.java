@@ -210,7 +210,9 @@ public class WebSocketClient implements WebSocketListener {
     public synchronized Object listen(long timeout) {
         try {
             logger.trace("entered listen wait state");
-            return SIGNAL.get(timeout, TimeUnit.MILLISECONDS);
+            Object result = SIGNAL.get(timeout, TimeUnit.MILLISECONDS);
+            SIGNAL = new CompletableFuture();
+            return result;
         } catch (Exception e) {
             logger.error("listen timed out: {}", e + "");
             return null;
