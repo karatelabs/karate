@@ -2539,7 +2539,7 @@ What is even more interesting is that expressions can refer to variables:
 And functions work as well ! You can imagine how you could evolve a nice set of utilities that validate all your domain objects.
 ```cucumber
 * def date = { month: 3 }
-* def isValidMonth = function(m) { return m >= 0 && m <= 12 }
+* def isValidMonth = function(m) { return m >= 1 && m <= 12 }
 * match date == { month: '#? isValidMonth(_)' }
 ```
 
