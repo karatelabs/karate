@@ -275,12 +275,15 @@ public class Match {
             return "#notpresent".equals(value);
         }
 
-        boolean isArray() {
-            return value.toString().startsWith("#[") || "#array".equals(value);
+        boolean isArrayOrOptionalArray() {
+            return value.toString().startsWith("#[")
+                || value.toString().startsWith("##[")
+                || "#array".equals(value)
+                || "##array".equals(value);
         }
 
-        boolean isObject() {
-            return "#object".equals(value);
+        boolean isObjectOrOptionalObject() {
+            return "#object".equals(value) || "##object".equals(value);
         }
 
         boolean isMapOrListOrXml() {
