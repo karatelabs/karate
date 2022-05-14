@@ -103,7 +103,8 @@ public class Request implements ProxyObject {
     private static final String PATH_RAW = "pathRaw";
 
     private static final String[] KEYS = new String[]{
-        PATH, METHOD, PARAM, PARAM_INT, PARAM_BOOL, PARAM_OR_NULL, PARAMS, HEADER, HEADERS, HEADER_VALUES, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, PATH_MATCHES,
+        PATH, METHOD, PARAM, PARAM_INT, PARAM_BOOL, PARAM_OR, PARAM_OR_NULL, PARAMS,
+        HEADER, HEADERS, HEADER_VALUES, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, PATH_MATCHES,
         BODY, BODY_STRING, BODY_BYTES, MULTI_PART, MULTI_PARTS, JSON,
         GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL, PATH_RAW
     };
@@ -193,9 +194,8 @@ public class Request implements ProxyObject {
         return StringUtils.isBlank(temp) ? value : temp;
     }
 
-    public String getParamOrNull(String name) {
-        String value = getParam(name);
-        return StringUtils.isBlank(value) ? null : value;
+    public Object getParamOrNull(String name) {
+        return getParamOr(name, null);
     }
 
     public List<String> getParamValues(String name) {
@@ -523,7 +523,7 @@ public class Request implements ProxyObject {
             case PARAM_OR:
                 return (BiFunction<String, Object, Object>) this::getParamOr;
             case PARAM_OR_NULL:
-                return (Function<String, String>) this::getParamOrNull;
+                return (Function<String, Object>) this::getParamOrNull;
             case JSON:
                 return (Function<String, Object>) this::getParamAsJsValue;
             case PATH:
