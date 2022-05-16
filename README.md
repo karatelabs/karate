@@ -879,11 +879,13 @@ mvn test -Dtest=CatsRunner
 ```
 Where `CatsRunner` is the JUnit class name (in any package) you wish to run.
 
-Karate is flexible, you can easily over-write config variables within each individual test-script - which is very convenient when in dev-mode or rapid-prototyping.
+Karate is flexible, you can easily over-write config variables within the Java or JUnit "runner" - which is very convenient when in dev-mode or rapid-prototyping.
 
 ```java
 System.setProperty("karate.env", "pre-prod");
 ```
+
+But the recommended way is to use the `karateEnv(name, value)` or `systemProperty(name, value)` API on the [parallel-runner](#parallel-execution).
 
 For advanced users, note that [tags](#tags) and the `karate.env` environment-switch can be "linked" using the special [environment tags](#environment-tags).
 
