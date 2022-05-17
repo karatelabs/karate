@@ -887,7 +887,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
         }
     }
 
-    private File toJavaFile(String path) {
+    public File toJavaFile(String path) {
         return getEngine().fileReader.toResource(path).getFile();
     }
 

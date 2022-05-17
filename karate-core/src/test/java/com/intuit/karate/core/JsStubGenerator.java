@@ -4,12 +4,10 @@ import com.intuit.karate.StringUtils;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import javassist.Modifier;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,19 +21,18 @@ class JsStubGenerator {
         StringBuilder sb = new StringBuilder();
         sb.append("function karate() {}\n");
         Class clazz = ScenarioBridge.class;
-        Comparator<Method> comparator = new Comparator<Method>() {
-            @Override
-            public int compare(Method o1, Method o2) {
-                int nameResult = o1.getName().compareTo(o2.getName());
-                if (nameResult != 0) {
-                    return nameResult;
-                }
-                return o1.getParameterCount() - o2.getParameterCount();
-            }            
+        Comparator<Method> comparator = (Method o1, Method o2) -> {
+            int nameResult = o1.getName().compareTo(o2.getName());
+            if (nameResult != 0) {
+                return nameResult;
+            }
+            return o1.getParameterCount() - o2.getParameterCount();            
         };
         List<Method> methods = new ArrayList();
         for (Method method : clazz.getDeclaredMethods()) {
-            methods.add(method);
+            if (Modifier.isPublic(method.getModifiers())) {
+                methods.add(method);
+            }            
         }
         Collections.sort(methods, comparator);
         for (Method method : methods) {
