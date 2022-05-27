@@ -129,7 +129,7 @@ public class MockServer extends HttpServer {
             } else {
                 sb.http(port);
             }
-            ServerHandler handler = watch ? new ReloadingMockHandler(features, args, prefix) : new MockHandler(features, args).withPrefix(prefix);
+            ServerHandler handler = watch ? new ReloadingMockHandler(features, args, prefix) : new MockHandler(prefix, features, args);
             HttpService service = new HttpServerHandler(handler);
             sb.service("prefix:" + (prefix == null ? "/" : prefix), service);
             return new MockServer(sb);
@@ -151,7 +151,7 @@ public class MockServer extends HttpServer {
                 this.files.put(f.getResource().getFile(), f.getResource().getFile().lastModified());
             }
             logger.debug("watch mode init - {}", files);
-            handler = new MockHandler(features, args).withPrefix(prefix);
+            handler = new MockHandler(prefix, features, args);
         }
 
         @Override
@@ -159,7 +159,7 @@ public class MockServer extends HttpServer {
             boolean reload = files.entrySet().stream().reduce(false, (modified, entry) -> entry.getKey().lastModified() > entry.getValue(), (a, b) -> a || b);
             if (reload) {
                 List<Feature> features = files.keySet().stream().map(f -> Feature.read(f)).collect(Collectors.toList());
-                handler = new MockHandler(features, args).withPrefix(prefix);
+                handler = new MockHandler(prefix, features, args);
             }
             return handler.handle(request);
         }

@@ -22,6 +22,7 @@ class MockTest {
         MockServer server = MockServer.featurePaths(
                 "classpath:com/intuit/karate/core/mock/_simple.feature",
                 "classpath:com/intuit/karate/core/mock/_mock.feature")
+                .pathPrefix("/") // ensure cli default works
                 .build();
         System.setProperty("karate.server.port", server.getPort() + "");
         return server;

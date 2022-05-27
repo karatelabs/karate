@@ -75,26 +75,22 @@ public class MockHandler implements ServerHandler {
     private boolean corsEnabled;
 
     protected static final ThreadLocal<Request> LOCAL_REQUEST = new ThreadLocal<>();
-    private String prefix = null;
-
-    public MockHandler withPrefix(String prefix) {
-        this.prefix = prefix;
-        return this;
-    }
+    private final String prefix;
 
     public MockHandler(Feature feature) {
         this(feature, null);
     }
 
     public MockHandler(Feature feature, Map<String, Object> args) {
-        this(Collections.singletonList(feature), args);
+        this(null, Collections.singletonList(feature), args);
     }
 
     public MockHandler(List<Feature> features) {
-        this(features, null);
+        this(null, features, null);
     }
 
-    public MockHandler(List<Feature> features, Map<String, Object> args) {
+    public MockHandler(String prefix, List<Feature> features, Map<String, Object> args) {
+        this.prefix = "/".equals(prefix) ? null : prefix;
         for (Feature feature : features) {
             FeatureRuntime featureRuntime = FeatureRuntime.of(Suite.forTempUse(HttpClientFactory.DEFAULT), feature, args);
             FeatureSection section = new FeatureSection();
