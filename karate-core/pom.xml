@@ -12,7 +12,7 @@
     
     <properties>
         <antlr.version>4.9.2</antlr.version>
-        <graal.version>22.1.0.1</graal.version>
+        <graal.version>22.0.0.2</graal.version>
     </properties>
 
     <dependencies>
