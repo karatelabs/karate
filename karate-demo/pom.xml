@@ -128,9 +128,8 @@
                 <configuration>
                     <includes>
                         <include>demo/DemoTestParallel.java</include>
-                        <!-- TODO broke after graal upgrade to 22
-                        <include>mock/contract/*Test.java</include>
-                        -->
+                        <!-- TODO broke after graal upgrade to 22 -->
+                        <!-- <include>mock/contract/*Test.java</include> -->                        
                         <include>mock/async/*Test.java</include>
                         <include>mock/micro/*Runner.java</include>
                         <include>mock/proxy/*Runner.java</include>
