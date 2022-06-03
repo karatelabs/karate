@@ -1,5 +1,6 @@
 package com.intuit.karate.graal;
 
+import com.intuit.karate.Json;
 import java.util.function.Function;
 
 /**
@@ -14,6 +15,10 @@ public class StaticPojo {
 
     public static Function<String, String> sayHelloFactory() {
         return s -> sayHello(s);
+    }
+    
+    public static String convert(Object o) {
+        return Json.of(o).toString();
     }
 
 }
