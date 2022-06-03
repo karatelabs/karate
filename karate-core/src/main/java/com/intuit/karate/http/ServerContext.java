@@ -121,7 +121,7 @@ public class ServerContext implements ProxyObject {
 
     public ServerContext(ServerConfig config, Request request) {
         this(config, request, null);
-    }
+    }        
 
     public ServerContext(ServerConfig config, Request request, Map<String, Object> variables) {
         this.config = config;
@@ -136,9 +136,8 @@ public class ServerContext implements ProxyObject {
             return http;
         };
         RENDER_FUNCTION = o -> {
-            KarateEngineContext engineContext = KarateEngineContext.get();
             if (o instanceof String) {
-                return TemplateUtils.renderServerPath((String) o, engineContext.getJsEngine(), config.getResourceResolver(), config.isDevMode());
+                return TemplateUtils.renderServerPath((String) o, getEngine(), config.getResourceResolver(), config.isDevMode());
             }
             Map<String, Object> map;
             if (o instanceof Map) {
@@ -160,7 +159,7 @@ public class ServerContext implements ProxyObject {
             if (fork != null && fork) {
                 je = JsEngine.local();
             } else {
-                je = engineContext.getJsEngine().copy();
+                je = getEngine().copy();
             }
             if (vars != null) {
                 je.putAll(vars);
@@ -225,14 +224,19 @@ public class ServerContext implements ProxyObject {
             return JsValue.fromString(raw, false, resourceType);
         }
     }
+    
+    private JsEngine getEngine() {
+        KarateEngineContext kec = KarateEngineContext.get();
+        return kec == null ? RequestCycle.get().getEngine() : kec.getJsEngine();
+    }
 
     public Object eval(String source) {
-        return KarateEngineContext.get().getJsEngine().evalForValue(source);
+        return getEngine().evalForValue(source);
     }
 
     public Object evalWith(Object o, String source) {
         Value value = Value.asValue(o);
-        return KarateEngineContext.get().getJsEngine().evalWith(value, source, true);
+        return getEngine().evalWith(value, source, true);
     }
 
     public String toJson(Object o) {
@@ -374,12 +378,12 @@ public class ServerContext implements ProxyObject {
         String name = args[0].toString();
         KarateEngineContext kec = KarateEngineContext.get();
         Object value;
-        if (kec.containsVariable(name)) {
+        if (kec != null && kec.containsVariable(name)) {
             value = kec.getVariable(name);
         } else {
-            JsEngine je = kec.getJsEngine();
+            JsEngine je = getEngine();
             if (je.bindings.hasMember(name)) {
-                value = kec.getJsEngine().get(name).getValue();
+                value = je.get(name).getValue();
             } else if (args.length > 1) {
                 value = args[1];
             } else {
@@ -461,7 +465,7 @@ public class ServerContext implements ProxyObject {
 
     private final Supplier<Object> INIT_FUNCTION = () -> {
         init();
-        KarateEngineContext.get().getJsEngine().put(RequestCycle.SESSION, session.getData());
+        getEngine().put(RequestCycle.SESSION, session.getData());
         logger.debug("init session: {}", session);
         return null;
     };
