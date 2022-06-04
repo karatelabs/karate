@@ -83,6 +83,7 @@ public class Request implements ProxyObject {
     private static final String PATH_PARAM = "pathParam";
     private static final String PATH_PARAMS = "pathParams";
     private static final String PATH_MATCHES = "pathMatches";
+    private static final String PATH_PATTERN = "pathPattern";
     private static final String BODY = "body";
     private static final String BODY_STRING = "bodyString";
     private static final String BODY_BYTES = "bodyBytes";
@@ -104,7 +105,7 @@ public class Request implements ProxyObject {
 
     private static final String[] KEYS = new String[]{
         PATH, METHOD, PARAM, PARAM_INT, PARAM_BOOL, PARAM_OR, PARAM_OR_NULL, PARAMS,
-        HEADER, HEADERS, HEADER_VALUES, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, PATH_MATCHES,
+        HEADER, HEADERS, HEADER_VALUES, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, PATH_MATCHES, PATH_PATTERN,
         BODY, BODY_STRING, BODY_BYTES, MULTI_PART, MULTI_PARTS, JSON,
         GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL, PATH_RAW
     };
@@ -124,6 +125,7 @@ public class Request implements ProxyObject {
     private ResourceType resourceType;
     private String resourcePath;
     private Map<String, String> pathParams = Collections.emptyMap();
+    private String pathPattern;
     private RequestContext requestContext;
 
     public RequestContext getRequestContext() {
@@ -297,6 +299,7 @@ public class Request implements ProxyObject {
             return false;
         }
         pathParams = temp;
+        pathPattern = pattern;
         return true;
     }
 
@@ -542,6 +545,8 @@ public class Request implements ProxyObject {
                 return JsValue.fromJava(pathParams);
             case PATH_MATCHES:
                 return (Function<String, Object>) this::pathMatches;
+            case PATH_PATTERN:
+                return pathPattern;
             case HEADER:
                 return (Function<String, String>) this::getHeader;
             case HEADERS:
