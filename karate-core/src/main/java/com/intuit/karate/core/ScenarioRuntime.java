@@ -348,9 +348,9 @@ public class ScenarioRuntime implements Runnable {
             return false;
         }
         String callTag = feature.getCallTag();
-        if (callTag != null) {
+        if (callTag != null && (!fr.caller.isNone() || fr.perfHook != null)) {
             // only if this is a legit "call" or a gatling "call by tag"
-            if ((!fr.caller.isNone() || fr.perfHook != null) && tags.contains(callTag)) {
+            if (tags.contains(callTag)) {
                 fr.logger.info("{} - call by tag at line {}: {}", fr, scenario.getLine(), callTag);
                 return true;
             }

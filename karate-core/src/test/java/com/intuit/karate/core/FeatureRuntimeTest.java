@@ -335,5 +335,11 @@ class FeatureRuntimeTest {
     void testReadProperties() {
         run("read-properties.feature");
     }      
+    
+    @Test
+    void testCallSelf() {
+        run("call-self.feature");
+        matchContains(fr.result.getVariables(), "{ result: 'second' }");
+    }
 
 }
