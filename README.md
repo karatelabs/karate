@@ -303,7 +303,7 @@ You can find a lot more references, tutorials and blog-posts [in the wiki](https
 # Getting Started
 If you are a Java developer - Karate requires at least [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 and then either [Maven](http://maven.apache.org), [Gradle](https://gradle.org), [Eclipse](#eclipse-quickstart) or [IntelliJ](https://github.com/intuit/karate/wiki/IDE-Support#intellij-community-edition) to be installed. Note that Karate works fine on OpenJDK.
 
-If you are new to programming or test-automation, refer to this video for [getting started with just the (free) IntelliJ Community Edition](https://youtu.be/W-af7Cd8cMc). Other options are the [quickstart](#quickstart) or the [standalone executable](karate-netty#standalone-jar).
+If you are new to programming or test-automation, refer to the options for [IDE support](https://github.com/karatelabs/karate/wiki/IDE-Support) and the [official IntelliJ plugin](https://plugins.jetbrains.com/plugin/19232-karate) is recommended. Other options are the [quickstart](#quickstart) or the [standalone executable](karate-netty#standalone-jar).
 
 If you *don't* want to use Java, you have the option of just downloading and extracting the [ZIP release](https://github.com/intuit/karate/wiki/ZIP-Release). Try this especially if you don't have much experience with programming or test-automation. We recommend that you use the [Karate extension for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=kirkslota.karate-runner) - and with that, JavaScript, .NET and Python programmers will feel right at home.
 
