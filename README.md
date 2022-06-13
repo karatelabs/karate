@@ -350,8 +350,8 @@ mvn archetype:generate \
 
 This will create a folder called `myproject` (or whatever you set the name to).
 
-### IntelliJ Quickstart
-Refer to this video for [getting started with the free IntelliJ Community Edition](https://youtu.be/W-af7Cd8cMc). It simplifies the above process, since you only need to install IntelliJ. For Eclipse, refer to the wiki on [IDE Support](https://github.com/intuit/karate/wiki/IDE-Support).
+## IDE Support
+Refer to the wiki - [IDE Support](https://github.com/intuit/karate/wiki/IDE-Support).
 
 ## Folder Structure
 A Karate test script has the file extension `.feature` which is the standard followed by Cucumber.  You are free to organize your files using regular Java package conventions.
@@ -437,9 +437,6 @@ Assuming you use JUnit, there are some good reasons for the recommended (best pr
 
 For details on what actually goes into a script or `*.feature` file, refer to the [syntax guide](#syntax-guide).
 
-## IDE Support
-Refer to the wiki - [IDE Support](https://github.com/intuit/karate/wiki/IDE-Support).
-
 #### `file.encoding`
 In some cases, for large payloads and especially when the default system encoding is not `UTF-8` (Windows or non-US locales), you may run into issues where a `java.io.ByteArrayInputStream` is encountered instead of a string. Other errors could be a `java.net.URISyntaxException` and [`match`](#match) not working as expected because of special or foreign characters, e.g. German or `ISO-8859-15`. Typical symptoms are your tests working fine via the IDE but not when running via Maven or Gradle. The solution is to ensure that when Karate tests run, the JVM `file.encoding` is set to `UTF-8`. This can be done via the [`maven-surefire-plugin` configuration](http://maven.apache.org/surefire/maven-surefire-plugin/test-mojo.html#argLine). Add the plugin to the `<build>/<plugins>` section of your `pom.xml` if not already present: 
 
@@ -452,7 +449,7 @@ In some cases, for large payloads and especially when the default system encodin
             <argLine>-Dfile.encoding=UTF-8</argLine>
         </configuration>
     </plugin>
-``` 
+```
 
 ## JUnit 4
 > If you want to use JUnit 4, use the [`karate-junit4` Maven dependency](#maven) instead of `karate-junit5`.
