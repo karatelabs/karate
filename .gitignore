@@ -19,6 +19,7 @@ karate-demo/activemq-data/
 karate-demo/*.pem
 karate-demo/*.jks
 karate-demo/*.der
+karate-core/gen
 karate-core/*.pem
 karate-core/*.jks
 karate-core/*.der
