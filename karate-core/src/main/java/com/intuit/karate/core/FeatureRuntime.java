@@ -191,7 +191,7 @@ public class FeatureRuntime implements Runnable {
     }
 
     // extracted for junit5
-    public void afterFeature() {
+    public synchronized void afterFeature() {
         result.sortScenarioResults();
         if (lastExecutedScenario != null) {
             lastExecutedScenario.engine.invokeAfterHookIfConfigured(true);
