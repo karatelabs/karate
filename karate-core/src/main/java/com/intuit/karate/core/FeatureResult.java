@@ -318,7 +318,7 @@ public class FeatureResult {
         return config;
     }
 
-    public synchronized void sortScenarioResults() {
+    public void sortScenarioResults() {
         Collections.sort(scenarioResults);
     }
 
