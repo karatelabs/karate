@@ -258,7 +258,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 SourceBreakpoints sb = new SourceBreakpoints(req.getArguments());
                 BREAKPOINTS.put(normalizePath(sb.path), sb);
                 logger.trace("source breakpoints: {}", sb);
-                ctx.write(response(req).body("breakpoints", sb.breakpoints));
+                ctx.write(response(req).body("breakpoints", sb.getBreakpointsAsListOfMaps()));
                 break;
             case "launch":
                 // normally a single feature full path, but can be set with any valid karate.options

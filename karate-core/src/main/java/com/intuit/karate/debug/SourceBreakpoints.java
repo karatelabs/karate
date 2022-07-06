@@ -28,6 +28,7 @@ import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Variable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -74,6 +75,14 @@ public class SourceBreakpoints {
             breakpoints.add(new Breakpoint(bm));
         }
         sourceModified = json.get("sourceModified");
+    }
+    
+    public List<Map> getBreakpointsAsListOfMaps() {
+        List<Map> list = new ArrayList(breakpoints.size());
+        for (Breakpoint b : breakpoints) {
+            list.add(b.toMap());
+        }
+        return list;
     }
 
     @Override
