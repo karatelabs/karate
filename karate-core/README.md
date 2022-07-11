@@ -726,17 +726,17 @@ For example, to [`retry()`](#retry) until an HTML element is present and then [`
 * retry().click('#someId')
 ```
 
-Or to [wait until a button is enabled](#waituntilenabled) using the default retry configuration:
+Or to [wait until a button is enabled](#waitForEnabled) using the default retry configuration:
 
 ```cucumber
-# waitUntilEnabled() returns an "Element" instance
-* waitUntilEnabled('#someBtn').click()
+# waitForEnabled() returns an "Element" instance
+* waitForEnabled('#someBtn').click()
 ```
 
 Or to temporarily [over-ride the retry configuration](#retry) *and* wait:
 
 ```cucumber
-* retry(5, 10000).waitUntilEnabled('#someBtn').click()
+* retry(5, 10000).waitForEnabled('#someBtn').click()
 ```
 
 Or to move the [mouse()](#mouse) to a given `[x, y]` co-ordinate *and* perform a click:
@@ -996,7 +996,7 @@ Since moving the mouse is a common task, these short-cuts can be used:
 ```cucumber
 * mouse('#menuItem32').click()
 * mouse(100, 200).go()
-* waitUntilEnabled('#someBtn').mouse().click()
+* waitForEnabled('#someBtn').mouse().click()
 ```
 
 These are useful in situations where the "normal" [`click()`](#click) does not work - especially when the element you are clicking is not a normal hyperlink (`<a href="">`) or `<button>`.
