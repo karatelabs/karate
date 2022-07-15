@@ -87,7 +87,6 @@ class IdeMainTest {
     @Test
     void testParsingCommandLineReportFormats() {
         Main options = IdeMain.parseIdeCommandLine("cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome -e local -f html,json,cucumber:json,junit:xml -g /dev/config/dir /dev/test/todos.feature:27");
-        System.out.println();
         assertIterableEquals(options.formats, new ArrayList<String>() {
             {
                 add("html");

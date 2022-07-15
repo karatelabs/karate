@@ -279,8 +279,5 @@ class FeatureParserTest {
         fr = FeatureRuntime.of(new Suite(builder), feature);
         outline = feature.getSection(0).getScenarioOutline();
         assertEquals(7, outline.getScenarios(fr).size());
-
-
-        System.out.println();
     }
 }
