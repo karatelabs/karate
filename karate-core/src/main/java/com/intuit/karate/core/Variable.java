@@ -71,11 +71,15 @@ public class Variable {
     public Variable(Object o) {
         if (o instanceof Value) {
             o = new JsValue((Value) o).getValue();
+        } else if (o instanceof JsFunction) {
+            o = ((JsFunction) o).value;
         } else if (o instanceof JsValue) {
             o = ((JsValue) o).getValue();
         }
         if (o == null) {
             type = Type.NULL;
+        } else if (o instanceof JsFunction) {
+            type = Type.JS_FUNCTION;
         } else if (o instanceof Value) {
             Value v = (Value) o;
             if (v.canExecute()) {

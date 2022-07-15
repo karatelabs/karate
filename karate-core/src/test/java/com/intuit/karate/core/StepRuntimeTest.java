@@ -42,7 +42,6 @@ public class StepRuntimeTest {
         Assertions.assertTrue(methodMatchList.stream().anyMatch(m -> m.getMethod().equals(method)));
         Assertions.assertTrue(methodMatchList.stream().anyMatch(m -> m.getArgs().equals(args)));
         Assertions.assertTrue(methodMatchList.stream().anyMatch(m -> m.toString().equals(methodSignature)));
-        System.out.println();
     }
 
     @Test
