@@ -96,8 +96,5 @@ class MobileDriverOptionsTest {
         Map<String, Object> options5 = Json.of(driverSession5).get("$");
         String browserName5 = MobileDriverOptions.getBrowserName(options5);
         Assertions.assertEquals(null, browserName5);
-        System.out.println(browserName);
-
-
     }
 }
