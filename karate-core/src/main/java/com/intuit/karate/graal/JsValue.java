@@ -35,6 +35,9 @@ import java.util.Set;
 import java.util.function.Function;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.Proxy;
+import org.graalvm.polyglot.proxy.ProxyExecutable;
+import org.graalvm.polyglot.proxy.ProxyInstantiable;
+import org.graalvm.polyglot.proxy.ProxyObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
@@ -55,7 +58,7 @@ public class JsValue {
         NULL,
         OTHER
     }
-    
+
     public static final JsValue NULL = new JsValue(Value.asValue(null));
 
     private final Value original;
@@ -68,9 +71,16 @@ public class JsValue {
         }
         this.original = v;
         try {
-            if (v.isNull()) { // apparently this can be a "host object" as well !
+            if (v.isNull()) {
                 value = null;
                 type = Type.NULL;
+            } else if (v.isHostObject()) {
+                if (v.isMetaObject()) { // java.lang.Class !
+                    value = v; // special case, keep around as graal value
+                } else {
+                    value = v.asHostObject();
+                }
+                type = Type.OTHER;
             } else if (v.isProxyObject()) {
                 Object o = v.asProxyObject();
                 if (o instanceof JsXml) {
@@ -82,27 +92,13 @@ public class JsValue {
                 } else if (o instanceof JsList) {
                     value = ((JsList) o).getList();
                     type = Type.ARRAY;
-                } else if (o instanceof JsExecutable) {
-                    value = (JsExecutable) o;
-                    type = Type.FUNCTION;                
+                } else if (o instanceof ProxyExecutable) {
+                    value = o;
+                    type = Type.FUNCTION;
                 } else { // e.g. custom bridge, e.g. Request
                     value = v.as(Object.class);
                     type = Type.OTHER;
                 }
-            } else if (v.isHostObject()) { // java object
-                if (v.isMetaObject()) { // java.lang.Class !
-                    value = v; // special case, keep around as graal value
-                } else {
-                    value = v.asHostObject();
-                }
-                type = Type.OTHER;
-            } else if (v.canExecute()) {
-                if (v.isMetaObject()) { // js function
-                    value = v; // special case, keep around as graal value                
-                } else { // java function reference
-                    value = new JsExecutable(v);
-                }
-                type = Type.FUNCTION;
             } else if (v.hasArrayElements()) {
                 int size = (int) v.getArraySize();
                 List list = new ArrayList(size);
@@ -113,17 +109,40 @@ public class JsValue {
                 value = list;
                 type = Type.ARRAY;
             } else if (v.hasMembers()) {
-                Set<String> keys = v.getMemberKeys();
-                Map<String, Object> map = new LinkedHashMap(keys.size());
-                for (String key : keys) {
-                    Value child = v.getMember(key);
-                    map.put(key, new JsValue(child).value);
+                if (v.canExecute()) {
+                    if (v.canInstantiate()) {
+                        // js functions have members, can be executed and are instantiable
+                        value = new SharableMembersAndInstantiable(v);
+                    } else {
+                        value = new SharableMembersAndExecutable(v);
+                    }
+                    type = Type.FUNCTION;
+                } else {
+                    Set<String> keys = v.getMemberKeys();
+                    Map<String, Object> map = new LinkedHashMap(keys.size());
+                    for (String key : keys) {
+                        Value child = v.getMember(key);
+                        map.put(key, new JsValue(child).value);
+                    }
+                    value = map;
+                    type = Type.OBJECT;
                 }
-                value = map;
-                type = Type.OBJECT;
+            } else if (v.isNumber()) {
+                value = v.as(Number.class);
+                type = Type.OTHER;
+            } else if (v.isBoolean()) {
+                value = v.asBoolean();
+                type = Type.OTHER;
+            } else if (v.isString()) {
+                value = v.asString();
+                type = Type.OTHER;
             } else {
                 value = v.as(Object.class);
-                type = Type.OTHER;
+                if (value instanceof Function) {
+                    type = Type.FUNCTION;
+                } else {
+                    type = Type.OTHER;
+                }                
             }
         } catch (Exception e) {
             if (logger.isTraceEnabled()) {
@@ -184,7 +203,7 @@ public class JsValue {
     public String toString() {
         return original.toString();
     }
-    
+
     public String toJsonOrXmlString(boolean pretty) {
         return toString(value, pretty);
     }
@@ -195,7 +214,7 @@ public class JsValue {
 
     public static Object fromJava(Object o) {
         if (o instanceof Function || o instanceof Proxy) {
-            return o; 
+            return o;
         } else if (o instanceof List) {
             return new JsList((List) o);
         } else if (o instanceof Map) {
@@ -226,7 +245,7 @@ public class JsValue {
     public static byte[] toBytes(Value v) {
         return toBytes(toJava(v));
     }
-    
+
     public static String toString(Object o) {
         return toString(o, false);
     }
@@ -316,7 +335,7 @@ public class JsValue {
             return raw;
         }
     }
-    
+
     public static boolean isTruthy(Object o) {
         if (o == null) {
             return false;
@@ -329,5 +348,79 @@ public class JsValue {
         }
         return true;
     }
- 
+
+    static class SharableMembers implements ProxyObject {
+
+        final Value v;
+
+        SharableMembers(Value v) {
+            this.v = v;
+        }
+
+        @Override
+        public void putMember(String key, Value value) {
+            v.putMember(key, new JsValue(value).value);
+        }
+
+        @Override
+        public boolean hasMember(String key) {
+            return v.hasMember(key);
+        }
+
+        @Override
+        public Object getMemberKeys() {
+            return v.getMemberKeys().toArray(new String[0]);
+        }
+
+        @Override
+        public Object getMember(String key) {
+            return new JsValue(v.getMember(key)).value;
+        }
+
+        @Override
+        public boolean removeMember(String key) {
+            return v.removeMember(key);
+        }
+    }
+    
+    private static final Object LOCK = new Object();
+
+    public static class SharableMembersAndExecutable extends SharableMembers implements ProxyExecutable {
+
+        SharableMembersAndExecutable(Value v) {
+            super(v);
+        }
+
+        @Override
+        public Object execute(Value... args) {
+            Object[] newArgs = new Object[args.length];
+            // the synchronized block should include the pre-processing of arguments
+            synchronized (LOCK) {
+                for (int i = 0; i < newArgs.length; i++) {
+                    newArgs[i] = new JsValue(args[i]).value;
+                }
+                Value result = v.execute(newArgs);
+                return new JsValue(result).value;
+            }
+        }
+
+    }
+
+    public static class SharableMembersAndInstantiable extends SharableMembersAndExecutable implements ProxyInstantiable {
+
+        SharableMembersAndInstantiable(Value v) {
+            super(v);
+        }
+
+        @Override
+        public Object newInstance(Value... args) {
+            Object[] newArgs = new Object[args.length];
+            for (int i = 0; i < newArgs.length; i++) {
+                newArgs[i] = new JsValue(args[i]).value;
+            }
+            return new JsValue(v.execute(newArgs)).value;
+        }
+
+    }
+
 }

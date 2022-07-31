@@ -39,6 +39,7 @@ import com.intuit.karate.shell.StringLogAppender;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -274,6 +275,15 @@ public class ScenarioRuntime implements Runnable {
         }
         logger.error("{}", message);
     }
+    
+    private Map<String, Object> shallowClone(Map<String, Object> map) {
+        Map<String, Object> result = new LinkedHashMap(map.size());
+        map.forEach((k, v) -> {
+            Variable var = new Variable(v);
+            result.put(k, var.copy(false));
+        });
+        return map;
+    }
 
     private Map<String, Object> initMagicVariables() {
         Map<String, Object> map = new HashMap();
@@ -288,9 +298,7 @@ public class ScenarioRuntime implements Runnable {
                 // the shallow clone of variables is important
                 // otherwise graal / js functions in calling context get corrupted
                 caller.parentRuntime.engine.vars.forEach((k, v) -> map.put(k, v == null ? null : v.copy(false).getValue()));
-
-                // shallow copy magicVariables
-                map.putAll((Map<String, Object>) caller.parentRuntime.engine.shallowClone(caller.parentRuntime.magicVariables));
+                map.putAll(shallowClone(caller.parentRuntime.magicVariables));
             }
 
             map.put("__arg", caller.arg == null ? null : caller.arg.getValue());
@@ -509,7 +517,6 @@ public class ScenarioRuntime implements Runnable {
             } else {
                 stopped = true;
             }
-
             if (stopped && (!this.engine.getConfig().isContinueAfterContinueOnStepFailure() || !this.engine.isIgnoringStepErrors())) {
                 error = stepResult.getError();
                 logError(error.getMessage());

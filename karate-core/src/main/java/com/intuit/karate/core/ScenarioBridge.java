@@ -879,12 +879,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
     }
 
     public Object toJava(Value value) {
-        if (value.canExecute()) {
-            JsEngine copy = getEngine().JS.copy();
-            return new JsLambda(copy.attach(value));
-        } else {
-            return new JsValue(value).getValue();
-        }
+        return new JsValue(value).getValue();
     }
 
     public File toJavaFile(String path) {
@@ -980,8 +975,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
         if (listener == null || !listener.canExecute()) {
             handler = m -> true;
         } else {
-            JsEngine copy = engine.JS.copy();
-            handler = new JsLambda(copy.attach(listener));
+            handler = new JsLambda(listener);
         }
         WebSocketOptions options = new WebSocketOptions(url, value == null ? null : new JsValue(value).getValue());
         options.setTextHandler(handler);
@@ -1002,8 +996,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
         if (listener == null || !listener.canExecute()) {
             handler = m -> true;
         } else {
-            JsEngine copy = engine.JS.copy();
-            handler = new JsLambda(copy.attach(listener));
+            handler = new JsLambda(listener);
         }
         WebSocketOptions options = new WebSocketOptions(url, value == null ? null : new JsValue(value).getValue());
         options.setBinaryHandler(handler);

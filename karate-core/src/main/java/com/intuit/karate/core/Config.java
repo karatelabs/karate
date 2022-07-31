@@ -111,21 +111,11 @@ public class Config {
     }
 
     private static Variable attach(Variable v, JsEngine je) {
-        if (v.isJsFunctionWrapper()) {
-            JsFunction jf = v.getValue();
-            Value attached = je.attachSource(jf.source);
-            return new Variable(attached);
-        } else {
-            return v;
-        }
+        return v;
     }
 
     private static Variable detach(Variable v) {
-        if (v.isJsFunction()) {
-            return new Variable(new JsFunction(v.getValue()));
-        } else {
-            return v;
-        }
+        return v;
     }
 
     protected void attach(JsEngine je) {

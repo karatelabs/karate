@@ -40,6 +40,7 @@ import com.intuit.karate.graal.JsExecutable;
 import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.graal.JsLambda;
 import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.graal.JsValue.SharableMembersAndExecutable;
 import com.intuit.karate.http.*;
 import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceResolver;
@@ -64,6 +65,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.graalvm.polyglot.proxy.ProxyExecutable;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -1111,86 +1113,14 @@ public class ScenarioEngine {
         return result == null ? o : result;
     }
 
-    // call shared context
-    protected Object shallowClone(Object o) {
-        if (o instanceof List) {
-            return this.shallowCloneList((List<Object>) o);
-        } else if (o instanceof Map) {
-            return this.shallowCloneMap((Map<String, Object>) o);
-        } else {
-            return o;
-        }
-    }
-
-    // call shared context
-    protected List<Object> shallowCloneList(List<Object> o) {
-        List<Object> result = new ArrayList();
-        o.forEach(v -> {
-            if (v instanceof List) {
-                List copy = new ArrayList();
-                copy.addAll((List) v);
-                result.add(copy);
-            } else if (v instanceof Map) {
-                Map copy = new HashMap();
-                copy.putAll((Map) v);
-                result.add(copy);
-            } else {
-                result.add(v);
-            }
-        });
-        return result;
-    }
-
-    // call shared context
-    protected Map<String, Object> shallowCloneMap(Map<String, Object> o) {
-        Map<String, Object> result = new HashMap();
-        o.forEach((k, v) -> {
-            if (v instanceof List) {
-                List copy = new ArrayList();
-                copy.addAll((List) v);
-                result.put(k, copy);
-            } else if (v instanceof Map) {
-                Map copy = new HashMap();
-                copy.putAll((Map) v);
-                result.put(k, copy);
-            } else {
-                result.put(k, v);
-            }
-        });
-        return result;
-    }
-
     private Object recurseAndAttach(String name, Object o, Set<Object> seen) {
         if (o instanceof Value) {
-            Value value = Value.asValue(o);
-            try {
-                if (value.canExecute()) {
-                    if (value.isMetaObject()) { // js function
-                        return attach(value);
-                    } else { // java function
-                        return new JsExecutable(value);
-                    }
-                } else { // anything else, including java-type references
-                    return value;
-                }
-            } catch (Exception e) {
-                logger.warn("[*** attach ***] ignoring non-json value: '{}' - {}", name, e.getMessage());
-                // here we try our luck and hope that graal does not notice !
-                return value;
-            }
+            return o;
         }
         if (o instanceof Class) {
             Class clazz = (Class) o;
             Value value = JS.evalForValue("Java.type('" + clazz.getCanonicalName() + "')");
             return value;
-        } else if (o instanceof JsFunction) {
-            JsFunction jf = (JsFunction) o;
-            try {
-                return attachSource(jf.source);
-            } catch (Exception e) {
-                logger.warn("[*** attach ***] ignoring js-function: '{}' - {}", name, e.getMessage());
-                return Value.asValue(null); // make sure we return a "dirty" value to force an update
-            }
         } else if (o instanceof List) {
             if (seen.add(o)) {
                 List list = (List) o;
@@ -1245,20 +1175,6 @@ public class ScenarioEngine {
 
     private Object recurseAndDetach(String name, Object o, Set<Object> seen) {
         if (o instanceof Value) {
-            Value value = (Value) o;
-            try {
-                if (value.canExecute()) {
-                    if (value.isMetaObject()) { // js function
-                        return new JsFunction(value);
-                    } else { // java function                        
-                        return new JsExecutable(value);
-                    }
-                } else if (value.isHostObject()) {
-                    return value.asHostObject();
-                }
-            } catch (Exception e) {
-                logger.warn("[*** detach ***] ignoring non-json value: '{}' - {}", name, e.getMessage());
-            }
             return null;
         } else if (o instanceof List) {
             List list = (List) o;
@@ -1295,14 +1211,6 @@ public class ScenarioEngine {
         }
     }
 
-    public Value attachSource(CharSequence source) {
-        return JS.attachSource(source);
-    }
-
-    public Value attach(Value before) {
-        return JS.attach(before);
-    }
-
     protected <T> Map<String, T> getOrEvalAsMap(Variable var, Object... args) {
         if (var.isJsOrJavaFunction()) {
             Variable res = executeFunction(var, args);
@@ -1315,9 +1223,9 @@ public class ScenarioEngine {
     public Variable executeFunction(Variable var, Object... args) {
         switch (var.type) {
             case JS_FUNCTION:
-                Value jsFunction = var.getValue();                
-                JsValue jsResult = executeJsValue(JS.attach(jsFunction), args);
-                return new Variable(jsResult);
+                ProxyExecutable pe = var.getValue();
+                Object result = JsEngine.execute(pe, args);
+                return new Variable(result);
             case JAVA_FUNCTION:  // definitely a "call" with a single argument
                 Function javaFunction = var.getValue();
                 Object arg = args.length == 0 ? null : args[0];
@@ -1325,17 +1233,6 @@ public class ScenarioEngine {
                 return new Variable(JsValue.unWrap(javaResult));
             default:
                 throw new RuntimeException("expected function, but was: " + var);
-        }
-    }
-
-    private JsValue executeJsValue(Value function, Object... args) {
-        try {
-            return new JsValue(JsEngine.execute(function, args));
-        } catch (Exception e) {
-            String jsSource = function.getSourceLocation().getCharacters().toString();
-            KarateException ke = JsEngine.fromJsEvalException(jsSource, e, null);
-            setFailedReason(ke);
-            throw ke;
         }
     }
 

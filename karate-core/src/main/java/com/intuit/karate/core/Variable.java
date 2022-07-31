@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import org.graalvm.polyglot.Value;
+import org.graalvm.polyglot.proxy.ProxyExecutable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
@@ -76,13 +77,10 @@ public class Variable {
         }
         if (o == null) {
             type = Type.NULL;
+        } else if (o instanceof ProxyExecutable) {
+            type = Type.JS_FUNCTION;
         } else if (o instanceof Value) {
-            Value v = (Value) o;
-            if (v.canExecute()) {
-                type = Type.JS_FUNCTION;
-            } else {
-                type = Type.OTHER; // java.lang.Class
-            }
+            type = Type.OTHER; // java.lang.Class            
         } else if (o instanceof Function) {
             type = Type.JAVA_FUNCTION;
         } else if (o instanceof Node) {
