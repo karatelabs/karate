@@ -36,11 +36,8 @@ import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Key;
 import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsExecutable;
-import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.graal.JsLambda;
 import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.graal.JsValue.SharableMembersAndExecutable;
 import com.intuit.karate.http.*;
 import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceResolver;
@@ -1343,6 +1340,10 @@ public class ScenarioEngine {
         return text != null && (text.startsWith("#(") || text.startsWith("##(")) && text.endsWith(")");
     }
 
+    private Map<String, Object> Map(Object callResult) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
     private static class EmbedAction {
 
         final boolean remove;
@@ -1891,6 +1892,7 @@ public class ScenarioEngine {
         }
         return new StringUtils.Pair(line.substring(0, pos), StringUtils.trimToNull(line.substring(pos)));
     }
+      
 
     public Variable call(Variable called, Variable arg, boolean sharedScope) {
         switch (called.type) {
@@ -1900,7 +1902,7 @@ public class ScenarioEngine {
             case FEATURE:
                 // will be always a map or a list of maps (loop call result)                
                 Object callResult = callFeature(called.getValue(), arg, -1, sharedScope);
-                this.rehydrateCallFeatureResult(callResult);
+                // this.rehydrateCallFeatureResult(callResult);
                 return new Variable(callResult);
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);

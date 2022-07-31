@@ -116,9 +116,9 @@ public class JsEngine {
             Value v = bindings.getMember(key);
             if (v.isHostObject()) {
                 temp.bindings.putMember(key, v);
-            } else if (v.canExecute()) {
-                Value fun = temp.evalForValue("(" + v.getSourceLocation().getCharacters() + ")");
-                temp.bindings.putMember(key, fun);
+//            } else if (v.canExecute()) {
+//                Value fun = temp.evalForValue("(" + v.getSourceLocation().getCharacters() + ")");
+//                temp.bindings.putMember(key, fun);
             } else {
                 temp.bindings.putMember(key, JsValue.toJava(v));
             }

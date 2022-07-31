@@ -43,7 +43,6 @@ import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.ResourceType;
-import com.intuit.karate.http.Response;
 import com.intuit.karate.http.WebSocketClient;
 import com.intuit.karate.http.WebSocketOptions;
 import com.intuit.karate.shell.Command;
@@ -739,10 +738,10 @@ public class ScenarioBridge implements PerfContext, EventContext {
         }
         return new JsList(list);
     }
-    
+
     public String responseHeader(String name) {
         return getEngine().getResponse().getHeader(name);
-    }    
+    }
 
     // set multiple variables in one shot
     public void set(Map<String, Object> map) {

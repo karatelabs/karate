@@ -383,7 +383,7 @@ public class JsValue {
         }
     }
     
-    private static final Object LOCK = new Object();
+    public static final Object LOCK = new Object();
 
     public static class SharableMembersAndExecutable extends SharableMembers implements ProxyExecutable {
 
@@ -402,7 +402,7 @@ public class JsValue {
                 Value result = v.execute(newArgs);
                 return new JsValue(result).value;
             }
-        }
+        }                
 
     }
 

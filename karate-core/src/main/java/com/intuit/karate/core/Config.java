@@ -28,10 +28,8 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.driver.DockerTarget;
 import com.intuit.karate.driver.Target;
 import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.http.Cookies;
 import com.intuit.karate.http.HttpLogModifier;
-import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
