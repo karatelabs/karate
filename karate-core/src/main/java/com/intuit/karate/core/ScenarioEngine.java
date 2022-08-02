@@ -1035,28 +1035,12 @@ public class ScenarioEngine {
         logger.trace("js context: {}", JS);
         // to avoid re-processing objects that have cyclic dependencies
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        runtime.magicVariables.forEach((k, v) -> {
-            // even hidden variables may need pre-processing
-            // for e.g. the __arg may contain functions that originated in a different js context
-            Object o = recurseAndAttach(k, v, seen);
-            JS.put(k, o == null ? v : o); // attach returns null if "not dirty"
-        });
-        vars.forEach((k, v) -> {
-            // re-hydrate any functions from caller or background  
-            Object o = recurseAndAttach(k, v.getValue(), seen);
-            // note that we don't update the vars !
-            // if we do, any "bad" out-of-context values will crash the constructor of Variable
-            // it is possible the vars are detached / re-used later, so we kind of defer the inevitable
-            JS.put(k, o == null ? v.getValue() : o); // attach returns null if "not dirty"
-        });
+        runtime.magicVariables.forEach((k, v) -> JS.put(k, v));
+        vars.forEach((k, v) -> JS.put(k, v.getValue()));
         if (runtime.caller.arg != null && runtime.caller.arg.isMap()) {
             // add the call arg as separate "over ride" variables
             Map<String, Object> arg = runtime.caller.arg.getValue();
-            recurseAndAttach("", arg, seen); // since arg is a map, it will not be cloned
-            arg.forEach((k, v) -> {
-                vars.put(k, new Variable(v));
-                JS.put(k, v);
-            });
+            setVariables(arg);
         }
         JS.put(KARATE, bridge);
         JS.put(READ, readFunction);        
@@ -1100,59 +1084,7 @@ public class ScenarioEngine {
         } else if (o instanceof Map) {
             o = new LinkedHashMap((Map) o);
         }
-        Object result = recurseAndAttach("", o, seen);
-        return result == null ? o : result;
-    }
-
-    // call shared context
-    protected Object recurseAndAttach(Object o) {
-        Object result = recurseAndAttach("", o, Collections.newSetFromMap(new IdentityHashMap()));
-        return result == null ? o : result;
-    }
-
-    private Object recurseAndAttach(String name, Object o, Set<Object> seen) {
-        if (o instanceof Value) {
-            return o;
-        }
-        if (o instanceof Class) {
-            Class clazz = (Class) o;
-            Value value = JS.evalForValue("Java.type('" + clazz.getCanonicalName() + "')");
-            return value;
-        } else if (o instanceof List) {
-            if (seen.add(o)) {
-                List list = (List) o;
-                int count = list.size();
-                try {
-                    for (int i = 0; i < count; i++) {
-                        Object child = list.get(i);
-                        Object childResult = recurseAndAttach(name + "[" + i + "]", child, seen);
-                        if (childResult != null) {
-                            list.set(i, childResult);
-                        }
-                    }
-                } catch (Exception e) {
-                    logger.warn("attach - immutable list: {}", name);
-                }
-            }
-            return null;
-        } else if (o instanceof Map) {
-            if (seen.add(o)) {
-                Map<String, Object> map = (Map) o;
-                try {
-                    map.forEach((k, v) -> {
-                        Object childResult = recurseAndAttach(name + "." + k, v, seen);
-                        if (childResult != null) {
-                            map.put(k, childResult);
-                        }
-                    });
-                } catch (Exception e) {
-                    logger.warn("attach - immutable map: {}", name);
-                }
-            }
-            return null;
-        } else {
-            return null;
-        }
+        return o;
     }
 
     protected Object recurseAndDetachAndShallowClone(Object o) {
@@ -1909,29 +1841,6 @@ public class ScenarioEngine {
         }
     }
 
-    private void rehydrateCallFeatureResult(Object callResult) {
-        Object callResultVariables = null;
-        if (callResult instanceof FeatureResult) {
-            callResultVariables = ((FeatureResult) callResult).getVariables();
-            ((FeatureResult) callResult).getConfig().detach();
-        } else if (callResult instanceof List) {
-            callResultVariables = new ArrayList<Map<String,Object>>();
-            final List<Map<String,Object>> finalCallResultVariables = (List<Map<String,Object>>)callResultVariables;
-            ((List<?>) callResult).forEach(result -> {
-                if (result instanceof FeatureResult) {
-                    finalCallResultVariables.add(((FeatureResult) result).getVariables());
-                    Config config = ((FeatureResult) result).getConfig();
-                    config.detach();
-                }
-            });
-            callResultVariables = finalCallResultVariables;
-        } else {
-            callResultVariables = callResult;
-        }
-        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        recurseAndAttach("", callResultVariables, seen);
-    }
-
     public Variable getCallFeatureVariables(Variable featureResult) {
         if (featureResult.getValue() instanceof FeatureResult) {
             return new Variable(((FeatureResult) featureResult.getValue()).getVariables());
@@ -2069,13 +1978,6 @@ public class ScenarioEngine {
             THREAD_LOCAL.set(this);
             FeatureResult result = fr.result;
             runtime.addCallResult(result);
-            if (sharedScope) {
-                // if it's shared scope we don't want JS functions rehydrated in different contexts (threads)
-                // to polute parent scope/context
-                runtime.engine.recurseAndAttach(runtime.magicVariables);
-                runtime.engine.recurseAndAttach(runtime.engine.vars);
-                // todo: shared config
-            }
             if (result.isFailed()) {
                 KarateException ke = result.getErrorMessagesCombined();
                 throw ke;

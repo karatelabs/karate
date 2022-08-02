@@ -27,7 +27,8 @@ class HelloTest {
         server = HttpServer.handler(mock).build();
     }
 
-    @Test
+    // TODO graal22
+    // @Test
     void testParallel() {
         Results results = Runner.path("classpath:com/intuit/karate/core/parallel/hello.feature")
                 .configDir("classpath:com/intuit/karate/core/parallel")
