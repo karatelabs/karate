@@ -304,7 +304,6 @@ public class ScenarioEngine {
     // callonce routine is one example
     public void setConfig(Config config) {
         this.config = config;
-        config.attach(JS);
         if (requestBuilder != null) {
             requestBuilder.client.setConfig(config);
         }
@@ -1871,9 +1870,7 @@ public class ScenarioEngine {
             // detaching is important (see JsFunction) so that we can keep the source-code aside
             // and use it to re-create functions in a new JS context - and work around graal-js limitations
             Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? detachVariables() : null;
-            Config clonedConfig = new Config(config);
-            clonedConfig.detach();
-            result = new ScenarioCall.Result(resultVariables.copy(false), clonedConfig, clonedVars);
+            result = new ScenarioCall.Result(resultVariables.copy(false), new Config(config), clonedVars);
             CACHE.put(cacheKey, result);
             logger.info("<< lock released, cached callonce: {}", cacheKey);
              // another routine will apply globally if needed

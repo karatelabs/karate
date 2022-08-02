@@ -79,7 +79,6 @@ public class ScenarioRuntime implements Runnable {
             logAppender = new StringLogAppender(false);
             if (background != null) {
                 config = new Config(background.engine.getConfig());
-                config.detach();
             } else {
                 config = new Config();
             }
@@ -91,17 +90,13 @@ public class ScenarioRuntime implements Runnable {
         } else if (caller.isSharedScope()) {
             logAppender = caller.parentRuntime.logAppender;
             ScenarioEngine parentEngine = background == null ? caller.parentRuntime.engine : background.engine;
-            Config config = parentEngine.getConfig();
-            config.detach();
             Map<String, Variable> vars = caller.parentRuntime.engine.vars;
-            engine = new ScenarioEngine(config, this, vars, logger, parentEngine.requestBuilder.copy(null));
+            engine = new ScenarioEngine(parentEngine.getConfig(), this, vars, logger, parentEngine.requestBuilder.copy(null));
         } else { // new, but clone and copy data
             logAppender = caller.parentRuntime.logAppender;
             ScenarioEngine parentEngine = background == null ? caller.parentRuntime.engine : background.engine;
-            Config config = new Config(parentEngine.getConfig());
-            config.detach();
             // in this case, parent variables are set via magic variables
-            engine = new ScenarioEngine(config, this, new HashMap(), logger, parentEngine.requestBuilder.copy(null));
+            engine = new ScenarioEngine(new Config(parentEngine.getConfig()), this, new HashMap(), logger, parentEngine.requestBuilder.copy(null));
         }
         logger.setAppender(logAppender);
         actions = new ScenarioActions(engine);
@@ -387,8 +382,7 @@ public class ScenarioRuntime implements Runnable {
         }
         ScenarioEngine.set(engine);
         engine.init();
-        engine.getConfig().attach(engine.JS);
-        if (this.background != null) {
+        if (background != null) {
             ScenarioEngine backgroundEngine = background.engine;
             if (backgroundEngine.driver != null) {
                 engine.setDriver(backgroundEngine.driver);

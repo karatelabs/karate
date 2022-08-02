@@ -27,7 +27,6 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.driver.DockerTarget;
 import com.intuit.karate.driver.Target;
-import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.http.Cookies;
 import com.intuit.karate.http.HttpLogModifier;
 import org.slf4j.Logger;
@@ -106,28 +105,6 @@ public class Config {
 
     public Config() {
         // zero arg constructor
-    }
-
-    private static Variable attach(Variable v, JsEngine je) {
-        return v;
-    }
-
-    private static Variable detach(Variable v) {
-        return v;
-    }
-
-    protected void attach(JsEngine je) {
-        afterScenario = attach(afterScenario, je);
-        afterFeature = attach(afterFeature, je);
-        headers = attach(headers, je);
-        cookies = attach(cookies, je);
-    }
-
-    protected void detach() {
-        afterScenario = detach(afterScenario);
-        afterFeature = detach(afterFeature);
-        headers = detach(headers);
-        cookies = detach(cookies);
     }
 
     private static <T> T get(Map<String, Object> map, String key, T defaultValue) {
