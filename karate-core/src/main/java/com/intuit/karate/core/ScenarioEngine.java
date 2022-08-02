@@ -1061,11 +1061,10 @@ public class ScenarioEngine {
         }
     }
 
-    protected Map<String, Variable> detachVariables() {
-        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        Map<String, Variable> detached = new HashMap(vars.size());
-        vars.forEach((k, v) -> detached.put(k, v.copy(false))); // shallow clone
-        return detached;
+    protected Map<String, Variable> shallowCloneVariables() {
+        Map<String, Variable> copy = new HashMap(vars.size());
+        vars.forEach((k, v) -> copy.put(k, v.copy(false))); // shallow clone
+        return copy;
     }
 
     protected <T> Map<String, T> getOrEvalAsMap(Variable var, Object... args) {
@@ -1800,11 +1799,9 @@ public class ScenarioEngine {
         Variable resultVariables = this.getCallFeatureVariables(result);
         if (sharedScope) {
             if (resultVariables.isMap()) {
-                setVariables(resultVariables.getValue());
-            } else if (resultVariables.isList()) {
-                ((List) resultVariables.getValue()).forEach(r -> {
-                    setVariables((Map) r);
-                });
+                synchronized (JsValue.LOCK) {
+                    setVariables(resultVariables.getValue());
+                }
             }
             if (result.getValue() instanceof FeatureResult) {
                 setConfig(((FeatureResult) result.getValue()).getConfig());
@@ -1828,9 +1825,8 @@ public class ScenarioEngine {
                     logger.warn("callonce: ignoring non-map value from result.value: {}", result.value);
                 }
             }
-            init(); // this will attach and also insert magic variables
+            init(); // this will insert magic variables
             // re-apply config from time of snapshot
-            // and note that setConfig() will attach functions such as configured "headers"
             setConfig(new Config(result.config));
             return Variable.NULL; // since we already reset the vars above we return null
             // else the call() routine would try to do it again
@@ -1867,14 +1863,11 @@ public class ScenarioEngine {
             Variable resultValue = call(called, arg, sharedScope);
             Variable resultVariables = this.getCallFeatureVariables(resultValue);
             // we clone result (and config) here, to snapshot state at the point the callonce was invoked
-            // detaching is important (see JsFunction) so that we can keep the source-code aside
-            // and use it to re-create functions in a new JS context - and work around graal-js limitations
-            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? detachVariables() : null;
+            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? shallowCloneVariables() : null;
             result = new ScenarioCall.Result(resultVariables.copy(false), new Config(config), clonedVars);
             CACHE.put(cacheKey, result);
             logger.info("<< lock released, cached callonce: {}", cacheKey);
              // another routine will apply globally if needed
-             // wrap and attach if being used immediately in a Scenario
             return callOnceResult(result, sharedScope); 
         }
     }

@@ -110,8 +110,8 @@ public class ScenarioRuntime implements Runnable {
                 engine.requestBuilder = background.engine.requestBuilder.copy(client);
             }
             result.addStepResults(background.result.getStepResults());
-            Map<String, Variable> detached = background.engine.detachVariables();
-            detached.forEach((k, v) -> engine.vars.put(k, v));
+            Map<String, Variable> copy = background.engine.shallowCloneVariables();
+            copy.forEach((k, v) -> engine.vars.put(k, v));
         }
         dryRun = featureRuntime.suite.dryRun;
         tags = scenario.getTagsEffective();

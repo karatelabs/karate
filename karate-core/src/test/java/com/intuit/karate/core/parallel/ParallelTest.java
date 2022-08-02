@@ -27,7 +27,6 @@ class ParallelTest {
         server = HttpServer.handler(mock).build();
     }
 
-    // TODO graal22
     @Test
     void testParallel() {
         Results results = Runner.path("classpath:com/intuit/karate/core/parallel/parallel.feature")

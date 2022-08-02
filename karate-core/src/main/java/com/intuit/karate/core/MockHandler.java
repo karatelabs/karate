@@ -117,7 +117,7 @@ public class MockHandler implements ServerHandler {
                 }
             }
             corsEnabled = corsEnabled || runtime.engine.getConfig().isCorsEnabled();
-            globals.putAll(runtime.engine.detachVariables());
+            globals.putAll(runtime.engine.shallowCloneVariables());
             runtime.logger.info("mock server initialized: {}", feature);
             this.features.put(feature, runtime);
         }
@@ -187,7 +187,7 @@ public class MockHandler implements ServerHandler {
                     responseStatus = engine.vars.remove(ScenarioEngine.RESPONSE_STATUS);
                     responseHeaders = engine.vars.remove(ScenarioEngine.RESPONSE_HEADERS);
                     responseDelay = engine.vars.remove(RESPONSE_DELAY);
-                    globals.putAll(engine.detachVariables());
+                    globals.putAll(engine.shallowCloneVariables());
                     Response res = new Response(200);
                     if (result.isFailed()) {
                         response = new Variable(result.getError().getMessage());

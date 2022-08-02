@@ -179,8 +179,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
             engine.logger.warn("callSingle() cached result is an exception");
             throw (Exception) o;
         }
-        // if we don't clone, an attach operation would update the tree within the cached value
-        // causing future cache hit + attach attempts to fail !
+        // shallow clone so that threads see the same data snapshot
         o = JsonUtils.shallowCopy(o);
         return JsValue.fromJava(o);
     }
