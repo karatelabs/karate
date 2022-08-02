@@ -36,6 +36,7 @@ import java.util.function.Function;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Engine;
 import org.graalvm.polyglot.Value;
+import org.graalvm.polyglot.proxy.ProxyExecutable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,9 +116,6 @@ public class JsEngine {
             Value v = bindings.getMember(key);
             if (v.isHostObject()) {
                 temp.bindings.putMember(key, v);
-            } else if (v.canExecute()) {
-                Value fun = temp.evalForValue("(" + v.getSourceLocation().getCharacters() + ")");
-                temp.bindings.putMember(key, fun);
             } else {
                 temp.bindings.putMember(key, JsValue.toJava(v));
             }
@@ -160,21 +158,14 @@ public class JsEngine {
         }
         return new JsValue(value);
     }
-
-    public Value attachSource(CharSequence source) {
-        Value value = evalForValue("(" + source + ")");
-        return attach(value);
-    }
-
-    public Value attach(Value function) {
-        try {
-            return context.asValue(function);
-        } catch (Exception e) {
-            logger.trace("context switch: {}", e.getMessage());
-            CharSequence source = function.getSourceLocation().getCharacters();
-            return evalForValue("(" + source + ")");
+    
+    public static Object execute(ProxyExecutable function, Object... args) {
+        Value[] values = new Value[args.length];
+        for (int i = 0; i < args.length; i++) {
+            values[i] = Value.asValue(args[i]);
         }
-    }
+        return function.execute(values);
+    }        
 
     public static Value execute(Value function, Object... args) {
         for (int i = 0; i < args.length; i++) {

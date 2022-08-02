@@ -39,6 +39,7 @@ import com.intuit.karate.shell.StringLogAppender;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -78,7 +79,6 @@ public class ScenarioRuntime implements Runnable {
             logAppender = new StringLogAppender(false);
             if (background != null) {
                 config = new Config(background.engine.getConfig());
-                config.detach();
             } else {
                 config = new Config();
             }
@@ -90,17 +90,16 @@ public class ScenarioRuntime implements Runnable {
         } else if (caller.isSharedScope()) {
             logAppender = caller.parentRuntime.logAppender;
             ScenarioEngine parentEngine = background == null ? caller.parentRuntime.engine : background.engine;
-            Config config = parentEngine.getConfig();
-            config.detach();
             Map<String, Variable> vars = caller.parentRuntime.engine.vars;
-            engine = new ScenarioEngine(config, this, vars, logger, parentEngine.requestBuilder.copy(null));
+            engine = new ScenarioEngine(parentEngine.getConfig(), this, vars, logger, parentEngine.requestBuilder.copy(null));
         } else { // new, but clone and copy data
             logAppender = caller.parentRuntime.logAppender;
             ScenarioEngine parentEngine = background == null ? caller.parentRuntime.engine : background.engine;
-            Config config = new Config(parentEngine.getConfig());
-            config.detach();
-            // in this case, parent variables are set via magic variables
-            engine = new ScenarioEngine(config, this, new HashMap(), logger, parentEngine.requestBuilder.copy(null));
+            // in this case, parent variables are set via magic variables - see initMagicVariables()
+            // which means the variables are only in the JS engine - [ see ScenarioEngine.init() ]
+            // and not "visible" via ScenarioEngine constructor (vars)
+            // one consequence is that they won't show up in the debug variables view
+            engine = new ScenarioEngine(new Config(parentEngine.getConfig()), this, new HashMap(), logger, parentEngine.requestBuilder.copy(null));
         }
         logger.setAppender(logAppender);
         actions = new ScenarioActions(engine);
@@ -114,8 +113,8 @@ public class ScenarioRuntime implements Runnable {
                 engine.requestBuilder = background.engine.requestBuilder.copy(client);
             }
             result.addStepResults(background.result.getStepResults());
-            Map<String, Variable> detached = background.engine.detachVariables();
-            detached.forEach((k, v) -> engine.vars.put(k, v));
+            Map<String, Variable> copy = background.engine.shallowCloneVariables();
+            copy.forEach((k, v) -> engine.vars.put(k, v));
         }
         dryRun = featureRuntime.suite.dryRun;
         tags = scenario.getTagsEffective();
@@ -281,18 +280,12 @@ public class ScenarioRuntime implements Runnable {
             // karate principle: parent variables are always "visible"
             // so we inject the parent variables
             // but they will be over-written by what is local to this scenario
-
-            if (caller.isSharedScope()) {
-                map.putAll(caller.parentRuntime.magicVariables);
-            } else {
-                // the shallow clone of variables is important
-                // otherwise graal / js functions in calling context get corrupted
-                caller.parentRuntime.engine.vars.forEach((k, v) -> map.put(k, v == null ? null : v.copy(false).getValue()));
-
-                // shallow copy magicVariables
-                map.putAll((Map<String, Object>) caller.parentRuntime.engine.shallowClone(caller.parentRuntime.magicVariables));
+            if (!caller.isSharedScope()) {
+                // shallow clone variables if not shared scope
+                Map<String, Variable> copy = caller.parentRuntime.engine.shallowCloneVariables();
+                copy.forEach((k, v) -> map.put(k, v.getValue()));
             }
-
+            map.putAll(caller.parentRuntime.magicVariables);
             map.put("__arg", caller.arg == null ? null : caller.arg.getValue());
             map.put("__loop", caller.getLoopIndex());
         }
@@ -379,8 +372,7 @@ public class ScenarioRuntime implements Runnable {
         }
         ScenarioEngine.set(engine);
         engine.init();
-        engine.getConfig().attach(engine.JS);
-        if (this.background != null) {
+        if (background != null) {
             ScenarioEngine backgroundEngine = background.engine;
             if (backgroundEngine.driver != null) {
                 engine.setDriver(backgroundEngine.driver);
@@ -509,7 +501,6 @@ public class ScenarioRuntime implements Runnable {
             } else {
                 stopped = true;
             }
-
             if (stopped && (!this.engine.getConfig().isContinueAfterContinueOnStepFailure() || !this.engine.isIgnoringStepErrors())) {
                 error = stepResult.getError();
                 logError(error.getMessage());

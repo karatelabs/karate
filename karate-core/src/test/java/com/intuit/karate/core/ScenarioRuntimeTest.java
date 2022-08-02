@@ -607,7 +607,7 @@ class ScenarioRuntimeTest {
                 "def myFn = function(x){ return { myVar: x } }",
                 "call myFn 'foo'"
         );
-        assertEquals(get("myVar"), "foo");
+        assertEquals(get("myVar"), "foo");      
     }
 
     @Test

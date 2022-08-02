@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.graal;
 
+import com.intuit.karate.graal.JsValue.SharableMembersAndInstantiable;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.graalvm.polyglot.Value;
@@ -33,30 +34,33 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class JsLambda implements Consumer, Function, Runnable {
+public class JsLambda extends SharableMembersAndInstantiable implements Consumer, Function, Runnable {
 
     private static final Logger logger = LoggerFactory.getLogger(JsLambda.class);
 
-    public final Value value;
-
-    public JsLambda(Value value) {
-        this.value = value;
+    public JsLambda(Value v) {
+        super(v);
     }
 
     @Override
     public void accept(Object arg) {
-        JsExecutable.invoke(value, arg);
+        synchronized (JsValue.LOCK) {
+            JsEngine.execute(this, arg);
+        }
     }
 
     @Override
     public Object apply(Object arg) {
-        Value res = JsExecutable.invoke(value, arg);
-        return JsValue.toJava(res);
+        synchronized (JsValue.LOCK) {
+            return JsEngine.execute(this, arg);
+        }
     }
 
     @Override
     public void run() {
-        JsExecutable.invoke(value);
+        synchronized (JsValue.LOCK) {
+            JsEngine.execute(this);
+        }
     }
 
 }
