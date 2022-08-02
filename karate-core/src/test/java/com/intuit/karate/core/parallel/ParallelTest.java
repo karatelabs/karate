@@ -28,7 +28,7 @@ class ParallelTest {
     }
 
     // TODO graal22
-    // @Test
+    @Test
     void testParallel() {
         Results results = Runner.path("classpath:com/intuit/karate/core/parallel/parallel.feature")
                 .configDir("classpath:com/intuit/karate/core/parallel")
