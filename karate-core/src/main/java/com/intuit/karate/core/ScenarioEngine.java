@@ -1121,16 +1121,9 @@ public class ScenarioEngine {
             o = v.getValue();
         } else {
             o = value;
-            try {
-                v = new Variable(value);
-            } catch (Exception e) {
-                v = null;
-                logger.warn("[*** set variable ***] ignoring non-json value: {} - {}", key, e.getMessage());
-            }
+            v = new Variable(value);
         }
-        if (v != null) {
-            vars.put(key, v);
-        }
+        vars.put(key, v);
         if (JS != null) {
             JS.put(key, o);
         }
@@ -1799,6 +1792,8 @@ public class ScenarioEngine {
         Variable resultVariables = this.getCallFeatureVariables(result);
         if (sharedScope) {
             if (resultVariables.isMap()) {
+                // even the act of introspecting graal values as part of the JsValue constructor
+                // triggers the dreaded graal js single-thread check, so we lock here
                 synchronized (JsValue.LOCK) {
                     setVariables(resultVariables.getValue());
                 }
