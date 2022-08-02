@@ -385,7 +385,7 @@ public class JsValue {
     
     public static final Object LOCK = new Object();
 
-    public static class SharableMembersAndExecutable extends SharableMembers implements ProxyExecutable {
+    static class SharableMembersAndExecutable extends SharableMembers implements ProxyExecutable {
 
         SharableMembersAndExecutable(Value v) {
             super(v);
@@ -406,7 +406,7 @@ public class JsValue {
 
     }
 
-    public static class SharableMembersAndInstantiable extends SharableMembersAndExecutable implements ProxyInstantiable {
+    static class SharableMembersAndInstantiable extends SharableMembersAndExecutable implements ProxyInstantiable {
 
         SharableMembersAndInstantiable(Value v) {
             super(v);
@@ -415,10 +415,13 @@ public class JsValue {
         @Override
         public Object newInstance(Value... args) {
             Object[] newArgs = new Object[args.length];
-            for (int i = 0; i < newArgs.length; i++) {
-                newArgs[i] = new JsValue(args[i]).value;
+            // the synchronized block should include the pre-processing of arguments
+            synchronized (LOCK) {            
+                for (int i = 0; i < newArgs.length; i++) {
+                    newArgs[i] = new JsValue(args[i]).value;
+                }
+                return new JsValue(v.execute(newArgs)).value;
             }
-            return new JsValue(v.execute(newArgs)).value;
         }
 
     }
