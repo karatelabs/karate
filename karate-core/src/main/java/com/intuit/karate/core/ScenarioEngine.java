@@ -1032,8 +1032,6 @@ public class ScenarioEngine {
     public void init() { // not in constructor because it has to be on Runnable.run() thread 
         JS = JsEngine.local();
         logger.trace("js context: {}", JS);
-        // to avoid re-processing objects that have cyclic dependencies
-        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
         runtime.magicVariables.forEach((k, v) -> JS.put(k, v));
         vars.forEach((k, v) -> JS.put(k, v.getValue()));
         if (runtime.caller.arg != null && runtime.caller.arg.isMap()) {

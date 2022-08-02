@@ -95,7 +95,10 @@ public class ScenarioRuntime implements Runnable {
         } else { // new, but clone and copy data
             logAppender = caller.parentRuntime.logAppender;
             ScenarioEngine parentEngine = background == null ? caller.parentRuntime.engine : background.engine;
-            // in this case, parent variables are set via magic variables
+            // in this case, parent variables are set via magic variables - see initMagicVariables()
+            // which means the variables are only in the JS engine - [ see ScenarioEngine.init() ]
+            // and not "visible" via ScenarioEngine constructor (vars)
+            // one consequence is that they won't show up in the debug variables view
             engine = new ScenarioEngine(new Config(parentEngine.getConfig()), this, new HashMap(), logger, parentEngine.requestBuilder.copy(null));
         }
         logger.setAppender(logAppender);
@@ -270,15 +273,6 @@ public class ScenarioRuntime implements Runnable {
         }
         logger.error("{}", message);
     }
-    
-    private Map<String, Object> shallowClone(Map<String, Object> map) {
-        Map<String, Object> result = new LinkedHashMap(map.size());
-        map.forEach((k, v) -> {
-            Variable var = new Variable(v);
-            result.put(k, var.copy(false));
-        });
-        return map;
-    }
 
     private Map<String, Object> initMagicVariables() {
         Map<String, Object> map = new HashMap();
@@ -286,16 +280,12 @@ public class ScenarioRuntime implements Runnable {
             // karate principle: parent variables are always "visible"
             // so we inject the parent variables
             // but they will be over-written by what is local to this scenario
-
-            if (caller.isSharedScope()) {
-                map.putAll(caller.parentRuntime.magicVariables);
-            } else {
-                // the shallow clone of variables is important
-                // otherwise graal / js functions in calling context get corrupted
-                caller.parentRuntime.engine.vars.forEach((k, v) -> map.put(k, v == null ? null : v.copy(false).getValue()));
-                map.putAll(shallowClone(caller.parentRuntime.magicVariables));
+            if (!caller.isSharedScope()) {
+                // shallow clone variables if not shared scope
+                Map<String, Variable> copy = caller.parentRuntime.engine.shallowCloneVariables();
+                copy.forEach((k, v) -> map.put(k, v.getValue()));
             }
-
+            map.putAll(caller.parentRuntime.magicVariables);
             map.put("__arg", caller.arg == null ? null : caller.arg.getValue());
             map.put("__loop", caller.getLoopIndex());
         }
