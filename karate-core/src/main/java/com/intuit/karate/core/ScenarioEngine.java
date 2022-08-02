@@ -1065,79 +1065,8 @@ public class ScenarioEngine {
     protected Map<String, Variable> detachVariables() {
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
         Map<String, Variable> detached = new HashMap(vars.size());
-        vars.forEach((k, v) -> {
-            Object o = recurseAndDetachAndShallowClone(k, v.getValue(), seen);
-            detached.put(k, new Variable(o));
-        });
+        vars.forEach((k, v) -> detached.put(k, v.copy(false))); // shallow clone
         return detached;
-    }
-
-    // callSingle
-    protected Object recurseAndAttachAndShallowClone(Object o) {
-        return recurseAndAttachAndShallowClone(o, Collections.newSetFromMap(new IdentityHashMap()));
-    }
-
-    // callonce
-    protected Object recurseAndAttachAndShallowClone(Object o, Set<Object> seen) {
-        if (o instanceof List) {
-            o = new ArrayList((List) o);
-        } else if (o instanceof Map) {
-            o = new LinkedHashMap((Map) o);
-        }
-        return o;
-    }
-
-    protected Object recurseAndDetachAndShallowClone(Object o) {
-        return recurseAndDetachAndShallowClone("", o, Collections.newSetFromMap(new IdentityHashMap()));
-    }
-
-    // callonce, callSingle and detachVariables()
-    private Object recurseAndDetachAndShallowClone(String name, Object o, Set<Object> seen) {
-        if (o instanceof List) {
-            o = new ArrayList((List) o);
-        } else if (o instanceof Map) {
-            o = new LinkedHashMap((Map) o);
-        }
-        Object result = recurseAndDetach(name, o, seen);
-        return result == null ? o : result;
-    }
-
-    private Object recurseAndDetach(String name, Object o, Set<Object> seen) {
-        if (o instanceof Value) {
-            return null;
-        } else if (o instanceof List) {
-            List list = (List) o;
-            int count = list.size();
-            try {
-                for (int i = 0; i < count; i++) {
-                    Object child = list.get(i);
-                    Object childResult = recurseAndDetach(name + "[" + i + "]", child, seen);
-                    if (childResult != null) {
-                        list.set(i, childResult);
-                    }
-                }
-            } catch (Exception e) {
-                logger.warn("detach - immutable list: {}", name);
-            }
-            return null;
-        } else if (o instanceof Map) {
-            if (seen.add(o)) {
-                Map<String, Object> map = (Map) o;
-                try {
-                    map.forEach((k, v) -> {
-                        Object childResult = recurseAndDetach(name + "." + k, v, seen);
-                        if (childResult != null) {
-                            map.put(k, childResult);
-                        }
-                    });
-                } catch (Exception e) {
-                    logger.warn("detach - immutable map: {}", name);
-                }
-            }
-            return null;
-        } else {
-            return null;
-        }
     }
 
     protected <T> Map<String, T> getOrEvalAsMap(Variable var, Object... args) {
@@ -1889,27 +1818,15 @@ public class ScenarioEngine {
         if (sharedScope) { // if shared scope
             vars.clear(); // clean slate            
             if (result.vars != null) {
-                Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-                result.vars.forEach((k, v) -> {
-                    // clone maps and lists so that subsequent steps don't modify data / references being passed around
-                    Object o = recurseAndAttachAndShallowClone(v.getValue(), seen);
-                    try {
-                        vars.put(k, new Variable(o));
-                    } catch (Exception e) {
-                        logger.warn("[*** callonce result ***] ignoring non-json value: '{}' - {}", k, e.getMessage());
-                    }
-                });
+                // shallow clone maps and lists so that subsequent steps don't modify data / references being passed around
+                result.vars.forEach((k, v) -> vars.put(k, v.copy(false)));
             } else if (result.value != null) {
                 if (result.value.isMap()) {
-                    ((Map) result.value.getValue()).forEach((k, v) -> {
-                        try {
-                            vars.put((String) k, new Variable(v));
-                        } catch (Exception e) {
-                            logger.warn("[*** callonce result ***] ignoring non-json value from result.value: '{}' - {}", k, e.getMessage());
-                        }
-                    });
+                    Map<String, Object> map = result.value.getValue();
+                    // shallow clone newly added variables
+                    map.forEach((k, v) -> vars.put(k, new Variable(JsonUtils.shallowCopy(v))));
                 } else {
-                    logger.warn("[*** callonce result ***] ignoring non-map value from result.value: {}", result.value);
+                    logger.warn("callonce: ignoring non-map value from result.value: {}", result.value);
                 }
             }
             init(); // this will attach and also insert magic variables
@@ -1920,9 +1837,8 @@ public class ScenarioEngine {
             // else the call() routine would try to do it again
             // note that shared scope means a return value is meaningless
         } else {
-            // deep-clone for the same reasons mentioned above
-            Object resultValue = recurseAndAttachAndShallowClone(result.value.getValue());
-            return new Variable(resultValue);
+            // shallow clone for the same reasons mentioned above
+            return result.value.copy(false);
         }
     }
 
@@ -1957,8 +1873,7 @@ public class ScenarioEngine {
             Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? detachVariables() : null;
             Config clonedConfig = new Config(config);
             clonedConfig.detach();
-            Object resultObject = recurseAndDetachAndShallowClone(resultVariables.getValue());
-            result = new ScenarioCall.Result(new Variable(resultObject), clonedConfig, clonedVars);
+            result = new ScenarioCall.Result(resultVariables.copy(false), clonedConfig, clonedVars);
             CACHE.put(cacheKey, result);
             logger.info("<< lock released, cached callonce: {}", cacheKey);
              // another routine will apply globally if needed

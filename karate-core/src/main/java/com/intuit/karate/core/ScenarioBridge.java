@@ -181,7 +181,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
         }
         // if we don't clone, an attach operation would update the tree within the cached value
         // causing future cache hit + attach attempts to fail !
-        o = engine.recurseAndAttachAndShallowClone(o);
+        o = JsonUtils.shallowCopy(o);
         return JsValue.fromJava(o);
     }
 
@@ -256,8 +256,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
                         engine.logger.warn("callSingleCache write failed, not json-like: {}", resultVar);
                     }
                 }
-                // functions have to be detached so that they can be re-hydrated in another js context
-                result = engine.recurseAndDetachAndShallowClone(resultVar.getValue());
+                result = resultVar.getValue();
             }
             CACHE.put(fileName, result);
             engine.logger.info("<< lock released, cached callSingle: {}", fileName);

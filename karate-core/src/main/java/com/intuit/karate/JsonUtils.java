@@ -207,6 +207,16 @@ public class JsonUtils {
         return sw.toString();
     }
 
+    public static Object shallowCopy(Object o) {
+        if (o instanceof List) {
+            return new ArrayList((List) o);
+        } else if (o instanceof Map) {
+            return new LinkedHashMap((Map) o);
+        } else {
+            return o;
+        }
+    }
+
     public static Object deepCopy(Object o) {
         // anti recursion / back-references
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
