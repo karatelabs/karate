@@ -726,6 +726,15 @@ class ScenarioRuntimeTest {
                 "match response == { odds: '#[$.count]', count: '#number' }"
         );
     }
+    
+    @Test
+    void testMatchSchemaContainsDeep() {
+        run(
+                "def array = [ 'a', 'b' ]",
+                "def response = { foo: [ 'a', 'b' ] } ",
+                "match response contains deep { foo: '#(^array)' }"
+        );        
+    }
 
     @Test
     void testJavaInteropStatic() {
