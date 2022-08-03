@@ -70,7 +70,7 @@ public class MockHandler implements ServerHandler {
     private static final String PATH_PARAMS = "pathParams";
     private static final String BODY_PATH = "bodyPath";
 
-    private final LinkedHashMap<Feature, ScenarioRuntime> features = new LinkedHashMap<>(); // feature + holds global config and vars
+    private final LinkedHashMap<Feature, ScenarioRuntime> featureRuntimes = new LinkedHashMap<>(); // feature + holds global config and vars
     private final Map<String, Variable> globals = new HashMap<>();
     private boolean corsEnabled;
 
@@ -119,7 +119,7 @@ public class MockHandler implements ServerHandler {
             corsEnabled = corsEnabled || runtime.engine.getConfig().isCorsEnabled();
             globals.putAll(runtime.engine.shallowCloneVariables());
             runtime.logger.info("mock server initialized: {}", feature);
-            this.features.put(feature, runtime);
+            featureRuntimes.put(feature, runtime);
         }
     }
 
@@ -157,7 +157,7 @@ public class MockHandler implements ServerHandler {
         // rare case when http-client is active within same jvm
         // snapshot existing thread-local to restore
         ScenarioEngine prevEngine = ScenarioEngine.get();
-        for (Map.Entry<Feature, ScenarioRuntime> entry : this.features.entrySet()) {
+        for (Map.Entry<Feature, ScenarioRuntime> entry : featureRuntimes.entrySet()) {
             Feature feature = entry.getKey();
             ScenarioRuntime runtime = entry.getValue();
             // important for graal to work properly
@@ -165,6 +165,7 @@ public class MockHandler implements ServerHandler {
             LOCAL_REQUEST.set(req);
             req.processBody();
             ScenarioEngine engine = createScenarioEngine(req, runtime);
+            ScenarioEngine.set(engine);
             Map<String, List<Map<String, Object>>> parts = req.getMultiParts();
             if (parts != null) {
                 engine.setHiddenVariable(REQUEST_PARTS, parts);
@@ -180,6 +181,7 @@ public class MockHandler implements ServerHandler {
                     Variable response, responseStatus, responseHeaders, responseDelay;
                     ScenarioActions actions = new ScenarioActions(engine);
                     Result result = PASSED;
+                    runtime.featureRuntime.mockEngine = engine;
                     result = executeScenarioSteps(feature, runtime, scenario, actions, result);
                     engine.mockAfterScenario();
                     configureHeaders = engine.mockConfigureHeaders();
@@ -248,8 +250,7 @@ public class MockHandler implements ServerHandler {
     }
 
     private ScenarioEngine createScenarioEngine(Request req, ScenarioRuntime runtime) {
-        ScenarioEngine engine = new ScenarioEngine(runtime, new HashMap<>(globals));
-        ScenarioEngine.set(engine);
+        ScenarioEngine engine = new ScenarioEngine(runtime, new HashMap<>(globals));        
         engine.init();
         engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
         engine.setVariable(ScenarioEngine.REQUEST_URI, req.getPath());

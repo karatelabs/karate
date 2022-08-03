@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.core;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -41,6 +43,35 @@ public class ScenarioCall {
     private boolean sharedScope;
     private boolean karateConfigDisabled;
     private int loopIndex = -1;
+    
+    public Map<String, Variable> getParentVars(boolean shallowCopy) {
+        if (parentRuntime == null) {
+            return new HashMap();
+        }
+        if (parentRuntime.featureRuntime.mockEngine != null) {
+            if (shallowCopy) {
+                return parentRuntime.featureRuntime.mockEngine.shallowCloneVariables();
+            } else {
+                return parentRuntime.featureRuntime.mockEngine.vars;
+            }
+        }
+        if (shallowCopy) {
+            return parentRuntime.engine.shallowCloneVariables();
+        } else {
+            return parentRuntime.engine.vars;
+        }
+    }
+    
+    public Config getParentConfig(boolean copy) {
+        if (parentRuntime == null) {
+            return new Config();
+        }
+        if (copy) {
+            return new Config(parentRuntime.engine.getConfig());
+        } else {
+            return parentRuntime.engine.getConfig();
+        }
+    }
 
     public boolean isNone() {
         return depth == 0;

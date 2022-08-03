@@ -51,7 +51,9 @@ public class FeatureRuntime implements Runnable {
     public final Feature feature;
     public final Iterator<ScenarioRuntime> scenarios;
     public final PerfHook perfHook;
-    public final FeatureResult result;
+    public final FeatureResult result;      
+    
+    public ScenarioEngine mockEngine;
 
     private final ParallelProcessor<ScenarioRuntime> processor;
 
