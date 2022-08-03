@@ -117,10 +117,6 @@ public class ScenarioEngine {
     }
 
     public ScenarioEngine(Config config, ScenarioRuntime runtime, Map<String, Variable> vars, Logger logger) {
-        this(config, runtime, vars, logger, null);
-    }
-
-    public ScenarioEngine(Config config, ScenarioRuntime runtime, Map<String, Variable> vars, Logger logger, HttpRequestBuilder requestBuilder) {
         this.config = config;
         this.runtime = runtime;
         hooks = runtime.featureRuntime.suite.hooks;
@@ -129,7 +125,6 @@ public class ScenarioEngine {
         bridge = new ScenarioBridge(this);
         this.vars = vars;
         this.logger = logger;
-        this.requestBuilder = requestBuilder;
     }
 
     public static ScenarioEngine forTempUse(HttpClientFactory hcf) {

@@ -82,7 +82,7 @@ public class ScenarioRuntime implements Runnable {
             } else {
                 config = new Config();
             }
-            engine = new ScenarioEngine(config, this, new HashMap(), logger, null); // TODO fix constructor weirdness, see next 3 lines
+            engine = new ScenarioEngine(config, this, new HashMap(), logger);
             if (background != null) {
                 HttpClient client = featureRuntime.suite.clientFactory.create(engine);
                 engine.requestBuilder = background.engine.requestBuilder.copy(client);
@@ -91,7 +91,7 @@ public class ScenarioRuntime implements Runnable {
             logAppender = caller.parentRuntime.logAppender;
             ScenarioEngine parentEngine = background == null ? caller.parentRuntime.engine : background.engine;
             Map<String, Variable> vars = caller.parentRuntime.engine.vars;
-            engine = new ScenarioEngine(parentEngine.getConfig(), this, vars, logger, parentEngine.requestBuilder.copy(null));
+            engine = new ScenarioEngine(parentEngine.getConfig(), this, vars, logger);
         } else { // new, but clone and copy data
             logAppender = caller.parentRuntime.logAppender;
             ScenarioEngine parentEngine = background == null ? caller.parentRuntime.engine : background.engine;
@@ -99,7 +99,8 @@ public class ScenarioRuntime implements Runnable {
             // which means the variables are only in the JS engine - [ see ScenarioEngine.init() ]
             // and not "visible" via ScenarioEngine constructor (vars)
             // one consequence is that they won't show up in the debug variables view
-            engine = new ScenarioEngine(new Config(parentEngine.getConfig()), this, new HashMap(), logger, parentEngine.requestBuilder.copy(null));
+            // and more importantly don't get passed back to caller and float around, bloating memory
+            engine = new ScenarioEngine(new Config(parentEngine.getConfig()), this, new HashMap(), logger);
         }
         logger.setAppender(logAppender);
         actions = new ScenarioActions(engine);
