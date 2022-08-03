@@ -50,8 +50,7 @@ public class Runner {
     public static Map<String, Object> runFeature(Feature feature, Map<String, Object> vars, boolean evalKarateConfig) {
         Suite suite = new Suite();
         FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, vars);
-        featureRuntime.caller.setKarateConfigDisabled(!evalKarateConfig);  
-        featureRuntime.caller.setTagsIgnored(true);
+        featureRuntime.caller.setKarateConfigDisabled(!evalKarateConfig);
         featureRuntime.run();
         FeatureResult result = featureRuntime.result;
         if (result.isFailed()) {

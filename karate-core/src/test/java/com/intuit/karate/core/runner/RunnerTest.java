@@ -122,7 +122,7 @@ class RunnerTest {
     @Test
     void testJavaApiWithIgnoreTag() {
         Map<String, Object> result = Runner.runFeature("classpath:com/intuit/karate/core/runner/run-ignore.feature", Collections.singletonMap("foo", "hello"), true);
-        assertEquals("hello world", result.get("message"));    
+        assertEquals(Collections.emptyMap(), result);    
     }
 
 }
