@@ -40,6 +40,7 @@ public class ScenarioCall {
 
     private boolean sharedScope;
     private boolean karateConfigDisabled;
+    private boolean tagsIgnored;
     private int loopIndex = -1;
 
     public boolean isNone() {
@@ -77,6 +78,14 @@ public class ScenarioCall {
     public boolean isKarateConfigDisabled() {
         return karateConfigDisabled;
     }
+
+    public void setTagsIgnored(boolean tagsIgnored) {
+        this.tagsIgnored = tagsIgnored;
+    }
+
+    public boolean isTagsIgnored() {
+        return tagsIgnored;
+    }        
 
     public static ScenarioCall none(Map<String, Object> arg) {
         return new ScenarioCall(null, null, arg == null ? null : new Variable(arg));

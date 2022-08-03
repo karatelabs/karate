@@ -254,4 +254,9 @@ public class Tags implements Iterable<Tag> {
         return sb.toString();
     }
 
+    @Override
+    public String toString() {
+        return tags.toString();
+    }        
+
 }

@@ -307,7 +307,8 @@ public class FeatureResult {
     }
 
     public Map<String, Object> getVariables() {
-        return resultVariables;
+        // edge case if no scenarios were run
+        return resultVariables == null ? new HashMap() : resultVariables;
     }
 
     public void setConfig(Config config) {

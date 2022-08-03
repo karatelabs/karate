@@ -50,7 +50,8 @@ public class Runner {
     public static Map<String, Object> runFeature(Feature feature, Map<String, Object> vars, boolean evalKarateConfig) {
         Suite suite = new Suite();
         FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, vars);
-        featureRuntime.caller.setKarateConfigDisabled(!evalKarateConfig);
+        featureRuntime.caller.setKarateConfigDisabled(!evalKarateConfig);  
+        featureRuntime.caller.setTagsIgnored(true);
         featureRuntime.run();
         FeatureResult result = featureRuntime.result;
         if (result.isFailed()) {
@@ -82,81 +83,6 @@ public class Runner {
         FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, arg, perfHook);
         featureRuntime.setNext(() -> perfHook.afterFeature(featureRuntime.result));
         perfHook.submit(featureRuntime);
-    }
-
-    //==========================================================================
-    //
-    /**
-     * @see com.intuit.karate.Runner#builder()
-     * @deprecated
-     */
-    @Deprecated
-    public static Results parallel(Class<?> clazz, int threadCount) {
-        return parallel(clazz, threadCount, null);
-    }
-
-    /**
-     * @see com.intuit.karate.Runner#builder()
-     * @deprecated
-     */
-    @Deprecated
-    public static Results parallel(Class<?> clazz, int threadCount, String reportDir) {
-        return builder().fromKarateAnnotation(clazz).reportDir(reportDir).parallel(threadCount);
-    }
-
-    /**
-     * @see com.intuit.karate.Runner#builder()
-     * @deprecated
-     */
-    @Deprecated
-    public static Results parallel(List<String> tags, List<String> paths, int threadCount, String reportDir) {
-        return parallel(tags, paths, null, null, threadCount, reportDir);
-    }
-
-    /**
-     * @see com.intuit.karate.Runner#builder()
-     * @deprecated
-     */
-    @Deprecated
-    public static Results parallel(int threadCount, String... tagsOrPaths) {
-        return parallel(null, threadCount, tagsOrPaths);
-    }
-
-    /**
-     * @see com.intuit.karate.Runner#builder()
-     * @deprecated
-     */
-    @Deprecated
-    public static Results parallel(String reportDir, int threadCount, String... tagsOrPaths) {
-        List<String> tags = new ArrayList();
-        List<String> paths = new ArrayList();
-        for (String s : tagsOrPaths) {
-            s = StringUtils.trimToEmpty(s);
-            if (s.startsWith("~") || s.startsWith("@")) {
-                tags.add(s);
-            } else {
-                paths.add(s);
-            }
-        }
-        return parallel(tags, paths, threadCount, reportDir);
-    }
-
-    /**
-     * @see com.intuit.karate.Runner#builder()
-     * @deprecated
-     */
-    @Deprecated
-    public static Results parallel(List<String> tags, List<String> paths, String scenarioName,
-            List<RuntimeHook> hooks, int threadCount, String reportDir) {
-        Builder options = new Builder();
-        options.tags = tags;
-        options.paths = paths;
-        options.scenarioName = scenarioName;
-        if (hooks != null) {
-            options.hooks.addAll(hooks);
-        }
-        options.reportDir = reportDir;
-        return options.parallel(threadCount);
     }
 
     //==========================================================================
