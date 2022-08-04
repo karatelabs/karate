@@ -3942,6 +3942,34 @@ Scenario: create, get, update, list and delete payments
     * match shipment == { paymentId: '#(id)', status: 'shipped' }
 ```
 
+## WebSocket
+Karate also has built-in support for [websocket](http://www.websocket.org) that is based on the [async](#async) capability and the [`listen`](#listen) keyword. The following method signatures are available on the [`karate` JS object](#the-karate-object) to obtain a websocket client:
+
+* `karate.webSocket(url)`
+* `karate.webSocket(url, handler)`
+* `karate.webSocket(url, handler, options)` - where `options` is an optional JSON (or map-like) object that takes the following optional keys:
+  * `subProtocol` - in case the server expects it
+  * `headers` - another JSON of key-value pairs
+  * `maxPayloadSize` - this defaults to 4194304 (bytes, around 4 MB)
+
+These will init a websocket client for the given `url` and optional `subProtocol`. You can call `send()` on the returned object to send a message.
+
+If a `handler` [function](#javascript-functions) (returning a boolean) is provided - it will be used to complete the [`listen`](#listen) "wait" if `true` is returned. A handler function is needed only if you have to ignore some incoming traffic and stop the "wait" when a certain payload arrives. If you don't pass a `handler` (or it is `null`), the first message is returned.
+
+Note that `karate.signal()` (described as part of the [`listen`](#listen) keyword) will be called internally and the `listenResult` will be the payload contents of the "selected" message.
+
+Here is an example, where the same websocket connection is used to send as well as receive a message.
+
+```cucumber
+* def handler = function(msg){ return msg.startsWith('hello') }
+* def socket = karate.webSocket(demoBaseUrl + '/websocket', handler)
+* socket.send('Billie')
+* listen 5000
+* match listenResult == 'hello Billie !'
+```
+
+For handling binary messages, the same `karate.webSocket()` method signatures exist for `karate.webSocketBinary()`. Refer to these examples for more: [`echo.feature`](karate-demo/src/test/java/demo/websocket/echo.feature) | [`websocket.feature`](karate-demo/src/test/java/demo/websocket/websocket.feature). Note that any websocket instances created will be auto-closed at the end of the `Scenario`.
+
 ### Java Function References
 JavaScript functions have some limitations when combined with multi-threaded Java code. So it is recommended that you directly use a Java `Function` when possible instead of using the `karate.toJava()` "wrapper" as shown above.
 
@@ -3968,30 +3996,6 @@ And now, to get a reference to that "function" you can do this:
 ```
 
 This can be convenient when using [shared scope](#shared-scope) because you can just call `sayHello('myname')` where needed.
-
-## WebSocket
-Karate also has built-in support for [websocket](http://www.websocket.org) that is based on the [async](#async) capability. The following method signatures are available on the [`karate` JS object](#the-karate-object) to obtain a websocket reference:
-
-* `karate.webSocket(url)`
-* `karate.webSocket(url, handler)`
-* `karate.webSocket(url, handler, options)` - where `options` is an optional JSON (or map-like) object that takes the following optional keys:
-  * `subProtocol` - in case the server expects it
-  * `headers` - another JSON of key-value pairs
-  * `maxPayloadSize` - this defaults to 4194304 (bytes, around 4 MB)
-
-These will init a websocket client for the given `url` and optional `subProtocol`. If a `handler` [function](#javascript-functions) (returning a boolean) is provided - it will be used to complete the "wait" of `socket.listen()` if `true` is returned - where `socket` is the reference to the websocket client returned by `karate.webSocket()`. A handler function is needed only if you have to ignore other incoming traffic. If you need custom headers for the websocket handshake, use JSON as the last argument.
-
-Here is an example, where the same websocket connection is used to send as well as receive a message.
-
-```cucumber
-* def handler = function(msg){ return msg.startsWith('hello') }
-* def socket = karate.webSocket(demoBaseUrl + '/websocket', handler)
-* socket.send('Billie')
-* def result = socket.listen(5000)
-* match result == 'hello Billie !'
-```
-
-For handling binary messages, the same `karate.webSocket()` method signatures exist for `karate.webSocketBinary()`. Refer to these examples for more: [`echo.feature`](karate-demo/src/test/java/demo/websocket/echo.feature) | [`websocket.feature`](karate-demo/src/test/java/demo/websocket/websocket.feature). Note that any websocket instances created will be auto-closed at the end of the `Scenario`.
 
 ## Tags
 Gherkin has a great way to sprinkle meta-data into test-scripts - which gives you some interesting options when running tests in bulk.  The most common use-case would be to partition your tests into 'smoke', 'regression' and the like - which enables being able to selectively execute a sub-set of tests.

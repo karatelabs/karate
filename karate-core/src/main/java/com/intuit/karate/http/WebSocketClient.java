@@ -24,6 +24,7 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.Logger;
+import com.intuit.karate.core.ScenarioEngine;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -52,8 +53,6 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.net.URI;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import javax.net.ssl.SSLException;
 
@@ -77,12 +76,20 @@ public class WebSocketClient implements WebSocketListener {
 
     private Function<String, Boolean> textHandler;
     private Function<byte[], Boolean> binaryHandler;
+    
+    private ScenarioEngine engine;
+
+    public void setEngine(ScenarioEngine engine) {
+        this.engine = engine;
+    }    
 
     @Override
     public void onMessage(String text) {
         if (textHandler != null) {
             if (textHandler.apply(text)) {
-                signal(text);
+                if (engine != null) {
+                    engine.signal(text);
+                }
             }
         }
     }
@@ -91,7 +98,9 @@ public class WebSocketClient implements WebSocketListener {
     public void onMessage(byte[] bytes) {
         if (binaryHandler != null) {
             if (binaryHandler.apply(bytes)) {
-                signal(bytes);
+                if (engine != null) {
+                    engine.signal(bytes);
+                }
             }
         }
     }
@@ -198,25 +207,6 @@ public class WebSocketClient implements WebSocketListener {
         ByteBuf byteBuf = Unpooled.copiedBuffer(msg);
         BinaryWebSocketFrame frame = new BinaryWebSocketFrame(byteBuf);
         channel.writeAndFlush(frame);
-    }
-
-    private CompletableFuture SIGNAL = new CompletableFuture();
-
-    public void signal(Object result) {
-        logger.trace("signal called: {}", result);
-        SIGNAL.complete(result);
-    }
-
-    public synchronized Object listen(long timeout) {
-        try {
-            logger.trace("entered listen wait state");
-            Object result = SIGNAL.get(timeout, TimeUnit.MILLISECONDS);
-            SIGNAL = new CompletableFuture();
-            return result;
-        } catch (Exception e) {
-            logger.error("listen timed out: {}", e + "");
-            return null;
-        }
     }
 
 }

@@ -44,23 +44,17 @@ public class JsLambda extends SharableMembersAndInstantiable implements Consumer
 
     @Override
     public void accept(Object arg) {
-        synchronized (JsValue.LOCK) {
-            JsEngine.execute(this, arg);
-        }
+        JsEngine.execute(this, arg);
     }
 
     @Override
     public Object apply(Object arg) {
-        synchronized (JsValue.LOCK) {
-            return JsEngine.execute(this, arg);
-        }
+        return JsEngine.execute(this, arg);
     }
 
     @Override
     public void run() {
-        synchronized (JsValue.LOCK) {
-            JsEngine.execute(this);
-        }
+        JsEngine.execute(this);
     }
 
 }

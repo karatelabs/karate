@@ -741,6 +741,7 @@ public class ScenarioEngine {
 
     public WebSocketClient webSocket(WebSocketOptions options) {
         WebSocketClient webSocketClient = new WebSocketClient(options, logger);
+        webSocketClient.setEngine(this);
         if (webSocketClients == null) {
             webSocketClients = new ArrayList();
         }
