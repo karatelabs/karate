@@ -748,8 +748,8 @@ public class ScenarioEngine {
         return webSocketClient;
     }
 
-    public synchronized void signal(Object result) {
-        SIGNAL.complete(result);
+    public void signal(Object result) {        
+        SIGNAL.complete(result);      
     }
 
     public void listen(String exp) {
@@ -759,10 +759,11 @@ public class ScenarioEngine {
         Object listenResult = null;
         try {
             listenResult = SIGNAL.get(timeout, TimeUnit.MILLISECONDS);
+            Thread.sleep(100); // IMPORTANT, else graal js complains
         } catch (Exception e) {
             logger.error("listen timed out: {}", e + "");
-        }
-        synchronized (JS.context) {
+        }        
+        synchronized (JsValue.LOCK) {
             setHiddenVariable(LISTEN_RESULT, listenResult);
             logger.debug("exit listen state with result: {}", listenResult);
             SIGNAL = new CompletableFuture();
