@@ -766,7 +766,7 @@ public class ScenarioBridge implements PerfContext {
         getEngine().set(name, path, new Variable(XmlUtils.toXmlDoc(xml)));
     }
 
-    public void signal(Value v) {
+    public void signal(Value v) {        
         getEngine().signal(JsValue.toJava(v));
     }
 

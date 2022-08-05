@@ -766,13 +766,8 @@ public class ScenarioEngine {
         return webSocketClient;
     }
 
-    public void signal(Object result) {    
-        try {
-            Thread.sleep(100); // IMPORTANT, else graal js complains
-            SIGNAL.complete(result);            
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }                
+    public void signal(Object result) {
+        SIGNAL.complete(result);                       
     }
 
     public void listen(String exp) {
