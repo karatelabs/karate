@@ -3231,10 +3231,10 @@ But if you need to use values in the response headers - they will be in a variab
 ```
 And just as in the [`responseCookies`](#responsecookies) example above, you can use [`match`](#match) to run complex validations on the `responseHeaders`.
 
-Finally, using [`karate.responseheader()`](#karate-responseheader) can be simpler to just get a header value string by name, and it will ignore-case for the name passed as the argument:
+Finally, using [`karate.response.header(name)`](#karate-response) can be simpler to just get a header value string by name, and it will ignore-case for the name passed as the argument:
 
 ```cucumber
-* match karate.header('content-type') == 'application/json'
+* match karate.response.header('content-type') == 'application/json'
 ```
 
 ## `responseStatus`

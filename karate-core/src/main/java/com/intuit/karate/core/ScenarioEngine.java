@@ -766,8 +766,13 @@ public class ScenarioEngine {
         return webSocketClient;
     }
 
-    public void signal(Object result) {        
-        SIGNAL.complete(result);      
+    public void signal(Object result) {    
+        try {
+            Thread.sleep(100);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }        
+        SIGNAL.complete(result);
     }
 
     public void listen(String exp) {

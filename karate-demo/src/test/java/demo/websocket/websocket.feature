@@ -26,26 +26,24 @@ Scenario: using the websocket instance to send as well as receive messages
     * listen 5000
     * match listenResult == 'hello Billie !'
 
-@ignore
 Scenario: listen for multiple websocket messages
     * def handler = function(msg){ return msg.startsWith('hello') }
     * def socket = karate.webSocket(demoBaseUrl + '/websocket', handler)
     * socket.send('Billie')
-    * def result = socket.listen(5000)
-    * match result == 'hello Billie !'
+    * listen 5000
+    * match listenResult == 'hello Billie !'
     * socket.send('Bob')
     * listen 5000
     * match listenResult == 'hello Bob !'
 
-@ignore
 Scenario: change the websocket handler for messages
     * def handler = function(msg){ return msg.contains('Billie') }
     * def socket = karate.webSocket(demoBaseUrl + '/websocket', handler)
     * socket.send('Billie')
-    * def result = socket.listen(5000)
-    * match result == 'hello Billie !'
+    * listen 5000
+    * match listenResult == 'hello Billie !'
     * def handler = function(msg){ return msg.contains('Bob') }
-    * socket.setTextHandler(karate.toJava(handler))
+    * socket.setTextHandler(handler)
     * socket.send('Bob')
     * listen 5000
     * match listenResult == 'hello Bob !'
