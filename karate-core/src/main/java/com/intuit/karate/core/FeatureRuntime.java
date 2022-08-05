@@ -53,7 +53,7 @@ public class FeatureRuntime implements Runnable {
     public final PerfHook perfHook;
     public final FeatureResult result;      
     
-    public ScenarioEngine mockEngine;
+    private ScenarioEngine mockEngine;
 
     private final ParallelProcessor<ScenarioRuntime> processor;
 
@@ -72,6 +72,14 @@ public class FeatureRuntime implements Runnable {
     public void setNext(Runnable next) {
         this.next = next;
     }
+
+    public void setMockEngine(ScenarioEngine mockEngine) {
+        this.mockEngine = mockEngine;
+    }        
+
+    public ScenarioEngine getMockEngine() {
+        return mockEngine;
+    }        
 
     public static FeatureRuntime forTempUse(HttpClientFactory hcf) {
         Suite sr = Suite.forTempUse(hcf);

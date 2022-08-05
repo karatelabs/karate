@@ -287,7 +287,8 @@ public class ScenarioEngine {
     // http ====================================================================
     //
     protected HttpRequestBuilder requestBuilder; // see init() method
-    private HttpRequest request;
+    private HttpRequest httpRequest;
+    private Request request; // used only for mocks
     private Response response;
     private Config config;
 
@@ -304,8 +305,24 @@ public class ScenarioEngine {
         }
     }
 
-    public HttpRequest getRequest() {
-        return request;
+    public void setRequest(Request request) {
+        this.request = request;
+    }
+
+    public Request getRequest() {
+        if (request != null) {
+            return request;
+        }
+        if (httpRequest != null) {
+            request = httpRequest.toRequest();
+            request.processBody();
+            return request;
+        }
+        return null;
+    }        
+
+    public HttpRequest getHttpRequest() {
+        return httpRequest;
     }
 
     public Response getResponse() {
@@ -568,22 +585,22 @@ public class ScenarioEngine {
         if (headers != null) {
             requestBuilder.headers(headers);
         }
-        request = requestBuilder.build();
+        httpRequest = requestBuilder.build();
         String perfEventName = null; // acts as a flag to report perf if not null
         if (runtime.perfMode) {
-            perfEventName = runtime.featureRuntime.perfHook.getPerfEventName(request, runtime);
+            perfEventName = runtime.featureRuntime.perfHook.getPerfEventName(httpRequest, runtime);
         }
         long startTime = System.currentTimeMillis();
-        request.setStartTimeMillis(startTime); // this may be fine-adjusted by actual http client
+        httpRequest.setStartTimeMillis(startTime); // this may be fine-adjusted by actual http client
         if (hooks != null) {
-            hooks.forEach(h -> h.beforeHttpCall(request, runtime));
+            hooks.forEach(h -> h.beforeHttpCall(httpRequest, runtime));
         }
         try {
-            response = requestBuilder.client.invoke(request);
+            response = requestBuilder.client.invoke(httpRequest);
         } catch (Exception e) {
             long endTime = System.currentTimeMillis();
             long responseTime = endTime - startTime;
-            String message = "http call failed after " + responseTime + " milliseconds for url: " + request.getUrl();
+            String message = "http call failed after " + responseTime + " milliseconds for url: " + httpRequest.getUrl();
             logger.error(e.getMessage() + ", " + message);
             if (perfEventName != null) {
                 PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, 0);
@@ -592,7 +609,7 @@ public class ScenarioEngine {
             throw new KarateException(message, e);
         }
         if (hooks != null) {
-            hooks.forEach(h -> h.afterHttpCall(request, response, runtime));
+            hooks.forEach(h -> h.afterHttpCall(httpRequest, response, runtime));
         }
         byte[] bytes = response.getBody();
         Object body;
@@ -628,8 +645,8 @@ public class ScenarioEngine {
         cookies = response.getCookies();
         updateConfigCookies(cookies);
         setHiddenVariable(RESPONSE_COOKIES, cookies);
-        startTime = request.getStartTimeMillis(); // in case it was re-adjusted by http client
-        long endTime = request.getEndTimeMillis();
+        startTime = httpRequest.getStartTimeMillis(); // in case it was re-adjusted by http client
+        long endTime = httpRequest.getEndTimeMillis();
         setHiddenVariable(REQUEST_TIME_STAMP, startTime);
         setHiddenVariable(RESPONSE_TIME, endTime - startTime);
         if (perfEventName != null) {
@@ -677,7 +694,7 @@ public class ScenarioEngine {
     public void status(int status) {
         if (status != response.getStatus()) {
             // make sure log masking is applied
-            String message = HttpLogger.getStatusFailureMessage(status, config, request, response);
+            String message = HttpLogger.getStatusFailureMessage(status, config, httpRequest, response);
             setFailedReason(new KarateException(message));
         }
     }

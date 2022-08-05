@@ -162,14 +162,26 @@ public class MockHandler implements ServerHandler {
             ScenarioRuntime runtime = entry.getValue();
             // important for graal to work properly
             Thread.currentThread().setContextClassLoader(runtime.featureRuntime.suite.classLoader);
+            // begin init engine for this request
             LOCAL_REQUEST.set(req);
             req.processBody();
-            ScenarioEngine engine = createScenarioEngine(req, runtime);
+            ScenarioEngine engine = new ScenarioEngine(runtime, new HashMap<>(globals));        
+            engine.init();
+            engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
+            engine.setVariable(ScenarioEngine.REQUEST_URI, req.getPath());
+            engine.setVariable(ScenarioEngine.REQUEST_METHOD, req.getMethod());
+            engine.setVariable(ScenarioEngine.REQUEST_HEADERS, req.getHeaders());
+            engine.setVariable(ScenarioEngine.REQUEST, req.getBodyConverted());
+            engine.setVariable(REQUEST_PARAMS, req.getParams());
+            engine.setVariable(REQUEST_BYTES, req.getBody());
+            engine.setRequest(req);
+            runtime.featureRuntime.setMockEngine(engine);
             ScenarioEngine.set(engine);
             Map<String, List<Map<String, Object>>> parts = req.getMultiParts();
             if (parts != null) {
                 engine.setHiddenVariable(REQUEST_PARTS, parts);
             }
+            // end init engine for this request
             for (FeatureSection fs : feature.getSections()) {
                 if (fs.isOutline()) {
                     runtime.logger.warn("skipping scenario outline - {}:{}", feature, fs.getScenarioOutline().getLine());
@@ -180,8 +192,7 @@ public class MockHandler implements ServerHandler {
                     Map<String, Object> configureHeaders;
                     Variable response, responseStatus, responseHeaders, responseDelay;
                     ScenarioActions actions = new ScenarioActions(engine);
-                    Result result = PASSED;
-                    runtime.featureRuntime.mockEngine = engine;
+                    Result result = PASSED;                   
                     result = executeScenarioSteps(feature, runtime, scenario, actions, result);
                     engine.mockAfterScenario();
                     configureHeaders = engine.mockConfigureHeaders();
@@ -247,19 +258,6 @@ public class MockHandler implements ServerHandler {
             }
         }
         return result;
-    }
-
-    private ScenarioEngine createScenarioEngine(Request req, ScenarioRuntime runtime) {
-        ScenarioEngine engine = new ScenarioEngine(runtime, new HashMap<>(globals));        
-        engine.init();
-        engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
-        engine.setVariable(ScenarioEngine.REQUEST_URI, req.getPath());
-        engine.setVariable(ScenarioEngine.REQUEST_METHOD, req.getMethod());
-        engine.setVariable(ScenarioEngine.REQUEST_HEADERS, req.getHeaders());
-        engine.setVariable(ScenarioEngine.REQUEST, req.getBodyConverted());
-        engine.setVariable(REQUEST_PARAMS, req.getParams());
-        engine.setVariable(REQUEST_BYTES, req.getBody());
-        return engine;
     }
 
     private boolean isMatchingScenario(Scenario scenario, ScenarioEngine engine) {

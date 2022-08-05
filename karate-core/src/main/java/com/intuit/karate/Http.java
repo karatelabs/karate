@@ -83,7 +83,7 @@ public class Http {
         Response response = engine.httpInvoke();
         if (response.getStatus() >= 400) {
             engine.logger.warn("http response code: {}, response: {}, request: {}",
-                    response.getStatus(), response.getBodyAsString(), engine.getRequest());
+                    response.getStatus(), response.getBodyAsString(), engine.getHttpRequest());
         }
         return response;
     }

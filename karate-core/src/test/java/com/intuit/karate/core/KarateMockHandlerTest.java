@@ -211,8 +211,7 @@ class KarateMockHandlerTest {
                 "method get",
                 "match responseHeaders == { 'Content-Type': ['application/json'] }",
                 "match header content-type == 'application/json'",
-                "match responseType == 'json'",
-                "match karate.responseHeader('content-type') == 'application/json'"
+                "match responseType == 'json'"
         );
     }
 

@@ -283,5 +283,39 @@ class KarateHttpMockHandlerTest {
         List<String> list = (List) map.get("access-control-allow-credentials");
         matchContains(list, "true");
     }
+    
+    @Test
+    void testKarateResponse() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def responseHeaders = { 'Some-Header': 'Some-Value' }"
+        );
+        startMockServer();
+        run(
+                urlStep(),
+                "path 'hello'",
+                "method get",
+                "def headerValue = karate.response.header('some-header')",
+                "def headerValues = karate.response.headerValues('some-header')"
+        );
+        matchVar("headerValue", "Some-Value");
+        matchVar("headerValues", "['Some-Value']");
+    }
+    
+    @Test
+    void testKarateRequest() {
+        background().scenario(
+                "karate.request.header('some-header') == 'Some-Value'",
+                "def response = 'success'"
+        );
+        startMockServer();
+        run(
+                urlStep(),
+                "path 'hello'",
+                "header Some-Header = 'Some-Value'",
+                "method get"
+        );
+        matchVar("response", "success");
+    }    
 
 }

@@ -522,9 +522,8 @@ public class ScenarioBridge implements PerfContext {
         return new JsMap(map);
     }
 
-    // TODO breaking uri has been renamed to url
     public Object getPrevRequest() {
-        HttpRequest hr = getEngine().getRequest();
+        HttpRequest hr = getEngine().getHttpRequest();
         if (hr == null) {
             return null;
         }
@@ -538,6 +537,14 @@ public class ScenarioBridge implements PerfContext {
 
     public Object getProperties() {
         return new JsMap(getEngine().runtime.featureRuntime.suite.systemProperties);
+    }
+    
+    public Object getResponse() {
+        return getEngine().getResponse();
+    }
+    
+    public Object getRequest() {
+        return getEngine().getRequest();
     }
 
     public Object getScenario() {
@@ -736,10 +743,6 @@ public class ScenarioBridge implements PerfContext {
         return new JsList(list);
     }
 
-    public String responseHeader(String name) {
-        return getEngine().getResponse().getHeader(name);
-    }
-
     // set multiple variables in one shot
     public void set(Map<String, Object> map) {
         getEngine().setVariables(map);
@@ -764,10 +767,8 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public void signal(Object o) {
-        synchronized (JsValue.LOCK) {
-            Value v = Value.asValue(o);
-            getEngine().signal(JsValue.toJava(v));
-        }
+        Value v = Value.asValue(o);
+        getEngine().signal(JsValue.toJava(v));
     }
 
     public Object sizeOf(Value v) {

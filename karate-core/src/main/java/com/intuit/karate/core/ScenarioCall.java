@@ -48,11 +48,12 @@ public class ScenarioCall {
         if (parentRuntime == null) {
             return new HashMap();
         }
-        if (parentRuntime.featureRuntime.mockEngine != null) {
+        ScenarioEngine mockEngine = parentRuntime.featureRuntime.getMockEngine();
+        if (mockEngine != null) {
             if (shallowCopy) {
-                return parentRuntime.featureRuntime.mockEngine.shallowCloneVariables();
+                return mockEngine.shallowCloneVariables();
             } else {
-                return parentRuntime.featureRuntime.mockEngine.vars;
+                return mockEngine.vars;
             }
         }
         if (shallowCopy) {
