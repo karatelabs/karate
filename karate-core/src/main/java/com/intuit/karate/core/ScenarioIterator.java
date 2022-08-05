@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.graal.JsEngine;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -48,7 +49,6 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
     // dynamic
     private Variable expressionValue;
     private int index;
-    private ScenarioRuntime background;
 
     public ScenarioIterator(FeatureRuntime featureRuntime) {
         this.featureRuntime = featureRuntime;
@@ -82,28 +82,16 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                 currentScenario = scenarios.next();
                 index = 0;
                 expressionValue = null;
-                background = null;
             } else {
                 scenarios = null;
                 return tryAdvance(action);
             }
         }
         if (currentScenario.isDynamic()) {
-            if (background == null) {
-                background = new ScenarioRuntime(featureRuntime, currentScenario);
-                if (background.selectedForExecution) {
-                    background.run();
-                }
-                if (background.result.isFailed()) { // karate-config.js || background failed
-                    currentScenario = null;
-                    action.accept(background);
-                    return true; // exit early
-                }
-            }
             if (expressionValue == null) {
                 String expression = currentScenario.getDynamicExpression();
                 try {
-                    expressionValue = background.engine.evalKarateExpression(expression);
+                    expressionValue = new Variable(JsEngine.evalGlobal(expression));
                     if (expressionValue.isList() || expressionValue.isJsOrJavaFunction()) {
                         // all good
                     } else {
@@ -111,9 +99,10 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                     }
                 } catch (Exception e) {
                     String message = "dynamic expression evaluation failed: " + expression;
-                    background.result.addFakeStepResult(message, e);
+                    ScenarioRuntime dummy = new ScenarioRuntime(featureRuntime, currentScenario);
+                    dummy.result.addFakeStepResult(message, e);
                     currentScenario = null;
-                    action.accept(background);
+                    action.accept(dummy);
                     return true; // exit early
                 }
             }
@@ -124,9 +113,10 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                     rowValue = ScenarioEngine.get().executeFunction(expressionValue, rowIndex);
                 } catch (Exception e) {
                     String message = "dynamic function expression evaluation failed at index " + rowIndex + ": " + e.getMessage();
-                    background.result.addFakeStepResult(message, e);
+                    ScenarioRuntime dummy = new ScenarioRuntime(featureRuntime, currentScenario);
+                    dummy.result.addFakeStepResult(message, e);
                     currentScenario = null;
-                    action.accept(background);
+                    action.accept(dummy);
                     return true; // exit early                    
                 }
             } else { // is list
@@ -145,10 +135,10 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                     Variable var = new Variable(v);
                     dynamic.replace("<" + k + ">", var.getAsString());
                 });
-                action.accept(new ScenarioRuntime(featureRuntime, dynamic, background));
+                action.accept(new ScenarioRuntime(featureRuntime, dynamic));
                 return true;
             } else { // assume that this is signal to stop the dynamic scenario outline
-                background.logger.info("dynamic expression complete at index: {}, not map-like: {}", rowIndex, rowValue);
+                // background.logger.info("dynamic expression complete at index: {}, not map-like: {}", rowIndex, rowValue);
                 currentScenario = null;
                 return tryAdvance(action);
             }

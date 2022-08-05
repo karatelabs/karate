@@ -29,14 +29,13 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.debug.DebugThread;
 import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.StringLogAppender;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +47,6 @@ public class ScenarioRuntime implements Runnable {
 
     public final Logger logger;
     public final FeatureRuntime featureRuntime;
-    public final ScenarioRuntime background;
     public final ScenarioCall caller;
     public final Scenario scenario;
     public final Tags tags;
@@ -65,10 +63,6 @@ public class ScenarioRuntime implements Runnable {
     public boolean ignoringFailureSteps;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
-        this(featureRuntime, scenario, null);
-    }
-
-    public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario, ScenarioRuntime background) {
         logger = new Logger();
         this.featureRuntime = featureRuntime;
         this.caller = featureRuntime.caller;
@@ -76,36 +70,16 @@ public class ScenarioRuntime implements Runnable {
         if (caller.isNone()) {
             Config config;
             logAppender = new StringLogAppender(false);
-            if (background != null) {
-                config = new Config(background.engine.getConfig());
-            } else {
-                config = new Config();
-            }
+            config = new Config();
             engine = new ScenarioEngine(config, this, new HashMap(), logger);
-            if (background != null) {
-                HttpClient client = featureRuntime.suite.clientFactory.create(engine);
-                engine.requestBuilder = background.engine.requestBuilder.copy(client);
-            }
         } else if (caller.isSharedScope()) {
             logAppender = caller.parentRuntime.logAppender;
-            Map<String, Variable> vars;
-            Config config;
-            if (background != null) {
-                vars = background.engine.vars;
-                config = background.engine.getConfig();
-            } else {
-                vars = caller.getParentVars(false);
-                config = caller.getParentConfig(false);
-            }
+            Map<String, Variable> vars = caller.getParentVars(false);
+            Config config = caller.getParentConfig(false);
             engine = new ScenarioEngine(config, this, vars, logger);
         } else { // new, but clone and copy data
             logAppender = caller.parentRuntime.logAppender;
-            Config config;
-            if (background != null) {
-                config = background.engine.getConfig();
-            } else {
-                config = caller.parentRuntime.engine.getConfig();
-            }
+            Config config = caller.parentRuntime.engine.getConfig();
             // in this case, parent variables are set via magic variables - see initMagicVariables()
             // which means the variables are only in the JS engine - [ see ScenarioEngine.init() ]
             // and not "visible" via ScenarioEngine constructor (vars)
@@ -116,22 +90,18 @@ public class ScenarioRuntime implements Runnable {
         logger.setAppender(logAppender);
         actions = new ScenarioActions(engine);
         this.scenario = scenario;
-        this.background = background; // used only to check which steps remain
-        magicVariables = initMagicVariables();
-        result = new ScenarioResult(scenario);
-        if (background != null) {
-            if (!background.isDynamicBackground()) {
-                HttpClient client = featureRuntime.suite.clientFactory.create(engine);
-                engine.requestBuilder = background.engine.requestBuilder.copy(client);
-            }
-            result.addStepResults(background.result.getStepResults());
-            Map<String, Variable> copy = background.engine.shallowCloneVariables();
-            copy.forEach((k, v) -> engine.vars.put(k, v));
-        }
+        if (scenario.isDynamic() && !scenario.isOutlineExample()) { // dynamic scenario iterator error
+            steps = Collections.emptyList();             
+            skipped = true; // ensures run() is a no-op
+            magicVariables = null;
+        } else {
+            magicVariables = initMagicVariables();
+        }        
+        result = new ScenarioResult(scenario);        
         dryRun = featureRuntime.suite.dryRun;
         tags = scenario.getTagsEffective();
         reportDisabled = perfMode ? true : tags.valuesFor("report").isAnyOf("false");
-        selectedForExecution = isSelectedForExecution(featureRuntime, scenario, tags);
+        selectedForExecution = isSelectedForExecution(featureRuntime, scenario, tags);        
     }
     
     private Map<String, Object> initMagicVariables() {
@@ -149,14 +119,14 @@ public class ScenarioRuntime implements Runnable {
             map.put("__arg", caller.arg == null ? null : caller.arg.getValue());
             map.put("__loop", caller.getLoopIndex());
         }
-        if (scenario.isOutlineExample() && !this.isDynamicBackground()) { // init examples row magic variables
+        if (scenario.isOutlineExample()) { // init examples row magic variables            
             Map<String, Object> exampleData = scenario.getExampleData();
             map.putAll(exampleData);
             map.put("__row", exampleData);
             map.put("__num", scenario.getExampleIndex());
         }
         return map;
-    }    
+    }
 
     public boolean isFailed() {
         return error != null || result.isFailed();
@@ -172,10 +142,6 @@ public class ScenarioRuntime implements Runnable {
 
     public boolean isStopped() {
         return stopped;
-    }
-
-    public boolean isDynamicBackground() {
-        return scenario.isDynamic() && background == null;
     }
 
     public String getEmbedFileName(ResourceType resourceType) {
@@ -377,22 +343,9 @@ public class ScenarioRuntime implements Runnable {
     //==========================================================================
     //
     public void beforeRun() {
-        if (isDynamicBackground()) {
-            steps = scenario.getBackgroundSteps();
-        } else {
-            steps = background == null ? scenario.getStepsIncludingBackground() : scenario.getSteps();
-        }
+        steps = scenario.getStepsIncludingBackground();
         ScenarioEngine.set(engine);
         engine.init();
-        if (background != null) {
-            ScenarioEngine backgroundEngine = background.engine;
-            if (backgroundEngine.driver != null) {
-                engine.setDriver(backgroundEngine.driver);
-            }
-            if (backgroundEngine.robot != null) {
-                engine.setRobot(backgroundEngine.robot);
-            }
-        }
         result.setExecutorName(Thread.currentThread().getName());
         result.setStartTime(System.currentTimeMillis());
         if (!dryRun) {
@@ -402,32 +355,19 @@ public class ScenarioRuntime implements Runnable {
                 evalConfigJs(featureRuntime.suite.karateConfig, "karate-config.js");
                 evalConfigJs(featureRuntime.suite.karateConfigEnv, "karate-config-" + featureRuntime.suite.env + ".js");
             }
-            if (isDynamicBackground()) {
-                featureRuntime.suite.hooks.forEach(h -> h.beforeBackground(this));
-                if (featureRuntime.suite.debugMode) {
-                    skipped = !featureRuntime.suite.hooks.stream()
-                            .filter(DebugThread.class::isInstance)
-                            .map(h -> h.beforeScenario(this))
-                            .reduce(Boolean.TRUE, Boolean::logicalAnd);
-                }
-            } else {
-                skipped = !featureRuntime.suite.hooks.stream()
-                        .map(h -> h.beforeScenario(this))
-                        .reduce(Boolean.TRUE, Boolean::logicalAnd);
-            }
+            skipped = !featureRuntime.suite.hooks.stream()
+                    .map(h -> h.beforeScenario(this))
+                    .reduce(Boolean.TRUE, Boolean::logicalAnd);
             if (skipped) {
                 logger.debug("beforeScenario hook returned false, will skip scenario: {}", scenario);
+            } else {
+                evaluateScenarioName();
             }
-        }
-        if (!skipped && !isDynamicBackground()) {
-            // don't evaluate names when running the background section
-            evaluateScenarioName();
         }
     }
 
     @Override
     public void run() {
-        boolean reRun = false;
         try { // make sure we call afterRun() even on crashes
             // and operate countdown latches, else we may hang the parallel runner
             if (steps == null) {
@@ -438,7 +378,6 @@ public class ScenarioRuntime implements Runnable {
             }
             int count = steps.size();
             int index = 0;
-            reRun = stepIndex >= count;
             while ((index = nextStepIndex()) < count) {
                 currentStep = steps.get(index);
                 execute(currentStep);
@@ -453,18 +392,7 @@ public class ScenarioRuntime implements Runnable {
             logError("scenario [run] failed\n" + StringUtils.throwableToString(e));
             currentStepResult = result.addFakeStepResult("scenario [run] failed", e);
         } finally {
-            if (isDynamicBackground() && !reRun && !skipped) {
-                featureRuntime.suite.hooks.forEach(h -> h.afterBackground(this));
-                // if it's a dynamic scenario running under the debugger
-                // we still want to execute the afterScenario() hook of the debugger server
-                // in the background section
-                if (featureRuntime.suite.debugMode) {
-                    // allow debugging background section
-                    featureRuntime.suite.hooks.stream()
-                            .filter(DebugThread.class::isInstance)
-                            .forEach(h -> h.afterScenario(this));
-                }
-            } else if (!isDynamicBackground() && !skipped) { // don't add "fake" scenario to feature results
+            if (!skipped) {
                 afterRun();
             }
             if (caller.isNone()) {
