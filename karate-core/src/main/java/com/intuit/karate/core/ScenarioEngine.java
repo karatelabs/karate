@@ -768,11 +768,11 @@ public class ScenarioEngine {
 
     public void signal(Object result) {    
         try {
-            Thread.sleep(100);
+            Thread.sleep(100); // IMPORTANT, else graal js complains
+            SIGNAL.complete(result);            
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }        
-        SIGNAL.complete(result);
+        }                
     }
 
     public void listen(String exp) {
