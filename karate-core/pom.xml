@@ -11,7 +11,7 @@
     <packaging>jar</packaging>   
     
     <properties>
-        <antlr.version>4.10.1</antlr.version>
+        <antlr.version>4.9.3</antlr.version>
         <graal.version>22.0.0.2</graal.version>
     </properties>
 
