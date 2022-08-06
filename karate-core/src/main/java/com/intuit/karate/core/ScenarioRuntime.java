@@ -314,16 +314,16 @@ public class ScenarioRuntime implements Runnable {
             logger.trace("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
             return false;
         }
-        String callTag = feature.getCallTag();
+        String callTag = feature.getCallTag();        
         if (callTag != null && (!fr.caller.isNone() || fr.perfHook != null)) {
-            // only if this is a legit "call" or a gatling "call by tag"
-            if (tags.contains(callTag)) {
-                logger.info("{} - call by tag at line {}: {}", fr, scenario.getLine(), callTag);
-                return true;
+                // only if this is a legit "call" or a gatling "call by tag"
+                if (tags.contains(callTag)) {
+                    logger.info("{} - call by tag at line {}: {}", fr, scenario.getLine(), callTag);
+                    return true;
+                }
+                logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
+                return false;                
             }
-            logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
-            return false;
-        }
         if (fr.caller.isNone()) {
             if (tags.evaluate(fr.suite.tagSelector, fr.suite.env)) {
                 logger.trace("matched scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());

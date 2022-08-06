@@ -756,6 +756,15 @@ public class ScenarioBridge implements PerfContext {
     public void set(String name, String path, Object value) {
         getEngine().set(name, path, new Variable(value));
     }
+    
+    public Object setup() {
+        ScenarioEngine engine = getEngine();
+        Feature feature = engine.runtime.featureRuntime.feature;
+        Scenario scenario = feature.getSetup();
+        ScenarioRuntime sr = new ScenarioRuntime(engine.runtime.featureRuntime, scenario);
+        sr.run();        
+        return JsValue.fromJava(sr.engine.getAllVariablesAsMap());        
+    }
 
     public void setXml(String name, String xml) {
         getEngine().setVariable(name, XmlUtils.toXmlDoc(xml));

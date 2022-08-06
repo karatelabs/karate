@@ -1761,7 +1761,6 @@ public class ScenarioEngine {
             case FEATURE:
                 // will be always a map or a list of maps (loop call result)                
                 Object callResult = callFeature(called.getValue(), arg, -1, sharedScope);
-                // this.rehydrateCallFeatureResult(callResult);
                 return new Variable(callResult);
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);
@@ -1775,7 +1774,7 @@ public class ScenarioEngine {
             List resultVariables = new ArrayList();
             ((List) featureResult.getValue()).forEach(result -> {
                 if (result instanceof FeatureResult) {
-                    resultVariables.add(this.getCallFeatureVariables(new Variable(result)).getValue());
+                    resultVariables.add(getCallFeatureVariables(new Variable(result)).getValue());
                 } else {
                     resultVariables.add(result);
                 }

@@ -1,10 +1,11 @@
 Feature:
 
-Background:
-* print 'in background'
+@ignore @setup
+Scenario:
+* def data = [{a:1}, {a:2}]
 
 Scenario Outline:
 * print __row
 
 Examples:
-| [{a:1}, {a:2}] |
+| karate.setup().data |
