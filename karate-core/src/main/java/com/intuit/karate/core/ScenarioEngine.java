@@ -111,11 +111,6 @@ public class ScenarioEngine {
 
     protected JsEngine JS;
 
-    // only used by mock server
-    public ScenarioEngine(ScenarioRuntime runtime, Map<String, Variable> vars) {
-        this(runtime.engine.config, runtime, vars, runtime.logger);
-    }
-
     public ScenarioEngine(Config config, ScenarioRuntime runtime, Map<String, Variable> vars, Logger logger) {
         this.config = config;
         this.runtime = runtime;

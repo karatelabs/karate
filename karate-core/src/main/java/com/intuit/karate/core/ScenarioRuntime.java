@@ -68,32 +68,23 @@ public class ScenarioRuntime implements Runnable {
         this.caller = featureRuntime.caller;
         perfMode = featureRuntime.perfHook != null;
         if (caller.isNone()) {
-            Config config;
             logAppender = new StringLogAppender(false);
-            config = new Config();
-            engine = new ScenarioEngine(config, this, new HashMap(), logger);
+            engine = new ScenarioEngine(caller.getParentConfig(false), this, new HashMap(), logger);
         } else if (caller.isSharedScope()) {
             logAppender = caller.parentRuntime.logAppender;
-            Map<String, Variable> vars = caller.getParentVars(false);
-            Config config = caller.getParentConfig(false);
-            engine = new ScenarioEngine(config, this, vars, logger);
+            engine = new ScenarioEngine(caller.getParentConfig(false), this, caller.getParentVars(false), logger);
         } else { // new, but clone and copy data
             logAppender = caller.parentRuntime.logAppender;
-            Config config = caller.parentRuntime.engine.getConfig();
             // in this case, parent variables are set via magic variables - see initMagicVariables()
-            // which means the variables are only in the JS engine - [ see ScenarioEngine.init() ]
-            // and not "visible" via ScenarioEngine constructor (vars)
-            // one consequence is that they won't show up in the debug variables view
-            // and more importantly don't get passed back to caller and float around, bloating memory
-            engine = new ScenarioEngine(new Config(config), this, new HashMap(), logger);
+            engine = new ScenarioEngine(caller.getParentConfig(true), this, new HashMap(), logger);
         }
         logger.setAppender(logAppender);
         actions = new ScenarioActions(engine);
         this.scenario = scenario;
-        if (scenario.isDynamic() && !scenario.isOutlineExample()) { // dynamic scenario iterator error
+        if (scenario.isDynamic() && !scenario.isOutlineExample()) { // from dynamic scenario iterator
             steps = Collections.emptyList();             
             skipped = true; // ensures run() is a no-op
-            magicVariables = null;
+            magicVariables = Collections.emptyMap();
         } else {
             magicVariables = initMagicVariables();
         }        
@@ -105,6 +96,10 @@ public class ScenarioRuntime implements Runnable {
     }
     
     private Map<String, Object> initMagicVariables() {
+        // magic variables are only in the JS engine - [ see ScenarioEngine.init() ]
+        // and not "visible" and tracked in ScenarioEngine.vars
+        // one consequence is that they won't show up in the debug variables view
+        // but more importantly don't get passed back to caller and float around, bloating memory        
         Map<String, Object> map = new HashMap();
         if (!caller.isNone()) {
             // karate principle: parent variables are always "visible"
@@ -297,43 +292,44 @@ public class ScenarioRuntime implements Runnable {
     }
 
     private static boolean isSelectedForExecution(FeatureRuntime fr, Scenario scenario, Tags tags) {
+        org.slf4j.Logger logger = FeatureRuntime.logger;
         Feature feature = scenario.getFeature();
         int callLine = feature.getCallLine();
         if (callLine != -1) {
             int sectionLine = scenario.getSection().getLine();
             int scenarioLine = scenario.getLine();
             if (callLine == sectionLine || callLine == scenarioLine) {
-                fr.logger.info("found scenario at line: {}", callLine);
+                logger.info("found scenario at line: {}", callLine);
                 return true;
             }
-            fr.logger.trace("skipping scenario at line: {}, needed: {}", scenario.getLine(), callLine);
+            logger.trace("skipping scenario at line: {}, needed: {}", scenario.getLine(), callLine);
             return false;
         }
         String callName = feature.getCallName();
         if (callName != null) {
             if (scenario.getName().matches(callName)) {
-                fr.logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
+                logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
                 return true;
             }
-            fr.logger.trace("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
+            logger.trace("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
             return false;
         }
         String callTag = feature.getCallTag();
         if (callTag != null && (!fr.caller.isNone() || fr.perfHook != null)) {
             // only if this is a legit "call" or a gatling "call by tag"
             if (tags.contains(callTag)) {
-                fr.logger.info("{} - call by tag at line {}: {}", fr, scenario.getLine(), callTag);
+                logger.info("{} - call by tag at line {}: {}", fr, scenario.getLine(), callTag);
                 return true;
             }
-            fr.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
+            logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
             return false;
         }
         if (fr.caller.isNone()) {
             if (tags.evaluate(fr.suite.tagSelector, fr.suite.env)) {
-                fr.logger.trace("matched scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
+                logger.trace("matched scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
                 return true;
             }
-            fr.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
+            logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
             return false;
         } else {
             return true; // when called, tags are ignored, all scenarios will be run
@@ -434,14 +430,14 @@ public class ScenarioRuntime implements Runnable {
             stopped = true;
             logger.debug("abort at {}", step.getDebugInfo());
         } else if (stepResult.isFailed()) {
-            if (stepResult.getMatchingMethod() != null && this.engine.getConfig().getContinueOnStepFailureMethods().contains(stepResult.getMatchingMethod().method)) {
+            if (stepResult.getMatchingMethod() != null && engine.getConfig().getContinueOnStepFailureMethods().contains(stepResult.getMatchingMethod().method)) {
                 stopped = false;
                 ignoringFailureSteps = true;
                 currentStepResult.setErrorIgnored(true);
             } else {
                 stopped = true;
             }
-            if (stopped && (!this.engine.getConfig().isContinueAfterContinueOnStepFailure() || !this.engine.isIgnoringStepErrors())) {
+            if (stopped && (!this.engine.getConfig().isContinueAfterContinueOnStepFailure() || !engine.isIgnoringStepErrors())) {
                 error = stepResult.getError();
                 logError(error.getMessage());
             }
@@ -451,12 +447,12 @@ public class ScenarioRuntime implements Runnable {
         }
         addStepLogEmbedsAndCallResults();
         if (currentStepResult.isErrorIgnored()) {
-            this.engine.setFailedReason(null);
+            engine.setFailedReason(null);
         }
-        if (!this.engine.isIgnoringStepErrors() && this.isIgnoringFailureSteps()) {
-            if (this.engine.getConfig().isContinueAfterContinueOnStepFailure()) {
+        if (!engine.isIgnoringStepErrors() && isIgnoringFailureSteps()) {
+            if (engine.getConfig().isContinueAfterContinueOnStepFailure()) {
                 // continue execution and reset failed reason for engine to null
-                this.engine.setFailedReason(null);
+                engine.setFailedReason(null);
                 ignoringFailureSteps = false;
             } else {
                 // stop execution

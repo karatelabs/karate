@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -67,11 +66,8 @@ public class ScenarioCall {
         if (parentRuntime == null) {
             return new Config();
         }
-        if (copy) {
-            return new Config(parentRuntime.engine.getConfig());
-        } else {
-            return parentRuntime.engine.getConfig();
-        }
+        Config temp = parentRuntime.engine.getConfig();
+        return copy ? new Config(temp) : temp;
     }
 
     public boolean isNone() {

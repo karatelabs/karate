@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.graal.JsEngine;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -47,6 +46,7 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
     private Scenario currentScenario;
 
     // dynamic
+    private ScenarioRuntime dynamicRuntime;
     private Variable expressionValue;
     private int index;
 
@@ -90,8 +90,11 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
         if (currentScenario.isDynamic()) {
             if (expressionValue == null) {
                 String expression = currentScenario.getDynamicExpression();
+                dynamicRuntime = new ScenarioRuntime(featureRuntime, currentScenario);
                 try {
-                    expressionValue = new Variable(JsEngine.evalGlobal(expression));
+                    ScenarioEngine.set(dynamicRuntime.engine);
+                    dynamicRuntime.engine.init();
+                    expressionValue = dynamicRuntime.engine.evalJs(expression);
                     if (expressionValue.isList() || expressionValue.isJsOrJavaFunction()) {
                         // all good
                     } else {
@@ -99,10 +102,9 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                     }
                 } catch (Exception e) {
                     String message = "dynamic expression evaluation failed: " + expression;
-                    ScenarioRuntime dummy = new ScenarioRuntime(featureRuntime, currentScenario);
-                    dummy.result.addFakeStepResult(message, e);
+                    dynamicRuntime.result.addFakeStepResult(message, e);
                     currentScenario = null;
-                    action.accept(dummy);
+                    action.accept(dynamicRuntime);
                     return true; // exit early
                 }
             }
@@ -110,13 +112,13 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
             Variable rowValue;
             if (expressionValue.isJsOrJavaFunction()) {
                 try {
-                    rowValue = ScenarioEngine.get().executeFunction(expressionValue, rowIndex);
+                    ScenarioEngine.set(dynamicRuntime.engine);
+                    rowValue = dynamicRuntime.engine.executeFunction(expressionValue, rowIndex);
                 } catch (Exception e) {
                     String message = "dynamic function expression evaluation failed at index " + rowIndex + ": " + e.getMessage();
-                    ScenarioRuntime dummy = new ScenarioRuntime(featureRuntime, currentScenario);
-                    dummy.result.addFakeStepResult(message, e);
+                    dynamicRuntime.result.addFakeStepResult(message, e);
                     currentScenario = null;
-                    action.accept(dummy);
+                    action.accept(dynamicRuntime);
                     return true; // exit early                    
                 }
             } else { // is list

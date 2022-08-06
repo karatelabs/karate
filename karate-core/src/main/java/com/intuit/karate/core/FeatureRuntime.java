@@ -79,7 +79,7 @@ public class FeatureRuntime implements Runnable {
 
     public ScenarioEngine getMockEngine() {
         return mockEngine;
-    }        
+    }
 
     public static FeatureRuntime forTempUse(HttpClientFactory hcf) {
         Suite sr = Suite.forTempUse(hcf);

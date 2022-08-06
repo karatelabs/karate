@@ -91,39 +91,22 @@ public class MockHandler implements ServerHandler {
 
     public MockHandler(String prefix, List<Feature> features, Map<String, Object> args) {
         this.prefix = "/".equals(prefix) ? null : prefix;
-        for (Feature feature : features) {
-            FeatureRuntime featureRuntime = FeatureRuntime.of(Suite.forTempUse(HttpClientFactory.DEFAULT), feature, args);
-            FeatureSection section = new FeatureSection();
-            section.setIndex(-1); // TODO util for creating dummy scenario
-            Scenario dummy = new Scenario(feature, section, -1);
-            section.setScenario(dummy);
-            ScenarioRuntime runtime = new ScenarioRuntime(featureRuntime, dummy);
-            initRuntime(runtime);
-            if (feature.isBackgroundPresent()) {
-                // if we are within a scenario already e.g. karate.start(), preserve context
-                ScenarioEngine prevEngine = ScenarioEngine.get();
-                try {
-                    ScenarioEngine.set(runtime.engine);
-                    for (Step step : feature.getBackground().getSteps()) {
-                        Result result = StepRuntime.execute(step, runtime.actions);
-                        if (result.isFailed()) {
-                            String message = "mock-server background failed - " + feature + ":" + step.getLine();
-                            runtime.logger.error(message);
-                            throw new KarateException(message, result.getError());
-                        }
-                    }
-                } finally {
-                    ScenarioEngine.set(prevEngine);
-                }
-            }
+        features.forEach(feature -> {
+            ScenarioRuntime runtime = initRuntime(feature, args);
             corsEnabled = corsEnabled || runtime.engine.getConfig().isCorsEnabled();
             globals.putAll(runtime.engine.shallowCloneVariables());
             runtime.logger.info("mock server initialized: {}", feature);
-            featureRuntimes.put(feature, runtime);
-        }
+            featureRuntimes.put(feature, runtime);            
+        });
     }
 
-    private void initRuntime(ScenarioRuntime runtime) {
+    private ScenarioRuntime initRuntime(Feature feature, Map<String, Object> args) {
+        FeatureRuntime featureRuntime = FeatureRuntime.of(Suite.forTempUse(HttpClientFactory.DEFAULT), feature, args);
+        FeatureSection section = new FeatureSection();
+        section.setIndex(-1); // TODO util for creating dummy scenario
+        Scenario dummy = new Scenario(feature, section, -1);
+        section.setScenario(dummy);
+        ScenarioRuntime runtime = new ScenarioRuntime(featureRuntime, dummy);        
         runtime.engine.setVariable(PATH_MATCHES, (Function<String, Boolean>) this::pathMatches);
         runtime.engine.setVariable(PARAM_EXISTS, (Function<String, Boolean>) this::paramExists);
         runtime.engine.setVariable(PARAM_VALUE, (Function<String, String>) this::paramValue);
@@ -133,6 +116,24 @@ public class MockHandler implements ServerHandler {
         runtime.engine.setVariable(HEADER_CONTAINS, (BiFunction<String, String, Boolean>) this::headerContains);
         runtime.engine.setVariable(BODY_PATH, (Function<String, Object>) this::bodyPath);
         runtime.engine.init();
+        if (feature.isBackgroundPresent()) {
+            // if we are within a scenario already e.g. karate.start(), preserve context
+            ScenarioEngine prevEngine = ScenarioEngine.get();
+            try {
+                ScenarioEngine.set(runtime.engine);
+                for (Step step : feature.getBackground().getSteps()) {
+                    Result result = StepRuntime.execute(step, runtime.actions);
+                    if (result.isFailed()) {
+                        String message = "mock-server background failed - " + feature + ":" + step.getLine();
+                        runtime.logger.error(message);
+                        throw new KarateException(message, result.getError());
+                    }
+                }
+            } finally {
+                ScenarioEngine.set(prevEngine);
+            }
+        }        
+        return runtime;
     }
 
     private static final Result PASSED = Result.passed(0);
@@ -161,27 +162,10 @@ public class MockHandler implements ServerHandler {
             Feature feature = entry.getKey();
             ScenarioRuntime runtime = entry.getValue();
             // important for graal to work properly
-            Thread.currentThread().setContextClassLoader(runtime.featureRuntime.suite.classLoader);
-            // begin init engine for this request
+            Thread.currentThread().setContextClassLoader(runtime.featureRuntime.suite.classLoader);            
             LOCAL_REQUEST.set(req);
             req.processBody();
-            ScenarioEngine engine = new ScenarioEngine(runtime, new HashMap<>(globals));        
-            engine.init();
-            engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
-            engine.setVariable(ScenarioEngine.REQUEST_URI, req.getPath());
-            engine.setVariable(ScenarioEngine.REQUEST_METHOD, req.getMethod());
-            engine.setVariable(ScenarioEngine.REQUEST_HEADERS, req.getHeaders());
-            engine.setVariable(ScenarioEngine.REQUEST, req.getBodyConverted());
-            engine.setVariable(REQUEST_PARAMS, req.getParams());
-            engine.setVariable(REQUEST_BYTES, req.getBody());
-            engine.setRequest(req);
-            runtime.featureRuntime.setMockEngine(engine);
-            ScenarioEngine.set(engine);
-            Map<String, List<Map<String, Object>>> parts = req.getMultiParts();
-            if (parts != null) {
-                engine.setHiddenVariable(REQUEST_PARTS, parts);
-            }
-            // end init engine for this request
+            ScenarioEngine engine = initEngine(runtime, globals, req);
             for (FeatureSection fs : feature.getSections()) {
                 if (fs.isOutline()) {
                     runtime.logger.warn("skipping scenario outline - {}:{}", feature, fs.getScenarioOutline().getLine());
@@ -192,8 +176,7 @@ public class MockHandler implements ServerHandler {
                     Map<String, Object> configureHeaders;
                     Variable response, responseStatus, responseHeaders, responseDelay;
                     ScenarioActions actions = new ScenarioActions(engine);
-                    Result result = PASSED;                   
-                    result = executeScenarioSteps(feature, runtime, scenario, actions, result);
+                    Result result = executeScenarioSteps(feature, runtime, scenario, actions);
                     engine.mockAfterScenario();
                     configureHeaders = engine.mockConfigureHeaders();
                     response = engine.vars.remove(ScenarioEngine.RESPONSE);
@@ -242,8 +225,29 @@ public class MockHandler implements ServerHandler {
         }
         return new Response(404);
     }
+    
+    private static ScenarioEngine initEngine(ScenarioRuntime runtime, Map<String, Variable> globals, Request req) {
+        ScenarioEngine engine = new ScenarioEngine(runtime.engine.getConfig(), runtime, new HashMap(globals), runtime.logger);        
+        engine.init();
+        engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
+        engine.setVariable(ScenarioEngine.REQUEST_URI, req.getPath());
+        engine.setVariable(ScenarioEngine.REQUEST_METHOD, req.getMethod());
+        engine.setVariable(ScenarioEngine.REQUEST_HEADERS, req.getHeaders());
+        engine.setVariable(ScenarioEngine.REQUEST, req.getBodyConverted());
+        engine.setVariable(REQUEST_PARAMS, req.getParams());
+        engine.setVariable(REQUEST_BYTES, req.getBody());
+        engine.setRequest(req);
+        runtime.featureRuntime.setMockEngine(engine);
+        ScenarioEngine.set(engine);
+        Map<String, List<Map<String, Object>>> parts = req.getMultiParts();
+        if (parts != null) {
+            engine.setHiddenVariable(REQUEST_PARTS, parts);
+        }
+        return engine;
+    }
 
-    private Result executeScenarioSteps(Feature feature, ScenarioRuntime runtime, Scenario scenario, ScenarioActions actions, Result result) {
+    private Result executeScenarioSteps(Feature feature, ScenarioRuntime runtime, Scenario scenario, ScenarioActions actions) {
+        Result result = PASSED;
         for (Step step : scenario.getSteps()) {
             result = StepRuntime.execute(step, actions);
             if (result.isAborted()) {
