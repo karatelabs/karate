@@ -31,6 +31,7 @@ import java.util.Spliterator;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import org.slf4j.Logger;
 
 /**
  *
@@ -88,6 +89,7 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
             }
         }
         if (currentScenario.isDynamic()) {
+            Logger logger = FeatureRuntime.logger;
             if (expressionValue == null) {
                 String expression = currentScenario.getDynamicExpression();
                 dynamicRuntime = new ScenarioRuntime(featureRuntime, currentScenario);
@@ -103,6 +105,7 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                     }
                 } catch (Exception e) {
                     String message = "dynamic expression evaluation failed: " + expression;
+                    logger.error("{} - {}", currentScenario, message);
                     dynamicRuntime.result.addFakeStepResult(message, e);
                     currentScenario = null;
                     action.accept(dynamicRuntime);
@@ -120,6 +123,7 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                     rowValue = dynamicRuntime.engine.executeFunction(expressionValue, rowIndex);
                 } catch (Exception e) {
                     String message = "dynamic function expression evaluation failed at index " + rowIndex + ": " + e.getMessage();
+                    logger.error("{} - {}", currentScenario, message);
                     dynamicRuntime.result.addFakeStepResult(message, e);
                     currentScenario = null;
                     action.accept(dynamicRuntime);

@@ -232,13 +232,13 @@ class FeatureParserTest {
         Runner.Builder builder = Runner.builder();
         builder.tags("@a-tag");
         FeatureRuntime fr = FeatureRuntime.of(new Suite(builder), feature);
-        ScenarioOutline outline = feature.getSection(0).getScenarioOutline();
+        ScenarioOutline outline = feature.getSection(1).getScenarioOutline();
 
         assertEquals(1, outline.getScenarios(fr).size());
 
         feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-name.feature");
         fr = FeatureRuntime.of(new Suite(builder), feature);
-        outline = feature.getSection(0).getScenarioOutline();
+        outline = feature.getSection(1).getScenarioOutline();
         assertEquals(2, outline.getScenarios(fr).size());
 
         // using a tag that does not exist in the Examples Tables

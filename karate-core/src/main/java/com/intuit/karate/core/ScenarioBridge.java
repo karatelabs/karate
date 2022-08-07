@@ -762,6 +762,7 @@ public class ScenarioBridge implements PerfContext {
         Feature feature = engine.runtime.featureRuntime.feature;
         Scenario scenario = feature.getSetup();
         ScenarioRuntime sr = new ScenarioRuntime(engine.runtime.featureRuntime, scenario);
+        sr.setSkipBackground(true);
         sr.run();        
         return JsValue.fromJava(sr.engine.getAllVariablesAsMap());        
     }

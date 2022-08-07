@@ -36,6 +36,7 @@ public class Tag {
     public static final String IGNORE = "ignore";
     public static final String ENV = "env";
     public static final String ENVNOT = "envnot";
+    public static final String SETUP = "setup";
 
     private final int line;
     private final String text;

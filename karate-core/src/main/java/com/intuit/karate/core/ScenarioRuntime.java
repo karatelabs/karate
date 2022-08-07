@@ -60,7 +60,8 @@ public class ScenarioRuntime implements Runnable {
     public final boolean dryRun;
     public final LogAppender logAppender;
     
-    public boolean ignoringFailureSteps;
+    private boolean skipBackground; 
+    private boolean ignoringFailureSteps;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
         logger = new Logger();
@@ -127,10 +128,6 @@ public class ScenarioRuntime implements Runnable {
         return error != null || result.isFailed();
     }
 
-    public boolean isIgnoringFailureSteps() {
-        return ignoringFailureSteps;
-    }
-
     public Step getCurrentStep() {
         return currentStep;
     }
@@ -138,6 +135,10 @@ public class ScenarioRuntime implements Runnable {
     public boolean isStopped() {
         return stopped;
     }
+
+    public void setSkipBackground(boolean skipBackground) {
+        this.skipBackground = skipBackground;
+    }    
 
     public String getEmbedFileName(ResourceType resourceType) {
         String extension = resourceType == null ? null : resourceType.getExtension();
@@ -338,8 +339,8 @@ public class ScenarioRuntime implements Runnable {
 
     //==========================================================================
     //
-    public void beforeRun() {
-        steps = scenario.getStepsIncludingBackground();
+    public void beforeRun() {        
+        steps = skipBackground ? scenario.getSteps() : scenario.getStepsIncludingBackground();
         ScenarioEngine.set(engine);
         engine.init();
         result.setExecutorName(Thread.currentThread().getName());
@@ -449,7 +450,7 @@ public class ScenarioRuntime implements Runnable {
         if (currentStepResult.isErrorIgnored()) {
             engine.setFailedReason(null);
         }
-        if (!engine.isIgnoringStepErrors() && isIgnoringFailureSteps()) {
+        if (!engine.isIgnoringStepErrors() && ignoringFailureSteps) {
             if (engine.getConfig().isContinueAfterContinueOnStepFailure()) {
                 // continue execution and reset failed reason for engine to null
                 engine.setFailedReason(null);

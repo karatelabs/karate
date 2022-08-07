@@ -135,6 +135,9 @@ public class Tags implements Iterable<Tag> {
         if (StringUtils.containsIgnoreCase(tags, Tag.IGNORE)) {
             return false;
         }
+        if (tagValues.containsKey(Tag.SETUP)) {
+            return false;
+        }
         Values envValues = valuesFor(Tag.ENV);
         if (envValues.isPresent) {
             if (karateEnv == null) {
