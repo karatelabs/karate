@@ -104,8 +104,8 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                         throw new RuntimeException("result is neither list nor function: " + expressionValue);
                     }
                 } catch (Exception e) {
-                    String message = "dynamic expression evaluation failed: " + expression;
-                    logger.error("{} - {}", currentScenario, message);
+                    String message = currentScenario + " dynamic expression evaluation failed: " + expression;
+                    logger.error(message);
                     dynamicRuntime.result.addFakeStepResult(message, e);
                     currentScenario = null;
                     action.accept(dynamicRuntime);
@@ -122,8 +122,8 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                     ScenarioEngine.set(dynamicRuntime.engine);
                     rowValue = dynamicRuntime.engine.executeFunction(expressionValue, rowIndex);
                 } catch (Exception e) {
-                    String message = "dynamic function expression evaluation failed at index " + rowIndex + ": " + e.getMessage();
-                    logger.error("{} - {}", currentScenario, message);
+                    String message = currentScenario + " dynamic function expression evaluation failed at index " + rowIndex + ": " + e.getMessage();
+                    logger.error(message);
                     dynamicRuntime.result.addFakeStepResult(message, e);
                     currentScenario = null;
                     action.accept(dynamicRuntime);

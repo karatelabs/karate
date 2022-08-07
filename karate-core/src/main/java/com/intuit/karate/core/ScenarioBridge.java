@@ -538,11 +538,11 @@ public class ScenarioBridge implements PerfContext {
     public Object getProperties() {
         return new JsMap(getEngine().runtime.featureRuntime.suite.systemProperties);
     }
-    
+
     public Object getResponse() {
         return getEngine().getResponse();
     }
-    
+
     public Object getRequest() {
         return getEngine().getRequest();
     }
@@ -756,15 +756,32 @@ public class ScenarioBridge implements PerfContext {
     public void set(String name, String path, Object value) {
         getEngine().set(name, path, new Variable(value));
     }
-    
+
     public Object setup() {
+        return setup(null);
+    }
+
+    public Object setup(String name) {
         ScenarioEngine engine = getEngine();
         Feature feature = engine.runtime.featureRuntime.feature;
-        Scenario scenario = feature.getSetup();
+        Scenario scenario = feature.getSetup(name);
+        if (scenario == null) {
+            String message = "no scenario found with @setup tag";
+            if (name != null) {
+                message = message + " and name '" + name + "'";
+            }
+            engine.logger.error(message);
+            throw new RuntimeException(message);
+        }
         ScenarioRuntime sr = new ScenarioRuntime(engine.runtime.featureRuntime, scenario);
         sr.setSkipBackground(true);
-        sr.run();        
-        return JsValue.fromJava(sr.engine.getAllVariablesAsMap());        
+        sr.run();
+        ScenarioEngine.set(engine);
+        FeatureResult result = engine.runtime.featureRuntime.result;
+        synchronized (result) {
+            result.addResult(sr.result);
+        }
+        return JsValue.fromJava(sr.engine.getAllVariablesAsMap());
     }
 
     public void setXml(String name, String xml) {
@@ -776,7 +793,7 @@ public class ScenarioBridge implements PerfContext {
         getEngine().set(name, path, new Variable(XmlUtils.toXmlDoc(xml)));
     }
 
-    public void signal(Value v) {        
+    public void signal(Value v) {
         getEngine().signal(JsValue.toJava(v));
     }
 

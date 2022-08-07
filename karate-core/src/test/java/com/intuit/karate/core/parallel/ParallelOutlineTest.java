@@ -36,7 +36,7 @@ class ParallelOutlineTest {
                 .systemProperty("server.port", server.getPort() + "")
                 .parallel(3);
         assertEquals(2, results.getFeaturesPassed());
-        assertEquals(12, results.getScenariosPassed());
+        assertEquals(15, results.getScenariosPassed());
         assertEquals(0, results.getFailCount());
     }
 
