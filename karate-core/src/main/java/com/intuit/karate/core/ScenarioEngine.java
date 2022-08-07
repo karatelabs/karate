@@ -1767,24 +1767,6 @@ public class ScenarioEngine {
         }
     }
 
-    public Variable getCallFeatureVariables(Variable featureResult) {
-        if (featureResult.getValue() instanceof FeatureResult) {
-            return new Variable(((FeatureResult) featureResult.getValue()).getVariables());
-        } else if (featureResult.isList()) {
-            List resultVariables = new ArrayList();
-            ((List) featureResult.getValue()).forEach(result -> {
-                if (result instanceof FeatureResult) {
-                    resultVariables.add(getCallFeatureVariables(new Variable(result)).getValue());
-                } else {
-                    resultVariables.add(result);
-                }
-            });
-            return new Variable(resultVariables);
-        } else {
-            return featureResult;
-        }
-    }
-
     public Variable call(boolean callOnce, String exp, boolean sharedScope) {
         StringUtils.Pair pair = parseCallArgs(exp);
         Variable called = evalKarateExpression(pair.left);
@@ -1795,20 +1777,16 @@ public class ScenarioEngine {
         } else {
             result = call(called, arg, sharedScope);
         }
-        Variable resultVariables = this.getCallFeatureVariables(result);
         if (sharedScope) {
-            if (resultVariables.isMap()) {
+            if (result.isMap()) {
                 // even the act of introspecting graal values as part of the JsValue constructor
                 // triggers the dreaded graal js single-thread check, so we lock here
                 synchronized (JsValue.LOCK) {
-                    setVariables(resultVariables.getValue());
+                    setVariables(result.getValue());
                 }
             }
-            if (result.getValue() instanceof FeatureResult) {
-                setConfig(((FeatureResult) result.getValue()).getConfig());
-            }
         }
-        return new Variable(resultVariables.getValue());
+        return result;
     }
 
     private Variable callOnceResult(ScenarioCall.Result result, boolean sharedScope) {
@@ -1861,11 +1839,10 @@ public class ScenarioEngine {
             }
             // this thread is the 'winner'
             logger.info(">> lock acquired, begin callonce: {}", cacheKey);
-            Variable resultValue = call(called, arg, sharedScope);
-            Variable resultVariables = this.getCallFeatureVariables(resultValue);
+            Variable callResult = call(called, arg, sharedScope);
             // we clone result (and config) here, to snapshot state at the point the callonce was invoked
             Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? shallowCloneVariables() : null;
-            result = new ScenarioCall.Result(resultVariables.copy(false), new Config(config), clonedVars);
+            result = new ScenarioCall.Result(callResult.copy(false), new Config(config), clonedVars);
             CACHE.put(cacheKey, result);
             logger.info("<< lock released, cached callonce: {}", cacheKey);
              // another routine will apply globally if needed
@@ -1888,7 +1865,7 @@ public class ScenarioEngine {
                 KarateException ke = result.getErrorMessagesCombined();
                 throw ke;
             } else {
-                return result;
+                return result.getVariables();
             }
         } else if (arg.isList() || arg.isJsOrJavaFunction()) {
             List result = new ArrayList();
