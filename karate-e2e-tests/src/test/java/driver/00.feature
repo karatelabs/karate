@@ -8,10 +8,10 @@ Background:
 
 Scenario:
 # driver.send() (has to be first)
-* if (driverType == 'chrome') karate.call('12.feature')
+# * if (driverType == 'chrome') karate.call('12.feature')
 
 # driver.url | driver.title | waitForUrl() | refresh() | back() | forward() | driver.dimensions
-* call read('01.feature')
+# * call read('01.feature')
 
 # waitFor() | waitForText() | waitForEnabled()
 * call read('02.feature')
