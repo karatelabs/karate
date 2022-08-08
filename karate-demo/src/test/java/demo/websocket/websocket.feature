@@ -1,4 +1,5 @@
 @mock-servlet-todo
+@ignore
 Feature: websocket testing
 
 Scenario: only listening to websocket messages
