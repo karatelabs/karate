@@ -43,7 +43,7 @@ Scenario:
 * if (driverType == 'playwright') karate.abort()
 
 # switchPage()
-* call read('11.feature')
+* if (driverType == 'chrome' && !skipSlowTests) karate.call('11.feature')
 
 # switchPage() with external URLs
 * if (driverType == 'chrome' && !skipSlowTests) karate.call('13.feature')
