@@ -1449,9 +1449,10 @@ Prefer [`classpath:`](#classpath) when a file is expected to be heavily re-used 
 # javascript (will be evaluated)
 * def someValue = read('some-js-code.js')
 
-# if the js file evaluates to a function, it can be re-used later using the 'call' keyword
+# if the js file evaluates to a function, it can be re-used later using the 'call' keyword (or invoked just like normal js)
 * def someFunction = read('classpath:some-reusable-code.js')
 * def someCallResult = call someFunction
+* def sameCallResult = someFunction()
 
 # the following short-cut is also allowed
 * def someCallResult = call read('some-js-code.js')
