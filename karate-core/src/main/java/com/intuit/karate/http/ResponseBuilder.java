@@ -203,7 +203,11 @@ public class ResponseBuilder {
         try {
             InputStream is = resourceResolver.resolve(request.getResourcePath()).getStream();
             body(is);
-            header(HttpConstants.HDR_CACHE_CONTROL, "max-age=31536000");
+            if (config.isNoCache()) {
+                header(HttpConstants.HDR_CACHE_CONTROL, "max-age=0");
+            } else {
+                header(HttpConstants.HDR_CACHE_CONTROL, "max-age=31536000");
+            }
         } catch (Exception e) {
             logger.error("local resource failed: {} - {}", request, e.toString());
         }

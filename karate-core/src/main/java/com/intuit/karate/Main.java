@@ -366,7 +366,9 @@ public class Main implements Callable<Void> {
             System.setProperty(Constants.KARATE_ENV, env);
         }
         if (serve) {
-            ServerConfig config = new ServerConfig(workingDir.getPath()).autoCreateSession(true);
+            ServerConfig config = new ServerConfig(workingDir.getPath())
+                    .noCache(true)
+                    .autoCreateSession(true);
             RequestHandler handler = new RequestHandler(config);
             HttpServer.Builder builder = HttpServer
                     .handler(handler)
