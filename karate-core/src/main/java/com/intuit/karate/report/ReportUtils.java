@@ -157,37 +157,20 @@ public class ReportUtils {
     private static Element addCustomTags(Element testCase, Document doc, ScenarioResult sr){
         //Adding requirement and test tags
         Element properties = null;   
-        String custom_tags = System.getProperty("custom_tags");         
-        String custom_xml_tags = System.getProperty("custom_xml_tags");  
 
         if (sr.getScenario() != null){
             List<String> tags = sr.getScenario().getTagsEffective().getTags();
-            if (tags.size() > 0 && custom_tags != null && custom_xml_tags != null){
+            if (tags.size() > 0 ){
                 properties = doc.createElement("properties");
                 
-                custom_tags = custom_tags.toLowerCase();
-                custom_xml_tags = custom_xml_tags.toLowerCase();
-                String[] custom_tags_ar = custom_tags.split("\\s*,\\s*");
-                String[] custom_xml_tags_ar = custom_xml_tags.split("\\s*,\\s*");
-                int custom_tags_size = custom_tags_ar.length;
-
                 for (String tag : tags) {                        
                     String[] innerTags = tag.split("=");
                     int size = innerTags.length;
                     Element requirement = doc.createElement("property");
-                    boolean add_element = false;
                     
-                    for (int i=0;i<custom_tags_size;i++){
-                        if(custom_tags_ar[i].trim().equals(innerTags[0].toLowerCase())){                            
-                            requirement.setAttribute("name", custom_xml_tags_ar[i]);     
-                            add_element = true;                       
-                        }
-                    }
-                    if (size > 1){
+                    if(size > 1){
+                        requirement.setAttribute("name", innerTags[0]);     
                         requirement.setAttribute("value", innerTags[1]);
-                    }
-                    
-                    if (add_element){
                         properties.appendChild(requirement);
                     }
                 }

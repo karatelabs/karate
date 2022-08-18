@@ -30,16 +30,12 @@ class ReportUtilsTest {
 
     @Test
     void testCustomTags() {
-        System.setProperty("custom_tags", "test, requirement");
-        System.setProperty("custom_xml_tags", "test_key, requirement");
-
         String expectedCustomTags = "<properties><property name=\"requirement\" value=\"CALC-2\"/><property name=\"test_key\" value=\"CALC-2\"/></properties>";
         Feature feature = Feature.read("classpath:com/intuit/karate/report/customTags.feature");
         FeatureRuntime fr = FeatureRuntime.of(new Suite(), feature);
         fr.run();
         File file = ReportUtils.saveJunitXml("target", fr.result, null);
-        System.out.println("XRAYFILE: " + FileUtils.toString(file));
-        System.out.println("XRAYCUSTOM: " + expectedCustomTags);
+        
         assertTrue(FileUtils.toString(file).contains(expectedCustomTags));
     }
 
