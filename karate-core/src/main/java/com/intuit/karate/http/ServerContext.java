@@ -26,6 +26,7 @@ package com.intuit.karate.http;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.LogAppender;
+import com.intuit.karate.Match;
 import com.intuit.karate.core.Variable;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsEngine;
@@ -92,10 +93,12 @@ public class ServerContext implements ProxyObject {
     private static final String TEMPLATE = "template";
     private static final String TYPE_OF = "typeOf";
     private static final String IS_PRIMITIVE = "isPrimitive";
+    private static final String MATCH = "match";
 
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, LOG, UUID, REMOVE, REDIRECT, SWITCH, SWITCHED, AJAX, HTTP, NEXT_ID, SESSION_ID,
-        INIT, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_STRING, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON, TEMPLATE, TYPE_OF, IS_PRIMITIVE};
+        INIT, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_STRING, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON, 
+        TEMPLATE, TYPE_OF, IS_PRIMITIVE, MATCH};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -498,6 +501,19 @@ public class ServerContext implements ProxyObject {
     private final Function<String, Object> TYPE_OF_FUNCTION = o -> new Variable(o).getTypeString();
 
     private final Function<Object, Object> IS_PRIMITIVE_FUNCTION = o -> !new Variable(o).isMapOrList();
+    
+    private final Methods.FunVar MATCH_FUNCTION = args -> {
+        if (args.length > 2 && args[0] != null) {
+            String type = args[0].toString();
+            Match.Type matchType = Match.Type.valueOf(type.toUpperCase());
+            return JsValue.fromJava(Match.execute(getEngine(), matchType, args[1], args[2]));
+        } else if (args.length == 2) {
+            return JsValue.fromJava(Match.execute(getEngine(), Match.Type.EQUALS, args[0], args[1]));
+        } else {
+             logger.warn("at least two arguments needed for match");
+             return null;
+        }
+    };
 
     @Override
     public Object getMember(String key) {
@@ -564,6 +580,8 @@ public class ServerContext implements ProxyObject {
                 return TYPE_OF_FUNCTION;
             case IS_PRIMITIVE:
                 return IS_PRIMITIVE_FUNCTION;
+            case MATCH:
+                return MATCH_FUNCTION;
             default:
                 logger.warn("no such property on context object: {}", key);
                 return null;
