@@ -3,7 +3,7 @@ From version [1.2.0 onwards](https://github.com/karatelabs/karate/releases/tag/v
 
 Only one (anonymous) event is captured: which is when someone views the HTML report that Karate generates. Note that using the HTML report is completely optional.
 
-Users can also disable HTML reporting via the [API](https://github.com/karatelabs/karate#junit-4-parallel-execution) or [command-line](https://github.com/karatelabs/karate/tree/master/karate-netty#output-format).
+Users can also disable HTML reporting via the [API](https://github.com/karatelabs/karate#parallel-execution) or [command-line](https://github.com/karatelabs/karate/tree/master/karate-netty#output-format).
 
 There is always the option of [using a third-party report](https://github.com/karatelabs/karate/tree/master/karate-demo#example-report) (via the JUnit-XML or Cucumber-JSON output).
 
