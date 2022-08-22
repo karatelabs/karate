@@ -32,6 +32,7 @@ import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.graal.Methods;
+import com.intuit.karate.resource.Resource;
 import com.intuit.karate.template.KarateEngineContext;
 import com.intuit.karate.template.TemplateUtils;
 import io.netty.handler.codec.http.cookie.Cookie;
@@ -214,6 +215,17 @@ public class ServerContext implements ProxyObject {
     }
 
     public String readAsString(String resource) {
+        if (resource.startsWith(Resource.THIS_COLON)) {
+            resource = resource.substring(Resource.THIS_COLON.length());
+            if (resource.charAt(0) != '/') {
+                resource = "/" + resource;
+            }
+            String path = request.getResourcePath();
+            int pos = path.lastIndexOf('/');
+            if (pos != -1) {
+                resource = path.substring(0, pos) + resource;
+            }            
+        }
         InputStream is = config.getResourceResolver().resolve(resource).getStream();
         return FileUtils.toString(is);
     }
