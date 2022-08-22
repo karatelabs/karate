@@ -4,19 +4,12 @@ import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import static org.junit.Assert.*;
 import org.junit.Test;
-import org.junit.BeforeClass;
 
 /**
  *
  * @author pthomas3
  */
 public class KarateJunitTest {
-    
-    @BeforeClass
-    public static void beforeClass() {
-        System.setProperty("custom_tags", "test, requirement");
-        System.setProperty("custom_xml_tags", "test_key, requirement");
-    }
 
     @Test
     public void testAll() {
