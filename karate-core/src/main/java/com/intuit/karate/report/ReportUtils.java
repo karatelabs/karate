@@ -154,6 +154,32 @@ public class ReportUtils {
         return error;
     }
 
+    private static Element addCustomTags(Element testCase, Document doc, ScenarioResult sr){
+        //Adding requirement and test tags
+        Element properties = null;   
+
+        if (sr.getScenario() != null){
+            List<String> tags = sr.getScenario().getTagsEffective().getTags();
+            if (tags.size() > 0 ){
+                properties = doc.createElement("properties");
+                
+                for (String tag : tags) {                        
+                    String[] innerTags = tag.split("=");
+                    int size = innerTags.length;
+                    Element requirement = doc.createElement("property");
+                    
+                    if(size > 1){
+                        requirement.setAttribute("name", innerTags[0]);     
+                        requirement.setAttribute("value", innerTags[1]);
+                        properties.appendChild(requirement);
+                    }
+                }
+            }
+        }
+
+        return properties;
+    }
+
     public static File saveJunitXml(String targetDir, FeatureResult result, String fileName) {
         DecimalFormat formatter = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
         formatter.applyPattern("0.######");
@@ -188,6 +214,13 @@ public class ReportUtils {
             } else {
                 stepsHolder = doc.createElement("system-out");
             }
+
+            Element properties = null;
+            properties = addCustomTags(testCase, doc, sr);
+            if(properties != null && properties.getChildNodes().getLength() > 0){
+                testCase.appendChild(properties);
+            }
+            
             testCase.appendChild(stepsHolder);
             stepsHolder.setTextContent(sb.toString());
             xmlString.append(XmlUtils.toString(testCase)).append('\n');
