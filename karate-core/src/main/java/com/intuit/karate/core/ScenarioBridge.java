@@ -161,16 +161,12 @@ public class ScenarioBridge implements PerfContext {
         ScenarioEngine engine = getEngine();
         Variable called = new Variable(engine.fileReader.readFile(fileName));
         Variable result = engine.call(called, arg == null ? null : new Variable(arg), sharedScope);
-        Variable resultVariables = engine.getCallFeatureVariables(result);
         if (sharedScope) {
-            if (resultVariables.isMap()) {
-                engine.setVariables(resultVariables.getValue());
-            }
-            if (result.getValue() instanceof FeatureResult) {
-                engine.setConfig(((FeatureResult) result.getValue()).getConfig());
+            if (result.isMap()) {
+                engine.setVariables(result.getValue());
             }
         }
-        return JsValue.fromJava(resultVariables.getValue());
+        return JsValue.fromJava(result.getValue());
     }
 
     private static Object callSingleResult(ScenarioEngine engine, Object o) throws Exception {
@@ -236,8 +232,7 @@ public class ScenarioBridge implements PerfContext {
                 }
                 Variable resultVar;
                 try {
-                    Variable featureResult = engine.call(called, argVar, false);
-                    resultVar = engine.getCallFeatureVariables(featureResult);
+                    resultVar = engine.call(called, argVar, false);
                 } catch (Exception e) {
                     // don't retain any vestiges of graal-js 
                     RuntimeException re = new RuntimeException(e.getMessage());
@@ -538,11 +533,11 @@ public class ScenarioBridge implements PerfContext {
     public Object getProperties() {
         return new JsMap(getEngine().runtime.featureRuntime.suite.systemProperties);
     }
-    
+
     public Object getResponse() {
         return getEngine().getResponse();
     }
-    
+
     public Object getRequest() {
         return getEngine().getRequest();
     }
@@ -757,6 +752,33 @@ public class ScenarioBridge implements PerfContext {
         getEngine().set(name, path, new Variable(value));
     }
 
+    public Object setup() {
+        return setup(null);
+    }
+
+    public Object setup(String name) {
+        ScenarioEngine engine = getEngine();
+        Feature feature = engine.runtime.featureRuntime.feature;
+        Scenario scenario = feature.getSetup(name);
+        if (scenario == null) {
+            String message = "no scenario found with @setup tag";
+            if (name != null) {
+                message = message + " and name '" + name + "'";
+            }
+            engine.logger.error(message);
+            throw new RuntimeException(message);
+        }
+        ScenarioRuntime sr = new ScenarioRuntime(engine.runtime.featureRuntime, scenario);
+        sr.setSkipBackground(true);
+        sr.run();
+        ScenarioEngine.set(engine);
+        FeatureResult result = engine.runtime.featureRuntime.result;
+        synchronized (result) {
+            result.addResult(sr.result);
+        }
+        return JsValue.fromJava(sr.engine.getAllVariablesAsMap());
+    }
+
     public void setXml(String name, String xml) {
         getEngine().setVariable(name, XmlUtils.toXmlDoc(xml));
     }
@@ -766,7 +788,7 @@ public class ScenarioBridge implements PerfContext {
         getEngine().set(name, path, new Variable(XmlUtils.toXmlDoc(xml)));
     }
 
-    public void signal(Value v) {        
+    public void signal(Value v) {
         getEngine().signal(JsValue.toJava(v));
     }
 

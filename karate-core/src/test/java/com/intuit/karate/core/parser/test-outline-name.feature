@@ -1,6 +1,7 @@
 Feature:
 
-Background:
+@setup
+Scenario:
   * def js_data =
   """
   [
@@ -34,4 +35,4 @@ Scenario Outline: name is <name> and age is <age>
   * def title = karate.info.scenarioName
 
 Examples:
-  | js_data |
+  | karate.setup().js_data |

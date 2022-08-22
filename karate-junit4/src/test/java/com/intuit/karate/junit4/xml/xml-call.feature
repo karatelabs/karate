@@ -1,6 +1,7 @@
 Feature: Example
 
-Background:
+@setup
+Scenario:
   * def prepare_data = call read('xml-called.feature')
   * def data = prepare_data.data
 
@@ -9,7 +10,7 @@ Scenario Outline: make sure any json clone operations don't crash during call
   * print stats
 
   Examples:
-    | data |
+    | karate.setup().data |
 
 Scenario: make sure call arg json conversion for reporting fails gracefully
 * def moreXml =

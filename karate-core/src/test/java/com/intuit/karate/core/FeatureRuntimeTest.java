@@ -238,6 +238,11 @@ class FeatureRuntimeTest {
     void testOutlineBackground() {
         run("outline-background.feature");
     }
+    
+    @Test
+    void testOutlineDynamic() {
+        run("outline-dynamic.feature");
+    }    
 
     @Test
     void testOutlineConfigJsParallel() {

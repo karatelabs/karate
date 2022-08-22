@@ -1,29 +1,19 @@
 Feature:
 
-Background:
-    * def anotherVariable = 'hello'
+@setup
+Scenario:
     * def data = [{ name: 'one' }, { name: 'two' }]
 
 Scenario Outline:
     * match name == "#present"
-    * match anotherVariable == "hello"
 
 Examples:
-    | data |
+    | karate.setup().data |
 
 Scenario Outline:
     * match name == "#present"
-    * match anotherVariable == "hello"
-
-Examples:
-    | name |
-    | test |
-
-Scenario Outline:
-    * match name == "#present"
-    * match anotherVariable == "hello"
     * def params = { 'foo': 'bar' }
     * call read('js-read-called-2.feature') params
 
 Examples:
-    | data |
+    | karate.setup().data |

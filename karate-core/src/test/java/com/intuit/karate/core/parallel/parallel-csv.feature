@@ -1,26 +1,25 @@
 Feature:
 
-Background:
-* def isNot = function(x) { return function(row) { return row.id != x } }
-* callonce read('call-once-from-feature.feature')
+@setup
+Scenario:
+* def data = read('data.csv')
+* def exclude = x => data.filter(y => y.id != x)
+* def include = x => data.filter(y => y.id == x)
 
 Scenario Outline:
-* call read('called.feature')
 * assert id != '0'
 
 Examples:
-| karate.filter(read('data.csv'), isNot('0')) |
+| karate.setup().data.filter(x => x.id != '0') |
 
 Scenario Outline:
-* call read('called.feature')
 * assert id != '1'
 
 Examples:
-| karate.filter(read('data.csv'), isNot('1')) |
+| karate.setup().exclude('1') |
 
 Scenario Outline:
-* call read('called.feature')
-* assert id != '2'
+* assert id == '2'
 
 Examples:
-| karate.filter(read('data.csv'), isNot('2')) |
+| karate.setup().include('2') |

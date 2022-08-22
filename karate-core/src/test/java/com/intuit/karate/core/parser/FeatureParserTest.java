@@ -172,7 +172,7 @@ class FeatureParserTest {
     @Test
     void testOutlineDynamic() {
         FeatureResult result = execute("test-outline-dynamic.feature");
-        assertEquals(2, result.getScenarioResults().size());
+        assertEquals(3, result.getScenarioResults().size());
         Map<String, Object> map = result.getVariables();
         match(map.get("name"), "Nyan");
         match(map.get("title"), "name is Nyan and age is 7");
@@ -232,13 +232,13 @@ class FeatureParserTest {
         Runner.Builder builder = Runner.builder();
         builder.tags("@a-tag");
         FeatureRuntime fr = FeatureRuntime.of(new Suite(builder), feature);
-        ScenarioOutline outline = feature.getSection(0).getScenarioOutline();
+        ScenarioOutline outline = feature.getSection(1).getScenarioOutline();
 
         assertEquals(1, outline.getScenarios(fr).size());
 
         feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-name.feature");
         fr = FeatureRuntime.of(new Suite(builder), feature);
-        outline = feature.getSection(0).getScenarioOutline();
+        outline = feature.getSection(1).getScenarioOutline();
         assertEquals(2, outline.getScenarios(fr).size());
 
         // using a tag that does not exist in the Examples Tables

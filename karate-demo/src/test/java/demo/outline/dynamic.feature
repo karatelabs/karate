@@ -1,7 +1,8 @@
 @mock-servlet-todo
 Feature: scenario outline using a dynamic table
 
-Background:
+@setup
+Scenario:
     * def kittens = read('../callarray/kittens.json')
 
 Scenario Outline: cat name: <name>
@@ -15,5 +16,5 @@ Scenario Outline: cat name: <name>
     # the single cell can be any valid karate expression
     # and even reference a variable defined in the Background
     Examples:
-    | kittens |
+    | karate.setup().kittens |
     

@@ -122,6 +122,29 @@ public class Feature {
         }
         return null;
     }
+    
+    public Scenario getSetup(String name) {
+        for (FeatureSection section : sections) {
+            if (section.isOutline()) {
+                continue;
+            }
+            Scenario scenario = section.getScenario();
+            List<Tag> foundTags = scenario.getTags();
+            if (foundTags != null) {
+                for (Tag tag : foundTags) {
+                    if (Tag.SETUP.equals(tag.getName())) {
+                        if (name == null) {
+                            return scenario;
+                        }
+                        if (tag.getValues().contains(name)) {
+                            return scenario;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
 
     public void addSection(FeatureSection section) {
         section.setIndex(sections.size());

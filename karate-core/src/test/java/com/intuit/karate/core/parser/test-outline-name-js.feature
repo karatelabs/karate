@@ -1,6 +1,7 @@
 Feature:
 
-Background:
+@setup
+Scenario:
   * def sum = function(x,y){ return x + y; }
   * def js_data =
   """
@@ -57,7 +58,7 @@ Scenario Outline: `name is ${name} and age is ${age}`
   * match title == karate.scenario.name
 
 Examples:
-  | js_data |
+  | karate.setup().js_data |
 
 
 Scenario Outline: `name is ${name.first} and age is ${age}`
@@ -65,7 +66,7 @@ Scenario Outline: `name is ${name.first} and age is ${age}`
   * match title == karate.scenario.name
 
 Examples:
-  | nested_js_data |
+  | karate.setup().nested_js_data |
 
 
 Scenario Outline: `name is ${name.first} ${name.last} and age is ${age}`
