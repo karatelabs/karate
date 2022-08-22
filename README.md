@@ -649,6 +649,7 @@ Karate can run tests in parallel, and dramatically cut down execution time. This
 * You can use the returned `Results` object to check if any scenarios failed, and to even summarize the errors
 * [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) reports can be generated in the "`reportDir`" path you specify, and you can easily configure your CI to look for these files after a build (for e.g. in `**/*.xml` or `**/karate-reports/*.xml`). Note that you have to call the `outputJunitXml(true)` method on the `Runner` "builder".
 * [Cucumber JSON reports](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) can be generated, except that the extension will be `.json` instead of `.xml`. Note that you have to call the `outputCucumberJson(true)` method on the `Runner` "builder".
+* HTML reports can be disabled by calling [`outputHtmlReport(false)`](https://github.com/karatelabs/karate/blob/v1.2.1.RC1/karate-core/src/main/java/com/intuit/karate/Runner.java#L515). Please note that some [user analytics is tracked](karate-core/src/test/resources/analytics.md) only when you view the built-in Karate HTML report.
 
 ### JUnit 4 Parallel Execution
 > Important: **do not** use the `@RunWith(Karate.class)` annotation. This is a *normal* JUnit 4 test class ! If you want to use JUnit 4, use the [`karate-junit4` Maven dependency](#maven) instead of `karate-junit5`.
