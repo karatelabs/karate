@@ -40,9 +40,11 @@ import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -70,6 +72,16 @@ public class ReportUtils {
         "com/intuit/karate/report/karate-report.css",
         "com/intuit/karate/report/karate-report.js"
     };
+    
+    public static Map<String, Object> commonVars() {
+        Map<String, Object> map = new HashMap(5);
+        map.put("userUuid", FileUtils.USER_UUID);
+        map.put("userName", FileUtils.USER_NAME);
+        map.put("karateVersion", FileUtils.KARATE_VERSION);
+        map.put("karateMeta", FileUtils.KARATE_META);
+        map.put("karateTelemetry", FileUtils.KARATE_TELEMETRY);
+        return map;
+    }    
 
     public static String getDateString() {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss a");

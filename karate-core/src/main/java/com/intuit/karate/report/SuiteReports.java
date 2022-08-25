@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.report;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.Results;
 import com.intuit.karate.Suite;
 import com.intuit.karate.core.FeatureResult;
@@ -35,16 +34,15 @@ import com.intuit.karate.core.TimelineResults;
  * @author pthomas3
  */
 public interface SuiteReports {
+    
+
 
     default Report featureReport(Suite suite, FeatureResult featureResult) {
         return Report.template("karate-feature.html")
                 .reportDir(suite.reportDir)
-                .reportFileName(featureResult.getFeature().getPackageQualifiedName() + ".html")
+                .reportFileName(featureResult.getFeature().getPackageQualifiedName() + ".html")                
                 .variable("results", featureResult.toKarateJson())
-                .variable("userUuid", FileUtils.USER_UUID)
-                .variable("userName", FileUtils.USER_NAME)
-                .variable("karateVersion", FileUtils.KARATE_VERSION)
-                .variable("karateMeta", FileUtils.KARATE_META)
+                .variables(ReportUtils.commonVars())
                 .build();
     }
 
@@ -66,10 +64,7 @@ public interface SuiteReports {
         return Report.template("karate-summary.html")
                 .reportDir(suite.reportDir)
                 .variable("results", results.toKarateJson())
-                .variable("userUuid", FileUtils.USER_UUID)
-                .variable("userName", FileUtils.USER_NAME)
-                .variable("karateVersion", FileUtils.KARATE_VERSION)
-                .variable("karateMeta", FileUtils.KARATE_META)
+                .variables(ReportUtils.commonVars())
                 .build();
     }
 

@@ -52,11 +52,12 @@ public class FileUtils {
         // only static methods
     }
 
+    public static final boolean KARATE_TELEMETRY;
     public static final String KARATE_VERSION;
     public static final String KARATE_META;
     public static final String USER_NAME;
     public static final String USER_HOME;
-    public static final String USER_UUID;
+    public static final String USER_UUID;    
 
     static {
         Properties props = new Properties();
@@ -71,6 +72,8 @@ public class FileUtils {
         }        
         KARATE_VERSION = version;      
         KARATE_META = System.getenv("KARATE_META");
+        String telemetryEnv = System.getenv("KARATE_TELEMETRY"); // "true" / "false"
+        KARATE_TELEMETRY = telemetryEnv == null ? true : telemetryEnv.trim().equals("true"); 
         USER_HOME = System.getProperty("user.home", "");
         USER_NAME = System.getProperty("user.name", USER_HOME);
         String uuid;
