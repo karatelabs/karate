@@ -3,7 +3,7 @@ From version [1.2.0 onwards](https://github.com/karatelabs/karate/releases/tag/v
 
 Only one (anonymous) event is captured: which is when someone views the HTML report that Karate generates. Note that using the HTML report is completely optional.
 
-If you set an OS environment called `KARATE_TELEMETRY` to the value `false`, no events will be sent.
+If you set an OS environment property called `KARATE_TELEMETRY` to the value `false`, no events will be sent.
 
 Users can also completely disable HTML reporting via the [API](https://github.com/karatelabs/karate#parallel-execution) or [command-line](https://github.com/karatelabs/karate/tree/master/karate-netty#output-format).
 
