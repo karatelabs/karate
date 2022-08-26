@@ -9,3 +9,4 @@ Scenario: called scenario
   * utils.sayHello()
   * call read('dummy.feature')
   * utils.sayHello()
+  * utils.reuseExistingFunction()
