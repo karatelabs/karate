@@ -1,17 +1,18 @@
 package com.intuit.karate.core;
 
-import com.intuit.karate.TestUtils;
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.Match;
+import com.intuit.karate.StringUtils;
+import com.intuit.karate.TestUtils;
+import com.intuit.karate.graal.JsValue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- *
  * @author pthomas3
  */
 public class ScenarioEngineTest {

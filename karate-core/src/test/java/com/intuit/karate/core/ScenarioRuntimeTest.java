@@ -450,9 +450,12 @@ class ScenarioRuntimeTest {
     void testJsonPath() {
         run(
                 "def foo = { a: 1, b: { a: 2 } }",
-                "def res1 = karate.jsonPath(foo, '$..a')"
+                "def res1 = karate.jsonPath(foo, '$..a')",
+                "def arr = [ {'id': 1, 'name': 'test', 'age': 10}, {'id': 2, 'name': 'test2', 'age': 20} ]",
+                "def res2 = karate.jsonPath(arr, '$.[?(@.id == 1)].name')[0]"
         );
         matchVar("res1", "[1, 2]");
+        matchVar("res2", "test");
     }
 
     @Test
