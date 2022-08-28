@@ -4287,6 +4287,33 @@ This technique has one caveat to be aware of regarding isolation of tests runnin
 #### JSON Array Data Source
 The "scenario expression" result is expected to be an array of JSON objects. Here is an example (also see [this video](https://twitter.com/KarateDSL/status/1051433711814627329)):
 
+The `kittens.json` file used in the refernce at `Background` step is as below,
+
+```json
+[
+  {
+    "name": "Bob"
+  },
+  {
+    "name": "Wild"
+  },
+  {
+    "name": "Nyan"
+  },
+  {
+    "name": "Keyboard"
+  },
+  {
+    "name": "LOL"
+  },
+  {
+    "name": "Ceiling"
+  }
+]
+```
+
+The above json file is used in the below example for illustration as,
+
 ```cucumber
 Feature: scenario outline using a dynamic table
 
