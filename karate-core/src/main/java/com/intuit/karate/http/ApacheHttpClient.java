@@ -46,6 +46,8 @@ import java.util.List;
 import java.util.Map;
 import javax.net.ssl.SSLContext;
 import org.apache.http.Header;
+import org.apache.http.HeaderElement;
+import org.apache.http.HeaderElementIterator;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpException;
 import org.apache.http.HttpHost;
@@ -76,16 +78,20 @@ import org.apache.http.cookie.MalformedCookieException;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.DefaultClientConnectionReuseStrategy;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.LaxRedirectStrategy;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.impl.conn.SystemDefaultRoutePlanner;
 import org.apache.http.impl.cookie.DefaultCookieSpec;
+import org.apache.http.message.BasicHeaderElementIterator;
+import org.apache.http.protocol.HTTP;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
+import org.apache.http.util.EntityUtils;
 
 /**
- *
  * @author pthomas3
  */
 public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
@@ -95,10 +101,11 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     private final HttpLogger httpLogger;
 
     private HttpClientBuilder clientBuilder;
+    private static PoolingHttpClientConnectionManager connectionManager;
     private CookieStore cookieStore;
 
     public static class LenientCookieSpec extends DefaultCookieSpec {
-        
+
         static final String KARATE = "karate";
 
         public LenientCookieSpec() {
@@ -118,7 +125,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         public static Registry<CookieSpecProvider> registry() {
             CookieSpecProvider specProvider = (HttpContext hc) -> new LenientCookieSpec();
             return RegistryBuilder.<CookieSpecProvider>create()
-                    .register(KARATE, specProvider).build();
+                .register(KARATE, specProvider).build();
         }
 
     }
@@ -127,12 +134,42 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         this.engine = engine;
         logger = engine.logger;
         httpLogger = new HttpLogger(logger);
-        configure(engine.getConfig());
+        Config config = engine.getConfig();
+        createConnectionManager(config);
+        configure(config);
+    }
+
+    private static synchronized void createConnectionManager(Config config) {
+        if (connectionManager == null) {
+            connectionManager = new PoolingHttpClientConnectionManager();
+            connectionManager.setMaxTotal(1000);
+            connectionManager.setDefaultMaxPerRoute(50);
+            connectionManager.setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(config.getReadTimeout()).build());
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> connectionManager.shutdown()));
+        }
+        connectionManager.closeExpiredConnections();
     }
 
     private void configure(Config config) {
-        clientBuilder = HttpClientBuilder.create();
-        clientBuilder.disableAutomaticRetries();
+        clientBuilder = HttpClientBuilder.create()
+            .setKeepAliveStrategy((response, context) -> {
+                HeaderElementIterator it = new BasicHeaderElementIterator
+                    (response.headerIterator(HTTP.CONN_KEEP_ALIVE));
+                while (it.hasNext()) {
+                    HeaderElement he = it.nextElement();
+                    String param = he.getName();
+                    String value = he.getValue();
+                    if (value != null && param.equalsIgnoreCase
+                        ("timeout")) {
+                        return Long.parseLong(value) * 1000;
+                    }
+                }
+                return config.getConnectTimeout();
+            })
+            .setConnectionReuseStrategy(new DefaultClientConnectionReuseStrategy())
+            .setConnectionManager(connectionManager)
+            .disableAutomaticRetries();
+
         if (!config.isFollowRedirects()) {
             clientBuilder.disableRedirectHandling();
         } else { // support redirect on POST by default
@@ -145,12 +182,14 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         if (config.isSslEnabled()) {
             // System.setProperty("jsse.enableSNIExtension", "false");
             String algorithm = config.getSslAlgorithm(); // could be null
-            KeyStore trustStore = engine.getKeyStore(config.getSslTrustStore(), config.getSslTrustStorePassword(), config.getSslTrustStoreType());
-            KeyStore keyStore = engine.getKeyStore(config.getSslKeyStore(), config.getSslKeyStorePassword(), config.getSslKeyStoreType());
+            KeyStore trustStore = engine.getKeyStore(config.getSslTrustStore(), config.getSslTrustStorePassword(),
+                config.getSslTrustStoreType());
+            KeyStore keyStore = engine.getKeyStore(config.getSslKeyStore(), config.getSslKeyStorePassword(),
+                config.getSslKeyStoreType());
             SSLContext sslContext;
             try {
                 SSLContextBuilder builder = SSLContexts.custom()
-                        .setProtocol(algorithm); // will default to TLS if null
+                    .setProtocol(algorithm); // will default to TLS if null
                 if (trustStore == null && config.isSslTrustAll()) {
                     builder = builder.loadTrustMaterial(new TrustAllStrategy());
                 } else {
@@ -178,9 +217,10 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             }
         }
         RequestConfig.Builder configBuilder = RequestConfig.custom()
-                .setCookieSpec(LenientCookieSpec.KARATE)
-                .setConnectTimeout(config.getConnectTimeout())
-                .setSocketTimeout(config.getReadTimeout());
+            .setCookieSpec(LenientCookieSpec.KARATE)
+            .setStaleConnectionCheckEnabled(true)
+            .setConnectTimeout(config.getConnectTimeout())
+            .setSocketTimeout(config.getReadTimeout());
         if (config.getLocalAddress() != null) {
             try {
                 InetAddress localAddress = InetAddress.getByName(config.getLocalAddress());
@@ -199,8 +239,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 if (config.getProxyUsername() != null && config.getProxyPassword() != null) {
                     CredentialsProvider credsProvider = new BasicCredentialsProvider();
                     credsProvider.setCredentials(
-                            new AuthScope(proxyUri.getHost(), proxyUri.getPort()),
-                            new UsernamePasswordCredentials(config.getProxyUsername(), config.getProxyPassword()));
+                        new AuthScope(proxyUri.getHost(), proxyUri.getPort()),
+                        new UsernamePasswordCredentials(config.getProxyUsername(), config.getProxyPassword()));
                     clientBuilder.setDefaultCredentialsProvider(credsProvider);
                 }
                 if (config.getNonProxyHosts() != null) {
@@ -210,8 +250,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                         @Override
                         public List<Proxy> select(URI uri) {
                             return Collections.singletonList(proxyExceptions.contains(uri.getHost())
-                                    ? Proxy.NO_PROXY
-                                    : new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyUri.getHost(), proxyUri.getPort())));
+                                ? Proxy.NO_PROXY
+                                : new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyUri.getHost(), proxyUri.getPort())));
                         }
 
                         @Override
@@ -280,7 +320,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             }
             request.setEndTimeMillis(System.currentTimeMillis());
         } catch (Exception e) {
-            if (e instanceof ClientProtocolException && e.getCause() != null) { // better error message                
+            if (e instanceof ClientProtocolException && e.getCause() != null) { // better error message
                 throw new RuntimeException(e.getCause());
             } else {
                 throw new RuntimeException(e);
@@ -293,19 +333,17 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             // auto-followed a redirect where cookies were involved
             List<String> cookieValues = new ArrayList(cookies.size());
             for (Cookie c : cookieStore.getCookies()) {
-                if (c.getValue() != null) {
-                    Map<String, Object> map = new HashMap();
-                    map.put(Cookies.NAME, c.getName());
-                    map.put(Cookies.VALUE, c.getValue());
-                    map.put(Cookies.DOMAIN, c.getDomain());
-                    if (c.getExpiryDate() != null) {
-                        map.put(Cookies.MAX_AGE, c.getExpiryDate().getTime());
-                    }
-                    map.put(Cookies.SECURE, c.isSecure());
-                    io.netty.handler.codec.http.cookie.Cookie nettyCookie = Cookies.fromMap(map);
-                    String cookieValue = ServerCookieEncoder.LAX.encode(nettyCookie);
-                    cookieValues.add(cookieValue);
+                Map<String, Object> map = new HashMap();
+                map.put(Cookies.NAME, c.getName());
+                map.put(Cookies.VALUE, c.getValue());
+                map.put(Cookies.DOMAIN, c.getDomain());
+                if (c.getExpiryDate() != null) {
+                    map.put(Cookies.MAX_AGE, c.getExpiryDate().getTime());
                 }
+                map.put(Cookies.SECURE, c.isSecure());
+                io.netty.handler.codec.http.cookie.Cookie nettyCookie = Cookies.fromMap(map);
+                String cookieValue = ServerCookieEncoder.LAX.encode(nettyCookie);
+                cookieValues.add(cookieValue);
             }
             // removing is probably not needed since apache cookie handling is enabled, but anyway
             httpResponse.removeHeaders(HttpConstants.HDR_SET_COOKIE);
@@ -313,9 +351,15 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             headers.put(HttpConstants.HDR_SET_COOKIE, cookieValues);
             cookieStore.clear();
         } else {
-            headers = toHeaders(httpResponse);            
+            headers = toHeaders(httpResponse);
         }
         Response response = new Response(httpResponse.getStatusLine().getStatusCode(), headers, bytes);
+        try {
+            EntityUtils.consume(httpResponse.getEntity());
+            httpResponse.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         httpLogger.logResponse(getConfig(), request, response);
         return response;
     }
