@@ -2040,6 +2040,8 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `followRedirects` | boolean | Whether the HTTP client automatically follows redirects - (default `true`), refer to this [example](karate-demo/src/test/java/demo/redirect/redirect.feature).
 `connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 30000 (30 seconds). Note that for `karate-apache`, this sets the [socket timeout](https://stackoverflow.com/a/22722260/143475) to the same value as well.
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 30000 (30 seconds).
+`maxConnectionsTotal` | integer | maxiumum connections that can be opened in parallel. The default is 10000.
+`maxConnectionsPerRoute` | integer | maxiumum connections to same host that can be opened in parallel. The default is 50.
 `proxy` | string | Set the URI of the HTTP proxy to use.
 `proxy` | JSON | For a proxy that requires authentication, set the `uri`, `username` and `password`, see example below. Also a `nonProxyHosts` key is supported which can take a list for e.g. `{ uri: 'http://my.proxy.host:8080',  nonProxyHosts: ['host1', 'host2']}`
 `localAddress` | string | see [`karate-gatling`](karate-gatling#configure-localaddress)

@@ -102,6 +102,8 @@ public class Config {
     // call single cache config
     private int callSingleCacheMinutes = 0;
     private String callSingleCacheDir = FileUtils.getBuildDir();
+    private int maxConnectionsPerRoute = 50;
+    private int maxConnectionsTotal = 1000;
 
     public Config() {
         // zero arg constructor
@@ -132,7 +134,7 @@ public class Config {
                 return false;
             case "xmlNamespaceAware":
                 xmlNamespaceAware = value.isTrue();
-                return false;                
+                return false;
             case "lowerCaseResponseHeaders":
                 lowerCaseResponseHeaders = value.isTrue();
                 return false;
@@ -212,7 +214,7 @@ public class Config {
             // here on the http client has to be re-constructed ================
             case "charset":
                 charset = value.isNull() ? null : Charset.forName(value.getAsString());
-                return true;                
+                return true;
             case "ssl":
                 if (value.isString()) {
                     sslEnabled = true;
@@ -288,6 +290,12 @@ public class Config {
                 }
 
                 return true;
+            case "maxConnectionsPerRoute":
+                maxConnectionsPerRoute = value.getAsInt();
+                return true;
+            case "maxConnectionsTotal":
+                maxConnectionsTotal = value.getAsInt();
+                return true;
             default:
                 throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
         }
@@ -338,6 +346,8 @@ public class Config {
         afterFeature = parent.afterFeature;
         continueOnStepFailureMethods = parent.continueOnStepFailureMethods;
         continueAfterContinueOnStepFailure = parent.continueAfterContinueOnStepFailure;
+        maxConnectionsPerRoute = parent.maxConnectionsPerRoute;
+        maxConnectionsTotal = parent.maxConnectionsTotal;
     }
 
     public void setCookies(Variable cookies) {
@@ -434,7 +444,7 @@ public class Config {
 
     public boolean isXmlNamespaceAware() {
         return xmlNamespaceAware;
-    }        
+    }
 
     public boolean isLowerCaseResponseHeaders() {
         return lowerCaseResponseHeaders;
@@ -556,4 +566,7 @@ public class Config {
         this.continueAfterContinueOnStepFailure = continueAfterContinueOnStepFailure;
     }
 
+    public int getMaxConnectionsPerRoute() {return maxConnectionsPerRoute;}
+
+    public int getMaxConnectionsTotal() {return maxConnectionsTotal;}
 }

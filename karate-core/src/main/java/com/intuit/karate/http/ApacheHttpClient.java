@@ -135,22 +135,23 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         logger = engine.logger;
         httpLogger = new HttpLogger(logger);
         Config config = engine.getConfig();
-        createConnectionManager(config);
+        createConnectionManager();
         configure(config);
     }
 
-    private static synchronized void createConnectionManager(Config config) {
+    private static synchronized void createConnectionManager() {
         if (connectionManager == null) {
             connectionManager = new PoolingHttpClientConnectionManager();
-            connectionManager.setMaxTotal(1000);
-            connectionManager.setDefaultMaxPerRoute(50);
-            connectionManager.setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(config.getReadTimeout()).build());
             Runtime.getRuntime().addShutdownHook(new Thread(() -> connectionManager.shutdown()));
         }
-        connectionManager.closeExpiredConnections();
+      connectionManager.closeExpiredConnections();
     }
 
     private void configure(Config config) {
+        connectionManager.setMaxTotal(config.getMaxConnectionsTotal());
+        connectionManager.setDefaultMaxPerRoute(config.getMaxConnectionsPerRoute());
+        connectionManager.setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(config.getReadTimeout()).build());
+
         clientBuilder = HttpClientBuilder.create()
             .setKeepAliveStrategy((response, context) -> {
                 HeaderElementIterator it = new BasicHeaderElementIterator
@@ -218,7 +219,6 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         }
         RequestConfig.Builder configBuilder = RequestConfig.custom()
             .setCookieSpec(LenientCookieSpec.KARATE)
-            .setStaleConnectionCheckEnabled(true)
             .setConnectTimeout(config.getConnectTimeout())
             .setSocketTimeout(config.getReadTimeout());
         if (config.getLocalAddress() != null) {
