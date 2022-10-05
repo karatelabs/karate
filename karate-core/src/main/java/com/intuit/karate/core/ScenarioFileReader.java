@@ -50,8 +50,10 @@ public class ScenarioFileReader {
         StringUtils.Pair pair = parsePathAndTags(text);
         text = pair.left;
         if (text == null && pair.right != null && pair.right.startsWith("@")) {
-            this.featureRuntime.feature.setCallTag(pair.right);
-            return this.featureRuntime.feature;
+            // TODO consider not reparsing this resource. See issues #2119 and #2136
+            Feature feature = Feature.read(this.featureRuntime.feature.getResource());
+            feature.setCallTag(pair.right);
+            return feature;
         } else if (isJsonFile(text) || isXmlFile(text)) {
             String contents = readFileAsString(text);
             Variable temp = engine.evalKarateExpression(contents);

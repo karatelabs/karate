@@ -149,6 +149,21 @@ class FeatureRuntimeTest {
     }
 
     @Test
+    void testCallByTagFromCallByLine() {
+        Results results = Runner.path("classpath:com/intuit/karate/core/call-by-tag.feature:7")
+                .configDir("src/test/java/com/intuit/karate/core")
+                .parallel(1);
+    }
+
+    @Test
+    void testCallByTagFromCallByTag() {
+        Results results = Runner.path("classpath:com/intuit/karate/core/issue2119/demo1.feature")
+                .configDir("src/test/java/com/intuit/karate/core")
+                .parallel(1);
+    }
+
+
+    @Test
     void testCallByTagCalled() {
         run("call-by-tag-called.feature");
         matchContains(fr.result.getVariables(), "{ bar: 3 }"); // last scenario
