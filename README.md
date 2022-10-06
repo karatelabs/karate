@@ -967,6 +967,8 @@ You can read more about the Given-When-Then convention at the [Cucumber referenc
 
 For a detailed discussion on BDD and how Karate relates to Cucumber, please refer to this blog-post: [Yes, Karate is not *true* BDD](https://medium.com/@ptrthomas/yes-karate-is-not-true-bdd-698bf4a9be39). It is the opinion of the author of Karate that *true* BDD is un-necessary over-kill for API testing, and this is explained more in [this answer](https://stackoverflow.com/a/47799207/143475) on [Stack Overflow](https://stackoverflow.com/questions/tagged/karate).
 
+Also read - [Top API Testing tools](https://www.interviewbit.com/blog/api-testing-tools/)
+
 With the formalities out of the way, let's dive straight into the syntax.
 
 # Setting and Using Variables
