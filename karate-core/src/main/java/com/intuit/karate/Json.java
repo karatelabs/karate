@@ -269,7 +269,7 @@ public class Json {
                     if (!pathExists(pair.left)) { // a necessary repetition
                         doc.set(pair.left, new LinkedHashMap());
                     }
-                    doc.put(pair.left, pair.right, new LinkedHashMap());
+                    doc.put(pair.left, pair.right, array ? new ArrayList() : new LinkedHashMap());
                 }
             } else {
                 doc.put(pair.left, pair.right, array ? new ArrayList() : new LinkedHashMap());

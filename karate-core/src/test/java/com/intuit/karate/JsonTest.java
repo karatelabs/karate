@@ -92,6 +92,15 @@ class JsonTest {
         json.set("$[0].name.first", "Bob");
         match(json, "[{ name: { first: 'Bob' } }]");
     }
+
+    @Test
+    void testSetMultipleNestedArray(){
+        Json json = Json.object();
+        json.set("first.second[0].third[0].fourth[0]","hello");
+        match(json, "{ first :{ second :[{ third :[{ fourth :[ hello ]}]}]}}");
+        json.set("first.fifth[0].sixth[1].seventh[2]","hello");
+        match(json,"{ first :{ second :[{ third :[{ fourth :[ 'hello' ]}]}], fifth :[{ sixth :[null,{ seventh :[null,null, hello ]}]}]}}");
+    }
     
     @Test
     void testJsonApi() {
