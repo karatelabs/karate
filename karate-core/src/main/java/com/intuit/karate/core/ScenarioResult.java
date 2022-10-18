@@ -64,8 +64,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     public String getFailureMessageForDisplay() {
         if (failedStep == null) {
             return null;
-        }
-        // val message = feature + ":" + step.getLine + " " + result.getStep.getText
+        }        
         Step step = failedStep.getStep();
         String featureName = scenario.getFeature().getResource().getRelativePath();
         return featureName + ":" + step.getLine() + " " + step.getText();
@@ -79,7 +78,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         Result result = error == null ? Result.passed(0) : Result.failed(0, error, step);
         StepResult sr = new StepResult(step, result);
         if (error != null) {
-            sr.setStepLog(error.getMessage() + "\n" + StringUtils.throwableToString(error));
+            sr.setStepLog(error.getMessage());
         }
         addStepResult(sr);
         return sr;

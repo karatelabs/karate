@@ -117,6 +117,12 @@ class RunnerTest {
         Map<String, Object> result = Runner.runFeature("classpath:com/intuit/karate/core/runner/run-arg.feature", Collections.singletonMap("foo", "hello"), false);
         assertEquals("hello world", result.get("message"));
         assertEquals(null, result.get("configSource"));
-    }     
+    }
+    
+    @Test
+    void testJavaApiWithIgnoreTag() {
+        Map<String, Object> result = Runner.runFeature("classpath:com/intuit/karate/core/runner/run-ignore.feature", Collections.singletonMap("foo", "hello"), true);
+        assertEquals(Collections.emptyMap(), result);    
+    }
 
 }

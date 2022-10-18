@@ -99,7 +99,6 @@ class FeatureRuntimeTest {
     @Test
     void testAlign() {
         run("align.feature");
-        System.out.println(fr.result.getVariables());
         match(fr.result.getVariables(), "{ configSource: 'normal', functionFromKarateBase: '#notnull', text: 'hello bar world' , cats: '#notnull', myJson: {}}}");
     }
 
@@ -239,6 +238,11 @@ class FeatureRuntimeTest {
     void testOutlineBackground() {
         run("outline-background.feature");
     }
+    
+    @Test
+    void testOutlineDynamic() {
+        run("outline-dynamic.feature");
+    }    
 
     @Test
     void testOutlineConfigJsParallel() {
@@ -335,5 +339,11 @@ class FeatureRuntimeTest {
     void testReadProperties() {
         run("read-properties.feature");
     }      
+    
+    @Test
+    void testCallSelf() {
+        run("call-self.feature");
+        matchContains(fr.result.getVariables(), "{ result: 'second' }");
+    }
 
 }

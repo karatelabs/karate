@@ -26,11 +26,13 @@ package com.intuit.karate.http;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.LogAppender;
+import com.intuit.karate.Match;
 import com.intuit.karate.core.Variable;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.graal.Methods;
+import com.intuit.karate.resource.Resource;
 import com.intuit.karate.template.KarateEngineContext;
 import com.intuit.karate.template.TemplateUtils;
 import io.netty.handler.codec.http.cookie.Cookie;
@@ -92,10 +94,12 @@ public class ServerContext implements ProxyObject {
     private static final String TEMPLATE = "template";
     private static final String TYPE_OF = "typeOf";
     private static final String IS_PRIMITIVE = "isPrimitive";
+    private static final String MATCH = "match";
 
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, LOG, UUID, REMOVE, REDIRECT, SWITCH, SWITCHED, AJAX, HTTP, NEXT_ID, SESSION_ID,
-        INIT, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_STRING, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON, TEMPLATE, TYPE_OF, IS_PRIMITIVE};
+        INIT, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_STRING, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON, 
+        TEMPLATE, TYPE_OF, IS_PRIMITIVE, MATCH};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -121,7 +125,7 @@ public class ServerContext implements ProxyObject {
 
     public ServerContext(ServerConfig config, Request request) {
         this(config, request, null);
-    }
+    }        
 
     public ServerContext(ServerConfig config, Request request, Map<String, Object> variables) {
         this.config = config;
@@ -136,9 +140,8 @@ public class ServerContext implements ProxyObject {
             return http;
         };
         RENDER_FUNCTION = o -> {
-            KarateEngineContext engineContext = KarateEngineContext.get();
             if (o instanceof String) {
-                return TemplateUtils.renderServerPath((String) o, engineContext.getJsEngine(), config.getResourceResolver(), config.isDevMode());
+                return TemplateUtils.renderServerPath((String) o, getEngine(), config.getResourceResolver(), config.isDevMode());
             }
             Map<String, Object> map;
             if (o instanceof Map) {
@@ -160,7 +163,7 @@ public class ServerContext implements ProxyObject {
             if (fork != null && fork) {
                 je = JsEngine.local();
             } else {
-                je = engineContext.getJsEngine().copy();
+                je = getEngine().copy();
             }
             if (vars != null) {
                 je.putAll(vars);
@@ -212,6 +215,17 @@ public class ServerContext implements ProxyObject {
     }
 
     public String readAsString(String resource) {
+        if (resource.startsWith(Resource.THIS_COLON)) {
+            resource = resource.substring(Resource.THIS_COLON.length());
+            if (resource.charAt(0) != '/') {
+                resource = "/" + resource;
+            }
+            String path = request.getResourcePath();
+            int pos = path.lastIndexOf('/');
+            if (pos != -1) {
+                resource = path.substring(0, pos) + resource;
+            }            
+        }
         InputStream is = config.getResourceResolver().resolve(resource).getStream();
         return FileUtils.toString(is);
     }
@@ -225,14 +239,19 @@ public class ServerContext implements ProxyObject {
             return JsValue.fromString(raw, false, resourceType);
         }
     }
+    
+    private JsEngine getEngine() {
+        KarateEngineContext kec = KarateEngineContext.get();
+        return kec == null ? RequestCycle.get().getEngine() : kec.getJsEngine();
+    }
 
     public Object eval(String source) {
-        return KarateEngineContext.get().getJsEngine().evalForValue(source);
+        return getEngine().evalForValue(source);
     }
 
     public Object evalWith(Object o, String source) {
         Value value = Value.asValue(o);
-        return KarateEngineContext.get().getJsEngine().evalWith(value, source, true);
+        return getEngine().evalWith(value, source, true);
     }
 
     public String toJson(Object o) {
@@ -374,12 +393,12 @@ public class ServerContext implements ProxyObject {
         String name = args[0].toString();
         KarateEngineContext kec = KarateEngineContext.get();
         Object value;
-        if (kec.containsVariable(name)) {
+        if (kec != null && kec.containsVariable(name)) {
             value = kec.getVariable(name);
         } else {
-            JsEngine je = kec.getJsEngine();
+            JsEngine je = getEngine();
             if (je.bindings.hasMember(name)) {
-                value = kec.getJsEngine().get(name).getValue();
+                value = je.get(name).getValue();
             } else if (args.length > 1) {
                 value = args[1];
             } else {
@@ -461,7 +480,7 @@ public class ServerContext implements ProxyObject {
 
     private final Supplier<Object> INIT_FUNCTION = () -> {
         init();
-        KarateEngineContext.get().getJsEngine().put(RequestCycle.SESSION, session.getData());
+        getEngine().put(RequestCycle.SESSION, session.getData());
         logger.debug("init session: {}", session);
         return null;
     };
@@ -494,6 +513,19 @@ public class ServerContext implements ProxyObject {
     private final Function<String, Object> TYPE_OF_FUNCTION = o -> new Variable(o).getTypeString();
 
     private final Function<Object, Object> IS_PRIMITIVE_FUNCTION = o -> !new Variable(o).isMapOrList();
+    
+    private final Methods.FunVar MATCH_FUNCTION = args -> {
+        if (args.length > 2 && args[0] != null) {
+            String type = args[0].toString();
+            Match.Type matchType = Match.Type.valueOf(type.toUpperCase());
+            return JsValue.fromJava(Match.execute(getEngine(), matchType, args[1], args[2]));
+        } else if (args.length == 2) {
+            return JsValue.fromJava(Match.execute(getEngine(), Match.Type.EQUALS, args[0], args[1]));
+        } else {
+             logger.warn("at least two arguments needed for match");
+             return null;
+        }
+    };
 
     @Override
     public Object getMember(String key) {
@@ -560,6 +592,8 @@ public class ServerContext implements ProxyObject {
                 return TYPE_OF_FUNCTION;
             case IS_PRIMITIVE:
                 return IS_PRIMITIVE_FUNCTION;
+            case MATCH:
+                return MATCH_FUNCTION;
             default:
                 logger.warn("no such property on context object: {}", key);
                 return null;

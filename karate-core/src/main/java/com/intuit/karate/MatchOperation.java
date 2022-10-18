@@ -191,7 +191,7 @@ public class MatchOperation {
                 case CONTAINS_DEEP:
                 case CONTAINS_ANY_DEEP:
                     // don't tamper with strings on the RHS that represent arrays or objects
-                    if (!expected.isList() && !(expected.isString() && (expected.isArray() || expected.isObject()))) {
+                    if (!expected.isList() && !(expected.isString() && expected.isArrayObjectOrReference())) {
                         MatchOperation mo = new MatchOperation(context, type, actual, new Match.Value(Collections.singletonList(expected.getValue())));
                         mo.execute();
                         return mo.pass ? pass() : fail(mo.failReason);

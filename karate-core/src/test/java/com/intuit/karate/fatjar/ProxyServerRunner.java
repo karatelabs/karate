@@ -2,6 +2,8 @@ package com.intuit.karate.fatjar;
 
 import com.intuit.karate.http.ProxyServer;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -9,10 +11,12 @@ import org.junit.jupiter.api.Test;
  */
 class ProxyServerRunner {
 
+    private static final Logger logger = LoggerFactory.getLogger(ProxyServerRunner.class);
+
     @Test
     void testProxy() {
         ProxyServer proxy = new ProxyServer(5000, req -> {
-            System.out.println("*** " + req.uri());
+            logger.info("*** {}", req.uri());
             return null;
         }, null);
         proxy.waitSync();

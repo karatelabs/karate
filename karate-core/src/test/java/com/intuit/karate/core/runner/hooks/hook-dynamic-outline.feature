@@ -1,9 +1,10 @@
 Feature: Test Hook Feature
 
-Background:
+@setup
+Scenario:
   * def cats = [{name: 'cat1'}, {name: 'cat2'}];
 
 Scenario Outline: cats: ${name}
-  * match name == "<name>"
+  * match name == '<name>'
   Examples:
-    | cats |
+    | karate.setup().cats |

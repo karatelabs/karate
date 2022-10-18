@@ -78,7 +78,7 @@ public class Json {
     }
 
     public Json getJson(String path) {
-        return Json.of(get(path, String.class));
+        return Json.of(get(path, Object.class));
     }
 
     public <T> List<T> get(String prefix, List<String> paths) {

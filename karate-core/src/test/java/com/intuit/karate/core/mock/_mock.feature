@@ -118,4 +118,14 @@ Scenario: pathMatches('/v1/html')
     """
 
 Scenario: pathMatches('/v1/invalid-cookie')
-    * def responseHeaders = { 'Set-Cookie': 'detectedTimeZoneId=FLE Standard Time' }    
+    * def responseHeaders = { 'Set-Cookie': 'detectedTimeZoneId=FLE Standard Time' }
+
+Scenario: pathMatches('/v1/call-shared')
+    * def fromCaller = 'world'
+    * call read('called.feature') 
+    * def response = message
+
+Scenario: pathMatches('/v1/call-isolated')
+    * def fromCaller = 'world'
+    * def result = call read('called.feature') 
+    * def response = result.message

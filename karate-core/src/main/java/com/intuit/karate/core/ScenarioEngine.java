@@ -36,8 +36,6 @@ import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Key;
 import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsExecutable;
-import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.graal.JsLambda;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.*;
@@ -64,6 +62,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.graalvm.polyglot.proxy.ProxyExecutable;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -112,16 +111,7 @@ public class ScenarioEngine {
 
     protected JsEngine JS;
 
-    // only used by mock server
-    public ScenarioEngine(ScenarioRuntime runtime, Map<String, Variable> vars) {
-        this(runtime.engine.config, runtime, vars, runtime.logger);
-    }
-
     public ScenarioEngine(Config config, ScenarioRuntime runtime, Map<String, Variable> vars, Logger logger) {
-        this(config, runtime, vars, logger, null);
-    }
-
-    public ScenarioEngine(Config config, ScenarioRuntime runtime, Map<String, Variable> vars, Logger logger, HttpRequestBuilder requestBuilder) {
         this.config = config;
         this.runtime = runtime;
         hooks = runtime.featureRuntime.suite.hooks;
@@ -130,7 +120,6 @@ public class ScenarioEngine {
         bridge = new ScenarioBridge(this);
         this.vars = vars;
         this.logger = logger;
-        this.requestBuilder = requestBuilder;
     }
 
     public static ScenarioEngine forTempUse(HttpClientFactory hcf) {
@@ -293,7 +282,8 @@ public class ScenarioEngine {
     // http ====================================================================
     //
     protected HttpRequestBuilder requestBuilder; // see init() method
-    private HttpRequest request;
+    private HttpRequest httpRequest;
+    private Request request; // used only for mocks
     private Response response;
     private Config config;
 
@@ -305,14 +295,29 @@ public class ScenarioEngine {
     // callonce routine is one example
     public void setConfig(Config config) {
         this.config = config;
-        config.attach(JS);
         if (requestBuilder != null) {
             requestBuilder.client.setConfig(config);
         }
     }
 
-    public HttpRequest getRequest() {
-        return request;
+    public void setRequest(Request request) {
+        this.request = request;
+    }
+
+    public Request getRequest() {
+        if (request != null) {
+            return request;
+        }
+        if (httpRequest != null) {
+            request = httpRequest.toRequest();
+            request.processBody();
+            return request;
+        }
+        return null;
+    }        
+
+    public HttpRequest getHttpRequest() {
+        return httpRequest;
     }
 
     public Response getResponse() {
@@ -575,22 +580,22 @@ public class ScenarioEngine {
         if (headers != null) {
             requestBuilder.headers(headers);
         }
-        request = requestBuilder.build();
+        httpRequest = requestBuilder.build();
         String perfEventName = null; // acts as a flag to report perf if not null
         if (runtime.perfMode) {
-            perfEventName = runtime.featureRuntime.perfHook.getPerfEventName(request, runtime);
+            perfEventName = runtime.featureRuntime.perfHook.getPerfEventName(httpRequest, runtime);
         }
         long startTime = System.currentTimeMillis();
-        request.setStartTimeMillis(startTime); // this may be fine-adjusted by actual http client
+        httpRequest.setStartTimeMillis(startTime); // this may be fine-adjusted by actual http client
         if (hooks != null) {
-            hooks.forEach(h -> h.beforeHttpCall(request, runtime));
+            hooks.forEach(h -> h.beforeHttpCall(httpRequest, runtime));
         }
         try {
-            response = requestBuilder.client.invoke(request);
+            response = requestBuilder.client.invoke(httpRequest);
         } catch (Exception e) {
             long endTime = System.currentTimeMillis();
             long responseTime = endTime - startTime;
-            String message = "http call failed after " + responseTime + " milliseconds for url: " + request.getUrl();
+            String message = "http call failed after " + responseTime + " milliseconds for url: " + httpRequest.getUrl();
             logger.error(e.getMessage() + ", " + message);
             if (perfEventName != null) {
                 PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, 0);
@@ -599,7 +604,7 @@ public class ScenarioEngine {
             throw new KarateException(message, e);
         }
         if (hooks != null) {
-            hooks.forEach(h -> h.afterHttpCall(request, response, runtime));
+            hooks.forEach(h -> h.afterHttpCall(httpRequest, response, runtime));
         }
         byte[] bytes = response.getBody();
         Object body;
@@ -635,8 +640,8 @@ public class ScenarioEngine {
         cookies = response.getCookies();
         updateConfigCookies(cookies);
         setHiddenVariable(RESPONSE_COOKIES, cookies);
-        startTime = request.getStartTimeMillis(); // in case it was re-adjusted by http client
-        long endTime = request.getEndTimeMillis();
+        startTime = httpRequest.getStartTimeMillis(); // in case it was re-adjusted by http client
+        long endTime = httpRequest.getEndTimeMillis();
         setHiddenVariable(REQUEST_TIME_STAMP, startTime);
         setHiddenVariable(RESPONSE_TIME, endTime - startTime);
         if (perfEventName != null) {
@@ -684,7 +689,7 @@ public class ScenarioEngine {
     public void status(int status) {
         if (status != response.getStatus()) {
             // make sure log masking is applied
-            String message = HttpLogger.getStatusFailureMessage(status, config, request, response);
+            String message = HttpLogger.getStatusFailureMessage(status, config, httpRequest, response);
             setFailedReason(new KarateException(message));
         }
     }
@@ -748,6 +753,7 @@ public class ScenarioEngine {
 
     public WebSocketClient webSocket(WebSocketOptions options) {
         WebSocketClient webSocketClient = new WebSocketClient(options, logger);
+        webSocketClient.setEngine(this);
         if (webSocketClients == null) {
             webSocketClients = new ArrayList();
         }
@@ -755,8 +761,8 @@ public class ScenarioEngine {
         return webSocketClient;
     }
 
-    public synchronized void signal(Object result) {
-        SIGNAL.complete(result);
+    public void signal(Object result) {
+        SIGNAL.complete(result);                       
     }
 
     public void listen(String exp) {
@@ -766,10 +772,11 @@ public class ScenarioEngine {
         Object listenResult = null;
         try {
             listenResult = SIGNAL.get(timeout, TimeUnit.MILLISECONDS);
+            Thread.sleep(100); // IMPORTANT, else graal js complains
         } catch (Exception e) {
             logger.error("listen timed out: {}", e + "");
-        }
-        synchronized (JS.context) {
+        }        
+        synchronized (JsValue.LOCK) {
             setHiddenVariable(LISTEN_RESULT, listenResult);
             logger.debug("exit listen state with result: {}", listenResult);
             SIGNAL = new CompletableFuture();
@@ -1034,30 +1041,12 @@ public class ScenarioEngine {
     public void init() { // not in constructor because it has to be on Runnable.run() thread 
         JS = JsEngine.local();
         logger.trace("js context: {}", JS);
-        // to avoid re-processing objects that have cyclic dependencies
-        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        runtime.magicVariables.forEach((k, v) -> {
-            // even hidden variables may need pre-processing
-            // for e.g. the __arg may contain functions that originated in a different js context
-            Object o = recurseAndAttach(k, v, seen);
-            JS.put(k, o == null ? v : o); // attach returns null if "not dirty"
-        });
-        vars.forEach((k, v) -> {
-            // re-hydrate any functions from caller or background  
-            Object o = recurseAndAttach(k, v.getValue(), seen);
-            // note that we don't update the vars !
-            // if we do, any "bad" out-of-context values will crash the constructor of Variable
-            // it is possible the vars are detached / re-used later, so we kind of defer the inevitable
-            JS.put(k, o == null ? v.getValue() : o); // attach returns null if "not dirty"
-        });
+        runtime.magicVariables.forEach((k, v) -> JS.put(k, v));
+        vars.forEach((k, v) -> JS.put(k, v.getValue()));
         if (runtime.caller.arg != null && runtime.caller.arg.isMap()) {
             // add the call arg as separate "over ride" variables
             Map<String, Object> arg = runtime.caller.arg.getValue();
-            recurseAndAttach("", arg, seen); // since arg is a map, it will not be cloned
-            arg.forEach((k, v) -> {
-                vars.put(k, new Variable(v));
-                JS.put(k, v);
-            });
+            setVariables(arg);
         }
         JS.put(KARATE, bridge);
         JS.put(READ, readFunction);        
@@ -1079,228 +1068,10 @@ public class ScenarioEngine {
         }
     }
 
-    protected Map<String, Variable> detachVariables() {
-        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        Map<String, Variable> detached = new HashMap(vars.size());
-        vars.forEach((k, v) -> {
-            Object o = recurseAndDetachAndShallowClone(k, v.getValue(), seen);
-            detached.put(k, new Variable(o));
-        });
-        return detached;
-    }
-
-    // callSingle
-    protected Object recurseAndAttachAndShallowClone(Object o) {
-        return recurseAndAttachAndShallowClone(o, Collections.newSetFromMap(new IdentityHashMap()));
-    }
-
-    // callonce
-    protected Object recurseAndAttachAndShallowClone(Object o, Set<Object> seen) {
-        if (o instanceof List) {
-            o = new ArrayList((List) o);
-        } else if (o instanceof Map) {
-            o = new LinkedHashMap((Map) o);
-        }
-        Object result = recurseAndAttach("", o, seen);
-        return result == null ? o : result;
-    }
-
-    // call shared context
-    protected Object recurseAndAttach(Object o) {
-        Object result = recurseAndAttach("", o, Collections.newSetFromMap(new IdentityHashMap()));
-        return result == null ? o : result;
-    }
-
-    // call shared context
-    protected Object shallowClone(Object o) {
-        if (o instanceof List) {
-            return this.shallowCloneList((List<Object>) o);
-        } else if (o instanceof Map) {
-            return this.shallowCloneMap((Map<String, Object>) o);
-        } else {
-            return o;
-        }
-    }
-
-    // call shared context
-    protected List<Object> shallowCloneList(List<Object> o) {
-        List<Object> result = new ArrayList();
-        o.forEach(v -> {
-            if (v instanceof List) {
-                List copy = new ArrayList();
-                copy.addAll((List) v);
-                result.add(copy);
-            } else if (v instanceof Map) {
-                Map copy = new HashMap();
-                copy.putAll((Map) v);
-                result.add(copy);
-            } else {
-                result.add(v);
-            }
-        });
-        return result;
-    }
-
-    // call shared context
-    protected Map<String, Object> shallowCloneMap(Map<String, Object> o) {
-        Map<String, Object> result = new HashMap();
-        o.forEach((k, v) -> {
-            if (v instanceof List) {
-                List copy = new ArrayList();
-                copy.addAll((List) v);
-                result.put(k, copy);
-            } else if (v instanceof Map) {
-                Map copy = new HashMap();
-                copy.putAll((Map) v);
-                result.put(k, copy);
-            } else {
-                result.put(k, v);
-            }
-        });
-        return result;
-    }
-
-    private Object recurseAndAttach(String name, Object o, Set<Object> seen) {
-        if (o instanceof Value) {
-            Value value = Value.asValue(o);
-            try {
-                if (value.canExecute()) {
-                    if (value.isMetaObject()) { // js function
-                        return attach(value);
-                    } else { // java function
-                        return new JsExecutable(value);
-                    }
-                } else { // anything else, including java-type references
-                    return value;
-                }
-            } catch (Exception e) {
-                logger.warn("[*** attach ***] ignoring non-json value: '{}' - {}", name, e.getMessage());
-                // here we try our luck and hope that graal does not notice !
-                return value;
-            }
-        }
-        if (o instanceof Class) {
-            Class clazz = (Class) o;
-            Value value = JS.evalForValue("Java.type('" + clazz.getCanonicalName() + "')");
-            return value;
-        } else if (o instanceof JsFunction) {
-            JsFunction jf = (JsFunction) o;
-            try {
-                return attachSource(jf.source);
-            } catch (Exception e) {
-                logger.warn("[*** attach ***] ignoring js-function: '{}' - {}", name, e.getMessage());
-                return Value.asValue(null); // make sure we return a "dirty" value to force an update
-            }
-        } else if (o instanceof List) {
-            if (seen.add(o)) {
-                List list = (List) o;
-                int count = list.size();
-                try {
-                    for (int i = 0; i < count; i++) {
-                        Object child = list.get(i);
-                        Object childResult = recurseAndAttach(name + "[" + i + "]", child, seen);
-                        if (childResult != null) {
-                            list.set(i, childResult);
-                        }
-                    }
-                } catch (Exception e) {
-                    logger.warn("attach - immutable list: {}", name);
-                }
-            }
-            return null;
-        } else if (o instanceof Map) {
-            if (seen.add(o)) {
-                Map<String, Object> map = (Map) o;
-                try {
-                    map.forEach((k, v) -> {
-                        Object childResult = recurseAndAttach(name + "." + k, v, seen);
-                        if (childResult != null) {
-                            map.put(k, childResult);
-                        }
-                    });
-                } catch (Exception e) {
-                    logger.warn("attach - immutable map: {}", name);
-                }
-            }
-            return null;
-        } else {
-            return null;
-        }
-    }
-
-    protected Object recurseAndDetachAndShallowClone(Object o) {
-        return recurseAndDetachAndShallowClone("", o, Collections.newSetFromMap(new IdentityHashMap()));
-    }
-
-    // callonce, callSingle and detachVariables()
-    private Object recurseAndDetachAndShallowClone(String name, Object o, Set<Object> seen) {
-        if (o instanceof List) {
-            o = new ArrayList((List) o);
-        } else if (o instanceof Map) {
-            o = new LinkedHashMap((Map) o);
-        }
-        Object result = recurseAndDetach(name, o, seen);
-        return result == null ? o : result;
-    }
-
-    private Object recurseAndDetach(String name, Object o, Set<Object> seen) {
-        if (o instanceof Value) {
-            Value value = (Value) o;
-            try {
-                if (value.canExecute()) {
-                    if (value.isMetaObject()) { // js function
-                        return new JsFunction(value);
-                    } else { // java function                        
-                        return new JsExecutable(value);
-                    }
-                } else if (value.isHostObject()) {
-                    return value.asHostObject();
-                }
-            } catch (Exception e) {
-                logger.warn("[*** detach ***] ignoring non-json value: '{}' - {}", name, e.getMessage());
-            }
-            return null;
-        } else if (o instanceof List) {
-            List list = (List) o;
-            int count = list.size();
-            try {
-                for (int i = 0; i < count; i++) {
-                    Object child = list.get(i);
-                    Object childResult = recurseAndDetach(name + "[" + i + "]", child, seen);
-                    if (childResult != null) {
-                        list.set(i, childResult);
-                    }
-                }
-            } catch (Exception e) {
-                logger.warn("detach - immutable list: {}", name);
-            }
-            return null;
-        } else if (o instanceof Map) {
-            if (seen.add(o)) {
-                Map<String, Object> map = (Map) o;
-                try {
-                    map.forEach((k, v) -> {
-                        Object childResult = recurseAndDetach(name + "." + k, v, seen);
-                        if (childResult != null) {
-                            map.put(k, childResult);
-                        }
-                    });
-                } catch (Exception e) {
-                    logger.warn("detach - immutable map: {}", name);
-                }
-            }
-            return null;
-        } else {
-            return null;
-        }
-    }
-
-    public Value attachSource(CharSequence source) {
-        return JS.attachSource(source);
-    }
-
-    public Value attach(Value before) {
-        return JS.attach(before);
+    protected Map<String, Variable> shallowCloneVariables() {
+        Map<String, Variable> copy = new HashMap(vars.size());
+        vars.forEach((k, v) -> copy.put(k, v.copy(false))); // shallow clone
+        return copy;
     }
 
     protected <T> Map<String, T> getOrEvalAsMap(Variable var, Object... args) {
@@ -1315,9 +1086,9 @@ public class ScenarioEngine {
     public Variable executeFunction(Variable var, Object... args) {
         switch (var.type) {
             case JS_FUNCTION:
-                Value jsFunction = var.getValue();                
-                JsValue jsResult = executeJsValue(JS.attach(jsFunction), args);
-                return new Variable(jsResult);
+                ProxyExecutable pe = var.getValue();
+                Object result = JsEngine.execute(pe, args);
+                return new Variable(result);
             case JAVA_FUNCTION:  // definitely a "call" with a single argument
                 Function javaFunction = var.getValue();
                 Object arg = args.length == 0 ? null : args[0];
@@ -1325,17 +1096,6 @@ public class ScenarioEngine {
                 return new Variable(JsValue.unWrap(javaResult));
             default:
                 throw new RuntimeException("expected function, but was: " + var);
-        }
-    }
-
-    private JsValue executeJsValue(Value function, Object... args) {
-        try {
-            return new JsValue(JsEngine.execute(function, args));
-        } catch (Exception e) {
-            String jsSource = function.getSourceLocation().getCharacters().toString();
-            KarateException ke = JsEngine.fromJsEvalException(jsSource, e, null);
-            setFailedReason(ke);
-            throw ke;
         }
     }
 
@@ -1368,16 +1128,9 @@ public class ScenarioEngine {
             o = v.getValue();
         } else {
             o = value;
-            try {
-                v = new Variable(value);
-            } catch (Exception e) {
-                v = null;
-                logger.warn("[*** set variable ***] ignoring non-json value: {} - {}", key, e.getMessage());
-            }
+            v = new Variable(value);
         }
-        if (v != null) {
-            vars.put(key, v);
-        }
+        vars.put(key, v);
         if (JS != null) {
             JS.put(key, o);
         }
@@ -1444,6 +1197,10 @@ public class ScenarioEngine {
 
     private static boolean isEmbeddedExpression(String text) {
         return text != null && (text.startsWith("#(") || text.startsWith("##(")) && text.endsWith(")");
+    }
+
+    private Map<String, Object> Map(Object callResult) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     private static class EmbedAction {
@@ -1994,6 +1751,7 @@ public class ScenarioEngine {
         }
         return new StringUtils.Pair(line.substring(0, pos), StringUtils.trimToNull(line.substring(pos)));
     }
+      
 
     public Variable call(Variable called, Variable arg, boolean sharedScope) {
         switch (called.type) {
@@ -2003,51 +1761,9 @@ public class ScenarioEngine {
             case FEATURE:
                 // will be always a map or a list of maps (loop call result)                
                 Object callResult = callFeature(called.getValue(), arg, -1, sharedScope);
-                this.rehydrateCallFeatureResult(callResult);
                 return new Variable(callResult);
             default:
                 throw new RuntimeException("not a callable feature or js function: " + called);
-        }
-    }
-
-    private void rehydrateCallFeatureResult(Object callResult) {
-        Object callResultVariables = null;
-        if (callResult instanceof FeatureResult) {
-            callResultVariables = ((FeatureResult) callResult).getVariables();
-            ((FeatureResult) callResult).getConfig().detach();
-        } else if (callResult instanceof List) {
-            callResultVariables = new ArrayList<Map<String,Object>>();
-            final List<Map<String,Object>> finalCallResultVariables = (List<Map<String,Object>>)callResultVariables;
-            ((List<?>) callResult).forEach(result -> {
-                if (result instanceof FeatureResult) {
-                    finalCallResultVariables.add(((FeatureResult) result).getVariables());
-                    Config config = ((FeatureResult) result).getConfig();
-                    config.detach();
-                }
-            });
-            callResultVariables = finalCallResultVariables;
-        } else {
-            callResultVariables = callResult;
-        }
-        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        recurseAndAttach("", callResultVariables, seen);
-    }
-
-    public Variable getCallFeatureVariables(Variable featureResult) {
-        if (featureResult.getValue() instanceof FeatureResult) {
-            return new Variable(((FeatureResult) featureResult.getValue()).getVariables());
-        } else if (featureResult.isList()) {
-            List resultVariables = new ArrayList();
-            ((List) featureResult.getValue()).forEach(result -> {
-                if (result instanceof FeatureResult) {
-                    resultVariables.add(this.getCallFeatureVariables(new Variable(result)).getValue());
-                } else {
-                    resultVariables.add(result);
-                }
-            });
-            return new Variable(resultVariables);
-        } else {
-            return featureResult;
         }
     }
 
@@ -2061,60 +1777,42 @@ public class ScenarioEngine {
         } else {
             result = call(called, arg, sharedScope);
         }
-        Variable resultVariables = this.getCallFeatureVariables(result);
         if (sharedScope) {
-            if (resultVariables.isMap()) {
-                setVariables(resultVariables.getValue());
-            } else if (resultVariables.isList()) {
-                ((List) resultVariables.getValue()).forEach(r -> {
-                    setVariables((Map) r);
-                });
-            }
-            if (result.getValue() instanceof FeatureResult) {
-                setConfig(((FeatureResult) result.getValue()).getConfig());
+            if (result.isMap()) {
+                // even the act of introspecting graal values as part of the JsValue constructor
+                // triggers the dreaded graal js single-thread check, so we lock here
+                synchronized (JsValue.LOCK) {
+                    setVariables(result.getValue());
+                }
             }
         }
-        return new Variable(resultVariables.getValue());
+        return result;
     }
 
     private Variable callOnceResult(ScenarioCall.Result result, boolean sharedScope) {
         if (sharedScope) { // if shared scope
             vars.clear(); // clean slate            
             if (result.vars != null) {
-                Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-                result.vars.forEach((k, v) -> {
-                    // clone maps and lists so that subsequent steps don't modify data / references being passed around
-                    Object o = recurseAndAttachAndShallowClone(v.getValue(), seen);
-                    try {
-                        vars.put(k, new Variable(o));
-                    } catch (Exception e) {
-                        logger.warn("[*** callonce result ***] ignoring non-json value: '{}' - {}", k, e.getMessage());
-                    }
-                });
+                // shallow clone maps and lists so that subsequent steps don't modify data / references being passed around
+                result.vars.forEach((k, v) -> vars.put(k, v.copy(false)));
             } else if (result.value != null) {
                 if (result.value.isMap()) {
-                    ((Map) result.value.getValue()).forEach((k, v) -> {
-                        try {
-                            vars.put((String) k, new Variable(v));
-                        } catch (Exception e) {
-                            logger.warn("[*** callonce result ***] ignoring non-json value from result.value: '{}' - {}", k, e.getMessage());
-                        }
-                    });
+                    Map<String, Object> map = result.value.getValue();
+                    // shallow clone newly added variables
+                    map.forEach((k, v) -> vars.put(k, new Variable(JsonUtils.shallowCopy(v))));
                 } else {
-                    logger.warn("[*** callonce result ***] ignoring non-map value from result.value: {}", result.value);
+                    logger.warn("callonce: ignoring non-map value from result.value: {}", result.value);
                 }
             }
-            init(); // this will attach and also insert magic variables
+            init(); // this will insert magic variables
             // re-apply config from time of snapshot
-            // and note that setConfig() will attach functions such as configured "headers"
             setConfig(new Config(result.config));
             return Variable.NULL; // since we already reset the vars above we return null
             // else the call() routine would try to do it again
             // note that shared scope means a return value is meaningless
         } else {
-            // deep-clone for the same reasons mentioned above
-            Object resultValue = recurseAndAttachAndShallowClone(result.value.getValue());
-            return new Variable(resultValue);
+            // shallow clone for the same reasons mentioned above
+            return result.value.copy(false);
         }
     }
 
@@ -2141,20 +1839,13 @@ public class ScenarioEngine {
             }
             // this thread is the 'winner'
             logger.info(">> lock acquired, begin callonce: {}", cacheKey);
-            Variable resultValue = call(called, arg, sharedScope);
-            Variable resultVariables = this.getCallFeatureVariables(resultValue);
+            Variable callResult = call(called, arg, sharedScope);
             // we clone result (and config) here, to snapshot state at the point the callonce was invoked
-            // detaching is important (see JsFunction) so that we can keep the source-code aside
-            // and use it to re-create functions in a new JS context - and work around graal-js limitations
-            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? detachVariables() : null;
-            Config clonedConfig = new Config(config);
-            clonedConfig.detach();
-            Object resultObject = recurseAndDetachAndShallowClone(resultVariables.getValue());
-            result = new ScenarioCall.Result(new Variable(resultObject), clonedConfig, clonedVars);
+            Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? shallowCloneVariables() : null;
+            result = new ScenarioCall.Result(callResult.copy(false), new Config(config), clonedVars);
             CACHE.put(cacheKey, result);
             logger.info("<< lock released, cached callonce: {}", cacheKey);
              // another routine will apply globally if needed
-             // wrap and attach if being used immediately in a Scenario
             return callOnceResult(result, sharedScope); 
         }
     }
@@ -2170,18 +1861,11 @@ public class ScenarioEngine {
             THREAD_LOCAL.set(this);
             FeatureResult result = fr.result;
             runtime.addCallResult(result);
-            if (sharedScope) {
-                // if it's shared scope we don't want JS functions rehydrated in different contexts (threads)
-                // to polute parent scope/context
-                runtime.engine.recurseAndAttach(runtime.magicVariables);
-                runtime.engine.recurseAndAttach(runtime.engine.vars);
-                // todo: shared config
-            }
             if (result.isFailed()) {
                 KarateException ke = result.getErrorMessagesCombined();
                 throw ke;
             } else {
-                return result;
+                return result.getVariables();
             }
         } else if (arg.isList() || arg.isJsOrJavaFunction()) {
             List result = new ArrayList();

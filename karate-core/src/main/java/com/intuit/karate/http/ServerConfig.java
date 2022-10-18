@@ -46,6 +46,7 @@ public class ServerConfig {
     private boolean stripContextPathFromRequest;
     private boolean useGlobalSession;
     private boolean autoCreateSession;
+    private boolean noCache;
     private boolean devMode;
     private SessionStore sessionStore = JvmSessionStore.INSTANCE;
     private int sessionExpirySeconds = 60 * 10;
@@ -115,6 +116,10 @@ public class ServerConfig {
         return autoCreateSession;
     }
 
+    public boolean isNoCache() {
+        return noCache;
+    }    
+    
     public boolean isDevMode() {
         return devMode;
     }
@@ -180,6 +185,11 @@ public class ServerConfig {
         autoCreateSession = value;
         return this;
     }
+    
+    public ServerConfig noCache(boolean value) {
+        noCache = value;
+        return this;
+    }    
 
     public ServerConfig devMode(boolean value) {
         devMode = value;

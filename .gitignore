@@ -7,6 +7,7 @@ target/
 .vscode
 .java-version
 *.iml
+*.tokens
 build/
 bin/
 .gradle
@@ -19,10 +20,10 @@ karate-demo/activemq-data/
 karate-demo/*.pem
 karate-demo/*.jks
 karate-demo/*.der
+karate-core/gen
 karate-core/*.pem
 karate-core/*.jks
 karate-core/*.der
 karate-robot/tessdata
 karate-junit4/src/test/java/com/intuit/karate/junit4/dev
 karate-robot/src/test/java/robot/dev
-

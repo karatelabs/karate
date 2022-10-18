@@ -51,7 +51,9 @@ public class FeatureRuntime implements Runnable {
     public final Feature feature;
     public final Iterator<ScenarioRuntime> scenarios;
     public final PerfHook perfHook;
-    public final FeatureResult result;
+    public final FeatureResult result;      
+    
+    private ScenarioEngine mockEngine;
 
     private final ParallelProcessor<ScenarioRuntime> processor;
 
@@ -69,6 +71,14 @@ public class FeatureRuntime implements Runnable {
 
     public void setNext(Runnable next) {
         this.next = next;
+    }
+
+    public void setMockEngine(ScenarioEngine mockEngine) {
+        this.mockEngine = mockEngine;
+    }        
+
+    public ScenarioEngine getMockEngine() {
+        return mockEngine;
     }
 
     public static FeatureRuntime forTempUse(HttpClientFactory hcf) {
@@ -191,7 +201,7 @@ public class FeatureRuntime implements Runnable {
     }
 
     // extracted for junit5
-    public void afterFeature() {
+    public synchronized void afterFeature() {
         result.sortScenarioResults();
         if (lastExecutedScenario != null) {
             lastExecutedScenario.engine.invokeAfterHookIfConfigured(true);

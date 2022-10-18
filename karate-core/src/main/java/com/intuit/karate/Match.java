@@ -275,13 +275,17 @@ public class Match {
             return "#notpresent".equals(value);
         }
 
-        boolean isArray() {
-            return value.toString().startsWith("#[") || "#array".equals(value);
-        }
-
-        boolean isObject() {
-            return "#object".equals(value);
-        }
+        boolean isArrayObjectOrReference() {
+            String temp = value.toString();
+            return temp.startsWith("#[")
+                || temp.startsWith("##[")
+                || temp.startsWith("#(")
+                || temp.startsWith("##(")                  
+                || "#array".equals(temp)
+                || "##array".equals(temp)
+                || "#object".equals(temp)
+                || "##object".equals(temp);
+        }       
 
         boolean isMapOrListOrXml() {
             switch (type) {

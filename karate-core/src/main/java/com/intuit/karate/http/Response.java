@@ -39,6 +39,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
@@ -56,13 +57,15 @@ public class Response implements ProxyObject {
     public static final Response OK = new Response(200);
 
     private static final String BODY = "body";
+    private static final String BODY_BYTES = "bodyBytes";
     private static final String STATUS = "status";
     private static final String HEADER = "header";
     private static final String HEADERS = "headers";
+    private static final String HEADER_VALUES = "headerValues";
     private static final String HEADER_ENTRIES = "headerEntries";
     private static final String DATA_TYPE = "dataType";
 
-    private static final String[] KEYS = new String[]{STATUS, HEADER, HEADERS, BODY, DATA_TYPE, HEADER_ENTRIES};
+    private static final String[] KEYS = new String[]{STATUS, HEADER, HEADERS, HEADER_VALUES, HEADER_ENTRIES, BODY, DATA_TYPE, BODY_BYTES};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -266,8 +269,12 @@ public class Response implements ProxyObject {
                     return null;
                 }
                 return rt.name().toLowerCase();
+            case HEADER_VALUES:
+                return (Function<String, List<String>>) this::getHeaderValues;              
             case HEADER_ENTRIES:
                 return HEADER_ENTRIES_FUNCTION;
+            case BODY_BYTES:
+                return getBody();
             default:
                 logger.warn("no such property on response object: {}", key);
                 return null;

@@ -117,7 +117,7 @@ class PerfHookTest {
         assertEquals(featureResult.getScenarioCount(), 0);
         assertEquals(featureResult.getPassedCount(), 0);
         assertEquals(featureResult.getFailedCount(), 0);
-        assertNull(featureResult.getVariables());
+        assertEquals(featureResult.getVariables(), Collections.emptyMap());
     }
 
     @Test

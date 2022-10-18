@@ -87,6 +87,10 @@ public class DapMessage {
         }
     }
 
+    public static DapMessage request(int seq, String command) {
+        return new DapMessage(seq, Type.REQUEST, command, null);
+    }
+    
     public static DapMessage event(int seq, String name) {
         return new DapMessage(seq, Type.EVENT, null, name);
     }

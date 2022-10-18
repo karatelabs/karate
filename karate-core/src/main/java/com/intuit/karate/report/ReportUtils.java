@@ -40,9 +40,11 @@ import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -70,6 +72,16 @@ public class ReportUtils {
         "com/intuit/karate/report/karate-report.css",
         "com/intuit/karate/report/karate-report.js"
     };
+    
+    public static Map<String, Object> commonVars() {
+        Map<String, Object> map = new HashMap(5);
+        map.put("userUuid", FileUtils.USER_UUID);
+        map.put("userName", FileUtils.USER_NAME);
+        map.put("karateVersion", FileUtils.KARATE_VERSION);
+        map.put("karateMeta", FileUtils.KARATE_META);
+        map.put("karateTelemetry", FileUtils.KARATE_TELEMETRY);
+        return map;
+    }    
 
     public static String getDateString() {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss a");
@@ -154,6 +166,32 @@ public class ReportUtils {
         return error;
     }
 
+    private static Element addCustomTags(Element testCase, Document doc, ScenarioResult sr){
+        //Adding requirement and test tags
+        Element properties = null;   
+
+        if (sr.getScenario() != null){
+            List<String> tags = sr.getScenario().getTagsEffective().getTags();
+            if (tags.size() > 0 ){
+                properties = doc.createElement("properties");
+                
+                for (String tag : tags) {                        
+                    String[] innerTags = tag.split("=");
+                    int size = innerTags.length;
+                    Element requirement = doc.createElement("property");
+                    
+                    if(size > 1){
+                        requirement.setAttribute("name", innerTags[0]);     
+                        requirement.setAttribute("value", innerTags[1]);
+                        properties.appendChild(requirement);
+                    }
+                }
+            }
+        }
+
+        return properties;
+    }
+
     public static File saveJunitXml(String targetDir, FeatureResult result, String fileName) {
         DecimalFormat formatter = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
         formatter.applyPattern("0.######");
@@ -188,6 +226,13 @@ public class ReportUtils {
             } else {
                 stepsHolder = doc.createElement("system-out");
             }
+
+            Element properties = null;
+            properties = addCustomTags(testCase, doc, sr);
+            if(properties != null && properties.getChildNodes().getLength() > 0){
+                testCase.appendChild(properties);
+            }
+            
             testCase.appendChild(stepsHolder);
             stepsHolder.setTextContent(sb.toString());
             xmlString.append(XmlUtils.toString(testCase)).append('\n');

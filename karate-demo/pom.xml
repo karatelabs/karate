@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.intuit.karate</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>1.2.0</version>
+        <version>1.3.0-SNAPSHOT</version>
     </parent>
     
     <artifactId>karate-demo</artifactId>
@@ -128,7 +128,7 @@
                 <configuration>
                     <includes>
                         <include>demo/DemoTestParallel.java</include>
-                        <include>mock/contract/*Test.java</include>
+                        <include>mock/contract/*Test.java</include>                    
                         <include>mock/async/*Test.java</include>
                         <include>mock/micro/*Runner.java</include>
                         <include>mock/proxy/*Runner.java</include>

@@ -23,8 +23,8 @@
  */
 lexer grammar KarateLexer;
 
-FEATURE_COMMENT: WSLF* '#' ~[\r\n]* BOL+ -> channel(HIDDEN) ;
-FEATURE_TAGS: WSLF* '@' ~[\r\n]+ BOL+ ;
+FEATURE_COMMENT: WSLF* '#' CHAR* NEWLINE -> channel(HIDDEN) ;
+FEATURE_TAGS: WSLF* '@' CHAR+ NEWLINE ;
 FEATURE: WSLF* 'Feature:' WS* -> pushMode(MAIN) ; // we never popMode !
 
 fragment WSLF: [\r\n \t] ;     // White Space or Line Feed
@@ -33,22 +33,22 @@ fragment WS: [ \t] ;           // White Space
 
 mode MAIN; // ==================================================================
 
-BACKGROUND: BOL+ 'Background:' WS* ;
-SCENARIO: BOL+ 'Scenario:' WS* ;
-SCENARIO_OUTLINE: BOL+ 'Scenario Outline:' WS* ;
-EXAMPLES: BOL+ 'Examples:' WS* ;
+BACKGROUND: NEWLINE 'Background:' WS* ;
+SCENARIO: NEWLINE 'Scenario:' WS* ;
+SCENARIO_OUTLINE: NEWLINE 'Scenario Outline:' WS* ;
+EXAMPLES: NEWLINE 'Examples:' WS* ;
 
-STAR: BOL+ '*' WS+ ;
-GIVEN: BOL+ 'Given' WS+ ;
-WHEN: BOL+ 'When' WS+ ;
-THEN: BOL+ 'Then' WS+ ;
-AND: BOL+ 'And' WS+ ;
-BUT: BOL+ 'But' WS+ ;
+STAR: NEWLINE '*' WS+ ;
+GIVEN: NEWLINE 'Given' WS+ ;
+WHEN: NEWLINE 'When' WS+ ;
+THEN: NEWLINE 'Then' WS+ ;
+AND: NEWLINE 'And' WS+ ;
+BUT: NEWLINE 'But' WS+ ;
 
-COMMENT: BOL+ '#' ~[\r\n]* -> channel(HIDDEN) ;
-TAGS: BOL+ '@' ~[\r\n]+ ;
-TABLE_ROW: BOL+ '|' ~[\r\n]+ ;
-DOC_STRING: BOL+ '"""' .*? '"""' ~[\r\n]* ;
+COMMENT: NEWLINE '#' CHAR* -> channel(HIDDEN) ;
+TAGS: NEWLINE '@' CHAR+ ;
+TABLE_ROW: NEWLINE '|' CHAR+ ;
+DOC_STRING: NEWLINE '"""' .*? '"""' CHAR* ;
 
 CHAR: ~[\r\n] ;
 NEWLINE: BOL+ ;

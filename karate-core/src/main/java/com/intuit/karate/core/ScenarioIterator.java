@@ -31,6 +31,7 @@ import java.util.Spliterator;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import org.slf4j.Logger;
 
 /**
  *
@@ -46,9 +47,9 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
     private Scenario currentScenario;
 
     // dynamic
+    private ScenarioRuntime dynamicRuntime;
     private Variable expressionValue;
     private int index;
-    private ScenarioRuntime background;
 
     public ScenarioIterator(FeatureRuntime featureRuntime) {
         this.featureRuntime = featureRuntime;
@@ -82,53 +83,53 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                 currentScenario = scenarios.next();
                 index = 0;
                 expressionValue = null;
-                background = null;
             } else {
                 scenarios = null;
                 return tryAdvance(action);
             }
         }
         if (currentScenario.isDynamic()) {
-            if (background == null) {
-                background = new ScenarioRuntime(featureRuntime, currentScenario);
-                if (background.selectedForExecution) {
-                    background.run();
-                    background.engine.getConfig().detach();
-                }
-                if (background.result.isFailed()) { // karate-config.js || background failed
-                    currentScenario = null;
-                    action.accept(background);
-                    return true; // exit early
-                }
-            }
+            Logger logger = FeatureRuntime.logger;
             if (expressionValue == null) {
                 String expression = currentScenario.getDynamicExpression();
+                dynamicRuntime = new ScenarioRuntime(featureRuntime, currentScenario);
+                ScenarioEngine prevEngine = ScenarioEngine.get();
                 try {
-                    expressionValue = background.engine.evalKarateExpression(expression);
+                    ScenarioEngine.set(dynamicRuntime.engine);
+                    dynamicRuntime.engine.init();
+                    expressionValue = dynamicRuntime.engine.evalJs(expression);
                     if (expressionValue.isList() || expressionValue.isJsOrJavaFunction()) {
                         // all good
                     } else {
                         throw new RuntimeException("result is neither list nor function: " + expressionValue);
                     }
                 } catch (Exception e) {
-                    String message = "dynamic expression evaluation failed: " + expression;
-                    background.result.addFakeStepResult(message, e);
+                    String message = currentScenario + " dynamic expression evaluation failed: " + expression;
+                    logger.error(message);
+                    dynamicRuntime.result.addFakeStepResult(message, e);
                     currentScenario = null;
-                    action.accept(background);
+                    action.accept(dynamicRuntime);
                     return true; // exit early
+                } finally {
+                    ScenarioEngine.set(prevEngine);
                 }
             }
             final int rowIndex = index++;
             Variable rowValue;
             if (expressionValue.isJsOrJavaFunction()) {
+                ScenarioEngine prevEngine = ScenarioEngine.get();
                 try {
-                    rowValue = ScenarioEngine.get().executeFunction(expressionValue, rowIndex);
+                    ScenarioEngine.set(dynamicRuntime.engine);
+                    rowValue = dynamicRuntime.engine.executeFunction(expressionValue, rowIndex);
                 } catch (Exception e) {
-                    String message = "dynamic function expression evaluation failed at index " + rowIndex + ": " + e.getMessage();
-                    background.result.addFakeStepResult(message, e);
+                    String message = currentScenario + " dynamic function expression evaluation failed at index " + rowIndex + ": " + e.getMessage();
+                    logger.error(message);
+                    dynamicRuntime.result.addFakeStepResult(message, e);
                     currentScenario = null;
-                    action.accept(background);
+                    action.accept(dynamicRuntime);
                     return true; // exit early                    
+                } finally {
+                    ScenarioEngine.set(prevEngine);
                 }
             } else { // is list
                 List list = expressionValue.getValue();
@@ -146,10 +147,10 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
                     Variable var = new Variable(v);
                     dynamic.replace("<" + k + ">", var.getAsString());
                 });
-                action.accept(new ScenarioRuntime(featureRuntime, dynamic, background));
+                action.accept(new ScenarioRuntime(featureRuntime, dynamic));
                 return true;
             } else { // assume that this is signal to stop the dynamic scenario outline
-                background.logger.info("dynamic expression complete at index: {}, not map-like: {}", rowIndex, rowValue);
+                dynamicRuntime.logger.info("dynamic expression complete at index: {}, not map-like: {}", rowIndex, rowValue);
                 currentScenario = null;
                 return tryAdvance(action);
             }

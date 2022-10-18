@@ -1,6 +1,7 @@
 Feature:
 
-Background:
+@setup
+Scenario:
 * def generator = function(i){ if (i == 5) return null; return { name: 'cat' + i, age: i } }
 
 Scenario Outline:
@@ -8,4 +9,4 @@ Scenario Outline:
 * match __row.name == 'cat' + age
 
 Examples:
-| generator |
+| karate.setup().generator |

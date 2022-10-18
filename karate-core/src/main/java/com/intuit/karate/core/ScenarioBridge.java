@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.EventContext;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
@@ -43,7 +42,6 @@ import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.ResourceType;
-import com.intuit.karate.http.Response;
 import com.intuit.karate.http.WebSocketClient;
 import com.intuit.karate.http.WebSocketOptions;
 import com.intuit.karate.shell.Command;
@@ -69,7 +67,7 @@ import org.graalvm.polyglot.Value;
  *
  * @author pthomas3
  */
-public class ScenarioBridge implements PerfContext, EventContext {
+public class ScenarioBridge implements PerfContext {
 
     private final ScenarioEngine ENGINE;
 
@@ -163,16 +161,12 @@ public class ScenarioBridge implements PerfContext, EventContext {
         ScenarioEngine engine = getEngine();
         Variable called = new Variable(engine.fileReader.readFile(fileName));
         Variable result = engine.call(called, arg == null ? null : new Variable(arg), sharedScope);
-        Variable resultVariables = engine.getCallFeatureVariables(result);
         if (sharedScope) {
-            if (resultVariables.isMap()) {
-                engine.setVariables(resultVariables.getValue());
-            }
-            if (result.getValue() instanceof FeatureResult) {
-                engine.setConfig(((FeatureResult) result.getValue()).getConfig());
+            if (result.isMap()) {
+                engine.setVariables(result.getValue());
             }
         }
-        return JsValue.fromJava(resultVariables.getValue());
+        return JsValue.fromJava(result.getValue());
     }
 
     private static Object callSingleResult(ScenarioEngine engine, Object o) throws Exception {
@@ -180,9 +174,8 @@ public class ScenarioBridge implements PerfContext, EventContext {
             engine.logger.warn("callSingle() cached result is an exception");
             throw (Exception) o;
         }
-        // if we don't clone, an attach operation would update the tree within the cached value
-        // causing future cache hit + attach attempts to fail !
-        o = engine.recurseAndAttachAndShallowClone(o);
+        // shallow clone so that threads see the same data snapshot
+        o = JsonUtils.shallowCopy(o);
         return JsValue.fromJava(o);
     }
 
@@ -239,8 +232,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
                 }
                 Variable resultVar;
                 try {
-                    Variable featureResult = engine.call(called, argVar, false);
-                    resultVar = engine.getCallFeatureVariables(featureResult);
+                    resultVar = engine.call(called, argVar, false);
                 } catch (Exception e) {
                     // don't retain any vestiges of graal-js 
                     RuntimeException re = new RuntimeException(e.getMessage());
@@ -257,8 +249,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
                         engine.logger.warn("callSingleCache write failed, not json-like: {}", resultVar);
                     }
                 }
-                // functions have to be detached so that they can be re-hydrated in another js context
-                result = engine.recurseAndDetachAndShallowClone(resultVar.getValue());
+                result = resultVar.getValue();
             }
             CACHE.put(fileName, result);
             engine.logger.info("<< lock released, cached callSingle: {}", fileName);
@@ -526,9 +517,8 @@ public class ScenarioBridge implements PerfContext, EventContext {
         return new JsMap(map);
     }
 
-    // TODO breaking uri has been renamed to url
     public Object getPrevRequest() {
-        HttpRequest hr = getEngine().getRequest();
+        HttpRequest hr = getEngine().getHttpRequest();
         if (hr == null) {
             return null;
         }
@@ -542,6 +532,14 @@ public class ScenarioBridge implements PerfContext, EventContext {
 
     public Object getProperties() {
         return new JsMap(getEngine().runtime.featureRuntime.suite.systemProperties);
+    }
+
+    public Object getResponse() {
+        return getEngine().getResponse();
+    }
+
+    public Object getRequest() {
+        return getEngine().getRequest();
     }
 
     public Object getScenario() {
@@ -739,10 +737,6 @@ public class ScenarioBridge implements PerfContext, EventContext {
         }
         return new JsList(list);
     }
-    
-    public String responseHeader(String name) {
-        return getEngine().getResponse().getHeader(name);
-    }    
 
     // set multiple variables in one shot
     public void set(Map<String, Object> map) {
@@ -758,6 +752,33 @@ public class ScenarioBridge implements PerfContext, EventContext {
         getEngine().set(name, path, new Variable(value));
     }
 
+    public Object setup() {
+        return setup(null);
+    }
+
+    public Object setup(String name) {
+        ScenarioEngine engine = getEngine();
+        Feature feature = engine.runtime.featureRuntime.feature;
+        Scenario scenario = feature.getSetup(name);
+        if (scenario == null) {
+            String message = "no scenario found with @setup tag";
+            if (name != null) {
+                message = message + " and name '" + name + "'";
+            }
+            engine.logger.error(message);
+            throw new RuntimeException(message);
+        }
+        ScenarioRuntime sr = new ScenarioRuntime(engine.runtime.featureRuntime, scenario);
+        sr.setSkipBackground(true);
+        sr.run();
+        ScenarioEngine.set(engine);
+        FeatureResult result = engine.runtime.featureRuntime.result;
+        synchronized (result) {
+            result.addResult(sr.result);
+        }
+        return JsValue.fromJava(sr.engine.getAllVariablesAsMap());
+    }
+
     public void setXml(String name, String xml) {
         getEngine().setVariable(name, XmlUtils.toXmlDoc(xml));
     }
@@ -767,9 +788,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
         getEngine().set(name, path, new Variable(XmlUtils.toXmlDoc(xml)));
     }
 
-    @Override
-    public void signal(Object o) {
-        Value v = Value.asValue(o);
+    public void signal(Value v) {
         getEngine().signal(JsValue.toJava(v));
     }
 
@@ -879,15 +898,10 @@ public class ScenarioBridge implements PerfContext, EventContext {
     }
 
     public Object toJava(Value value) {
-        if (value.canExecute()) {
-            JsEngine copy = getEngine().JS.copy();
-            return new JsLambda(copy.attach(value));
-        } else {
-            return new JsValue(value).getValue();
-        }
+        return new JsValue(value).getValue();
     }
 
-    private File toJavaFile(String path) {
+    public File toJavaFile(String path) {
         return getEngine().fileReader.toResource(path).getFile();
     }
 
@@ -980,8 +994,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
         if (listener == null || !listener.canExecute()) {
             handler = m -> true;
         } else {
-            JsEngine copy = engine.JS.copy();
-            handler = new JsLambda(copy.attach(listener));
+            handler = new JsLambda(listener);
         }
         WebSocketOptions options = new WebSocketOptions(url, value == null ? null : new JsValue(value).getValue());
         options.setTextHandler(handler);
@@ -1002,8 +1015,7 @@ public class ScenarioBridge implements PerfContext, EventContext {
         if (listener == null || !listener.canExecute()) {
             handler = m -> true;
         } else {
-            JsEngine copy = engine.JS.copy();
-            handler = new JsLambda(copy.attach(listener));
+            handler = new JsLambda(listener);
         }
         WebSocketOptions options = new WebSocketOptions(url, value == null ? null : new JsValue(value).getValue());
         options.setBinaryHandler(handler);

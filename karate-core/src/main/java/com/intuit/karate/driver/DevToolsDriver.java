@@ -884,20 +884,20 @@ public abstract class DevToolsDriver implements Driver {
                 map.put("scale", 1);
                 dtm = method("Page.captureScreenshot").param("clip", map).send();
             }
+            if (dtm == null) {
+                logger.error("unable to capture screenshot - no data returned");
+                return Constants.ZERO_BYTES;
+            }            
+            String temp = dtm.getResult("data").getAsString();
+            byte[] bytes = Base64.getDecoder().decode(temp);
+            if (embed) {
+                getRuntime().embed(bytes, ResourceType.PNG);
+            }
+            return bytes;            
         } catch (Exception e) { // rare case where message does not get a reply
             logger.error("screenshot failed: {}", e.getMessage());
             return Constants.ZERO_BYTES;
         }
-        if (dtm == null) {
-            logger.error("unable to capture screenshot - no data returned");
-            return Constants.ZERO_BYTES;
-        }
-        String temp = dtm.getResult("data").getAsString();
-        byte[] bytes = Base64.getDecoder().decode(temp);
-        if (embed) {
-            getRuntime().embed(bytes, ResourceType.PNG);
-        }
-        return bytes;
     }
 
     // chrome only

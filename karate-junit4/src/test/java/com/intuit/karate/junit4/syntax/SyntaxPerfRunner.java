@@ -3,12 +3,16 @@ package com.intuit.karate.junit4.syntax;
 import com.intuit.karate.Runner;
 import java.util.Collections;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class SyntaxPerfRunner {
+
+    private static final Logger logger = LoggerFactory.getLogger(SyntaxPerfRunner.class);
     
     @Test
     public void testPerf() {
@@ -18,7 +22,7 @@ public class SyntaxPerfRunner {
             Runner.runFeature(getClass(), "syntax.feature", Collections.EMPTY_MAP, true);
         }
         long elapsedTime = System.currentTimeMillis() - startTime;
-        System.out.println("elapsed time: " + elapsedTime);
+        logger.info("elapsed time: {}", elapsedTime);
         // 25.5 seconds for git 76c92bd
         // 14.0 seconds after refactoring
         // 11.0 seconds after second wave git 20445d5

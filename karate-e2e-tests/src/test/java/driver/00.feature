@@ -8,10 +8,10 @@ Background:
 
 Scenario:
 # driver.send() (has to be first)
-* if (driverType == 'chrome') karate.call('12.feature')
+# * if (driverType == 'chrome') karate.call('12.feature')
 
 # driver.url | driver.title | waitForUrl() | refresh() | back() | forward() | driver.dimensions
-* call read('01.feature')
+# * call read('01.feature')
 
 # waitFor() | waitForText() | waitForEnabled()
 * call read('02.feature')
@@ -43,7 +43,7 @@ Scenario:
 * if (driverType == 'playwright') karate.abort()
 
 # switchPage()
-* call read('11.feature')
+* if (driverType == 'chrome' && !skipSlowTests) karate.call('11.feature')
 
 # switchPage() with external URLs
 * if (driverType == 'chrome' && !skipSlowTests) karate.call('13.feature')

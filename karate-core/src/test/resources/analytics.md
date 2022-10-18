@@ -3,7 +3,9 @@ From version [1.2.0 onwards](https://github.com/karatelabs/karate/releases/tag/v
 
 Only one (anonymous) event is captured: which is when someone views the HTML report that Karate generates. Note that using the HTML report is completely optional.
 
-Users can also disable HTML reporting via the [API](https://github.com/karatelabs/karate#parallel-execution) or [command-line](https://github.com/karatelabs/karate/tree/master/karate-netty#output-format).
+If you set an OS environment property called `KARATE_TELEMETRY` to the value `false`, no events will be sent.
+
+Users can also completely disable HTML reporting via the [API](https://github.com/karatelabs/karate#parallel-execution) or [command-line](https://github.com/karatelabs/karate/tree/master/karate-netty#output-format).
 
 There is always the option of [using a third-party report](https://github.com/karatelabs/karate/tree/master/karate-demo#example-report) (via the JUnit-XML or Cucumber-JSON output).
 
@@ -16,7 +18,7 @@ Now that we are a for-profit open-source company, a basic level of usage data wi
 * Anonymized Machine ID
 * Browser Details (including OS info)
 * Karate Version
-* How Karate was invoked (e.g. via IDE plugin, NPM)
+* How Karate was invoked (via IDE plugin, NPM, etc.)
 
 ## Who Can See The Data
 The dashboard is accessible only to the [Karate Labs](https://karatelabs.io) team that maintains Karate.

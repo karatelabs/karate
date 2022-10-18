@@ -5,7 +5,6 @@ Background:
 * def queue = new QueueConsumer(queueName)
 * def handler = function(msg){ karate.signal(msg) }
 * queue.listen(karate.toJava(handler))
-# * queue.bind(karate)
 * url paymentServiceUrl + '/payments'
 
 Scenario: create, get, update, list and delete payments

@@ -54,7 +54,7 @@ public class WebSocketController {
         long time = System.currentTimeMillis();
         Greeting greeting = new Greeting(time, "hello " + message.getText() + " !");
         String json = mapper.writeValueAsString(greeting);
-        handler.broadcast(json);
+        handler.broadcast(null, json);
         return "{ \"id\": " + time + " }";
     }    
     

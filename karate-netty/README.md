@@ -561,7 +561,13 @@ The HTTP method, for e.g. `GET`. It will be in capital letters. Instead of doing
 ## `requestHeaders`
 Note that this will be a Map of List-s. For request matching, the [`typeContains()`](#typecontains), [`acceptContains()`](#acceptcontains) or [`headerContains()`](#headercontains) helpers are what you would use most of the time.
 
-If you really need to "route" to a `Scenario` based on a custom header value, you can use the [`karate.get()`](https://github.com/intuit/karate#karate-get) API - which will gracefully return `null` if the JsonPath does not exist. For example, the following would match a header of the form: `val: foo`
+If you really need to "route" to a `Scenario` based on a custom header value, use the [`karate.request`](https://github.com/karatelabs/karate#karate-request) API. The advantage here is that it gets the value for a header ignoring-case. So here it doesn't matter if the header key is `Foo` or `foo`:
+
+```cucumber
+Scenario: pathMatches('/v1/headers') && karate.request.header('foo') == 'bar'
+```
+
+For completeness, you can use the [`karate.get()`](https://github.com/intuit/karate#karate-get) API - which will gracefully return `null` if the JsonPath does not exist. For example, the following would match a header of the form: `val: foo`
 
 ```cucumber
 Scenario: pathMatches('/v1/headers') && karate.get('requestHeaders.val[0]') == 'foo'

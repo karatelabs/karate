@@ -48,7 +48,7 @@ public class IntellijHook implements RuntimeHook {
     public boolean beforeScenario(ScenarioRuntime sr) {
         if (sr.caller.depth == 0) {
             Scenario scenario = sr.scenario;
-            String path = scenario.getFeature().getResource().getRelativePath();
+            String path = scenario.getFeature().getResource().getUri().toString();
             log(String.format(TEMPLATE_TEST_STARTED, getCurrentTime(), path + ":" + scenario.getLine(), escape(scenario.getRefIdAndName())));
             // log(String.format(TEMPLATE_SCENARIO_STARTED, getCurrentTime()));
         }
@@ -71,7 +71,7 @@ public class IntellijHook implements RuntimeHook {
     public boolean beforeFeature(FeatureRuntime fr) {
         if (fr.caller.depth == 0) {
             Feature feature = fr.feature;
-            String path = feature.getResource().getRelativePath();
+            String path = feature.getResource().getUri().toString();
             log(String.format(TEMPLATE_TEST_SUITE_STARTED, getCurrentTime(), path + ":" + feature.getLine(), escape(feature.getNameForReport())));
         }
         return true;

@@ -38,8 +38,6 @@ public class VariableTest {
         Variable var = new Variable(jv);
         assertTrue(var.isJsFunction());
         assertFalse(var.isJavaFunction());
-        JsValue res = new JsValue(JsEngine.execute(var.getValue(), new Object[]{1, 2}));
-        assertEquals(3, res.<Integer>getValue());
     }
 
     @Test
@@ -71,8 +69,7 @@ public class VariableTest {
         assertTrue(v.isJavaFunction());
         v = new Variable((BiFunction<String, String, String>) this::simpleBiFunction);
         // maybe we are ok with this, karate "call" can be used only with functions
-        assertFalse(v.isJavaFunction());
-        
+        assertFalse(v.isJavaFunction());        
     }
     
 }

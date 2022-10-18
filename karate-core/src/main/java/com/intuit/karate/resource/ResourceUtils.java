@@ -119,6 +119,7 @@ public class ResourceUtils {
             }
             return resources.get(0);
         } else {
+            path = path.replace('\\', '/'); // windows fix
             File file = new File(removePrefix(path));
             if (!file.exists()) {
                 throw new RuntimeException("not found: " + path);

@@ -51,6 +51,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import static java.util.stream.Collectors.toList;
@@ -71,7 +72,9 @@ public class Request implements ProxyObject {
     private static final String METHOD = "method";
     private static final String PARAM = "param";
     private static final String PARAM_INT = "paramInt";
-    private static final String NON_BLANK = "nonBlank";
+    private static final String PARAM_BOOL = "paramBool";
+    private static final String PARAM_OR = "paramOr";
+    private static final String PARAM_OR_NULL = "paramOrNull";
     private static final String PARAMS = "params";
     private static final String HEADER = "header";
     private static final String HEADERS = "headers";
@@ -80,6 +83,7 @@ public class Request implements ProxyObject {
     private static final String PATH_PARAM = "pathParam";
     private static final String PATH_PARAMS = "pathParams";
     private static final String PATH_MATCHES = "pathMatches";
+    private static final String PATH_PATTERN = "pathPattern";
     private static final String BODY = "body";
     private static final String BODY_STRING = "bodyString";
     private static final String BODY_BYTES = "bodyBytes";
@@ -100,8 +104,9 @@ public class Request implements ProxyObject {
     private static final String PATH_RAW = "pathRaw";
 
     private static final String[] KEYS = new String[]{
-        PATH, METHOD, PARAM, PARAM_INT, NON_BLANK, PARAMS, HEADER, HEADERS, HEADER_VALUES, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, PATH_MATCHES,
-        BODY, BODY_STRING, BODY_BYTES, MULTI_PART, MULTI_PARTS, JSON, 
+        PATH, METHOD, PARAM, PARAM_INT, PARAM_BOOL, PARAM_OR, PARAM_OR_NULL, PARAMS,
+        HEADER, HEADERS, HEADER_VALUES, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, PATH_MATCHES, PATH_PATTERN,
+        BODY, BODY_STRING, BODY_BYTES, MULTI_PART, MULTI_PARTS, JSON,
         GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL, PATH_RAW
     };
     private static final Set<String> KEY_SET = new HashSet<>(Arrays.asList(KEYS));
@@ -120,6 +125,7 @@ public class Request implements ProxyObject {
     private ResourceType resourceType;
     private String resourcePath;
     private Map<String, String> pathParams = Collections.emptyMap();
+    private String pathPattern;
     private RequestContext requestContext;
 
     public RequestContext getRequestContext() {
@@ -172,6 +178,11 @@ public class Request implements ProxyObject {
         return value == null ? -1 : Integer.valueOf(value);
     }
 
+    public boolean getParamBool(String name) {
+        String value = getParam(name);
+        return value == null ? false : Boolean.valueOf(value);
+    }
+
     public String getParam(String name) {
         List<String> values = getParamValues(name);
         if (values == null || values.isEmpty()) {
@@ -180,9 +191,13 @@ public class Request implements ProxyObject {
         return values.get(0);
     }
 
-    public String getNonBlank(String name) {
-        String value = getParam(name);
-        return StringUtils.isBlank(value) ? null : value;
+    public Object getParamOr(String name, Object value) {
+        String temp = getParam(name);
+        return StringUtils.isBlank(temp) ? value : temp;
+    }
+
+    public Object getParamOrNull(String name) {
+        return getParamOr(name, null);
     }
 
     public List<String> getParamValues(String name) {
@@ -284,6 +299,7 @@ public class Request implements ProxyObject {
             return false;
         }
         pathParams = temp;
+        pathPattern = pattern;
         return true;
     }
 
@@ -505,8 +521,12 @@ public class Request implements ProxyObject {
                 return (Function<String, String>) this::getParam;
             case PARAM_INT:
                 return (Function<String, Integer>) this::getParamInt;
-            case NON_BLANK:
-                return (Function<String, String>) this::getNonBlank;
+            case PARAM_BOOL:
+                return (Function<String, Boolean>) this::getParamBool;
+            case PARAM_OR:
+                return (BiFunction<String, Object, Object>) this::getParamOr;
+            case PARAM_OR_NULL:
+                return (Function<String, Object>) this::getParamOrNull;
             case JSON:
                 return (Function<String, Object>) this::getParamAsJsValue;
             case PATH:
@@ -525,6 +545,8 @@ public class Request implements ProxyObject {
                 return JsValue.fromJava(pathParams);
             case PATH_MATCHES:
                 return (Function<String, Object>) this::pathMatches;
+            case PATH_PATTERN:
+                return pathPattern;
             case HEADER:
                 return (Function<String, String>) this::getHeader;
             case HEADERS:
@@ -532,7 +554,7 @@ public class Request implements ProxyObject {
             case HEADER_VALUES:
                 return (Function<String, List<String>>) this::getHeaderValues;
             case HEADER_ENTRIES:
-                return HEADER_ENTRIES_FUNCTION;                
+                return HEADER_ENTRIES_FUNCTION;
             case MULTI_PART:
                 return (Function<String, Object>) this::getMultiPartAsJsValue;
             case MULTI_PARTS:

@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2021 Intuit Inc.
+ * Copyright 2022 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,14 +21,33 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate;
+package com.intuit.karate.debug;
+
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.SimpleChannelInboundHandler;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
- * @author pthomas3
+ * @author peter
  */
-public interface EventContext {
+public class DapClientHandler extends SimpleChannelInboundHandler<DapMessage> {
+    
+    private static final Logger logger = LoggerFactory.getLogger(DapClientHandler.class);
+    
+    private static final AtomicInteger seq = new AtomicInteger();
 
-    void signal(Object arg);
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        DapMessage dm = DapMessage.request(seq.incrementAndGet(), "initialize");
+        ctx.writeAndFlush(dm);
+    }
 
+    @Override
+    protected void channelRead0(ChannelHandlerContext chc, DapMessage dm) throws Exception {
+        logger.debug("read: {}", dm);
+    }
+    
 }

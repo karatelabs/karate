@@ -1,4 +1,5 @@
 @mock-servlet-todo
+@ignore
 Feature: websocket testing
 
 Scenario: only listening to websocket messages
@@ -15,12 +16,35 @@ Scenario: only listening to websocket messages
     And def id = response.id
 
     # this line will wait until the handler returns true
-    * json result = socket.listen(5000)
+    * listen 5000
+    * json result = listenResult
     * match result == { id: '#(id)', content: 'hello Rudy !' }
 
 Scenario: using the websocket instance to send as well as receive messages
     * def handler = function(msg){ return msg.startsWith('hello') }
     * def socket = karate.webSocket(demoBaseUrl + '/websocket', handler)
     * socket.send('Billie')
-    * def result = socket.listen(5000)
-    * match result == 'hello Billie !'
+    * listen 5000
+    * match listenResult == 'hello Billie !'
+
+Scenario: listen for multiple websocket messages
+    * def handler = function(msg){ return msg.startsWith('hello') }
+    * def socket = karate.webSocket(demoBaseUrl + '/websocket', handler)
+    * socket.send('Billie')
+    * listen 5000
+    * match listenResult == 'hello Billie !'
+    * socket.send('Bob')
+    * listen 5000
+    * match listenResult == 'hello Bob !'
+
+Scenario: change the websocket handler for messages
+    * def handler = function(msg){ return msg.contains('Billie') }
+    * def socket = karate.webSocket(demoBaseUrl + '/websocket', handler)
+    * socket.send('Billie')
+    * listen 5000
+    * match listenResult == 'hello Billie !'
+    * def handler = function(msg){ return msg.contains('Bob') }
+    * socket.setTextHandler(handler)
+    * socket.send('Bob')
+    * listen 5000
+    * match listenResult == 'hello Bob !'

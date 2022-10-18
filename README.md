@@ -877,11 +877,13 @@ mvn test -Dtest=CatsRunner
 ```
 Where `CatsRunner` is the JUnit class name (in any package) you wish to run.
 
-Karate is flexible, you can easily over-write config variables within each individual test-script - which is very convenient when in dev-mode or rapid-prototyping.
+Karate is flexible, you can easily over-write config variables within the Java or JUnit "runner" - which is very convenient when in dev-mode or rapid-prototyping.
 
 ```java
 System.setProperty("karate.env", "pre-prod");
 ```
+
+But the recommended way is to use the `karateEnv(name, value)` or `systemProperty(name, value)` API on the [parallel-runner](#parallel-execution).
 
 For advanced users, note that [tags](#tags) and the `karate.env` environment-switch can be "linked" using the special [environment tags](#environment-tags).
 
@@ -1448,9 +1450,10 @@ Prefer [`classpath:`](#classpath) when a file is expected to be heavily re-used 
 # javascript (will be evaluated)
 * def someValue = read('some-js-code.js')
 
-# if the js file evaluates to a function, it can be re-used later using the 'call' keyword
+# if the js file evaluates to a function, it can be re-used later using the 'call' keyword (or invoked just like normal js)
 * def someFunction = read('classpath:some-reusable-code.js')
 * def someCallResult = call someFunction
+* def sameCallResult = someFunction()
 
 # the following short-cut is also allowed
 * def someCallResult = call read('some-js-code.js')
@@ -2537,7 +2540,7 @@ What is even more interesting is that expressions can refer to variables:
 And functions work as well ! You can imagine how you could evolve a nice set of utilities that validate all your domain objects.
 ```cucumber
 * def date = { month: 3 }
-* def isValidMonth = function(m) { return m >= 0 && m <= 12 }
+* def isValidMonth = function(m) { return m >= 1 && m <= 12 }
 * match date == { month: '#? isValidMonth(_)' }
 ```
 
@@ -3230,10 +3233,10 @@ But if you need to use values in the response headers - they will be in a variab
 ```
 And just as in the [`responseCookies`](#responsecookies) example above, you can use [`match`](#match) to run complex validations on the `responseHeaders`.
 
-Finally, using [`karate.responseheader()`](#karate-responseheader) can be simpler to just get a header value string by name, and it will ignore-case for the name passed as the argument:
+Finally, using [`karate.response.header(name)`](#karate-response) can be simpler to just get a header value string by name, and it will ignore-case for the name passed as the argument:
 
 ```cucumber
-* match karate.header('content-type') == 'application/json'
+* match karate.response.header('content-type') == 'application/json'
 ```
 
 ## `responseStatus`
@@ -3377,7 +3380,8 @@ Operation | Description
 <a name="karate-remove"><code>karate.remove(name, path)</code></a> | very rarely used - when needing to perform conditional removal of JSON keys or XML nodes. Behaves the same way as the [`remove`](#remove) keyword.
 <a name="karate-render"><code>karate.render(arg)</code></a> | renders an HTML template, the `arg` can be a string (prefixable path to the HTML) or a JSON that takes either a `path` or `html` property, see [`doc`](#doc)
 <a name="karate-repeat"><code>karate.repeat(count, function)</code></a> | useful for building an array with `count` items or doing something `count` times, refer this [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/repeat.feature). Also see [loops](#loops).
-<a name="karate-responseheader"><code>karate.responseHeader(string)</code></a> | returns the response HTTP header value (as a single string) for the given name, and will ignore-case, and can be simpler than using [`responseHeaders`](#responseheaders)
+<a name="karate-response"><code>karate.response</code></a> | returns the last HTTP response as a JS object that enables advanced use-cases such as getting a header ignoring case: `karate.response.header('some-header')`
+<a name="karate-request"><code>karate.request</code></a> | returns the last HTTP request as a JS object that enables advanced use-cases such as getting a header ignoring case: `karate.request.header('some-header')`, which works [even in mocks](https://github.com/karatelabs/karate/tree/master/karate-netty#requestheaders)
 <a name="karate-scenario"><code>karate.scenario</code></a> | get metadata about the currently executing `Scenario` (or `Outline` - `Example`) within a test 
 <a name="karate-set"><code>karate.set(name, value)</code></a> | sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
 <a name="karate-setall"><code>karate.set(object)</code></a> | where the single argument is expected to be a `Map` or JSON-like, and will perform the above `karate.set()` operation for all key-value pairs in one-shot, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/set.feature)
@@ -3395,6 +3399,7 @@ Operation | Description
 <a name="karate-tobean"><code>karate.toBean(json, className)</code></a> | converts a JSON string or map-like object into a Java object, given the Java class name as the second argument, refer to this [file](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature) for an example
 <a name="karate-tocsv"><code>karate.toCsv(list)</code></a> | converts a JSON array (of objects) or a list-like object into a CSV string, writing this to a file is your responsibility or you could use [`karate.write()`](#karate-write)
 <a name="karate-tojava"><code>karate.toJava(function)</code></a> | rarely used, when you need to pass a JS function to custom Java code, typically for [Async](#async), and another edge case is to convert a JSON array or object to a Java `List` or `Map`, see [example](karate-core/src/test/java/com/intuit/karate/core/to-bean.feature)
+<a name="karate-tojavafile"><code>karate.toJavaFile(path)</code></a> | in case you need a `java.io.File` instance to pass to Java interop, takes the [Karate prefixes](#reading-files) such as `classpath:` for convenience
 <a name="karate-tojson"><code>karate.toJson(object)</code></a> | converts a Java object into JSON, and `karate.toJson(object, true)` will strip all keys that have `null` values from the resulting JSON, convenient for unit-testing Java code, see [example](karate-demo/src/test/java/demo/unit/cat.feature)
 <a name="karate-typeof"><code>karate.typeOf(any)</code></a> | for advanced conditional logic when object types are dynamic and not known in advance, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature)
 <a name="karate-urldecode"><code>karate.urlDecode(string)</code></a> | URL decode
@@ -3940,6 +3945,34 @@ Scenario: create, get, update, list and delete payments
     * match shipment == { paymentId: '#(id)', status: 'shipped' }
 ```
 
+## WebSocket
+Karate also has built-in support for [websocket](http://www.websocket.org) that is based on the [async](#async) capability and the [`listen`](#listen) keyword. The following method signatures are available on the [`karate` JS object](#the-karate-object) to obtain a websocket client:
+
+* `karate.webSocket(url)`
+* `karate.webSocket(url, handler)`
+* `karate.webSocket(url, handler, options)` - where `options` is an optional JSON (or map-like) object that takes the following optional keys:
+  * `subProtocol` - in case the server expects it
+  * `headers` - another JSON of key-value pairs
+  * `maxPayloadSize` - this defaults to 4194304 (bytes, around 4 MB)
+
+These will init a websocket client for the given `url` and optional `subProtocol`. You can call `send()` on the returned object to send a message.
+
+If a `handler` [function](#javascript-functions) (returning a boolean) is provided - it will be used to complete the [`listen`](#listen) "wait" if `true` is returned. A handler function is needed only if you have to ignore some incoming traffic and stop the "wait" when a certain payload arrives. If you don't pass a `handler` (or it is `null`), the first message is returned.
+
+Note that `karate.signal()` (described as part of the [`listen`](#listen) keyword) will be called internally and the `listenResult` will be the payload contents of the "selected" message.
+
+Here is an example, where the same websocket connection is used to send as well as receive a message.
+
+```cucumber
+* def handler = function(msg){ return msg.startsWith('hello') }
+* def socket = karate.webSocket(demoBaseUrl + '/websocket', handler)
+* socket.send('Billie')
+* listen 5000
+* match listenResult == 'hello Billie !'
+```
+
+For handling binary messages, the same `karate.webSocket()` method signatures exist for `karate.webSocketBinary()`. Refer to these examples for more: [`echo.feature`](karate-demo/src/test/java/demo/websocket/echo.feature) | [`websocket.feature`](karate-demo/src/test/java/demo/websocket/websocket.feature). Note that any websocket instances created will be auto-closed at the end of the `Scenario`.
+
 ### Java Function References
 JavaScript functions have some limitations when combined with multi-threaded Java code. So it is recommended that you directly use a Java `Function` when possible instead of using the `karate.toJava()` "wrapper" as shown above.
 
@@ -3966,30 +3999,6 @@ And now, to get a reference to that "function" you can do this:
 ```
 
 This can be convenient when using [shared scope](#shared-scope) because you can just call `sayHello('myname')` where needed.
-
-## WebSocket
-Karate also has built-in support for [websocket](http://www.websocket.org) that is based on the [async](#async) capability. The following method signatures are available on the [`karate` JS object](#the-karate-object) to obtain a websocket reference:
-
-* `karate.webSocket(url)`
-* `karate.webSocket(url, handler)`
-* `karate.webSocket(url, handler, options)` - where `options` is an optional JSON (or map-like) object that takes the following optional keys:
-  * `subProtocol` - in case the server expects it
-  * `headers` - another JSON of key-value pairs
-  * `maxPayloadSize` - this defaults to 4194304 (bytes, around 4 MB)
-
-These will init a websocket client for the given `url` and optional `subProtocol`. If a `handler` [function](#javascript-functions) (returning a boolean) is provided - it will be used to complete the "wait" of `socket.listen()` if `true` is returned - where `socket` is the reference to the websocket client returned by `karate.webSocket()`. A handler function is needed only if you have to ignore other incoming traffic. If you need custom headers for the websocket handshake, use JSON as the last argument.
-
-Here is an example, where the same websocket connection is used to send as well as receive a message.
-
-```cucumber
-* def handler = function(msg){ return msg.startsWith('hello') }
-* def socket = karate.webSocket(demoBaseUrl + '/websocket', handler)
-* socket.send('Billie')
-* def result = socket.listen(5000)
-* match result == 'hello Billie !'
-```
-
-For handling binary messages, the same `karate.webSocket()` method signatures exist for `karate.webSocketBinary()`. Refer to these examples for more: [`echo.feature`](karate-demo/src/test/java/demo/websocket/echo.feature) | [`websocket.feature`](karate-demo/src/test/java/demo/websocket/websocket.feature). Note that any websocket instances created will be auto-closed at the end of the `Scenario`.
 
 ## Tags
 Gherkin has a great way to sprinkle meta-data into test-scripts - which gives you some interesting options when running tests in bulk.  The most common use-case would be to partition your tests into 'smoke', 'regression' and the like - which enables being able to selectively execute a sub-set of tests.

@@ -70,17 +70,6 @@ public interface RuntimeHook {
         
     }
 
-    // applicable only for Dynamic Scenario Outlines which have the need
-    // to run background sections before executing the individual scenarios
-    // to calculate the Examples table
-    default void beforeBackground(ScenarioRuntime sr) {
-
-    }
-
-    default void afterBackground(ScenarioRuntime sr) {
-
-    }
-
     default void beforeHttpCall(HttpRequest request, ScenarioRuntime sr) {
         
     }

@@ -293,17 +293,19 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             // auto-followed a redirect where cookies were involved
             List<String> cookieValues = new ArrayList(cookies.size());
             for (Cookie c : cookieStore.getCookies()) {
-                Map<String, Object> map = new HashMap();
-                map.put(Cookies.NAME, c.getName());
-                map.put(Cookies.VALUE, c.getValue());
-                map.put(Cookies.DOMAIN, c.getDomain());
-                if (c.getExpiryDate() != null) {
-                    map.put(Cookies.MAX_AGE, c.getExpiryDate().getTime());
+                if (c.getValue() != null) {
+                    Map<String, Object> map = new HashMap();
+                    map.put(Cookies.NAME, c.getName());
+                    map.put(Cookies.VALUE, c.getValue());
+                    map.put(Cookies.DOMAIN, c.getDomain());
+                    if (c.getExpiryDate() != null) {
+                        map.put(Cookies.MAX_AGE, c.getExpiryDate().getTime());
+                    }
+                    map.put(Cookies.SECURE, c.isSecure());
+                    io.netty.handler.codec.http.cookie.Cookie nettyCookie = Cookies.fromMap(map);
+                    String cookieValue = ServerCookieEncoder.LAX.encode(nettyCookie);
+                    cookieValues.add(cookieValue);
                 }
-                map.put(Cookies.SECURE, c.isSecure());
-                io.netty.handler.codec.http.cookie.Cookie nettyCookie = Cookies.fromMap(map);
-                String cookieValue = ServerCookieEncoder.LAX.encode(nettyCookie);
-                cookieValues.add(cookieValue);
             }
             // removing is probably not needed since apache cookie handling is enabled, but anyway
             httpResponse.removeHeaders(HttpConstants.HDR_SET_COOKIE);

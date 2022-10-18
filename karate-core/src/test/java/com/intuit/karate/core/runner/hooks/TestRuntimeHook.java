@@ -17,8 +17,6 @@ public class TestRuntimeHook implements RuntimeHook {
     private final Map<String, Map<String, Integer>> runtimeHookTracker = new HashMap<>();
 
     public TestRuntimeHook() {
-        runtimeHookTracker.put("beforeBackground", new HashMap<>());
-        runtimeHookTracker.put("afterBackground", new HashMap<>());
         runtimeHookTracker.put("beforeScenario", new HashMap<>());
         runtimeHookTracker.put("afterScenario", new HashMap<>());
         runtimeHookTracker.put("beforeFeature", new HashMap<>());
@@ -74,16 +72,6 @@ public class TestRuntimeHook implements RuntimeHook {
     @Override
     public void afterStep(StepResult result, ScenarioRuntime sr) {
         runtimeHookTracker.get("afterStep").compute("[ scenario = " + sr.scenario.getName() + " / step = " + result.getStep().getText() + " ]", (key, count) -> count == null ? 1 : count + 1);
-    }
-
-    @Override
-    public void beforeBackground(ScenarioRuntime sr) {
-        runtimeHookTracker.get("beforeBackground").compute(sr.scenario.getName(), (key, count) -> count == null ? 1 : count + 1);
-    }
-
-    @Override
-    public void afterBackground(ScenarioRuntime sr) {
-        runtimeHookTracker.get("afterBackground").compute(sr.scenario.getName(), (key, count) -> count == null ? 1 : count + 1);
     }
 
     @Override

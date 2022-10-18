@@ -35,17 +35,7 @@ class FeatureFailRunner {
         logger.debug("saved report: {}", file.getAbsolutePath());
         return file;
     }
-
-    private void match(Object actual, Object expected) {
-        Match.Result mr = Match.evaluate(actual).isEqualTo(expected);
-        assertTrue(mr.pass, mr.message);
-    }
-
-    private void matchContains(Object actual, Object expected) {
-        Match.Result mr = Match.evaluate(actual).contains(expected);
-        assertTrue(mr.pass, mr.message);
-    }
-
+    
     @Test
     void testFailJs() {
         run("fail-js.feature");
@@ -90,6 +80,13 @@ class FeatureFailRunner {
         run("ui-google.feature");
         assertFalse(fr.result.isFailed());
         report();
+    }
+    
+    @Test
+    void testOutlineDynamicFail() {
+        run("outline-dynamic-fail.feature");
+        assertTrue(fr.result.isFailed());
+        report();        
     }
 
 }
