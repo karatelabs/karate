@@ -29,7 +29,6 @@ import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.template.KarateTemplateEngine;
 import java.io.InputStream;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.slf4j.Logger;

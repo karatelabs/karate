@@ -101,7 +101,7 @@ public class HttpServer {
             }
             HttpService service = new HttpServerHandler(handler);
             if (corsEnabled) {
-                service = service.decorate(CorsService.builderForAnyOrigin().newDecorator());
+                service = service.decorate(CorsService.builderForAnyOrigin().allowAllRequestHeaders(true).newDecorator());
             }
             sb.service("prefix:/", service);
             return new HttpServer(sb);
