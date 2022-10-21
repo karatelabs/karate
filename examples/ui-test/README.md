@@ -44,7 +44,7 @@ And here is how you can make a `POST` request, to [navigate to a given URL](http
 * driver.http.path('url').post({ url: 'https://github.com' })
 ```
 
-And note that the [VS Code "Karate Runner"](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) plugin is really convenient for re-running tests - or you can pause a test using a break-point and [type in interactive commands](https://twitter.com/KarateDSL/status/1167533484560142336).
+And note that the [official Karate plugins](https://github.com/intuit/karate/wiki/IDE-Support) are really convenient for re-running tests - or you can pause a test using a break-point and [type in interactive commands](https://twitter.com/getkarate/status/1546468347826827264).
 
 ## DevTools Protocol Tips
 When using the driver type `chrome`, you can call the `send()` method and pass a raw JSON message that will be sent to the Chrome browser using a WebSocket connection. For example here is how to get the [metadata about frames](https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-getFrameTree):
