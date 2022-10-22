@@ -108,7 +108,17 @@
             <groupId>io.github.classgraph</groupId>
             <artifactId>classgraph</artifactId>
             <version>4.8.149</version>
-        </dependency>        
+        </dependency>
+        <dependency>
+            <groupId>io.github.t12y</groupId>
+            <artifactId>resemble</artifactId>
+            <version>1.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.t12y</groupId>
+            <artifactId>ssim</artifactId>
+            <version>1.0.0</version>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>

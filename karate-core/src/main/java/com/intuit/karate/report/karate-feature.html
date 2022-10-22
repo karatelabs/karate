@@ -8,9 +8,11 @@
     <link rel="shortcut icon" href="favicon.ico"/>
     <script type="text/javascript" src="res/jquery.min.js"></script>
     <script type="text/javascript" src="res/jquery.tablesorter.min.js"></script>
+    <script type="text/javascript" src="res/jquery-ui.min.js"></script>
     <script type="text/javascript" src="res/bootstrap.min.js"></script>
     <script type="text/javascript" src="res/karate-report.js"></script>
-    <th:block th:insert="karate-posthog.html" th:with="karateEvent: 'report_feature'"></th:block>  
+    <script type="text/javascript" src="res/Resemble.js"></script>
+    <th:block th:insert="karate-posthog.html" th:with="karateEvent: 'report_feature'"></th:block>
     <title th:text="results.packageQualifiedName"></title>  
   </head>
   <body>   

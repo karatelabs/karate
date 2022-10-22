@@ -174,6 +174,10 @@ public enum ResourceType {
         }
     }
 
+    public boolean isScript() {
+        return this == ResourceType.JS;
+    }
+
     public static ResourceType fromContentType(String ct) {
         if (ct == null) {
             return null;

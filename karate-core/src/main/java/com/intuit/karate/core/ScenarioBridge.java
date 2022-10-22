@@ -273,6 +273,26 @@ public class ScenarioBridge implements PerfContext {
         getEngine().capturePerfEvent(event);
     }
 
+    public Object compareImage(Object baseline, Object latest, Value... optionsVal) {
+        if (optionsVal.length > 0 && !optionsVal[0].hasMembers()) {
+            throw new RuntimeException("invalid image comparison options: expected map");
+        }
+
+        Map<String, Object> options = new HashMap<>();
+        if (optionsVal.length > 0) {
+            for (String k : optionsVal[0].getMemberKeys()) {
+                options.put(k, optionsVal[0].getMember(k).as(Object.class));
+            }
+        }
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("baseline", baseline);
+        params.put("latest", latest);
+        params.put("options", options);
+
+        return JsValue.fromJava(getEngine().compareImageInternal(params));
+    }
+
     public void configure(String key, Value value) {
         getEngine().configure(key, new Variable(value));
     }

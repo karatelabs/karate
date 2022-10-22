@@ -127,6 +127,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#listen"><code>listen</code></a> 
     | <a href="#doc"><code>doc</code></a>    
     | <a href="#reading-files"><code>read()</code></a>
+    | <a href="#compare-image"><code>compareImage</code></a>
     | <a href="#the-karate-object"><code>karate</code> JS API</a>  
   </td>
 </tr>
@@ -1527,6 +1528,182 @@ And header Content-Type = 'text/csv'
 And request karate.readAsString('classpath:my.csv')
 When method post
 Then status 202
+```
+
+## Compare Image
+Karate provides a flexible way to compare two images to determine if they are the same or similar. This is especially useful when capturing screenshots during tests and comparing against baseline images that are known to be correct.
+
+Below is a simple example that will compare a `baseline` image to a more recent `latest` image. An image comparison UI will also be embedded into the Karate HTML report with detailed information about any differences between the two images.
+
+```cucumber
+* compareImage { baseline: 'screenshots/login.png', latest: '/tmp/login.png' }
+```
+
+You can also compare images using Karate path prefixes (e.g. `classpath:`, `this:`, `file:`) or byte arrays:
+
+```cucumber
+* def latestImgBytes = karate.readAsBytes('login.png')
+* compareImage { baseline: 'classpath:screenshots/login.png', latest: #(latestImgBytes) }
+```
+
+You may configure the following image comparison options using the `configure` action:
+
+```cucumber
+* configure imageComparison = { /* image comparison options ... */ }
+```
+
+Image comparison configuration options:
+
+| Key                   | Type        | Default    | Description                                                                                                                                                                                                                                |
+|-----------------------|-------------|------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `allowScaling`        | boolean     | `false`    | When `true` we will scale latest images to match the dimensions of the baseline when they are not equal                                                                                                                                    |
+| `engine`              | string      | 'resemble' | Comparison engine(s) to use. Valid options are `resemble` and `ssim` separated by either `,` or <code>&#124</code>                                                                                                                         |
+| `failureThreshold`    | number      | `0.0`      | Precentage of `latest` image pixels allowed to differ from `baseline` before we consider the comparison as failed                                                                                                                          |
+| `mismatchShouldPass`  | boolean     | `false`    | When `true` all image comparisons will pass (even when difference is >= `failureThreshold`). Note: failures will result in image comparison UI *always* being embedded in Karate HTML reports regardless of `suppressUIOnSuccess` setting. |
+| `onShowRebase`        | JS function | `null`     | Function to be called when displaying image comparison rebase in Karate HTML reports (e.g. to customize rebase filename and/or output)                                                                                                     |
+| `onShowConfig`        | JS function | `null`     | Function to be called when displaying image comparison configuration in Karate HTML reports (e.g. to customize configuration output)                                                                                                       |
+| `suppressUIOnSuccess` | boolean     | `false`    | When `true` the comparison UI will *NOT* be embedded in Karate HTML reports for all non-failed image comparisons                                                                                                                           |
+
+Examples:
+
+```cucumber
+# use only 'ssim' (structural similarity) engine
+* configure imageComparison = { engine: 'ssim' }
+
+# always use both 'resemble' and 'ssim' engines but only evaluate the lowest mismatch percentage against our `failureThreshold`
+* configure imageComparison = { engine: 'resemble,ssim' }
+
+# prefer 'resemble' and fallback to 'ssim' engine only if the resemble mismatch percentage is >= `failureThreshold`
+* configure imageComparison = { engine: 'resemble|ssim' }
+
+# only consider the comparison as failed when 2% or more pixels are different from the baseline
+* configure imageComparison = { failureThreshold: 2 }
+
+# consider image comparisons that fail due to too many mismatched pixels as passed (especially useful when you are first starting without any baseline images)
+* configure imageComparison = { mismatchShouldPass: true }
+
+# custom JS function called in Karate HTML image comparison UI when the user clicks the `Rebase` button
+* text onShowRebaseFn =
+"""
+function (config, downloadLatestFn) {
+  // trigger download of latest image with custom file name
+  downloadLatestFn('custom_latest.png')
+  return 'this text will be displayed to the user when they click the rebase button'
+}
+"""
+* configure imageComparison = { onShowRebase: #(onShowRebaseFn) }
+
+# custom JS function called in Karate HTML image comparison UI when the user clicks the `Show config` button
+* text onShowConfigFn =
+"""
+function (customConfigJson, config) {
+  return 'this text will be displayed above the image comparison config\n' + customConfigJson
+}
+"""
+* configure imageComparison = { onShowConfig: #(onShowConfigFn) }
+
+# don't embed the image comparison UI when the latest image is the same / similar to the baseline (e.g. to save space and speed up report loading)
+* configure imageComparison = { suppressUIOnSuccess: true }
+```
+
+
+Image comparison engines can also be customized:
+
+```cucumber
+* compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { /* engine options ... */ } }
+```
+
+Image comparison configuration options:
+
+| Key                      | Engines        | Type            | Default   | Description                                                                                                                                                                                                                                            |
+|--------------------------|----------------|-----------------|-----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `ignoredBoxes`           | resemble, ssim | array of object | `null`    | Array of rectangles that should be ignored during image comparison                                                                                                                                                                                     |
+| `ignore`                 | resemble       | string          | 'less'    | Resemble ignore preset. Valid options are `nothing`, `less`, `antialiasing`, `colors`, `alpha` (see [presets](https://github.com/t12y/resemble/blob/0c55a1849232b68aa4c16f1d7a949cc429a6af8e/src/main/java/io/github/t12y/resemble/Options.java#L20)). |
+| `ignoreAreasColoredWith` | resemble       | object          | `null`    | Resemble option to ignore a specific color                                                                                                                                                                                                             |
+| `ignoreColors`           | resemble       | boolean         | `false`   | When `true` only pixel brightness is compared                                                                                                                                                                                                          |
+| `ignoreAntialiasing`     | resemble       | boolean         | `false`   | When `true` only pixel brightness is compared for pixels determined to be antialiased                                                                                                                                                                  |
+| `tolerances`             | resemble       | object          | `null`    | Resemble option to override preset tolerances for color and brightness                                                                                                                                                                                 |
+| `ssim`                   | ssim           | string          | 'WEBER'   | SSIM algorithm. Valid options are `FAST` or `WEBER`                                                                                                                                                                                                    |
+| `rgb2grayVersion`        | ssim           | string          | 'INTEGER' | SSIM grayscale algorithm. Valid options are `ORIGINAL` or `INTEGER`                                                                                                                                                                                    |
+| `k1`                     | ssim           | number          | `0.01`    | SSIM first stability constant (see [ssim.pdf](https://github.com/obartra/ssim/blob/3f3af6118c78b3ed4f0ff6eb224700c071f29c99/assets/ssim.pdf))                                                                                                          |
+| `k2`                     | ssim           | number          | `0.03`    | SSIM second stability constant (see [ssim.pdf](https://github.com/obartra/ssim/blob/3f3af6118c78b3ed4f0ff6eb224700c071f29c99/assets/ssim.pdf))                                                                                                         |
+| `windowSize`             | ssim           | integer         | `11`      | Window size for the SSIM map (see [ssim.pdf](https://github.com/obartra/ssim/blob/3f3af6118c78b3ed4f0ff6eb224700c071f29c99/assets/ssim.pdf))                                                                                                           |
+| `bitDepth`               | ssim           | integer         | `8`       | The number of bits used to encode each pixel                                                                                                                                                                                                           |
+| `maxSize`                | ssim           | integer         | `256`     | The maximum size on the smallest dimension before downsampling                                                                                                                                                                                         |
+
+Examples:
+
+```cucumber
+# ignore areas of an image (e.g. to avoid constant failures due to loading animations)
+* def boxes =
+"""
+[{
+  top: 483,
+  left: 1085,
+  bottom: 893,
+  right: 1496
+}]
+"""
+* compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { ignoredBoxes: #(boxes) } }
+
+#############################
+### Resemble-only options ###
+#############################
+
+# zero-tolerance for color shifts
+* compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { ignore: 'nothing' } }
+
+# ignore all purple areas
+* def purple =
+"""
+{
+  r: 190,
+  g: 0,
+  b: 255
+}
+"""
+* compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { ignoreAreasColoredWith: #(purple) } }
+
+# compare images as grayscale
+* compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { ignoreColors: true } }
+
+# attempt to detect and ignore antialiasing
+* compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { ignoreAntialiasing: true } }
+
+# customize color / brightness tolerances
+* def customTolerances =
+"""
+{
+  red: 4,
+  green: 4,
+  blue: 4,
+  alpha: 4,
+  minBrightness: 4,
+  maxBrightness: 250
+}
+* compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { tolerances: #(customTolerances) } }
+
+#########################
+### SSIM-only options ###
+#########################
+
+# switch to `fast` SSIM algorithm
+* compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { ssim: 'FAST' } }
+
+# switch to `original` grayscale SSIM algorithm
+* compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { rgb2grayVersion: 'ORIGINAL' } }
+
+# update SSIM stability constants
+* compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { k1: 0, k2: 0 } }
+
+# update SSIM window size
+* compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { windowSize: 3 } }
+
+# update SSIM bit depth
+* compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { bitDepth: 16 } }
+
+# update SSIM max size
+* compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { maxSize: 512 } }
 ```
 
 ## Type Conversion
@@ -3337,6 +3514,7 @@ Operation | Description
 <a name="karate-abort"><code>karate.abort()</code></a> | you can prematurely exit a `Scenario` by combining this with [conditional logic](#conditional-logic) like so: `* if (condition) karate.abort()` - please use [sparingly](https://martinfowler.com/articles/nonDeterminism.html) ! and also see [`configure abortedStepsShouldPass`](#configure)
 <a name="karate-append"><code>karate.append(... items)</code></a> | useful to create lists out of items (which can be lists as well), see [JSON transforms](#json-transforms)
 <a name="karate-appendto"><code>karate.appendTo(name, ... items)</code></a> | useful to append to a list-like variable (that has to exist) in scope, see [JSON transforms](#json-transforms) - the first argument can be a reference to an array-like variable or even the name (string) of an existing variable which is list-like
+<a name="karate-call"><code>karate.compareImage(baseline, latest, [options])</code></a> | compare two images the same way that [`compareImage`](#compare-image) works (with an optional `options` argument), returns an object with the following keys: `baseline`, `latest`, `mismatchPercentage`, `engine`, `failureThreshold` and optionally: `error`, `isBaselineMissing`, `isScaleMismatch`, `isMismatch`, `resembleMismatchPercentage`, `ssimMismatchPercentage`
 <a name="karate-call"><code>karate.call(fileName, [arg])</code></a> | invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument), see [`call()` vs `read()`](#call-vs-read) for details
 <a name="karate-callsingle"><code>karate.callSingle(fileName, [arg])</code></a> | like the above, but guaranteed to run **only once** even across multiple features - see [`karate.callSingle()`](#karatecallsingle)
 <a name="karate-configure"><code>karate.configure(key, value)</code></a> | does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
