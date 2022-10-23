@@ -391,14 +391,6 @@ public class Request implements ProxyObject {
         return JsValue.fromBytes(body, false, rt);
     }
 
-    public boolean isForStaticResource() {
-        if (!"GET".equals(method)) {
-            return false;
-        }
-        ResourceType rt = getResourceType();
-        return rt != null && !rt.isUrlEncodedOrMultipart();
-    }
-
     public ResourceType getResourceType() {
         if (resourceType == null) {
             String contentType = getContentType();
