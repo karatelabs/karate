@@ -68,7 +68,7 @@ public class RequestHandler implements ServerHandler {
         if (request.getResourceType() == null) { // can be set by context factory
             request.setResourceType(ResourceType.fromFileExtension(request.getPath()));
         }
-        if (!context.isApi() && context.isHttpGetAllowed()) {
+        if (!context.isApi() && request.isForStaticResource() && context.isHttpGetAllowed()) {
             if (request.getResourcePath() == null) { // can be set by context factory
                 request.setResourcePath(request.getPath()); // static resource
             }
