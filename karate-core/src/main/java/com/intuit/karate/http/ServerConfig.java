@@ -55,7 +55,6 @@ public class ServerConfig {
 
     private Function<Request, ServerContext> contextFactory = request -> {
         ServerContext context = new ServerContext(this, request);
-        context.setHttpGetAllowed(true);
         if (context.setApiIfPathStartsWith("/api/")) {
             context.setLockNeeded(true);
         }
