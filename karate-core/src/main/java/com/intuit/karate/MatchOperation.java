@@ -45,8 +45,7 @@ import java.util.regex.Pattern;
  */
 public class MatchOperation {
 
-    public static final String REGEX = "regex";
-    public static final Pattern PATTERN = Pattern.compile("\\W_\\W|\\W_|_\\W");
+    public static final String REGEX = "regex";        
 
     final Match.Context context;
     final Match.Type type;
@@ -289,7 +288,7 @@ public class MatchOperation {
                         context.JS.put("$", context.root.actual.getValue());
                         context.JS.put("_", listSize);
                         String sizeExpr;
-                        if (containsAPlaceholderUnderscore(bracketContents)) { // #[_ < 5]
+                        if (containsPlaceholderUnderscore(bracketContents)) { // #[_ < 5]
                             sizeExpr = bracketContents;
                         } else { // #[5] | #[$.foo] 
                             sizeExpr = bracketContents + " == _";
@@ -389,9 +388,11 @@ public class MatchOperation {
         }
         return true; // all ok
     }
+    
+    private static final Pattern UNDERSCORE_PATTERN = Pattern.compile("\\W_\\W|\\W_|_\\W");
 
-    private boolean containsAPlaceholderUnderscore(String bracketContents) {
-        Matcher m1 = PATTERN.matcher(bracketContents);
+    private boolean containsPlaceholderUnderscore(String bracketContents) {
+        Matcher m1 = UNDERSCORE_PATTERN.matcher(bracketContents);
         while (m1.find()) {
             return true;
         }
