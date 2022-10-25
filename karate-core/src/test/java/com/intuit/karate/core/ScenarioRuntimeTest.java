@@ -67,6 +67,25 @@ class ScenarioRuntimeTest {
     }
 
     @Test
+    void testDefAndMatchForArrays() {
+        run(
+                "def arr = ['a','b','c','d','e']",
+                "def arrSize = karate.sizeOf(arr)",
+                "match arr == '##[_]'",
+                "match arr == '##[_ > 0]'",
+                "match arr == '##[_>0]'",
+                "match arr == '##[_<6]'",
+                "def two = 2",
+                "def three = 3",
+                "match arr == '##[two + three]'",
+                "def two1_ = 2",
+                "def one_two_three = 3",
+                "match arr == '#[two1_+ one_two_three + _ > 0]'"
+        );
+        assertEquals(5, get("arrSize"));
+    }
+
+    @Test
     void testConfigAndEnv() {
         System.clearProperty("karate.env");
         System.clearProperty("karate.config.dir");

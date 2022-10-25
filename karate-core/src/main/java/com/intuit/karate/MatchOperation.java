@@ -36,6 +36,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  *
@@ -44,6 +46,7 @@ import java.util.Set;
 public class MatchOperation {
 
     public static final String REGEX = "regex";
+    public static final Pattern PATTERN = Pattern.compile("\\W_\\W|\\W_|_\\W");
 
     final Match.Context context;
     final Match.Type type;
@@ -286,7 +289,7 @@ public class MatchOperation {
                         context.JS.put("$", context.root.actual.getValue());
                         context.JS.put("_", listSize);
                         String sizeExpr;
-                        if (bracketContents.indexOf('_') != -1) { // #[_ < 5] 
+                        if (containsAPlaceholderUnderscore(bracketContents)) { // #[_ < 5]
                             sizeExpr = bracketContents;
                         } else { // #[5] | #[$.foo] 
                             sizeExpr = bracketContents + " == _";
@@ -385,6 +388,14 @@ public class MatchOperation {
             }
         }
         return true; // all ok
+    }
+
+    private boolean containsAPlaceholderUnderscore(String bracketContents) {
+        Matcher m1 = PATTERN.matcher(bracketContents);
+        while (m1.find()) {
+            return true;
+        }
+        return false;
     }
 
     private boolean actualEqualsExpected() {
