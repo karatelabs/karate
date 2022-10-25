@@ -78,9 +78,10 @@ class ScenarioRuntimeTest {
                 "def two = 2",
                 "def three = 3",
                 "match arr == '##[two + three]'",
-                "def two1_ = 2",
+                "def two_var = 2",
                 "def one_two_three = 3",
-                "match arr == '#[two1_+ one_two_three + _ > 0]'"
+                "match arr == '#[two_var+ one_two_three + _ > 0]'",
+                "match arr == '#[two_var+ one_two_three ]'"
         );
         assertEquals(5, get("arrSize"));
     }
