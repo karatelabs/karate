@@ -196,7 +196,9 @@ function newDiffUI(targetElement, diffResult, diffConfig, onShowRebase, onShowCo
 
   // redraw ignore boxes on window resize
   let windowResizeThrottle = { timer: null, isPending: false }
-  $(window).resize(() => {
+  $(window).resize((e) => {
+    if (e.target !== window) return
+
     if (windowResizeThrottle.timer) {
       windowResizeThrottle.isPending = true
       return
@@ -253,7 +255,7 @@ function newDiffUI(targetElement, diffResult, diffConfig, onShowRebase, onShowCo
   }
 
   function redrawIgnoreBoxes () {
-    $('.ignored-box-ui').each(function () {
+    $el.find('.ignored-box-ui').each(function () {
       const boxId = parseInt($(this).data('box-id'), 10)
       updateIgnoredBox(boxId, true)
     })
