@@ -27,6 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.KarateException;
+import com.intuit.karate.ExceptionUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.Match;
 import com.intuit.karate.RuntimeHook;
@@ -597,6 +598,7 @@ public class ScenarioEngine {
             long responseTime = endTime - startTime;
             String message = "http call failed after " + responseTime + " milliseconds for url: " + httpRequest.getUrl();
             logger.error(e.getMessage() + ", " + message);
+            logger.error(ExceptionUtils.getStackTrace(e));
             if (perfEventName != null) {
                 PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, 0);
                 capturePerfEvent(pe); // failure flag and message should be set by logLastPerfEvent()

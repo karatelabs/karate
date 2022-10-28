@@ -22,11 +22,11 @@
  * THE SOFTWARE.
  */
 package com.intuit.karate.report;
-
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.ExceptionUtils;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.StepResult;
@@ -156,10 +156,8 @@ public class ReportUtils {
             sb.append('\n');
             if (sr.getResult().isFailed()) {
                 sb.append("\nStack Trace:\n");
-                StringWriter sw = new StringWriter();
                 error = sr.getResult().getError();
-                error.printStackTrace(new PrintWriter(sw));
-                sb.append(sw.toString());
+                sb.append(ExceptionUtils.getStackTrace(error));
                 sb.append('\n');
             }
         }
