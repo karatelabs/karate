@@ -26,6 +26,7 @@ package com.intuit.karate.junit5;
 import com.intuit.karate.Runner;
 import com.intuit.karate.Suite;
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureCall;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DynamicContainer;
 import org.junit.jupiter.api.DynamicNode;
@@ -59,11 +60,11 @@ public class Karate extends Runner.Builder<Karate> implements Iterable<DynamicNo
         Suite suite = new Suite(this);
         List<DynamicNode> list = new ArrayList();
         List<CompletableFuture> futures = new ArrayList();
-        for (Feature feature : suite.features) {
-            FeatureNode featureNode = new FeatureNode(suite, futures, feature, suite.tagSelector);
+        for (FeatureCall featureCall : suite.features) {
+            FeatureNode featureNode = new FeatureNode(suite, futures, featureCall, suite.tagSelector);
             if (!featureNode.hasNext()) // if no scenarios to execute, just skip the feature
                 continue;
-            String testName = feature.getResource().getFileNameWithoutExtension();
+            String testName = featureCall.feature.getResource().getFileNameWithoutExtension();
             DynamicNode node = DynamicContainer.dynamicContainer(testName, featureNode);
             list.add(node);
         }

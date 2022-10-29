@@ -53,7 +53,7 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
 
     public ScenarioIterator(FeatureRuntime featureRuntime) {
         this.featureRuntime = featureRuntime;
-        this.sections = featureRuntime.feature.getSections().iterator();
+        this.sections = featureRuntime.featureCall.feature.getSections().iterator();
     }
 
     public Stream<ScenarioRuntime> filterSelected() {

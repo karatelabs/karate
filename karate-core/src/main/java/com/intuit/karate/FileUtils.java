@@ -24,6 +24,7 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureCall;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -105,11 +106,10 @@ public class FileUtils {
         }
     }
 
-    public static Feature parseFeatureAndCallTag(String path) {
+    public static FeatureCall parseFeatureAndCallTag(String path) {
         StringUtils.Pair pair = parsePathAndTags(path);
         Feature feature = Feature.read(pair.left);
-        feature.setCallTag(pair.right);
-        return feature;
+        return new FeatureCall(feature, pair.right, -1, null);
     }
 
     public static String toString(File file) {

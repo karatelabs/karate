@@ -25,6 +25,7 @@ package com.intuit.karate.resource;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureCall;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ResourceList;
 import io.github.classgraph.ScanResult;
@@ -59,32 +60,39 @@ public class ResourceUtils {
         // only static methods
     }
 
-    public static List<Feature> findFeatureFiles(File workingDir, List<String> paths) {
-        List<Feature> features = new ArrayList();
+    public static List<FeatureCall> findFeatureFiles(File workingDir, List<String> paths, String scenarioName) {
+        List<FeatureCall> features = new ArrayList();
         if (paths == null || paths.isEmpty()) {
             return features;
         }
-        if (paths.size() == 1) {
+        if (paths.size() == 1) { // TODO handle multiple paths with tag or line suffixes
             String path = paths.get(0);
             int pos = path.indexOf(".feature:");
             int line;
+            String callTag;
             if (pos != -1) { // line number has been appended
                 line = Integer.valueOf(path.substring(pos + 9));
                 path = path.substring(0, pos + 8);
             } else {
                 line = -1;
             }
+            pos = path.indexOf('@');
+            if (pos != -1) { // call by tag
+                callTag = path.substring(pos);
+                path = path.substring(0, pos);
+            } else {
+                callTag = null;
+            }
             if (path.endsWith(".feature")) {
                 Resource resource = getResource(workingDir, path);
                 Feature feature = Feature.read(resource);
-                feature.setCallLine(line);
-                features.add(feature);
+                features.add(new FeatureCall(feature, callTag, line, scenarioName));
                 return features;
             }
         }
         Collection<Resource> resources = findResourcesByExtension(workingDir, "feature", paths);
         for (Resource resource : resources) {
-            features.add(Feature.read(resource));
+            features.add(new FeatureCall(Feature.read(resource), null, -1, scenarioName)); // TODO smart find of scenario name
         }
         return features;
     }

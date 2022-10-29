@@ -44,13 +44,13 @@ public class TestRuntimeHook implements RuntimeHook {
 
     @Override
     public boolean beforeFeature(FeatureRuntime fr) {
-        runtimeHookTracker.get("beforeFeature").compute(fr.feature.getName(), (key, count) -> count == null ? 1 : count + 1);
+        runtimeHookTracker.get("beforeFeature").compute(fr.featureCall.feature.getName(), (key, count) -> count == null ? 1 : count + 1);
         return true;
     }
 
     @Override
     public void afterFeature(FeatureRuntime fr) {
-        runtimeHookTracker.get("afterFeature").compute(fr.feature.getName(), (key, count) -> count == null ? 1 : count + 1);
+        runtimeHookTracker.get("afterFeature").compute(fr.featureCall.feature.getName(), (key, count) -> count == null ? 1 : count + 1);
     }
 
     @Override

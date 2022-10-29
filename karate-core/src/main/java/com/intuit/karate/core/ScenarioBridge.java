@@ -778,7 +778,7 @@ public class ScenarioBridge implements PerfContext {
 
     public Object setup(String name) {
         ScenarioEngine engine = getEngine();
-        Feature feature = engine.runtime.featureRuntime.feature;
+        Feature feature = engine.runtime.featureRuntime.featureCall.feature;
         Scenario scenario = feature.getSetup(name);
         if (scenario == null) {
             String message = "no scenario found with @setup tag";

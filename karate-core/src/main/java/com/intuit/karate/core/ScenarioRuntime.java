@@ -251,7 +251,7 @@ public class ScenarioRuntime implements Runnable {
 
     public Map<String, Object> getScenarioInfo() {
         Map<String, Object> info = new HashMap(5);
-        File featureFile = featureRuntime.feature.getResource().getFile();
+        File featureFile = featureRuntime.featureCall.feature.getResource().getFile();
         if (featureFile != null) {
             info.put("featureDir", featureFile.getParent());
             info.put("featureFileName", featureFile.getName());
@@ -295,7 +295,7 @@ public class ScenarioRuntime implements Runnable {
     private static boolean isSelectedForExecution(FeatureRuntime fr, Scenario scenario, Tags tags) {
         org.slf4j.Logger logger = FeatureRuntime.logger;
         Feature feature = scenario.getFeature();
-        int callLine = feature.getCallLine();
+        int callLine = fr.featureCall.callLine;
         if (callLine != -1) {
             int sectionLine = scenario.getSection().getLine();
             int scenarioLine = scenario.getLine();
@@ -306,7 +306,7 @@ public class ScenarioRuntime implements Runnable {
             logger.trace("skipping scenario at line: {}, needed: {}", scenario.getLine(), callLine);
             return false;
         }
-        String callName = feature.getCallName();
+        String callName = fr.featureCall.callName;
         if (callName != null) {
             if (scenario.getName().matches(callName)) {
                 logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
@@ -315,7 +315,7 @@ public class ScenarioRuntime implements Runnable {
             logger.trace("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
             return false;
         }
-        String callTag = feature.getCallTag();        
+        String callTag = fr.featureCall.callTag;       
         if (callTag != null && (!fr.caller.isNone() || fr.perfHook != null)) {
                 // only if this is a legit "call" or a gatling "call by tag"
                 if (tags.contains(callTag)) {

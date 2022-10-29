@@ -994,7 +994,7 @@ public class ScenarioEngine {
         if (resourceResolver != null) {
             return resourceResolver;
         }
-        String prefixedPath = runtime.featureRuntime.rootFeature.feature.getResource().getPrefixedParentPath();
+        String prefixedPath = runtime.featureRuntime.rootFeature.featureCall.feature.getResource().getPrefixedParentPath();
         return new ResourceResolver(prefixedPath);
     }
 
@@ -1837,7 +1837,7 @@ public class ScenarioEngine {
             case JAVA_FUNCTION:
                 return arg == null ? executeFunction(called) : executeFunction(called, new Object[]{arg.getValue()});
             case FEATURE:
-                // will be always a map or a list of maps (loop call result)                
+                // call result will be always a map or a list of maps (loop call result)
                 Object callResult = callFeature(called.getValue(), arg, -1, sharedScope);
                 return new Variable(callResult);
             default:
@@ -1928,9 +1928,9 @@ public class ScenarioEngine {
         }
     }
 
-    public Object callFeature(Feature feature, Variable arg, int index, boolean sharedScope) {
+    public Object callFeature(FeatureCall featureCall, Variable arg, int index, boolean sharedScope) {
         if (arg == null || arg.isMap()) {
-            ScenarioCall call = new ScenarioCall(runtime, feature, arg);
+            ScenarioCall call = new ScenarioCall(runtime, featureCall, arg);
             call.setLoopIndex(index);
             call.setSharedScope(sharedScope);
             FeatureRuntime fr = new FeatureRuntime(call);
@@ -1965,7 +1965,7 @@ public class ScenarioEngine {
                     break;
                 }
                 try {
-                    Object loopResult = callFeature(feature, loopArg, loopIndex, sharedScope);
+                    Object loopResult = callFeature(featureCall, loopArg, loopIndex, sharedScope);
                     result.add(loopResult);
                 } catch (Exception e) {
                     String message = "feature call loop failed at index: " + loopIndex + ", " + e.getMessage();

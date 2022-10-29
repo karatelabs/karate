@@ -24,6 +24,7 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureCall;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.driver.DriverRunner;
@@ -78,7 +79,7 @@ public class Suite implements Runnable {
     public final int threadCount;
     public final int timeoutMinutes;
     public final int featuresFound;
-    public final List<Feature> features;
+    public final List<FeatureCall> features;
     public final List<CompletableFuture> futures;
     public final Set<File> featureResultFiles;
     public final Collection<RuntimeHook> hooks;
@@ -223,7 +224,7 @@ public class Suite implements Runnable {
             }
             hooks.forEach(h -> h.beforeSuite(this));
             int index = 0;
-            for (Feature feature : features) {
+            for (FeatureCall feature : features) {
                 final int featureNum = ++index;
                 FeatureRuntime fr = FeatureRuntime.of(this, feature);
                 final CompletableFuture future = new CompletableFuture();
@@ -308,7 +309,7 @@ public class Suite implements Runnable {
     }
 
     public ScenarioResult retryScenario(Scenario scenario) {
-        FeatureRuntime fr = FeatureRuntime.of(this, scenario.getFeature());
+        FeatureRuntime fr = FeatureRuntime.of(this, new FeatureCall(scenario.getFeature()));
         ScenarioRuntime runtime = new ScenarioRuntime(fr, scenario);
         runtime.run();
         return runtime.result;

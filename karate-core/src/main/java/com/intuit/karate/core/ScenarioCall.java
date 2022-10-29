@@ -34,7 +34,7 @@ public class ScenarioCall {
 
     public final ScenarioRuntime parentRuntime;
     public final int depth;
-    public final Feature feature;
+    public final FeatureCall featureCall;
     public final Variable arg;
 
     private boolean callonce;
@@ -110,9 +110,9 @@ public class ScenarioCall {
         return new ScenarioCall(null, null, arg == null ? null : new Variable(arg));
     }
 
-    public ScenarioCall(ScenarioRuntime parentRuntime, Feature feature, Variable arg) {
+    public ScenarioCall(ScenarioRuntime parentRuntime, FeatureCall featureCall, Variable arg) {
         this.parentRuntime = parentRuntime;
-        this.feature = feature;
+        this.featureCall = featureCall;
         if (parentRuntime == null) {
             depth = 0;
         } else {

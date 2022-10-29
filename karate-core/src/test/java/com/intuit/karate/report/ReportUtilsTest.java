@@ -4,6 +4,7 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.Suite;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.core.FeatureCall;
 import org.junit.jupiter.api.Test;
 import java.io.File;
 import static org.junit.jupiter.api.Assertions.*;
@@ -31,7 +32,7 @@ class ReportUtilsTest {
     void testCustomTags() {
         String expectedCustomTags = "<properties><property name=\"requirement\" value=\"CALC-2\"/><property name=\"test_key\" value=\"CALC-2\"/></properties>";
         Feature feature = Feature.read("classpath:com/intuit/karate/report/customTags.feature");
-        FeatureRuntime fr = FeatureRuntime.of(new Suite(), feature);
+        FeatureRuntime fr = FeatureRuntime.of(new Suite(), new FeatureCall(feature));
         fr.run();
         File file = ReportUtils.saveJunitXml("target", fr.result, null);        
         assertTrue(FileUtils.toString(file).contains(expectedCustomTags));

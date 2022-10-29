@@ -10,6 +10,7 @@ import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
 import com.intuit.karate.Match;
+import com.intuit.karate.core.FeatureCall;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.Scenario;
 import java.util.Map;
@@ -34,7 +35,7 @@ class FeatureParserTest {
         Feature feature = Feature.read("classpath:com/intuit/karate/core/parser/" + name);
         Runner.Builder builder = Runner.builder();
         builder.karateEnv(env);
-        FeatureRuntime fr = FeatureRuntime.of(new Suite(builder), feature);
+        FeatureRuntime fr = FeatureRuntime.of(new Suite(builder), new FeatureCall(feature));
         fr.run();
         return fr.result;
     }
@@ -231,13 +232,13 @@ class FeatureParserTest {
         Feature feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-dynamic.feature");
         Runner.Builder builder = Runner.builder();
         builder.tags("@a-tag");
-        FeatureRuntime fr = FeatureRuntime.of(new Suite(builder), feature);
+        FeatureRuntime fr = FeatureRuntime.of(new Suite(builder), new FeatureCall(feature));
         ScenarioOutline outline = feature.getSection(1).getScenarioOutline();
 
         assertEquals(1, outline.getScenarios(fr).size());
 
         feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-name.feature");
-        fr = FeatureRuntime.of(new Suite(builder), feature);
+        fr = FeatureRuntime.of(new Suite(builder), new FeatureCall(feature));
         outline = feature.getSection(1).getScenarioOutline();
         assertEquals(2, outline.getScenarios(fr).size());
 
@@ -246,21 +247,21 @@ class FeatureParserTest {
         builder = Runner.builder();
         builder.tags("@tag-not-present");
         feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-examples-tags.feature");
-        fr = FeatureRuntime.of(new Suite(builder), feature);
+        fr = FeatureRuntime.of(new Suite(builder), new FeatureCall(feature));
         outline = feature.getSection(0).getScenarioOutline();
         assertEquals(0, outline.getScenarios(fr).size());
 
         builder = Runner.builder();
         builder.tags("@three-examples");
         feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-examples-tags.feature");
-        fr = FeatureRuntime.of(new Suite(builder), feature);
+        fr = FeatureRuntime.of(new Suite(builder), new FeatureCall(feature));
         outline = feature.getSection(0).getScenarioOutline();
         assertEquals(3, outline.getScenarios(fr).size());
 
         builder = Runner.builder();
         builder.tags("@two-examples");
         feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-examples-tags.feature");
-        fr = FeatureRuntime.of(new Suite(builder), feature);
+        fr = FeatureRuntime.of(new Suite(builder), new FeatureCall(feature));
         outline = feature.getSection(0).getScenarioOutline();
         assertEquals(3, outline.getScenarios(fr).size());
 
@@ -268,7 +269,7 @@ class FeatureParserTest {
         // bring all example tables
         builder = Runner.builder();
         feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-examples-tags.feature");
-        fr = FeatureRuntime.of(new Suite(builder), feature);
+        fr = FeatureRuntime.of(new Suite(builder), new FeatureCall(feature));
         outline = feature.getSection(0).getScenarioOutline();
         assertEquals(10, outline.getScenarios(fr).size());
 
@@ -276,7 +277,7 @@ class FeatureParserTest {
         builder = Runner.builder();
         builder.tags("~@two-examples");
         feature = Feature.read("classpath:com/intuit/karate/core/parser/test-outline-examples-tags.feature");
-        fr = FeatureRuntime.of(new Suite(builder), feature);
+        fr = FeatureRuntime.of(new Suite(builder), new FeatureCall(feature));
         outline = feature.getSection(0).getScenarioOutline();
         assertEquals(7, outline.getScenarios(fr).size());
     }

@@ -57,7 +57,7 @@ public class TestUtils {
 
     public static ScenarioRuntime runtime() {
         Feature feature = toFeature("* print 'test'");
-        FeatureRuntime fr = FeatureRuntime.of(feature);
+        FeatureRuntime fr = FeatureRuntime.of(new FeatureCall(feature));
         return new ScenarioIterator(fr).first();
     }
 
@@ -72,7 +72,7 @@ public class TestUtils {
         if (configDir != null) {
             builder.configDir = configDir;
         }
-        FeatureRuntime fr = FeatureRuntime.of(new Suite(builder), feature);
+        FeatureRuntime fr = FeatureRuntime.of(new Suite(builder), new FeatureCall(feature));
         ScenarioRuntime sr = new ScenarioIterator(fr).first();
         sr.run();
         return sr;
@@ -90,7 +90,7 @@ public class TestUtils {
         rb.features(feature);
         rb.configDir(configDir);
         rb.customDrivers(customDrivers);
-        FeatureRuntime fr = FeatureRuntime.of(new Suite(rb), feature);
+        FeatureRuntime fr = FeatureRuntime.of(new Suite(rb), new FeatureCall(feature));
         fr.run();
         return fr;
     }

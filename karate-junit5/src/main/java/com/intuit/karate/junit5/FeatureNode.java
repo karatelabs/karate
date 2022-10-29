@@ -25,6 +25,7 @@ package com.intuit.karate.junit5;
 
 import com.intuit.karate.Suite;
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureCall;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.ScenarioIterator;
@@ -47,10 +48,10 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     public final FeatureRuntime featureRuntime;
     private final Iterator<ScenarioRuntime> scenarios;
 
-    public FeatureNode(Suite suite, List<CompletableFuture> futures, Feature feature, String tagSelector) {
+    public FeatureNode(Suite suite, List<CompletableFuture> futures, FeatureCall featureCall, String tagSelector) {
         this.suite = suite;
         this.futures = futures;
-        featureRuntime = FeatureRuntime.of(suite, feature);
+        featureRuntime = FeatureRuntime.of(suite, featureCall);
         CompletableFuture future = new CompletableFuture();
         futures.add(future);
         featureRuntime.setNext(() -> future.complete(Boolean.TRUE));
