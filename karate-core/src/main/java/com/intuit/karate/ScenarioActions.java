@@ -410,7 +410,13 @@ public class ScenarioActions implements Actions {
     @When("^doc (.+)")
     public void doc(String exp) {
         engine.doc(exp);
-    }  
+    }
+
+    @Override
+    @When("^compareImage (.+)")
+    public void compareImage(String exp) {
+        engine.compareImage(exp);
+    }
 
     //==========================================================================
     //

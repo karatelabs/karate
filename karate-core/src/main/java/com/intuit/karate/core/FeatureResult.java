@@ -61,9 +61,6 @@ public class FeatureResult {
 
     public void printStats() {
         String featureName = feature.getResource().getPrefixedPath();
-        if (feature.getCallLine() != -1) {
-            featureName = featureName + ":" + feature.getCallLine();
-        }
         StringBuilder sb = new StringBuilder();
         sb.append("---------------------------------------------------------\n");
         sb.append("feature: ").append(featureName).append('\n');

@@ -30,6 +30,7 @@ import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureCall;
 import com.intuit.karate.core.MockHandler;
 import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.Variable;
@@ -1124,11 +1125,11 @@ public abstract class DevToolsDriver implements Driver {
             throw new RuntimeException("missing argument 'mock': " + config);
         }
         Object o = getRuntime().engine.fileReader.readFile(mock);
-        if (!(o instanceof Feature)) {
+        if (!(o instanceof FeatureCall)) {
             throw new RuntimeException("'mock' is not a feature file: " + config + ", " + mock);
         }
-        Feature feature = (Feature) o;
-        mockHandler = new MockHandler(feature);
+        FeatureCall fc = (FeatureCall) o;
+        mockHandler = new MockHandler(fc.feature);
         method("Fetch.enable").param("patterns", patterns).send();
     }
 

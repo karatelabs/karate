@@ -148,6 +148,8 @@ public interface Actions {
 
     void doc(String exp);
 
+    void compareImage(String exp);
+
     //==========================================================================
     //
     void driver(String exp);

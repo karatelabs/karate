@@ -45,7 +45,7 @@ public class Embed {
     }
 
     public String getAsHtmlForReport() {
-        if (resourceType.isImage() || resourceType.isVideo()) {
+        if (resourceType.isImage() || resourceType.isVideo() || resourceType.isScript()) {
             return getAsHtmlTag();
         } else {
             return getAsString();
@@ -97,6 +97,8 @@ public class Embed {
             return "<video controls=\"true\" width=\"100%\"><source src=\"" + file.getName() + "\" type=\"video/mp4\"/></video>";
         } else if (resourceType.isImage()) {
             return "<img src=\"" + file.getName() + "\"/>";
+        } else if (resourceType.isScript()) {
+            return "<script type=\"text/javascript\" src=\"" + file.getName() + "\"></script>";
         } else {
             return "<a href=\"" + file.getName() + "\">" + file.getName() + "</a>";
         }

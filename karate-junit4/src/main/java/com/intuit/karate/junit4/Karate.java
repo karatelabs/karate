@@ -26,10 +26,12 @@ package com.intuit.karate.junit4;
 import com.intuit.karate.Runner;
 import com.intuit.karate.Suite;
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureCall;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.internal.runners.statements.RunBefores;
@@ -65,7 +67,8 @@ public class Karate extends ParentRunner<Feature> {
         }
         hook = new JunitHook();
         Runner.Builder rb = Runner.builder().fromKarateAnnotation(clazz);
-        features = rb.resolveAll();
+        List<FeatureCall> list = rb.resolveAll();
+        features = list.stream().map(fc -> fc.feature).collect(Collectors.toList());
     }
 
     @Override
@@ -97,7 +100,7 @@ public class Karate extends ParentRunner<Feature> {
     @Override
     protected void runChild(Feature feature, RunNotifier notifier) {
         hook.setNotifier(notifier);
-        FeatureRuntime fr = FeatureRuntime.of(suite, feature);
+        FeatureRuntime fr = FeatureRuntime.of(suite, new FeatureCall(feature));
         fr.run();
         FeatureResult result = fr.result;
         if (!result.isEmpty()) {

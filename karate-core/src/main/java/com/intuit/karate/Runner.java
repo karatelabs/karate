@@ -24,6 +24,7 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureCall;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.RuntimeHookFactory;
@@ -47,7 +48,7 @@ public class Runner {
 
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Runner.class);
 
-    public static Map<String, Object> runFeature(Feature feature, Map<String, Object> vars, boolean evalKarateConfig) {
+    public static Map<String, Object> runFeature(FeatureCall feature, Map<String, Object> vars, boolean evalKarateConfig) {
         Suite suite = new Suite();
         FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, vars);
         featureRuntime.caller.setKarateConfigDisabled(!evalKarateConfig);
@@ -61,7 +62,7 @@ public class Runner {
 
     public static Map<String, Object> runFeature(File file, Map<String, Object> vars, boolean evalKarateConfig) {
         Feature feature = Feature.read(file);
-        return runFeature(feature, vars, evalKarateConfig);
+        return runFeature(new FeatureCall(feature), vars, evalKarateConfig);
     }
 
     public static Map<String, Object> runFeature(Class relativeTo, String path, Map<String, Object> vars, boolean evalKarateConfig) {
@@ -70,7 +71,7 @@ public class Runner {
     }
 
     public static Map<String, Object> runFeature(String path, Map<String, Object> vars, boolean evalKarateConfig) {
-        Feature feature = FileUtils.parseFeatureAndCallTag(path);
+        FeatureCall feature = FileUtils.parseFeatureAndCallTag(path);
         return runFeature(feature, vars, evalKarateConfig);
     }
 
@@ -78,7 +79,7 @@ public class Runner {
     public static void callAsync(Runner.Builder builder, String path, Map<String, Object> arg, PerfHook perfHook) {
         builder.features = Collections.emptyList(); // will skip expensive feature resolution in builder.resolveAll()
         Suite suite = new Suite(builder);
-        Feature feature = FileUtils.parseFeatureAndCallTag(path);
+        FeatureCall feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, arg, perfHook);
         featureRuntime.setNext(() -> perfHook.afterFeature(featureRuntime.result));
         perfHook.submit(featureRuntime);
@@ -100,7 +101,7 @@ public class Runner {
         String scenarioName;
         List<String> tags;
         List<String> paths;
-        List<Feature> features;
+        List<FeatureCall> features;
         String relativeTo;
         final Collection<RuntimeHook> hooks = new ArrayList();
         RuntimeHookFactory hookFactory;
@@ -155,7 +156,7 @@ public class Runner {
             return b;
         }
 
-        public List<Feature> resolveAll() {
+        public List<FeatureCall> resolveAll() {
             if (classLoader == null) {
                 classLoader = Thread.currentThread().getContextClassLoader();
             }
@@ -242,12 +243,7 @@ public class Runner {
                     paths = new ArrayList();
                     paths.add(relativeTo);
                 }
-                features = ResourceUtils.findFeatureFiles(workingDir, paths);
-            }
-            if (scenarioName != null) {
-                for (Feature feature : features) {
-                    feature.setCallName(scenarioName);
-                }
+                features = ResourceUtils.findFeatureFiles(workingDir, paths, scenarioName);
             }
             if (callSingleCache == null) {
                 callSingleCache = new HashMap();
@@ -381,7 +377,7 @@ public class Runner {
                 if (features == null) {
                     features = new ArrayList();
                 }
-                features.addAll(value);
+                features.addAll(value.stream().map(FeatureCall::new).collect(Collectors.toList()));
             }
             return (T) this;
         }

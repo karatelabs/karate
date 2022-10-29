@@ -4,6 +4,7 @@ import static com.intuit.karate.TestUtils.*;
 import com.intuit.karate.Http;
 import com.intuit.karate.Json;
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureCall;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.http.Response;
 import java.io.File;
@@ -24,7 +25,7 @@ class JobManagerRunner {
     @Test
     void testServer() throws Exception {
         Feature feature = Feature.read("classpath:com/intuit/karate/job/test.feature");
-        FeatureRuntime fr = FeatureRuntime.of(feature);
+        FeatureRuntime fr = FeatureRuntime.of(new FeatureCall(feature));
         JobConfig jc = new JobConfig() {
             @Override
             public String getHost() {

@@ -28,7 +28,6 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceUtils;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -50,8 +49,7 @@ public class ScenarioFileReader {
         StringUtils.Pair pair = parsePathAndTags(text);
         text = pair.left;
         if (text == null && pair.right != null && pair.right.startsWith("@")) {
-            this.featureRuntime.feature.setCallTag(pair.right);
-            return this.featureRuntime.feature;
+            return new FeatureCall(this.featureRuntime.featureCall.feature, pair.right, -1, null);
         } else if (isJsonFile(text) || isXmlFile(text)) {
             String contents = readFileAsString(text);
             Variable temp = engine.evalKarateExpression(contents);
@@ -65,8 +63,7 @@ public class ScenarioFileReader {
         } else if (isFeatureFile(text)) {
             Resource fr = toResource(text);
             Feature feature = Feature.read(fr);
-            feature.setCallTag(pair.right);
-            return feature;
+            return new FeatureCall(feature, pair.right, -1, null);
         } else if (isCsvFile(text)) {
             String contents = readFileAsString(text);
             return JsonUtils.fromCsv(contents);

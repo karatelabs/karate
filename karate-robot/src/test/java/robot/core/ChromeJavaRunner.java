@@ -2,6 +2,7 @@ package robot.core;
 
 import com.intuit.karate.Suite;
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureCall;
 import com.intuit.karate.driver.Keys;
 import com.intuit.karate.robot.RobotBase;
 import com.intuit.karate.robot.RobotFactory;
@@ -17,7 +18,7 @@ public class ChromeJavaRunner {
 
     public static RobotBase getRobot() {
         Feature feature = Feature.read("classpath:robot/core/dummy.feature");
-        FeatureRuntime fr = FeatureRuntime.of(new Suite(), feature);
+        FeatureRuntime fr = FeatureRuntime.of(new Suite(), new FeatureCall(feature));
         ScenarioRuntime sr = fr.scenarios.next();
         return (RobotBase) new RobotFactory().create(sr, null);
     }

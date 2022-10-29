@@ -25,6 +25,7 @@ package com.intuit.karate.resource;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureCall;
 import java.io.File;
 import java.util.Collection;
 import java.util.Collections;
@@ -173,10 +174,18 @@ class ResourceUtilsTest {
     @Test
     void testGetFeatureWithLineNumber() {
         String path = "classpath:com/intuit/karate/resource/test.feature:6";
-        List<Feature> features = ResourceUtils.findFeatureFiles(new File(""), Collections.singletonList(path));
+        List<FeatureCall> features = ResourceUtils.findFeatureFiles(new File(""), Collections.singletonList(path), null);
         assertEquals(1, features.size());
-        assertEquals(6, features.get(0).getCallLine());
+        assertEquals(6, features.get(0).callLine);
     }
+    
+    @Test
+    void testGetFeatureWithCallTag() {
+        String path = "classpath:com/intuit/karate/resource/test.feature@second";
+        List<FeatureCall> features = ResourceUtils.findFeatureFiles(new File(""), Collections.singletonList(path), null);
+        assertEquals(1, features.size());
+        assertEquals("@second", features.get(0).callTag);
+    }    
 
     @Test
     void testClassPathToFileThatExists() {

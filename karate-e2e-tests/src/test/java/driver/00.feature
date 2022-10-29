@@ -53,3 +53,6 @@ Scenario:
 
 # xpath locators
 * call read('15.feature')
+
+# image comparison
+* if (!skipSlowTests) karate.call('16.feature')

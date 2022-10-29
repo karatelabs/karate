@@ -56,3 +56,221 @@ a .step-ref { font-weight: bold; color: blue; }
 .passed { background-color: #bff2bf; } 
 .failed { background-color: #ffcccc; } 
 .skipped { background-color: #ffdd99; }
+
+/***********/
+/* diff ui */
+/***********/
+.diff-ui > div {
+    text-align: center;
+    vertical-align: top;
+}
+.diff-ui .hidden {
+    visibility: hidden;
+}
+.diff-ui-screenshots {
+    display: flex;
+    flex-direction: row;
+}
+.diff-ui-screenshots img {
+    cursor: zoom-in;
+}
+.diff-ui-screenshots > div {
+    width: 32%;
+    margin: 10px 1%;
+}
+.diff-ui .image-diff {
+    position: relative;
+}
+.diff-ui .img-container img {
+    user-select: none;
+}
+.diff-ui-inset {
+    margin: 20px;
+}
+.diff-ui .diff-results {
+    width: 100%;
+}
+.diff-ui .form-group {
+    text-align: left;
+}
+.diff-ui-controls {
+    margin: 20px auto;
+    max-width: 720px;
+}
+.diff-ui-controls select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: transparent;
+    background-image: url("data:image/svg+xml;utf8,<svg fill='black' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>");
+    background-repeat: no-repeat;
+    background-position-x: 100%;
+    background-position-y: 2px;
+    color: black;
+    border: 1px solid rgb(128, 128, 128);
+    border-radius: .2rem;
+    margin-right: 2rem;
+    padding-right: 2rem;
+}
+.diff-ui-controls .btn.rebase {
+    color: black;
+    background-color: #bff2bf;
+    border: 1px solid #add1ad;
+}
+.diff-ui-controls .btn.rebase:hover {
+    background-color: #add1ad;
+}
+.diff-ui-controls .btn-group button {
+    color: rgb(128, 128, 128);
+    background-color: lightgray;
+    border: 1px solid rgb(128, 128, 128);
+}
+.diff-ui-controls .btn-group button.active {
+    color: black;
+    background-color: white;
+}
+.diff-ui-controls button.active.yellow {
+    color: black;
+    background-color: rgb(255, 255, 0);
+}
+.diff-ui-controls button.active.pink {
+    color: white;
+    background-color: rgb(255, 0, 255);
+}
+/*********/
+/* modal */
+/*********/
+.diff-ui .modal {
+    width: 100%;
+    display: none;
+}
+.diff-ui .modal pre {
+    text-align: left;
+}
+.diff-ui .fit-content .modal-dialog {
+    max-width: fit-content;
+}
+.diff-ui .full-screen .modal-dialog {
+    max-width: 95%;
+}
+.diff-ui .full-screen img {
+    cursor: zoom-in;
+    width: auto;
+    max-width: 100%;
+}
+.diff-ui .full-screen .zoomed img {
+    cursor: zoom-out;
+    width: 100%
+}
+
+/*********************/
+/* comparison slider */
+/*********************/
+.diff-ui .compareContainer {
+    position: relative;
+    display: inline-block;
+}
+.diff-ui .zoomed .compareContainer {
+    position: relative;
+    display: block;
+}
+.diff-ui .compareContainer > div {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background-size: cover;
+}
+.diff-ui .compareContainer .slider {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(50% - 4px);
+    width: 8px;
+    cursor: col-resize;
+    background-color: #4c4c4c;
+}
+.diff-ui .slider > div {
+    width: 1px;
+    height: 100%;
+    margin: 0 auto;
+    display: inline-block;
+    background-color: black;
+}
+
+/******************/
+/* ignored box UI */
+/******************/
+.diff-ui .ignored-box-ui {
+    position: absolute;
+    background-color: rgba(155, 155, 155, 0.5);
+    outline: 1px dashed #0000bb;
+    box-sizing: border-box;
+    z-index: 999;
+}
+.diff-ui .ignored-box-ui.active {
+    outline: 1px dashed yellow;
+}
+.diff-ui .ui-resizable-handle {
+    position: absolute;
+    font-size: 0.1px;
+    display: block;
+    -ms-touch-action: none;
+    touch-action: none;
+}
+.diff-ui .ui-resizable-n {
+    cursor: n-resize;
+    height: 7px;
+    width: 100%;
+    top: -5px;
+    left: 0;
+}
+.diff-ui .ui-resizable-s {
+    cursor: s-resize;
+    height: 7px;
+    width: 100%;
+    bottom: -5px;
+    left: 0;
+}
+.diff-ui .ui-resizable-e {
+    cursor: e-resize;
+    width: 7px;
+    right: -5px;
+    top: 0;
+    height: 100%;
+}
+.diff-ui .ui-resizable-w {
+    cursor: w-resize;
+    width: 7px;
+    left: -5px;
+    top: 0;
+    height: 100%;
+}
+.diff-ui .ui-resizable-se {
+    cursor: se-resize;
+    width: 12px;
+    height: 12px;
+    right: -5px;
+    bottom: -5px;
+}
+.diff-ui .ui-resizable-sw {
+    cursor: sw-resize;
+    width: 9px;
+    height: 9px;
+    left: -5px;
+    bottom: -5px;
+}
+.diff-ui .ui-resizable-nw {
+    cursor: nw-resize;
+    width: 9px;
+    height: 9px;
+    left: -5px;
+    top: -5px;
+}
+.diff-ui .ui-resizable-ne {
+    cursor: ne-resize;
+    width: 9px;
+    height: 9px;
+    right: -5px;
+    top: -5px;
+}

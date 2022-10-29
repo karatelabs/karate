@@ -4,6 +4,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Suite;
 import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureCall;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
 import java.io.File;
@@ -24,7 +25,7 @@ public class FeatureResultTest {
 
     static FeatureResult result(String name) {
         Feature feature = Feature.read("classpath:com/intuit/karate/core/runner/" + name);
-        FeatureRuntime fr = FeatureRuntime.of(new Suite(), feature);
+        FeatureRuntime fr = FeatureRuntime.of(new Suite(), new FeatureCall(feature));
         fr.run();
         return fr.result;
     }

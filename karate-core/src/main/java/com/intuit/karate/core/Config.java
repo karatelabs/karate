@@ -103,6 +103,9 @@ public class Config {
     private int callSingleCacheMinutes = 0;
     private String callSingleCacheDir = FileUtils.getBuildDir();
 
+    // image comparison config
+    private Map<String, Object> imageComparisonOptions;
+
     public Config() {
         // zero arg constructor
     }
@@ -288,6 +291,9 @@ public class Config {
                 }
 
                 return true;
+            case "imageComparison":
+                imageComparisonOptions = value.getValue();
+                return false;
             default:
                 throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
         }
@@ -338,6 +344,7 @@ public class Config {
         afterFeature = parent.afterFeature;
         continueOnStepFailureMethods = parent.continueOnStepFailureMethods;
         continueAfterContinueOnStepFailure = parent.continueAfterContinueOnStepFailure;
+        imageComparisonOptions = parent.imageComparisonOptions;
     }
 
     public void setCookies(Variable cookies) {
@@ -554,6 +561,10 @@ public class Config {
 
     public void setContinueAfterContinueOnStepFailure(boolean continueAfterContinueOnStepFailure) {
         this.continueAfterContinueOnStepFailure = continueAfterContinueOnStepFailure;
+    }
+
+    public Map<String, Object> getImageComparisonOptions() {
+        return imageComparisonOptions;
     }
 
 }

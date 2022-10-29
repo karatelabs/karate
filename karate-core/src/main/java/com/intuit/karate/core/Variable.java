@@ -96,7 +96,7 @@ public class Variable {
             type = Type.BOOLEAN;
         } else if (o instanceof byte[]) {
             type = Type.BYTES;
-        } else if (o instanceof Feature) {
+        } else if (o instanceof FeatureCall) {
             type = Type.FEATURE;
         } else {
             type = Type.OTHER;
