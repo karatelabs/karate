@@ -31,6 +31,7 @@ import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.internal.runners.statements.RunBefores;
@@ -67,7 +68,7 @@ public class Karate extends ParentRunner<Feature> {
         hook = new JunitHook();
         Runner.Builder rb = Runner.builder().fromKarateAnnotation(clazz);
         List<FeatureCall> list = rb.resolveAll();
-        features = list.stream().map(fc -> fc.feature).toList();
+        features = list.stream().map(fc -> fc.feature).collect(Collectors.toList());
     }
 
     @Override

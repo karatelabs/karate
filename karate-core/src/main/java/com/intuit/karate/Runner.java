@@ -377,7 +377,7 @@ public class Runner {
                 if (features == null) {
                     features = new ArrayList();
                 }
-                features.addAll(value.stream().map(FeatureCall::new).toList());
+                features.addAll(value.stream().map(FeatureCall::new).collect(Collectors.toList()));
             }
             return (T) this;
         }
