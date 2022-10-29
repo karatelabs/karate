@@ -169,18 +169,7 @@
                             <autoReleaseAfterClose>true</autoReleaseAfterClose>
                             <stagingProgressTimeoutMinutes>10</stagingProgressTimeoutMinutes>
                             <stagingProgressPauseDurationSeconds>15</stagingProgressPauseDurationSeconds>                            
-                        </configuration>
-                        <dependencies>
-                            <!--
-                              TODO: remove after OSSRH-66257, NEXUS-26993 are fixed
-                              possibly via https://github.com/sonatype/nexus-maven-plugins/pull/91
-                            -->
-                            <dependency>
-                                <groupId>com.thoughtworks.xstream</groupId>
-                                <artifactId>xstream</artifactId>
-                                <version>1.4.19</version>
-                            </dependency>
-                        </dependencies>                        
+                        </configuration>                       
                     </plugin>                     
                 </plugins>
             </build>
