@@ -34,7 +34,7 @@ public class DummyUiTest {
         rb.features(feature);
         rb.configDir("classpath:com/intuit/karate/core");
         rb.customDrivers(customDrivers);
-        FeatureRuntime fr = FeatureRuntime.of(new Suite(rb), feature);
+        FeatureRuntime fr = FeatureRuntime.of(new Suite(rb), new FeatureCall(feature));
         fr.run();
         return fr;
     }
