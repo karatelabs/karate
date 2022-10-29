@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.ImageComparison;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
@@ -1034,6 +1035,83 @@ public class ScenarioEngine {
             runtime.embed(FileUtils.toBytes(html), ResourceType.HTML);
         }
         return html;
+    }
+
+    // compareImage =====================================================================
+    //
+    public void compareImage(String exp) {
+        Variable v = evalKarateExpression(exp);
+        if (!v.isMap()) {
+            throw new RuntimeException("invalid image comparison params: expected map");
+        }
+
+        compareImageInternal(v.getValue());
+    }
+    protected Map<String, Object> compareImageInternal(Map<String,Object> params) {
+        Map<String, Object> options = getImageOptions(params.get("options"), "options");
+        byte[] baselineImg = getImageBytes(params, "baseline");
+        byte[] latestImg = getImageBytes(params, "latest");
+
+        Map<String, Object> defaultOptions = getImageOptions(config.getImageComparisonOptions(), "defaultOptions");
+        boolean embedUI = !Boolean.TRUE.equals(defaultOptions.get("suppressUIOnSuccess"));
+
+        Map<String, Object> result = null;
+        try {
+            result = ImageComparison.compare(baselineImg, latestImg, options, defaultOptions);
+        } catch (ImageComparison.MismatchException e) {
+            logger.error("image comparison failed: {}", e.getMessage());
+            embedUI = true;
+            result = e.data;
+            if (!Boolean.TRUE.equals(defaultOptions.get("mismatchShouldPass"))) throw e;
+        } finally {
+            if (embedUI) {
+                String diffJS = "newDiffUI(document.currentScript," +
+                        JsonUtils.toJson(result) + "," +
+                        JsonUtils.toJson(options) + "," +
+                        getImageHookFunction(options, defaultOptions, "onShowRebase") + "," +
+                        getImageHookFunction(options, defaultOptions, "onShowConfig") +
+                        ")";
+
+                runtime.embed(JsValue.toBytes(diffJS), ResourceType.JS);
+            }
+        }
+
+        return result;
+    }
+
+    private byte[] getImageBytes(Map<String, Object> params, String paramName) {
+        Object img = params.get(paramName);
+        if (img == null) {
+            return null;
+        }
+
+        if (img instanceof String) {
+            return fileReader.readFileAsBytes((String)img);
+        }
+
+        if (img instanceof byte[]) {
+            return (byte[])img;
+        }
+
+        throw new RuntimeException(
+                "invalid image comparison options: expected " + paramName + " to be one of string|byte[]");
+    }
+
+    private Map<String, Object> getImageOptions(Object obj, String objName) {
+        if (obj == null) {
+            return new HashMap<>();
+        }
+
+        if (obj instanceof Map) {
+            return (Map<String, Object>)obj;
+        }
+
+        throw new RuntimeException("invalid image comparison " + objName + ": expected map");
+    }
+
+    private String getImageHookFunction(Map<String, Object> options, Map<String, Object> defaultOptions, String name) {
+        Object fn = options.containsKey(name) ? options.get(name) : defaultOptions.get(name);
+        return fn == null ? null : fn.toString();
     }
 
     //==========================================================================        
