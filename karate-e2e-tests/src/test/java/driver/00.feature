@@ -56,3 +56,6 @@ Scenario:
 
 # image comparison
 * if (!skipSlowTests) karate.call('16.feature')
+
+# switch to root session on page close
+* call read('17.feature')
