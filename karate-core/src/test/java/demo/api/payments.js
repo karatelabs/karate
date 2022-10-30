@@ -7,7 +7,7 @@ if (request.pathMatches('/payments/{id}')) {
     session.payments[id] = payment;
     response.body = payment;
   } else if (request.delete) {
-    session.payments = delete session.payments.id
+    delete session.payments[id]
   } else { // get
     response.body = session.payments[id];
     if (!response.body) {
