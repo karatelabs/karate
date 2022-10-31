@@ -449,6 +449,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void close() {
         method("Page.close").sendWithoutWaiting();
+        sessionId = frameSessions.get(rootFrameId);
     }
 
     @Override
