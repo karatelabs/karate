@@ -587,7 +587,7 @@ public class ScenarioEngine {
             perfEventName = runtime.featureRuntime.perfHook.getPerfEventName(httpRequest, runtime);
         }
         long startTime = System.currentTimeMillis();
-        httpRequest.setStartTimeMillis(startTime); // this may be fine-adjusted by actual http client
+        httpRequest.setStartTime(startTime); // this may be fine-adjusted by actual http client
         if (hooks != null) {
             hooks.forEach(h -> h.beforeHttpCall(httpRequest, runtime));
         }
@@ -641,10 +641,12 @@ public class ScenarioEngine {
         cookies = response.getCookies();
         updateConfigCookies(cookies);
         setHiddenVariable(RESPONSE_COOKIES, cookies);
-        startTime = httpRequest.getStartTimeMillis(); // in case it was re-adjusted by http client
-        long endTime = httpRequest.getEndTimeMillis();
+        startTime = httpRequest.getStartTime(); // in case it was re-adjusted by http client
+        final long endTime = httpRequest.getEndTime();
+        final long responseTime = endTime - startTime;
         setHiddenVariable(REQUEST_TIME_STAMP, startTime);
-        setHiddenVariable(RESPONSE_TIME, endTime - startTime);
+        setVariable(RESPONSE_TIME, responseTime);
+        response.setResponseTime(responseTime);
         if (perfEventName != null) {
             PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, response.getStatus());
             capturePerfEvent(pe);

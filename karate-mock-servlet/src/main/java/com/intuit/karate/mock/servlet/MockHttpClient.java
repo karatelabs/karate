@@ -131,7 +131,7 @@ public class MockHttpClient implements HttpClient {
         httpLogger.logRequest(engine.getConfig(), hr);
         try {
             servlet.service(req, res);
-            hr.setEndTimeMillis(System.currentTimeMillis());
+            hr.setEndTime(System.currentTimeMillis());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

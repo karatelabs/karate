@@ -102,17 +102,20 @@ public class Request implements ProxyObject {
     private static final String URL_BASE = "urlBase";
     private static final String URL = "url";
     private static final String PATH_RAW = "pathRaw";
+    private static final String START_TIME = "startTime";
+    private static final String END_TIME = "endTime";
 
     private static final String[] KEYS = new String[]{
         PATH, METHOD, PARAM, PARAM_INT, PARAM_BOOL, PARAM_OR, PARAM_OR_NULL, PARAMS,
         HEADER, HEADERS, HEADER_VALUES, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, PATH_MATCHES, PATH_PATTERN,
         BODY, BODY_STRING, BODY_BYTES, MULTI_PART, MULTI_PARTS, JSON,
-        GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL, PATH_RAW
+        GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL, PATH_RAW, START_TIME, END_TIME
     };
     private static final Set<String> KEY_SET = new HashSet<>(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
-    private final long startTime = System.currentTimeMillis();
+    private long startTime = System.currentTimeMillis();
+    private long endTime;
     private String urlAndPath;
     private String urlBase;
     private String pathOriginal;
@@ -232,9 +235,21 @@ public class Request implements ProxyObject {
         setParams(qsd.parameters());
     }
 
+    public void setStartTime(long startTime) {
+        this.startTime = startTime;
+    }        
+
     public long getStartTime() {
         return startTime;
     }
+
+    public void setEndTime(long endTime) {
+        this.endTime = endTime;
+    }
+
+    public long getEndTime() {
+        return endTime;
+    }        
 
     public String getUrlAndPath() {
         return urlAndPath != null ? urlAndPath : (urlBase != null ? urlBase : "") + path;
@@ -569,6 +584,10 @@ public class Request implements ProxyObject {
             case OPTIONS:
             case TRACE:
                 return method.toLowerCase().equals(key);
+            case START_TIME:
+                return startTime;
+            case END_TIME:
+                return endTime;
             default:
                 logger.warn("no such property on request object: {}", key);
                 return null;

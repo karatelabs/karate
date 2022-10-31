@@ -278,7 +278,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 InputStream is = responseEntity.getContent();
                 bytes = FileUtils.toBytes(is);
             }
-            request.setEndTimeMillis(System.currentTimeMillis());
+            request.setEndTime(System.currentTimeMillis());
         } catch (Exception e) {
             if (e instanceof ClientProtocolException && e.getCause() != null) { // better error message                
                 throw new RuntimeException(e.getCause());
@@ -324,7 +324,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     public void process(org.apache.http.HttpRequest hr, HttpContext hc) throws HttpException, IOException {
         request.setHeaders(toHeaders(hr));
         httpLogger.logRequest(getConfig(), request);
-        request.setStartTimeMillis(System.currentTimeMillis());
+        request.setStartTime(System.currentTimeMillis());
     }
 
     private static Map<String, List<String>> toHeaders(HttpMessage msg) {

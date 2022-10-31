@@ -107,7 +107,7 @@ public class HttpLogger {
         if (rawResponse != null && logModifier != null) {
             rawResponse = logModifier.response(url, rawResponse);
         }
-        long responseTime = request.getEndTimeMillis() - request.getStartTimeMillis();
+        long responseTime = request.getEndTime() - request.getStartTime();
         return "status code was: " + response.getStatus() + ", expected: " + expected
                 + ", response time in milliseconds: " + responseTime + ", url: " + maskedUrl
                 + ", response: \n" + rawResponse;
@@ -139,8 +139,8 @@ public class HttpLogger {
     }
 
     public void logResponse(Config config, HttpRequest request, Response response) {
-        long startTime = request.getStartTimeMillis();
-        long elapsedTime = request.getEndTimeMillis() - startTime;
+        long startTime = request.getStartTime();
+        long elapsedTime = request.getEndTime() - startTime;
         StringBuilder sb = new StringBuilder();
         String uri = request.getUrl();
         HttpLogModifier responseModifier = logModifier(config, uri);

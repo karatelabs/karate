@@ -64,8 +64,9 @@ public class Response implements ProxyObject {
     private static final String HEADER_VALUES = "headerValues";
     private static final String HEADER_ENTRIES = "headerEntries";
     private static final String DATA_TYPE = "dataType";
+    private static final String RESPONSE_TIME = "responseTime";
 
-    private static final String[] KEYS = new String[]{STATUS, HEADER, HEADERS, HEADER_VALUES, HEADER_ENTRIES, BODY, DATA_TYPE, BODY_BYTES};
+    private static final String[] KEYS = new String[]{STATUS, HEADER, HEADERS, HEADER_VALUES, HEADER_ENTRIES, BODY, DATA_TYPE, BODY_BYTES, RESPONSE_TIME};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -75,6 +76,7 @@ public class Response implements ProxyObject {
 
     private ResourceType resourceType;
     private int delay;
+    private long responseTime;
 
     public Response(int status) {
         this.status = status;
@@ -106,6 +108,15 @@ public class Response implements ProxyObject {
     public void setDelay(int delay) {
         this.delay = delay;
     }
+
+    public void setResponseTime(long responseTime) {
+        this.responseTime = responseTime;
+    }
+
+    public long getResponseTime() {
+        return responseTime;
+    }    
+       
 
     public Map<String, List<String>> getHeaders() {
         return headers;
@@ -275,6 +286,8 @@ public class Response implements ProxyObject {
                 return HEADER_ENTRIES_FUNCTION;
             case BODY_BYTES:
                 return getBody();
+            case RESPONSE_TIME:
+                return responseTime;
             default:
                 logger.warn("no such property on response object: {}", key);
                 return null;
