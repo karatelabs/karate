@@ -318,10 +318,14 @@ Since it will result in the following request to the WebDriver `/session`:
 {"capabilities":{"alwaysMatch":{"browserName":"chrome"}}}
 ```
 
-But in some cases, especially when you need to talk to remote driver instances, you need to pass specific "shapes" of JSON expected by the particular implementation - or you may need to pass custom data or "extension" properties. Use the `webDriverSession` property in those cases. For example:
+But in some cases, especially when you need to talk to remote driver instances, you need to pass specific "shapes" of JSON expected by the particular implementation - or you may need to pass custom data or "extension" properties. Use the `webDriverSession` property in those cases. 
+
+> Note: `desiredCapabilities` has been deprecated and not recommended for use.
+
+For example:
 
 ```cucumber
-* def session = { capabilities: { browserName: 'chrome' }, desiredCapabilities: { browserName: 'chrome' } }
+* def session = { capabilities: { alwaysMatch: { browserName: 'chrome', 'goog:chromeOptions': { args: [ '--headless', 'window-size=1280,720' ] } } } }
 * configure driver = { type: 'chromedriver', webDriverSession: '#(session)', start: false, webDriverUrl: 'http://localhost:9515/wd/hub' }
 ```
 
