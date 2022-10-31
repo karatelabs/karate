@@ -26,15 +26,12 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.ExceptionUtils;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.StepResult;
 import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
 import java.io.InputStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
@@ -159,7 +156,7 @@ public class ReportUtils {
             if (sr.getResult().isFailed()) {
                 sb.append("\nStack Trace:\n");
                 error = sr.getResult().getError();
-                sb.append(ExceptionUtils.getStackTrace(error));
+                sb.append(StringUtils.throwableToString(error));
                 sb.append('\n');
             }
         }
