@@ -568,6 +568,12 @@ Multiple feature files (or paths) can be specified, de-limited by the space char
 mvn test "-Dkarate.options=PathToFeatureFiles/order.feature:12" -Dtest=DemoTestParallel
 ```
 
+Since paths are expected at the end of the command-line options - if you want to only over-ride tags, use the `=` sign to make argument values clear. For example:
+
+```
+mvn test -Dkarate.options='-t=@dev -t=@src' -Dtest=ExamplesTest
+```
+
 ### Command Line - Gradle
 For Gradle, you must extend the test task to allow the `karate.options` to be passed to the runtime (otherwise they get consumed by Gradle itself). To do that, add the following:
 
