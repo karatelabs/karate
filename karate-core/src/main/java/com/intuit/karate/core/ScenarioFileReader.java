@@ -113,6 +113,10 @@ public class ScenarioFileReader {
         }
         int pos = text.indexOf(".feature@");
         if (pos == -1) {
+            pos = text.indexOf(".feature?");
+            if (pos != -1) {
+                text = text.substring(0, pos + 8);
+            }
             text = StringUtils.trimToEmpty(text);
             return new StringUtils.Pair(text, null);
         } else {

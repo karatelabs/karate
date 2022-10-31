@@ -4325,6 +4325,16 @@ You *can* use `karate.callSingle()` directly in a `*.feature` file, but it logic
 
 IMPORTANT: There are some restrictions when using [`callonce`](#callonce) or `karate.callSingle()` especially within [`karate-config.js`](#karate-configjs). Ideally you should return only *pure* JSON data (or a primitive string, number etc.). Keep in mind that the reason this exists is to "cache" data, and *not* behavior. So if you return complex objects such as a custom Java instance or a JS function that depends on complex objects, this [*may* cause issues when you run in parallel](https://github.com/intuit/karate/issues/1558). If you really need to re-use a Java function, see [Java Function References](#java-function-references).
 
+#### Multiple calls using `karate.callSingle()`
+The first argument to `karate.callSingle()` is used as the "cache key". So if you tried to re-use the same feature but with multiple arguments, things will not work as you expect. But you can suffix a `?name` to the feature to de-dupe it, like so:
+
+```js
+var adminResponse = karate.callSingle('classpath:get-token.feature?admin', {'username': 'admin', 'password': 'password123' });
+var userResponse = karate.callSingle('classpath:get-token.feature?user', {'username': 'user', 'password': 'password456' });
+```
+
+Now `adminResponse` and `userResponse` will be different, even though the same feature file is being used for a `callSingle()`.
+
 #### `configure callSingleCache`
 When re-running tests in development mode and when your test suite depends on say an `Authorization` header set by [`karate.callSingle()`](#karatecallsingle), you can cache the results locally to a file, which is very convenient when your "auth token" is valid for a period of a few minutes - which typically is the case. This means that as long as the token "on file" is valid, you can save time by not having to make the one or two HTTP calls needed to "sign-in" or create "throw-away" users in your SSO store.
 
