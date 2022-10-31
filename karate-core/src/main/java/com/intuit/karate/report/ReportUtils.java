@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 package com.intuit.karate.report;
-
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.JsonUtils;
@@ -33,8 +32,6 @@ import com.intuit.karate.core.StepResult;
 import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
 import java.io.InputStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
@@ -158,10 +155,8 @@ public class ReportUtils {
             sb.append('\n');
             if (sr.getResult().isFailed()) {
                 sb.append("\nStack Trace:\n");
-                StringWriter sw = new StringWriter();
                 error = sr.getResult().getError();
-                error.printStackTrace(new PrintWriter(sw));
-                sb.append(sw.toString());
+                sb.append(StringUtils.throwableToString(error));
                 sb.append('\n');
             }
         }

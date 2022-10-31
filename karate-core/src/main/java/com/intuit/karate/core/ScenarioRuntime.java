@@ -136,6 +136,10 @@ public class ScenarioRuntime implements Runnable {
         return stopped;
     }
 
+    public boolean isSkipBackground() {
+        return this.skipBackground;
+    }
+
     public void setSkipBackground(boolean skipBackground) {
         this.skipBackground = skipBackground;
     }    

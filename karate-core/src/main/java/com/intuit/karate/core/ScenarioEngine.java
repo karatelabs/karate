@@ -598,6 +598,12 @@ public class ScenarioEngine {
             long responseTime = endTime - startTime;
             String message = "http call failed after " + responseTime + " milliseconds for url: " + httpRequest.getUrl();
             logger.error(e.getMessage() + ", " + message);
+            if (logger.isTraceEnabled()) {
+                String stacktrace = StringUtils.throwableToString(e);
+                if (stacktrace != null) {
+                    logger.trace(stacktrace);
+                }
+            }
             if (perfEventName != null) {
                 PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, 0);
                 capturePerfEvent(pe); // failure flag and message should be set by logLastPerfEvent()

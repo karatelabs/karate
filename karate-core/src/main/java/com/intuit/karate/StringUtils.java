@@ -48,7 +48,7 @@ public class StringUtils {
         // only static methods
     }
 
-    private static final String EMPTY = "";
+    public static final String EMPTY = "";
 
     public static class Pair {
 
