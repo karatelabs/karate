@@ -2238,6 +2238,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `driverTarget` | JSON / Java Object | See [`configure driverTarget`](karate-core#configure-drivertarget)
 `pauseIfNotPerf` | boolean | defaults to `false`, relevant only for performance-testing, see [`karate.pause()`](#karate-pause) and [`karate-gatling`](karate-gatling#think-time)
 `xmlNamespaceAware` | boolean | defaults to `false`, to handle XML namespaces in [some special circumstances](https://github.com/karatelabs/karate/issues/1587)
+`abortSuiteOnFailure` | boolean | defaults to `false`, to not attempt to run any more tests upon a failure
 
 Examples:
 ```cucumber

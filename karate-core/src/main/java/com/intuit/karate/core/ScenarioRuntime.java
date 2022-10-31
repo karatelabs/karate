@@ -59,8 +59,8 @@ public class ScenarioRuntime implements Runnable {
     public final boolean perfMode;
     public final boolean dryRun;
     public final LogAppender logAppender;
-    
-    private boolean skipBackground; 
+
+    private boolean skipBackground;
     private boolean ignoringFailureSteps;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
@@ -83,19 +83,19 @@ public class ScenarioRuntime implements Runnable {
         actions = new ScenarioActions(engine);
         this.scenario = scenario;
         if (scenario.isDynamic() && !scenario.isOutlineExample()) { // from dynamic scenario iterator
-            steps = Collections.emptyList();             
+            steps = Collections.emptyList();
             skipped = true; // ensures run() is a no-op
             magicVariables = Collections.emptyMap();
         } else {
             magicVariables = initMagicVariables();
-        }        
-        result = new ScenarioResult(scenario);        
+        }
+        result = new ScenarioResult(scenario);
         dryRun = featureRuntime.suite.dryRun;
         tags = scenario.getTagsEffective();
         reportDisabled = perfMode ? true : tags.valuesFor("report").isAnyOf("false");
-        selectedForExecution = isSelectedForExecution(featureRuntime, scenario, tags);        
+        selectedForExecution = isSelectedForExecution(featureRuntime, scenario, tags);
     }
-    
+
     private Map<String, Object> initMagicVariables() {
         // magic variables are only in the JS engine - [ see ScenarioEngine.init() ]
         // and not "visible" and tracked in ScenarioEngine.vars
@@ -142,7 +142,7 @@ public class ScenarioRuntime implements Runnable {
 
     public void setSkipBackground(boolean skipBackground) {
         this.skipBackground = skipBackground;
-    }    
+    }
 
     public String getEmbedFileName(ResourceType resourceType) {
         String extension = resourceType == null ? null : resourceType.getExtension();
@@ -319,16 +319,16 @@ public class ScenarioRuntime implements Runnable {
             logger.trace("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
             return false;
         }
-        String callTag = fr.featureCall.callTag;       
+        String callTag = fr.featureCall.callTag;
         if (callTag != null && (!fr.caller.isNone() || fr.perfHook != null)) {
-                // only if this is a legit "call" or a gatling "call by tag"
-                if (tags.contains(callTag)) {
-                    logger.info("{} - call by tag at line {}: {}", fr, scenario.getLine(), callTag);
-                    return true;
-                }
-                logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
-                return false;                
+            // only if this is a legit "call" or a gatling "call by tag"
+            if (tags.contains(callTag)) {
+                logger.info("{} - call by tag at line {}: {}", fr, scenario.getLine(), callTag);
+                return true;
             }
+            logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
+            return false;
+        }
         if (fr.caller.isNone()) {
             if (tags.evaluate(fr.suite.tagSelector, fr.suite.env)) {
                 logger.trace("matched scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
@@ -343,7 +343,11 @@ public class ScenarioRuntime implements Runnable {
 
     //==========================================================================
     //
-    public void beforeRun() {        
+    public void beforeRun() {
+        if (featureRuntime.caller.isNone() && featureRuntime.suite.isAborted()) {
+            skipped = true;
+            return;
+        }
         steps = skipBackground ? scenario.getSteps() : scenario.getStepsIncludingBackground();
         ScenarioEngine.set(engine);
         engine.init();
@@ -395,6 +399,9 @@ public class ScenarioRuntime implements Runnable {
         } finally {
             if (!skipped) {
                 afterRun();
+                if (isFailed() && engine.getConfig().isAbortSuiteOnFailure()) {
+                    featureRuntime.suite.abort();
+                }
             }
             if (caller.isNone()) {
                 logAppender.close(); // reclaim memory
@@ -493,6 +500,7 @@ public class ScenarioRuntime implements Runnable {
             }
             addStepLogEmbedsAndCallResults();
         } catch (Exception e) {
+            error = e;
             logError("scenario [cleanup] failed\n" + e.getMessage());
             currentStepResult = result.addFakeStepResult("scenario [cleanup] failed", e);
         }

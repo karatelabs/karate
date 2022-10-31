@@ -90,6 +90,7 @@ public class Config {
     private Variable responseHeaders = Variable.NULL;
     private List<Method> continueOnStepFailureMethods = new ArrayList<>();
     private boolean continueAfterContinueOnStepFailure;
+    private boolean abortSuiteOnFailure;
 
     // retry config
     private int retryInterval = DEFAULT_RETRY_INTERVAL;
@@ -201,6 +202,8 @@ public class Config {
                 return false;
             case "abortedStepsShouldPass":
                 abortedStepsShouldPass = value.isTrue();
+            case "abortSuiteOnFailure":
+                abortSuiteOnFailure = value.isTrue();
                 return false;
             case "callSingleCache":
                 if (value.isMap()) {
@@ -344,6 +347,7 @@ public class Config {
         afterFeature = parent.afterFeature;
         continueOnStepFailureMethods = parent.continueOnStepFailureMethods;
         continueAfterContinueOnStepFailure = parent.continueAfterContinueOnStepFailure;
+        abortSuiteOnFailure = parent.abortSuiteOnFailure;
         imageComparisonOptions = parent.imageComparisonOptions;
     }
 
@@ -562,6 +566,14 @@ public class Config {
     public void setContinueAfterContinueOnStepFailure(boolean continueAfterContinueOnStepFailure) {
         this.continueAfterContinueOnStepFailure = continueAfterContinueOnStepFailure;
     }
+
+    public void setAbortSuiteOnFailure(boolean abortSuiteOnFailure) {
+        this.abortSuiteOnFailure = abortSuiteOnFailure;
+    }
+
+    public boolean isAbortSuiteOnFailure() {
+        return abortSuiteOnFailure;
+    }        
 
     public Map<String, Object> getImageComparisonOptions() {
         return imageComparisonOptions;

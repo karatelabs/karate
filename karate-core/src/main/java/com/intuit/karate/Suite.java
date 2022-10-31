@@ -23,7 +23,6 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureCall;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
@@ -52,6 +51,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
 import org.slf4j.LoggerFactory;
@@ -67,6 +67,7 @@ public class Suite implements Runnable {
     public final long startTime;
     protected long endTime;
     protected int skippedCount;
+    private AtomicBoolean abort = new AtomicBoolean(false);
 
     public final String env;
     public final String tagSelector;
@@ -258,6 +259,14 @@ public class Suite implements Runnable {
             }
             hooks.forEach(h -> h.afterSuite(this));
         }
+    }
+    
+    public void abort() {
+        abort.set(true);
+    }
+    
+    public boolean isAborted() {
+        return abort.get();
     }
 
     public void saveFeatureResults(FeatureResult fr) {
