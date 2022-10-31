@@ -301,6 +301,7 @@ public class Suite implements Runnable {
 
     public Stream<FeatureResult> getFeatureResults() {
         return featureResultFiles.stream()
+                .sorted()
                 .map(file -> FeatureResult.fromKarateJson(workingDir, Json.of(FileUtils.toString(file)).asMap()));
     }
 
