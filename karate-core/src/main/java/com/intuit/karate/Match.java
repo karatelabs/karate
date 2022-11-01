@@ -53,6 +53,7 @@ public class Match {
         CONTAINS_ONLY,
         CONTAINS_ANY,
         CONTAINS_DEEP,
+        CONTAINS_ONLY_DEEP,
         CONTAINS_ANY_DEEP,
         EACH_EQUALS,
         EACH_NOT_EQUALS,
@@ -391,6 +392,10 @@ public class Match {
         public Result containsOnly(Object expected) {
             return is(Type.CONTAINS_ONLY, expected);
         }
+        
+        public Result containsOnlyDeep(Object expected) {
+            return is(Type.CONTAINS_ONLY_DEEP, expected);
+        }        
 
         public Result containsAny(Object expected) {
             return is(Type.CONTAINS_ANY, expected);

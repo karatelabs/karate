@@ -758,6 +758,14 @@ class ScenarioRuntimeTest {
                 "match response contains deep { foo: '#(^array)' }"
         );        
     }
+    
+    @Test
+    void testMatchContainsOnlyDeep() {
+        run(
+                "def response = { foo: [ 'a', 'b' ] } ",
+                "match response contains only deep { foo: [ 'b', 'a' ] }"
+        );        
+    }    
 
     @Test
     void testJavaInteropStatic() {

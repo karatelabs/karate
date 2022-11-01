@@ -23,6 +23,7 @@ class MatchStepTest {
         test("aXml //active == '#regex (false|true)'", EQUALS, "aXml", "//active", "'#regex (false|true)'");
         test("hello ==", EQUALS, "hello", null, null);
         test("hello world == foo", EQUALS, "hello", "world", "foo");
+        test("hello world contains only deep foo", CONTAINS_ONLY_DEEP, "hello", "world", "foo");
         test("each hello world == foo", EACH_EQUALS, "hello", "world", "foo");
         test("{\"a\":1,\"b\":2} == '#object'", EQUALS, "({\"a\":1,\"b\":2})", null, "'#object'");
         test("hello.foo(bar) != blah", NOT_EQUALS, "hello.foo(bar)", null, "blah");

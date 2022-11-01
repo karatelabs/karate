@@ -63,7 +63,12 @@ public class MatchStep {
             not = raw.charAt(lhsEndPos + 1) == '!';
             searchPos = lhsEndPos + (not ? 10 : 9);
             String anyOrOnlyOrDeep = raw.substring(searchPos).trim();
-            if (anyOrOnlyOrDeep.startsWith("only")) {
+            if (anyOrOnlyOrDeep.startsWith("only deep")) {
+                int onlyPos = raw.indexOf(" only deep", searchPos);
+                only = true;
+                deep = true;
+                searchPos = onlyPos + 10;
+            } else if (anyOrOnlyOrDeep.startsWith("only")) {
                 int onlyPos = raw.indexOf(" only", searchPos);
                 only = true;
                 searchPos = onlyPos + 5;
@@ -140,7 +145,7 @@ public class MatchStep {
         }
         if (contains) {
             if (only) {
-                return Match.Type.CONTAINS_ONLY;
+                return deep ? Match.Type.CONTAINS_ONLY_DEEP : Match.Type.CONTAINS_ONLY;
             }
             if (any) {
                 return Match.Type.CONTAINS_ANY;

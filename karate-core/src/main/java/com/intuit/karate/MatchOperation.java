@@ -191,6 +191,7 @@ public class MatchOperation {
                 case CONTAINS_ANY:
                 case CONTAINS_ONLY:
                 case CONTAINS_DEEP:
+                case CONTAINS_ONLY_DEEP:
                 case CONTAINS_ANY_DEEP:
                     // don't tamper with strings on the RHS that represent arrays or objects
                     if (!expected.isList() && !(expected.isString() && expected.isArrayObjectOrReference())) {
@@ -239,6 +240,7 @@ public class MatchOperation {
             case CONTAINS_ANY:
             case CONTAINS_ONLY:
             case CONTAINS_DEEP:
+            case CONTAINS_ONLY_DEEP:
             case CONTAINS_ANY_DEEP:
                 return actualContainsExpected() ? pass() : fail("actual does not contain expected");
             case NOT_CONTAINS:
@@ -262,10 +264,16 @@ public class MatchOperation {
                 int startPos = matchTypeToStartPos(nestedType);
                 macro = macro.substring(startPos);
                 if (actual.isList()) { // special case, look for partial maps within list
-                    if (nestedType == Match.Type.CONTAINS) {
-                        nestedType = Match.Type.CONTAINS_DEEP;
-                    } else if (nestedType == Match.Type.CONTAINS_ANY) {
-                        nestedType = Match.Type.CONTAINS_ANY_DEEP;
+                    switch (nestedType) {
+                        case CONTAINS:
+                            nestedType = Match.Type.CONTAINS_DEEP;
+                            break;
+                        case CONTAINS_ONLY:
+                            nestedType = Match.Type.CONTAINS_ONLY_DEEP;
+                            break;
+                        case CONTAINS_ANY:
+                            nestedType = Match.Type.CONTAINS_ANY_DEEP;
+                            break;
                     }
                 }
                 context.JS.put("$", context.root.actual.getValue());
@@ -457,7 +465,7 @@ public class MatchOperation {
     }
 
     private boolean matchMapValues(Map<String, Object> actMap, Map<String, Object> expMap) { // combined logic for equals and contains
-        if (actMap.size() > expMap.size() && (type == Match.Type.EQUALS || type == Match.Type.CONTAINS_ONLY)) {
+        if (actMap.size() > expMap.size() && (type == Match.Type.EQUALS || type == Match.Type.CONTAINS_ONLY || type == Match.Type.CONTAINS_ONLY_DEEP)) {
             int sizeDiff = actMap.size() - expMap.size();
             Map<String, Object> diffMap = new LinkedHashMap(actMap);
             for (String key : expMap.keySet()) {
@@ -494,6 +502,8 @@ public class MatchOperation {
             Match.Type childMatchType;
             if (type == Match.Type.CONTAINS_DEEP) {
                 childMatchType = childActValue.isMapOrListOrXml() ? Match.Type.CONTAINS_DEEP : Match.Type.EQUALS;
+            } else if (type == Match.Type.CONTAINS_ONLY_DEEP) {
+                childMatchType = childActValue.isMapOrListOrXml() ? Match.Type.CONTAINS_ONLY_DEEP : Match.Type.EQUALS;
             } else {
                 childMatchType = Match.Type.EQUALS;
             }
@@ -550,7 +560,7 @@ public class MatchOperation {
                 if (type != Match.Type.CONTAINS_ANY && type != Match.Type.CONTAINS_ANY_DEEP && expListCount > actListCount) {
                     return fail("actual array length is less than expected - " + actListCount + ":" + expListCount);
                 }
-                if (type == Match.Type.CONTAINS_ONLY && expListCount != actListCount) {
+                if ((type == Match.Type.CONTAINS_ONLY || type == Match.Type.CONTAINS_ONLY_DEEP) && expListCount != actListCount) {
                     return fail("actual array length is not equal to expected - " + actListCount + ":" + expListCount);
                 }
                 for (Object exp : expList) { // for each item in the expected list
@@ -562,6 +572,9 @@ public class MatchOperation {
                         switch (type) {
                             case CONTAINS_DEEP:
                                 childMatchType = actListValue.isMapOrListOrXml() ? Match.Type.CONTAINS_DEEP : Match.Type.EQUALS;
+                                break;
+                            case CONTAINS_ONLY_DEEP:
+                                childMatchType = actListValue.isMapOrListOrXml() ? Match.Type.CONTAINS_ONLY_DEEP : Match.Type.EQUALS;
                                 break;
                             case CONTAINS_ANY_DEEP:
                                 childMatchType = actListValue.isMapOrListOrXml() ? Match.Type.CONTAINS_ANY : Match.Type.EQUALS;
