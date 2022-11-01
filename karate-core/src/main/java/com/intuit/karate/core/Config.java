@@ -136,7 +136,7 @@ public class Config {
                 return false;
             case "xmlNamespaceAware":
                 xmlNamespaceAware = value.isTrue();
-                return false;                
+                return false;
             case "lowerCaseResponseHeaders":
                 lowerCaseResponseHeaders = value.isTrue();
                 return false;
@@ -202,6 +202,7 @@ public class Config {
                 return false;
             case "abortedStepsShouldPass":
                 abortedStepsShouldPass = value.isTrue();
+                return false;
             case "abortSuiteOnFailure":
                 abortSuiteOnFailure = value.isTrue();
                 return false;
@@ -215,10 +216,38 @@ public class Config {
             case "logModifier":
                 logModifier = value.getValue();
                 return false;
+            case "imageComparison":
+                imageComparisonOptions = value.getValue();
+                return false;
+            case "continueOnStepFailure":
+                continueOnStepFailureMethods.clear(); // clears previous configuration - in case someone is trying to chain these and forgets resetting the previous one
+                boolean enableContinueOnStepFailureFeature = false;
+                Boolean continueAfterIgnoredFailure = null;
+                List<String> stepKeywords = null;
+                if (value.isMap()) {
+                    Map<String, Object> map = value.getValue();
+                    stepKeywords = (List<String>) map.get("keywords");
+                    continueAfterIgnoredFailure = (Boolean) map.get("continueAfter");
+                    enableContinueOnStepFailureFeature = map.get("enabled") != null && (Boolean) map.get("enabled");
+                }
+                if (value.isTrue() || enableContinueOnStepFailureFeature) {
+                    continueOnStepFailureMethods.addAll(stepKeywords == null ? StepRuntime.METHOD_MATCH : StepRuntime.findMethodsByKeywords(stepKeywords));
+                } else {
+                    if (stepKeywords == null) {
+                        continueOnStepFailureMethods.clear();
+                    } else {
+                        continueOnStepFailureMethods.removeAll(StepRuntime.findMethodsByKeywords(stepKeywords));
+                    }
+                }
+                if (continueAfterIgnoredFailure != null) {
+                    continueAfterContinueOnStepFailure = continueAfterIgnoredFailure;
+                }
+                return false;
             // here on the http client has to be re-constructed ================
+            // and we return true instead of false
             case "charset":
                 charset = value.isNull() ? null : Charset.forName(value.getAsString());
-                return true;                
+                return true;
             case "ssl":
                 if (value.isString()) {
                     sslEnabled = true;
@@ -266,37 +295,6 @@ public class Config {
             case "localAddress":
                 localAddress = value.getAsString();
                 return true;
-            case "continueOnStepFailure":
-                continueOnStepFailureMethods.clear(); // clears previous configuration - in case someone is trying to chain these and forgets resetting the previous one
-
-                boolean enableContinueOnStepFailureFeature = false;
-                Boolean continueAfterIgnoredFailure = null;
-
-                List<String> stepKeywords = null;
-                if (value.isMap()) {
-                    Map<String, Object> map = value.getValue();
-                    stepKeywords = (List<String>) map.get("keywords");
-                    continueAfterIgnoredFailure = (Boolean) map.get("continueAfter");
-                    enableContinueOnStepFailureFeature = map.get("enabled") != null && (Boolean) map.get("enabled");
-                }
-
-                if (value.isTrue() || enableContinueOnStepFailureFeature) {
-                    continueOnStepFailureMethods.addAll(stepKeywords == null ? StepRuntime.METHOD_MATCH : StepRuntime.findMethodsByKeywords(stepKeywords));
-                } else {
-                    if (stepKeywords == null) {
-                        continueOnStepFailureMethods.clear();
-                    } else {
-                        continueOnStepFailureMethods.removeAll(StepRuntime.findMethodsByKeywords(stepKeywords));
-                    }
-                }
-                if (continueAfterIgnoredFailure != null) {
-                    continueAfterContinueOnStepFailure = continueAfterIgnoredFailure;
-                }
-
-                return true;
-            case "imageComparison":
-                imageComparisonOptions = value.getValue();
-                return false;
             default:
                 throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
         }
@@ -445,7 +443,7 @@ public class Config {
 
     public boolean isXmlNamespaceAware() {
         return xmlNamespaceAware;
-    }        
+    }
 
     public boolean isLowerCaseResponseHeaders() {
         return lowerCaseResponseHeaders;
@@ -573,7 +571,7 @@ public class Config {
 
     public boolean isAbortSuiteOnFailure() {
         return abortSuiteOnFailure;
-    }        
+    }
 
     public Map<String, Object> getImageComparisonOptions() {
         return imageComparisonOptions;
