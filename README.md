@@ -3572,6 +3572,7 @@ Operation | Description
 <a name="karate-setall"><code>karate.set(object)</code></a> | where the single argument is expected to be a `Map` or JSON-like, and will perform the above `karate.set()` operation for all key-value pairs in one-shot, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/set.feature)
 <a name="karate-setpath"><code>karate.set(name, path, value)</code></a> | only needed when you need to conditionally build payload elements, especially XML. This is best explained via [an example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature#L211), and it behaves the same way as the [`set`](#set) keyword. Also see [`eval`](#eval).
 <a name="karate-setxml"><code>karate.setXml(name, xmlString)</code></a> | rarely used, refer to the example above
+<a name="karate-setup"><code>karate.setup([name])</code></a> | call a `Scenario` tagged with the built-in [`@setup`](#setup) annotation
 <a name="karate-signal"><code>karate.signal(result)</code></a> | trigger an event that [`karate.listen(timeout)`](#karate-listen) is waiting for, and pass the data, see [async](#async)
 <a name="karate-sizeof"><code>karate.sizeOf(object)</code></a> | returns the size of the map-like or list-like object
 <a name="karate-sort"><code>karate.sort(list, function)</code></a> | sorts the list using the provided custom function called for each item in the list (and the optional second argument is the item index) e.g. `karate.sort(myList, x => x.val)`, and the second / function argument is not needed if the list is of plain strings or numbers
@@ -4017,7 +4018,6 @@ You can always use a JavaScript [`switch case`](https://www.w3schools.com/js/js_
 You can find more details [here](https://stackoverflow.com/a/59162760/143475). Also note how you can wrap the LHS of the [`match`](#match) in parentheses in the rare cases where the parser expects JsonPath by default.
 
 ### Abort and Fail
-
 In some rare cases you need to exit a `Scenario` based on some condition. You can use [`karate.abort()`](#karate-abort) like so:
 
 ```cucumber
@@ -4200,6 +4200,7 @@ Tag | Description
 `@ignore` | Any `Scenario` with (or that has inherited) this tag will be skipped at run-time. This does not apply to anything that is "called" though
 `@parallel` | See [`@parallel=false`](#parallelfalse)
 `@report` | See [`@report=false`](#reportfalse)
+`@setup` | See [`@setup`](#setup)
 `@env` | See below
 `@envnot` | See below
 
@@ -4477,18 +4478,13 @@ Also see the option below, where you can data-drive an `Examples:` table using J
 ### Dynamic Scenario Outline
 You can feed an `Examples` table from a custom data-source, which is great for those situations where the table-content is dynamically resolved at run-time. This capability is triggered when the table consists of a single "cell", i.e. there is exactly one row and one column in the table.
 
-This technique has one caveat to be aware of regarding isolation of tests running in parallel. The `Background` section is only run once in order to set up the list of dynamic scenarios. This means that any other steps within the `Background` are not repeated for each individual example. This is different behaviour from normal scenarios where each `Scenario` also runs the `Background` steps.
-
 #### JSON Array Data Source
-The "scenario expression" result is expected to be an array of JSON objects. Here is an example (also see [this video](https://twitter.com/KarateDSL/status/1051433711814627329)):
+The "scenario expression" result is expected to be an array of JSON objects. Here is an example:
 
 ```cucumber
-Feature: scenario outline using a dynamic table
+Feature: scenario outline using a JSON array as the data-source
 
-Background:
-    * def kittens = read('../callarray/kittens.json')
-
-Scenario Outline: cat name: <name>
+Scenario Outline: cat name: ${name}
     Given url demoBaseUrl
     And path 'cats'
     And request { name: '#(name)' }
@@ -4497,12 +4493,57 @@ Scenario Outline: cat name: <name>
     And match response == { id: '#number', name: '#(name)' }
 
     # the single cell can be any valid karate expression
-    # and even reference a variable defined in the Background
     Examples:
-    | kittens |
+    | read('../callarray/kittens.json') |
 ```
 
-The great thing about this approach is that you can set-up the JSON array using the `Background` section. Any [Karate expression](#karate-expressions) can be used in the "cell expression", and you can even use [Java-interop](#calling-java) to use external data-sources such as a database. Note that Karate has built-in support for [CSV files](#csv-files) and here is an example: [`dynamic-csv.feature`](karate-demo/src/test/java/demo/outline/dynamic-csv.feature).
+You can see the structure of the data here: [`kittens.json`](karate-demo/src/test/java/demo/callarray/kittens.json)
+
+Any [Karate expression](#karate-expressions) can be used in the "cell expression", and you can even use [Java-interop](#calling-java) to use external data-sources such as a database.
+
+Note that Karate has built-in support for [CSV files](#csv-files) and here is an example: [`dynamic-csv.feature`](karate-demo/src/test/java/demo/outline/dynamic-csv.feature).
+
+#### `@setup`
+In cases where the data-source needs multiple steps, for e.g. if an API neews to be called to get a JSON array, you can call a separate `Scenario` to "set up" this data. The `@setup` tag is built-in for this purpose and any `Scenario` tagged with this will behave like [`@ignore`](#special-tags). So the only way to call this `Scenario` is by using the `karate.setup()` JS API.
+
+Here is the above example re-written to do so:
+
+```cucumber
+Feature: scenario outline using a JSON array as the data-source
+
+@setup
+Scenario:
+* def kittens = read('../callarray/kittens.json')
+
+Scenario Outline: cat name: ${name}
+    Given url demoBaseUrl
+    And path 'cats'
+    And request { name: '#(name)' }
+    When method post
+    Then status 200
+    And match response == { id: '#number', name: '#(name)' }
+
+    Examples:
+    | karate.setup().kittens |
+```
+
+The result of `karate.setup()` will be a JSON of all the variables created within the `Scenario` tagged with `@setup`. Note how we "unpack" the `kittens` and use it to "data drive" the `Scenario Outline`. You can get really creative and use [JS functions to filter data](https://github.com/karatelabs/karate/issues/1905#issuecomment-1207342290) for different needs.
+
+Though not really recommended, you can have multiple `Scenario`-s within a `Feature` tagged with `@setup`. But in that case you should de-dupe them using a name:
+
+```cucumber
+Feature:
+
+@setup=myname
+Scenario:
+* def data = [{ a: 1 }, { a: 2}]
+
+Scenario Outline:
+* print __row
+
+Examples:
+| karate.setup('myname').data |
+```
 
 #### JSON Function Data Source
 An advanced option is where the "scenario expression" returns a JavaScript "generator" function. This is a very powerful way to generate test-data without having to load a large number of data rows into memory. The function has to return a JSON object. To signal the end of the data, just return `null`. The function argument is the row-index, so you can easily determine *when* to stop the generation of data. Here is an example:
@@ -4510,10 +4551,11 @@ An advanced option is where the "scenario expression" returns a JavaScript "gene
 ```cucumber
 Feature: scenario outline using a dynamic generator function
 
-Background:
+@setup
+Scenario:
     * def generator = function(i){ if (i == 20) return null; return { name: 'cat' + i, age: i } }
 
-Scenario Outline: cat name: <name>
+Scenario Outline: cat name: ${name}
     Given url demoBaseUrl
     And path 'cats'
     And request { name: '#(name)', age: '#(age)' }
@@ -4522,5 +4564,5 @@ Scenario Outline: cat name: <name>
     And match response == { id: '#number', name: '#(name)' }
 
     Examples:
-    | generator |
+    | karate.setup().generator |
 ```
