@@ -43,3 +43,7 @@ Scenario Outline: dynamic ${__num + 1}
 
 Examples:
 | read('data.csv') |
+
+Scenario: calling feature in loop
+* def data = [{ name: 'one' }, { name: 'two' }]
+* call read('called-loop.feature') data
