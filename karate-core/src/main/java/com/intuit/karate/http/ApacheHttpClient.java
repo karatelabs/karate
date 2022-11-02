@@ -28,6 +28,8 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.Config;
 import com.intuit.karate.core.ScenarioEngine;
+import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
+import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,9 +43,11 @@ import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import javax.net.ssl.SSLContext;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -98,7 +102,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     private CookieStore cookieStore;
 
     public static class LenientCookieSpec extends DefaultCookieSpec {
-        
+
         static final String KARATE = "karate";
 
         public LenientCookieSpec() {
@@ -286,35 +290,40 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 throw new RuntimeException(e);
             }
         }
-        Map<String, List<String>> headers;
-        List<Cookie> cookies = cookieStore.getCookies();
-        if (!cookies.isEmpty()) {
-            // TODO improve - this is only for the edge case where the apache client
-            // auto-followed a redirect where cookies were involved
-            List<String> cookieValues = new ArrayList(cookies.size());
-            for (Cookie c : cookieStore.getCookies()) {
-                if (c.getValue() != null) {
-                    Map<String, Object> map = new HashMap();
-                    map.put(Cookies.NAME, c.getName());
-                    map.put(Cookies.VALUE, c.getValue());
-                    map.put(Cookies.DOMAIN, c.getDomain());
-                    if (c.getExpiryDate() != null) {
-                        map.put(Cookies.MAX_AGE, c.getExpiryDate().getTime());
-                    }
-                    map.put(Cookies.SECURE, c.isSecure());
-                    io.netty.handler.codec.http.cookie.Cookie nettyCookie = Cookies.fromMap(map);
-                    String cookieValue = ServerCookieEncoder.LAX.encode(nettyCookie);
-                    cookieValues.add(cookieValue);
+        Map<String, List<String>> headers = toHeaders(httpResponse);
+        List<Cookie> storedCookies = cookieStore.getCookies();
+        Header[] requestCookieHeaders = httpResponse.getHeaders(HttpConstants.HDR_SET_COOKIE);
+        // edge case where the apache client
+        // auto-followed a redirect where cookies were involved
+        List<String> mergedCookieValues = new ArrayList(requestCookieHeaders.length);
+        Set<String> cookieNames = new HashSet(requestCookieHeaders.length);
+        for (Header ch : requestCookieHeaders) {
+            String requestCookieValue = ch.getValue();
+            io.netty.handler.codec.http.cookie.Cookie c = ClientCookieDecoder.LAX.decode(requestCookieValue);
+            cookieNames.add(c.name());
+            mergedCookieValues.add(requestCookieValue);
+        }        
+        for (Cookie c : storedCookies) {
+            if (c.getValue() != null) {
+                String name = c.getName();
+                if (cookieNames.contains(name)) {
+                    continue;
+                }                
+                Map<String, Object> map = new HashMap();
+                map.put(Cookies.NAME, name);
+                map.put(Cookies.VALUE, c.getValue());
+                map.put(Cookies.DOMAIN, c.getDomain());
+                if (c.getExpiryDate() != null) {
+                    map.put(Cookies.MAX_AGE, c.getExpiryDate().getTime());
                 }
+                map.put(Cookies.SECURE, c.isSecure());
+                io.netty.handler.codec.http.cookie.Cookie nettyCookie = Cookies.fromMap(map);
+                String cookieValue = ServerCookieEncoder.LAX.encode(nettyCookie);
+                mergedCookieValues.add(cookieValue);
             }
-            // removing is probably not needed since apache cookie handling is enabled, but anyway
-            httpResponse.removeHeaders(HttpConstants.HDR_SET_COOKIE);
-            headers = toHeaders(httpResponse);
-            headers.put(HttpConstants.HDR_SET_COOKIE, cookieValues);
-            cookieStore.clear();
-        } else {
-            headers = toHeaders(httpResponse);            
         }
+        headers.put(HttpConstants.HDR_SET_COOKIE, mergedCookieValues);
+        cookieStore.clear();
         Response response = new Response(httpResponse.getStatusLine().getStatusCode(), headers, bytes);
         httpLogger.logResponse(getConfig(), request, response);
         return response;

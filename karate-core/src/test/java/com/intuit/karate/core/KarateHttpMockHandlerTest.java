@@ -244,6 +244,22 @@ class KarateHttpMockHandlerTest {
         Object response = get("response");
         assertEquals(response, "{ \"id\" \"123\" }");
     }
+    
+    @Test
+    void testCookieDataIsNotLost() {
+        background()
+                .scenario("pathMatches('/first')",
+                        "def responseHeaders = { 'Set-Cookie': '1P_JAR=2022-11-02-11; expires=Fri, 02-Dec-2022 11:50:46 GMT; path=/; domain=.google.com; Secure' }");
+        startMockServer();
+        run(
+                urlStep(),
+                "path 'first'",
+                "method get"
+        );
+        Map<String, Object> map = (Map) get("responseHeaders");
+        List<String> list = (List) map.get("set-cookie");
+        matchContains(list, "1P_JAR=2022-11-02-11; expires=Fri, 02-Dec-2022 11:50:46 GMT; path=/; domain=.google.com; Secure");    
+    }    
 
     @Test
     void testRedirectAfterPostWithCookie() {
@@ -264,7 +280,7 @@ class KarateHttpMockHandlerTest {
         matchVarContains("response", "{ cookie: ['foo1=bar1'] }");
         Map<String, Object> map = (Map) get("responseHeaders");
         List<String> list = (List) map.get("Set-Cookie");
-        matchContains(list, "['foo1=bar1; Domain=localhost', 'foo2=bar2; Domain=localhost']");
+        matchContains(list, "['foo1=bar1; Domain=localhost', 'foo2=bar2']");
     }
 
     @Test
