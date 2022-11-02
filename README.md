@@ -1515,6 +1515,7 @@ The rarely used `file:` prefix is also supported. You could use it for 'hard-cod
 * def payload = read('file:target/large.xml')
 ```
 
+### Path Prefixes
 To summarize the possible prefixes:
 
 Prefix | Description
@@ -1545,11 +1546,11 @@ Below is a simple example that will compare a `baseline` image to a more recent 
 * compareImage { baseline: 'screenshots/login.png', latest: '/tmp/login.png' }
 ```
 
-You can also compare images using Karate path prefixes (e.g. `classpath:`, `this:`, `file:`) or byte arrays:
+You can also compare images using Karate [path prefixes](#path-prefixes) (e.g. `classpath:`, `this:`, `file:`) or byte arrays:
 
 ```cucumber
 * def latestImgBytes = karate.readAsBytes('login.png')
-* compareImage { baseline: 'classpath:screenshots/login.png', latest: #(latestImgBytes) }
+* compareImage { baseline: 'classpath:screenshots/login.png', latest: '#(latestImgBytes)' }
 ```
 
 You may configure the following image comparison options using the `configure` action:
@@ -1565,10 +1566,10 @@ Image comparison configuration options:
 | `allowScaling`        | boolean     | `false`    | When `true` we will scale latest images to match the dimensions of the baseline when they are not equal                                                                                                                                    |
 | `engine`              | string      | 'resemble' | Comparison engine(s) to use. Valid options are `resemble` and `ssim` separated by either `,` or <code>&#124</code>                                                                                                                         |
 | `failureThreshold`    | number      | `0.0`      | Precentage of `latest` image pixels allowed to differ from `baseline` before we consider the comparison as failed                                                                                                                          |
-| `mismatchShouldPass`  | boolean     | `false`    | When `true` all image comparisons will pass (even when difference is >= `failureThreshold`). Note: failures will result in image comparison UI *always* being embedded in Karate HTML reports regardless of `suppressUIOnSuccess` setting. |
-| `onShowRebase`        | JS function | `null`     | Function to be called when displaying image comparison rebase in Karate HTML reports (e.g. to customize rebase filename and/or output)                                                                                                     |
-| `onShowConfig`        | JS function | `null`     | Function to be called when displaying image comparison configuration in Karate HTML reports (e.g. to customize configuration output)                                                                                                       |
-| `suppressUIOnSuccess` | boolean     | `false`    | When `true` the comparison UI will *NOT* be embedded in Karate HTML reports for all non-failed image comparisons                                                                                                                           |
+| `mismatchShouldPass`  | boolean     | `false`    | When `true` all image comparisons will pass (even when difference is >= `failureThreshold`). Note: failures will result in image comparison UI *always* being embedded in Karate HTML reports regardless of `suppressUiOnSuccess` setting. |
+| `onShowRebase`        | string (js) | `null`     | Function to be called when displaying image comparison rebase in Karate HTML reports (e.g. to customize rebase filename and/or output)                                                                                                     |
+| `onShowConfig`        | string (js) | `null`     | Function to be called when displaying image comparison configuration in Karate HTML reports (e.g. to customize configuration output)                                                                                                       |
+| `suppressUiOnSuccess` | boolean     | `false`    | When `true` the comparison UI will *NOT* be embedded in Karate HTML reports for all non-failed image comparisons                                                                                                                           |
 
 Examples:
 
@@ -1597,7 +1598,7 @@ function (config, downloadLatestFn) {
   return 'this text will be displayed to the user when they click the rebase button'
 }
 """
-* configure imageComparison = { onShowRebase: #(onShowRebaseFn) }
+* configure imageComparison = { onShowRebase: '#(onShowRebaseFn)' }
 
 # custom JS function called in Karate HTML image comparison UI when the user clicks the `Show config` button
 * text onShowConfigFn =
@@ -1606,10 +1607,10 @@ function (customConfigJson, config) {
   return 'this text will be displayed above the image comparison config\n' + customConfigJson
 }
 """
-* configure imageComparison = { onShowConfig: #(onShowConfigFn) }
+* configure imageComparison = { onShowConfig: '#(onShowConfigFn)' }
 
 # don't embed the image comparison UI when the latest image is the same / similar to the baseline (e.g. to save space and speed up report loading)
-* configure imageComparison = { suppressUIOnSuccess: true }
+* configure imageComparison = { suppressUiOnSuccess: true }
 ```
 
 
@@ -1668,7 +1669,7 @@ Examples:
   b: 255
 }
 """
-* compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { ignoreAreasColoredWith: #(purple) } }
+* compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { ignoreAreasColoredWith: '#(purple)' } }
 
 # compare images as grayscale
 * compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { ignoreColors: true } }
@@ -1687,7 +1688,7 @@ Examples:
   minBrightness: 4,
   maxBrightness: 250
 }
-* compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { tolerances: #(customTolerances) } }
+* compareImage { baseline: 'baseline.png', latest: 'latest.png', options: { tolerances: '#(customTolerances)' } }
 
 #########################
 ### SSIM-only options ###
@@ -4504,7 +4505,7 @@ Any [Karate expression](#karate-expressions) can be used in the "cell expression
 Note that Karate has built-in support for [CSV files](#csv-files) and here is an example: [`dynamic-csv.feature`](karate-demo/src/test/java/demo/outline/dynamic-csv.feature).
 
 #### `@setup`
-In cases where the data-source needs multiple steps, for e.g. if an API neews to be called to get a JSON array, you can call a separate `Scenario` to "set up" this data. The `@setup` tag is built-in for this purpose and any `Scenario` tagged with this will behave like [`@ignore`](#special-tags). So the only way to call this `Scenario` is by using the `karate.setup()` JS API.
+In cases where the data-source needs multiple steps, for e.g. if an API needs to be called to get a JSON array, you can call a separate `Scenario` to "set up" this data. The `@setup` tag is built-in for this purpose and any `Scenario` tagged with this will behave like [`@ignore`](#special-tags). So the only way to call this `Scenario` is by using the `karate.setup()` JS API.
 
 Here is the above example re-written to do so:
 
