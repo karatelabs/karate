@@ -6,7 +6,7 @@ Feature:
   Scenario:
     # compare screenshot (normally would read a baseline from disk but we'll simulate here)
     * def baselineBytes = screenshot()
-    * compareImage { baseline: #(baselineBytes), latest: #(baselineBytes) }
+    * compareImage { baseline: '#(baselineBytes)', latest: '#(baselineBytes)' }
 
     # compare mismatched screenshot with ignoredBoxes
     * click('#show')
@@ -20,10 +20,10 @@ Feature:
       right: 200
     }]
     """
-    * compareImage { baseline: #(baselineBytes), latest: #(baselineBytes), options: { ignoredBoxes: #(ignoredBoxes) } }
+    * compareImage { baseline: '#(baselineBytes)', latest: '#(baselineBytes)', options: { ignoredBoxes: '#(ignoredBoxes)' } }
 
     # compare mismatched screenshot: allowed to fail with custom failureThreshold
-    * compareImage { baseline: #(baselineBytes), latest: #(latestBytes), options: { failureThreshold: 99.9 } }
+    * compareImage { baseline: '#(baselineBytes)', latest: '#(latestBytes)', options: { failureThreshold: 99.9 } }
 
     # compare mismatched screenshot: allowed to fail with mismatchShouldPass
     * configure imageComparison = { mismatchShouldPass: true }
