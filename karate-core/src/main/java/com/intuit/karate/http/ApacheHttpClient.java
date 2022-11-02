@@ -29,7 +29,6 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.core.Config;
 import com.intuit.karate.core.ScenarioEngine;
 import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
-import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import java.io.IOException;
 import java.io.InputStream;
@@ -296,17 +295,17 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         // edge case where the apache client
         // auto-followed a redirect where cookies were involved
         List<String> mergedCookieValues = new ArrayList(requestCookieHeaders.length);
-        Set<String> cookieNames = new HashSet(requestCookieHeaders.length);
+        Set<String> alreadyMerged = new HashSet(requestCookieHeaders.length);
         for (Header ch : requestCookieHeaders) {
             String requestCookieValue = ch.getValue();
-            io.netty.handler.codec.http.cookie.Cookie c = ClientCookieDecoder.LAX.decode(requestCookieValue);
-            cookieNames.add(c.name());
+            io.netty.handler.codec.http.cookie.Cookie c = ClientCookieDecoder.LAX.decode(requestCookieValue);            
             mergedCookieValues.add(requestCookieValue);
+            alreadyMerged.add(c.name());
         }        
         for (Cookie c : storedCookies) {
             if (c.getValue() != null) {
                 String name = c.getName();
-                if (cookieNames.contains(name)) {
+                if (alreadyMerged.contains(name)) {
                     continue;
                 }                
                 Map<String, Object> map = new HashMap();
