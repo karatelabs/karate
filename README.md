@@ -1566,10 +1566,10 @@ Image comparison configuration options:
 | `allowScaling`        | boolean     | `false`    | When `true` we will scale latest images to match the dimensions of the baseline when they are not equal                                                                                                                                    |
 | `engine`              | string      | 'resemble' | Comparison engine(s) to use. Valid options are `resemble` and `ssim` separated by either `,` or <code>&#124</code>                                                                                                                         |
 | `failureThreshold`    | number      | `0.0`      | Precentage of `latest` image pixels allowed to differ from `baseline` before we consider the comparison as failed                                                                                                                          |
-| `mismatchShouldPass`  | boolean     | `false`    | When `true` all image comparisons will pass (even when difference is >= `failureThreshold`). Note: failures will result in image comparison UI *always* being embedded in Karate HTML reports regardless of `suppressUiOnSuccess` setting. |
+| `mismatchShouldPass`  | boolean     | `false`    | When `true` all image comparisons will pass (even when difference is >= `failureThreshold`). Note: failures will result in image comparison UI *always* being embedded in Karate HTML reports regardless of `hideUiOnSuccess` setting. |
 | `onShowRebase`        | string (js) | `null`     | Function to be called when displaying image comparison rebase in Karate HTML reports (e.g. to customize rebase filename and/or output)                                                                                                     |
 | `onShowConfig`        | string (js) | `null`     | Function to be called when displaying image comparison configuration in Karate HTML reports (e.g. to customize configuration output)                                                                                                       |
-| `suppressUiOnSuccess` | boolean     | `false`    | When `true` the comparison UI will *NOT* be embedded in Karate HTML reports for all non-failed image comparisons                                                                                                                           |
+| `hideUiOnSuccess` | boolean     | `false`    | When `true` the comparison UI will *NOT* be embedded in Karate HTML reports for all non-failed image comparisons                                                                                                                           |
 
 Examples:
 
@@ -1610,7 +1610,7 @@ function (customConfigJson, config) {
 * configure imageComparison = { onShowConfig: '#(onShowConfigFn)' }
 
 # don't embed the image comparison UI when the latest image is the same / similar to the baseline (e.g. to save space and speed up report loading)
-* configure imageComparison = { suppressUiOnSuccess: true }
+* configure imageComparison = { hideUiOnSuccess: true }
 ```
 
 

@@ -1061,7 +1061,7 @@ public class ScenarioEngine {
         byte[] latestImg = getImageBytes(params, "latest");
 
         Map<String, Object> defaultOptions = getImageOptions(config.getImageComparisonOptions(), "defaultOptions");
-        boolean embedUI = !Boolean.TRUE.equals(defaultOptions.get("suppressUiOnSuccess"));
+        boolean embedUI = !Boolean.TRUE.equals(defaultOptions.get("hideUiOnSuccess"));
 
         Map<String, Object> result = null;
         try {
