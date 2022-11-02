@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Karate Image Comparison</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400&display=swap" rel="stylesheet">
+    <style>
+        html, body {
+            font-family: 'Roboto Mono', monospace;
+            text-shadow: 0 0 2px #858585;
+            background-color: black;
+            color: #f9f9f9;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        article {
+            flex-direction: column;
+            align-items: stretch;
+            min-height: 100%;
+            display: flex;
+        }
+        main {
+            align-items: center;
+            text-align: center;
+            display: flex;
+            flex-grow: 1;
+        }
+        header, main, footer {
+            flex-shrink: 0;
+        }
+        header {
+            align-items: center;
+            flex-wrap: wrap;
+            display: flex;
+        }
+        header span {
+            text-shadow: 0 0 2px #858585;
+            font-size: 35px;
+            opacity: 0.95;
+        }
+        footer {
+            display: flex;
+        }
+        footer span {
+            opacity: 0.95;
+            margin: 20px;
+        }
+        a, a:visited {
+            color: #f9f9f9;
+        }
+        h2 {
+            font-size: 40px;
+            opacity: 0.95;
+            flex-grow: 1;
+        }
+        @media (max-width:768px) {
+            header span {
+                margin: -40px 0 20px 20px;
+                font-size: 23px;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/spin.js/4.1.1/spin.min.css" integrity="sha512-ssYEuK9Epo/48VIlBWTFosf1izrgGZqEMELJP+L7Clh0nvaOSTg87dM+Z8L+KKjrPdMbMvKYOOnzBOkNMhWFsg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script type="module">
+        import {Spinner} from 'https://cdnjs.cloudflare.com/ajax/libs/spin.js/4.1.0/spin.min.js';
+        const loadingEl = document.getElementsByTagName('main')[0]
+        new Spinner({
+            lines: 13,
+            length: 38,
+            width: 17,
+            radius: 45,
+            scale: 0.5,
+            corners: 1,
+            speed: 1 + (Math.random() * 2),
+            rotate: 0,
+            animation: 'spinner-line-fade-quick',
+            direction: 1,
+            color: '#ffffff',
+            fadeColor: 'transparent',
+            top: '50%',
+            left: '50%',
+            shadow: '0 0 1px transparent',
+            zIndex: 2000000000,
+            className: 'spinner',
+            position: 'absolute',
+        }).spin(loadingEl);
+       setTimeout(() => loadingEl.innerHTML = '<h2 class="welcome">Welcome!</h2>', 1000 + (Math.random()*1000))
+    </script>
+</head>
+<body>
+    <article>
+        <header>
+            <img src="logo.gif" alt="Karate" id="logo">
+            <span>Image Comparison Demo</span>
+        </header>
+        <main></main>
+        <footer>
+            <span>&copy; <a href="https://github.com/karatelabs/karate">Karate 2022</a></span>
+        </footer>
+    </article>
+</body>
+</html>
