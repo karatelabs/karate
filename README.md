@@ -182,7 +182,8 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#match-contains"><code>match contains</code></a>
     | <a href="#match-contains-only"><code>match contains only</code></a>
     | <a href="#match-contains-any"><code>match contains any</code></a>
-    | <a href="#match-contains-deep"><code>match contains deep</code></a>    
+    | <a href="#match-contains-deep"><code>match contains deep</code></a>
+    | <a href="#match-contains-only-deep"><code>match contains only deep</code></a>       
     | <a href="#not-contains"><code>match !contains</code></a>
     | <a href="#match-each"><code>match each</code></a>
     | <a href="#match-header"><code>match header</code></a>    
@@ -267,6 +268,7 @@ And you don't need to create additional Java classes for any of the payloads tha
 * Easily invoke JDK classes, Java libraries, or re-use custom Java code if needed, for [ultimate extensibility](#calling-java)
 * Simple plug-in system for [authentication](#http-basic-authentication-example) and HTTP [header management](#configure-headers) that will handle any complex, real-world scenario
 * [Cross-browser Web UI automation](karate-core) so that you can test *all* layers of your application with the same framework
+* Visual Validation via the built-in [image comparison](#compare-image) capabilities
 * Cross platform [Desktop Automation](karate-robot) that can be [mixed into Web Automation flows](https://twitter.com/ptrthomas/status/1215534821234995200) if needed
 * Option to invoke via a [Java API](#java-api),  which means that you can easily [mix Karate into Java projects or legacy UI-automation suites](https://stackoverflow.com/q/47795762/143475)
 * [Save significant effort](https://twitter.com/ptrthomas/status/986463717465391104) by re-using Karate test-suites as [Gatling performance tests](karate-gatling) that *deeply* assert that server responses are accurate under load
@@ -317,7 +319,7 @@ All you need is available in the [`karate-core`](https://search.maven.org/artifa
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit5</artifactId>
-    <version>1.2.0</version>
+    <version>1.3.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -328,7 +330,7 @@ If you want to use [JUnit 4](#junit-4), use `karate-junit4` instead of `karate-j
 Alternatively for [Gradle](https://gradle.org):
 
 ```yml
-    testCompile 'com.intuit.karate:karate-junit5:1.2.0'
+    testCompile 'com.intuit.karate:karate-junit5:1.3.0'
 ```
 
 Also refer to the wiki for using [Karate with Gradle](https://github.com/intuit/karate/wiki/Gradle).
@@ -344,7 +346,7 @@ You can replace the values of `com.mycompany` and `myproject` as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=1.2.0 \
+-DarchetypeVersion=1.3.0 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -1540,6 +1542,8 @@ Then status 202
 ## Compare Image
 Karate provides a flexible way to compare two images to determine if they are the same or similar. This is especially useful when capturing screenshots during tests and comparing against baseline images that are known to be correct.
 
+> A stand-alone example can be found here: [`examples/image-comparison`](examples/image-comparison) along with a [video explanation](https://youtu.be/wlvmNBraP60).
+
 Below is a simple example that will compare a `baseline` image to a more recent `latest` image. An image comparison UI will also be embedded into the Karate HTML report with detailed information about any differences between the two images.
 
 ```cucumber
@@ -1612,7 +1616,6 @@ function (customConfigJson, config) {
 # don't embed the image comparison UI when the latest image is the same / similar to the baseline (e.g. to save space and speed up report loading)
 * configure imageComparison = { hideUiOnSuccess: true }
 ```
-
 
 Image comparison engines can also be customized:
 
@@ -2935,6 +2938,14 @@ Scenario: recurse nested array
 ```
 
 > the NOT operator e.g. `!contains deep` is not yet supported, please contribute code if you can.
+
+#### `match contains only deep`
+This is exactly like [`match ==`](#match) but the order of arrays does not matter. All arrays no matter the "depth" will be checked in this way.
+
+```cucumber
+* def response = { foo: [ 'a', 'b' ] }
+* match response contains only deep { foo: [ 'b', 'a' ] }
+```
 
 ## Validate every element in a JSON array
 ### `match each`
