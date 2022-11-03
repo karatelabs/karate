@@ -49,7 +49,7 @@ public class JsEngine {
     private static final Logger logger = LoggerFactory.getLogger(JsEngine.class);
 
     private static final String JS = "js";
-    private static final String JS_EXPERIMENTAL_FOP = "js.experimental-foreign-object-prototype";
+    private static final String JS_FOREIGN_OBJECT_PROTOTYPE = "js.foreign-object-prototype";
     private static final String JS_NASHORN_COMPAT = "js.nashorn-compat";
     private static final String JS_ECMASCRIPT_VERSION = "js.ecmascript-version";
     private static final String ENGINE_WARN_INTERPRETER_ONLY = "engine.WarnInterpreterOnly";
@@ -75,7 +75,7 @@ public class JsEngine {
                 .allowAllAccess(true)
                 .option(JS_NASHORN_COMPAT, TRUE)
                 .option(JS_ECMASCRIPT_VERSION, V_2021)
-                .option(JS_EXPERIMENTAL_FOP, TRUE)
+                .option(JS_FOREIGN_OBJECT_PROTOTYPE, TRUE)
                 .engine(engine).build();
     }
 
