@@ -1,4 +1,4 @@
-FROM maven:3-jdk-8
+FROM maven:3-jdk-11
 
 LABEL maintainer="Peter Thomas"
 LABEL url="https://github.com/karatelabs/karate/tree/master/karate-docker/karate-chrome"
