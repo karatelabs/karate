@@ -90,9 +90,13 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
         }
         if (currentScenario.isDynamic()) {
             Logger logger = FeatureRuntime.logger;
-            if (expressionValue == null) {
-                String expression = currentScenario.getDynamicExpression();
+            if (expressionValue == null) {                
                 dynamicRuntime = new ScenarioRuntime(featureRuntime, currentScenario);
+                if (!dynamicRuntime.selectedForExecution) { // may be un-selected by tag
+                    currentScenario = null;
+                    return tryAdvance(action);                    
+                }
+                String expression = currentScenario.getDynamicExpression();
                 ScenarioEngine prevEngine = ScenarioEngine.get();
                 try {
                     ScenarioEngine.set(dynamicRuntime.engine);

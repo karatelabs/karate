@@ -792,10 +792,7 @@ public class ScenarioBridge implements PerfContext {
         sr.setSkipBackground(true);
         sr.run();
         ScenarioEngine.set(engine);
-        FeatureResult result = engine.runtime.featureRuntime.result;
-        synchronized (result) {
-            result.addResult(sr.result);
-        }
+        engine.runtime.featureRuntime.setupResult = sr.result; // hack to embed setup into report
         return JsValue.fromJava(sr.engine.getAllVariablesAsMap());
     }
 

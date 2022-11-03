@@ -51,8 +51,10 @@ public class FeatureRuntime implements Runnable {
     public final FeatureCall featureCall;
     public final Iterator<ScenarioRuntime> scenarios;
     public final PerfHook perfHook;
-    public final FeatureResult result;      
-    
+    public final FeatureResult result;
+
+    protected ScenarioResult setupResult;
+
     private ScenarioEngine mockEngine;
 
     private final ParallelProcessor<ScenarioRuntime> processor;
@@ -75,7 +77,7 @@ public class FeatureRuntime implements Runnable {
 
     public void setMockEngine(ScenarioEngine mockEngine) {
         this.mockEngine = mockEngine;
-    }        
+    }
 
     public ScenarioEngine getMockEngine() {
         return mockEngine;
@@ -88,7 +90,7 @@ public class FeatureRuntime implements Runnable {
         Feature feature = Feature.read(resource);
         return FeatureRuntime.of(sr, new FeatureCall(feature));
     }
-    
+
     public static FeatureRuntime of(Feature feature) {
         return of(new FeatureCall(feature));
     }

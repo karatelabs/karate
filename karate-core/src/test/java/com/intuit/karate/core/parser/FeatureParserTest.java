@@ -173,7 +173,7 @@ class FeatureParserTest {
     @Test
     void testOutlineDynamic() {
         FeatureResult result = execute("test-outline-dynamic.feature");
-        assertEquals(3, result.getScenarioResults().size());
+        assertEquals(2, result.getScenarioResults().size());
         Map<String, Object> map = result.getVariables();
         match(map.get("name"), "Nyan");
         match(map.get("title"), "name is Nyan and age is 7");

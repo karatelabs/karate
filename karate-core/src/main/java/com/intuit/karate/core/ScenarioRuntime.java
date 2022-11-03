@@ -90,6 +90,16 @@ public class ScenarioRuntime implements Runnable {
             magicVariables = initMagicVariables();
         }
         result = new ScenarioResult(scenario);
+        if (featureRuntime.setupResult != null) {
+            StepResult sr = result.addFakeStepResult("@setup", null);
+            List<FeatureResult> list = new ArrayList(1);
+            FeatureResult fr = new FeatureResult(featureRuntime.featureCall.feature);
+            fr.setCallDepth(1);
+            fr.addResult(featureRuntime.setupResult);            
+            list.add(fr);
+            sr.addCallResults(list);
+            featureRuntime.setupResult = null;
+        }
         dryRun = featureRuntime.suite.dryRun;
         tags = scenario.getTagsEffective();
         reportDisabled = perfMode ? true : tags.valuesFor("report").isAnyOf("false");
@@ -298,7 +308,6 @@ public class ScenarioRuntime implements Runnable {
 
     private static boolean isSelectedForExecution(FeatureRuntime fr, Scenario scenario, Tags tags) {
         org.slf4j.Logger logger = FeatureRuntime.logger;
-        Feature feature = scenario.getFeature();
         int callLine = fr.featureCall.callLine;
         if (callLine != -1) {
             int sectionLine = scenario.getSection().getLine();
