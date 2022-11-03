@@ -13,7 +13,7 @@ They are intended to demonstrate how you might start from scratch without any ba
 *  `4_generic_rebase.feature` shows a slightly more advanced use of the `onShowRebase` handler that incorporates image comparison configuration options
 *  `5_custom_config.feature` shows the final scenario that is similar to what you might use in real tests
 
-There is also a [screencast](https://www.youtube.com/watch?v=NIP3-njBR-Q) that demonstrates basic usage of the diff UI in the Karate HTML report.
+There is also a [screencast](https://youtu.be/wlvmNBraP60) that demonstrates basic usage of the diff UI in the Karate HTML report.
 
 ## Running
 The `5_custom_config.feature` is a complete [Karate UI test](https://github.com/karatelabs/karate/tree/master/karate-core) that can be executed by running `ImageComparisonRunner` as a JUnit test.
