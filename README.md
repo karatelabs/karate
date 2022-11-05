@@ -2158,6 +2158,8 @@ The single JSON argument needs to be in the form `{ field1: { read: 'file1.ext' 
 And multipart files json
 ```
 
+For an example, refer: [`upload-multiple-files.feature`](karate-demo/src/test/java/demo/upload/upload-multiple-files.feature).
+
 # SOAP
 Since a SOAP request needs special handling, this is the only case where the
 [`method`](#method) step is not used to actually fire the request to the server.
