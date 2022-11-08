@@ -88,7 +88,7 @@ function newDiffUI(targetElement, diffResult, diffConfig, onShowRebase, onShowCo
         .repaint()
     } else if ($this.hasClass('opaque')) {
       resembleControl.outputSettings({ transparency: 1 }).repaint()
-    } else if ($this.is('transparent')) {
+    } else if ($this.hasClass('transparent')) {
       resembleControl.outputSettings({ transparency: 0.3 }).repaint()
     }
   })
