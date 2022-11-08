@@ -49,6 +49,7 @@
     | <a href="#code-reuse">Code Reuse</a>
     | <a href="#hybrid-tests">Hybrid Tests</a>
     | <a href="#java-api">Java API</a>
+    | <a href="#visual-testing">Visual Testing</a>
   </td>
 </tr>
 <tr>
@@ -177,7 +178,7 @@
 ## Capabilities
 
 * Simple, clean syntax that is well suited for people new to programming or test-automation
-* All-in-one framework that includes [parallel-execution](https://github.com/intuit/karate#parallel-execution), [HTML reports](https://github.com/intuit/karate#junit-html-report), [environment-switching](https://github.com/intuit/karate#switching-the-environment), and [CI integration](https://github.com/intuit/karate#test-reports)
+* All-in-one framework that includes [parallel-execution](https://github.com/intuit/karate#parallel-execution), [HTML reports](https://github.com/intuit/karate#junit-html-report), [environment-switching](https://github.com/intuit/karate#switching-the-environment), [Visual Testing](#visual-testing), and [CI integration](https://github.com/intuit/karate#test-reports)
 * Cross-platform - with even the option to run as a programming-language *neutral* [stand-alone executable](https://github.com/intuit/karate/wiki/ZIP-Release)
 * Support for [`iframe`-s](#switchframe), [switching tabs](#switchpage), multiple URL domains, and [uploading files](#driverinputfile)
 * No need to learn complicated programming concepts such as "callbacks", "`async` / `await`" and "promises"
@@ -643,6 +644,9 @@ One reason why you would need `near()` is because an `<input>` field may either 
 ```cucumber
  * near('{}Go to Page One').click()
 ```
+
+# Visual Testing
+See [`compareImage`](https://github.com/karatelabs/karate#compare-image).
 
 # Keywords
 Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#syntax) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.
