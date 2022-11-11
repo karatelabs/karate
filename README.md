@@ -336,12 +336,11 @@ Alternatively for [Gradle](https://gradle.org):
 Also refer to the wiki for using [Karate with Gradle](https://github.com/intuit/karate/wiki/Gradle).
 
 ### Karate Core "Fat JAR"
-If you mix Karate into a Maven or Gradle project with many other dependendies, you may run into problems because of dependency conflicts. For example a lot of Java projects directly (or indirectly) depend on Netty, Thymeleaf and ANTLR.
+If you mix Karate into a Maven or Gradle project with many other dependendies, you may run into problems because of dependency conflicts. For example a lot of Java projects directly (or indirectly) depend on Netty or Thymeleaf or ANTLR, etc.
 
 If you face issues such as "class not found", just pull in the `karate-core` dependency, and use the `all` [classifier](https://www.baeldung.com/maven-artifact-classifiers) in your `pom.xml` (or `build.gradle`).
 
 For example when using Maven:
-
 
 ```xml
 <dependency>
@@ -351,6 +350,8 @@ For example when using Maven:
   <classifier>all</classifier>
 </dependency>
 ```
+
+Note that for very complicated projects you can consider using a [Maven profile](https://maven.apache.org/guides/introduction/introduction-to-profiles.html) so that testing-related dependencies don't collide with your development-time dependencies. Of course it is an option to have Karate tests in a separate stand-alone maven project and folder, while still being in the same Git repository.
 
 ### Quickstart
 It may be easier for you to use the Karate Maven archetype to create a skeleton project with one command. You can then skip the next few sections, as the `pom.xml`, recommended directory structure, sample test and [JUnit 5](#junit-5) runners - will be created for you.
