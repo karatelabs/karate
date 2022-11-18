@@ -139,6 +139,12 @@ public class MatchStep {
                 if (any) {
                     return Match.Type.EACH_CONTAINS_ANY;
                 }
+                if (deep) {
+                    if (not) {
+                        throw new RuntimeException("'each !contains deep' is not yet supported, use 'each contains deep' instead");
+                    }
+                    return Match.Type.EACH_CONTAINS_DEEP;
+                }
                 return not ? Match.Type.EACH_NOT_CONTAINS : Match.Type.EACH_CONTAINS;
             }
             return not ? Match.Type.EACH_NOT_EQUALS : Match.Type.EACH_EQUALS;
