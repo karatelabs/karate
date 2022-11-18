@@ -14,7 +14,7 @@ class ImageComparisonRunner {
     
     @Karate.Test
     Karate testUi() {
-        return Karate.run("classpath:ui/5_custom_config.feature");
+        return Karate.run("classpath:ui/7_api.feature");
     }
     
 }
