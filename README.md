@@ -186,6 +186,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#match-contains-only-deep"><code>match contains only deep</code></a>       
     | <a href="#not-contains"><code>match !contains</code></a>
     | <a href="#match-each"><code>match each</code></a>
+    | <a href="#match-each-contains-deep"><code>match each contains deep</code></a>
     | <a href="#match-header"><code>match header</code></a>    
     | <a href="#fuzzy-matching">Fuzzy Matching</a>
     | <a href="#schema-validation">Schema Validation</a>
@@ -3018,7 +3019,7 @@ Symbol  | Evaluates To
 There is a shortcut for `match each` explained in the next section that can be quite useful, especially for 'in-line' schema-like validations.
 
 #### `match each contains deep`
-`match each` can be combined with `deep` so that for each JSON object  a “deep contains” match is performed within nested lists or objects. 
+`match each` can be combined with `contains deep` so that for each JSON object  a “deep contains” match is performed within nested lists or objects. 
 
 This is useful for testing payloads with JSON arrays whose members have a few essential keys that you wish to validate. 
 
