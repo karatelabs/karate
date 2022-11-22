@@ -3017,6 +3017,42 @@ Symbol  | Evaluates To
 
 There is a shortcut for `match each` explained in the next section that can be quite useful, especially for 'in-line' schema-like validations.
 
+#### `match each contains deep`
+`match each` can be combined with `deep` so that for each JSON object  a “deep contains” match is performed within nested lists or objects. 
+
+This is useful for testing payloads with JSON arrays whose members have a few essential keys that you wish to validate. 
+
+```cucumber
+  Given def response = 
+  """
+  [
+    {
+      "a": 1,
+      "arr": [
+          {
+              "b": 2,
+              "c": 3
+          }
+      ]
+    },
+    {
+      "a": 1,
+      "arr": [
+          {
+              "b": 2,
+              "c": 3
+          },
+          {
+              "b": 4,
+              "c": 5
+          }
+      ]
+    }
+  ]
+  """
+  Then match each response contains deep { a: 1, arr: [ { b: 2 } ] }
+```
+
 ## Schema Validation
 Karate provides a far more simpler and more powerful way than [JSON-schema](http://json-schema.org) to validate the structure of a given payload. You can even mix domain and conditional validations and perform all assertions in a single step.
 
