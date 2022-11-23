@@ -25,6 +25,7 @@ class MatchStepTest {
         test("hello world == foo", EQUALS, "hello", "world", "foo");
         test("hello world contains only deep foo", CONTAINS_ONLY_DEEP, "hello", "world", "foo");
         test("each hello world == foo", EACH_EQUALS, "hello", "world", "foo");
+        test("each hello world contains deep foo", EACH_CONTAINS_DEEP, "hello", "world", "foo");
         test("{\"a\":1,\"b\":2} == '#object'", EQUALS, "({\"a\":1,\"b\":2})", null, "'#object'");
         test("hello.foo(bar) != blah", NOT_EQUALS, "hello.foo(bar)", null, "blah");
         test("foo count(/records//record) contains any blah", CONTAINS_ANY, "foo", "count(/records//record)", "blah");
