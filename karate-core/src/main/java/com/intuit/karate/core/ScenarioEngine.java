@@ -1080,7 +1080,7 @@ public class ScenarioEngine {
                         getImageHookFunction(options, defaultOptions, "onShowConfig") +
                         ")";
 
-                runtime.embed(JsValue.toBytes(diffJS), ResourceType.JS);
+                runtime.embed(JsValue.toBytes(diffJS), ResourceType.DEFERRED_JS);
             }
         }
 

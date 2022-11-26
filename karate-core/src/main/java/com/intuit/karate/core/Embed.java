@@ -98,7 +98,9 @@ public class Embed {
         } else if (resourceType.isImage()) {
             return "<img src=\"" + file.getName() + "\"/>";
         } else if (resourceType.isScript()) {
-            return "<script type=\"text/javascript\" src=\"" + file.getName() + "\"></script>";
+            return resourceType == ResourceType.DEFERRED_JS ?
+                    "<div data-deferred=\"true\" data-src=\"" + file.getName() + "\">Loading...</div>" :
+                    "<script type=\"text/javascript\" src=\"" + file.getName() + "\"></script>";
         } else {
             return "<a href=\"" + file.getName() + "\">" + file.getName() + "</a>";
         }
