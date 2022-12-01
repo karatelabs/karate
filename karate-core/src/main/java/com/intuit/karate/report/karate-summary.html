@@ -11,26 +11,27 @@
     <script type="text/javascript" src="res/bootstrap.min.js"></script>
     <script type="text/javascript" src="res/karate-report.js"></script>
     <th:block th:insert="karate-posthog.html" th:with="karateEvent: 'report_summary'"></th:block>
-    <title>Karate Summary Report</title>  
+    <title>Karate Summary Report</title>
   </head>
-  <body>   
+  <body>
     <div id="root-container">
       <div id="leftnav">
         <script ka:scope="global">
           var reportMeta = {
             passedCount: results.featuresPassed,
             failedCount: results.featuresFailed,
+            env: results.env,
             reportType: 'Features',
             reportDate: results.resultDate
           };
-        </script>        
+        </script>
         <div th:replace="karate-leftnav.html"></div>
       </div>
       <div id="content">
         <div class="page-heading alert alert-primary">
           <a href="karate-tags.html">Tags</a><span class="feature-label">|</span>
           <a href="karate-timeline.html">Timeline</a>
-        </div>       
+        </div>
         <table class="features-table table table-sm">
           <thead>
             <tr>
@@ -43,7 +44,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr th:each="fr: results.featureSummary" th:classappend="fr.failed ? 'failed' : 'passed'">              
+            <tr th:each="fr: results.featureSummary" th:classappend="fr.failed ? 'failed' : 'passed'">
               <td>
                 <a th:href="fr.packageQualifiedName + '.html'" th:text="fr.relativePath"></a>
               </td>
@@ -51,8 +52,8 @@
               <td class="num" th:text="fr.passedCount"></td>
               <td class="num" th:text="fr.failedCount"></td>
               <td class="num" th:text="fr.scenarioCount"></td>
-              <td class="num" th:text="Math.round(fr.durationMillis)"></td>            
-            </tr>            
+              <td class="num" th:text="Math.round(fr.durationMillis)"></td>
+            </tr>
           </tbody>
         </table>
       </div>
