@@ -1,5 +1,6 @@
 package com.intuit.karate.report;
 
+import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
@@ -7,7 +8,11 @@ import com.intuit.karate.Suite;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.FeatureCall;
 import org.junit.jupiter.api.Test;
+
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.PrintStream;
+
 import static org.junit.jupiter.api.Assertions.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +38,12 @@ class ReportUtilsTest {
         assertTrue(html.contains("<img src=\"karate-labs-logo-ring.svg\" alt=\"Karate Labs\"/>"));
         assertTrue(html.contains("<div>Scenarios</div>"));
         assertTrue(html.contains("<a href=\"karate-summary.html\">Summary</a><span class=\"feature-label\">|</span>"));
+        final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+        final PrintStream originalOut = System.out;
+        System.setOut(new PrintStream(outContent)); // Capture console output
+        fr.suite.buildResults();
+        assertFalse(outContent.toString().contains(" | env: "));
+        System.setOut(originalOut);                 // restore console output
     }
     @Test
     void testReportWithEnv() {
@@ -47,6 +58,12 @@ class ReportUtilsTest {
 
         assertTrue(sHtml.contains("<div id=\"nav-env\">"));
         assertTrue(sHtml.contains(sEnv));
+        final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+        final PrintStream originalOut = System.out;
+        System.setOut(new PrintStream(outContent)); // Capture console output
+        fr.suite.buildResults();
+        assertTrue(outContent.toString().contains(" | env: " + sEnv));
+        System.setOut(originalOut);                 // restore console output
     }
 
     @Test
