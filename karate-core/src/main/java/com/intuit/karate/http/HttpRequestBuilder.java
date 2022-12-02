@@ -619,14 +619,16 @@ public class HttpRequestBuilder implements ProxyObject {
         buildInternal();
         StringBuilder sb = new StringBuilder();
         sb.append("curl ");
+        sb.append("-X ").append(method).append(' ');
         String url = getUri();
         if (!StringUtils.isBlank(url)) {
             sb.append(getUri()).append(' ');
-        }
-        sb.append("\\\n");
+        }        
         if (multiPart != null) {
+            sb.append("\\\n");
             sb.append(multiPart.toCurlCommand());
         } else if (body != null) {
+            sb.append("\\\n");
             String raw = JsValue.toString(body);
             sb.append("-d '").append(raw).append("'");
         }
