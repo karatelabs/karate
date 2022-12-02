@@ -5,7 +5,7 @@
 .nav-logo img { width: 120px; padding: 0.3em; }
 .nav-count { margin-top: 0.5em; margin-right: 1em; width: 100%; }
 #nav-pass, #nav-fail { font-size: xx-large; text-align: center; width: 100%; display: block; margin-top: 0.1em; }
-#nav-type, #nav-date { margin: 0.5em 1em; font-size: large; text-align: center; }
+#nav-type, #nav-date, #nav-env { margin: 0.5em 1em; font-size: large; text-align: center; }
 
 .nav-container { display: flex; flex-direction: column; overflow-y: scroll; height: 80vh; }
 .nav-item { margin: 0.5em 1em; padding: 0.2em; }
@@ -45,16 +45,16 @@ a .step-container { width: 100%; color: #000; }
 .bg-step { background-color: #d9d9d9; }
 .comment { background-color: #d9d9d9; }
 a .step-ref { font-weight: bold; color: blue; }
-.step-cell { display: flex; width: 100%; padding: 0 0.2em 0 0.2em; margin-left: 2px; } 
-.time-cell { width: 90px; margin-left: 2px; padding-right: 0.5em; text-align: right; } 
+.step-cell { display: flex; width: 100%; padding: 0 0.2em 0 0.2em; margin-left: 2px; }
+.time-cell { width: 90px; margin-left: 2px; padding-right: 0.5em; text-align: right; }
 
 .scenario table { margin: 0.5em; }
-.scenario table td { border: 1px solid gray; padding: 0.1em 0.2em; } 
-.preformatted { white-space: pre-wrap; font-family: monospace; padding: 0 0.3em 0.2em 0.3em; overflow: auto; font-size: 13px; } 
+.scenario table td { border: 1px solid gray; padding: 0.1em 0.2em; }
+.preformatted { white-space: pre-wrap; font-family: monospace; padding: 0 0.3em 0.2em 0.3em; overflow: auto; font-size: 13px; }
 .embed img { width: 100%; }
 
-.passed { background-color: #bff2bf; } 
-.failed { background-color: #ffcccc; } 
+.passed { background-color: #bff2bf; }
+.failed { background-color: #ffcccc; }
 .skipped { background-color: #ffdd99; }
 
 /***********/

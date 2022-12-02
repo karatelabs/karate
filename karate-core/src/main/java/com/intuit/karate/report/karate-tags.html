@@ -10,25 +10,26 @@
     <script type="text/javascript" src="res/jquery.tablesorter.min.js"></script>
     <script type="text/javascript" src="res/bootstrap.min.js"></script>
     <script type="text/javascript" src="res/karate-report.js"></script>
-    <title>Karate Tags Report</title>  
+    <title>Karate Tags Report</title>
   </head>
-  <body>   
+  <body>
     <div id="root-container">
       <div id="leftnav">
         <script ka:scope="global">
           var reportMeta = {
             passedCount: results.tagKeysPassed,
             failedCount: results.tagKeysFailed,
+            env: results.env,
             reportType: 'Tags',
             reportDate: results.resultDate
           };
-        </script>        
+        </script>
         <div th:replace="karate-leftnav.html"></div>
       </div>
       <div id="content">
         <div class="page-heading alert alert-primary">
           <a href="karate-summary.html">Summary</a>
-        </div>       
+        </div>
         <table class="tags-table table table-sm ">
           <thead>
             <tr>
@@ -41,10 +42,10 @@
               <td class="feature-cell">
                 <a th:href="ft.featureSummary.packageQualifiedName + '.html'" th:text="ft.featureSummary.relativePath"></a>
               </td>
-              <td th:each="tagKey: results.tagKeys" 
+              <td th:each="tagKey: results.tagKeys"
                   th:text="ft.tagKeys.contains(tagKey) ? 'X' : ''"
                   th:classapend="ft.failedTagKeys.contains(tagKey) ? 'failed' : 'passed'"></td>
-            </tr>            
+            </tr>
           </tbody>
         </table>
       </div>

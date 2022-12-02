@@ -29,27 +29,35 @@ import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.TagResults;
 import com.intuit.karate.core.TimelineResults;
 
+import java.util.Map;
+
 /**
  *
  * @author pthomas3
  */
 public interface SuiteReports {
-    
+
 
 
     default Report featureReport(Suite suite, FeatureResult featureResult) {
+        Map<String, Object> map = featureResult.toKarateJson();
+
+        map.put("env", suite.env);
         return Report.template("karate-feature.html")
                 .reportDir(suite.reportDir)
-                .reportFileName(featureResult.getFeature().getPackageQualifiedName() + ".html")                
-                .variable("results", featureResult.toKarateJson())
+                .reportFileName(featureResult.getFeature().getPackageQualifiedName() + ".html")
+                .variable("results", map)
                 .variables(ReportUtils.commonVars())
                 .build();
     }
 
     default Report tagsReport(Suite suite, TagResults tagResults) {
+        Map<String, Object>     map = tagResults.toKarateJson();
+
+        map.put("env", suite.env);
         return Report.template("karate-tags.html")
                 .reportDir(suite.reportDir)
-                .variable("results", tagResults.toKarateJson())
+                .variable("results", map)
                 .build();
     }
 
@@ -61,9 +69,12 @@ public interface SuiteReports {
     }
 
     default Report summaryReport(Suite suite, Results results) {
+        Map<String, Object>     map = results.toKarateJson();
+
+        map.put("env", suite.env);
         return Report.template("karate-summary.html")
                 .reportDir(suite.reportDir)
-                .variable("results", results.toKarateJson())
+                .variable("results", map)
                 .variables(ReportUtils.commonVars())
                 .build();
     }
