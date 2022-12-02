@@ -1,6 +1,5 @@
 package com.intuit.karate.report;
 
-import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
@@ -27,19 +26,19 @@ class ReportUtilsTest {
 
     @Test
     void testReport() {
+        final ByteArrayOutputStream     outContent = new ByteArrayOutputStream();
+        final PrintStream               originalOut = System.out;
         Feature         feature = Feature.read("classpath:com/intuit/karate/report/test.feature");
         FeatureRuntime  fr = FeatureRuntime.of(feature);
         fr.run();
-        Report  report = SuiteReports.DEFAULT.featureReport(fr.suite, fr.result);
-        File    file = report.render("target/report-test");
-        String  html = FileUtils.toString(file);
+        Report          report = SuiteReports.DEFAULT.featureReport(fr.suite, fr.result);
+        File            file = report.render("target/report-test");
+        String          html = FileUtils.toString(file);
 
         assertTrue(html.contains("<title>com.intuit.karate.report.test</title>"));
         assertTrue(html.contains("<img src=\"karate-labs-logo-ring.svg\" alt=\"Karate Labs\"/>"));
         assertTrue(html.contains("<div>Scenarios</div>"));
         assertTrue(html.contains("<a href=\"karate-summary.html\">Summary</a><span class=\"feature-label\">|</span>"));
-        final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-        final PrintStream originalOut = System.out;
         System.setOut(new PrintStream(outContent)); // Capture console output
         fr.suite.buildResults();
         assertFalse(outContent.toString().contains(" | env: "));
@@ -47,7 +46,9 @@ class ReportUtilsTest {
     }
     @Test
     void testReportWithEnv() {
-        final String    sEnv = "TestEnv";
+        final String                sEnv = "TestEnv";
+        final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+        final PrintStream           originalOut = System.out;
         Feature         oFeature = Feature.read("classpath:com/intuit/karate/report/test.feature");
         Suite           oSuite = new Suite(Runner.builder().karateEnv(sEnv));
         FeatureRuntime  fr = FeatureRuntime.of(oSuite, new FeatureCall(oFeature));
@@ -58,8 +59,6 @@ class ReportUtilsTest {
 
         assertTrue(sHtml.contains("<div id=\"nav-env\">"));
         assertTrue(sHtml.contains(sEnv));
-        final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-        final PrintStream originalOut = System.out;
         System.setOut(new PrintStream(outContent)); // Capture console output
         fr.suite.buildResults();
         assertTrue(outContent.toString().contains(" | env: " + sEnv));
