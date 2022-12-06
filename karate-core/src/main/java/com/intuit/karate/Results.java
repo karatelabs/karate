@@ -94,7 +94,7 @@ public class Results {
         saveStatsJson();
         printStats();
         if (suite.outputHtmlReport) {
-            final String displayEnv = ( suite.env != null && ! suite.env.isEmpty() ) ? " | env: " + suite.env + "\n" : "";
+            String displayEnv = StringUtils.isBlank(suite.env) ? "\n" : " | env: " + suite.env + "\n";
             suite.suiteReports.timelineReport(suite, timeline).render();
             suite.suiteReports.tagsReport(suite, tags).render();
             // last so that path can be printed to the console
@@ -121,8 +121,7 @@ public class Results {
     }
 
     private void printStats() {
-        final String displayEnv = ( suite.env != null && ! suite.env.isEmpty() ) ? " | env: " + suite.env : "";
-
+        String displayEnv = StringUtils.isBlank(suite.env) ? "" : " | env: " + suite.env;
         System.out.println("Karate version: " + FileUtils.KARATE_VERSION + displayEnv);
         System.out.println("======================================================");
         System.out.println(String.format("elapsed: %6.2f | threads: %4d | thread time: %.2f ",
