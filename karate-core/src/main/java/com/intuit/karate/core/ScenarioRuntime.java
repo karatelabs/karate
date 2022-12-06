@@ -30,6 +30,7 @@ import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.StringLogAppender;
 
@@ -95,7 +96,7 @@ public class ScenarioRuntime implements Runnable {
             List<FeatureResult> list = new ArrayList(1);
             FeatureResult fr = new FeatureResult(featureRuntime.featureCall.feature);
             fr.setCallDepth(1);
-            fr.addResult(featureRuntime.setupResult);            
+            fr.addResult(featureRuntime.setupResult);
             list.add(fr);
             sr.addCallResults(list);
             featureRuntime.setupResult = null;
@@ -291,13 +292,15 @@ public class ScenarioRuntime implements Runnable {
             return;
         }
         try {
-            Variable fun = engine.evalJs("(" + js + ")");
-            if (!fun.isJsFunction()) {
-                logger.warn("not a valid js function: {}", displayName);
-                return;
+            synchronized (JsValue.LOCK) {
+                Variable fun = engine.evalJs("(" + js + ")");
+                if (!fun.isJsFunction()) {
+                    logger.warn("not a valid js function: {}", displayName);
+                    return;
+                }
+                Map<String, Object> map = engine.getOrEvalAsMap(fun);
+                engine.setVariables(map);
             }
-            Map<String, Object> map = engine.getOrEvalAsMap(fun);
-            engine.setVariables(map);
         } catch (Exception e) {
             String message = ">> " + scenario.getDebugInfo() + "\n>> " + displayName + " failed\n>> " + e.getMessage();
             error = JsEngine.fromJsEvalException(js, e, message);
