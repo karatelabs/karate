@@ -60,6 +60,7 @@ public class FeatureRuntime implements Runnable {
     private final ParallelProcessor<ScenarioRuntime> processor;
 
     public final Map<String, ScenarioCall.Result> CALLONCE_CACHE = new HashMap();
+    public final Map<String, Map<String, Object>> SETUPONCE_CACHE = new HashMap();
 
     private Runnable next;
 

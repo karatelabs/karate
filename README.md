@@ -3642,6 +3642,7 @@ Operation | Description
 <a name="karate-setpath"><code>karate.set(name, path, value)</code></a> | only needed when you need to conditionally build payload elements, especially XML. This is best explained via [an example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature#L211), and it behaves the same way as the [`set`](#set) keyword. Also see [`eval`](#eval).
 <a name="karate-setxml"><code>karate.setXml(name, xmlString)</code></a> | rarely used, refer to the example above
 <a name="karate-setup"><code>karate.setup([name])</code></a> | call a `Scenario` tagged with the built-in [`@setup`](#setup) annotation
+<a name="karate-setuponce"><code>karate.setupOnce([name])</code></a> | like [`karate.setup()`](#karate-setup) above, but cache the result so that the "setup" runs only once
 <a name="karate-signal"><code>karate.signal(result)</code></a> | trigger an event that [`karate.listen(timeout)`](#karate-listen) is waiting for, and pass the data, see [async](#async)
 <a name="karate-sizeof"><code>karate.sizeOf(object)</code></a> | returns the size of the map-like or list-like object
 <a name="karate-sort"><code>karate.sort(list, function)</code></a> | sorts the list using the provided custom function called for each item in the list (and the optional second argument is the item index) e.g. `karate.sort(myList, x => x.val)`, and the second / function argument is not needed if the list is of plain strings or numbers
@@ -4612,6 +4613,32 @@ Scenario Outline:
 
 Examples:
 | karate.setup('myname').data |
+```
+
+And since it is common to run a `@setup` `Scenario` only once per-feature you can call `karate.setupOnce()`. In the feature below, the `* print 'in setup'` step will run only once. Also note how the `Background` will run 4 times (twice per `Scenario`).
+
+```cucumber
+Feature:
+
+Background:
+* print 'in background', __num
+
+@setup
+Scenario:
+* print 'in setup'
+* def data = [{a:1}, {a:2}]
+
+Scenario Outline: first
+* print __row
+
+Examples:
+| karate.setupOnce().data |
+
+Scenario Outline: second
+* print __row
+
+Examples:
+| karate.setupOnce().data |
 ```
 
 #### JSON Function Data Source
