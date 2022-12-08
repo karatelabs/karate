@@ -1136,9 +1136,9 @@ public class ScenarioEngine {
         }
         JS.put(KARATE, bridge);
         JS.put(READ, readFunction);        
-        // edge case: can be set by dynamic scenario outline background
-        // or be left as-is because a callonce triggered init()
+        // edge case: can be left as-is because a callonce triggered init()
         if (requestBuilder == null) {
+            // note that the http builder is always reset when a "call" occurs
             HttpClient client = runtime.featureRuntime.suite.clientFactory.create(this);
             requestBuilder = new HttpRequestBuilder(client);
         }

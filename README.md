@@ -1870,14 +1870,40 @@ These are essential HTTP operations, they focus on setting one (un-named or 'key
 ```cucumber
 Given url 'https://myhost.com/v1/cats'
 ```
-A URL remains constant until you use the `url` keyword again, so this is a good place to set-up the 'non-changing' parts of your REST URL-s.
+Within a `Scenario`, a URL remains constant until you use the `url` keyword again, so this is a good place to set-up the 'non-changing' parts of your REST URL-s.
 
 A URL can take expressions, so the approach below is legal.  And yes, variables can come from global [config](#configuration).
 ```cucumber
 Given url 'https://' + e2eHostName + '/v1/api'
 ```
 
+JavaScript enthusiasts may prefer variable interpolation using backticks:
+```cucumber
+* url `https://${e2eHostName}/v1/api`
+```
+
 If you are trying to build dynamic URLs including query-string parameters in the form: `http://myhost/some/path?foo=bar&search=true` - please refer to the [`param`](#param) keyword.
+
+
+### `configure url`
+When you [`call`](#call) other features, the `url` will be "reset". But if you want the `url` to persist, you can do this:
+
+```cucumber
+Feature:
+
+Scenario:
+* configure url = 'https://httpbin.org'
+* path 'anything'
+* method get
+* call read('@called')
+
+@ignore @called
+Scenario:
+* path 'anything'
+* method get
+```
+
+Note how in the "called" `Scenario` you could omit the `url`. It is easy to change the `url` anytime by using the keyword. Note that you can use variables to set up the `url` any time you need to.
 
 ## `path`
 REST-style path parameters.  Can be expressions that will be evaluated.  Comma delimited values are supported which can be more convenient, and takes care of URL-encoding and appending '/' between path segments as needed.
@@ -2234,6 +2260,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 
  Key | Type | Description
 ------ | ---- | ---------
+`url` | string | See [`configure url`](#configure-url)
 `headers` | JSON / JS function | See [`configure headers`](#configure-headers)
 `cookies` | JSON / JS function | Just like `configure headers`, but for cookies. You will typically never use this, as response cookies are auto-added to all future requests. If you need to clear cookies at any time, just do `configure cookies = null`
 `logPrettyRequest` | boolean | Pretty print the request payload JSON or XML with indenting (default `false`)
