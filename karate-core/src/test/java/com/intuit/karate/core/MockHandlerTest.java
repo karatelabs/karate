@@ -25,7 +25,7 @@ class MockHandlerTest {
 
     @BeforeEach
     void beforeEach() {
-        request = new HttpRequestBuilder(client).method("GET");
+        request = new HttpRequestBuilder(client).url("/").method("GET");
     }
 
     FeatureBuilder background(String... lines) {

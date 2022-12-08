@@ -35,7 +35,7 @@ class HttpLoggerTest {
 
     @BeforeEach
     void beforeEach() {
-        httpRequestBuilder = new HttpRequestBuilder(client).method("GET");
+        httpRequestBuilder = new HttpRequestBuilder(client).url("/").method("GET");
         testLogger.setAppender(logAppender);
         httpLogger = new HttpLogger(testLogger);
         config = new Config();

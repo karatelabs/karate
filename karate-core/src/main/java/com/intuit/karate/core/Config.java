@@ -51,6 +51,7 @@ public class Config {
     public static final int DEFAULT_TIMEOUT = 30000;
     public static final int DEFAULT_HIGHLIGHT_DURATION = 3000;
 
+    private String url;
     private boolean sslEnabled = false;
     private String sslAlgorithm = "TLS";
     private String sslKeyStore;
@@ -119,6 +120,9 @@ public class Config {
     public boolean configure(String key, Variable value) { // TODO use enum
         key = StringUtils.trimToEmpty(key);
         switch (key) {
+            case "url":
+                url = value.getAsString();
+                return false;
             case "headers":
                 headers = value;
                 return false;
@@ -301,6 +305,7 @@ public class Config {
     }
 
     public Config(Config parent) {
+        url = parent.url;
         sslEnabled = parent.sslEnabled;
         sslAlgorithm = parent.sslAlgorithm;
         sslTrustStore = parent.sslTrustStore;
@@ -348,6 +353,14 @@ public class Config {
         abortSuiteOnFailure = parent.abortSuiteOnFailure;
         imageComparisonOptions = parent.imageComparisonOptions;
     }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
+    public String getUrl() {
+        return url;
+    }        
 
     public void setCookies(Variable cookies) {
         this.cookies = cookies;

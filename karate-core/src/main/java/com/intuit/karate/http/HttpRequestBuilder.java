@@ -160,6 +160,12 @@ public class HttpRequestBuilder implements ProxyObject {
     }
 
     private void buildInternal() {
+        if (url == null) {
+            url = client.getConfig().getUrl();
+            if (url == null) {
+                throw new RuntimeException("incomplete http request, 'url' not set");
+            }
+        }
         if (method == null) {
             if (multiPart != null && multiPart.isMultipart()) {
                 method = "POST";
