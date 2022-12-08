@@ -3730,7 +3730,7 @@ The contents of `my-signin.feature` are shown below. A few points to note:
   * the data 'return' mechanism is 'safe', there is no danger of the 'called' script over-writing any variables in the 'calling' (or parent) script (unless you use [shared scope](#shared-scope))
   * the need to explicitly 'unpack' variables by name from the returned 'envelope' keeps things readable and maintainable in the 'caller' script
 
-> Note that only [variables](#def) and [configuration settings](#configure) will be passed. You can't do things such as `* url 'http://foo.bar'` and expect the URL to be set in the "called" feature. Use a variable in the "called" feature instead, for e.g. `* url myUrl`.
+> Note that only [variables](#def) and [configuration settings](#configure) will be passed. You can't do things such as `* url 'http://foo.bar'` and expect the URL to be set in the "called" feature. Use a variable in the "called" feature instead, for e.g. `* url myUrl` or take a look at [`configure url`](#configure-url).
 
 ```cucumber
 Feature: here are the contents of 'my-signin.feature'
