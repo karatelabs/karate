@@ -261,7 +261,8 @@ public class ServerContext implements ProxyObject {
 
     public String toJsonPretty(Object o) {
         Value value = Value.asValue(o);
-        return new JsValue(value).toJsonOrXmlString(true);
+        String pretty = new JsValue(value).toJsonOrXmlString(true);
+        return pretty == null ? null : pretty.trim();
     }
 
     public ServerConfig getConfig() {
