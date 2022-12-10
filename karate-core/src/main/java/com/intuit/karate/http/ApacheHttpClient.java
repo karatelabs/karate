@@ -268,11 +268,10 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         }
         if (request.getHeaders() != null) {
             request.getHeaders().forEach((k, vals) -> vals.forEach(v -> requestBuilder.addHeader(k, v)));
-        }
-        CloseableHttpClient client = clientBuilder.build();
+        }        
         CloseableHttpResponse httpResponse;
         byte[] bytes;
-        try {
+        try (CloseableHttpClient client = clientBuilder.build()) {
             httpResponse = client.execute(requestBuilder.build());
             HttpEntity responseEntity = httpResponse.getEntity();
             if (responseEntity == null || responseEntity.getContent() == null) {
@@ -282,6 +281,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 bytes = FileUtils.toBytes(is);
             }
             request.setEndTime(System.currentTimeMillis());
+            httpResponse.close();
         } catch (Exception e) {
             if (e instanceof ClientProtocolException && e.getCause() != null) { // better error message                
                 throw new RuntimeException(e.getCause());
@@ -289,6 +289,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 throw new RuntimeException(e);
             }
         }
+        int statusCode = httpResponse.getStatusLine().getStatusCode();
         Map<String, List<String>> headers = toHeaders(httpResponse);
         List<Cookie> storedCookies = cookieStore.getCookies();
         Header[] requestCookieHeaders = httpResponse.getHeaders(HttpConstants.HDR_SET_COOKIE);
@@ -323,7 +324,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         }
         headers.put(HttpConstants.HDR_SET_COOKIE, mergedCookieValues);
         cookieStore.clear();
-        Response response = new Response(httpResponse.getStatusLine().getStatusCode(), headers, bytes);
+        Response response = new Response(statusCode, headers, bytes);
         httpLogger.logResponse(getConfig(), request, response);
         return response;
     }
