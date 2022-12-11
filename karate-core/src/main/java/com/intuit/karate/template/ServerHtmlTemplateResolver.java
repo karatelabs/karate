@@ -68,7 +68,10 @@ public class ServerHtmlTemplateResolver implements ITemplateResolver {
             JsValue jv = KarateEngineContext.get().evalLocal("`" + name + "`", true);
             name = jv.getAsString();
         }
-        Resource resource = resourceResolver.resolve(name + ".html");
+        if (!name.endsWith(".html")) {
+            name = name + ".html";
+        }        
+        Resource resource = resourceResolver.resolve(name);
         KarateTemplateResource templateResource = new KarateTemplateResource(resource);
         return new TemplateResolution(templateResource, TemplateMode.HTML,
                 devMode ? NonCacheableCacheEntryValidity.INSTANCE : AlwaysValidCacheEntryValidity.INSTANCE);
