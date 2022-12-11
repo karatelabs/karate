@@ -274,7 +274,7 @@ public class Runner {
             return features;
         }
 
-        protected T forTempUse() {
+        public T forTempUse() {
             forTempUse = true;
             return (T) this;
         }

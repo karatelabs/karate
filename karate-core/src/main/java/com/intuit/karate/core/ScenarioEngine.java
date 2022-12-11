@@ -610,6 +610,10 @@ public class ScenarioEngine {
             }
             throw new KarateException(message, e);
         }
+        startTime = httpRequest.getStartTime(); // in case it was re-adjusted by http client
+        final long endTime = httpRequest.getEndTime();
+        final long responseTime = endTime - startTime;
+        response.setResponseTime(responseTime);        
         if (hooks != null) {
             hooks.forEach(h -> h.afterHttpCall(httpRequest, response, runtime));
         }
@@ -635,6 +639,8 @@ public class ScenarioEngine {
                 responseType = "string";
             }
         }
+        setHiddenVariable(REQUEST_TIME_STAMP, startTime);
+        setVariable(RESPONSE_TIME, responseTime);        
         setVariable(RESPONSE_STATUS, response.getStatus());
         setVariable(RESPONSE, body);
         if (config.isLowerCaseResponseHeaders()) {
@@ -647,12 +653,6 @@ public class ScenarioEngine {
         cookies = response.getCookies();
         updateConfigCookies(cookies);
         setHiddenVariable(RESPONSE_COOKIES, cookies);
-        startTime = httpRequest.getStartTime(); // in case it was re-adjusted by http client
-        final long endTime = httpRequest.getEndTime();
-        final long responseTime = endTime - startTime;
-        setHiddenVariable(REQUEST_TIME_STAMP, startTime);
-        setVariable(RESPONSE_TIME, responseTime);
-        response.setResponseTime(responseTime);
         if (perfEventName != null) {
             PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, response.getStatus());
             capturePerfEvent(pe);
@@ -1008,7 +1008,7 @@ public class ScenarioEngine {
 
     public String renderHtml(Map<String, Object> options) {
         String path = (String) options.get("read");
-        String html = null;
+        String html;
         if (path == null) {
             html = (String) options.get("html");
             if (html == null) {
