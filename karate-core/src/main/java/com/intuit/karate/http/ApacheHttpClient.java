@@ -101,7 +101,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
   private final HttpLogger httpLogger;
 
   private HttpClientBuilder clientBuilder;
-  private static PoolingHttpClientConnectionManager connectionManager;
+  private PoolingHttpClientConnectionManager connectionManager;
   private CookieStore cookieStore;
 
   public static class LenientCookieSpec extends DefaultCookieSpec {
@@ -139,7 +139,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     configure(config);
   }
 
-  private static synchronized void createConnectionManager(Config config) {
+  private synchronized void createConnectionManager(Config config) {
     if (connectionManager == null) {
       connectionManager = new PoolingHttpClientConnectionManager();
       connectionManager.setMaxTotal(1000);
