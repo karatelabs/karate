@@ -43,6 +43,7 @@ import com.intuit.karate.http.*;
 import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.shell.Command;
+import com.intuit.karate.template.KarateEngineContext;
 import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateUtils;
 import com.jayway.jsonpath.PathNotFoundException;
@@ -1022,7 +1023,12 @@ public class ScenarioEngine {
         if (templateEngine == null) {
             templateEngine = TemplateUtils.forResourceResolver(JS, getResourceResolver());
         }
-        return templateEngine.process(path);
+        KarateEngineContext old = KarateEngineContext.get();
+        try {
+            return templateEngine.process(path);
+        } finally {
+            KarateEngineContext.set(old);
+        }
     }
 
     public void doc(String exp) {
