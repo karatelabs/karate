@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 Intuit Inc.
+ * Copyright 2022 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -138,6 +138,12 @@ public class MatchStep {
                 }
                 if (any) {
                     return Match.Type.EACH_CONTAINS_ANY;
+                }
+                if (deep) {
+                    if (not) {
+                        throw new RuntimeException("'each !contains deep' is not yet supported, use 'each contains deep' instead");
+                    }
+                    return Match.Type.EACH_CONTAINS_DEEP;
                 }
                 return not ? Match.Type.EACH_NOT_CONTAINS : Match.Type.EACH_CONTAINS;
             }

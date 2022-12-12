@@ -1,14 +1,31 @@
 window.onload = function () {
-  $('div.step-container').each(function (i) {
-    var id = this.id;
-    var children = $("[data-parent='" + id + "']");
-    if (children.length > 0) {
-      children.hide('fast');
-      $(this).wrap("<a href='javascript:void(0)'></a>").click(function () {
-        children.toggle('fast');
-      });
-    }
-  });
+  const parentIds = {}
+
+  document.querySelectorAll('[data-parent]').forEach(child => {
+    parentIds[child.dataset.parent] = true
+    child.style.display = 'none'
+  })
+
+  document.querySelectorAll('div.step-container').forEach(parent => {
+    if (!parentIds[parent.id]) return
+    const link = document.createElement('a')
+    link.dataset.stepId = parent.id
+    link.href = 'javascript:void()'
+    parent.parentNode.insertBefore(link, parent)
+    link.appendChild(parent)
+  })
+
+  $('#content').on('click', 'a[data-step-id]', function () {
+    const parentId = $(this).data('step-id')
+    $(`[data-parent='${parentId}']`).toggle('fast')
+    $(`[data-parent='${parentId}'] [data-deferred]`).each((i, deferred) => {
+      const script = document.createElement('script')
+      script.type = 'text/javascript'
+      script.src = deferred.dataset.src
+      deferred.parentNode.replaceChild(script, deferred)
+    })
+  })
+
   $("table.features-table").tablesorter();
   $("table.tags-table").tablesorter();
 };
@@ -88,7 +105,7 @@ function newDiffUI(targetElement, diffResult, diffConfig, onShowRebase, onShowCo
         .repaint()
     } else if ($this.hasClass('opaque')) {
       resembleControl.outputSettings({ transparency: 1 }).repaint()
-    } else if ($this.is('transparent')) {
+    } else if ($this.hasClass('transparent')) {
       resembleControl.outputSettings({ transparency: 0.3 }).repaint()
     }
   })
@@ -219,7 +236,7 @@ function newDiffUI(targetElement, diffResult, diffConfig, onShowRebase, onShowCo
   })
 
   // wait for step contents animation to complete and then execute the diff
-  $el.closest('.embed').parent().one('click', () => setTimeout(compareImg, 300))
+  setTimeout(compareImg, 300)
 
 
   // -- begin helper function definitions -- \\

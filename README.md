@@ -186,6 +186,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#match-contains-only-deep"><code>match contains only deep</code></a>       
     | <a href="#not-contains"><code>match !contains</code></a>
     | <a href="#match-each"><code>match each</code></a>
+    | <a href="#match-each-contains-deep"><code>match each contains deep</code></a>
     | <a href="#match-header"><code>match header</code></a>    
     | <a href="#fuzzy-matching">Fuzzy Matching</a>
     | <a href="#schema-validation">Schema Validation</a>
@@ -319,7 +320,7 @@ All you need is available in the [`karate-core`](https://search.maven.org/artifa
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit5</artifactId>
-    <version>1.3.0</version>
+    <version>1.3.1</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -330,10 +331,28 @@ If you want to use [JUnit 4](#junit-4), use `karate-junit4` instead of `karate-j
 Alternatively for [Gradle](https://gradle.org):
 
 ```yml
-    testCompile 'com.intuit.karate:karate-junit5:1.3.0'
+    testCompile 'com.intuit.karate:karate-junit5:1.3.1'
 ```
 
 Also refer to the wiki for using [Karate with Gradle](https://github.com/intuit/karate/wiki/Gradle).
+
+### Karate Core "Fat JAR"
+If you mix Karate into a Maven or Gradle project with many other dependendies, you may run into problems because of dependency conflicts. For example a lot of Java projects directly (or indirectly) depend on Netty or Thymeleaf or ANTLR, etc.
+
+If you face issues such as "class not found", just pull in the `karate-core` dependency, and use the `all` [classifier](https://www.baeldung.com/maven-artifact-classifiers) in your `pom.xml` (or `build.gradle`).
+
+For example when using Maven:
+
+```xml
+<dependency>
+  <groupId>com.intuit.karate</groupId>
+  <artifactId>karate-core</artifactId>
+  <version>${karate.version}</version>
+  <classifier>all</classifier>
+</dependency>
+```
+
+Note that for very complicated projects you can consider using a [Maven profile](https://maven.apache.org/guides/introduction/introduction-to-profiles.html) so that testing-related dependencies don't collide with your development-time dependencies. Of course it is an option to have Karate tests in a separate stand-alone maven project and folder, while still being in the same Git repository.
 
 ### Quickstart
 It may be easier for you to use the Karate Maven archetype to create a skeleton project with one command. You can then skip the next few sections, as the `pom.xml`, recommended directory structure, sample test and [JUnit 5](#junit-5) runners - will be created for you.
@@ -346,7 +365,7 @@ You can replace the values of `com.mycompany` and `myproject` as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=1.3.0 \
+-DarchetypeVersion=1.3.1 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -439,20 +458,6 @@ Assuming you use JUnit, there are some good reasons for the recommended (best pr
 * `some-classpath-function.js` and `some-classpath-payload.json` are in the 'root' of the Java ['classpath'](#classpath) which means they can be easily [read](#reading-files) (and re-used) from any test-script by using the `classpath:` prefix, for e.g: `read('classpath:some-classpath-function.js')`. Relative paths will also work.
 
 For details on what actually goes into a script or `*.feature` file, refer to the [syntax guide](#syntax-guide).
-
-#### `file.encoding`
-In some cases, for large payloads and especially when the default system encoding is not `UTF-8` (Windows or non-US locales), you may run into issues where a `java.io.ByteArrayInputStream` is encountered instead of a string. Other errors could be a `java.net.URISyntaxException` and [`match`](#match) not working as expected because of special or foreign characters, e.g. German or `ISO-8859-15`. Typical symptoms are your tests working fine via the IDE but not when running via Maven or Gradle. The solution is to ensure that when Karate tests run, the JVM `file.encoding` is set to `UTF-8`. This can be done via the [`maven-surefire-plugin` configuration](http://maven.apache.org/surefire/maven-surefire-plugin/test-mojo.html#argLine). Add the plugin to the `<build>/<plugins>` section of your `pom.xml` if not already present: 
-
-```xml
-    <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.10</version>
-        <configuration>
-            <argLine>-Dfile.encoding=UTF-8</argLine>
-        </configuration>
-    </plugin>
-```
 
 ## JUnit 4
 > If you want to use JUnit 4, use the [`karate-junit4` Maven dependency](#maven) instead of `karate-junit5`.
@@ -1851,14 +1856,40 @@ These are essential HTTP operations, they focus on setting one (un-named or 'key
 ```cucumber
 Given url 'https://myhost.com/v1/cats'
 ```
-A URL remains constant until you use the `url` keyword again, so this is a good place to set-up the 'non-changing' parts of your REST URL-s.
+Within a `Scenario`, a URL remains constant until you use the `url` keyword again, so this is a good place to set-up the 'non-changing' parts of your REST URL-s.
 
 A URL can take expressions, so the approach below is legal.  And yes, variables can come from global [config](#configuration).
 ```cucumber
 Given url 'https://' + e2eHostName + '/v1/api'
 ```
 
+JavaScript enthusiasts may prefer variable interpolation using backticks:
+```cucumber
+* url `https://${e2eHostName}/v1/api`
+```
+
 If you are trying to build dynamic URLs including query-string parameters in the form: `http://myhost/some/path?foo=bar&search=true` - please refer to the [`param`](#param) keyword.
+
+
+### `configure url`
+When you [`call`](#call) other features, the `url` will be "reset". But if you want the `url` to persist, you can do this:
+
+```cucumber
+Feature:
+
+Scenario:
+* configure url = 'https://httpbin.org'
+* path 'anything'
+* method get
+* call read('@called')
+
+@ignore @called
+Scenario:
+* path 'anything'
+* method get
+```
+
+Note how in the "called" `Scenario` you could omit the `url`. It is easy to change the `url` anytime by using the keyword. Note that you can use variables to set up the `url` any time you need to.
 
 ## `path`
 REST-style path parameters.  Can be expressions that will be evaluated.  Comma delimited values are supported which can be more convenient, and takes care of URL-encoding and appending '/' between path segments as needed.
@@ -2158,6 +2189,8 @@ The single JSON argument needs to be in the form `{ field1: { read: 'file1.ext' 
 And multipart files json
 ```
 
+For an example, refer: [`upload-multiple-files.feature`](karate-demo/src/test/java/demo/upload/upload-multiple-files.feature).
+
 # SOAP
 Since a SOAP request needs special handling, this is the only case where the
 [`method`](#method) step is not used to actually fire the request to the server.
@@ -2213,6 +2246,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 
  Key | Type | Description
 ------ | ---- | ---------
+`url` | string | See [`configure url`](#configure-url)
 `headers` | JSON / JS function | See [`configure headers`](#configure-headers)
 `cookies` | JSON / JS function | Just like `configure headers`, but for cookies. You will typically never use this, as response cookies are auto-added to all future requests. If you need to clear cookies at any time, just do `configure cookies = null`
 `logPrettyRequest` | boolean | Pretty print the request payload JSON or XML with indenting (default `false`)
@@ -2997,6 +3031,42 @@ Symbol  | Evaluates To
 
 There is a shortcut for `match each` explained in the next section that can be quite useful, especially for 'in-line' schema-like validations.
 
+#### `match each contains deep`
+`match each` can be combined with `contains deep` so that for each JSON object  a “deep contains” match is performed within nested lists or objects. 
+
+This is useful for testing payloads with JSON arrays whose members have a few essential keys that you wish to validate. 
+
+```cucumber
+  Given def response = 
+  """
+  [
+    {
+      "a": 1,
+      "arr": [
+          {
+              "b": 2,
+              "c": 3
+          }
+      ]
+    },
+    {
+      "a": 1,
+      "arr": [
+          {
+              "b": 2,
+              "c": 3
+          },
+          {
+              "b": 4,
+              "c": 5
+          }
+      ]
+    }
+  ]
+  """
+  Then match each response contains deep { a: 1, arr: [ { b: 2 } ] }
+```
+
 ## Schema Validation
 Karate provides a far more simpler and more powerful way than [JSON-schema](http://json-schema.org) to validate the structure of a given payload. You can even mix domain and conditional validations and perform all assertions in a single step.
 
@@ -3585,6 +3655,7 @@ Operation | Description
 <a name="karate-setpath"><code>karate.set(name, path, value)</code></a> | only needed when you need to conditionally build payload elements, especially XML. This is best explained via [an example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature#L211), and it behaves the same way as the [`set`](#set) keyword. Also see [`eval`](#eval).
 <a name="karate-setxml"><code>karate.setXml(name, xmlString)</code></a> | rarely used, refer to the example above
 <a name="karate-setup"><code>karate.setup([name])</code></a> | call a `Scenario` tagged with the built-in [`@setup`](#setup) annotation
+<a name="karate-setuponce"><code>karate.setupOnce([name])</code></a> | like [`karate.setup()`](#karate-setup) above, but cache the result so that the "setup" runs only once
 <a name="karate-signal"><code>karate.signal(result)</code></a> | trigger an event that [`karate.listen(timeout)`](#karate-listen) is waiting for, and pass the data, see [async](#async)
 <a name="karate-sizeof"><code>karate.sizeOf(object)</code></a> | returns the size of the map-like or list-like object
 <a name="karate-sort"><code>karate.sort(list, function)</code></a> | sorts the list using the provided custom function called for each item in the list (and the optional second argument is the item index) e.g. `karate.sort(myList, x => x.val)`, and the second / function argument is not needed if the list is of plain strings or numbers
@@ -3645,7 +3716,7 @@ The contents of `my-signin.feature` are shown below. A few points to note:
   * the data 'return' mechanism is 'safe', there is no danger of the 'called' script over-writing any variables in the 'calling' (or parent) script (unless you use [shared scope](#shared-scope))
   * the need to explicitly 'unpack' variables by name from the returned 'envelope' keeps things readable and maintainable in the 'caller' script
 
-> Note that only [variables](#def) and [configuration settings](#configure) will be passed. You can't do things such as `* url 'http://foo.bar'` and expect the URL to be set in the "called" feature. Use a variable in the "called" feature instead, for e.g. `* url myUrl`.
+> Note that only [variables](#def) and [configuration settings](#configure) will be passed. You can't do things such as `* url 'http://foo.bar'` and expect the URL to be set in the "called" feature. Use a variable in the "called" feature instead, for e.g. `* url myUrl` or take a look at [`configure url`](#configure-url).
 
 ```cucumber
 Feature: here are the contents of 'my-signin.feature'
@@ -4555,6 +4626,32 @@ Scenario Outline:
 
 Examples:
 | karate.setup('myname').data |
+```
+
+And since it is common to run a `@setup` `Scenario` only once per-feature you can call `karate.setupOnce()`. In the feature below, the `* print 'in setup'` step will run only once. Also note how the `Background` will run 4 times (twice per `Scenario`).
+
+```cucumber
+Feature:
+
+Background:
+* print 'in background', __num
+
+@setup
+Scenario:
+* print 'in setup'
+* def data = [{a:1}, {a:2}]
+
+Scenario Outline: first
+* print __row
+
+Examples:
+| karate.setupOnce().data |
+
+Scenario Outline: second
+* print __row
+
+Examples:
+| karate.setupOnce().data |
 ```
 
 #### JSON Function Data Source

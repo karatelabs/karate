@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 Intuit Inc.
+ * Copyright 2022 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -43,6 +43,7 @@ import com.intuit.karate.http.*;
 import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.shell.Command;
+import com.intuit.karate.template.KarateEngineContext;
 import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateUtils;
 import com.jayway.jsonpath.PathNotFoundException;
@@ -610,6 +611,10 @@ public class ScenarioEngine {
             }
             throw new KarateException(message, e);
         }
+        startTime = httpRequest.getStartTime(); // in case it was re-adjusted by http client
+        final long endTime = httpRequest.getEndTime();
+        final long responseTime = endTime - startTime;
+        response.setResponseTime(responseTime);        
         if (hooks != null) {
             hooks.forEach(h -> h.afterHttpCall(httpRequest, response, runtime));
         }
@@ -635,6 +640,8 @@ public class ScenarioEngine {
                 responseType = "string";
             }
         }
+        setHiddenVariable(REQUEST_TIME_STAMP, startTime);
+        setVariable(RESPONSE_TIME, responseTime);        
         setVariable(RESPONSE_STATUS, response.getStatus());
         setVariable(RESPONSE, body);
         if (config.isLowerCaseResponseHeaders()) {
@@ -647,12 +654,6 @@ public class ScenarioEngine {
         cookies = response.getCookies();
         updateConfigCookies(cookies);
         setHiddenVariable(RESPONSE_COOKIES, cookies);
-        startTime = httpRequest.getStartTime(); // in case it was re-adjusted by http client
-        final long endTime = httpRequest.getEndTime();
-        final long responseTime = endTime - startTime;
-        setHiddenVariable(REQUEST_TIME_STAMP, startTime);
-        setVariable(RESPONSE_TIME, responseTime);
-        response.setResponseTime(responseTime);
         if (perfEventName != null) {
             PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, response.getStatus());
             capturePerfEvent(pe);
@@ -1008,7 +1009,7 @@ public class ScenarioEngine {
 
     public String renderHtml(Map<String, Object> options) {
         String path = (String) options.get("read");
-        String html = null;
+        String html;
         if (path == null) {
             html = (String) options.get("html");
             if (html == null) {
@@ -1022,7 +1023,12 @@ public class ScenarioEngine {
         if (templateEngine == null) {
             templateEngine = TemplateUtils.forResourceResolver(JS, getResourceResolver());
         }
-        return templateEngine.process(path);
+        KarateEngineContext old = KarateEngineContext.get();
+        try {
+            return templateEngine.process(path);
+        } finally {
+            KarateEngineContext.set(old);
+        }
     }
 
     public void doc(String exp) {
@@ -1080,7 +1086,7 @@ public class ScenarioEngine {
                         getImageHookFunction(options, defaultOptions, "onShowConfig") +
                         ")";
 
-                runtime.embed(JsValue.toBytes(diffJS), ResourceType.JS);
+                runtime.embed(JsValue.toBytes(diffJS), ResourceType.DEFERRED_JS);
             }
         }
 
@@ -1136,9 +1142,9 @@ public class ScenarioEngine {
         }
         JS.put(KARATE, bridge);
         JS.put(READ, readFunction);        
-        // edge case: can be set by dynamic scenario outline background
-        // or be left as-is because a callonce triggered init()
+        // edge case: can be left as-is because a callonce triggered init()
         if (requestBuilder == null) {
+            // note that the http builder is always reset when a "call" occurs
             HttpClient client = runtime.featureRuntime.suite.clientFactory.create(this);
             requestBuilder = new HttpRequestBuilder(client);
         }

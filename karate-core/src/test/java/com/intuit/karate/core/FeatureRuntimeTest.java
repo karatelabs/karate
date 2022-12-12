@@ -242,7 +242,12 @@ class FeatureRuntimeTest {
     @Test
     void testOutlineDynamic() {
         run("outline-dynamic.feature");
-    }    
+    } 
+    
+    @Test
+    void testOutlineSetupOnce() {
+        run("outline-setup-once.feature");
+    }      
 
     @Test
     void testOutlineConfigJsParallel() {

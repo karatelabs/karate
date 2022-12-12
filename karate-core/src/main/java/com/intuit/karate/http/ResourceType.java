@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 Intuit Inc.
+ * Copyright 2022 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,7 @@ import org.w3c.dom.Node;
  */
 public enum ResourceType {
 
+    DEFERRED_JS("text/javascript", vals("javascript"), vals("js")),
     JS("text/javascript", vals("javascript"), vals("js")),
     JSON("application/json", vals("json"), vals("json")),
     CSS("text/css", vals("css"), vals("css")),
@@ -175,7 +176,13 @@ public enum ResourceType {
     }
 
     public boolean isScript() {
-        return this == ResourceType.JS;
+        switch (this){
+            case JS:
+            case DEFERRED_JS:
+                return true;
+            default:
+                return false;
+        }
     }
 
     public static ResourceType fromContentType(String ct) {

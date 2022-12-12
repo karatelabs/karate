@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 Intuit Inc.
+ * Copyright 2022 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -51,13 +51,16 @@ public class FeatureRuntime implements Runnable {
     public final FeatureCall featureCall;
     public final Iterator<ScenarioRuntime> scenarios;
     public final PerfHook perfHook;
-    public final FeatureResult result;      
-    
+    public final FeatureResult result;
+
+    protected ScenarioResult setupResult;
+
     private ScenarioEngine mockEngine;
 
     private final ParallelProcessor<ScenarioRuntime> processor;
 
     public final Map<String, ScenarioCall.Result> CALLONCE_CACHE = new HashMap();
+    public final Map<String, Map<String, Object>> SETUPONCE_CACHE = new HashMap();
 
     private Runnable next;
 
@@ -75,7 +78,7 @@ public class FeatureRuntime implements Runnable {
 
     public void setMockEngine(ScenarioEngine mockEngine) {
         this.mockEngine = mockEngine;
-    }        
+    }
 
     public ScenarioEngine getMockEngine() {
         return mockEngine;
@@ -88,7 +91,7 @@ public class FeatureRuntime implements Runnable {
         Feature feature = Feature.read(resource);
         return FeatureRuntime.of(sr, new FeatureCall(feature));
     }
-    
+
     public static FeatureRuntime of(Feature feature) {
         return of(new FeatureCall(feature));
     }

@@ -20,6 +20,7 @@ mvn versions:set versions:commit -DnewVersion=@@@
 # make release using [develop]
 # using github action: https://github.com/karatelabs/karate/actions/workflows/maven-release.yml
 # once release passes, download artifacts zip
+# make sure the release tag is against the right branch (master or develop)
 # upload following to github release notes
     karate-core/target/karate-XXX.zip
     karate-core/target/karate-XXX.jar

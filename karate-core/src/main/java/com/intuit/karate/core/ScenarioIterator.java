@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 Intuit Inc.
+ * Copyright 2022 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -90,9 +90,13 @@ public class ScenarioIterator implements Spliterator<ScenarioRuntime> {
         }
         if (currentScenario.isDynamic()) {
             Logger logger = FeatureRuntime.logger;
-            if (expressionValue == null) {
-                String expression = currentScenario.getDynamicExpression();
+            if (expressionValue == null) {                
                 dynamicRuntime = new ScenarioRuntime(featureRuntime, currentScenario);
+                if (!dynamicRuntime.selectedForExecution) { // may be un-selected by tag
+                    currentScenario = null;
+                    return tryAdvance(action);                    
+                }
+                String expression = currentScenario.getDynamicExpression();
                 ScenarioEngine prevEngine = ScenarioEngine.get();
                 try {
                     ScenarioEngine.set(dynamicRuntime.engine);

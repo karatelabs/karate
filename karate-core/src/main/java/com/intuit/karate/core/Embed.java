@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2018 Intuit Inc.
+ * Copyright 2022 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -98,7 +98,9 @@ public class Embed {
         } else if (resourceType.isImage()) {
             return "<img src=\"" + file.getName() + "\"/>";
         } else if (resourceType.isScript()) {
-            return "<script type=\"text/javascript\" src=\"" + file.getName() + "\"></script>";
+            return resourceType == ResourceType.DEFERRED_JS ?
+                    "<div data-deferred=\"true\" data-src=\"" + file.getName() + "\">Loading...</div>" :
+                    "<script type=\"text/javascript\" src=\"" + file.getName() + "\"></script>";
         } else {
             return "<a href=\"" + file.getName() + "\">" + file.getName() + "</a>";
         }

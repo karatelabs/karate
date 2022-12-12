@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2018 Intuit Inc.
+ * Copyright 2022 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -94,12 +94,13 @@ public class Results {
         saveStatsJson();
         printStats();
         if (suite.outputHtmlReport) {
+            String displayEnv = StringUtils.isBlank(suite.env) ? "\n" : " | env: " + suite.env + "\n";
             suite.suiteReports.timelineReport(suite, timeline).render();
             suite.suiteReports.tagsReport(suite, tags).render();
-            // last so that path can be printed to the console 
+            // last so that path can be printed to the console
             File file = suite.suiteReports.summaryReport(suite, this).render();
             System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
-                    + FileUtils.KARATE_VERSION + "\n"
+                    + FileUtils.KARATE_VERSION + displayEnv
                     + file.toPath().toUri()
                     + "\n===================================================================\n");
         }
@@ -120,7 +121,8 @@ public class Results {
     }
 
     private void printStats() {
-        System.out.println("Karate version: " + FileUtils.KARATE_VERSION);
+        String displayEnv = StringUtils.isBlank(suite.env) ? "" : " | env: " + suite.env;
+        System.out.println("Karate version: " + FileUtils.KARATE_VERSION + displayEnv);
         System.out.println("======================================================");
         System.out.println(String.format("elapsed: %6.2f | threads: %4d | thread time: %.2f ",
                 getElapsedTime() / 1000, suite.threadCount, timeTakenMillis / 1000));
@@ -138,6 +140,7 @@ public class Results {
     public Map<String, Object> toKarateJson() {
         Map<String, Object> map = new HashMap();
         map.put("version", FileUtils.KARATE_VERSION);
+        map.put("env", suite.env);
         map.put("threads", suite.threadCount);
         map.put("featuresPassed", featuresPassed);
         map.put("featuresFailed", featuresFailed);

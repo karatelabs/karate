@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 Intuit Inc.
+ * Copyright 2022 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -333,6 +333,7 @@ public class Response implements ProxyObject {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("[status: ").append(status);
+        sb.append(", responseTime: ").append(responseTime);
         if (resourceType != null && resourceType != ResourceType.BINARY) {
             sb.append(", type: ").append(resourceType);
         }

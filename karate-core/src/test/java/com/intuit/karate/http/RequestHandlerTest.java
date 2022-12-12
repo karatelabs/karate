@@ -27,14 +27,14 @@ class RequestHandlerTest {
         ServerConfig config = new ServerConfig("classpath:demo");
         config.autoCreateSession(true);
         handler = new RequestHandler(config);
-        request = new HttpRequestBuilder(null).method("GET");
+        request = new HttpRequestBuilder(null).url("/").method("GET");
     }
 
     private Response handle() {
         response = handler.handle(request.build().toRequest());
         body = response.getBodyAsString();
         cookies = response.getHeaderValues("Set-Cookie");
-        request = new HttpRequestBuilder(null).method("GET");
+        request = new HttpRequestBuilder(null).url("/").method("GET");
         if (cookies != null) {
             request.header("Cookie", cookies);
         }

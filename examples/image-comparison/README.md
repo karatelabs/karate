@@ -5,13 +5,15 @@ This project is designed to demonstrate basic usage of the [Image Comparison](ht
 The [Image Comparison](https://github.com/karatelabs/karate/#compare-image) feature was introduced in [Karate 1.3.0](https://github.com/karatelabs/karate/wiki/1.3.0-Upgrade-Guide).
 As a new feature with a number of options and a new UI component we wanted to provide a simple introduction to help users get started.
 
-The included features are numbered 1 through 5 and build on each other. 
+The included features are numbered 1 through 7 and build on each other. 
 They are intended to demonstrate how you might start from scratch without any baseline images on a new project:
 *  `1_establish_baseline.feature` establishes baseline images to use in future test runs
 *  `2_compare_baseline.feature` compares dynamic screenshots against our baseline images
 *  `3_custom_rebase.feature` demonstrates the use of the `onShowRebase` handler to customize the filename when rebasing
 *  `4_generic_rebase.feature` shows a slightly more advanced use of the `onShowRebase` handler that incorporates image comparison configuration options
-*  `5_custom_config.feature` shows the final scenario that is similar to what you might use in real tests
+*  `5_custom_config.feature` shows a complete scenario that is similar to what you might use in real tests
+*  `6_outline.feature` explores a more complex use case with multiple browsers
+*  `7_api.feature` solves some issues identified in the outline feature above using the JS API
 
 There is also a [screencast](https://youtu.be/wlvmNBraP60) that demonstrates basic usage of the diff UI in the Karate HTML report.
 

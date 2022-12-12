@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 Intuit Inc.
+ * Copyright 2022 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,6 +30,7 @@ import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.StringLogAppender;
 
@@ -90,6 +91,16 @@ public class ScenarioRuntime implements Runnable {
             magicVariables = initMagicVariables();
         }
         result = new ScenarioResult(scenario);
+        if (featureRuntime.setupResult != null) {
+            StepResult sr = result.addFakeStepResult("@setup", null);
+            List<FeatureResult> list = new ArrayList(1);
+            FeatureResult fr = new FeatureResult(featureRuntime.featureCall.feature);
+            fr.setCallDepth(1);
+            fr.addResult(featureRuntime.setupResult);
+            list.add(fr);
+            sr.addCallResults(list);
+            featureRuntime.setupResult = null;
+        }
         dryRun = featureRuntime.suite.dryRun;
         tags = scenario.getTagsEffective();
         reportDisabled = perfMode ? true : tags.valuesFor("report").isAnyOf("false");
@@ -281,13 +292,15 @@ public class ScenarioRuntime implements Runnable {
             return;
         }
         try {
-            Variable fun = engine.evalJs("(" + js + ")");
-            if (!fun.isJsFunction()) {
-                logger.warn("not a valid js function: {}", displayName);
-                return;
+            synchronized (JsValue.LOCK) {
+                Variable fun = engine.evalJs("(" + js + ")");
+                if (!fun.isJsFunction()) {
+                    logger.warn("not a valid js function: {}", displayName);
+                    return;
+                }
+                Map<String, Object> map = engine.getOrEvalAsMap(fun);
+                engine.setVariables(map);
             }
-            Map<String, Object> map = engine.getOrEvalAsMap(fun);
-            engine.setVariables(map);
         } catch (Exception e) {
             String message = ">> " + scenario.getDebugInfo() + "\n>> " + displayName + " failed\n>> " + e.getMessage();
             error = JsEngine.fromJsEvalException(js, e, message);
@@ -298,7 +311,6 @@ public class ScenarioRuntime implements Runnable {
 
     private static boolean isSelectedForExecution(FeatureRuntime fr, Scenario scenario, Tags tags) {
         org.slf4j.Logger logger = FeatureRuntime.logger;
-        Feature feature = scenario.getFeature();
         int callLine = fr.featureCall.callLine;
         if (callLine != -1) {
             int sectionLine = scenario.getSection().getLine();

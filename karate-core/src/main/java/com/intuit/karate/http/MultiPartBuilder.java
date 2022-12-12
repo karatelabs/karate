@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 Intuit Inc.
+ * Copyright 2022 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -98,6 +98,31 @@ public class MultiPartBuilder {
         }
     }
 
+    private void addFile(String name, File file, Map<String, Object> map) {
+        String filename = (String) map.get("filename");
+        if (filename == null) {
+            filename = file.getName();
+        }
+        String contentType = (String) map.get("contentType");
+        ResourceType resourceType;
+        if (contentType == null) {
+            resourceType = ResourceType.fromFileExtension(filename);
+        } else {
+            resourceType = ResourceType.fromContentType(contentType);
+        }
+        if (resourceType == null) {
+            resourceType = ResourceType.BINARY;
+        }
+        if (contentType == null) {
+            contentType = resourceType.contentType;
+        }
+        try {
+            encoder.addBodyFileUpload(name, filename, file, contentType, !resourceType.isBinary());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public MultiPartBuilder part(Map<String, Object> map) {
         String name = (String) map.get("name");
         Object value = map.get("value");
@@ -126,27 +151,14 @@ public class MultiPartBuilder {
         } else {
             if (value instanceof File) {
                 File file = (File) value;
-                String filename = (String) map.get("filename");
-                if (filename == null) {
-                    filename = file.getName();
-                }
-                String contentType = (String) map.get("contentType");
-                ResourceType resourceType;
-                if (contentType == null) {
-                    resourceType = ResourceType.fromFileExtension(filename);
-                } else {
-                    resourceType = ResourceType.fromContentType(contentType);
-                }
-                if (resourceType == null) {
-                    resourceType = ResourceType.BINARY;
-                }
-                if (contentType == null) {
-                    contentType = resourceType.contentType;
-                }
-                try {
-                    encoder.addBodyFileUpload(name, filename, file, contentType, !resourceType.isBinary());
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
+                addFile(name, file, map);
+            } else if (value instanceof List) { // recurse, hope that adding to array of fields is supported
+                List list = (List) value;
+                for (Object o : list) {
+                    Map<String, Object> temp = new HashMap();
+                    temp.put("name", name);
+                    temp.put("value", o);
+                    part(temp);
                 }
             } else {
                 String contentType = (String) map.get("contentType");
@@ -202,7 +214,7 @@ public class MultiPartBuilder {
         map.put("value", value);
         return part(map);
     }
-    
+
     public String toCurlCommand() {
         StringBuilder sb = new StringBuilder();
         Iterator<InterfaceHttpData> parts = encoder.getBodyListAttributes().iterator();
@@ -224,8 +236,8 @@ public class MultiPartBuilder {
                 if (parts.hasNext()) {
                     sb.append(" \\\n");
                 }
-            }            
-        }    
+            }
+        }
         return sb.toString();
     }
 
