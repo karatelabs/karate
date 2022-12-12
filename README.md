@@ -459,20 +459,6 @@ Assuming you use JUnit, there are some good reasons for the recommended (best pr
 
 For details on what actually goes into a script or `*.feature` file, refer to the [syntax guide](#syntax-guide).
 
-#### `file.encoding`
-In some cases, for large payloads and especially when the default system encoding is not `UTF-8` (Windows or non-US locales), you may run into issues where a `java.io.ByteArrayInputStream` is encountered instead of a string. Other errors could be a `java.net.URISyntaxException` and [`match`](#match) not working as expected because of special or foreign characters, e.g. German or `ISO-8859-15`. Typical symptoms are your tests working fine via the IDE but not when running via Maven or Gradle. The solution is to ensure that when Karate tests run, the JVM `file.encoding` is set to `UTF-8`. This can be done via the [`maven-surefire-plugin` configuration](http://maven.apache.org/surefire/maven-surefire-plugin/test-mojo.html#argLine). Add the plugin to the `<build>/<plugins>` section of your `pom.xml` if not already present: 
-
-```xml
-    <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.10</version>
-        <configuration>
-            <argLine>-Dfile.encoding=UTF-8</argLine>
-        </configuration>
-    </plugin>
-```
-
 ## JUnit 4
 > If you want to use JUnit 4, use the [`karate-junit4` Maven dependency](#maven) instead of `karate-junit5`.
 
