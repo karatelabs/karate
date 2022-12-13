@@ -70,6 +70,10 @@ public class Json {
             return new Json(JsonPath.parse(json));
         }
     }
+    
+    public static <T> T parse(String json) {
+        return Json.of(json).value();
+    }
 
     private Json(DocumentContext doc) {
         this.doc = doc;

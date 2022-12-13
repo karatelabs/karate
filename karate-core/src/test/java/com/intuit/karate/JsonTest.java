@@ -1,6 +1,8 @@
 package com.intuit.karate;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import static org.junit.jupiter.api.Assertions.*;
@@ -129,6 +131,14 @@ class JsonTest {
         assertFalse(child2.isArray());
         Map expected = Json.of("{ d: 1, e: 2 }").asMap();
         assertEquals(expected, child2.asMap());        
+    }
+    
+    @Test
+    void testGetAsJava() {
+        Map map = Json.parse("{ a: 1 }");
+        assertEquals(map, Collections.singletonMap("a", 1));
+        List list = Json.parse("[ 1, 2 ]");
+        assertEquals(list, Arrays.asList(1, 2));
     }
 
 }
