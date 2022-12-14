@@ -70,7 +70,8 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
     | <a href="#proxy-mode"><code>Proxy Mode</code></a>
     | <a href="#karateabort"><code>karate.abort()</code></a>
     | <a href="#karateproceed"><code>karate.proceed()</code></a>
-    | <a href="#consumer-provider-example"><code>Consumer Driven Contracts</code></a>       
+    | <a href="#consumer-provider-example"><code>Consumer Driven Contracts</code></a>
+    | <a href="#javascript-mocks">JavaScript Mocks</a>       
   </td>
 </tr>
 </table>
@@ -876,3 +877,6 @@ Want to try this out now ? It takes only [2 minutes](#quick-start).
 The [BenTen](https://github.com/intuit/benten) project is a great example of the usage of Karate test-doubles. This team was able to create a mock-service that simulates almost the entire life-cycle of an [Atlassian JIRA](https://www.atlassian.com/software/jira) ticket.
 
 Here is the source code: [`benten-mock.feature`](https://github.com/intuit/benten/blob/master/benten-mock/src/main/resources/benten-mock.feature). Note how complex JSON payloads have been separated out into [files](https://github.com/intuit/benten/blob/master/benten-mock/src/main/resources/transitions.json) and elegantly loaded using the [`read`](https://github.com/intuit/karate#reading-files) function. State management *just works* and has been implemented in a few lines of extremely readable code.
+
+# JavaScript Mocks
+Karate 1.3.0 onwards offers an option to write mocks in JavaScript which is suited for more complex server-side logic, validations or state-handling. Refer to the [wiki for more](https://github.com/karatelabs/karate/wiki/Karate-JavaScript-Mocks).
