@@ -609,7 +609,7 @@ public class ScenarioEngine {
                 PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, 0);
                 capturePerfEvent(pe); // failure flag and message should be set by logLastPerfEvent()
             }
-            throw new KarateException(message, e);
+            throw new KarateException(message + "\n" + e.getMessage(), e);
         }
         startTime = httpRequest.getStartTime(); // in case it was re-adjusted by http client
         final long endTime = httpRequest.getEndTime();
