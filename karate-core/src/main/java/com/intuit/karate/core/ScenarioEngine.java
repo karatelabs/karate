@@ -831,12 +831,12 @@ public class ScenarioEngine {
         if (redirectErrorStream != null) {
             command.setRedirectErrorStream(redirectErrorStream);
         }
-        Value funOut = (Value) options.get("listener");
-        if (funOut != null && funOut.canExecute()) {
+        Value funOut = Value.asValue(options.get("listener"));
+        if (funOut.canExecute()) {
             command.setListener(new JsLambda(funOut));
         }
-        Value funErr = (Value) options.get("errorListener");
-        if (funErr != null && funErr.canExecute()) {
+        Value funErr = Value.asValue(options.get("errorListener"));
+        if (funErr.canExecute()) {
             command.setErrorListener(new JsLambda(funErr));
         }
         Boolean start = (Boolean) options.get("start");
