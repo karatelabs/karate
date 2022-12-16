@@ -863,7 +863,9 @@ class ScenarioRuntimeTest {
                 "def list3 = ['c', 'b', 'a']",
                 "def res3 = karate.sort(list3)",
                 "match res3 == ['a', 'b', 'c']",
-                "match res3.reverse() == ['c', 'b', 'a']"
+                "match res3.reverse() == ['c', 'b', 'a']",
+                "def list4 = ['a', 'a a', 'a']",
+                "match karate.sort(list4) == ['a', 'a', 'a a']"
         );
     }
 

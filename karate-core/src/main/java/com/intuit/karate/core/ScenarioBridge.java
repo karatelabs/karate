@@ -780,7 +780,7 @@ public class ScenarioBridge implements PerfContext {
         Map<String, Object> result = setupInternal(getEngine(), name);
         return JsValue.fromJava(result);
     }
-    
+
     private static Map<String, Object> setupInternal(ScenarioEngine engine, String name) {
         Feature feature = engine.runtime.featureRuntime.featureCall.feature;
         Scenario scenario = feature.getSetup(name);
@@ -791,15 +791,15 @@ public class ScenarioBridge implements PerfContext {
             }
             engine.logger.error(message);
             throw new RuntimeException(message);
-        }        
+        }
         ScenarioRuntime sr = new ScenarioRuntime(engine.runtime.featureRuntime, scenario);
         sr.setSkipBackground(true);
         sr.run();
         ScenarioEngine.set(engine);
         engine.runtime.featureRuntime.setupResult = sr.result; // hack to embed setup into report
-        return sr.engine.getAllVariablesAsMap();        
-    }    
-    
+        return sr.engine.getAllVariablesAsMap();
+    }
+
     public Object setupOnce() {
         return setupOnce(null);
     }
@@ -812,7 +812,7 @@ public class ScenarioBridge implements PerfContext {
             return setupOnceResult(result);
         }
         long startTime = System.currentTimeMillis();
-        engine.logger.trace("setupOnce waiting for lock: {}", name);        
+        engine.logger.trace("setupOnce waiting for lock: {}", name);
         synchronized (CACHE) {
             result = CACHE.get(name); // retry
             if (result != null) {
@@ -824,16 +824,16 @@ public class ScenarioBridge implements PerfContext {
             CACHE.put(name, result);
             return setupOnceResult(result);
         }
-    }        
-    
+    }
+
     private static Object setupOnceResult(Map<String, Object> result) {
         Map<String, Object> clone = new HashMap(result.size());
         result.forEach((k, v) -> { // shallow clone
             Variable variable = new Variable(v);
             clone.put(k, variable.copy(false).getValue());
-        });    
+        });
         return JsValue.fromJava(clone);
-    }    
+    }
 
     public void setXml(String name, String xml) {
         getEngine().setVariable(name, XmlUtils.toXmlDoc(xml));
@@ -858,6 +858,46 @@ public class ScenarioBridge implements PerfContext {
         }
     }
 
+    static abstract class ValueIndex<T> implements Comparable<ValueIndex<T>> {
+
+        final T object;
+        final long index;
+
+        ValueIndex(T o, long index) {
+            this.object = o;
+            this.index = index;
+        }
+
+    }
+
+    static class StringValueIndex extends ValueIndex<String> {
+
+        public StringValueIndex(String o, long index) {
+            super(o, index);
+        }
+
+        @Override
+        public int compareTo(ValueIndex<String> other) {
+            int result = this.object.compareTo(other.object);
+            return result == 0 ? (int) (this.index - other.index) : result;
+        }
+
+    }
+
+    static class NumberValueIndex extends ValueIndex<Number> {
+
+        public NumberValueIndex(Number o, long index) {
+            super(o, index);
+        }
+
+        @Override
+        public int compareTo(ValueIndex<Number> other) {
+            double result = this.object.doubleValue() - other.object.doubleValue();
+            return result == 0 ? (int) (this.index - other.index) : (int) result;
+        }
+
+    }
+
     public Object sort(Value o) {
         return sort(o, getEngine().JS.evalForValue("x => x"));
     }
@@ -868,21 +908,22 @@ public class ScenarioBridge implements PerfContext {
         }
         assertIfJsFunction(f);
         long count = o.getArraySize();
-        Map<Object, Object> map = new TreeMap();
+        List<ValueIndex> pointers = new ArrayList((int) count);
+        List<Object> items = new ArrayList(pointers.size());
         for (int i = 0; i < count; i++) {
             Object item = JsValue.toJava(o.getArrayElement(i));
+            items.add(item);
             Value key = JsEngine.execute(f, item, i);
             if (key.isNumber()) {
-                map.put(key.as(Number.class), item);
+                pointers.add(new NumberValueIndex(key.as(Number.class), i));
             } else {
-                if (map.containsKey(key.asString())) { // duplicates handled only for string values
-                    map.put(key.asString() + i, item);
-                } else {
-                    map.put(key.asString(), item);
-                }
+                pointers.add(new StringValueIndex(key.asString(), i));
             }
         }
-        return JsValue.fromJava(new ArrayList(map.values()));
+        Collections.sort(pointers);
+        List<Object> result = new ArrayList(pointers.size());
+        pointers.forEach(item -> result.add(items.get((int) item.index)));
+        return JsValue.fromJava(result);
     }
 
     public MockServer start(Value value) {
