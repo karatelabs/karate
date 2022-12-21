@@ -141,6 +141,22 @@ class KarateMockHandlerTest {
         );
         matchVar("response", "{ foo: ['bar', 'baz'] }");
     }
+    
+    @Test
+    void testParamMultiValueVariables() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestParams");
+        run(
+                URL_STEP,
+                "def first = 'bar'",
+                "def second = 'baz'",
+                "param foo = ['#(first)', '#(second)']",
+                "path 'hello'",
+                "method get"
+        );
+        matchVar("response", "{ foo: ['bar', 'baz'] }");
+    }    
 
     @Test
     void testRequestBodyAsInteger() {

@@ -392,7 +392,7 @@ public class ScenarioEngine {
     }
 
     public void param(String name, String exp) {
-        Variable var = evalJs(exp);
+        Variable var = evalKarateExpression(exp);
         if (var.isList()) {
             requestBuilder.param(name, var.<List>getValue());
         } else {
