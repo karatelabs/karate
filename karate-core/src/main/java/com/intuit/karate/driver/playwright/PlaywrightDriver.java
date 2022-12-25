@@ -709,7 +709,7 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public List<Map> getCookies() {
-        return method("cookies", browserContextGuid).param("urls", Collections.EMPTY_LIST).send().getResult("cookies", List.class);
+        return method("cookies", browserContextGuid).param("urls", Collections.EMPTY_LIST).send().getResult("cookies");
     }
 
     @Override

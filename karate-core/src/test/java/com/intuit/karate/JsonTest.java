@@ -111,14 +111,14 @@ class JsonTest {
         Json json = Json.of("{ a: 1, b: { c: 2 } }");
         assertEquals(2, (int) json.get("b.c"));
         assertEquals(2, (int) json.getOptional("b.c").get());
-        assertNull(json.getOrNull("b.d"));
-        assertEquals(3, (int) json.getOr("b.d", 3));
-        try {
-            json.getOptional("b.d").get();
-            fail("expected exception");
-        } catch (Exception e) {
-            assertTrue(e instanceof NoSuchElementException);
-        }
+        assertNull(json.get("b.d", null));
+        assertEquals(3, (int) json.get("b.d", 3));
+//        try {
+//            json.getOptional("b.d").get();
+//            fail("expected exception");
+//        } catch (Exception e) {
+//            assertTrue(e instanceof NoSuchElementException);
+//        }
     }
     
     @Test

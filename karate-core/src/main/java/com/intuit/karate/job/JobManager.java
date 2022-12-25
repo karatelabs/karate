@@ -168,9 +168,9 @@ public class JobManager<T> implements ServerHandler {
         Json json = Json.of(value);
         String method = json.get("method");
         JobMessage jm = new JobMessage(method);
-        jm.setJobId(json.getOrNull("jobId"));
-        jm.setExecutorId(json.getOrNull("executorId"));
-        jm.setChunkId(json.getOrNull("chunkId"));
+        jm.setJobId(json.get("jobId", null));
+        jm.setExecutorId(json.get("executorId", null));
+        jm.setChunkId(json.get("chunkId", null));
         return jm;
     }
 

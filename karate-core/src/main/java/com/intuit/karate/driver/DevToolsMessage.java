@@ -94,12 +94,12 @@ public class DevToolsMessage {
         return result;
     }
 
-    public <T> T getResult(String path, Class<T> clazz) {
+    public <T> T getResult(String path) {
         if (result == null || result.isNull()) {
             return null;
         }
         Json json = Json.of(result.getValue());
-        return json.get(path, clazz);
+        return json.get(path);
     }
 
     public void setResult(Variable result) {
@@ -127,7 +127,7 @@ public class DevToolsMessage {
         return "error".equals(resultError);
     }
 
-    public Variable getResult(String key) {
+    public Variable getResultVariable(String key) {
         if (result == null || !result.isMap()) {
             return null;
         }

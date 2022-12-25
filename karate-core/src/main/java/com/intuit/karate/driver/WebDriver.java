@@ -217,7 +217,7 @@ public abstract class WebDriver implements Driver {
                 throw new RuntimeException(message);
             }
         }
-        List<String> resultElements = res.json().<List<String>>get("$..", getElementKeys()).stream()
+        List<String> resultElements = res.json().<List<String>>getAll("$..", getElementKeys()).stream()
                 .flatMap(List::stream)
                 .collect(Collectors.toList());
         String resultElement = resultElements != null && !resultElements.isEmpty() ? resultElements.get(0) : null;
@@ -233,7 +233,7 @@ public abstract class WebDriver implements Driver {
     public List<String> elementIds(String locator) {
         return http.path("elements")
                 .postJson(selectorPayload(locator)).json()
-                .<List<String>>get("$..", getElementKeys()).stream()
+                .<List<String>>getAll("$..", getElementKeys()).stream()
                 .flatMap(List::stream)
                 .collect(Collectors.toList());
     }
@@ -312,7 +312,7 @@ public abstract class WebDriver implements Driver {
             if (locator.startsWith("(")) {
                 evalFocus(locator);
                 List<String> elements = http.path("element", "active").get()
-                        .json().<List<String>>get("$..", getElementKeys()).stream()
+                        .json().<List<String>>getAll("$..", getElementKeys()).stream()
                         .flatMap(List::stream)
                         .collect(Collectors.toList());;
                 elementId = elements != null && !elements.isEmpty() ? elements.get(0) : null;

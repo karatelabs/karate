@@ -85,7 +85,7 @@ public class Json {
         return Json.of(get(path, Object.class));
     }
 
-    public <T> List<T> get(String prefix, List<String> paths) {
+    public <T> List<T> getAll(String prefix, List<String> paths) {
         List<T> res = new ArrayList();
         for(String path : paths) {
             res.add((T) doc.read(prefix(prefix + path)));
@@ -93,19 +93,15 @@ public class Json {
         return res;
     }
 
-    public <T> List<T> get(List<String> paths) {
-        return get("", paths);
+    public <T> List<T> getAll(List<String> paths) {
+        return Json.this.getAll("", paths);
     }
 
     public <T> T get(String path) {
         return (T) doc.read(prefix(path));
     }
 
-    public <T> T getOrNull(String path) {
-        return (T) getOptional(path).orElse(null);
-    }
-
-    public <T> T getOr(String path, T defaultValue) {
+    public <T> T get(String path, T defaultValue) {
         return (T) getOptional(path).orElse(defaultValue);
     }
 
@@ -125,7 +121,7 @@ public class Json {
         return list.get(0);
     }
 
-    public <T> T get(String path, Class<T> clazz) {
+    public <T> T getAs(String path, Class<T> clazz) {
         return doc.read(prefix(path), clazz);
     }
 
