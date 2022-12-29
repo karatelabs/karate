@@ -281,13 +281,13 @@ public class JsonUtils {
         if (o == null) {
             sb.append("null");
         } else if (o instanceof List) {
-            List list = (List) o;
-            Iterator iterator = list.iterator();
-            if (seen.add(o)) {
+            List list = (List) o;            
+            if (list.isEmpty() || seen.add(o)) {                
                 sb.append('[');
                 if (pretty) {
                     sb.append('\n');
                 }
+                Iterator iterator = list.iterator();
                 while (iterator.hasNext()) {
                     Object child = iterator.next();
                     if (pretty) {
@@ -309,12 +309,12 @@ public class JsonUtils {
                 ref(sb, o);
             }
         } else if (o instanceof Map) {
-            if (seen.add(o)) {
+            Map<String, Object> map = (Map<String, Object>) o;
+            if (map.isEmpty() || seen.add(o)) {
                 sb.append('{');
                 if (pretty) {
                     sb.append('\n');
-                }
-                Map<String, Object> map = (Map<String, Object>) o;
+                }                
                 Iterator<Map.Entry<String, Object>> iterator = map.entrySet().iterator();
                 while (iterator.hasNext()) {
                     Map.Entry<String, Object> entry = iterator.next();
