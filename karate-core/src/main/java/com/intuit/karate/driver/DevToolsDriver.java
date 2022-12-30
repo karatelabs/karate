@@ -329,7 +329,7 @@ public abstract class DevToolsDriver implements Driver {
     protected String evalForObjectId(String expression) {
         return options.retry(() -> {
             DevToolsMessage dtm = evalInternal(expression, true, false);
-            return dtm.getResult("objectId", String.class);
+            return dtm.getResult("objectId");
         }, returned -> returned != null, "eval for object id: " + expression, true);
     }
 
@@ -363,7 +363,7 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     protected int getRootNodeId() {
-        return method("DOM.getDocument").param("depth", 0).send().getResult("root.nodeId", Integer.class);
+        return method("DOM.getDocument").param("depth", 0).send().getResult("root.nodeId");
     }
 
     @Override
@@ -389,7 +389,7 @@ public abstract class DevToolsDriver implements Driver {
 
     private void attachAndActivate(String targetId, boolean isFrame) {
         DevToolsMessage dtm = method("Target.attachToTarget").param("targetId", targetId).param("flatten", true).send();
-        sessionId = dtm.getResult("sessionId", String.class);
+        sessionId = dtm.getResult("sessionId");
         frameSessions.put(targetId, sessionId);
         if (!isFrame) {
             mainFrameId = targetId;
@@ -406,15 +406,15 @@ public abstract class DevToolsDriver implements Driver {
     protected void initWindowIdAndState() {
         DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", rootFrameId).send();
         if (!dtm.isResultError()) {
-            windowId = dtm.getResult("windowId").getValue();
-            windowState = (String) dtm.getResult("bounds").<Map>getValue().get("windowState");
+            windowId = dtm.getResultVariable("windowId").getValue();
+            windowState = (String) dtm.getResultVariable("bounds").<Map>getValue().get("windowState");
         }
     }
 
     @Override
     public Map<String, Object> getDimensions() {
         DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", rootFrameId).send();
-        Map<String, Object> map = dtm.getResult("bounds").getValue();
+        Map<String, Object> map = dtm.getResultVariable("bounds").getValue();
         Integer x = (Integer) map.remove("left");
         Integer y = (Integer) map.remove("top");
         map.put("x", x);
@@ -491,8 +491,8 @@ public abstract class DevToolsDriver implements Driver {
 
     private void history(int delta) {
         DevToolsMessage dtm = method("Page.getNavigationHistory").send();
-        int currentIndex = dtm.getResult("currentIndex").getValue();
-        List<Map> list = dtm.getResult("entries").getValue();
+        int currentIndex = dtm.getResultVariable("currentIndex").getValue();
+        List<Map> list = dtm.getResultVariable("entries").getValue();
         int targetIndex = currentIndex + delta;
         if (targetIndex < 0 || targetIndex == list.size()) {
             return;
@@ -792,7 +792,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public List<Map> getCookies() {
         DevToolsMessage dtm = method("Network.getAllCookies").send();
-        return dtm.getResult("cookies").getValue();
+        return dtm.getResultVariable("cookies").getValue();
     }
 
     @Override
@@ -851,7 +851,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public byte[] pdf(Map<String, Object> options) {
         DevToolsMessage dtm = method("Page.printToPDF").params(options).send();
-        String temp = dtm.getResult("data").getAsString();
+        String temp = dtm.getResultVariable("data").getAsString();
         return Base64.getDecoder().decode(temp);
     }
 
@@ -890,7 +890,7 @@ public abstract class DevToolsDriver implements Driver {
                 logger.error("unable to capture screenshot - no data returned");
                 return Constants.ZERO_BYTES;
             }            
-            String temp = dtm.getResult("data").getAsString();
+            String temp = dtm.getResultVariable("data").getAsString();
             byte[] bytes = Base64.getDecoder().decode(temp);
             if (embed) {
                 getRuntime().embed(bytes, ResourceType.PNG);
@@ -905,7 +905,7 @@ public abstract class DevToolsDriver implements Driver {
     // chrome only
     public byte[] screenshotFull() {
         DevToolsMessage layout = method("Page.getLayoutMetrics").send();
-        Map<String, Object> size = layout.getResult("contentSize").getValue();
+        Map<String, Object> size = layout.getResultVariable("contentSize").getValue();
         Map<String, Object> map = options.newMapWithSelectedKeys(size, "height", "width");
         map.put("x", 0);
         map.put("y", 0);
@@ -915,14 +915,14 @@ public abstract class DevToolsDriver implements Driver {
             logger.error("unable to capture screenshot: {}", dtm);
             return new byte[0];
         }
-        String temp = dtm.getResult("data").getAsString();
+        String temp = dtm.getResultVariable("data").getAsString();
         return Base64.getDecoder().decode(temp);
     }
 
     @Override
     public List<String> getPages() {
         DevToolsMessage dtm = method("Target.getTargets").send();
-        return dtm.getResult("targetInfos.targetId").getValue();
+        return dtm.getResultVariable("targetInfos.targetId").getValue();
     }
 
     @Override
@@ -932,7 +932,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         String targetId = options.retry(() -> {
             DevToolsMessage dtm = method("Target.getTargets").send();
-            List<Map> targets = dtm.getResult("targetInfos").getValue();
+            List<Map> targets = dtm.getResultVariable("targetInfos").getValue();
             for (Map map : targets) {
                 String title = (String) map.get("title");
                 String url = (String) map.get("url");
@@ -952,7 +952,7 @@ public abstract class DevToolsDriver implements Driver {
             return;
         }
         DevToolsMessage dtm = method("Target.getTargets").send();
-        List<Map> targets = dtm.getResult("targetInfos").getValue();
+        List<Map> targets = dtm.getResultVariable("targetInfos").getValue();
         if (index < targets.size()) {
             Map target = targets.get(index);
             String targetId = (String) target.get("targetId");
@@ -1008,14 +1008,14 @@ public abstract class DevToolsDriver implements Driver {
                 .param("objectId", objectId)
                 .param("depth", 0)
                 .send();
-        String frameId = dtm.getResult("node.frameId", String.class);
+        String frameId = dtm.getResult("node.frameId");
         if (frameId == null) {
             return false;
         }
         dtm = method("Page.getFrameTree").send();
         frame = null;
         try {
-            List<Map> childFrames = dtm.getResult("frameTree.childFrames[*]", List.class);
+            List<Map> childFrames = dtm.getResult("frameTree.childFrames[*]");
             List<Map> flattenFrameTree = getFrameTree(childFrames);
             for (Map<String, Object> frameMap : flattenFrameTree) {
                 String frameMapTemp = (String) frameMap.get("id");
@@ -1039,7 +1039,7 @@ public abstract class DevToolsDriver implements Driver {
                 attachAndActivate(frameId, true);
             }
 
-            List<Map<String, Object>> targetInfos = dtm.getResult("targetInfos", List.class);
+            List<Map<String, Object>> targetInfos = dtm.getResult("targetInfos");
             for (Map<String, Object> targetInfo : targetInfos) {
                 String temp = (String) targetInfo.get("targetId");
                 String tempType = (String) targetInfo.get("type");
@@ -1074,7 +1074,7 @@ public abstract class DevToolsDriver implements Driver {
             return true;
         }
         dtm = method("Page.createIsolatedWorld").param("frameId", frameId).send();
-        contextId = dtm.getResult("executionContextId", Integer.class);
+        contextId = dtm.getResult("executionContextId");
         frameContexts.put(frameId, contextId);
         return true;
     }

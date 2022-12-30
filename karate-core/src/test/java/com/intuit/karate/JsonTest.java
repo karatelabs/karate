@@ -1,6 +1,8 @@
 package com.intuit.karate;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import static org.junit.jupiter.api.Assertions.*;
@@ -109,14 +111,14 @@ class JsonTest {
         Json json = Json.of("{ a: 1, b: { c: 2 } }");
         assertEquals(2, (int) json.get("b.c"));
         assertEquals(2, (int) json.getOptional("b.c").get());
-        assertNull(json.getOrNull("b.d"));
-        assertEquals(3, (int) json.getOr("b.d", 3));
-        try {
-            json.getOptional("b.d").get();
-            fail("expected exception");
-        } catch (Exception e) {
-            assertTrue(e instanceof NoSuchElementException);
-        }
+        assertNull(json.get("b.d", null));
+        assertEquals(3, (int) json.get("b.d", 3));
+//        try {
+//            json.getOptional("b.d").get();
+//            fail("expected exception");
+//        } catch (Exception e) {
+//            assertTrue(e instanceof NoSuchElementException);
+//        }
     }
     
     @Test
@@ -129,6 +131,14 @@ class JsonTest {
         assertFalse(child2.isArray());
         Map expected = Json.of("{ d: 1, e: 2 }").asMap();
         assertEquals(expected, child2.asMap());        
+    }
+    
+    @Test
+    void testGetAsJava() {
+        Map map = Json.parse("{ a: 1 }");
+        assertEquals(map, Collections.singletonMap("a", 1));
+        List list = Json.parse("[ 1, 2 ]");
+        assertEquals(list, Arrays.asList(1, 2));
     }
 
 }

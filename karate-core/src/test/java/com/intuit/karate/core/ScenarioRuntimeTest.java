@@ -349,6 +349,22 @@ class ScenarioRuntimeTest {
         matchVar("fooVals", "[1, 2, 3]");
     }
 
+//    @Test
+//    void testCollectionsInFunctions() {
+//        run(
+//                "def foo = { a: 1, b: 2, c: 3 }",
+//                "def fun1 = function(arg){ return karate.sizeOf(arg) }",
+//                "def fooSize = fun1(foo)",
+//                "def fun2 = function(arg){ return karate.keysOf(arg) }",
+//                "def fooKeys = fun2(foo)",
+//                "def fun3 = function(arg){ return karate.valuesOf(arg) }",
+//                "def fooVals = fun3(foo)"                
+//        );
+//        assertEquals(get("fooSize"), 3);
+//        matchVar("fooKeys", "['a', 'b', 'c']");
+//        matchVar("fooVals", "[1, 2, 3]");
+//    }    
+
     @Test
     void testMatch() {
         run(
@@ -863,7 +879,9 @@ class ScenarioRuntimeTest {
                 "def list3 = ['c', 'b', 'a']",
                 "def res3 = karate.sort(list3)",
                 "match res3 == ['a', 'b', 'c']",
-                "match res3.reverse() == ['c', 'b', 'a']"
+                "match res3.reverse() == ['c', 'b', 'a']",
+                "def list4 = ['a', 'a a', 'a']",
+                "match karate.sort(list4) == ['a', 'a', 'a a']"
         );
     }
 

@@ -281,13 +281,13 @@ public class JsonUtils {
         if (o == null) {
             sb.append("null");
         } else if (o instanceof List) {
-            List list = (List) o;
-            Iterator iterator = list.iterator();
-            if (seen.add(o)) {
+            List list = (List) o;            
+            if (list.isEmpty() || seen.add(o)) {                
                 sb.append('[');
                 if (pretty) {
                     sb.append('\n');
                 }
+                Iterator iterator = list.iterator();
                 while (iterator.hasNext()) {
                     Object child = iterator.next();
                     if (pretty) {
@@ -309,12 +309,12 @@ public class JsonUtils {
                 ref(sb, o);
             }
         } else if (o instanceof Map) {
-            if (seen.add(o)) {
+            Map<String, Object> map = (Map<String, Object>) o;
+            if (map.isEmpty() || seen.add(o)) {
                 sb.append('{');
                 if (pretty) {
                     sb.append('\n');
-                }
-                Map<String, Object> map = (Map<String, Object>) o;
+                }                
                 Iterator<Map.Entry<String, Object>> iterator = map.entrySet().iterator();
                 while (iterator.hasNext()) {
                     Map.Entry<String, Object> entry = iterator.next();
@@ -379,20 +379,10 @@ public class JsonUtils {
     public static List toList(Map map) {
         List list = new ArrayList(map.size());
         map.forEach((k, v) -> {
-            if (v instanceof List) {
-                List vals = (List) v;
-                for (Object vv : vals) {
-                    Map entry = new HashMap(2);
-                    entry.put(KEY, k);
-                    entry.put(VALUE, vv);
-                    list.add(entry);
-                }
-            } else {
-                Map entry = new HashMap(2);
-                entry.put(KEY, k);
-                entry.put(VALUE, v);
-                list.add(entry);
-            }
+            Map entry = new HashMap(2);
+            entry.put(KEY, k);
+            entry.put(VALUE, v);
+            list.add(entry);
         });
         return list;
     }

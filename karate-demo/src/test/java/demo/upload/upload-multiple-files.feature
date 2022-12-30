@@ -35,6 +35,8 @@ Scenario: upload multiple files
     And match header Content-Disposition contains 'upload-name2.pdf'
     And match header Content-Type == 'application/pdf'
 
+# flaky in ci
+@ignore
 Scenario: upload array of files (field name is the same)
     # just use the same name, and behind the scenes an array of multi-parts will be sent in the request body    
     * def first = { name: 'myFiles', read: 'test.pdf', filename: 'upload-name1.pdf', contentType: 'application/pdf' }

@@ -28,6 +28,7 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.graal.Methods;
 import com.linecorp.armeria.common.RequestContext;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
@@ -73,8 +74,6 @@ public class Request implements ProxyObject {
     private static final String PARAM = "param";
     private static final String PARAM_INT = "paramInt";
     private static final String PARAM_BOOL = "paramBool";
-    private static final String PARAM_OR = "paramOr";
-    private static final String PARAM_OR_NULL = "paramOrNull";
     private static final String PARAMS = "params";
     private static final String HEADER = "header";
     private static final String HEADERS = "headers";
@@ -106,7 +105,7 @@ public class Request implements ProxyObject {
     private static final String END_TIME = "endTime";
 
     private static final String[] KEYS = new String[]{
-        PATH, METHOD, PARAM, PARAM_INT, PARAM_BOOL, PARAM_OR, PARAM_OR_NULL, PARAMS,
+        PATH, METHOD, PARAM, PARAM_INT, PARAM_BOOL, PARAMS,
         HEADER, HEADERS, HEADER_VALUES, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, PATH_MATCHES, PATH_PATTERN,
         BODY, BODY_STRING, BODY_BYTES, MULTI_PART, MULTI_PARTS, JSON,
         GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL, PATH_RAW, START_TIME, END_TIME
@@ -194,14 +193,22 @@ public class Request implements ProxyObject {
         return values.get(0);
     }
 
-    public Object getParamOr(String name, Object value) {
+    public Object getParam(String name, Object value) {
         String temp = getParam(name);
         return StringUtils.isBlank(temp) ? value : temp;
     }
-
-    public Object getParamOrNull(String name) {
-        return getParamOr(name, null);
-    }
+    
+    private final Methods.FunVar PARAM_FUNCTION = args -> {    
+        if (args.length == 0 || args[0] == null) {
+            return null;
+        }
+        String name = args[0].toString();
+        if (args.length > 1) {
+            return getParam(name, args[1]);
+        } else {
+            return getParam(name);
+        }
+    };
 
     public List<String> getParamValues(String name) {
         if (params == null) {
@@ -533,15 +540,11 @@ public class Request implements ProxyObject {
             case BODY_BYTES:
                 return body;
             case PARAM:
-                return (Function<String, String>) this::getParam;
+                return PARAM_FUNCTION;
             case PARAM_INT:
                 return (Function<String, Integer>) this::getParamInt;
             case PARAM_BOOL:
                 return (Function<String, Boolean>) this::getParamBool;
-            case PARAM_OR:
-                return (BiFunction<String, Object, Object>) this::getParamOr;
-            case PARAM_OR_NULL:
-                return (Function<String, Object>) this::getParamOrNull;
             case JSON:
                 return (Function<String, Object>) this::getParamAsJsValue;
             case PATH:

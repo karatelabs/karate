@@ -392,7 +392,7 @@ public class ScenarioEngine {
     }
 
     public void param(String name, String exp) {
-        Variable var = evalJs(exp);
+        Variable var = evalKarateExpression(exp);
         if (var.isList()) {
             requestBuilder.param(name, var.<List>getValue());
         } else {
@@ -609,7 +609,7 @@ public class ScenarioEngine {
                 PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, 0);
                 capturePerfEvent(pe); // failure flag and message should be set by logLastPerfEvent()
             }
-            throw new KarateException(message, e);
+            throw new KarateException(message + "\n" + e.getMessage(), e);
         }
         startTime = httpRequest.getStartTime(); // in case it was re-adjusted by http client
         final long endTime = httpRequest.getEndTime();
@@ -831,12 +831,12 @@ public class ScenarioEngine {
         if (redirectErrorStream != null) {
             command.setRedirectErrorStream(redirectErrorStream);
         }
-        Value funOut = (Value) options.get("listener");
-        if (funOut != null && funOut.canExecute()) {
+        Value funOut = Value.asValue(options.get("listener"));
+        if (funOut.canExecute()) {
             command.setListener(new JsLambda(funOut));
         }
-        Value funErr = (Value) options.get("errorListener");
-        if (funErr != null && funErr.canExecute()) {
+        Value funErr = Value.asValue(options.get("errorListener"));
+        if (funErr.canExecute()) {
             command.setErrorListener(new JsLambda(funErr));
         }
         Boolean start = (Boolean) options.get("start");

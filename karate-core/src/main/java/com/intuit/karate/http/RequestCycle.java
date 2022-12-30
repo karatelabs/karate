@@ -29,6 +29,7 @@ import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.template.KarateTemplateEngine;
 import java.io.InputStream;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -161,7 +162,9 @@ public class RequestCycle {
     }
 
     public void setSwitchParams(Map<String, Object> switchParams) {
-        this.switchParams = switchParams;
+        // clone to allow context.switch('pagename', request.params);
+        // else the htmlResponse() routine will clear "self"
+        this.switchParams = new HashMap(switchParams);
     }
 
     protected Response handle() {

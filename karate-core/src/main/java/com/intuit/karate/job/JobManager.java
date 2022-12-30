@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 Intuit Inc.
+ * Copyright 2022 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -168,9 +168,9 @@ public class JobManager<T> implements ServerHandler {
         Json json = Json.of(value);
         String method = json.get("method");
         JobMessage jm = new JobMessage(method);
-        jm.setJobId(json.getOrNull("jobId"));
-        jm.setExecutorId(json.getOrNull("executorId"));
-        jm.setChunkId(json.getOrNull("chunkId"));
+        jm.setJobId(json.get("jobId", null));
+        jm.setExecutorId(json.get("executorId", null));
+        jm.setChunkId(json.get("chunkId", null));
         return jm;
     }
 
