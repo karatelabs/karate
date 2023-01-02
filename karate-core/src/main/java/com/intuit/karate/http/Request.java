@@ -74,6 +74,7 @@ public class Request implements ProxyObject {
     private static final String PARAM = "param";
     private static final String PARAM_INT = "paramInt";
     private static final String PARAM_BOOL = "paramBool";
+    private static final String PARAM_JSON = "paramJson";
     private static final String PARAMS = "params";
     private static final String HEADER = "header";
     private static final String HEADERS = "headers";
@@ -88,7 +89,6 @@ public class Request implements ProxyObject {
     private static final String BODY_BYTES = "bodyBytes";
     private static final String MULTI_PART = "multiPart";
     private static final String MULTI_PARTS = "multiParts";
-    private static final String JSON = "json";
     private static final String GET = "get";
     private static final String POST = "post";
     private static final String PUT = "put";
@@ -105,9 +105,9 @@ public class Request implements ProxyObject {
     private static final String END_TIME = "endTime";
 
     private static final String[] KEYS = new String[]{
-        PATH, METHOD, PARAM, PARAM_INT, PARAM_BOOL, PARAMS,
+        PATH, METHOD, PARAM, PARAM_INT, PARAM_BOOL, PARAM_JSON, PARAMS,
         HEADER, HEADERS, HEADER_VALUES, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, PATH_MATCHES, PATH_PATTERN,
-        BODY, BODY_STRING, BODY_BYTES, MULTI_PART, MULTI_PARTS, JSON,
+        BODY, BODY_STRING, BODY_BYTES, MULTI_PART, MULTI_PARTS,
         GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL, PATH_RAW, START_TIME, END_TIME
     };
     private static final Set<String> KEY_SET = new HashSet<>(Arrays.asList(KEYS));
@@ -545,7 +545,7 @@ public class Request implements ProxyObject {
                 return (Function<String, Integer>) this::getParamInt;
             case PARAM_BOOL:
                 return (Function<String, Boolean>) this::getParamBool;
-            case JSON:
+            case PARAM_JSON:
                 return (Function<String, Object>) this::getParamAsJsValue;
             case PATH:
                 return path;
