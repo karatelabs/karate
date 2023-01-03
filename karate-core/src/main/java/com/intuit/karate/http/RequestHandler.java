@@ -131,8 +131,12 @@ public class RequestHandler implements ServerHandler {
     }
 
     private boolean isExpired(Session session) {
+        int configExpirySeconds = config.getSessionExpirySeconds();
+        if (configExpirySeconds == -1) {
+            return false;
+        }
         long now = Instant.now().getEpochSecond();
-        long expires = session.getUpdated() + config.getSessionExpirySeconds();
+        long expires = session.getUpdated() + configExpirySeconds;
         if (now > expires) {
             return true;
         }
