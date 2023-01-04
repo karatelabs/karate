@@ -36,7 +36,8 @@ Note that this is *not* the best example of a skeleton Java / Maven project, as 
 [`main.feature`](src/test/java/mock/async/main.feature) | You can take [Java interop](https://github.com/intuit/karate#calling-java) and [Karate test-doubles (mocks)](https://github.com/intuit/karate/tree/master/karate-netty) to extremes. This particular test is described [here](https://twitter.com/KarateDSL/status/1417023536082812935).
 
 ## Configuration and Best Practices
-Some common patterns are called out and explained below.
+
+
 | File | Demonstrates |
 | ---- | ------------ |
 [`karate-config.js`](src/test/java/karate-config.js) | Shows how the `demoBaseUrl` property is injected into all the test scripts [on startup](https://github.com/intuit/karate#configuration). Notice how JavaScript allows you to perform simple conditional logic and string manipulation, while still being a 'devops-friendly' plain-text file. It is good practice to set the `connectTimeout` and `readTimeout` so that your tests 'fail fast' if servers don't respond. For advanced users - you can even run a 'global' init routine using [`karate.callSingle()`](https://github.com/intuit/karate#the-karate-object).
