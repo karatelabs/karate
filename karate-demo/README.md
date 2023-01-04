@@ -6,8 +6,8 @@ Note that this is *not* the best example of a skeleton Java / Maven project, as 
 * the [examples/jobserver](../examples/jobserver) project
 * the [examples/consumer-driven-contracts](../examples/consumer-driven-contracts) project (multi Maven-module project)
 
-| Example | Demonstrates
-----------| --------
+| Example | Demonstrates |
+| ------- | ------------ |
 [`greeting.feature`](src/test/java/demo/greeting/greeting.feature) | Simple GET requests and multiple scenarios in a test.
 [`headers.feature`](src/test/java/demo/headers/headers.feature)  | Multiple examples of [header management](https://github.com/intuit/karate#configure-headers) including dynamic setting of headers for each request using a JS file ([`classpath:headers.js`](src/test/java/headers.js)). Also demonstrates handling of cookies, and path / query parameters. There are also examples of how to set up a [re-usable `*.feature file`](src/test/java/demo/headers/call-updates-config.feature) for per-request secure / auth headers after a sign-in. [OAuth 2](src/test/java/demo/oauth/oauth2.feature), [OAuth 1](src/test/java/demo/oauth/oauth1.feature) and [JWT](src/test/java/demo/jwt/jwt.feature) samples are also available.
 [`sign-in.feature`](src/test/java/demo/signin/sign-in.feature) | HTML form POST example. Typically you use the response to get an authentication token that can be used to [build headers](https://github.com/intuit/karate#http-basic-authentication-example) for subsequent requests. This example also demonstrates getting past an end-point protected against [CSRF](https://docs.spring.io/spring-security/site/docs/current/reference/html/csrf.html).
@@ -37,8 +37,8 @@ Note that this is *not* the best example of a skeleton Java / Maven project, as 
 
 ## Configuration and Best Practices
 Some common patterns are called out and explained below.
-File | Demonstrates
----- | ------------
+| File | Demonstrates |
+| ---- | ------------ |
 [`karate-config.js`](src/test/java/karate-config.js) | Shows how the `demoBaseUrl` property is injected into all the test scripts [on startup](https://github.com/intuit/karate#configuration). Notice how JavaScript allows you to perform simple conditional logic and string manipulation, while still being a 'devops-friendly' plain-text file. It is good practice to set the `connectTimeout` and `readTimeout` so that your tests 'fail fast' if servers don't respond. For advanced users - you can even run a 'global' init routine using [`karate.callSingle()`](https://github.com/intuit/karate#the-karate-object).
 [`TestBase.java`](src/test/java/demo/TestBase.java) | This is specific to Spring Boot, but this code takes care of starting the embedded app-server and dynamically chooses a free port. The chosen port value is passed to the above config routine via a Java `System.setProperty()` call.
 [`DemoTestParallel.java`](src/test/java/demo/DemoTestParallel.java) | Karate has a utility to [run tests in parallel](https://github.com/intuit/karate#parallel-execution) and this does not depend on JUnit, TestNG or even Maven. A Cucumber JSON report file would be generated for each feature executed. You can easily configure your CI with the location of these files so that you get proper test-reports after a build. This is **the** recommended way of running Karate as part of an automated build or CI pipeline. Here, the (optional) third-party [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) library is being used (see details below).
