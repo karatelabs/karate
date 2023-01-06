@@ -75,6 +75,7 @@ public class Request implements ProxyObject {
     private static final String PARAM_INT = "paramInt";
     private static final String PARAM_BOOL = "paramBool";
     private static final String PARAM_JSON = "paramJson";
+    private static final String PARAM_EXISTS = "paramExists";
     private static final String PARAMS = "params";
     private static final String HEADER = "header";
     private static final String HEADERS = "headers";
@@ -105,7 +106,7 @@ public class Request implements ProxyObject {
     private static final String END_TIME = "endTime";
 
     private static final String[] KEYS = new String[]{
-        PATH, METHOD, PARAM, PARAM_INT, PARAM_BOOL, PARAM_JSON, PARAMS,
+        PATH, METHOD, PARAM, PARAM_INT, PARAM_BOOL, PARAM_JSON, PARAM_EXISTS, PARAMS,
         HEADER, HEADERS, HEADER_VALUES, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, PATH_MATCHES, PATH_PATTERN,
         BODY, BODY_STRING, BODY_BYTES, MULTI_PART, MULTI_PARTS,
         GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL, PATH_RAW, START_TIME, END_TIME
@@ -216,6 +217,13 @@ public class Request implements ProxyObject {
         }
         return params.get(name);
     }
+    
+    public boolean getParamExists(String name) {
+        if (params == null) {
+            return false;
+        }
+        return params.containsKey(name);
+    }    
 
     public String getPath() {
         return path;
@@ -547,6 +555,8 @@ public class Request implements ProxyObject {
                 return (Function<String, Boolean>) this::getParamBool;
             case PARAM_JSON:
                 return (Function<String, Object>) this::getParamAsJsValue;
+            case PARAM_EXISTS:
+                return (Function<String, Boolean>) this::getParamExists;    
             case PATH:
                 return path;
             case PATH_RAW:
