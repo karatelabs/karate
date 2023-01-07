@@ -199,8 +199,7 @@ public class RequestCycle {
     private Response htmlResponse() {
         String html;
         try {
-            // template system uses [root:] prefix system, remove forward slash
-            html = templateEngine.process(request.getPath().substring(1));
+            html = templateEngine.process(request.getPath());
         } catch (Exception e) {
             if (context.isSwitched()) {
                 if (switchTemplate == null) {

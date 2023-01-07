@@ -71,7 +71,7 @@ public class ServerHtmlTemplateResolver implements ITemplateResolver {
         if (!name.endsWith(".html")) {
             name = name + ".html";
         }        
-        Resource resource = resourceResolver.resolve(name);
+        Resource resource = resourceResolver.resolve(ownerTemplate, name);
         KarateTemplateResource templateResource = new KarateTemplateResource(resource);
         return new TemplateResolution(templateResource, TemplateMode.HTML,
                 devMode ? NonCacheableCacheEntryValidity.INSTANCE : AlwaysValidCacheEntryValidity.INSTANCE);

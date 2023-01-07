@@ -53,28 +53,18 @@ public class ResourceResolver {
         return resolve(null, path);
     }
 
-    private static String dropSlash(String path) {
-        return path.charAt(0) == '/' ? path.substring(1) : path;
-    }
-
-    public Resource resolve(String parent, String path) {
+    public Resource resolve(String caller, String path) {
         if (path.startsWith(Resource.CLASSPATH_COLON)) {
             return get(path);
-        } else if (path.startsWith(Resource.ROOT_COLON)) {
-            path = path.substring(Resource.ROOT_COLON.length());
-            return get((classpath ? Resource.CLASSPATH_COLON : EMPTY) + root + dropSlash(path));
-        } else if (parent == null) {
-            return get((classpath ? Resource.CLASSPATH_COLON : EMPTY) + root + dropSlash(path));
-        } else if (parent.startsWith(Resource.CLASSPATH_COLON)) {
-            parent = ResourceUtils.getParentPath(parent);
-            return get(parent + dropSlash(path));
-        } else {
-            parent = ResourceUtils.getParentPath((classpath ? Resource.CLASSPATH_COLON : EMPTY) + root + parent);
-            return get(parent + dropSlash(path));
         }
+        String prefix = classpath ? Resource.CLASSPATH_COLON + root : root;
+        if (path.startsWith(Resource.THIS_COLON) && caller != null) {
+            return get(prefix + ResourceUtils.getParentPath(caller) + path.substring(5));
+        }
+        return get(prefix + (path.charAt(0) == '/' ? path.substring(1) : path));
     }
 
-    private static Resource get(String path) {
+    private Resource get(String path) {
         return ResourceUtils.getResource(FileUtils.WORKING_DIR, path);
     }
 
