@@ -324,7 +324,7 @@ public class Request implements ProxyObject {
     }
 
     public boolean pathMatches(String pattern) {
-        Map<String, String> temp = HttpUtils.parseUriPattern(pattern, "/" + path);
+        Map<String, String> temp = HttpUtils.parseUriPattern(pattern, path);
         if (temp == null) {
             return false;
         }
