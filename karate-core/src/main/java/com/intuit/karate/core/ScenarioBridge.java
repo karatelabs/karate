@@ -1003,11 +1003,15 @@ public class ScenarioBridge implements PerfContext {
 
     public Object toJava(Value value) {
         return new JsValue(value).getValue();
-    }
+    }    
 
     public File toJavaFile(String path) {
         return getEngine().fileReader.toResource(path).getFile();
     }
+    
+    public Object toJs(Object value) {
+        return JsValue.fromJava(value);
+    }    
 
     public Object toJson(Value value) {
         return toJson(value, false);

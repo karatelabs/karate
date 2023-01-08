@@ -87,8 +87,8 @@ public class ServerContext implements ProxyObject {
     private static final String COPY = "copy";
     private static final String DELAY = "delay";
     private static final String TO_STRING = "toString";
-    private static final String TO_LIST = "toList";
     private static final String TO_JSON = "toJson";
+    private static final String TO_JS = "toJs";
     private static final String TO_JSON_PRETTY = "toJsonPretty";
     private static final String FROM_JSON = "fromJson";
     private static final String TEMPLATE = "template";
@@ -98,7 +98,7 @@ public class ServerContext implements ProxyObject {
 
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, LOG, UUID, REMOVE, REDIRECT, SWITCH, SWITCHED, AJAX, HTTP, NEXT_ID, SESSION_ID,
-        INIT, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_STRING, TO_LIST, TO_JSON, TO_JSON_PRETTY, FROM_JSON, 
+        INIT, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_STRING, TO_JSON, TO_JS, TO_JSON_PRETTY, FROM_JSON, 
         TEMPLATE, TYPE_OF, IS_PRIMITIVE, MATCH};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
@@ -257,6 +257,10 @@ public class ServerContext implements ProxyObject {
     public String toJson(Object o) {
         Value value = Value.asValue(o);
         return new JsValue(value).toJsonOrXmlString(false);
+    }
+    
+    public Object toJs(Object o) {
+        return JsValue.fromJava(o);
     }
 
     public String toJsonPretty(Object o) {
@@ -437,17 +441,6 @@ public class ServerContext implements ProxyObject {
         return v.getAsString();
     };
 
-    private final Function<Object, Object> TO_LIST_FUNCTION = o -> {
-        if (o instanceof Map) {
-            Map map = (Map) o;
-            List list = JsonUtils.toList(map);
-            return JsValue.fromJava(list);
-        } else {
-            logger.warn("unable to cast to map: {} - {}", o.getClass(), o);
-            return null;
-        }
-    };
-
     private final Methods.FunVar SWITCH_FUNCTION = args -> {
         if (switched) {
             logger.warn("context.switch() can be called only once during a request, ignoring: {}", args[0]);
@@ -551,10 +544,10 @@ public class ServerContext implements ProxyObject {
                 return DELAY_FUNCTION;
             case TO_STRING:
                 return TO_STRING_FUNCTION;
-            case TO_LIST:
-                return TO_LIST_FUNCTION;
             case TO_JSON:
                 return (Function<Object, String>) this::toJson;
+            case TO_JS:
+                return (Function<Object, Object>) this::toJs;
             case TO_JSON_PRETTY:
                 return (Function<Object, String>) this::toJsonPretty;
             case FROM_JSON:

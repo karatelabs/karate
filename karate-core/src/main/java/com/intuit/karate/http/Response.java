@@ -255,7 +255,7 @@ public class Response implements ProxyObject {
         if (headers == null) {
             return JsList.EMPTY;
         }
-        List list = JsonUtils.toList(headers);
+        List list = JsonUtils.entries(headers);
         return JsValue.fromJava(list);
     };
 

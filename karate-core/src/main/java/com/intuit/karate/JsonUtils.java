@@ -38,7 +38,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -375,15 +374,12 @@ public class JsonUtils {
         }
     }
 
-    private static final String KEY = "key";
-    private static final String VALUE = "value";
-
-    public static List toList(Map map) {
+    public static List entries(Map map) {
         List list = new ArrayList(map.size());
         map.forEach((k, v) -> {
-            Map entry = new HashMap(2);
-            entry.put(KEY, k);
-            entry.put(VALUE, v);
+            List entry = new ArrayList(2);
+            entry.add(k);
+            entry.add(v);
             list.add(entry);
         });
         return list;
