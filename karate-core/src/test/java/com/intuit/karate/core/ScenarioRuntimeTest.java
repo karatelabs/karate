@@ -358,11 +358,20 @@ class ScenarioRuntimeTest {
                  "def fun2 = function(arg){ return karate.keysOf(arg) }",
                  "def fooKeys = fun2(foo)",
                  "def fun3 = function(arg){ return karate.valuesOf(arg) }",
-                 "def fooVals = fun3(foo)"                
+                 "def fooVals = fun3(foo)",
+                 "def fun4 = function(arg){ return karate.filterKeys(arg, 'a')}",
+                 "def filt1 = fun4(foo)",
+                 "def fun5 = function(arg){ return karate.filterKeys(arg, 'a', 'b')}",
+                 "def filt2 = fun5(foo)",
+                 "def fun6 = function(arg){ return karate.filterKeys(arg, ['a', 'b'])}",
+                 "def filt3 = fun6(foo)"                   
         );
         assertEquals(get("fooSize"), 3);
          matchVar("fooKeys", "['a', 'b', 'c']");
          matchVar("fooVals", "[1, 2, 3]");
+         matchVar("filt1", "{ a: 1 }");
+         matchVar("filt2", "{ a: 1, b: 2 }");
+         matchVar("filt3", "{ a: 1, b: 2 }");
     }    
 
     @Test

@@ -397,7 +397,8 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object filterKeys(Value o, Value... args) {
-        if (!o.hasMembers() || args.length == 0) {
+        Variable v = new Variable(o);
+        if (!v.isMap()) {
             return JsMap.EMPTY;
         }
         List<String> keys = new ArrayList();
@@ -415,21 +416,21 @@ public class ScenarioBridge implements PerfContext {
                 }
             }
         } else {
-            for (Value v : args) {
-                keys.add(v.toString());
+            for (Value key : args) {
+                keys.add(key.toString());
             }
         }
-        Map map = new LinkedHashMap(keys.size());
+        Map map = v.getValue();
+        Map result = new LinkedHashMap(keys.size());
         for (String key : keys) {
             if (key == null) {
                 continue;
             }
-            Value v = o.getMember(key);
-            if (v != null) {
-                map.put(key, v.as(Object.class));
+            if (map.containsKey(key)) {
+                result.put(key, map.get(key));
             }
         }
-        return new JsMap(map);
+        return new JsMap(result);
     }
 
     public void forEach(Value o, Value f) {
