@@ -24,6 +24,7 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.Json;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsValue;
@@ -153,7 +154,7 @@ public class HttpRequestBuilder implements ProxyObject {
             request.setBodyForDisplay(multiPart.getBodyForDisplay());
         }
         if (body != null) {
-            request.setBody(JsValue.toBytes(body));
+            request.setBody(JsonUtils.toBytes(body));
         }
         request.setHeaders(headers);
         return request;
@@ -635,7 +636,7 @@ public class HttpRequestBuilder implements ProxyObject {
             sb.append(multiPart.toCurlCommand());
         } else if (body != null) {
             sb.append("\\\n");
-            String raw = JsValue.toString(body);
+            String raw = JsonUtils.toString(body);
             sb.append("-d '").append(raw).append("'");
         }
         return sb.toString();

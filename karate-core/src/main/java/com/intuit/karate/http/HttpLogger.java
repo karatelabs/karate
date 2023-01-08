@@ -24,10 +24,10 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.Config;
 import com.intuit.karate.core.Variable;
-import com.intuit.karate.graal.JsValue;
 import java.util.List;
 import java.util.Map;
 
@@ -70,7 +70,7 @@ public class HttpLogger {
         }
         String text;
         if (config != null && needsPrettyLogging(config, request)) {
-            Object converted = JsValue.fromBytes(body, false, rt);
+            Object converted = JsonUtils.fromBytes(body, false, rt);
             Variable v = new Variable(converted);
             text = v.getAsPrettyString();
         } else {

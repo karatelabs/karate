@@ -627,7 +627,7 @@ public class ScenarioEngine {
             body = bytes;
         } else {
             try {
-                body = JsValue.fromBytes(bytes, true, resourceType);
+                body = JsonUtils.fromBytes(bytes, true, resourceType);
             } catch (Exception e) {
                 body = FileUtils.toString(bytes);
                 logger.warn("auto-conversion of response failed: {}", e.getMessage());
@@ -1086,7 +1086,7 @@ public class ScenarioEngine {
                         getImageHookFunction(options, defaultOptions, "onShowConfig") +
                         ")";
 
-                runtime.embed(JsValue.toBytes(diffJS), ResourceType.DEFERRED_JS);
+                runtime.embed(JsonUtils.toBytes(diffJS), ResourceType.DEFERRED_JS);
             }
         }
 

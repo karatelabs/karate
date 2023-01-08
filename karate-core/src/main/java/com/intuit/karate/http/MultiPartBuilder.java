@@ -24,7 +24,7 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.Constants;
-import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.JsonUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
@@ -183,7 +183,7 @@ public class MultiPartBuilder {
                         cs = Charset.forName(charset);
                     }
                 }
-                byte[] encoded = value == null ? Constants.ZERO_BYTES : JsValue.toBytes(value);
+                byte[] encoded = value == null ? Constants.ZERO_BYTES : JsonUtils.toBytes(value);
                 String filename = (String) map.get("filename");
                 if (filename == null) {
                     filename = ""; // will be treated as an inline value, behaves like null

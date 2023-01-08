@@ -23,10 +23,7 @@
  */
 package com.intuit.karate.graal;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.XmlUtils;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.http.ResourceType;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -205,11 +202,11 @@ public class JsValue {
     }
 
     public String toJsonOrXmlString(boolean pretty) {
-        return toString(value, pretty);
+        return JsonUtils.toString(value, pretty);
     }
 
     public String getAsString() {
-        return JsValue.toString(value);
+        return JsonUtils.toString(value);
     }
 
     public static Object fromJava(Object o) {
@@ -243,97 +240,7 @@ public class JsValue {
     }
 
     public static byte[] toBytes(Value v) {
-        return toBytes(toJava(v));
-    }
-
-    public static String toString(Object o) {
-        return toString(o, false);
-    }
-
-    public static String toString(Object o, boolean pretty) {
-        if (o == null) {
-            return null;
-        }
-        if (o instanceof Map || o instanceof List) {
-            return JsonUtils.toJson(o, pretty);
-        } else if (o instanceof Node) {
-            return XmlUtils.toString((Node) o, pretty);
-        } else if (o instanceof byte[]) {
-            return FileUtils.toString((byte[]) o);
-        } else {
-            return o.toString();
-        }
-    }
-
-    public static byte[] toBytes(Object o) {
-        if (o == null) {
-            return null;
-        }
-        if (o instanceof Map || o instanceof List) {
-            return FileUtils.toBytes(JsonUtils.toJson(o));
-        } else if (o instanceof Node) {
-            return FileUtils.toBytes(XmlUtils.toString((Node) o));
-        } else if (o instanceof byte[]) {
-            return (byte[]) o;
-        } else {
-            return FileUtils.toBytes(o.toString());
-        }
-    }
-
-    public static Object fromBytes(byte[] bytes, boolean strict, ResourceType resourceType) {
-        if (bytes == null) {
-            return null;
-        }
-        String raw = FileUtils.toString(bytes);
-        return fromString(raw, strict, resourceType);
-    }
-
-    public static Object fromString(String raw, boolean strict, ResourceType resourceType) {
-        String trimmed = raw.trim();
-        if (trimmed.isEmpty()) {
-            return raw;
-        }
-        if (resourceType != null && resourceType.isBinary()) {
-            return raw;
-        }
-        switch (trimmed.charAt(0)) {
-            case '{':
-            case '[':
-                if (strict) {
-                    return JsonUtils.fromJsonStrict(raw);
-                }
-                try {
-                    return JsonUtils.fromJson(raw);
-                } catch (Exception e) {
-                    logger.trace("failed to parse json: {}", e.getMessage());
-                    return raw;
-                }
-            case '<':
-                if (resourceType == null || resourceType.isXml()) {
-                    try {
-                        return XmlUtils.toXmlDoc(raw);
-                    } catch (Exception e) {
-                        logger.trace("failed to parse xml: {}", e.getMessage());
-                        if (strict) {
-                            throw e;
-                        }
-                        return raw;
-                    }
-                } else {
-                    return raw;
-                }
-            default:
-                return raw;
-        }
-    }
-
-    public static Object fromStringSafe(String raw) {
-        try {
-            return fromString(raw, false, null);
-        } catch (Exception e) {
-            logger.trace("failed to auto convert: {}", e + "");
-            return raw;
-        }
+        return JsonUtils.toBytes(toJava(v));
     }
 
     public static boolean isTruthy(Object o) {
@@ -348,7 +255,7 @@ public class JsValue {
         }
         return true;
     }
-
+    
     static class SharableMembers implements ProxyObject {
 
         final Value v;

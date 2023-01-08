@@ -147,7 +147,7 @@ public class Response implements ProxyObject {
         if (body instanceof byte[]) {
             return (byte[]) body;
         }
-        return JsValue.toBytes(body);
+        return JsonUtils.toBytes(body);
     }
 
     public void setBody(byte[] body) {
@@ -168,7 +168,7 @@ public class Response implements ProxyObject {
             if (rt != null && rt.isBinary()) {
                 return body;
             }
-            return JsValue.fromBytes((byte[]) body, false, rt);
+            return JsonUtils.fromBytes((byte[]) body, false, rt);
         } else {
             return body;
         }

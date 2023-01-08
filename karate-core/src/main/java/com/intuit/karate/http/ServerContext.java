@@ -236,7 +236,7 @@ public class ServerContext implements ProxyObject {
         if (resourceType == ResourceType.JS) {
             return eval(raw);
         } else {
-            return JsValue.fromString(raw, false, resourceType);
+            return JsValue.fromJava(JsonUtils.fromString(raw, false, resourceType));
         }
     }
     
@@ -410,7 +410,7 @@ public class ServerContext implements ProxyObject {
     };
 
     private static final Supplier<String> UUID_FUNCTION = () -> java.util.UUID.randomUUID().toString();
-    private static final Function<String, Object> FROM_JSON_FUNCTION = s -> JsValue.fromString(s, false, null);
+    private static final Function<String, Object> FROM_JSON_FUNCTION = s -> JsonUtils.fromString(s, false, null);
 
     private final Methods.FunVar HTTP_FUNCTION; // set in constructor
     private final Function<Object, String> RENDER_FUNCTION; // set in constructor  

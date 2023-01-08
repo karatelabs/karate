@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.http.ResourceType;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.spi.json.JsonProvider;
@@ -53,6 +54,7 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 import static net.minidev.json.JSONValue.defaultReader;
+import org.w3c.dom.Node;
 
 /**
  *
@@ -387,4 +389,94 @@ public class JsonUtils {
         return list;
     }
 
+    public static String toString(Object o) {
+        return toString(o, false);
+    }
+
+    public static String toString(Object o, boolean pretty) {
+        if (o == null) {
+            return null;
+        }
+        if (o instanceof Map || o instanceof List) {
+            return JsonUtils.toJson(o, pretty);
+        } else if (o instanceof Node) {
+            return XmlUtils.toString((Node) o, pretty);
+        } else if (o instanceof byte[]) {
+            return FileUtils.toString((byte[]) o);
+        } else {
+            return o.toString();
+        }
+    }
+
+    public static byte[] toBytes(Object o) {
+        if (o == null) {
+            return null;
+        }
+        if (o instanceof Map || o instanceof List) {
+            return FileUtils.toBytes(JsonUtils.toJson(o));
+        } else if (o instanceof Node) {
+            return FileUtils.toBytes(XmlUtils.toString((Node) o));
+        } else if (o instanceof byte[]) {
+            return (byte[]) o;
+        } else {
+            return FileUtils.toBytes(o.toString());
+        }
+    }
+
+    public static Object fromBytes(byte[] bytes, boolean strict, ResourceType resourceType) {
+        if (bytes == null) {
+            return null;
+        }
+        String raw = FileUtils.toString(bytes);
+        return fromString(raw, strict, resourceType);
+    }
+
+    public static Object fromString(String raw, boolean strict, ResourceType resourceType) {
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty()) {
+            return raw;
+        }
+        if (resourceType != null && resourceType.isBinary()) {
+            return raw;
+        }
+        switch (trimmed.charAt(0)) {
+            case '{':
+            case '[':
+                if (strict) {
+                    return JsonUtils.fromJsonStrict(raw);
+                }
+                try {
+                    return JsonUtils.fromJson(raw);
+                } catch (Exception e) {
+                    logger.trace("failed to parse json: {}", e.getMessage());
+                    return raw;
+                }
+            case '<':
+                if (resourceType == null || resourceType.isXml()) {
+                    try {
+                        return XmlUtils.toXmlDoc(raw);
+                    } catch (Exception e) {
+                        logger.trace("failed to parse xml: {}", e.getMessage());
+                        if (strict) {
+                            throw e;
+                        }
+                        return raw;
+                    }
+                } else {
+                    return raw;
+                }
+            default:
+                return raw;
+        }
+    }
+
+    public static Object fromStringSafe(String raw) {
+        try {
+            return fromString(raw, false, null);
+        } catch (Exception e) {
+            logger.trace("failed to auto convert: {}", e + "");
+            return raw;
+        }
+    }    
+    
 }

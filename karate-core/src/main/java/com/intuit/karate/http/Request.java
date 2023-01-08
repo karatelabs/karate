@@ -24,6 +24,7 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsList;
@@ -52,7 +53,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import static java.util.stream.Collectors.toList;
@@ -418,7 +418,7 @@ public class Request implements ProxyObject {
         if (rt != null && rt.isBinary()) {
             return body;
         }
-        return JsValue.fromBytes(body, false, rt);
+        return JsonUtils.fromBytes(body, false, rt);
     }
 
     public boolean isHttpGetForStaticResource() {
@@ -441,7 +441,7 @@ public class Request implements ProxyObject {
 
     public Object getParamAsJsValue(String name) {
         String value = getParam(name);
-        return value == null ? null : JsValue.fromStringSafe(value);
+        return value == null ? null : JsonUtils.fromStringSafe(value);
     }
 
     public Map<String, Object> getMultiPart(String name) {

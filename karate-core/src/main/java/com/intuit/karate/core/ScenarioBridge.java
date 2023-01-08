@@ -330,7 +330,7 @@ public class ScenarioBridge implements PerfContext {
         } else {
             resourceType = ResourceType.fromContentType(contentType);
         }
-        getEngine().runtime.embed(JsValue.toBytes(o), resourceType);
+        getEngine().runtime.embed(JsonUtils.toBytes(o), resourceType);
     }
 
     public Object eval(String exp) {
@@ -587,8 +587,13 @@ public class ScenarioBridge implements PerfContext {
         return JsValue.fromJava(json.get(exp));
     }
 
-    public Object keysOf(Value o) {
-        return new JsList(o.getMemberKeys());
+    public Object keysOf(Object o) {
+        Variable v = new Variable(o);
+        if (v.isMap()) {
+            return new JsList(v.<Map>getValue().keySet());
+        } else {
+            return JsList.EMPTY;
+        }
     }
 
     public void log(Value... values) {
@@ -848,11 +853,12 @@ public class ScenarioBridge implements PerfContext {
         getEngine().signal(JsValue.toJava(v));
     }
 
-    public Object sizeOf(Value v) {
-        if (v.hasArrayElements()) {
-            return v.getArraySize();
-        } else if (v.hasMembers()) {
-            return v.getMemberKeys().size();
+    public Object sizeOf(Object o) {
+        Variable v = new Variable(o);
+        if (v.isList()) {
+            return v.<List>getValue().size();
+        } else if (v.isMap()) {
+            return v.<Map>getValue().size();
         } else {
             return -1;
         }
@@ -1054,16 +1060,12 @@ public class ScenarioBridge implements PerfContext {
         }
     }
 
-    public Object valuesOf(Value v) {
-        if (v.hasArrayElements()) {
-            return v;
-        } else if (v.hasMembers()) {
-            List list = new ArrayList();
-            for (String k : v.getMemberKeys()) {
-                Value res = v.getMember(k);
-                list.add(res.as(Object.class));
-            }
-            return new JsList(list);
+    public Object valuesOf(Object o) {
+        Variable v = new Variable(o);
+        if (v.isList()) {
+            return new JsList(v.<List>getValue());
+        } else if (v.isMap()) {
+            return new JsList(v.<Map>getValue().values());
         } else {
             return null;
         }
@@ -1123,7 +1125,7 @@ public class ScenarioBridge implements PerfContext {
         ScenarioEngine engine = getEngine();
         path = engine.runtime.featureRuntime.suite.buildDir + File.separator + path;
         File file = new File(path);
-        FileUtils.writeToFile(file, JsValue.toBytes(o));
+        FileUtils.writeToFile(file, JsonUtils.toBytes(o));
         engine.logger.debug("write to file: {}", file);
         return file;
     }

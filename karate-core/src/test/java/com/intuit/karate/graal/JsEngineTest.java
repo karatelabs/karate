@@ -253,6 +253,17 @@ class JsEngineTest {
         Value result = function.execute(JsValue.fromJava(map));
         assertEquals(result.asInt(), 3);
     }
+    
+    @Test
+    void testObjectsWithinFunction() {
+        Map<String, Object> map = new HashMap();
+        map.put("a", 1);
+        map.put("b", 2);
+        je.put("o", map);
+        JsValue jv = je.eval("(function(){ return Object.entries(o) })()");
+        List result = jv.getAsList();
+        Match.that(result).isEqualTo("[[a, 1],[b, 2]]");
+    }     
 
     @Test
     void testEvalLocal() {

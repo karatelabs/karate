@@ -43,8 +43,8 @@ public class JsList implements ProxyArray, List {
 
     private final List list;
 
-    public JsList(Set set) {
-        this(new ArrayList(set));
+    public JsList(Collection collection) {
+        this(new ArrayList(collection));
     }
 
     public JsList(List list) {
