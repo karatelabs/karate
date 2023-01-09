@@ -319,20 +319,20 @@ class ScenarioRuntimeTest {
         run(
                 "def foo = { a: 1 }",
                 "remove foo.b"
-        );        
+        );
         matchVar("foo", "{ a: 1 }");
     }
-    
+
     @Test
     void testDelete() {
         run(
                 "def foo = { a: 1 }",
                 "delete foo.b",
                 "delete foo.a"
-        );        
+        );
         matchVar("foo", "{}");
-    }    
-    
+    }
+
     @Test
     void testCollections() {
         run(
@@ -354,25 +354,28 @@ class ScenarioRuntimeTest {
         run(
                 "def foo = { a: 1, b: 2, c: 3 }",
                 "def fun1 = function(arg){ return karate.sizeOf(arg) }",
-                "def fooSize = fun1(foo)",
-                 "def fun2 = function(arg){ return karate.keysOf(arg) }",
-                 "def fooKeys = fun2(foo)",
-                 "def fun3 = function(arg){ return karate.valuesOf(arg) }",
-                 "def fooVals = fun3(foo)",
-                 "def fun4 = function(arg){ return karate.filterKeys(arg, 'a')}",
-                 "def filt1 = fun4(foo)",
-                 "def fun5 = function(arg){ return karate.filterKeys(arg, 'a', 'b')}",
-                 "def filt2 = fun5(foo)",
-                 "def fun6 = function(arg){ return karate.filterKeys(arg, ['a', 'b'])}",
-                 "def filt3 = fun6(foo)"                   
+                "def res1 = fun1(foo)",
+                "def fun2 = function(arg){ return karate.keysOf(arg) }",
+                "def res2 = fun2(foo)",
+                "def fun3 = function(arg){ return karate.valuesOf(arg) }",
+                "def res3 = fun3(foo)",
+                "def fun4 = function(arg){ return karate.filterKeys(arg, 'a')}",
+                "def res4 = fun4(foo)",
+                "def fun5 = function(arg){ return karate.filterKeys(arg, 'a', 'b')}",
+                "def res5 = fun5(foo)",
+                "def fun6 = function(arg){ return karate.filterKeys(arg, ['a', 'b'])}",
+                "def res6 = fun6(foo)",
+                "def fun7 = function(arg){ return Object.keys(arg) }",
+                "def res7 = fun7(foo)"
         );
-        assertEquals(get("fooSize"), 3);
-         matchVar("fooKeys", "['a', 'b', 'c']");
-         matchVar("fooVals", "[1, 2, 3]");
-         matchVar("filt1", "{ a: 1 }");
-         matchVar("filt2", "{ a: 1, b: 2 }");
-         matchVar("filt3", "{ a: 1, b: 2 }");
-    }    
+        matchVar("res1", 3);
+        matchVar("res2", "['a', 'b', 'c']");
+        matchVar("res3", "[1, 2, 3]");
+        matchVar("res4", "{ a: 1 }");
+        matchVar("res5", "{ a: 1, b: 2 }");
+        matchVar("res6", "{ a: 1, b: 2 }");
+        matchVar("res7", "['a', 'b', 'c']");
+    }
 
     @Test
     void testMatch() {
@@ -382,7 +385,6 @@ class ScenarioRuntimeTest {
                 "def mat2 = karate.match('foo == { a: 1 }')",
                 "def bar = []",
                 "def mat3 = karate.match(bar, [])"
-                
         );
         matchVar("mat1", "{ pass: false, message: '#notnull' }");
         matchVar("mat2", "{ pass: true, message: '#null' }");
@@ -655,7 +657,7 @@ class ScenarioRuntimeTest {
                 "def myFn = function(x){ return { myVar: x } }",
                 "call myFn 'foo'"
         );
-        assertEquals(get("myVar"), "foo");      
+        assertEquals(get("myVar"), "foo");
     }
 
     @Test
@@ -721,12 +723,12 @@ class ScenarioRuntimeTest {
                 "match temperature contains { fahrenheit: '#($.celsius * 1.8 + 32)' }"
         );
     }
-    
+
     @Test
     void testArrayOnLhs() {
         run(
                 "match [] == '#[]'"
-        );        
+        );
     }
 
     @Test
@@ -734,8 +736,8 @@ class ScenarioRuntimeTest {
         run(
                 "match ['foo', 'bar'] contains 'foo'"
         );
-    }        
-    
+    }
+
     @Test
     void testMatchEmbeddedOptionalObject() {
         run(
@@ -766,7 +768,7 @@ class ScenarioRuntimeTest {
                 "match [{ foo: 'bar' }] == schema"
         );
     }
-    
+
     @Test
     void testMatchSchemaMagicVariables() {
         run(
@@ -774,22 +776,22 @@ class ScenarioRuntimeTest {
                 "match response == { odds: '#[$.count]', count: '#number' }"
         );
     }
-    
+
     @Test
     void testMatchSchemaContainsDeep() {
         run(
                 "def array = [ 'a', 'b' ]",
                 "def response = { foo: [ 'a', 'b' ] } ",
                 "match response contains deep { foo: '#(^array)' }"
-        );        
+        );
     }
-    
+
     @Test
     void testMatchContainsOnlyDeep() {
         run(
                 "def response = { foo: [ 'a', 'b' ] } ",
                 "match response contains only deep { foo: [ 'b', 'a' ] }"
-        );        
+        );
     }
 
     @Test

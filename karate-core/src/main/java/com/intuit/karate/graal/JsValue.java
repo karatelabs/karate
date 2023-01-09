@@ -304,7 +304,7 @@ public class JsValue {
             // the synchronized block should include the pre-processing of arguments
             synchronized (LOCK) {
                 for (int i = 0; i < newArgs.length; i++) {
-                    newArgs[i] = new JsValue(args[i]).value;
+                    newArgs[i] = JsValue.fromJava(args[i]);
                 }
                 Value result = v.execute(newArgs);
                 return new JsValue(result).value;
@@ -325,7 +325,7 @@ public class JsValue {
             // the synchronized block should include the pre-processing of arguments
             synchronized (LOCK) {            
                 for (int i = 0; i < newArgs.length; i++) {
-                    newArgs[i] = new JsValue(args[i]).value;
+                    newArgs[i] = JsValue.fromJava(args[i]);
                 }
                 return new JsValue(v.execute(newArgs)).value;
             }
