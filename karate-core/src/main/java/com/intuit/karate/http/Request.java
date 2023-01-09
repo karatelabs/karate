@@ -282,8 +282,8 @@ public class Request implements ProxyObject {
         if (path == null || path.isEmpty()) {
             path = "/";
         }
-        if (path.charAt(0) != '/') {
-            path = "/" + path.substring(1);
+        if (path.charAt(0) != '/') { // mocks and synthetic situations
+            path = "/" + path;
         }
         this.path = path;
         if (pathOriginal == null) {
