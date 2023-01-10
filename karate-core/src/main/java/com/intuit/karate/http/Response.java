@@ -28,7 +28,6 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.graal.JsArray;
-import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.graal.Methods;
 import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
@@ -40,7 +39,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
 import org.slf4j.Logger;
@@ -62,11 +60,10 @@ public class Response implements ProxyObject {
     private static final String HEADER = "header";
     private static final String HEADERS = "headers";
     private static final String HEADER_VALUES = "headerValues";
-    private static final String HEADER_ENTRIES = "headerEntries";
     private static final String DATA_TYPE = "dataType";
     private static final String RESPONSE_TIME = "responseTime";
 
-    private static final String[] KEYS = new String[]{STATUS, HEADER, HEADERS, HEADER_VALUES, HEADER_ENTRIES, BODY, DATA_TYPE, BODY_BYTES, RESPONSE_TIME};
+    private static final String[] KEYS = new String[]{STATUS, HEADER, HEADERS, HEADER_VALUES, BODY, DATA_TYPE, BODY_BYTES, RESPONSE_TIME};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -251,14 +248,6 @@ public class Response implements ProxyObject {
         }
     };
 
-    private final Supplier HEADER_ENTRIES_FUNCTION = () -> {
-        if (headers == null) {
-            return JsList.EMPTY;
-        }
-        List list = JsonUtils.entries(headers);
-        return JsValue.fromJava(list);
-    };
-
     @Override
     public Object getMember(String key) {
         switch (key) {
@@ -267,7 +256,7 @@ public class Response implements ProxyObject {
             case HEADER:
                 return HEADER_FUNCTION;
             case HEADERS:
-                return JsValue.fromJava(headers);
+                return JsValue.fromJava(JsonUtils.simplify(headers));
             case BODY:
                 if (body instanceof byte[]) {
                     return JsValue.fromJava(getBodyConverted());
@@ -281,9 +270,7 @@ public class Response implements ProxyObject {
                 }
                 return rt.name().toLowerCase();
             case HEADER_VALUES:
-                return (Function<String, List<String>>) this::getHeaderValues;              
-            case HEADER_ENTRIES:
-                return HEADER_ENTRIES_FUNCTION;
+                return (Function<String, List<String>>) this::getHeaderValues;
             case BODY_BYTES:
                 return getBody();
             case RESPONSE_TIME:
@@ -297,7 +284,7 @@ public class Response implements ProxyObject {
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap();
         map.put(STATUS, status);
-        map.put(HEADER_ENTRIES, HEADER_ENTRIES_FUNCTION.get());
+        map.put(HEADERS, JsonUtils.simplify(headers));
         map.put(BODY, getBodyConverted());
         return map;
     }

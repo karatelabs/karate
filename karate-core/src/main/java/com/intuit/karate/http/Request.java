@@ -27,7 +27,6 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
-import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.graal.Methods;
 import com.linecorp.armeria.common.RequestContext;
@@ -80,7 +79,6 @@ public class Request implements ProxyObject {
     private static final String HEADER = "header";
     private static final String HEADERS = "headers";
     private static final String HEADER_VALUES = "headerValues";
-    private static final String HEADER_ENTRIES = "headerEntries";
     private static final String PATH_PARAM = "pathParam";
     private static final String PATH_PARAMS = "pathParams";
     private static final String PATH_MATCHES = "pathMatches";
@@ -107,7 +105,7 @@ public class Request implements ProxyObject {
 
     private static final String[] KEYS = new String[]{
         PATH, METHOD, PARAM, PARAM_INT, PARAM_BOOL, PARAM_JSON, PARAM_EXISTS, PARAMS,
-        HEADER, HEADERS, HEADER_VALUES, HEADER_ENTRIES, PATH_PARAM, PATH_PARAMS, PATH_MATCHES, PATH_PATTERN,
+        HEADER, HEADERS, HEADER_VALUES, PATH_PARAM, PATH_PARAMS, PATH_MATCHES, PATH_PATTERN,
         BODY, BODY_STRING, BODY_BYTES, MULTI_PART, MULTI_PARTS,
         GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, URL_BASE, URL, PATH_RAW, START_TIME, END_TIME
     };
@@ -459,27 +457,6 @@ public class Request implements ProxyObject {
         return JsValue.fromJava(getMultiPart(name));
     }
 
-    private static final String KEY = "key";
-    private static final String VALUE = "value";
-
-    private final Supplier HEADER_ENTRIES_FUNCTION = () -> {
-        if (headers == null) {
-            return JsList.EMPTY;
-        }
-        List list = new ArrayList(headers.size());
-        headers.forEach((k, v) -> {
-            if (v == null || v.isEmpty()) {
-                // continue
-            } else {
-                Map map = new HashMap(2);
-                map.put(KEY, k);
-                map.put(VALUE, v.get(0));
-                list.add(map);
-            }
-        });
-        return JsValue.fromJava(list);
-    };
-
     public void processBody() {
         if (body == null) {
             return;
@@ -578,11 +555,9 @@ public class Request implements ProxyObject {
             case HEADER:
                 return (Function<String, String>) this::getHeader;
             case HEADERS:
-                return JsValue.fromJava(headers);
+                return JsValue.fromJava(JsonUtils.simplify(headers));
             case HEADER_VALUES:
                 return (Function<String, List<String>>) this::getHeaderValues;
-            case HEADER_ENTRIES:
-                return HEADER_ENTRIES_FUNCTION;
             case MULTI_PART:
                 return (Function<String, Object>) this::getMultiPartAsJsValue;
             case MULTI_PARTS:
@@ -614,7 +589,7 @@ public class Request implements ProxyObject {
         map.put(PATH, path);
         map.put(PATH_RAW, getPathRaw());
         map.put(METHOD, method);
-        map.put(HEADER_ENTRIES, HEADER_ENTRIES_FUNCTION.get());
+        map.put(HEADERS, JsonUtils.simplify(headers));
         map.put(BODY, getBodyConverted());
         return map;
     }

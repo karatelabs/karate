@@ -374,15 +374,27 @@ public class JsonUtils {
         }
     }
 
-    public static List entries(Map map) {
-        List list = new ArrayList(map.size());
+    public static Map<String, String> simplify(Map<String, List<String>> map) {
+        if (map == null) {
+            return Collections.emptyMap();
+        }
+        Map<String, String> result = new LinkedHashMap(map.size());
         map.forEach((k, v) -> {
-            List entry = new ArrayList(2);
-            entry.add(k);
-            entry.add(v);
-            list.add(entry);
+            if (v instanceof List) {
+                List list = (List) v;
+                if (list.size() > 1) {
+                    result.put(k, StringUtils.join(list, ","));
+                } else if (list.size() == 1) {
+                    Object value = list.get(0);
+                    if (value != null) {
+                        result.put(k, value + "");
+                    }                    
+                }
+            } else if (v != null) {
+                result.put(k, v + "");
+            }
         });
-        return list;
+        return result;
     }
 
     public static String toString(Object o) {
