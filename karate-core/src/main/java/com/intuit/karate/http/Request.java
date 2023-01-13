@@ -176,12 +176,20 @@ public class Request implements ProxyObject {
 
     public int getParamInt(String name) {
         String value = getParam(name);
-        return value == null ? -1 : Integer.valueOf(value);
+        try {
+            return value == null ? -1 : Integer.valueOf(value);
+        } catch (Exception e) {
+            return -1;
+        }
     }
 
     public boolean getParamBool(String name) {
         String value = getParam(name);
-        return value == null ? false : Boolean.valueOf(value);
+        try {
+            return value == null ? false : Boolean.valueOf(value);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public String getParam(String name) {
@@ -437,9 +445,13 @@ public class Request implements ProxyObject {
         return resourceType;
     }
 
-    public Object getParamAsJsValue(String name) {
+    public Object getParamJson(String name) {
         String value = getParam(name);
-        return value == null ? null : JsonUtils.fromStringSafe(value);
+        try {
+            return JsonUtils.fromJson(value);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public Map<String, Object> getMultiPart(String name) {
@@ -531,7 +543,7 @@ public class Request implements ProxyObject {
             case PARAM_BOOL:
                 return (Function<String, Boolean>) this::getParamBool;
             case PARAM_JSON:
-                return (Function<String, Object>) this::getParamAsJsValue;
+                return (Function<String, Object>) this::getParamJson;
             case PARAM_EXISTS:
                 return (Function<String, Boolean>) this::getParamExists;    
             case PATH:
