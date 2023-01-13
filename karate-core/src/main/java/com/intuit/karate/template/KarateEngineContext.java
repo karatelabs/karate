@@ -42,6 +42,7 @@ import org.thymeleaf.inline.IInliner;
 import org.thymeleaf.model.IModelFactory;
 import org.thymeleaf.model.IProcessableElementTag;
 import org.thymeleaf.templatemode.TemplateMode;
+import org.thymeleaf.templateresource.ITemplateResource;
 
 /**
  *
@@ -80,6 +81,16 @@ public class KarateEngineContext implements IEngineContext {
 
     public JsEngine getJsEngine() {
         return jsEngine;
+    }
+    
+    public String getCallerTemplateName() {
+        TemplateData td = wrapped.getTemplateData();
+        ITemplateResource tr = td.getTemplateResource();
+        if (tr instanceof KarateTemplateResource) {
+            KarateTemplateResource ktr = (KarateTemplateResource) tr;
+            return ktr.getCaller();
+        }
+        return null;
     }
 
     public String getTemplateName() {

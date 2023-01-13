@@ -69,7 +69,7 @@ public class ResourceHtmlTemplateResolver implements ITemplateResolver {
             name = name + ".html";
         }
         Resource resource = resourceResolver.resolve(ownerTemplate, name);
-        KarateTemplateResource templateResource = new KarateTemplateResource(resource);
+        KarateTemplateResource templateResource = new KarateTemplateResource(ownerTemplate, resource);
         return new TemplateResolution(templateResource, TemplateMode.HTML, AlwaysValidCacheEntryValidity.INSTANCE);
     }
 

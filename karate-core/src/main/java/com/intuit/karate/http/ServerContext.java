@@ -69,6 +69,7 @@ public class ServerContext implements ProxyObject {
     private static final String EVAL = "eval";
     private static final String EVAL_WITH = "evalWith";
     private static final String GET = "get";
+    private static final String SET = "set";
     private static final String LOG = "log";
     private static final String UUID = "uuid";
     private static final String REMOVE = "remove";
@@ -91,6 +92,7 @@ public class ServerContext implements ProxyObject {
     private static final String TO_JS = "toJs";
     private static final String TO_JSON_PRETTY = "toJsonPretty";
     private static final String FROM_JSON = "fromJson";
+    private static final String CALLER = "caller";
     private static final String TEMPLATE = "template";
     private static final String TYPE_OF = "typeOf";
     private static final String IS_PRIMITIVE = "isPrimitive";
@@ -99,7 +101,7 @@ public class ServerContext implements ProxyObject {
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, LOG, UUID, REMOVE, REDIRECT, SWITCH, SWITCHED, AJAX, HTTP, NEXT_ID, SESSION_ID,
         INIT, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_STRING, TO_JSON, TO_JS, TO_JSON_PRETTY, FROM_JSON, 
-        TEMPLATE, TYPE_OF, IS_PRIMITIVE, MATCH};
+        CALLER, TEMPLATE, TYPE_OF, IS_PRIMITIVE, MATCH};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -413,6 +415,11 @@ public class ServerContext implements ProxyObject {
         return value;
     };
 
+    private Void setVariable(String name, Object value) {
+        getEngine().put(name, value);
+        return null;
+    }
+    
     private static final Supplier<String> UUID_FUNCTION = () -> java.util.UUID.randomUUID().toString();
     private static final Function<String, Object> FROM_JSON_FUNCTION = s -> JsonUtils.fromString(s, false, null);
 
@@ -534,6 +541,8 @@ public class ServerContext implements ProxyObject {
                 return (BiFunction<Object, String, Object>) this::evalWith;
             case GET:
                 return GET_FUNCTION;
+            case SET:
+                return (BiFunction<String, Object, Void>) this::setVariable;
             case LOG:
                 return LOG_FUNCTION;
             case UUID:
@@ -580,6 +589,8 @@ public class ServerContext implements ProxyObject {
                 return (Consumer<String>) this::bodyAppend;
             case RESOLVER:
                 return config.getResourceResolver();
+            case CALLER:
+                return KarateEngineContext.get().getCallerTemplateName();
             case TEMPLATE:
                 return KarateEngineContext.get().getTemplateName();
             case TYPE_OF:

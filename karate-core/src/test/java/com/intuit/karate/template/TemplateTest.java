@@ -51,9 +51,10 @@ class TemplateTest {
 
     @Test
     void testWith() {
-        String rendered = render("with.html");
+        String rendered = render("with");
         assertTrue(rendered.contains("<div>bar</div>"));
         assertTrue(rendered.contains("<div>hello world</div>"));
+        assertTrue(rendered.contains("<div>with</div>"));
     }
 
     @Test
