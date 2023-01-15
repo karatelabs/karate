@@ -28,10 +28,6 @@ import com.intuit.karate.http.RequestCycle;
 import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.http.ServerContext;
 import com.intuit.karate.resource.ResourceResolver;
-import org.thymeleaf.context.ITemplateContext;
-import org.thymeleaf.model.IModel;
-import org.thymeleaf.model.IModelFactory;
-import org.thymeleaf.model.IProcessableElementTag;
 
 /**
  *
@@ -79,7 +75,7 @@ public class TemplateUtils {
         return forResourceResolver(je, new ResourceResolver(root));
     }
 
-    public static String renderServerPath(String path, JsEngine je, ResourceResolver resourceResolver, boolean devMode) {
+    public static String renderHtmlResource(String path, JsEngine je, ResourceResolver resourceResolver, boolean devMode) {
         KarateEngineContext old = KarateEngineContext.get();
         try {
             KarateTemplateEngine kte = forServerResolver(je, resourceResolver, devMode);

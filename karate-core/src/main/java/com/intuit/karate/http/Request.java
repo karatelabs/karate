@@ -53,7 +53,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import static java.util.stream.Collectors.toList;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
@@ -386,7 +385,7 @@ public class Request implements ProxyObject {
     public void setHeaders(Map<String, List<String>> headers) {
         this.headers = headers;
     }
-
+    
     public void setCookiesRaw(List<String> values) {
         if (values == null) {
             return;

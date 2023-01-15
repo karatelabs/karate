@@ -143,7 +143,7 @@ public class ServerContext implements ProxyObject {
         };
         RENDER_FUNCTION = o -> {
             if (o instanceof String) {
-                return TemplateUtils.renderServerPath((String) o, getEngine(), config.getResourceResolver(), config.isDevMode());
+                return TemplateUtils.renderHtmlResource((String) o, getEngine(), config.getResourceResolver(), config.isDevMode());
             }
             Map<String, Object> map;
             if (o instanceof Map) {
@@ -172,7 +172,7 @@ public class ServerContext implements ProxyObject {
             }
             String body;
             if (path != null) {
-                body = TemplateUtils.renderServerPath(path, je, config.getResourceResolver(), config.isDevMode());
+                body = TemplateUtils.renderHtmlResource(path, je, config.getResourceResolver(), config.isDevMode());
             } else {
                 body = TemplateUtils.renderHtmlString(html, je, config.getResourceResolver());
             }
