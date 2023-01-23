@@ -446,8 +446,11 @@ public class Request implements ProxyObject {
 
     public Object getParamJson(String name) {
         String value = getParam(name);
+        if (StringUtils.isBlank(value)) {
+            return null;
+        }
         try {
-            return JsonUtils.fromJson(value);
+            return JsValue.fromJava(JsonUtils.fromJson(value));
         } catch (Exception e) {
             return null;
         }
