@@ -99,7 +99,7 @@ public class ServerContext implements ProxyObject {
     private static final String MATCH = "match";
 
     private static final String[] KEYS = new String[]{
-        READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, LOG, UUID, REMOVE, REDIRECT, SWITCH, SWITCHED, AJAX, HTTP, NEXT_ID, SESSION_ID,
+        READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, SET, LOG, UUID, REMOVE, REDIRECT, SWITCH, SWITCHED, AJAX, HTTP, NEXT_ID, SESSION_ID,
         INIT, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_STRING, TO_JSON, TO_JS, TO_JSON_PRETTY, FROM_JSON, 
         CALLER, TEMPLATE, TYPE_OF, IS_PRIMITIVE, MATCH};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
