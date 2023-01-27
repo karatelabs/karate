@@ -10,8 +10,9 @@ Scenario: try out iframe scenarios
   ## matching Wikipedia page title
   ## hopefully won't change often :)
   * match driver.title == "Office Space - Wikipedia"
-  * input("input[name='search']", "karate")
-  * click("input[id='searchButton']")
+  * click('#p-search a')
+  * input('body', 'karate' + Key.ENTER)
+  * waitFor('a[title=Karate]').click()
   * waitForUrl('https://en.wikipedia.org/wiki/Karate')
   * match driver.title == "Karate - Wikipedia"
   * switchFrame(null)
