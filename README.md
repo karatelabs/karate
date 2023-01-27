@@ -1907,10 +1907,10 @@ Note that the `path` 'resets' after any HTTP request is made but not the `url`. 
 
 > Important: If you attempt to build a URL in the form `?myparam=value` by using `path` the `?` will get encoded into `%3F`. Use either the [`param`](#param) keyword, e.g.: `* param myparam = 'value'` or [`url`](#url): `* url 'http://example.com/v1?myparam'`
 
-Because Karate strips trailing slashes if part of a `path` parameter, if you want to append a forward-slash to the end of the URL in the final HTTP request - make sure that the last `path` is a single '/'.
+Because Karate strips trailing slashes if part of a `path` parameter, if you want to append a forward-slash to the end of the URL in the final HTTP request - make sure that the last `path` is a single '/'. For example, if your path has to be `documents/` (and not just `documents`), use:
 
 ```cucumber
-Given path 'documents', documentId, '/'
+Given path 'documents', '/'
 ```
 
 ## `request`
