@@ -600,10 +600,11 @@ public class Request implements ProxyObject {
         Map<String, Object> map = new HashMap();
         map.put(URL, urlAndPath);
         map.put(URL_BASE, urlBase);
-        map.put(PATH, path);
+        map.put(PATH, path);        
         map.put(PATH_RAW, getPathRaw());
         map.put(METHOD, method);
         map.put(HEADERS, JsonUtils.simplify(headers));
+        map.put(PARAMS, params);
         map.put(BODY, getBodyConverted());
         return map;
     }
