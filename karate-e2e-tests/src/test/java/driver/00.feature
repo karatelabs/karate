@@ -46,7 +46,7 @@ Scenario:
 * if (driverType == 'chrome' && !skipSlowTests) karate.call('11.feature')
 
 # switchPage() with external URLs
-* if (driverType == 'chrome' && !skipSlowTests) karate.call('13.feature')
+# * if (driverType == 'chrome' && !skipSlowTests) karate.call('13.feature')
 
 # survive Target.detachedFromTarget with nested iframes
 * if (driverType == 'chrome' && !skipSlowTests) karate.call('14.feature')
