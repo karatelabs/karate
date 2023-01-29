@@ -35,7 +35,7 @@
         <dependency>
             <groupId>com.linecorp.armeria</groupId>
             <artifactId>armeria</artifactId>
-            <version>1.20.3</version>
+            <version>1.21.0</version>
         </dependency>              
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
@@ -102,7 +102,7 @@
         <dependency>
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
-            <version>4.7.0</version>
+            <version>4.7.1</version>
         </dependency>
         <dependency>
             <groupId>io.github.classgraph</groupId>
