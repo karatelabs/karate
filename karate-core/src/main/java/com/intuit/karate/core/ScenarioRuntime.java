@@ -292,15 +292,13 @@ public class ScenarioRuntime implements Runnable {
             return;
         }
         try {
-            synchronized (JsValue.LOCK) {
-                Variable fun = engine.evalJs("(" + js + ")");
-                if (!fun.isJsFunction()) {
-                    logger.warn("not a valid js function: {}", displayName);
-                    return;
-                }
-                Map<String, Object> map = engine.getOrEvalAsMap(fun);
-                engine.setVariables(map);
+            Variable fun = engine.evalJs("(" + js + ")");
+            if (!fun.isJsFunction()) {
+                logger.warn("not a valid js function: {}", displayName);
+                return;
             }
+            Map<String, Object> map = engine.getOrEvalAsMap(fun);
+            engine.setVariables(map);
         } catch (Exception e) {
             String message = ">> " + scenario.getDebugInfo() + "\n>> " + displayName + " failed\n>> " + e.getMessage();
             error = JsEngine.fromJsEvalException(js, e, message);

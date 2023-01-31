@@ -62,6 +62,7 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.graalvm.polyglot.Value;
+import org.graalvm.polyglot.proxy.ProxyExecutable;
 
 /**
  *
@@ -174,8 +175,9 @@ public class ScenarioBridge implements PerfContext {
             engine.logger.warn("callSingle() cached result is an exception");
             throw (Exception) o;
         }
-        // shallow clone so that threads see the same data snapshot
-        o = JsonUtils.shallowCopy(o);
+        // clone so that threads see the same data snapshot
+        // we also attach js functions
+        o = engine.JS.attachAll(o);
         return JsValue.fromJava(o);
     }
 

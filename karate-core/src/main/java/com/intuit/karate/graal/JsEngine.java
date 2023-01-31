@@ -28,7 +28,9 @@ import com.intuit.karate.KarateException;
 import com.intuit.karate.StringUtils;
 import java.io.File;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -123,6 +125,35 @@ public class JsEngine {
         return temp;
     }
 
+    private Value attach(Value value) {
+        try {
+            return context.asValue(value);
+        } catch (Exception e) {
+            logger.trace("context switch: {}", e.getMessage());
+            CharSequence source = value.getSourceLocation().getCharacters();
+            return evalForValue("(" + source + ")");
+        }
+    }
+    
+    // we only do this for callSingle
+    public Object attachAll(Object o) {
+        if (o instanceof List) {
+            List list = (List) o;
+            List result = new ArrayList(list.size());    
+            list.forEach(v -> result.add(attachAll(v)));
+            return result;
+        } else if (o instanceof Map) {
+            Map map = (Map) o;
+            Map result = new LinkedHashMap(map.size());
+            map.forEach((k, v) -> result.put(k, attachAll(v)));
+            return result;
+        } else if (o instanceof Value) {
+            return attach((Value) o);
+        } else {
+            return o;
+        }
+    }    
+
     public JsValue eval(InputStream is) {
         return eval(FileUtils.toString(is));
     }
@@ -158,14 +189,14 @@ public class JsEngine {
         }
         return new JsValue(value);
     }
-    
+
     public static Object execute(ProxyExecutable function, Object... args) {
         Value[] values = new Value[args.length];
         for (int i = 0; i < args.length; i++) {
             values[i] = Value.asValue(args[i]);
         }
         return function.execute(values);
-    }        
+    }
 
     public static Value execute(Value function, Object... args) {
         for (int i = 0; i < args.length; i++) {
