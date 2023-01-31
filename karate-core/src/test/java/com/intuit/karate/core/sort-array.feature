@@ -16,6 +16,6 @@ Scenario: the example above implemented using a re-usable js function
     * def json = [{ v: 'C' }, { v: 'b' }, { v: 'A' }]
     * def actual = $json[*].v
     * match actual == ['C', 'b', 'A']
-    * def sorted = call read('sort.js') actual
+    * def sorted = call read('sort-array.js') actual
     * match sorted == ['A', 'b', 'C']
 

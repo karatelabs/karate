@@ -159,7 +159,7 @@ Scenario: get last array element (json-path)
     * match last == 4
 
 Scenario: advanced json-path that the jayway implementation has limitations with
-    * def response = read('products.json')
+    * def response = read('js-arrays-products.json')
     * def result = $[?(@.partIDs[?(@.id == 1)])]
     # should be 2
     * match result == '#[3]'
@@ -171,7 +171,7 @@ Scenario: work around for the above
             return karate.jsonPath(product, '$.partIDs[?(@.id==' + id + ')]').length;
         }
         """
-    * def products = read('products.json')
+    * def products = read('js-arrays-products.json')
     * def result = []
     * karate.repeat(products.length, function(i){ if (hasId(products[i], 1)) result.push(products[i]) })
     * match result[*].name == ['Wotsit v1.5', 'Wotsit v2.5']
@@ -179,7 +179,7 @@ Scenario: work around for the above
 Scenario: work around but using karate.filter
     * def id = 1
     * def hasId = function(x){ return karate.jsonPath(x, '$.partIDs[?(@.id==' + id + ')]').length != 0 }
-    * def products = read('products.json')
+    * def products = read('js-arrays-products.json')
     * def result = karate.filter(products, hasId)
     * match result[*].name == ['Wotsit v1.5', 'Wotsit v2.5']
 

@@ -2,11 +2,11 @@ Feature: json-schema like validation
 
 Scenario: but simpler and more powerful
 
-* def response = read('odds.json')
+* def response = read('schema-like-odds.json')
 # here we enclose in round-brackets to preserve the optional embedded expression
 # so that it can be used later in a "match"
 * def oddSchema = ({ price: '#string', status: '#? _ < 3', ck: '##number', name: '#regex[0-9X]' })
-* def isValidTime = read('time-validator.js')
+* def isValidTime = read('schema-like-time-validator.js')
 
 Then match response ==
 """
@@ -168,7 +168,7 @@ Scenario: re-usable json chunks as nodes, but optional
 * match response2 == schema
 
 Scenario: pretty print json
-* def json = read('odds.json')
+* def json = read('schema-like-odds.json')
 * print 'pretty print:\n' + karate.pretty(json)
 
 Scenario: more pretty print

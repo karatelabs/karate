@@ -235,19 +235,24 @@ class FeatureRuntimeTest {
     }
 
     @Test
+    void testOutline() {
+        run("outline.feature");
+    }
+
+    @Test
     void testOutlineBackground() {
         run("outline-background.feature");
     }
-    
+
     @Test
     void testOutlineDynamic() {
         run("outline-dynamic.feature");
-    } 
-    
+    }
+
     @Test
     void testOutlineSetupOnce() {
         run("outline-setup-once.feature");
-    }      
+    }
 
     @Test
     void testOutlineConfigJsParallel() {
@@ -334,7 +339,7 @@ class FeatureRuntimeTest {
     void testKarateGet() {
         run("karate-get.feature");
     }
-    
+
     @Test
     void testOutlineCsv() {
         run("outline-csv.feature");
@@ -343,17 +348,57 @@ class FeatureRuntimeTest {
     @Test
     void testReadProperties() {
         run("read-properties.feature");
-    }      
-    
+    }
+
     @Test
     void testCallSelf() {
         run("call-self.feature");
         matchContains(fr.result.getVariables(), "{ result: 'second' }");
     }
-    
+
     @Test
     void testBigDecimal() {
         run("big-decimal.feature");
     }
+
+    @Test
+    void testJsArrays() {
+        run("js-arrays.feature");
+    }
+
+    @Test
+    void testLowerCase() {
+        run("lower-case.feature");
+    }
+
+    @Test
+    void testNotEquals() {
+        run("not-equals.feature");
+    }
+
+    @Test
+    void testReplace() {
+        run("replace.feature");
+    }
+
+    @Test
+    void testScenarioVariableScope() {
+        run("scenario-variable-scope.feature");
+    }
+
+    @Test
+    void testSchemaLike() {
+        run("schema-like.feature");
+    }
+
+    @Test
+    void testSortArray() {
+        run("sort-array.feature");
+    } 
+    
+    @Test
+    void testTypeConv() {
+        run("type-conv.feature");
+    }     
 
 }

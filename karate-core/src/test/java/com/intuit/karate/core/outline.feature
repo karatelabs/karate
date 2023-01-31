@@ -44,7 +44,7 @@ Scenario Outline: mix reading from a dynamic file
 
   Examples:
     | filename |
-    | cat      |
+    | outline-cat |
 
 Scenario Outline: using the optional ##() marker effectively with examples type-hints
     * def search = { name: { first: "##(first)", last: "#(last)" }, age: "##(age)" }
@@ -61,4 +61,4 @@ Scenario Outline: dynamic scenario outline
     * match __row == { name: '#string', age: '#number' }
 
     Examples:
-    | read('cats.json') |
+    | read('outline-cats.json') |

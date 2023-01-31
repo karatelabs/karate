@@ -11,7 +11,7 @@ Scenario: multi-line text
       }
     }
     """
-    * match query == read('query.txt').replaceAll("\r", "")
+    * match query == read('type-conv-query.txt').replaceAll("\r", "")
 
 Scenario: multi-line text with the starting line indented
     * text query =
@@ -21,7 +21,7 @@ abcd
 efgh   
       }
     """
-    * match query == read('query2.txt').replaceAll("\r", "")
+    * match query == read('type-conv-query2.txt').replaceAll("\r", "")
 
 Scenario Outline: multi-line text in a scenario outline
     * text query =
@@ -33,7 +33,7 @@ Scenario Outline: multi-line text in a scenario outline
       }
     }
     """
-    * match query == read('query.txt').replaceAll("\r", "")
+    * match query == read('type-conv-query.txt').replaceAll("\r", "")
 
     Examples:
     | name           |
@@ -44,7 +44,7 @@ Scenario: multi-line string expression
     * def name = 'Luke Skywalker'
     * string expectedOnUnix = '{\n  hero(name: "' + name + '") {\n    height\n    mass\n  }\n}'
     * string expectedOnWindows = '{\r\n  hero(name: "' + name + '") {\r\n    height\r\n    mass\r\n  }\r\n}'
-    * def actual = read('query.txt')
+    * def actual = read('type-conv-query.txt')
     * assert actual === expectedOnUnix || actual === expectedOnWindows
 
 Scenario: string to json
@@ -128,7 +128,7 @@ Scenario: get the "first key" out of a given json
     * match first == 'key1'
 
 Scenario: java pojo to json
-    * def className = 'com.intuit.karate.junit4.demos.SimplePojo'
+    * def className = 'com.intuit.karate.core.SimplePojo'
     * def Pojo = Java.type(className)
     * def pojo = new Pojo()
     * json jsonVar = pojo
@@ -139,7 +139,7 @@ Scenario: java pojo to json
     * assert testPojo.bar == 5
 
 Scenario: java pojo to xml
-    * def Pojo = Java.type('com.intuit.karate.junit4.demos.SimplePojo')
+    * def Pojo = Java.type('com.intuit.karate.core.SimplePojo')
     * def pojo = new Pojo()
     * xml xmlVar = pojo
     * match xmlVar == <root><foo></foo><bar>0</bar></root>
