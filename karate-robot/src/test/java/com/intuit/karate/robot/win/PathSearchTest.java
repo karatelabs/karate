@@ -1,8 +1,8 @@
 package com.intuit.karate.robot.win;
 
 import java.util.List;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,12 +10,12 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class PathSearchTest {
+class PathSearchTest {
 
     private static final Logger logger = LoggerFactory.getLogger(PathSearchTest.class);
 
     @Test
-    public void testPathParsing() {
+    void testPathParsing() {
         List<PathSearch.Chunk> list = PathSearch.split("//hello/world//foo/bar");
         logger.debug("list: {}", list);
         PathSearch.Chunk first = list.get(0);
@@ -30,7 +30,7 @@ public class PathSearchTest {
     }
 
     @Test
-    public void testPathEdge() {
+    void testPathEdge() {
         List<PathSearch.Chunk> list = PathSearch.split("/hello//world");
         logger.debug("list: {}", list);
         PathSearch.Chunk first = list.get(0);
@@ -42,7 +42,7 @@ public class PathSearchTest {
     }
 
     @Test
-    public void testIndex() {
+    void testIndex() {
         List<PathSearch.Chunk> list = PathSearch.split("/hello[3]//world");
         logger.debug("list: {}", list);
         PathSearch.Chunk first = list.get(0);
@@ -56,7 +56,7 @@ public class PathSearchTest {
     }
 
     @Test
-    public void testClassName() {
+    void testClassName() {
         List<PathSearch.Chunk> list = PathSearch.split("/hello[3]//world.Foo/.Bar");
         logger.debug("list: {}", list);
         PathSearch.Chunk first = list.get(0);
@@ -75,7 +75,7 @@ public class PathSearchTest {
     }
 
     @Test
-    public void testOnlyName() {
+    void testOnlyName() {
         List<PathSearch.Chunk> list = PathSearch.split("//foo//{Bar One}/{Baz}");
         logger.debug("list: {}", list);
         PathSearch.Chunk first = list.get(0);
@@ -96,7 +96,7 @@ public class PathSearchTest {
     }
     
     @Test
-    public void testOnlyName2() {
+    void testOnlyName2() {
         List<PathSearch.Chunk> list = PathSearch.split("//listitem/{Taxpayer Information}");
         logger.debug("list: {}", list);
         PathSearch.Chunk first = list.get(0);

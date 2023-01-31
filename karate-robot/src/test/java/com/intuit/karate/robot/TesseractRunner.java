@@ -3,7 +3,7 @@ package com.intuit.karate.robot;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import robot.core.ChromeJavaRunner;
@@ -12,12 +12,12 @@ import robot.core.ChromeJavaRunner;
  *
  * @author pthomas3
  */
-public class TesseractRunner {
+class TesseractRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(TesseractRunner.class);
 
     @Test
-    public void testTess() {
+    void testTess() {
         // File source = new File("src/test/java/some-text.png");        
         RobotBase robot = ChromeJavaRunner.getRobot();
         Element window = robot.window("Safari");

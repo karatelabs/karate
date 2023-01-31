@@ -2,11 +2,11 @@ package com.intuit.karate.robot.win;
 
 import com.intuit.karate.robot.Element;
 import com.intuit.karate.robot.Robot;
-import org.junit.Test;
-import static org.junit.Assert.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import robot.core.ChromeJavaRunner;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 /**
  *

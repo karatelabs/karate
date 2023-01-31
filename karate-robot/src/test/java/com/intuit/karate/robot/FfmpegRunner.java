@@ -1,6 +1,6 @@
 package com.intuit.karate.robot;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -8,12 +8,12 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class FfmpegRunner {
+class FfmpegRunner {
     
     private static final Logger logger = LoggerFactory.getLogger(FfmpegRunner.class);
 
     @Test
-    public void testOpenCv() {
+    void testOpenCv() {
         Ffmpeg ff = new Ffmpeg();
         ff.run();
     }    

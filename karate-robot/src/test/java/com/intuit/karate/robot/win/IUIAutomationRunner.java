@@ -3,8 +3,8 @@ package com.intuit.karate.robot.win;
 import com.intuit.karate.StringUtils;
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinDef;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,12 +12,12 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class IUIAutomationRunner {
+class IUIAutomationRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(IUIAutomationRunner.class);
 
     @Test
-    public void testAutomation() {
+    void testAutomation() {
         IUIAutomation ui = IUIAutomation.INSTANCE;
         IUIAutomationElement rootElement = ui.getRootElement();
         assertEquals("Desktop", rootElement.getCurrentName());

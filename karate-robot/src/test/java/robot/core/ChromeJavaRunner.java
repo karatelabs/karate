@@ -8,7 +8,8 @@ import com.intuit.karate.robot.RobotBase;
 import com.intuit.karate.robot.RobotFactory;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.ScenarioRuntime;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
 
 /**
  *
@@ -24,7 +25,7 @@ public class ChromeJavaRunner {
     }
 
     @Test
-    public void testChrome() {
+    void testChrome() {
         RobotBase bot = getRobot();
         // make sure Chrome is open
         bot.window(t -> t.contains("Chrome"));
