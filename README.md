@@ -2208,7 +2208,7 @@ And match response /Envelope/Body/QueryUsageBalanceResponse == read('expected-re
 
 A [working example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/soap.feature) of calling a SOAP service can be found within the Karate project test-suite. Refer to the [demos](karate-demo) for another example: [`soap.feature`](karate-demo/src/test/java/demo/soap/soap.feature).
 
-More examples are available that showcase various ways of parameter-izing and dynamically manipulating SOAP requests in a data-driven fashion. Karate is quite flexible, and provides multiple options for you to evolve patterns that fit your environment, as you can see here: [`xml.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
+More examples are available that showcase various ways of parameter-izing and dynamically manipulating SOAP requests in a data-driven fashion. Karate is quite flexible, and provides multiple options for you to evolve patterns that fit your environment, as you can see here: [`xml.feature`](karate-core/src/test/java/com/intuit/karate/core/xml/xml.feature).
 
 ## `retry until`
 Karate has built-in support for re-trying an HTTP request until a certain condition has been met. The default setting for the max retry-attempts is 3 with a poll interval of 3000 milliseconds (3 seconds). If needed, this can be changed by using [`configure`](#configure) - any time during a test, or set globally via [`karate-config.js`](#configuration)
@@ -2550,7 +2550,7 @@ If you have to set a bunch of deeply nested keys, you can move the parent path t
 * match foo == { bar: { one: 1, two: [2, 3] } }
 ```
 
-The same concept applies to XML and you can build complicated payloads from scratch in just a few, extremely readable lines. The `value` column can take expressions, *even* XML chunks. You can find more examples here: [`xml.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
+The same concept applies to XML and you can build complicated payloads from scratch in just a few, extremely readable lines. The `value` column can take expressions, *even* XML chunks. You can find more examples here: [`xml.feature`](karate-core/src/test/java/com/intuit/karate/core/xml/xml.feature).
 
 ```cucumber
 * set search /acc:getAccountByPhoneNumber
@@ -2834,7 +2834,7 @@ All the [fuzzy matching](#fuzzy-matching) markers will work in XML as well. Here
   * match xml == <root><hello foo="#ignore">world</hello></root>
 ```
 
-Refer to this file for a comprehensive set of XML examples: [`xml.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
+Refer to this file for a comprehensive set of XML examples: [`xml.feature`](karate-core/src/test/java/com/intuit/karate/core/xml/xml.feature).
 
 ## Matching Sub-Sets of JSON Keys and Arrays
 ### `match contains`
@@ -3652,7 +3652,7 @@ Operation | Description
 <a name="karate-scenario"><code>karate.scenario</code></a> | get metadata about the currently executing `Scenario` (or `Outline` - `Example`) within a test 
 <a name="karate-set"><code>karate.set(name, value)</code></a> | sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
 <a name="karate-setall"><code>karate.set(object)</code></a> | where the single argument is expected to be a `Map` or JSON-like, and will perform the above `karate.set()` operation for all key-value pairs in one-shot, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/set.feature)
-<a name="karate-setpath"><code>karate.set(name, path, value)</code></a> | only needed when you need to conditionally build payload elements, especially XML. This is best explained via [an example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature#L211), and it behaves the same way as the [`set`](#set) keyword. Also see [`eval`](#eval).
+<a name="karate-setpath"><code>karate.set(name, path, value)</code></a> | only needed when you need to conditionally build payload elements, especially XML. This is best explained via [an example](karate-core/src/test/java/com/intuit/karate/core/xml/xml.feature#L211), and it behaves the same way as the [`set`](#set) keyword. Also see [`eval`](#eval).
 <a name="karate-setxml"><code>karate.setXml(name, xmlString)</code></a> | rarely used, refer to the example above
 <a name="karate-setup"><code>karate.setup([name])</code></a> | call a `Scenario` tagged with the built-in [`@setup`](#setup) annotation
 <a name="karate-setuponce"><code>karate.setupOnce([name])</code></a> | like [`karate.setup()`](#karate-setup) above, but cache the result so that the "setup" runs only once
@@ -3678,7 +3678,7 @@ Operation | Description
 <a name="karate-waitforport"><code>karate.waitForPort(host, port)</code></a> | will wait until the host:port is ready to accept socket connections
 <a name="karate-websocket"><code>karate.webSocket(url, handler)</code></a> | see [websocket](#websocket)
 <a name="karate-write"><code>karate.write(object, path)</code></a> | *normally not recommended, please [read this first](https://stackoverflow.com/a/54593057/143475)* - writes the bytes of `object` to a path which will *always* be relative to the "build" directory (typically `target`), see this example: [`embed-pdf.js`](karate-demo/src/test/java/demo/embed/embed-pdf.js) - and this method returns a `java.io.File` reference to the file created / written to
-<a name="karate-xmlpath"><code>karate.xmlPath(xml, expression)</code></a> | Just like [`karate.jsonPath()`](#karate-jsonpath) - but for XML, and allows you to use dynamic XPath if needed, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
+<a name="karate-xmlpath"><code>karate.xmlPath(xml, expression)</code></a> | Just like [`karate.jsonPath()`](#karate-jsonpath) - but for XML, and allows you to use dynamic XPath if needed, see [example](karate-core/src/test/java/com/intuit/karate/core/xml/xml.feature).
 
 # Code Reuse / Common Routines
 ## `call`

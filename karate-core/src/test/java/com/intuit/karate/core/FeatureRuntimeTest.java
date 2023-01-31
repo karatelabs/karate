@@ -350,5 +350,10 @@ class FeatureRuntimeTest {
         run("call-self.feature");
         matchContains(fr.result.getVariables(), "{ result: 'second' }");
     }
+    
+    @Test
+    void testBigDecimal() {
+        run("big-decimal.feature");
+    }
 
 }

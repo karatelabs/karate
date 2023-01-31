@@ -533,11 +533,6 @@ Scenario: just to be clear about how to set a null if really needed in the resul
     
     * match foo == { name: { last: null } }
 
-Scenario: read json within a js function
-    * def fun = function(){ var temp = read('classpath:test.json'); return temp.error[1].id }
-    * def val = call fun
-    * match val == 2
-
 Scenario: contains / not contains
     * def some = [1, 2]
     * def actual = [1, 2, 3]
