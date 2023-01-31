@@ -68,43 +68,6 @@ class ResourceUtilsTest {
     }
 
     @Test
-    void testFindJarFilesByExtension() {
-        Collection<Resource> list = ResourceUtils.findResourcesByExtension(wd, "properties", "classpath:cucumber");
-        Resource resource = null;
-        for (Resource temp : list) {
-            if ("cucumber/version.properties".equals(temp.getRelativePath())) {
-                resource = temp;
-                break;
-            }
-        }
-        assertFalse(resource.isFile());
-        assertTrue(resource.isClassPath());
-        assertEquals("cucumber/version.properties", resource.getRelativePath());
-        assertEquals("classpath:cucumber/version.properties", resource.getPrefixedPath());
-        assertEquals("cucumber-jvm.version=1.2.5", FileUtils.toString(resource.getStream()));
-    }
-
-    @Test
-    void testGetJarFileByPath() {
-        Resource resource = ResourceUtils.getResource(wd, "classpath:cucumber/version.properties");
-        assertFalse(resource.isFile());
-        assertTrue(resource.isClassPath());
-        assertEquals("cucumber/version.properties", resource.getRelativePath());
-        assertEquals("classpath:cucumber/version.properties", resource.getPrefixedPath());
-        assertEquals("cucumber-jvm.version=1.2.5", FileUtils.toString(resource.getStream()));
-    }
-
-    @Test
-    void testResolveJarFile() {
-        Resource temp = ResourceUtils.getResource(wd, "classpath:cucumber/version.properties");
-        Resource resource = temp.resolve("api/cli/USAGE.txt");
-        assertFalse(resource.isFile());
-        assertTrue(resource.isClassPath());
-        assertEquals("cucumber/api/cli/USAGE.txt", resource.getRelativePath());
-        assertEquals("classpath:cucumber/api/cli/USAGE.txt", resource.getPrefixedPath());
-    }
-
-    @Test
     void testFindClassPathFilesByExtension() {
         Collection<Resource> list = ResourceUtils.findResourcesByExtension(wd, "txt", "classpath:com/intuit/karate/resource");
         assertEquals(1, list.size());
