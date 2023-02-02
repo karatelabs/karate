@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.debug;
 
-import com.intuit.karate.FileUtils;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -31,7 +30,6 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import java.io.File;
 import java.net.InetSocketAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,8 +99,6 @@ public class DapServer {
             host = "127.0.0.1"; //isa.getHostString();
             port = isa.getPort();
             logger.info("debug server started on port: {}", port);
-            String buildDir = FileUtils.getBuildDir();
-            FileUtils.writeToFile(new File(buildDir + File.separator + "karate-debug-port.txt"), port + "");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
