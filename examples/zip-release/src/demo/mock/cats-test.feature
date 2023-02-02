@@ -1,5 +1,4 @@
 Feature: integration test for the mock
-    for help, see: https://github.com/intuit/karate/wiki/ZIP-Release
 
 Background:
     * def port = karate.env == 'mock' ? karate.start('cats-mock.feature').port : 8080

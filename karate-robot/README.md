@@ -8,8 +8,7 @@
 <tr>
   <th>Start</th>
   <td>
-      <a href="https://github.com/intuit/karate/wiki/ZIP-Release">ZIP Release</a>
-    | <a href="#maven">Maven</a>
+      <a href="#maven">Maven</a>
     | <a href="https://github.com/intuit/karate/wiki/Karate-Robot-Windows-Install-Guide">Windows Install Guide</a>
     | <a href="#jbang">jbang</a>
     | <a href="#debugging">Debugging</a>
@@ -102,7 +101,7 @@
 </table>
 
 ## Capabilities
-* Available as a standalone binary via the [ZIP Release](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot)
+* Available as a standalone binary
 * Native Mouse Events
 * Native Keyboard Events
 * Windows object-recognition using [Microsoft UI Automation](https://docs.microsoft.com/en-us/windows/win32/winauto/entry-uiauto-win32)
@@ -121,7 +120,7 @@
 * Opening a browser tab and performing actions - [Link](src/test/java/robot/core/chrome.feature)
 
 ## Using
-If you are not that experienced with programming - or don't want to set up a Java development environment, please look at the [ZIP Release](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot) which you can run using [Visual Studio Code](https://github.com/intuit/karate/wiki/IDE-Support#visual-studio-code).
+If you are not that experienced with programming - or don't want to set up a Java development environment, please look at the [standalone JAR](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot) which you can run using [Visual Studio Code](https://github.com/intuit/karate/wiki/IDE-Support#visual-studio-code).
 
 Maven (or Gradle) users can read on below. Make sure you follow the [Karate conventions](https://github.com/intuit/karate#folder-structure) and you can use the [`examples/robot-test`](../examples/robot-test) project as a template.
 
@@ -840,7 +839,7 @@ Can execute any OS command, wait for it it terminate, and return the system / co
 Also see [`karate.fork()`](#karatefork)
 
 # Standalone JAR
-The `karate-robot` for Windows is around 150 MB and hence not distributed with the [ZIP Release](https://github.com/intuit/karate/wiki/ZIP-Release). But you can download it separately, and it can be easily added to the classpath. You can find instructions [here](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot).
+The `karate-robot` for Windows is around 150 MB and hence not distributed with the [standalone JAR or IDE plugins](https://github.com/karatelabs/karate/wiki/IDE-Support). But you can download it separately, and it can be easily added to the classpath. You can find instructions [here](https://github.com/karatelabs/karate/wiki/Karate-Robot-Windows-Install-Guide).
 
 ## Building
 For MacOSX, Linux, Android or iOS, you can build a stand-alone JAR by following the [Developer Guide](https://github.com/intuit/karate/wiki/Developer-Guide#build-standalone-karate-robot-jar).

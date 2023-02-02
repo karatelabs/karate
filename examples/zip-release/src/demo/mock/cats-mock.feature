@@ -1,6 +1,5 @@
 @ignore
 Feature: stateful mock server
-    for help, see: https://github.com/intuit/karate/wiki/ZIP-Release
 
 Background:
 * configure cors = true

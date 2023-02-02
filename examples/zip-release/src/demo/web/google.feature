@@ -1,5 +1,4 @@
 Feature: web-browser automation
-    for help, see: https://github.com/intuit/karate/wiki/ZIP-Release
 
 Background:
    * configure driver = { type: 'chrome' }

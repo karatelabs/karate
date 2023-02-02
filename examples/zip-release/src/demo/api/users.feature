@@ -1,5 +1,4 @@
 Feature: sample karate api test script
-  for help, see: https://github.com/intuit/karate/wiki/ZIP-Release
 
   Background:
     * url 'https://jsonplaceholder.typicode.com'

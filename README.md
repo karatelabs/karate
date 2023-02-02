@@ -295,11 +295,11 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 You can find a lot more references, tutorials and blog-posts [in the wiki](https://github.com/intuit/karate/wiki/Community-News). Karate also has a dedicated "tag", and a very active and supportive community at [Stack Overflow](https://stackoverflow.com/questions/tagged/karate) - where you can get support and ask questions.
 
 # Getting Started
-If you are a Java developer - Karate requires at least [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 and then either [Maven](http://maven.apache.org), [Gradle](https://gradle.org), [Eclipse](#eclipse-quickstart) or [IntelliJ](https://github.com/intuit/karate/wiki/IDE-Support#intellij-community-edition) to be installed. Note that Karate works fine on OpenJDK.
+If you are a Java developer - Karate requires at least [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 and then either [Maven](http://maven.apache.org), [Gradle](https://gradle.org), or a Java IDE that embeds either to be installed. Note that Karate works fine on OpenJDK.
 
-If you are new to programming or test-automation, refer to the options for [IDE support](https://github.com/karatelabs/karate/wiki/IDE-Support) and the [official IntelliJ plugin](https://plugins.jetbrains.com/plugin/19232-karate) is recommended. Other options are the [quickstart](#quickstart) or the [standalone executable](karate-netty#standalone-jar).
+If you are new to programming or test-automation, the [official IntelliJ plugin](https://plugins.jetbrains.com/plugin/19232-karate) is recommended.
 
-If you *don't* want to use Java, you have the option of just downloading and extracting the [ZIP release](https://github.com/intuit/karate/wiki/ZIP-Release). Try this especially if you don't have much experience with programming or test-automation. We recommend that you use the [Karate extension for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=karatelabs.karate) - and with that, JavaScript, .NET and Python programmers will feel right at home.
+If you *don't* want to use Java, the [Karate extension for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=karatelabs.karate) is recommended, and JavaScript, .NET, Ruby and Python programmers will feel right at home.
 
 Both the official Visual Studio Code and IntelliJ plugins support step-through debugging of Karate tests.
 

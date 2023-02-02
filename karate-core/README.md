@@ -11,8 +11,7 @@
 <tr>
   <th>Start</th>
   <td>
-      <a href="https://github.com/intuit/karate/wiki/ZIP-Release">ZIP Release</a>
-    | <a href="https://github.com/intuit/karate#maven">Java</a>
+      <a href="https://github.com/karatelabs/karate/wiki/IDE-Support">IDE Support</a>
     | <a href="https://github.com/intuit/karate#quickstart">Maven Quickstart</a>
     | <a href="https://github.com/intuit/karate#index">Karate - Main Index</a>
   </td>
