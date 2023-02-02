@@ -1,4 +1,3 @@
-@mock-servlet-todo
 Feature: disable redirects in order to assert against the location header
 
 Background:

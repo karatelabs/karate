@@ -37,7 +37,6 @@ Scenario: json post with with charset and version
     And match temp contains 'charset=utf-8'
     And match temp contains 'version=1.2.3'
 
-@mock-servlet-todo
 Scenario: json post with with unusual content-type and parameter
     Given path 'search', 'headers'
     And header Content-Type = 'application/vnd.app.test+json;ton-version=1'
@@ -50,7 +49,6 @@ Scenario: json post with with unusual content-type and parameter
     And match temp contains 'charset=utf-8'
     And match temp contains 'ton-version=1'
 
-@mock-servlet-todo
 Scenario: json post with with unusual content-type and configure-headers
     * configure headers = function(){ return {'Content-Type': 'application/vnd.app.test+json;ton-version=1'} }
     Given path 'search', 'headers'
@@ -63,7 +61,6 @@ Scenario: json post with with unusual content-type and configure-headers
     And match temp contains 'charset=utf-8'
     And match temp contains 'ton-version=1'
 
-@mock-servlet-todo
 Scenario: empty string as content-type
     Given path 'search', 'headers'
     And header Content-Type = ''

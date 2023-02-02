@@ -1,6 +1,5 @@
 package com.intuit.karate.core;
 
-import cucumber.api.java.en.When;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -72,12 +71,7 @@ public class StepRuntimeTest {
         if (when != null) {
             methodRegex = when.value();
         } else {
-            Action action = scenarioActionMethod.getDeclaredAnnotation(Action.class);
-            if (action != null) {
-                methodRegex = action.value();
-            } else {
-                methodRegex = null;
-            }
+            methodRegex = null;
         }
 
         // it's ok reflection here, just for unit testing.

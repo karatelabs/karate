@@ -1,4 +1,3 @@
-@mock-servlet-todo
 @ignore
 Feature: websocket testing
 

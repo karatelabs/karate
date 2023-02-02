@@ -222,8 +222,7 @@ And you don't need to create additional Java classes for any of the payloads tha
 <tr>
   <th>More</th>
   <td>
-      <a href="karate-mock-servlet">Mock Servlet</a>
-    | <a href="karate-netty">Test Doubles</a>
+      <a href="karate-netty">Test Doubles</a>
     | <a href="karate-gatling">Performance Testing</a>
     | <a href="karate-core">UI Testing</a>
     | <a href="karate-robot">Desktop Automation</a>
@@ -269,7 +268,6 @@ And you don't need to create additional Java classes for any of the payloads tha
 * Built-in [distributed-testing capability](https://github.com/intuit/karate/wiki/Distributed-Testing) that works for API, UI and even [load-testing](https://github.com/intuit/karate/wiki/Distributed-Testing#gatling) - without needing any complex "grid" infrastructure
 * [API mocks](karate-netty) or test-doubles that even [maintain CRUD 'state'](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) across multiple calls - enabling TDD for micro-services and [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
 * [Async](#async) support that allows you to seamlessly integrate the handling of custom events or listening to message-queues
-* [Mock HTTP Servlet](karate-mock-servlet) that enables you to test __any__ controller servlet such as Spring Boot / MVC or Jersey / JAX-RS - without having to boot an app-server, and you can use your HTTP integration tests un-changed
 * Built-in [HTML templating](https://twitter.com/KarateDSL/status/1338892932691070976) so that you can extend your test-reports into readable specifications
 * Comprehensive support for different flavors of HTTP calls:
   * [SOAP](#soap-action) / XML requests

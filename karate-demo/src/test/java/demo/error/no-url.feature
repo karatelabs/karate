@@ -1,4 +1,3 @@
-@mock-servlet-todo
 Feature:  No URL found proper error response
 
   Background:

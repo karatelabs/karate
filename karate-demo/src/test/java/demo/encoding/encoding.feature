@@ -76,7 +76,6 @@ Scenario: french json
     Then status 200
     And match response == { givenName: 'oliàèôç' }
 
-@mock-servlet-todo
 Scenario: french json ISO-8859-1
     Given url demoBaseUrl
     And path 'echo'
@@ -98,7 +97,6 @@ Scenario: french & german form field
     Then status 200
     And match response == 'oliàèôç Müller'
 
-@mock-servlet-todo
 Scenario: french & german multipart
     Given url demoBaseUrl
     Given path 'files'
@@ -109,7 +107,6 @@ Scenario: french & german multipart
     Then status 200
     And match response == { id: '#uuid', filename: 'karate-logo.jpg', message: 'oliàèôç Müller', contentType: 'image/jpg' }
 
-@mock-servlet-todo
 Scenario: multipart but forcing the charset to NOT be sent
     Given url demoBaseUrl
     Given path 'files'

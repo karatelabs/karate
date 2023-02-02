@@ -1,4 +1,3 @@
-@mock-servlet-todo
 Feature: test accessing the 'actual' request made
 
 Background:

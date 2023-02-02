@@ -29,9 +29,6 @@ import com.intuit.karate.JsonUtils;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.StringUtils;
-import cucumber.api.java.en.When;
-import org.slf4j.LoggerFactory;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -45,6 +42,7 @@ import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author pthomas3
@@ -206,22 +204,13 @@ public class StepRuntime {
                 String regex = when.value();
                 MethodPattern methodPattern = new MethodPattern(method, regex);
                 temp.put(regex, methodPattern);
-
                 // edge case for eval() method it's mean to match anything in a line e.g. waitFor('#stuff')
                 // regex is ([\w]+)([^\s^\w])(.+)
                 String keyword = method.getName().equalsIgnoreCase("eval") ? "eval" : methodPattern.keyword;
                 Collection<Method> keywordMethods = KEYWORDS_METHODS.computeIfAbsent(keyword, k -> new HashSet<>());
                 keywordMethods.add(methodPattern.method);
-            } else {
-                Action action = method.getDeclaredAnnotation(Action.class);
-                if (action != null) {
-                    String regex = action.value();
-                    MethodPattern methodPattern = new MethodPattern(method, regex);
-                    overwrite.add(methodPattern);
-                }
             }
         }
-
         for (MethodPattern mp : overwrite) {
             temp.put(mp.regex, mp);
 

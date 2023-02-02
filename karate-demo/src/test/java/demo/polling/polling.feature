@@ -1,4 +1,3 @@
-@mock-servlet-todo
 Feature: demo of how to poll until a certain condition is met
 
 Background:

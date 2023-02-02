@@ -1,4 +1,4 @@
-package cucumber.api.java.en;
+package com.intuit.karate.core;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

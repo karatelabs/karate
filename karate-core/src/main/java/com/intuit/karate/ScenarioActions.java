@@ -26,8 +26,7 @@ package com.intuit.karate;
 import com.intuit.karate.core.AssignType;
 import com.intuit.karate.core.Action;
 import com.intuit.karate.core.ScenarioEngine;
-import cucumber.api.DataTable;
-import cucumber.api.java.en.When;
+import com.intuit.karate.core.When;
 import java.util.List;
 import java.util.Map;
 
@@ -154,24 +153,14 @@ public class ScenarioActions implements Actions {
         engine.request(body);
     }
 
-    @When("^table (.+)")
-    public void table(String name, DataTable table) {
-        table(name, table.asMaps(String.class, String.class));
-    }
-
     @Override
-    @Action("^table (.+)")
+    @When("^table (.+)")
     public void table(String name, List<Map<String, String>> table) {
         engine.table(name, table);
     }
 
-    @When("^replace (\\w+)$")
-    public void replace(String name, DataTable table) {
-        replace(name, table.asMaps(String.class, String.class));
-    }
-
     @Override
-    @Action("^replace (\\w+)$")
+    @When("^replace (\\w+)$")
     public void replace(String name, List<Map<String, String>> table) {
         engine.replaceTable(name, table);
     }
@@ -341,13 +330,8 @@ public class ScenarioActions implements Actions {
         engine.set(name, path, value);
     }
 
-    @When("^set ([^\\s]+)( [^=]+)?$")
-    public void set(String name, String path, DataTable table) {
-        set(name, path, table.asMaps(String.class, String.class));
-    }
-
     @Override
-    @Action("^set ([^\\s]+)( [^=]+)?$")
+    @When("^set ([^\\s]+)( [^=]+)?$")
     public void set(String name, String path, List<Map<String, String>> table) {
         engine.setViaTable(name, path, table);
     }

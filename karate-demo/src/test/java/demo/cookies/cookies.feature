@@ -64,7 +64,6 @@ Scenario: cookie returned has dots in the domain which violates RFC 2109
     Then status 200
     And match response[0] contains { name: 'foo', value: 'bar', domain: '.abc.com' }
 
-@mock-servlet-todo
 Scenario: non-expired cookie is in response
     * def futureDate =
     """

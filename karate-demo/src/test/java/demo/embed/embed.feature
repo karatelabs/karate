@@ -3,7 +3,6 @@ Feature: report embed
 Scenario: embed html
     * karate.embed('<h1>Hello World</h1>', 'text/html')
 
-@mock-servlet-todo
 Scenario: embed images
     * def bytes1 = read('../upload/karate-logo.jpg')
     * karate.embed(bytes1, 'image/jpeg')
