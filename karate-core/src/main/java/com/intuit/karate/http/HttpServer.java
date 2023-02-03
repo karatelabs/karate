@@ -25,6 +25,7 @@ package com.intuit.karate.http;
 
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
+import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
@@ -50,10 +51,16 @@ public class HttpServer {
 
         int port;
         boolean ssl;
+        boolean local = true;
         File certFile;
         File keyFile;
         boolean corsEnabled;
         ServerHandler handler;
+        
+        public Builder local(boolean value) {
+            local = value;
+            return this;
+        }
 
         public Builder http(int value) {
             port = value;
@@ -90,14 +97,22 @@ public class HttpServer {
             ServerBuilder sb = Server.builder();
             sb.requestTimeoutMillis(0);
             if (ssl) {
-                sb.https(port);
+                if (local) {
+                    sb.localPort(port, SessionProtocol.HTTPS);
+                } else {
+                    sb.https(port);
+                }
                 SslContextFactory factory = new SslContextFactory();
                 factory.setCertFile(certFile);
                 factory.setKeyFile(keyFile);
                 factory.build();
                 sb.tls(factory.getCertFile(), factory.getKeyFile());
             } else {
-                sb.http(port);
+                if (local) {
+                    sb.localPort(port, SessionProtocol.HTTP);
+                } else {
+                    sb.http(port);
+                }
             }
             HttpService service = new HttpServerHandler(handler);
             if (corsEnabled) {
