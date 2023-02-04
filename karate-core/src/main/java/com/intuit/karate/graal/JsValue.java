@@ -24,6 +24,7 @@
 package com.intuit.karate.graal;
 
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.core.ScenarioEngine;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -304,6 +305,9 @@ public class JsValue {
             for (int i = 0; i < newArgs.length; i++) {
                 newArgs[i] = JsValue.fromJava(args[i]);
             }
+            if (ScenarioEngine.isOnSameThreadAs(v)) {
+                return new JsValue(v.execute(newArgs)).value;
+            }
             synchronized (LOCK) {
                 return new JsValue(v.execute(newArgs)).value;
             }
@@ -322,6 +326,9 @@ public class JsValue {
             Object[] newArgs = new Object[args.length];
             for (int i = 0; i < newArgs.length; i++) {
                 newArgs[i] = JsValue.fromJava(args[i]);
+            }
+            if (ScenarioEngine.isOnSameThreadAs(v)) {
+                return new JsValue(v.execute(newArgs)).value;
             }
             synchronized (LOCK) {
                 return new JsValue(v.execute(newArgs)).value;
