@@ -139,7 +139,7 @@ public class JsValue {
                     type = Type.FUNCTION;
                 } else {
                     type = Type.OTHER;
-                }                
+                }
             }
         } catch (Exception e) {
             if (logger.isTraceEnabled()) {
@@ -255,7 +255,7 @@ public class JsValue {
         }
         return true;
     }
-    
+
     static class SharableMembers implements ProxyObject {
 
         final Value v;
@@ -289,7 +289,7 @@ public class JsValue {
             return v.removeMember(key);
         }
     }
-    
+
     public static final Object LOCK = new Object();
 
     static class SharableMembersAndExecutable extends SharableMembers implements ProxyExecutable {
@@ -301,15 +301,13 @@ public class JsValue {
         @Override
         public Object execute(Value... args) {
             Object[] newArgs = new Object[args.length];
-            // the synchronized block should include the pre-processing of arguments
-            synchronized (LOCK) {
-                for (int i = 0; i < newArgs.length; i++) {
-                    newArgs[i] = JsValue.fromJava(args[i]);
-                }
-                Value result = v.execute(newArgs);
-                return new JsValue(result).value;
+            for (int i = 0; i < newArgs.length; i++) {
+                newArgs[i] = JsValue.fromJava(args[i]);
             }
-        }                
+            synchronized (LOCK) {
+                return new JsValue(v.execute(newArgs)).value;
+            }
+        }
 
     }
 
@@ -322,11 +320,10 @@ public class JsValue {
         @Override
         public Object newInstance(Value... args) {
             Object[] newArgs = new Object[args.length];
-            // the synchronized block should include the pre-processing of arguments
-            synchronized (LOCK) {            
-                for (int i = 0; i < newArgs.length; i++) {
-                    newArgs[i] = JsValue.fromJava(args[i]);
-                }
+            for (int i = 0; i < newArgs.length; i++) {
+                newArgs[i] = JsValue.fromJava(args[i]);
+            }
+            synchronized (LOCK) {
                 return new JsValue(v.execute(newArgs)).value;
             }
         }
