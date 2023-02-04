@@ -782,7 +782,7 @@ public class ScenarioEngine {
         Object listenResult = null;
         try {
             listenResult = SIGNAL.get(timeout, TimeUnit.MILLISECONDS);
-            listenResult = JS.attachAll(listenResult);
+            Thread.sleep(100); // IMPORTANT, else graal js complains
         } catch (Exception e) {
             logger.error("listen timed out: {}", e + "");
         }
