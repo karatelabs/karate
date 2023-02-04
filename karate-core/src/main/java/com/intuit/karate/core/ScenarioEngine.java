@@ -133,14 +133,6 @@ public class ScenarioEngine {
 
     private static final ThreadLocal<ScenarioEngine> THREAD_LOCAL = new ThreadLocal<ScenarioEngine>();
 
-    public static boolean isOnSameThreadAs(Value value) {
-        ScenarioEngine se = get();
-        if (se == null || se.JS == null) {
-            return false;
-        }        
-        return se.JS.context.equals(value.getContext());
-    }
-    
     public static ScenarioEngine get() {
         return THREAD_LOCAL.get();
     }
