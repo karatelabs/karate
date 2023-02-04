@@ -786,9 +786,11 @@ public class ScenarioEngine {
         } catch (Exception e) {
             logger.error("listen timed out: {}", e + "");
         }
-        setHiddenVariable(LISTEN_RESULT, listenResult);
-        logger.debug("exit listen state with result: {}", listenResult);
         SIGNAL = new CompletableFuture();
+        synchronized (JsValue.LOCK) {
+            setHiddenVariable(LISTEN_RESULT, listenResult);
+            logger.debug("exit listen state with result: {}", listenResult);
+        }
     }
 
     public Command fork(boolean useLineFeed, List<String> args) {
