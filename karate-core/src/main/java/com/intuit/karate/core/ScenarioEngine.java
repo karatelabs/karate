@@ -316,7 +316,7 @@ public class ScenarioEngine {
             return request;
         }
         return null;
-    }        
+    }
 
     public HttpRequest getHttpRequest() {
         return httpRequest;
@@ -614,7 +614,7 @@ public class ScenarioEngine {
         startTime = httpRequest.getStartTime(); // in case it was re-adjusted by http client
         final long endTime = httpRequest.getEndTime();
         final long responseTime = endTime - startTime;
-        response.setResponseTime(responseTime);        
+        response.setResponseTime(responseTime);
         if (hooks != null) {
             hooks.forEach(h -> h.afterHttpCall(httpRequest, response, runtime));
         }
@@ -641,7 +641,7 @@ public class ScenarioEngine {
             }
         }
         setHiddenVariable(REQUEST_TIME_STAMP, startTime);
-        setVariable(RESPONSE_TIME, responseTime);        
+        setVariable(RESPONSE_TIME, responseTime);
         setVariable(RESPONSE_STATUS, response.getStatus());
         setVariable(RESPONSE, body);
         if (config.isLowerCaseResponseHeaders()) {
@@ -772,7 +772,7 @@ public class ScenarioEngine {
     }
 
     public void signal(Object result) {
-        SIGNAL.complete(result);                       
+        SIGNAL.complete(result);
     }
 
     public void listen(String exp) {
@@ -782,15 +782,13 @@ public class ScenarioEngine {
         Object listenResult = null;
         try {
             listenResult = SIGNAL.get(timeout, TimeUnit.MILLISECONDS);
-            Thread.sleep(100); // IMPORTANT, else graal js complains
+            listenResult = JS.attachAll(listenResult);
         } catch (Exception e) {
             logger.error("listen timed out: {}", e + "");
-        }        
-        synchronized (JsValue.LOCK) {
-            setHiddenVariable(LISTEN_RESULT, listenResult);
-            logger.debug("exit listen state with result: {}", listenResult);
-            SIGNAL = new CompletableFuture();
         }
+        setHiddenVariable(LISTEN_RESULT, listenResult);
+        logger.debug("exit listen state with result: {}", listenResult);
+        SIGNAL = new CompletableFuture();
     }
 
     public Command fork(boolean useLineFeed, List<String> args) {
@@ -992,12 +990,12 @@ public class ScenarioEngine {
     // doc =====================================================================
     //    
     private KarateTemplateEngine templateEngine;
-    
+
     private ResourceResolver resourceResolver;
 
     public void setResourceResolver(ResourceResolver resourceResolver) {
         this.resourceResolver = resourceResolver;
-    }        
+    }
 
     private ResourceResolver getResourceResolver() {
         if (resourceResolver != null) {
@@ -1061,7 +1059,8 @@ public class ScenarioEngine {
 
         compareImageInternal(v.getValue());
     }
-    protected Map<String, Object> compareImageInternal(Map<String,Object> params) {
+
+    protected Map<String, Object> compareImageInternal(Map<String, Object> params) {
         Map<String, Object> options = getImageOptions(params.get("options"), "options");
         byte[] baselineImg = getImageBytes(params, "baseline");
         byte[] latestImg = getImageBytes(params, "latest");
@@ -1076,15 +1075,17 @@ public class ScenarioEngine {
             logger.error("image comparison failed: {}", e.getMessage());
             embedUI = true;
             result = e.data;
-            if (!Boolean.TRUE.equals(defaultOptions.get("mismatchShouldPass"))) throw e;
+            if (!Boolean.TRUE.equals(defaultOptions.get("mismatchShouldPass"))) {
+                throw e;
+            }
         } finally {
             if (embedUI) {
-                String diffJS = "newDiffUI(document.currentScript," +
-                        JsonUtils.toJson(result) + "," +
-                        JsonUtils.toJson(options) + "," +
-                        getImageHookFunction(options, defaultOptions, "onShowRebase") + "," +
-                        getImageHookFunction(options, defaultOptions, "onShowConfig") +
-                        ")";
+                String diffJS = "newDiffUI(document.currentScript,"
+                        + JsonUtils.toJson(result) + ","
+                        + JsonUtils.toJson(options) + ","
+                        + getImageHookFunction(options, defaultOptions, "onShowRebase") + ","
+                        + getImageHookFunction(options, defaultOptions, "onShowConfig")
+                        + ")";
 
                 runtime.embed(JsonUtils.toBytes(diffJS), ResourceType.DEFERRED_JS);
             }
@@ -1100,11 +1101,11 @@ public class ScenarioEngine {
         }
 
         if (img instanceof String) {
-            return fileReader.readFileAsBytes((String)img);
+            return fileReader.readFileAsBytes((String) img);
         }
 
         if (img instanceof byte[]) {
-            return (byte[])img;
+            return (byte[]) img;
         }
 
         throw new RuntimeException(
@@ -1117,7 +1118,7 @@ public class ScenarioEngine {
         }
 
         if (obj instanceof Map) {
-            return (Map<String, Object>)obj;
+            return (Map<String, Object>) obj;
         }
 
         throw new RuntimeException("invalid image comparison " + objName + ": expected map");
@@ -1141,7 +1142,7 @@ public class ScenarioEngine {
             setVariables(arg);
         }
         JS.put(KARATE, bridge);
-        JS.put(READ, readFunction);        
+        JS.put(READ, readFunction);
         // edge case: can be left as-is because a callonce triggered init()
         if (requestBuilder == null) {
             // note that the http builder is always reset when a "call" occurs
@@ -1843,7 +1844,6 @@ public class ScenarioEngine {
         }
         return new StringUtils.Pair(line.substring(0, pos), StringUtils.trimToNull(line.substring(pos)));
     }
-      
 
     public Variable call(Variable called, Variable arg, boolean sharedScope) {
         switch (called.type) {
@@ -1869,14 +1869,10 @@ public class ScenarioEngine {
         } else {
             result = call(called, arg, sharedScope);
         }
-        if (sharedScope) {
-            if (result.isMap()) {
-                // even the act of introspecting graal values as part of the JsValue constructor
-                // triggers the dreaded graal js single-thread check, so we lock here
-                synchronized (JsValue.LOCK) {
-                    setVariables(result.getValue());
-                }
-            }
+        // attach js functions from a different graal context
+        result = new Variable(JS.attachAll(result.getValue()));
+        if (sharedScope && result.isMap()) {
+            setVariables(result.getValue());
         }
         return result;
     }
@@ -1937,8 +1933,8 @@ public class ScenarioEngine {
             result = new ScenarioCall.Result(callResult.copy(false), new Config(config), clonedVars);
             CACHE.put(cacheKey, result);
             logger.info("<< lock released, cached callonce: {}", cacheKey);
-             // another routine will apply globally if needed
-            return callOnceResult(result, sharedScope); 
+            // another routine will apply globally if needed
+            return callOnceResult(result, sharedScope);
         }
     }
 
