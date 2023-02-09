@@ -25,7 +25,7 @@
 
 <a><img src="karate-core/src/test/resources/karate-map.jpg" height="650" /></a>
 
-Karate is the only open-source tool to combine API test-automation, [mocks](karate-netty), [performance-testing](karate-gatling) and even [UI automation](karate-core) into a **single**, *unified* framework. The BDD syntax popularized by Cucumber is language-neutral, and easy for even non-programmers. Assertions and HTML reports are built-in, and you can run tests in parallel for speed.
+Karate is the only open-source tool to combine API test-automation, [mocks](karate-netty), [performance-testing](karate-gatling) and even [UI automation](karate-core) into a **single**, *unified* framework. The syntax is language-neutral, and easy for even non-programmers. Assertions and HTML reports are built-in, and you can run tests in parallel for speed.
 
 There's also a cross-platform [stand-alone executable](karate-netty#standalone-jar) for teams not comfortable with Java. You don't have to compile code. Just write tests in a **simple**, *readable* syntax - carefully designed for HTTP, JSON, GraphQL and XML. And you can mix API and [UI test-automation](karate-core) within the same test script.
 
@@ -295,7 +295,7 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 You can find a lot more references, tutorials and blog-posts [in the wiki](https://github.com/intuit/karate/wiki/Community-News). Karate also has a dedicated "tag", and a very active and supportive community at [Stack Overflow](https://stackoverflow.com/questions/tagged/karate) - where you can get support and ask questions.
 
 # Getting Started
-If you are a Java developer - Karate requires at least [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 and then either [Maven](http://maven.apache.org), [Gradle](https://gradle.org), or a Java IDE that embeds either to be installed. Note that Karate works fine on OpenJDK.
+If you are a Java developer - Karate requires at least [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 11 and then either [Maven](http://maven.apache.org), [Gradle](https://gradle.org), or a Java IDE that embeds either to be installed. Note that Karate works fine on OpenJDK.
 
 If you are new to programming or test-automation, the [official IntelliJ plugin](https://plugins.jetbrains.com/plugin/19232-karate) is recommended.
 
@@ -1156,7 +1156,7 @@ Then match response ==
 
 ## `table`
 ### A simple way to create JSON Arrays
-Now that we have seen how JSON is a 'native' data type that Karate understands, there is a very nice way to create JSON using Cucumber's support for expressing [data-tables](http://www.thinkcode.se/blog/2014/06/30/cucumber-data-tables).
+Now that we have seen how JSON is a 'native' data type that Karate understands, there is a very nice way to create JSON using the support for expressing [data-tables](http://www.thinkcode.se/blog/2014/06/30/cucumber-data-tables).
 
 ```cucumber
 * table cats
@@ -1210,7 +1210,7 @@ An alternate way to create data is using the [`set` multiple](#set-multiple) syn
 
 ## `text`
 ### Don't parse, treat as raw text
-Not something you would commonly use, but in some cases you need to disable Karate's default behavior of attempting to parse anything that looks like JSON (or XML) when using [multi-line](#multi-line-expressions) / string [expressions](#karate-expressions). This is especially relevant when manipulating [GraphQL](http://graphql.org) queries - because although they look suspiciously like JSON, they are not, and tend to confuse Karate's internals. And as shown in the example below, having text 'in-line' is useful especially when you use the `Scenario Outline:` and `Examples:` for [data-driven tests](#data-driven-tests) involving Cucumber-style place-holder substitutions in strings.
+Not something you would commonly use, but in some cases you need to disable Karate's default behavior of attempting to parse anything that looks like JSON (or XML) when using [multi-line](#multi-line-expressions) / string [expressions](#karate-expressions). This is especially relevant when manipulating [GraphQL](http://graphql.org) queries - because although they look suspiciously like JSON, they are not, and tend to confuse Karate's internals. And as shown in the example below, having text 'in-line' is useful especially when you use the `Scenario Outline:` and `Examples:` for [data-driven tests](#data-driven-tests) involving place-holder substitutions in strings.
 
 ```cucumber
 Scenario Outline:
@@ -3748,9 +3748,9 @@ Scenario:
 
 If you replace the `table` with perhaps a JavaScript function call that gets some JSON data from some data-source, you can imagine how you could go about dynamic data-driven testing.
 
-Although it is just a few lines of code, take time to study the above example carefully. It is a great example of how to effectively use the unique combination of Cucumber and JsonPath that Karate provides.
+Although it is just a few lines of code, take time to study the above example carefully. It is a great example of how to effectively use the unique combination of syntax and JsonPath that Karate provides.
 
-Also look at the [demo examples](karate-demo), especially [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature) - to compare the above approach with how the Cucumber [`Scenario Outline:`](#the-cucumber-way) can be alternatively used for data-driven tests.
+Also look at the [demo examples](karate-demo), especially [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature) - to compare the above approach with how the Gherkin [`Scenario Outline:`](#the-cucumber-way) can be alternatively used for data-driven tests.
 
 ### Built-in variables for `call`
 Although all properties in the passed JSON-like argument are 'unpacked' into the current scope as separate 'named' variables, it sometimes makes sense to access the whole argument and this can be done via `__arg`. And if being called in a loop, a built-in variable called `__loop` will also be available that will hold the value of the current loop index. So you can do things like this: `* def name = name + __loop` - or you can use the loop index value for looking up other values that may be in scope - in a data-driven style.
@@ -4254,7 +4254,7 @@ Scenario: never runs in perf or prod
 ```
 
 ### Tags And Examples
-A little-known capability of the Cucumber / Gherkin syntax is to be able to tag even specific rows in a bunch of examples ! You have to repeat the `Examples` section for each tag. The example below combines this with the advanced features described above.
+A little-known capability of the Gherkin syntax is to be able to tag even specific rows in a bunch of examples ! You have to repeat the `Examples` section for each tag. The example below combines this with the advanced features described above.
 
 ```cucumber
 Scenario Outline: examples partitioned by tag
