@@ -75,7 +75,7 @@
         </dependency>                                                                                  
         <dependency>
             <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-junit4</artifactId>
+            <artifactId>karate-junit5</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>               

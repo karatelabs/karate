@@ -1,23 +1,23 @@
 package mock.contract;
 
 import com.intuit.karate.JsonUtils;
-import org.junit.AfterClass;
-import org.junit.Test;
-import static org.junit.Assert.*;
-import org.junit.BeforeClass;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  *
  * @author pthomas3
  */
-public class ConsumerIntegrationTest {
+class ConsumerIntegrationTest {
     
-    private static ConfigurableApplicationContext context;
-    private static Consumer consumer;
+    static ConfigurableApplicationContext context;
+    static Consumer consumer;
     
-    @BeforeClass
-    public static void beforeClass() {
+    @BeforeAll
+    static void beforeAll() {
         String queueName = "DEMO.INTEGRATION";
         context = PaymentService.start(queueName, false);
         String paymentServiceUrl = "http://localhost:" + PaymentService.getPort(context);
@@ -25,7 +25,7 @@ public class ConsumerIntegrationTest {
     }
     
     @Test
-    public void testPaymentCreate() throws Exception {
+    void testPaymentCreate() throws Exception {
         Payment payment = new Payment();
         payment.setAmount(5.67);
         payment.setDescription("test one");
@@ -46,8 +46,8 @@ public class ConsumerIntegrationTest {
         }
     }
     
-    @AfterClass
-    public static void afterClass() {
+    @AfterAll
+    static void afterAll() {
         PaymentService.stop(context);
         consumer.stopQueueConsumer();
     }

@@ -39,7 +39,7 @@ class ProxyServerSslTest {
     static MockServer server;
 
     @BeforeAll
-    static void beforeClass() {
+    static void beforeAll() {
         proxy = new ProxyServer(0, null, null);
         server = MockServer.feature("classpath:com/intuit/karate/fatjar/server.feature").https(0).build();
         int port = server.getPort();
@@ -49,7 +49,7 @@ class ProxyServerSslTest {
     }
 
     @AfterAll
-    static void afterClass() {
+    static void afterAll() {
         server.stop();
         proxy.stop();
     }

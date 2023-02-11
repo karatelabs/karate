@@ -2,26 +2,26 @@ package mock.contract;
 
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.core.MockServer;
-import org.junit.AfterClass;
-import org.junit.Test;
-import static org.junit.Assert.*;
-import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  *
  * @author pthomas3
  */
-public class ConsumerUsingMockTest {
+class ConsumerUsingMockTest {
     
-    private static final Logger logger = LoggerFactory.getLogger(ConsumerUsingMockTest.class);
+    static final Logger logger = LoggerFactory.getLogger(ConsumerUsingMockTest.class);
     
-    private static MockServer server;
-    private static Consumer consumer;
+    static MockServer server;
+    static Consumer consumer;
     
-    @BeforeClass
-    public static void beforeClass() {
+    @BeforeAll
+    static void beforeAll() {
         String queueName = "DEMO.MOCK";
         server = MockServer
                 .feature("classpath:mock/contract/payment-service-mock.feature")
@@ -32,7 +32,7 @@ public class ConsumerUsingMockTest {
     }    
     
     @Test
-    public void testPaymentCreate() throws Exception {
+    void testPaymentCreate() throws Exception {
         Payment payment = new Payment();
         payment.setAmount(5.67);
         payment.setDescription("test one");
@@ -53,8 +53,8 @@ public class ConsumerUsingMockTest {
         }       
     }
     
-    @AfterClass
-    public static void afterClass() {
+    @AfterAll
+    static void afterAll() {
         server.stop();
         consumer.stopQueueConsumer();
     }    

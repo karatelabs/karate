@@ -1,4 +1,4 @@
-Feature: test set-up routines that run only once, similar to how @BeforeClass works
+Feature: test set-up routines that run only once, similar to how @BeforeAll works
 
 Background:
 

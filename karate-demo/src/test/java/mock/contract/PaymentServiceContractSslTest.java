@@ -2,39 +2,39 @@ package mock.contract;
 
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
-import org.junit.AfterClass;
-import static org.junit.Assert.assertTrue;
-import org.junit.BeforeClass;
-import org.junit.Test;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  *
  * @author pthomas3
  */
-public class PaymentServiceContractSslTest {
+class PaymentServiceContractSslTest {
     
     static ConfigurableApplicationContext context;
     static String queueName = "DEMO.CONTRACT.SSL";
     
-    @BeforeClass
-    public static void beforeClass() {   
+    @BeforeAll
+    static void beforeAll() {   
         context = PaymentService.start(queueName, true);
     }
     
     @Test
-    public void testPaymentService() {
+    void testPaymentService() {
         String paymentServiceUrl = "https://localhost:" + PaymentService.getPort(context);      
         Results results = Runner.path("classpath:mock/contract/payment-service.feature")
                 .configDir("classpath:mock/contract")
                 .systemProperty("payment.service.url", paymentServiceUrl)
                 .systemProperty("shipping.queue.name", queueName)
                 .parallel(1);
-        assertTrue(results.getErrorMessages(), results.getFailCount() == 0);        
+        assertTrue(results.getFailCount() == 0, results.getErrorMessages());        
     }
     
-    @AfterClass
-    public static void afterClass() {
+    @AfterAll
+    static void afterAll() {
         PaymentService.stop(context);
     }
     

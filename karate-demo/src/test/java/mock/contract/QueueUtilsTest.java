@@ -2,23 +2,23 @@ package mock.contract;
 
 import javax.jms.JMSException;
 import javax.jms.TextMessage;
-import org.junit.Test;
-import static org.junit.Assert.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  *
  * @author pthomas3
  */
-public class QueueUtilsTest {
+class QueueUtilsTest {
     
-    private static final Logger logger = LoggerFactory.getLogger(QueueUtilsTest.class);
+    static final Logger logger = LoggerFactory.getLogger(QueueUtilsTest.class);
 
-    private boolean passed = false;
+    boolean passed = false;
 
     @Test
-    public void testQueueOperations() throws Exception {
+    void testQueueOperations() throws Exception {
         String queueName = "DEMO.TEST";
         QueueUtils.send(queueName, "first", 0);
         QueueConsumer consumer = new QueueConsumer(queueName);

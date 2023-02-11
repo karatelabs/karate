@@ -3937,7 +3937,7 @@ Karate's `callonce` keyword behaves exactly like [`call`](#call) but is guarante
 
 This does require you to move 'set-up' into a separate `*.feature` (or JavaScript) file. But this totally makes sense for things not part of the 'main' test flow and which typically need to be re-usable anyway.
 
-So when you use the combination of `callonce` in a `Background`, you can indeed get the same effect as using a [`@BeforeClass`](http://junit.sourceforge.net/javadoc/org/junit/BeforeClass.html) annotation, and you can find examples in the [karate-demo](karate-demo), such as this one: [`callonce.feature`](karate-demo/src/test/java/demo/callonce/call-once.feature).
+So when you use the combination of `callonce` in a `Background`, you can indeed get the same effect as using a [`@BeforeAll`](https://junit.org/junit5/docs/5.0.0/api/org/junit/jupiter/api/BeforeAll.html) annotation, and you can find examples in the [karate-demo](karate-demo), such as this one: [`callonce.feature`](karate-demo/src/test/java/demo/callonce/call-once.feature).
 
 A `callonce` is ideally used for only "pure" JSON. You may face issues if you attempt to mix in JS functions or Java code. See [`karate.callSingle()`](#karatecallsingle).
 

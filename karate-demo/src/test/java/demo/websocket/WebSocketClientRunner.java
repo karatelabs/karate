@@ -4,27 +4,27 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.http.WebSocketClient;
 import com.intuit.karate.http.WebSocketOptions;
 import demo.TestBase;
-import static org.junit.Assert.*;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 /**
  *
  * @author pthomas3
  */
-public class WebSocketClientRunner {
+class WebSocketClientRunner {
 
     private static final Logger logger = new Logger();
 
     private WebSocketClient client;
     private String result;
 
-    @BeforeClass
-    public static void beforeClass() throws Exception {
-        TestBase.beforeClass();
+    @BeforeAll
+    static void beforeAll() {
+        TestBase.beforeAll();
     }
 
     @Test
-    public void testWebSocketClient() throws Exception {
+    void testWebSocketClient() throws Exception {
         String port = System.getProperty("demo.server.port");
         WebSocketOptions options = new WebSocketOptions("ws://localhost:" + port + "/websocket");
         options.setTextConsumer(text -> {

@@ -17,7 +17,7 @@ class FeatureServerTest {
     static MockServer server;
 
     @BeforeAll
-    static void beforeClass() {
+    static void beforeAll() {
         server = MockServer
                 .feature("classpath:com/intuit/karate/fatjar/server.feature")
                 .pathPrefix("/v1")
@@ -38,7 +38,7 @@ class FeatureServerTest {
     }
 
     @AfterAll
-    static void afterClass() {
+    static void afterAll() {
         server.stop();
     }
 

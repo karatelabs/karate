@@ -9,30 +9,29 @@ import java.util.List;
 import net.masterthought.cucumber.Configuration;
 import net.masterthought.cucumber.ReportBuilder;
 import org.apache.commons.io.FileUtils;
-import static org.junit.Assert.*;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  *
  * @author pthomas3
  */
-// important: do not use @RunWith(Karate.class) !
 public class DemoTestParallel {
 
-    @BeforeClass
-    public static void beforeClass() throws Exception {
-        TestBase.beforeClass();
+    @BeforeAll
+    static void beforeAll() {
+        TestBase.beforeAll();
     }
 
     @Test
-    public void testParallel() {
+    void testParallel() {
         Results results = Runner.path("classpath:demo")
                 .outputCucumberJson(true)
                 .karateEnv("demo")
                 .parallel(5);
         generateReport(results.getReportDir());
-        assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
+        assertTrue(results.getFailCount() == 0, results.getErrorMessages());
     }
 
     public static void generateReport(String karateOutputPath) {

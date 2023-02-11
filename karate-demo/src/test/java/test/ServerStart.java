@@ -25,10 +25,10 @@ package test;
 
 import com.intuit.karate.demo.Application;
 import com.intuit.karate.demo.config.ServerStartedInitializingBean;
-import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.junit.jupiter.api.Test;
 
 /**
  *
@@ -36,11 +36,11 @@ import org.springframework.context.ConfigurableApplicationContext;
  */
 public class ServerStart {
 
-    private static final Logger logger = LoggerFactory.getLogger(ServerStart.class);
+    static final Logger logger = LoggerFactory.getLogger(ServerStart.class);
 
-    private ConfigurableApplicationContext context;
-    private MonitorThread monitor;
-    private int port = 0;
+    ConfigurableApplicationContext context;
+    MonitorThread monitor;
+    int port = 0;
 
     public void start(String[] args, boolean wait) throws Exception {
         if (wait) {
@@ -69,7 +69,7 @@ public class ServerStart {
     }
 
     @Test
-    public void startServer() throws Exception {
+    void startServer() throws Exception {
         start(new String[]{}, true);
     }
 

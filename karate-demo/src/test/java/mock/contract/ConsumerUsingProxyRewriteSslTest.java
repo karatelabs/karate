@@ -2,24 +2,24 @@ package mock.contract;
 
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.core.MockServer;
-import org.junit.AfterClass;
-import org.junit.Test;
-import static org.junit.Assert.*;
-import org.junit.BeforeClass;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  *
  * @author pthomas3
  */
-public class ConsumerUsingProxyRewriteSslTest {
+class ConsumerUsingProxyRewriteSslTest {
 
-    private static ConfigurableApplicationContext context;
-    private static MockServer server;
-    private static Consumer consumer;
+    static ConfigurableApplicationContext context;
+    static MockServer server;
+    static Consumer consumer;
 
-    @BeforeClass
-    public static void beforeClass() {
+    @BeforeAll
+    static void beforeAll() {
         // actual service      
         String queueName = "DEMO.PROXY.REWRITE.SSL";
         context = PaymentService.start(queueName, true);
@@ -57,8 +57,8 @@ public class ConsumerUsingProxyRewriteSslTest {
         }
     }
 
-    @AfterClass
-    public static void afterClass() {
+    @AfterAll
+    static void afterAll() {
         server.stop();
         PaymentService.stop(context);
         consumer.stopQueueConsumer();

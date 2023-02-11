@@ -35,7 +35,7 @@ class ProxyServerTest {
     static MockServer server;
 
     @BeforeAll
-    static void beforeClass() {
+    static void beforeAll() {
         proxy = new ProxyServer(0, null, null);
         server = MockServer
                 .feature("classpath:com/intuit/karate/fatjar/server.feature")
@@ -48,7 +48,7 @@ class ProxyServerTest {
     }
 
     @AfterAll
-    static void afterClass() {
+    static void afterAll() {
         server.stop();
         proxy.stop();
     }

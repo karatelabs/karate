@@ -1,16 +1,16 @@
 package mock.web;
 
 import com.intuit.karate.Runner;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  *
  * @author pthomas3
  */
-public class CatsTestRunner {
+class CatsTestRunner {
     
     @Test
-    public void testMockOnPort8080() {
+    void testMockOnPort8080() {
         Runner.runFeature(getClass(), "cats-test.feature", null, false);
     }
 

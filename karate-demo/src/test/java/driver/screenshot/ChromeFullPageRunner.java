@@ -4,20 +4,21 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.driver.chrome.Chrome;
 import java.io.File;
 import java.util.Collections;
-import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.junit.jupiter.api.Test;
+
 
 /**
  *
  * @author pthomas3
  */
-public class ChromeFullPageRunner {
+class ChromeFullPageRunner {
     
-    private static final Logger logger = LoggerFactory.getLogger(ChromeFullPageRunner.class);  
+    static final Logger logger = LoggerFactory.getLogger(ChromeFullPageRunner.class);  
     
     @Test
-    public void testChrome() throws Exception {
+    void testChrome() {
         Chrome chrome = Chrome.startHeadless();
         chrome.setUrl("https://github.com/intuit/karate/graphs/contributors");
         byte[] bytes = chrome.pdf(Collections.EMPTY_MAP);

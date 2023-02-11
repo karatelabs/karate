@@ -2,37 +2,37 @@ package ssl;
 
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
-import org.junit.AfterClass;
-import static org.junit.Assert.assertTrue;
-import org.junit.BeforeClass;
-import org.junit.Test;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  *
  * @author pthomas3
  */
-public class SslTest {
+class SslTest {
     
     static ConfigurableApplicationContext context;
     
-    @BeforeClass
-    public static void beforeClass() {
+    @BeforeAll
+    static void beforeAll() {
         context = TestService.start();      
     }
     
     @Test
-    public void testParallel() {
+    void testParallel() {
         int port = TestService.getPort(context);
         Results results = Runner.path("classpath:ssl")
                 .karateEnv("mock") // skip callSingle, note that the karate-config.js copied from demo may be present
                 .systemProperty("jersey.ssl.port", port + "")
                 .parallel(1);
-        assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
+        assertTrue(results.getFailCount() == 0, results.getErrorMessages());
     }    
 
-    @AfterClass
-    public static void afterClass() {
+    @AfterAll
+    static void afterAll() {
         TestService.stop(context);
     }
     
