@@ -336,6 +336,16 @@ public abstract class DevToolsDriver implements Driver {
     private DevToolsMessage evalInternal(String expression, boolean quickly, boolean returnByValue) {
         DevToolsMessage dtm = evalOnce(expression, quickly, false, returnByValue);
         if (dtm.isResultError()) {
+            Map<String, Object> error = dtm.getError();
+            if (error != null) {
+                Object errorCode = error.get("code");
+                if (errorCode instanceof Integer) {
+                    if ((Integer) errorCode == -32000) { // Object reference chain is too long
+                        dtm.setResult(Variable.NULL);
+                        return dtm;
+                    }
+                }
+            }
             String message = "js eval failed once:" + expression
                     + ", error: " + dtm.getResult();
             logger.warn(message);
@@ -889,13 +899,13 @@ public abstract class DevToolsDriver implements Driver {
             if (dtm == null) {
                 logger.error("unable to capture screenshot - no data returned");
                 return Constants.ZERO_BYTES;
-            }            
+            }
             String temp = dtm.getResultVariable("data").getAsString();
             byte[] bytes = Base64.getDecoder().decode(temp);
             if (embed) {
                 getRuntime().embed(bytes, ResourceType.PNG);
             }
-            return bytes;            
+            return bytes;
         } catch (Exception e) { // rare case where message does not get a reply
             logger.error("screenshot failed: {}", e.getMessage());
             return Constants.ZERO_BYTES;
@@ -1065,7 +1075,7 @@ public abstract class DevToolsDriver implements Driver {
             // a null sessionId indicates that we failed to attach directly to the frame
             // this occurs on local frames that are already being debugged with the main frame
             if (sessionId == null) {
-               sessionId = frameSessions.get(mainFrameId);
+                sessionId = frameSessions.get(mainFrameId);
             }
         }
 

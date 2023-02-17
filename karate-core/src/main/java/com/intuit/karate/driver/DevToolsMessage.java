@@ -50,7 +50,7 @@ public class DevToolsMessage {
     private Json params;
     private Map<String, Object> error;
     private Variable result;
-    private Integer timeout;
+    private Integer timeout;        
 
     public Integer getId() {
         return id;
@@ -91,7 +91,7 @@ public class DevToolsMessage {
     }
 
     public Variable getResult() {
-        return result;
+        return result == null ? Variable.NULL : result;
     }
 
     public <T> T getResult(String path) {
@@ -133,6 +133,10 @@ public class DevToolsMessage {
         }
         return new Variable(result.<Map>getValue().get(key));
     }
+
+    public Map<String, Object> getError() {
+        return error;
+    }        
 
     public DevToolsMessage(DevToolsDriver driver, String method) {
         this.driver = driver;

@@ -26,6 +26,10 @@ mvn versions:set versions:commit -DnewVersion=@@@
     karate-core/target/karate-XXX.jar
     karate-robot/target/karate-robot-XXX.jar
 
+release radar
+=============
+https://github.com/github/release-radar/issues/new?assignees=MishManners&labels=&template=release-radar-request.yml&title=%5BRelease+Radar+Request%5D+%3Ctitle%3E
+
 docker (deprecated)
 ===================
 # make sure docker is started and is running]
