@@ -49,6 +49,7 @@ import net.minidev.json.JSONValue;
 import net.minidev.json.parser.JSONParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
@@ -159,7 +160,7 @@ public class JsonUtils {
     }
 
     public static Object fromYaml(String raw) {
-        Yaml yaml = new Yaml(new SafeConstructor());
+        Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
         return yaml.load(raw);
     }
 
