@@ -56,8 +56,6 @@ public class FileUtils {
     public static final boolean KARATE_TELEMETRY;
     public static final String KARATE_VERSION;
     public static final String KARATE_META;
-    public static final String USER_NAME;
-    public static final String USER_HOME;
     public static final String USER_UUID;    
 
     static {
@@ -75,11 +73,10 @@ public class FileUtils {
         KARATE_META = System.getenv("KARATE_META");
         String telemetryEnv = System.getenv("KARATE_TELEMETRY"); // "true" / "false"
         KARATE_TELEMETRY = telemetryEnv == null ? true : telemetryEnv.trim().equals("true"); 
-        USER_HOME = System.getProperty("user.home", "");
-        USER_NAME = System.getProperty("user.name", USER_HOME);
+        String userHome = System.getProperty("user.home", "");
         String uuid;
         try {
-            File file = new File(USER_HOME + File.separator + ".karate" + File.separator + "uuid.txt");
+            File file = new File(userHome + File.separator + ".karate" + File.separator + "uuid.txt");
             if (file.exists()) {
                 uuid = toString(file);
             } else {
@@ -87,7 +84,7 @@ public class FileUtils {
                 writeToFile(file, uuid);
             }
         } catch (Exception e) {
-            uuid = USER_HOME;
+            uuid = "unknown";
         }
         USER_UUID = uuid;
     }

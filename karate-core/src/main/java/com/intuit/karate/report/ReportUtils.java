@@ -75,7 +75,6 @@ public class ReportUtils {
     public static Map<String, Object> commonVars() {
         Map<String, Object> map = new HashMap(5);
         map.put("userUuid", FileUtils.USER_UUID);
-        map.put("userName", FileUtils.USER_NAME);
         map.put("karateVersion", FileUtils.KARATE_VERSION);
         map.put("karateMeta", FileUtils.KARATE_META);
         map.put("karateTelemetry", FileUtils.KARATE_TELEMETRY);
