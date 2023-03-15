@@ -23,6 +23,8 @@
  */
 package com.intuit.karate;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intuit.karate.core.FeatureCall;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
@@ -260,11 +262,11 @@ public class Suite implements Runnable {
             hooks.forEach(h -> h.afterSuite(this));
         }
     }
-    
+
     public void abort() {
         abort.set(true);
     }
-    
+
     public boolean isAborted() {
         return abort.get();
     }
@@ -308,10 +310,25 @@ public class Suite implements Runnable {
         }
     }
 
+    static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    static final TypeReference<Map<String, Object>> TYPE_REFERENCE = new TypeReference<Map<String, Object>>() {
+        // empty
+    };
+
+    private static Map toKarateJson(File file) {
+        String text = FileUtils.toString(file);
+        try {
+            return OBJECT_MAPPER.readValue(text, TYPE_REFERENCE);
+        } catch (Exception e) {
+            logger.warn("failed to convert json, will re-try: {}", e.getMessage());
+            return (Map) JsonUtils.fromJson(text);
+        }
+    }
+
     public Stream<FeatureResult> getFeatureResults() {
         return featureResultFiles.stream()
                 .sorted()
-                .map(file -> FeatureResult.fromKarateJson(workingDir, Json.of(FileUtils.toString(file)).asMap()));
+                .map(file -> FeatureResult.fromKarateJson(workingDir, toKarateJson(file)));
     }
 
     public Stream<ScenarioResult> getScenarioResults() {
