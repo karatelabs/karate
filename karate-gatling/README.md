@@ -189,7 +189,7 @@ Karate introduces a different threading model for the HTTP Client, so if you hav
 As of now the Gatling concept of ["throttle" and related syntax](https://gatling.io/docs/2.3/general/simulation_setup/#simulation-setup-throttling) is not supported. Most teams don't need this, but you can declare "pause" times in Karate, see [`pauseFor()`](#pausefor).
 
 ## Logging
-Once you have your performance tests working, you may want to tune the logging config. Note that there are options to [reduce or completely suppress](https://github.com/intuit/karate#logging) the console logging.
+Once you have your performance tests working, you may want to tune the logging config. Note that there are options to [reduce or completely suppress](https://github.com/karatelabs/karate#logging) the console logging.
 
 Also note that the [`logback-test.xml`](../examples/gatling/src/test/java/logback-test.xml) in the examples project uses [`<immediateFlush>false</immediateFlush>`](http://logback.qos.ch/manual/appenders.html#OutputStreamAppender).
 
@@ -252,13 +252,13 @@ We recommend you set that to `0` for everything unless you really need to artifi
 Also see how to [`pause()`](#think-time) without blocking threads if you really need to do it *within* a Karate feature, for e.g. to simulate user "think time" - in more detail.
 
 #### `runner`
-Which feature to call and what tags to use are driven by the [`karateFeature()`](#karatefeature) syntax as described in later sections. Most of the time this would be sufficient. But in cases where you have custom configuration, you will need a way to replicate what you may be doing using the [`Runner.Builder`](https://github.com/intuit/karate#parallel-execution) methods. Most of the time this would be setting the `karate.env`.
+Which feature to call and what tags to use are driven by the [`karateFeature()`](#karatefeature) syntax as described in later sections. Most of the time this would be sufficient. But in cases where you have custom configuration, you will need a way to replicate what you may be doing using the [`Runner.Builder`](https://github.com/karatelabs/karate#parallel-execution) methods. Most of the time this would be setting the `karate.env`.
 
 To enable this, a `Runner.Builder` instance is made available on the `protocol` in a variable called `runner` and all the builder methods such as `karateEnv()`, `configDir()` and `systemProperty()` can be configured.
 
 Note that tags are typically set by the use of `karateFeature()`. If you call `tags()` on the `runner` instance, they will be inherited by all `karateFeature()` calls, where you can add more tags, but you can't *remove* any that were set on the `runner`.
 
-Here is an example of setting the `karate.env` to `perf` which means that `karate-config-perf.js` will be used in addition to `karate-config.js` for [bootstrapping the config](https://github.com/intuit/karate#configuration) for each `Scenario`.
+Here is an example of setting the `karate.env` to `perf` which means that `karate-config-perf.js` will be used in addition to `karate-config.js` for [bootstrapping the config](https://github.com/karatelabs/karate#configuration) for each `Scenario`.
 
 ```scala
   protocol.runner.karateEnv("perf")
@@ -270,14 +270,14 @@ But the alternate mechanism of setting a Java system-property `karate.env` via t
 This declares a whole Karate feature as a "flow". Note how you can have concurrent flows in the same Gatling simulation.
 
 #### Tag Selector
-In the code above, note how a single `Scenario` (or multiple) can be "chosen" by appending the [tag](https://github.com/intuit/karate#tags) name to the `Feature` path. This allows you to re-use only selected tests out of your existing functional or regression test suites for composing a performance test-suite.
+In the code above, note how a single `Scenario` (or multiple) can be "chosen" by appending the [tag](https://github.com/karatelabs/karate#tags) name to the `Feature` path. This allows you to re-use only selected tests out of your existing functional or regression test suites for composing a performance test-suite.
 
 If multiple `Scenario`-s have the tag on them, they will all be executed. The order of execution will be the order in which they appear in the `Feature`.
 
 > The tag does not need to be in the `@key=value` form and you can use the plain "`@foo`" form if you want to. But using the pattern `@name=someName` is arguably more readable when it comes to giving multiple `Scenario`-s meaningful names.
 
 #### Ignore Tags
-The above [Tag Selector](#tag-selector) approach is designed for simple cases where you have to pick and run only one `Scenario` out of many. Sometimes you will need the full flexibility of [tag combinations](https://github.com/intuit/karate#tags) and "ignore". The `karateFeature()` method takes an optional (vararg) set of Strings after the first feature-path argument. For example you can do this:
+The above [Tag Selector](#tag-selector) approach is designed for simple cases where you have to pick and run only one `Scenario` out of many. Sometimes you will need the full flexibility of [tag combinations](https://github.com/karatelabs/karate#tags) and "ignore". The `karateFeature()` method takes an optional (vararg) set of Strings after the first feature-path argument. For example you can do this:
 
 ```scala
   val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature", "@name=delete"))
@@ -352,7 +352,7 @@ public static String getNextCatName() {
 }
 ```
 
-The `List` of `catNames` above is actually initialized (only once) by a [Java API call](https://github.com/intuit/karate#java-api) to another Karate feature (see below). If you use `true` instead of `false`, the `karate-config.js` will be honored. You could also pass custom config via the second `Map` argument to `Runner.runFeature()`. This is just to demonstrate some possibilities, and you can use any combination of Java or [Scala](https://gatling.io/docs/current/session/feeder) (even without Karate) - to set up feeders.
+The `List` of `catNames` above is actually initialized (only once) by a [Java API call](https://github.com/karatelabs/karate#java-api) to another Karate feature (see below). If you use `true` instead of `false`, the `karate-config.js` will be honored. You could also pass custom config via the second `Map` argument to `Runner.runFeature()`. This is just to demonstrate some possibilities, and you can use any combination of Java or [Scala](https://gatling.io/docs/current/session/feeder) (even without Karate) - to set up feeders.
 
 ```java
 List<String> catNames = (List) Runner.runFeature("classpath:mock/feeder.feature", null, false).get("names");
@@ -365,7 +365,7 @@ And now in the feature file you can do this:
 ```
 
 ### Chaining
-Normally we recommend that `Scenario`-s should be self-contained and that you should model any "flows" of calls made to API-s or code within a single `Scenario` itself or by using [`call`](https://github.com/intuit/karate#call).
+Normally we recommend that `Scenario`-s should be self-contained and that you should model any "flows" of calls made to API-s or code within a single `Scenario` itself or by using [`call`](https://github.com/karatelabs/karate#call).
 
 But for advanced load-modelling, you may want to compose `Scenario`-s along with Gatling [feeders](#feeders) and have variables "flow" from one `Scenario` into another. This way you will be able to use all of Gatling's features such as [grouping](https://gatling.io/docs/current/general/scenario/#groups-definition), [assertions](https://gatling.io/docs/current/general/assertions/) and control over each [sub-execution](https://gatling.io/docs/current/general/scenario/#exec).
 
@@ -377,12 +377,12 @@ And if you have a need to create new variables on the "Gatling side" and inject 
 [This example](src/test/scala/mock/CatsChainedSimulation.scala) shows how you can use the `karateSet()` Gatling action to pipe data from the Gatling session (typically a feeder) into variables that Karate can access.
 
 #### `karate.callSingle()`
-A common need is to run a routine, typically a sign-in and setting up of an `Authorization` header only *once* - for all `Feature` invocations. Keep in mind that when you use Gatling, what used to be a single `Feature` in "normal" Karate will now be multiplied by the number of users you define. But [`callonce`](https://github.com/intuit/karate#callonce) is designed so that it will be "once for everything" when Karate is running in Gatling "perf" mode.
+A common need is to run a routine, typically a sign-in and setting up of an `Authorization` header only *once* - for all `Feature` invocations. Keep in mind that when you use Gatling, what used to be a single `Feature` in "normal" Karate will now be multiplied by the number of users you define. But [`callonce`](https://github.com/karatelabs/karate#callonce) is designed so that it will be "once for everything" when Karate is running in Gatling "perf" mode.
 
-You can also use [`karate.callSingle()`](https://github.com/intuit/karate#hooks) in these situations. Ideally you should use [Feeders](#feeders) since `callonce` and `karate.callSingle()` will lock all threads - which may not play very well with Gatling. But when you want to quickly re-use existing Karate tests as performance tests, this will work nicely.
+You can also use [`karate.callSingle()`](https://github.com/karatelabs/karate#hooks) in these situations. Ideally you should use [Feeders](#feeders) since `callonce` and `karate.callSingle()` will lock all threads - which may not play very well with Gatling. But when you want to quickly re-use existing Karate tests as performance tests, this will work nicely.
 
 #### Detecting Gatling At Run Time
-You would typically want your feature file to be usable when not being run via Gatling, so you can use this pattern, since [`karate.get()`](https://github.com/intuit/karate#karate-get) has an optional second argument to use as a "default" value if the variable does not exist or is `null`.
+You would typically want your feature file to be usable when not being run via Gatling, so you can use this pattern, since [`karate.get()`](https://github.com/karatelabs/karate#karate-get) has an optional second argument to use as a "default" value if the variable does not exist or is `null`.
 
 ```cucumber
 * def name = karate.get('__gatling.catName', 'Billie')
@@ -393,16 +393,16 @@ For a full, working, stand-alone example, refer to the [`karate-gatling-demo`](.
 #### Think Time
 Gatling provides a way to [`pause()`](https://gatling.io/docs/current/general/scenario/#scenario-pause) between HTTP requests, to simulate user "think time". But when you have all your requests in a Karate feature file, this can be difficult to simulate - and you may think that adding `java.lang.Thread.sleep()` here and there will do the trick. But no, what a `Thread.sleep()` will do is *block threads* - which is a very bad thing in a load simulation. This will get in the way of Gatling, which is specialized to generate load in a non-blocking fashion.
 
-The [`karate.pause()`](https://github.com/intuit/karate#karate-pause) function is specially designed to use the Gatling session if applicable - or do nothing.
+The [`karate.pause()`](https://github.com/karatelabs/karate#karate-pause) function is specially designed to use the Gatling session if applicable - or do nothing.
 
 ```cucumber
 * karate.pause(5000)
 ```
 
-You normally don't want to slow down your functional tests. But you can use the [`configure pauseIfNotPerf`](https://github.com/intuit/karate#configure) flag (default `false`) to have `karate.pause()` work even in "normal" mode.
+You normally don't want to slow down your functional tests. But you can use the [`configure pauseIfNotPerf`](https://github.com/karatelabs/karate#configure) flag (default `false`) to have `karate.pause()` work even in "normal" mode.
 
 ## `configure localAddress`
-Gatling has a way to bind the HTTP "protocol" to [use a specific "local address"](https://gatling.io/docs/3.2/http/http_protocol/#local-address), which is useful when you want to use an IP range to avoid triggering rate-limiting on the server under test etc. But since Karate makes the HTTP requests, you can use the [`configure`](https://github.com/intuit/karate#configure) keyword, and this can actually be done *any* time within a Karate script or `*.feature` file. Note that the IP address needs to be [*physically assigned* to the local machine](https://www.blazemeter.com/blog/how-to-send-jmeter-requests-from-different-ips/).
+Gatling has a way to bind the HTTP "protocol" to [use a specific "local address"](https://gatling.io/docs/3.2/http/http_protocol/#local-address), which is useful when you want to use an IP range to avoid triggering rate-limiting on the server under test etc. But since Karate makes the HTTP requests, you can use the [`configure`](https://github.com/karatelabs/karate#configure) keyword, and this can actually be done *any* time within a Karate script or `*.feature` file. Note that the IP address needs to be [*physically assigned* to the local machine](https://www.blazemeter.com/blog/how-to-send-jmeter-requests-from-different-ips/).
 
 ```cucumber
 * configure localAddress = '123.45.67.89'
@@ -414,7 +414,7 @@ One easy way to achieve a "round-robin" effect is to write a simple Java static 
 * if (__gatling) karate.configure('localAddress', MyUtil.getIp())
 ```
 
-Since you can [use Java code](https://github.com/intuit/karate#calling-java), any kind of logic or strategy should be possible, and you can refer to [config or variables](https://github.com/intuit/karate#configuration) if needed.
+Since you can [use Java code](https://github.com/karatelabs/karate#calling-java), any kind of logic or strategy should be possible, and you can refer to [config or variables](https://github.com/karatelabs/karate#configuration) if needed.
 
 ## Custom
 You can even include any custom code you write in Java into a performance test, complete with full Gatling reporting.
@@ -459,7 +459,7 @@ Scenario: fifty
   * match response == { success: true }
 ```
 
-The `karate` object happens to implement the `PerfContext` interface and keeps your code simple. Note how the `myRpc` method has been [implemented to accept a `Map`](https://github.com/intuit/karate#calling-java) (auto-converted from JSON) and the `PerfContext` as arguments. 
+The `karate` object happens to implement the `PerfContext` interface and keeps your code simple. Note how the `myRpc` method has been [implemented to accept a `Map`](https://github.com/karatelabs/karate#calling-java) (auto-converted from JSON) and the `PerfContext` as arguments. 
 
 Like the built-in HTTP support, any test failures are automatically linked to the previous "perf event" captured.
 
@@ -486,4 +486,4 @@ akka {
 So now the system can go up to 100 threads waiting for responses. You can experiment with more settings as [described here](https://doc.akka.io/docs/akka/current/typed/dispatchers.html). Of course a lot will depend on the compute resources (CPU, RAM) available on the machine on which you are running a test.
 
 ## Distributed Testing
-See wiki: [Distributed Testing](https://github.com/intuit/karate/wiki/Distributed-Testing#gatling)
+See wiki: [Distributed Testing](https://github.com/karatelabs/karate/wiki/Distributed-Testing#gatling)

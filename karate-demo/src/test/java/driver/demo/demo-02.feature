@@ -9,11 +9,11 @@ Feature: browser automation 2
     Given driver 'https://google.com'
     And input('input[name=q]', 'karate dsl')
     When click('input[name=btnI]')
-    Then waitForUrl('https://github.com/intuit/karate')
+    Then waitForUrl('https://github.com/karatelabs/karate')
 
     When click('{a}Go to file')
     And def searchField = waitFor('input[name=query]')
-    Then match driver.url == 'https://github.com/intuit/karate/find/master'
+    Then match driver.url == 'https://github.com/karatelabs/karate/find/master'
 
     When searchField.input('karate-logo.png')    
     And def innerText = function(locator){ return scriptAll(locator, '_.innerText') }

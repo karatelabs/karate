@@ -29,7 +29,7 @@ class Demo01JavaRunner {
         driver.setUrl("https://google.com");
         driver.input("input[name=q]", "karate dsl");
         driver.submit().click("input[name=btnI]");
-        assertEquals("https://github.com/intuit/karate", driver.getUrl());
+        assertEquals("https://github.com/karatelabs/karate", driver.getUrl());
         byte[] bytes = driver.screenshot();
         // byte[] bytes = driver.screenshotFull();
         FileUtils.writeToFile(new File("target/screenshot.png"), bytes);
@@ -48,7 +48,7 @@ class Demo01JavaRunner {
         driver.setUrl("https://google.com");
         driver.input("input[name=q]", "karate dsl");
         driver.submit().click("input[name=btnI]");
-        assertEquals("https://github.com/intuit/karate", driver.getUrl());
+        assertEquals("https://github.com/karatelabs/karate", driver.getUrl());
         byte[] bytes = driver.screenshot();
         // byte[] bytes = driver.screenshotFull();
         FileUtils.writeToFile(new File("target/screenshot.png"), bytes);

@@ -17,7 +17,7 @@
     </properties>
 
     <!-- you will not need all these dependencies for a typical karate project !-->
-    <!-- for a skeleton project, use the archetype: https://github.com/intuit/karate#quickstart !-->
+    <!-- for a skeleton project, use the archetype: https://github.com/karatelabs/karate#quickstart !-->
     <dependencyManagement>
         <dependencies>
             <dependency>

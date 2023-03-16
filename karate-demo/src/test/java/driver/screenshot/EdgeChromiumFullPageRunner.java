@@ -19,7 +19,7 @@ class EdgeChromiumFullPageRunner {
     @Test
     void testEdge() {
         EdgeChromium edgeChromium = EdgeChromium.startHeadless();
-        edgeChromium.setUrl("https://github.com/intuit/karate/graphs/contributors");
+        edgeChromium.setUrl("https://github.com/karatelabs/karate/graphs/contributors");
         byte[] bytes = edgeChromium.pdf(Collections.EMPTY_MAP);
         FileUtils.writeToFile(new File("target/fullscreen.pdf"), bytes);
         bytes = edgeChromium.screenshot(true);

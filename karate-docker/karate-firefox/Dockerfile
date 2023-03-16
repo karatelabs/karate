@@ -1,7 +1,7 @@
 FROM maven:3-jdk-8
 
 LABEL maintainer="Peter Thomas"
-LABEL url="https://github.com/intuit/karate/tree/master/karate-docker/karate-firefox"
+LABEL url="https://github.com/karatelabs/karate/tree/master/karate-docker/karate-firefox"
 
 #RUN echo uname -a
 #

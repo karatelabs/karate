@@ -2,7 +2,7 @@
 
 
 ## Overview
-This project is to replicate issues with the [Karate UI framework](https://github.com/intuit/karate/tree/develop/karate-core) for mobile app testing using appium.
+This project is to replicate issues with the [Karate UI framework](https://github.com/karatelabs/karate/tree/develop/karate-core) for mobile app testing using appium.
 
 ## Running
 > Before running:  
@@ -12,6 +12,6 @@ This project is to replicate issues with the [Karate UI framework](https://githu
 > * change `configure driver` to `start: true` if you want karate to start appium driver automatically (this is experimental and needs appium pre-installed via `npm`)
 
 
-The [`android.feature`](src/test/java/android/android.feature) is a simple [Karate UI test](https://github.com/intuit/karate/tree/develop/karate-core), and executing `AndroidRunner` as a JUnit test will run it.
+The [`android.feature`](src/test/java/android/android.feature) is a simple [Karate UI test](https://github.com/karatelabs/karate/tree/develop/karate-core), and executing `AndroidRunner` as a JUnit test will run it.
 
-Refer [`Documentation`](https://github.com/intuit/karate/tree/develop/karate-core#appium) for currently supported methods
+Refer [`Documentation`](https://github.com/karatelabs/karate/tree/develop/karate-core#appium) for currently supported methods

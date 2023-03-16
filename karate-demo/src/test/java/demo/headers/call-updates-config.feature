@@ -5,7 +5,7 @@ Background:
 # the shape of the next line is important. if the line starts with call (or callonce)
 # the called script will update the 'shared scope' here in this file
 # think of it as similar to an 'include' directive in some programming languages
-# detailed documentation: https://github.com/intuit/karate#shared-scope
+# detailed documentation: https://github.com/karatelabs/karate#shared-scope
 * callonce read('common.feature')
 * url demoBaseUrl
 

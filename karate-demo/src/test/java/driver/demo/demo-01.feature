@@ -21,4 +21,4 @@ Feature: browser automation 1
     Given driver 'https://google.com'
     And input("input[name=q]", 'karate dsl')
     When submit().click("input[name=btnI]")
-    Then waitForUrl('https://github.com/intuit/karate')
+    Then waitForUrl('https://github.com/karatelabs/karate')

@@ -9,10 +9,10 @@
   <th>Start</th>
   <td>
       <a href="#maven">Maven</a>
-    | <a href="https://github.com/intuit/karate/wiki/Karate-Robot-Windows-Install-Guide">Windows Install Guide</a>
+    | <a href="https://github.com/karatelabs/karate/wiki/Karate-Robot-Windows-Install-Guide">Windows Install Guide</a>
     | <a href="#jbang">jbang</a>
     | <a href="#debugging">Debugging</a>
-    | <a href="https://github.com/intuit/karate#index">Karate - Main Index</a>
+    | <a href="https://github.com/karatelabs/karate#index">Karate - Main Index</a>
   </td>
 </tr>
 <tr>
@@ -29,7 +29,7 @@
     | <a href="#element-api"><code>Element</code></a>
     | <a href="#window-api"><code>Window</code></a>
     | <a href="#finding-windows">Finding Windows</a>
-    | <a href="https://github.com/intuit/karate/wiki/Karate-Robot-Windows-Install-Guide#debug-mode">Debugging</a>
+    | <a href="https://github.com/karatelabs/karate/wiki/Karate-Robot-Windows-Install-Guide#debug-mode">Debugging</a>
     | <a href="#retry">Retries</a>
     | <a href="#karatefork"><code>karate.fork()</code></a>
     | <a href="#utility-functions">Utility Functions</a>
@@ -107,7 +107,7 @@
 * Windows object-recognition using [Microsoft UI Automation](https://docs.microsoft.com/en-us/windows/win32/winauto/entry-uiauto-win32)
 * [Navigation via image detection](#image-locators) - cross-platform (mac, win, linux) via [JavaCPP and OpenCV](https://github.com/bytedeco/javacpp-presets/tree/master/opencv)
 * [OCR driven navigation](#ocr-locators) and text extraction - cross-platform (mac, win, linux) via [JavaCPP and Tesseract](https://github.com/bytedeco/javacpp-presets/tree/master/tesseract)
-* Tightly integrated into [Karate](https://github.com/intuit/karate) - which means a [debugger, HTML reports](#debugging), and more
+* Tightly integrated into [Karate](https://github.com/karatelabs/karate) - which means a [debugger, HTML reports](#debugging), and more
 
 ### Demo Videos
 * Clicking the *native* "File Upload" button in a Web Page - [Link](https://twitter.com/ptrthomas/status/1253373486384295936)
@@ -120,9 +120,9 @@
 * Opening a browser tab and performing actions - [Link](src/test/java/robot/core/chrome.feature)
 
 ## Using
-If you are not that experienced with programming - or don't want to set up a Java development environment, please look at the [standalone JAR](https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot) which you can run using [Visual Studio Code](https://github.com/intuit/karate/wiki/IDE-Support#visual-studio-code).
+If you are not that experienced with programming - or don't want to set up a Java development environment, please look at the [standalone JAR](https://github.com/karatelabs/karate/wiki/ZIP-Release#karate-robot) which you can run using [Visual Studio Code](https://github.com/karatelabs/karate/wiki/IDE-Support#visual-studio-code).
 
-Maven (or Gradle) users can read on below. Make sure you follow the [Karate conventions](https://github.com/intuit/karate#folder-structure) and you can use the [`examples/robot-test`](../examples/robot-test) project as a template.
+Maven (or Gradle) users can read on below. Make sure you follow the [Karate conventions](https://github.com/karatelabs/karate#folder-structure) and you can use the [`examples/robot-test`](../examples/robot-test) project as a template.
 
 The `karate-robot` capabilities are not part of the `karate-core`, because they bring in a few extra dependencies.
 
@@ -141,14 +141,14 @@ Add this to the `<dependencies>`:
 This may result in a few large JAR files getting downloaded by default because of the [`javacpp-presets`](https://github.com/bytedeco/javacpp-presets) dependency. But you can narrow down to what is sufficient for your OS by [following these instructions](https://github.com/bytedeco/javacpp-presets/wiki/Reducing-the-Number-of-Dependencies).
 
 ## jbang
-This is an interesting option to create scripts using the underlying Java API directly and even make them local executables. Refer to the [main documentation](https://github.com/intuit/karate#java-api) for more.
+This is an interesting option to create scripts using the underlying Java API directly and even make them local executables. Refer to the [main documentation](https://github.com/karatelabs/karate#java-api) for more.
 
 Note that starting an instance of the Windows Robot using Java is easy, just call the static `start(Map)` method on the [`WinRobot`](src/main/java/com/intuit/karate/robot/win/WinRobot.java) class.
 
 ## Debugging
 This is one of the highlights of Karate's capabilities. You can see a video of it in action [here](https://twitter.com/ptrthomas/status/1261183808985948160).
 
-Refer to the documentation on how to set it up and use it: [Karate Robot Windows Install Guide](https://github.com/intuit/karate/wiki/Karate-Robot-Windows-Install-Guide#install-visual-studio-code).
+Refer to the documentation on how to set it up and use it: [Karate Robot Windows Install Guide](https://github.com/karatelabs/karate/wiki/Karate-Robot-Windows-Install-Guide#install-visual-studio-code).
 
 ## `robot`
 Karate Robot is designed to only activate when you use the `robot` keyword, and if the `karate-robot` Java / JAR dependency is present in the project classpath.
@@ -167,7 +167,7 @@ In development mode, you can switch on a red highlight border around areas that 
 
 You can use `fork` to run a console command to start an application if needed, before "activating" it. Also see [`karate.fork()`](#karatefork)
 
-> If you want to do conditional logic depending on the OS, you can use [`karate.os`](https://github.com/intuit/karate#karate-os) - for e.g. `* if (karate.os.type == 'windows') karate.set('filename', 'start.bat')`
+> If you want to do conditional logic depending on the OS, you can use [`karate.os`](https://github.com/karatelabs/karate#karate-os) - for e.g. `* if (karate.os.type == 'windows') karate.set('filename', 'start.bat')`
  
 
 ### `robot` options
@@ -177,20 +177,20 @@ The keys that the `robot` keyword supports are the following:
 key | description
 --- | -----------
 `window` | (optional) the name of the window to bring to focus, and you can use a `^` prefix to do a string "contains" match or `~` for a regular-expression match, also see [`window()`](#window)
-`fork` | (optional) calls an OS executable and takes a string (e.g. `'some.exe -h'`), string-array (e.g. `['some.exe', '-h']`) or JSON as per [`karate.fork()`](https://github.com/intuit/karate#karate-fork)
+`fork` | (optional) calls an OS executable and takes a string (e.g. `'some.exe -h'`), string-array (e.g. `['some.exe', '-h']`) or JSON as per [`karate.fork()`](https://github.com/karatelabs/karate#karate-fork)
 `autoClose` | default `true` - to close the current window if fork was used on startup 
 `attach` | defult `true` - if the `window` exists, `fork` will not be executed
-`basePath` | defaults to `null`, which means the "find by image" search will be relative to the "entry point" feature file, but can be used to point to [prefixed / relative paths](https://github.com/intuit/karate#reading-files) such as `classpath:some/folder`
+`basePath` | defaults to `null`, which means the "find by image" search will be relative to the "entry point" feature file, but can be used to point to [prefixed / relative paths](https://github.com/karatelabs/karate#reading-files) such as `classpath:some/folder`
 `highlight` | default `false` if an element (or image) match should be highlighted
 `highlightDuration` | default `3000` - time to `highlight` in milliseconds
-`retryCount` | default [normally `3`](https://github.com/intuit/karate#retry-until) - overrides the default [`retry()`](#retry) count, this applies only for finding the `window` *after* a `fork` was executed 
-`retryInterval` | default [normally `3000`](https://github.com/intuit/karate#retry-until) - overrides the default [`retry()`](#retry) interval, this applies only for finding the `window` *after* a `fork` was executed 
+`retryCount` | default [normally `3`](https://github.com/karatelabs/karate#retry-until) - overrides the default [`retry()`](#retry) count, this applies only for finding the `window` *after* a `fork` was executed 
+`retryInterval` | default [normally `3000`](https://github.com/karatelabs/karate#retry-until) - overrides the default [`retry()`](#retry) interval, this applies only for finding the `window` *after* a `fork` was executed 
 `autoDelay` | default `0` - time delay added (in milliseconds) after a native action (key press, mouse click), you can set this to a small value e.g. `40` only in case of any issues with OS actions being too fast, etc
 `tessData` | default `tessdata` - the path to a directory where the Tesseract (OCR engine) [data files](#ocr-locators) will be looked for, this is needed only if you use an [OCR Locator](#ocr-locators) or attempt to call [`Element.extract()`](#elementextract). Note that the default *value* "`tessdata`" is all lower-case.
 `tessLang` | default `eng` - the default OCR language to use, see [OCR Locator](#ocr-locators)
 
 ### `configure robot`
-For convenience, the same pattern in [Karate UI](https://github.com/intuit/karate/tree/master/karate-core#configure-driver) is supported, where you can have a "central" config, perhaps set-up in [`karate-config.js`](https://github.com/intuit/karate#configuration) - and have your tests specify the "intent" (or even over-ride "global" config) more clearly:
+For convenience, the same pattern in [Karate UI](https://github.com/karatelabs/karate/tree/master/karate-core#configure-driver) is supported, where you can have a "central" config, perhaps set-up in [`karate-config.js`](https://github.com/karatelabs/karate#configuration) - and have your tests specify the "intent" (or even over-ride "global" config) more clearly:
 
 ```cucumber
 * configure robot = { highlight: true }
@@ -201,9 +201,9 @@ For convenience, the same pattern in [Karate UI](https://github.com/intuit/karat
 ```
 
 ### `karate.fork()`
-The `fork` option simply calls [`karate.fork()`](https://github.com/intuit/karate#karate-fork) which means that you can use it directly within a test any time you want to start any OS process. This is convenient to implement conditional logic, for e.g. to start an application involving a *different* main window - if a certain window [does not exist](#windowexists).
+The `fork` option simply calls [`karate.fork()`](https://github.com/karatelabs/karate#karate-fork) which means that you can use it directly within a test any time you want to start any OS process. This is convenient to implement conditional logic, for e.g. to start an application involving a *different* main window - if a certain window [does not exist](#windowexists).
 
-Here's an example using [`karate.call()`](https://github.com/intuit/karate#call-vs-read):
+Here's an example using [`karate.call()`](https://github.com/karatelabs/karate#call-vs-read):
 
 ```cucumber
 * robot { highlight: true, highlightDuration: 500, autoClose: false }
@@ -226,7 +226,7 @@ Scenario:
 
 Also see [Conditional Start](#conditional-start) which is a more advanced version of the above flow, when the "Sign In" window title is different.
 
-Note how you can [inject variables from global config](https://github.com/intuit/karate#karate-configjs) e.g. `testUser` and `testPassword` using Karate.
+Note how you can [inject variables from global config](https://github.com/karatelabs/karate#karate-configjs) e.g. `testUser` and `testPassword` using Karate.
 
 ### Finding Windows
 Finding Windows and dialogs is a critical aspect of UI automation and Karate makes easy the process of handling even dynamic Window titles or un-predictable Windows.
@@ -250,7 +250,7 @@ Explanation:
 * the `~` prefix means that Karate will use a regex (regular expression) match to find the window by title
 * `retryCount: 10` means that if `fork` was executed, Karate will wait `10 x 3000` milliseconds where `3000` is the default [`retryDuration`](#retry)
 * [`windowOptional()`](#windowoptional) will do nothing if the window does not exist
-* note how the variable `windowName` can be used as an [embedded expression](https://github.com/intuit/karate#embedded-expressions) or directly when within "round brackets", e.g. [`window(windowName)`](#window)
+* note how the variable `windowName` can be used as an [embedded expression](https://github.com/karatelabs/karate#embedded-expressions) or directly when within "round brackets", e.g. [`window(windowName)`](#window)
 * the last line makes sure that we switch back to the main window and make it ["active"](#robotactive)
 
 # API
@@ -325,14 +325,14 @@ The above flow performs the following operations:
 Also see [Image Locators](#image-locators)
 
 ## `Key`
-Just [like Karate UI](https://github.com/intuit/karate/tree/master/karate-core#special-keys), the special keys are made available under the namespace `Key`. You can see all the available codes [here](https://github.com/intuit/karate/blob/master/karate-core/src/main/java/com/intuit/karate/driver/Key.java).
+Just [like Karate UI](https://github.com/karatelabs/karate/tree/master/karate-core#special-keys), the special keys are made available under the namespace `Key`. You can see all the available codes [here](https://github.com/karatelabs/karate/blob/master/karate-core/src/main/java/com/intuit/karate/driver/Key.java).
 
 ```cucumber
 * input('karate dsl' + Key.ENTER)
 ```
 
 ## `robot.basePath`
-Rarely used since `basePath` would typically be set by the [`robot` options](#robot). But you can do this any time during a test to "switch". Note that [`classpath:`](https://github.com/intuit/karate#classpath) would [typically resolve](https://github.com/intuit/karate#folder-structure) to `src/test/java`.
+Rarely used since `basePath` would typically be set by the [`robot` options](#robot). But you can do this any time during a test to "switch". Note that [`classpath:`](https://github.com/karatelabs/karate#classpath) would [typically resolve](https://github.com/karatelabs/karate#folder-structure) to `src/test/java`.
 
 ```cucumber
 * robot.basePath = 'classpath:some/package'
@@ -472,7 +472,7 @@ Scenario:
 ```
 
 ## `retry()`
-Please refer to the documentation for the Karate browser-automation syntax for [`retry()`](https://github.com/intuit/karate/tree/master/karate-core#retry). It is the same for Karate Robot.
+Please refer to the documentation for the Karate browser-automation syntax for [`retry()`](https://github.com/karatelabs/karate/tree/master/karate-core#retry). It is the same for Karate Robot.
 
 ## `waitFor()`
 Convenient to wait for an element. Try to use this only when necessary, for example once a Window loads, all components within it would be immediately accessible without needing to "wait". So you can use a `waitFor()` only for the first element within that window that you need to act upon:
@@ -482,14 +482,14 @@ Convenient to wait for an element. Try to use this only when necessary, for exam
 ```
 
 ## `waitUntil()`
-Wait for the [JS function](https://github.com/intuit/karate#javascript-functions) to evaluate to `true`. Will poll using the [retry()](#retry) settings configured.
+Wait for the [JS function](https://github.com/karatelabs/karate#javascript-functions) to evaluate to `true`. Will poll using the [retry()](#retry) settings configured.
 
 ```cucumber
 * def fun = function(){ return optional('Close').enabled }
 * waitUntil(fun)
 ```
 
-This gives you a lot of flexibility. Note that Karate can call OS commands using [`karate.exec()`](https://github.com/intuit/karate#karate-exec) or even make [HTTP API requests](https://github.com/intuit/karate#core-keywords). You can even [call Java code](https://github.com/intuit/karate#calling-java) if required.
+This gives you a lot of flexibility. Note that Karate can call OS commands using [`karate.exec()`](https://github.com/karatelabs/karate#karate-exec) or even make [HTTP API requests](https://github.com/karatelabs/karate#core-keywords). You can even [call Java code](https://github.com/karatelabs/karate#calling-java) if required.
 
 ## `optional()`
 Will return a "real" [`Element`](#element-api) if it exists or a "fake" object if it does not.
@@ -532,7 +532,7 @@ Just like `windowOptional()` but can [retry](#retry) *and* move on:
 ```
 
 ## `exists()`
-Similar to [`optional()`](#optional) but returns a boolean, convenient to use with the [`assert`](https://github.com/intuit/karate#assert) keyword:
+Similar to [`optional()`](#optional) but returns a boolean, convenient to use with the [`assert`](https://github.com/karatelabs/karate#assert) keyword:
 
 ```cucumber
 * assert exists('//pane{Main}')
@@ -760,7 +760,7 @@ Note that you can call this *on* an [`Element`](#element-api) instance if you re
 ## `scroll()`
 The following methods are available only *on* Windows `Element`-s. Note that they will work only if the "[Scroll Pattern](https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationscrollpattern)" is available. 
 
-> Note that `scroll()` has not been tested, please contribute if you can. Also refer to the [diff](https://github.com/intuit/karate/commit/10228725a97939dc8fb72499a7a2d52d9366a01f) as an example of how to add an un-implemented "pattern" to `karate-robot`.
+> Note that `scroll()` has not been tested, please contribute if you can. Also refer to the [diff](https://github.com/karatelabs/karate/commit/10228725a97939dc8fb72499a7a2d52d9366a01f) as an example of how to add an un-implemented "pattern" to `karate-robot`.
 
 ### `scroll(horizontalPercent, verticalPercent)`
 ### `scrollUp()`
@@ -781,7 +781,7 @@ Note that this is a convenience short-cut for:
 ```
 
 # Conditional Start
-A useful pattern is to run an app-boot and sign-in sequence only if the main application window is not present. Note how [`karate.abort()`](https://github.com/intuit/karate#karate-abort) can be used to conditionaly exit a "called" feature early.
+A useful pattern is to run an app-boot and sign-in sequence only if the main application window is not present. Note how [`karate.abort()`](https://github.com/karatelabs/karate#karate-abort) can be used to conditionaly exit a "called" feature early.
 
 This is also a great example of using [`windowOptional()`](#windowoptional).
 
@@ -798,7 +798,7 @@ This is also a great example of using [`windowOptional()`](#windowoptional).
 * retry(10).window(lacWindowName)
 ```
 
-And the "calling feature" can directly jump into the flow to be tested after making a [`call`](https://github.com/intuit/karate#calling-other-feature-files) to the above:
+And the "calling feature" can directly jump into the flow to be tested after making a [`call`](https://github.com/karatelabs/karate#calling-other-feature-files) to the above:
 
 ```cucumber
 Feature: main
@@ -814,12 +814,12 @@ Scenario:
 Also see [finding windows](#finding-windows).
 
 # Utility Functions
-Some of the [Karate JS API](https://github.com/intuit/karate#the-karate-object) that are more relevant to desktop or Windows app testing are described here:
+Some of the [Karate JS API](https://github.com/karatelabs/karate#the-karate-object) that are more relevant to desktop or Windows app testing are described here:
 
-## [`karate.toAbsolutePath()`](https://github.com/intuit/karate#karate-toabsolutepath)
+## [`karate.toAbsolutePath()`](https://github.com/karatelabs/karate#karate-toabsolutepath)
 This will return the OS specific path form, for example on Windows, back-slash characters will be used. This is useful to generate file-names needed to [`input()`](#input) into file-chooser dialogs and the like.
 
-Here is an example of creating a random file-name on Windows. Also refer to [commonly needed utilities](https://github.com/intuit/karate#commonly-needed-utilities). The reason we use `target` here is that because it is the standard build-output directory where temp-files and reports are created.
+Here is an example of creating a random file-name on Windows. Also refer to [commonly needed utilities](https://github.com/karatelabs/karate#commonly-needed-utilities). The reason we use `target` here is that because it is the standard build-output directory where temp-files and reports are created.
 
 ```cucumber
 * def random = function(){ return java.lang.System.currentTimeMillis() + '' }
@@ -827,13 +827,13 @@ Here is an example of creating a random file-name on Windows. Also refer to [com
 * def tempTextFile = function(){ return dataFolder() + '\\' + random() + '.txt' }
 ```
 
-The [multiple functions in one file](https://github.com/intuit/karate#multiple-functions-in-one-file) pattern can be used to set up these common utilities, and now within a feature-file you can do this:
+The [multiple functions in one file](https://github.com/karatelabs/karate#multiple-functions-in-one-file) pattern can be used to set up these common utilities, and now within a feature-file you can do this:
 
 ```cucumber
 * def tempFile = tempTextFile()
 ```
 
-## [`karate.exec()`](https://github.com/intuit/karate#karate-exec)
+## [`karate.exec()`](https://github.com/karatelabs/karate#karate-exec)
 Can execute any OS command, wait for it it terminate, and return the system / console output as a string.
 
 Also see [`karate.fork()`](#karatefork)
@@ -842,4 +842,4 @@ Also see [`karate.fork()`](#karatefork)
 The `karate-robot` for Windows is around 150 MB and hence not distributed with the [standalone JAR or IDE plugins](https://github.com/karatelabs/karate/wiki/IDE-Support). But you can download it separately, and it can be easily added to the classpath. You can find instructions [here](https://github.com/karatelabs/karate/wiki/Karate-Robot-Windows-Install-Guide).
 
 ## Building
-For MacOSX, Linux, Android or iOS, you can build a stand-alone JAR by following the [Developer Guide](https://github.com/intuit/karate/wiki/Developer-Guide#build-standalone-karate-robot-jar).
+For MacOSX, Linux, Android or iOS, you can build a stand-alone JAR by following the [Developer Guide](https://github.com/karatelabs/karate/wiki/Developer-Guide#build-standalone-karate-robot-jar).

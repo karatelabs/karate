@@ -11,7 +11,7 @@ Then status 200
 * def token = response
 # cookies are auto-configured, i.e. they 'persist' for subsequent HTTP calls
 
-# if you are using 'shared scope': https://github.com/intuit/karate#shared-scope
+# if you are using 'shared scope': https://github.com/karatelabs/karate#shared-scope
 # this next line will update the global scope, which is the recommended approach for re-usable sign-in / auth flows
 * configure headers = read('classpath:headers.js')
 

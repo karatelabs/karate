@@ -1,6 +1,6 @@
 Feature: windows calculator
 	depending on your version of windows, if "calc.feature" doesn't work, try this one instead
-	also refer docs: https://github.com/intuit/karate/wiki/ZIP-Release#karate-robot 
+	also refer docs: https://github.com/karatelabs/karate/wiki/ZIP-Release#karate-robot 
 
 Scenario:
 * robot { window: 'Calculator', fork: 'calc', highlight: true, highlightDuration: 500 }
