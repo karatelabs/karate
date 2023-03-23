@@ -71,14 +71,14 @@ dependencies {
     compile 'com.github.java-json-tools:json-schema-validator:2.2.8'
     compile 'commons-io:commons-io:2.5'
     runtime 'com.h2database:h2:1.4.196'
-    testCompile 'junit:junit'
-    testCompile 'com.intuit.karate:karate-junit4:' + karateVersion
-    testCompile 'com.intuit.karate:karate-netty:' + karateVersion
-    testCompile 'org.apache.activemq:activemq-broker:' + activeMqVersion
-    testCompile 'org.apache.activemq:activemq-client:' + activeMqVersion
-    testCompile 'org.apache.activemq:activemq-kahadb-store:' + activeMqVersion
-    testCompile 'org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1.1'
-    testCompile 'net.masterthought:cucumber-reporting:' + masterThoughtVersion
+    testImplementation 'junit:junit'
+    testImplementation 'com.intuit.karate:karate-junit4:' + karateVersion
+    testImplementation 'com.intuit.karate:karate-netty:' + karateVersion
+    testImplementation 'org.apache.activemq:activemq-broker:' + activeMqVersion
+    testImplementation 'org.apache.activemq:activemq-client:' + activeMqVersion
+    testImplementation 'org.apache.activemq:activemq-kahadb-store:' + activeMqVersion
+    testImplementation 'org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1.1'
+    testImplementation 'net.masterthought:cucumber-reporting:' + masterThoughtVersion
 }
 
 test {
