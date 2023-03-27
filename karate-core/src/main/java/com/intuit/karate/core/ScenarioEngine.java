@@ -1872,7 +1872,7 @@ public class ScenarioEngine {
             result = call(called, arg, sharedScope);
         }
         // attach js functions from a different graal context
-        // result = new Variable(JS.attachAll(result.getValue()));
+        result = new Variable(JS.attachAll(result.getValue()));
         if (sharedScope && result.isMap()) {
             setVariables(result.getValue());
         }

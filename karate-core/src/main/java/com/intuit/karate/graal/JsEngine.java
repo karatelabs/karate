@@ -135,7 +135,6 @@ public class JsEngine {
         }
     }
     
-    // we only do this for callSingle
     public Object attachAll(Object o) {
         if (o instanceof List) {
             List list = (List) o;
