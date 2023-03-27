@@ -7,8 +7,7 @@ posthog.init('phc_M6fKk3dSX9HjglkqPSybauGas45NINb7EgsPGU8N9g1',{
   capture_pageview:false,
   api_transport:'sendBeacon',
   loaded: function(posthog) { 
-    posthog.identify(/*[[${userUuid}]]*/'');
-    posthog.capture(/*[[${karateEvent}]]*/'',{karate_version:/*[[${karateVersion}]]*/'',karate_meta:/*[[${karateMeta}]]*/''});
+    posthog.capture(/*[[${karateEvent}]]*/'',{distinct_id:/*[[${userUuid}]]*/'',karate_version:/*[[${karateVersion}]]*/'',karate_meta:/*[[${karateMeta}]]*/''});
   }
 });
 </script>
