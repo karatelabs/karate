@@ -139,7 +139,12 @@ public class Suite implements Runnable {
             outputHtmlReport = false;
             outputCucumberJson = false;
             outputJunitXml = false;
-            classLoader = Thread.currentThread().getContextClassLoader();
+            var contextClassLoader = Thread.currentThread().getContextClassLoader();
+            if (contextClassLoader != null) {
+                classLoader = Thread.currentThread().getContextClassLoader();
+            } else {
+                classLoader = getClass().getClassLoader();
+            }
             clientFactory = rb.clientFactory == null ? HttpClientFactory.DEFAULT : rb.clientFactory;
             startTime = -1;
             env = rb.env;
