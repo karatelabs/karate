@@ -139,9 +139,9 @@ public class Suite implements Runnable {
             outputHtmlReport = false;
             outputCucumberJson = false;
             outputJunitXml = false;
-            var contextClassLoader = Thread.currentThread().getContextClassLoader();
+            ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
             if (contextClassLoader != null) {
-                classLoader = Thread.currentThread().getContextClassLoader();
+                classLoader = contextClassLoader;
             } else {
                 classLoader = getClass().getClassLoader();
             }
