@@ -92,6 +92,7 @@ public class ScenarioRuntime implements Runnable {
         }
         result = new ScenarioResult(scenario);
         if (featureRuntime.setupResult != null) {
+            // TODO improve this and simplify report rendering code in report/karate-feature.html
             StepResult sr = result.addFakeStepResult("@setup", null);
             List<FeatureResult> list = new ArrayList(1);
             FeatureResult fr = new FeatureResult(featureRuntime.featureCall.feature);

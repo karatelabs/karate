@@ -32,5 +32,10 @@ class DemoRunner {
         DemoTestParallel.generateReport(results.getReportDir());
         assertTrue(results.getFailCount() == 0, results.getErrorMessages());
     }
+    
+    @Karate.Test
+    Karate testOutline() {
+        return Karate.run("classpath:demo/outline/setup-outline.feature");
+    }    
 
 }

@@ -60,7 +60,7 @@
               <span>ms:</span>&nbsp;<span th:text="Math.round(scenario.durationMillis)"></span>
             </div>
           </div>
-          <div th:if="scenario.stepResults.length > 0 && scenario.stepResults[0].step.background" class="step-row">
+          <div th:if="(scenario.stepResults.length > 0 && scenario.stepResults[0].step.background) || (scenario.stepResults.length > 1 && scenario.stepResults[1].step.background)" class="step-row">
             <div class="step-container" th:id="scenario.refId + 'bg'">
               <div class="step-ref bg-step">&gt;&gt;</div>
               <div class="step-cell passed">Background:</div>

@@ -10,7 +10,7 @@ window.onload = function () {
     if (!parentIds[parent.id]) return
     const link = document.createElement('a')
     link.dataset.stepId = parent.id
-    link.href = 'javascript:void()'
+    link.href = 'javascript:void(0)'
     parent.parentNode.insertBefore(link, parent)
     link.appendChild(parent)
   })
