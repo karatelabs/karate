@@ -12,7 +12,7 @@
   </a>
 </div>
 <div>
-  <a href="https://search.maven.org/artifact/com.intuit.karate/karate-core">
+  <a href="https://central.sonatype.com/namespace/com.intuit.karate">
     <img src="https://img.shields.io/maven-central/v/com.intuit.karate/karate-core.svg"/>
   </a>
   <a href="https://github.com/karatelabs/karate/actions?query=workflow%3Amaven-build">
