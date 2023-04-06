@@ -28,6 +28,7 @@ import com.intuit.karate.core.*;
 import com.intuit.karate.RuntimeHook;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 import java.util.stream.Collectors;
@@ -71,13 +72,17 @@ public class DebugThread implements RuntimeHook, LogAppender {
     protected void pause() {
         paused = true;
     }
-
+    
     private boolean stop(String reason) {
         return stop(reason, null);
+    }    
+
+    private boolean stop(String reason, List<Integer> breakPointIds) {
+        return stop(reason, null, breakPointIds);
     }
 
-    private boolean stop(String reason, String description) {
-        handler.stopEvent(id, reason, description);
+    private boolean stop(String reason, String description, List<Integer> breakPointIds) {
+        handler.stopEvent(id, reason, description, breakPointIds);
         stopped = true;
         synchronized (this) {
             try {
@@ -164,8 +169,9 @@ public class DebugThread implements RuntimeHook, LogAppender {
             return stop("step");
         } else {
             int line = step.getLine();
-            if (handler.isBreakpoint(step, line, context)) {
-                return stop("breakpoint");
+            SourceBreakpoints sb = handler.resolveBreakpoints(step, line, context);
+            if (sb != null) {
+                return stop("breakpoint", sb.getBreakpointIds());
             } else {
                 return true;
             }
@@ -177,7 +183,7 @@ public class DebugThread implements RuntimeHook, LogAppender {
         if (result.getResult().isFailed()) {
             String errorMessage = result.getErrorMessage();
             handler.output("*** step failed: " + errorMessage + "\n");
-            stop("exception", errorMessage);
+            stop("exception", errorMessage, null);
             errored = true;
         }
         pushDebugFrameVariables(context);

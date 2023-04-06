@@ -57,7 +57,6 @@ public class SourceBreakpoints {
                         // if the condition is not a boolean then what are you doing trying to use it as a condition?
                         return true;
                     }
-
                     return evalCondition != null && evalCondition.isTrue();
                 }
             }
@@ -83,6 +82,14 @@ public class SourceBreakpoints {
             list.add(b.toMap());
         }
         return list;
+    }
+    
+    public List<Integer> getBreakpointIds() {
+        List<Integer> list = new ArrayList(breakpoints.size());
+        for (Breakpoint b : breakpoints) {
+            list.add(b.id);
+        }
+        return list;        
     }
 
     @Override

@@ -103,11 +103,11 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         return null;
     }
 
-    protected boolean isBreakpoint(Step step, int line, ScenarioRuntime context) {
+    protected SourceBreakpoints resolveBreakpoints(Step step, int line, ScenarioRuntime context) {
         Feature feature = step.getFeature();
         File file = feature.getResource().getFile();
         if (file == null) {
-            return false;
+            return null;
         }
         String path = normalizePath(file.getPath());
         int pos = findPos(path);
@@ -118,9 +118,9 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             sb = BREAKPOINTS.get(path);
         }
         if (sb == null) {
-            return false;
+            return null;
         }
-        return sb.isBreakpoint(line, context);
+        return sb.isBreakpoint(line, context) ? sb : null;
     }
 
     protected String normalizePath(String path) {
@@ -445,13 +445,16 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         runnerThread.start();
     }
 
-    protected void stopEvent(long threadId, String reason, String description) {
+    protected void stopEvent(long threadId, String reason, String description, List<Integer> breakPointIds) {
         channel.eventLoop().execute(() -> {
             DapMessage message = event("stopped")
                     .body("reason", reason)
                     .body("threadId", threadId);
             if (description != null) {
                 message.body("description", description);
+            }
+            if (breakPointIds != null) {
+                message.body("hitBreakpointIds", breakPointIds);
             }
             channel.writeAndFlush(message);
         });
@@ -471,7 +474,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                         .body("exitCode", 0)));
         if (server.isKeepAlive()) {
             server.stop();
-            System.exit(0);
+            // System.exit(0);
         } else {
             logger.debug("Disconnecting current debug session. Debug server listening on port {}", this.server.getPort());
             this.clearDebugSession();
