@@ -71,7 +71,6 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     protected final Map<Long, Stack<Map<String, Variable>>> FRAME_VARS = new ConcurrentHashMap();
     protected final Map<Long, Entry<String, Variable>> VARIABLES = new ConcurrentHashMap();
 
-    private boolean singleFeature;
     private String launchCommand;
     private String preStep;
 
@@ -266,7 +265,6 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 String karateOptions = StringUtils.trimToEmpty(req.getArgument("karateOptions", String.class));
                 String feature = StringUtils.trimToEmpty(req.getArgument("feature", String.class));
                 launchCommand = StringUtils.trimToEmpty(karateOptions + " " + feature);
-                singleFeature = karateOptions.length() == 0;
                 preStep = StringUtils.trimToNull(req.getArgument("debugPreStep", String.class));
                 if (preStep != null) {
                     logger.debug("using pre-step: {}", preStep);
@@ -416,13 +414,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
 
     private void start() {
         logger.debug("command line: {}", launchCommand);
-        Main options;
-        if (singleFeature) {
-            options = new Main();
-            options.addPath(launchCommand);
-        } else {
-            options = IdeMain.parseIdeCommandLine(launchCommand);
-        }
+        Main options = IdeMain.parseIdeCommandLine(launchCommand);
         if (runnerThread != null) {
             runnerThread.interrupt();
         }
