@@ -8,6 +8,7 @@ Background:
 
 Scenario: pathMatches('/greeting') && paramExists('name')
 * print '*** param exists: name', targetUrlBase
+* requestHeaders['host'] = 'myhost:123'
 * karate.proceed(targetUrlBase)
 
 # 'catch-all' rule
