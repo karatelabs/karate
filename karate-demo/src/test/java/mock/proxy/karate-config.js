@@ -6,6 +6,7 @@ function fn() {
     karate.configure('ssl', true);
   }  
   var config = { demoBaseUrl: protocol + '://127.0.0.1:' + port };
+  karate.log('demoBaseUrl:', config.demoBaseUrl);
   var proxyPort = karate.properties['demo.proxy.port'];
   if (proxyPort) {
     karate.configure('proxy', 'http://127.0.0.1:' + proxyPort);

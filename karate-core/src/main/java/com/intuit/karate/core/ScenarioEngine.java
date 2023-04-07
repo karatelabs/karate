@@ -94,6 +94,7 @@ public class ScenarioEngine {
     public static final String REQUEST = "request";
     public static final String REQUEST_URL_BASE = "requestUrlBase";
     public static final String REQUEST_URI = "requestUri";
+    public static final String REQUEST_PATH = "requesPath";
     private static final String REQUEST_PARAMS = "requestParams";
     public static final String REQUEST_METHOD = "requestMethod";
     public static final String REQUEST_HEADERS = "requestHeaders";
@@ -727,10 +728,14 @@ public class ScenarioEngine {
     // http mock ===============================================================
     //
     public void mockProceed(String requestUrlBase) {
-        String urlBase = requestUrlBase == null ? vars.get(REQUEST_URL_BASE).getValue() : requestUrlBase;
-        String uri = vars.get(REQUEST_URI).getValue();
-        String url = uri == null ? urlBase : urlBase + "/" + uri;
-        requestBuilder.url(url);
+        String urlBase;
+        if (requestUrlBase == null) {
+            urlBase = vars.get(REQUEST_URL_BASE).getValue();             
+        } else {
+            urlBase = requestUrlBase;
+        }
+        requestBuilder.url(urlBase);
+        requestBuilder.path(vars.get(REQUEST_PATH).getValue());
         requestBuilder.params(vars.get(REQUEST_PARAMS).getValue());
         requestBuilder.method(vars.get(REQUEST_METHOD).getValue());
         requestBuilder.headers(vars.get(REQUEST_HEADERS).<Map>getValue());

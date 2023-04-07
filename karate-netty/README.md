@@ -33,6 +33,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
       <a href="#request"><code>request</code></a>
     | <a href="#requestbytes"><code>requestBytes</code></a>
     | <a href="#requesturlbase"><code>requestUrlBase</code></a>
+    | <a href="#requestpath"><code>requestPath</code></a>
     | <a href="#requesturi"><code>requestUri</code></a>
     | <a href="#requestmethod"><code>requestMethod</code></a>
     | <a href="#requestheaders"><code>requestHeaders</code></a>
@@ -551,8 +552,11 @@ Rarely used, unless you are expecting incoming binary content. This variable hol
 ## `requestUrlBase`
 Holds the value of the "base URL". This will be in the form `http://somehost:8080` and will include the port number if needed. It may start with `https` if applicable.
 
+## `requestPath`
+Only the path part, starting with `/`. The query string will *not* be included. For example, if the request URL was `http://foo/bar?baz=ban` - the value of `requestPath` will be `/bar`.
+
 ## `requestUri`
-Everything on the right side of the "base URL" (see above). This will include everything, including query string parameters if present. For example if the request URL was `http://foo/bar?baz=ban` the value of `requestUri` will be `/bar?baz=ban`.
+Everything on the right side of the [`requestUrlBase`](#requesturlbase). This will include query string parameters if present. For example, if the request URL was `http://foo/bar?baz=ban` - the value of `requestUri` will be `/bar?baz=ban`.
 
 ## `requestMethod`
 The HTTP method, for e.g. `GET`. It will be in capital letters. Instead of doing things like: `requestMethod == 'GET'` - "best practice" is to use the [`methodIs()`](#methodis) helper function for request matching.

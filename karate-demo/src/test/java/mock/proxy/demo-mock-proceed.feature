@@ -7,8 +7,9 @@ Background:
 * print 'init target url:', targetUrlBase
 
 Scenario: pathMatches('/greeting') && paramExists('name')
-    * karate.proceed(targetUrlBase)
+* print '*** param exists: name', targetUrlBase
+* karate.proceed(targetUrlBase)
 
 # 'catch-all' rule
 Scenario:
-    * karate.proceed(targetUrlBase)
+* karate.proceed(targetUrlBase)

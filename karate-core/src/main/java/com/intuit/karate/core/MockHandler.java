@@ -230,6 +230,7 @@ public class MockHandler implements ServerHandler {
         ScenarioEngine engine = new ScenarioEngine(runtime.engine.getConfig(), runtime, new HashMap(globals), runtime.logger);        
         engine.init();
         engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
+        engine.setVariable(ScenarioEngine.REQUEST_PATH, req.getPath());
         engine.setVariable(ScenarioEngine.REQUEST_URI, req.getPathRaw());
         engine.setVariable(ScenarioEngine.REQUEST_METHOD, req.getMethod());
         engine.setVariable(ScenarioEngine.REQUEST_HEADERS, req.getHeaders());

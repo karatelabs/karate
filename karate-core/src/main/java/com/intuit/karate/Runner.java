@@ -166,7 +166,9 @@ public class Runner {
             if (systemProperties == null) {
                 systemProperties = new HashMap(System.getProperties());
             } else {
-                systemProperties.putAll(new HashMap(System.getProperties()));
+                Map temp = new HashMap(System.getProperties());
+                temp.putAll(systemProperties); // make sure user-specified takes precedence
+                systemProperties = temp;
             }
             // env
             String tempOptions = StringUtils.trimToNull(systemProperties.get(Constants.KARATE_OPTIONS));
