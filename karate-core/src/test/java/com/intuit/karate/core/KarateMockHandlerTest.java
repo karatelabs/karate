@@ -99,6 +99,20 @@ class KarateMockHandlerTest {
         );
         matchVar("response", "{ foo: ['bar'] }");
     }
+    
+    @Test
+    void testRequestUri() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestUri");
+        run(
+                URL_STEP,
+                "param foo = 'bar'",
+                "path 'hello'",
+                "method get"
+        );
+        matchVar("response", "/hello?foo=bar");
+    }    
 
     @Test
     void testParams() {
@@ -576,7 +590,7 @@ class KarateMockHandlerTest {
                 URL_STEP,
                 "path '/hello\\\\/world'",
                 "method get",
-                "match response == '/hello/world'"
+                "match response == '/hello%2Fworld'"
         );
     }
 
