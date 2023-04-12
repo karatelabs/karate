@@ -6,7 +6,7 @@
       </h3>
    </th>
    <td>
-     Easy to install, recommended if you don't have programming experience
+     Easy setup, recommended if you don't have programming experience
    </td>
   </tr>
   <tr> 
@@ -36,7 +36,7 @@
       </h3>
    </th>
    <td>
-     Another simple way to get started, no local install needed, just a browser will do
+     No need to install any software, just a browser will do
    </td>
   </tr>
   <tr> 
@@ -46,7 +46,7 @@
       </h3>
    </th>
    <td>
-     If you are looking to get started with the Standalone JAR, JBang, NPM or Docker
+     Get started with the Standalone JAR, JBang, NPM or Docker
    </td>
   </tr>
 </table>
