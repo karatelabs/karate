@@ -1,5 +1,60 @@
+<table>
+  <tr> 
+    <th>
+      <h3>
+          <a href="https://github.com/karatelabs/karate/wiki/Get-Started:-Visual-Studio-Code">Visual Studio Code</a>
+      </h3>
+   </th>
+   <td>
+     Easy setup, recommended if you don't have programming experience
+   </td>
+  </tr>
+  <tr> 
+    <th>
+      <h3>
+          <a href="https://github.com/karatelabs/karate/wiki/Get-Started:-JetBrains-IntelliJ">JetBrains IntelliJ</a>
+      </h3>
+   </th>
+   <td>
+     Recommended for teams using IntelliJ and working with Maven / Gradle
+   </td>
+  </tr>
+  <tr> 
+    <th>
+      <h3>
+          <a href="https://github.com/karatelabs/karate/wiki/Get-Started:-Maven-and-Gradle">Maven and Gradle</a>
+      </h3>
+   </th>
+   <td>
+     Generic Maven and Gradle for Java teams, get started on the command-line
+   </td>
+  </tr>
+  <tr> 
+    <th>
+      <h3>
+          <a href="https://github.com/karatelabs/karate/wiki/Get-Started:-GitHub-Codespaces">GitHub Codespaces</a>
+      </h3>
+   </th>
+   <td>
+     No need to install any software, just a browser will do
+   </td>
+  </tr>
+  <tr> 
+    <th>
+      <h3>
+          <a href="https://github.com/karatelabs/karate/wiki/Get-Started:-Other-Runtime-Options">Other Runtime Options</a>
+      </h3>
+   </th>
+   <td>
+     Get started with the Standalone JAR, JBang, NPM or Docker
+   </td>
+  </tr>
+</table>
+
 # Karate
+
 ## Test Automation Made `Simple.`
+
 <div> 
   <a href="https://github.com/karatelabs/karate/wiki/Support">
     <img src="https://img.shields.io/badge/support-wiki-red.svg"/>
