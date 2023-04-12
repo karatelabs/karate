@@ -26,6 +26,7 @@ package com.intuit.karate.debug;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.core.*;
 import com.intuit.karate.RuntimeHook;
+import java.util.Collections;
 
 import java.util.HashMap;
 import java.util.List;
@@ -169,9 +170,9 @@ public class DebugThread implements RuntimeHook, LogAppender {
             return stop("step");
         } else {
             int line = step.getLine();
-            SourceBreakpoints sb = handler.resolveBreakpoints(step, line, context);
+            Breakpoint sb = handler.resolveBreakpoint(step, line, context);
             if (sb != null) {
-                return stop("breakpoint", sb.getBreakpointIds());
+                return stop("breakpoint", Collections.singletonList(sb.id));
             } else {
                 return true;
             }

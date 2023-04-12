@@ -102,7 +102,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         return null;
     }
 
-    protected SourceBreakpoints resolveBreakpoints(Step step, int line, ScenarioRuntime context) {
+    protected Breakpoint resolveBreakpoint(Step step, int line, ScenarioRuntime context) {
         Feature feature = step.getFeature();
         File file = feature.getResource().getFile();
         if (file == null) {
@@ -119,7 +119,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         if (sb == null) {
             return null;
         }
-        return sb.isBreakpoint(line, context) ? sb : null;
+        return sb.resolveBreakpoint(line, context);
     }
 
     protected String normalizePath(String path) {

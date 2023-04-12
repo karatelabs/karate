@@ -42,24 +42,26 @@ public class SourceBreakpoints {
     public final List<Breakpoint> breakpoints;
     public final boolean sourceModified;
     
-    public boolean isBreakpoint(int line, ScenarioRuntime context) {
+    public Breakpoint resolveBreakpoint(int line, ScenarioRuntime context) {
         if (breakpoints == null || breakpoints.isEmpty()) {
-            return false;
+            return null;
         }
         for (Breakpoint b : breakpoints) {
             if (b.line == line) {
-                if (b.condition == null) {
-                    return true;
+                if (b.condition == null) {                    
+                    return b;
                 } else {
                     Variable evalCondition = context.engine.evalKarateExpression(b.condition);
                     if (evalCondition != null && evalCondition.type != Variable.Type.BOOLEAN) {
-                        return true;
+                        return b;
                     }
-                    return evalCondition != null && evalCondition.isTrue();
+                    if (evalCondition != null && evalCondition.isTrue()) {
+                        return b;
+                    }                    
                 }
             }
         }
-        return false;
+        return null;
     }
 
     public SourceBreakpoints(Map<String, Object> map) {
@@ -80,14 +82,6 @@ public class SourceBreakpoints {
             list.add(b.toMap());
         }
         return list;
-    }
-    
-    public List<Integer> getBreakpointIds() {
-        List<Integer> list = new ArrayList(breakpoints.size());
-        for (Breakpoint b : breakpoints) {
-            list.add(b.id);
-        }
-        return list;        
     }
 
     @Override
