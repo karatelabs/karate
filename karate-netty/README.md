@@ -201,7 +201,7 @@ You can script complex automation, using the [Java API](https://github.com/karat
 Refer to the [jbang documentation](https://github.com/jbangdev/jbang) for more options.
 
 ## Downloading
-The only pre-requisite (if not using [jbang](#jbang)) is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the full-blown JDK (Java Development Kit). At least Java 8 is required, and there's a good chance you already have it installed. You can confirm this by typing `java -version` on the command line.
+The only pre-requisite (if not using [jbang](#jbang)) is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the full-blown JDK (Java Development Kit). At least Java 11 is required, and there's a good chance you already have it installed. You can confirm this by typing `java -version` on the command line.
 
 > Tip: Rename the file to `karate.jar` to make the [commands](#usage) easier to type !
 
