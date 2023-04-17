@@ -1,5 +1,5 @@
 # Examples - Karate Mobile (Appium)
-
+> Please consider Mobile support as experimental. But we are very close and there are some teams that use Karate for simple use-cases. Please contribute code if you can.
 
 ## Overview
 This project is to replicate issues with the [Karate UI framework](https://github.com/karatelabs/karate/tree/develop/karate-core) for mobile app testing using appium.

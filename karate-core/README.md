@@ -189,7 +189,7 @@
 * [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI environment or [Docker](#configure-drivertarget) - without needing a "master node" or "grid"
 * You can even run tests in parallel across [different machines](#distributed-testing) - and Karate will aggregate the results
 * Embed [video-recordings of tests](#karate-chrome) into the HTML report from a Docker container
-* [Android and iOS mobile support](https://github.com/karatelabs/karate/issues/743) via [Appium](http://appium.io)
+* [experimental] [Android and iOS mobile support](https://github.com/karatelabs/karate/issues/743) via [Appium](http://appium.io)
 * Seamlessly mix API and UI tests within the same script, for example [sign-in using an API](https://github.com/karatelabs/karate#http-basic-authentication-example) and speed-up your tests
 * [Intercept HTTP requests](#intercepting-http-requests) made by the browser and re-use [Karate mocks](https://github.com/karatelabs/karate/tree/master/karate-netty) to stub / modify server responses and even replace HTML content
 * Use the power of Karate's [`match`](https://github.com/karatelabs/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/karatelabs/karate#features) for UI assertions
@@ -221,6 +221,7 @@ To understand how Karate compares to other UI automation frameworks, this articl
   * run as part of Karate's [regression suite](https://stackoverflow.com/a/66005331/143475) via GitHub Actions
 
 ## Mobile / Appium
+> Please consider Mobile support as experimental. But we are very close and there are some teams that use Karate for simple use-cases. Please contribute code if you can.
 * Refer to this [example project](../examples/mobile-test)
 
 ## Windows
