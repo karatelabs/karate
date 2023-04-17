@@ -315,6 +315,7 @@ And you don't need to create additional Java classes for any of the payloads tha
 * Easily invoke JDK classes, Java libraries, or re-use custom Java code if needed, for [ultimate extensibility](#calling-java)
 * Simple plug-in system for [authentication](#http-basic-authentication-example) and HTTP [header management](#configure-headers) that will handle any complex, real-world scenario
 * [Cross-browser Web UI automation](karate-core) so that you can test *all* layers of your application with the same framework
+* [experimental] [Android and iOS mobile support](https://github.com/karatelabs/karate/issues/743) via [Appium](http://appium.io)
 * Visual Validation via the built-in [image comparison](#compare-image) capabilities
 * Cross platform [Desktop Automation](karate-robot) that can be [mixed into Web Automation flows](https://twitter.com/ptrthomas/status/1215534821234995200) if needed
 * Option to invoke via a [Java API](#java-api),  which means that you can easily [mix Karate into Java projects or legacy UI-automation suites](https://stackoverflow.com/q/47795762/143475)
