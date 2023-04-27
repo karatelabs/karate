@@ -1,4 +1,4 @@
-# Karate Netty
+# Karate API Mocks
 ## API Test-Doubles Made `Simple.`
 And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html) made easy.
 
