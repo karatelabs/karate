@@ -3,7 +3,9 @@
 ## References
 This is a simplified version of the [example in the Karate test-doubles documentation](https://github.com/karatelabs/karate/tree/master/karate-netty#consumer-provider-example) - with JMS / queues removed and simplified to be a stand-alone maven project.
 
-Also see [The World's Smallest Microservice](https://www.linkedin.com/pulse/worlds-smallest-micro-service-peter-thomas/).
+These articles are recommended reading:
+* [API Contract Testing - Visual Guide](https://www.linkedin.com/pulse/api-contract-testing-visual-guide-peter-thomas/)
+* [Karate vs Pact](https://stackoverflow.com/a/64218355/143475)
 
 ## Instructions
 * clone the project
