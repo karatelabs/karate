@@ -25,6 +25,7 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.http.cert.SelfSignedCertGenerator;
 import com.intuit.karate.shell.Command;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -37,7 +38,6 @@ import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.ssl.util.SelfSignedCertificate;
 import java.io.File;
 import java.io.FileInputStream;
 import java.net.URI;
@@ -171,9 +171,9 @@ public class HttpUtils {
 
     public static void createSelfSignedCertificate(File cert, File key) {
         try {
-            SelfSignedCertificate ssc = new SelfSignedCertificate();
-            FileUtils.copy(ssc.certificate(), cert);
-            FileUtils.copy(ssc.privateKey(), key);
+            SelfSignedCertGenerator ssc = new SelfSignedCertGenerator();
+            FileUtils.copy(ssc.getCertificate(), cert);
+            FileUtils.copy(ssc.getPrivateKey(), key);
         } catch (Exception e) {
             throw new RuntimeException();
         }
