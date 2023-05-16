@@ -49,6 +49,16 @@
      Get started with the Standalone JAR, JBang, NPM or Docker
    </td>
   </tr>
+  <tr> 
+    <th>
+      <h3>
+          <a href="https://github.com/karatelabs/karate-examples/blob/main/README.md">Examples</a>
+      </h3>
+   </th>
+   <td>
+     Examples and demos of integrations with other frameworks
+   </td>
+  </tr>  
 </table>
 
 # Karate
