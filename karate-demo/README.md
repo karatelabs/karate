@@ -1,10 +1,8 @@
 # Karate Demo
-This is a sample [Spring Boot](http://projects.spring.io/spring-boot/) web-application that exposes some functionality as web-service end-points. And includes a set of Karate examples that test these services as well as demonstrate various Karate features and best-practices. 
 
-Note that this is *not* the best example of a skeleton Java / Maven project, as it is designed to be part of the Karate code-base and act as a suite of regression tests. For a good "starter" project, please use one of these:
-* the [Quickstart](https://github.com/karatelabs/karate#quickstart)
-* the [examples/jobserver](../examples/jobserver) project
-* the [examples/consumer-driven-contracts](../examples/consumer-driven-contracts) project (multi Maven-module project)
+> :warning: Note that this is *not* the best example of a skeleton Java / Maven project, as it is designed to be part of the Karate code-base and act as a suite of regression tests. For a good "starter" project, please refer to the [Karate Examples](https://github.com/karatelabs/karate-examples/blob/main/README.md)
+
+This is a sample [Spring Boot](http://projects.spring.io/spring-boot/) web-application that exposes some functionality as web-service end-points. And includes a set of Karate examples that test these services as well as demonstrate various Karate features and best-practices.
 
 | Example | Demonstrates |
 | ------- | ------------ |
