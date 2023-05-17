@@ -27,7 +27,7 @@ class Demo01JavaRunner {
         String html = driver.html(".flash-error");
         assertTrue(html.contains("Incorrect username or password."));
         driver.setUrl("https://google.com");
-        driver.input("input[name=q]", "karate dsl");
+        driver.input("textarea[name=q]", "karate dsl");
         driver.submit().click("input[name=btnI]");
         assertEquals("https://github.com/karatelabs/karate", driver.getUrl());
         byte[] bytes = driver.screenshot();
@@ -46,7 +46,7 @@ class Demo01JavaRunner {
         String html = driver.html(".flash-error");
         assertTrue(html.contains("Incorrect username or password."));
         driver.setUrl("https://google.com");
-        driver.input("input[name=q]", "karate dsl");
+        driver.input("textarea[name=q]", "karate dsl");
         driver.submit().click("input[name=btnI]");
         assertEquals("https://github.com/karatelabs/karate", driver.getUrl());
         byte[] bytes = driver.screenshot();
