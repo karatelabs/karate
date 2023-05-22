@@ -7,7 +7,7 @@ Feature: browser automation 2
   Scenario: google search, land on the karate github page, and search for a file
 
     Given driver 'https://google.com'
-    And input('input[name=q]', 'karate dsl')
+    And input('textarea[name=q]', 'karate dsl')
     When click('input[name=btnI]')
     Then waitForUrl('https://github.com/karatelabs/karate')
 

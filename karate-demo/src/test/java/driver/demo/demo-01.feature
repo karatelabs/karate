@@ -19,6 +19,6 @@ Feature: browser automation 1
     Then match html('.flash-error') contains 'Incorrect username or password.'
 
     Given driver 'https://google.com'
-    And input("input[name=q]", 'karate dsl')
+    And input("textarea[name=q]", 'karate dsl')
     When submit().click("input[name=btnI]")
     Then waitForUrl('https://github.com/karatelabs/karate')

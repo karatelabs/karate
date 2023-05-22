@@ -13,7 +13,7 @@ Scenario: try to login to github
   Then match html('.flash-error') contains 'Incorrect username or password.'
   
   Given driver 'https://google.com'
-  And input("input[name=q]", 'karate dsl')
+  And input("textarea[name=q]", 'karate dsl')
   When submit().click("input[name=btnI]")
   # this may fail depending on which part of the world you are in !
   Then waitForUrl('https://github.com/karatelabs/karate')
