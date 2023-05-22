@@ -879,7 +879,7 @@ So instead of this, which uses [`submit()`](#submit):
 
 ```cucumber
 Given driver 'https://google.com'
-And input('input[name=q]', 'karate dsl')
+And input('textarea[name=q]', 'karate dsl')
 When submit().click('input[name=btnI]')
 Then match driver.url == 'https://github.com/karatelabs/karate'
 ```
@@ -888,7 +888,7 @@ You can do this. Note that `waitForUrl()` will also act as an assertion, so you 
 
 ```cucumber
 Given driver 'https://google.com'
-And input('input[name=q]', 'karate dsl')
+And input('textarea[name=q]', 'karate dsl')
 When click('input[name=btnI]')
 And waitForUrl('https://github.com/karatelabs/karate')
 ```
