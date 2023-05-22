@@ -55,6 +55,10 @@ class KarateHttpMockHandlerTest {
         matchContains(get(name), expected);
     }
 
+    private void matchVarContainsEither(String name, Object expected1, Object expected2) {
+        matchContainsEither(get(name), expected1, expected2);
+    }
+
     @AfterEach
     void afterEach() {
         server.stop();
@@ -162,7 +166,7 @@ class KarateHttpMockHandlerTest {
                 "cookie cookie2 = 'bar'",
                 "method get"
         );
-        matchVarContains("response", "{ cookie: ['cookie1=foo; cookie2=bar'] }");
+        matchVarContainsEither("response", "{ cookie: ['cookie1=foo; cookie2=bar'] }", "{ cookie: ['cookie2=bar; cookie1=foo'] }");
     }
 
     @Test

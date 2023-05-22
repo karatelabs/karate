@@ -32,6 +32,12 @@ public class TestUtils {
         assertTrue(mr.pass, mr.message);
     }
 
+    public static void matchContainsEither(Object actual, Object expected1, Object expected2) {
+        Match.Result mr1 = Match.evaluate(actual).contains(expected1);
+        Match.Result mr2 = Match.evaluate(actual).contains(expected2);
+        assertTrue(mr1.pass || mr2.pass, mr1.message);
+    }
+
     public static ScenarioEngine engine() {
         return new ScenarioEngine(new Config(), runtime(), new HashMap(), new Logger());
     }
