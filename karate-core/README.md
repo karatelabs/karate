@@ -1267,6 +1267,8 @@ Then match searchResults contains 'karate-core/src/main/resources/karate-logo.pn
 
 The above logic can actually be replaced with Karate's built-in short-cut - which is [`waitForResultCount()`](#waitforresultcount) Also see [waits](#wait-api).
 
+Also see [Loop Until](#loop-until).
+
 ## Function Composition
 The above example can be re-factored in a very elegant way as follows, using Karate's [native support for JavaScript](https://github.com/karatelabs/karate#javascript-functions):
 
@@ -1689,7 +1691,25 @@ For example, if you had a list of rows shown on the screen, and you wanted to cl
 * rows.forEach(row => row.click())
 ```
 
-If you wanted to do multiple actions per iteration of the loop, refer the next example for drop-downs.
+If you wanted to do multiple actions per iteration of the loop, refer to the example for [handling drop downs](#drop-downs).
+
+## Loop Until
+A different kind of loop is when you need to perform an action *until* no more data exists. This is where the [`waitUntil()`](#waituntilfunction) API comes in handy.
+
+```cucumber
+* def delete = 
+"""
+function() {
+  if (!exists('.border-bottom div')) {
+    return true;
+  }
+  click('.text-end button');
+}
+"""
+* waitUntil(delete)
+```
+
+How this works is as long as the function does not return a value, `waitUntil()` will loop. The `click('.text-end button')` is deleting the first row of records in the HTML. So the code above very neatly performs the loop and also exits the loop when there are no more records, and that is why we have the check for `!exists('.border-bottom div')`.
 
 # Drop Downs
 
@@ -1807,6 +1827,8 @@ Scenario:
 ```
 
 Best-practice would be to implement [Hybrid Tests](#hybrid-tests) where the values for the auth-cookies are set only once for the whole test-suite using [`karate.callSingle()`](https://github.com/karatelabs/karate#hooks).
+
+Also see [Looping Over Elements](#looping-over-elements).
 
 # Locator Lookup
 Other UI automation frameworks spend a lot of time encouraging you to follow a so-called "[Page Object Model](https://martinfowler.com/bliki/PageObject.html)" for your tests. The Karate project team is of the opinion that things can be made simpler.
