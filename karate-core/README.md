@@ -1739,7 +1739,7 @@ The way to handle this is in two steps, first to click on the button to show the
 
 ## Looping Over Elements
 
-In the above example, what if we wanted to loop over each drop-down item and select each one. Here's how we can do it. Note how we can have multiple actions within the loop.
+In the above example, what if we wanted to [loop over each drop-down item](#looping) and select each one. Here's how we can do it. Note how we can have multiple actions within the loop.
 
 ```cucumber
 * def list = locateAll('a.dropdown-item')
