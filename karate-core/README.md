@@ -1442,7 +1442,7 @@ This will return *all* elements that match the [locator](#locator) as a list of 
 * match elements[3].script('_.tagName') == 'BUTTON'
 ```
 
-Take a look at how to [loop and transform](https://github.com/karatelabs/karate#json-transforms) data for more ideas.
+Take a look at how to [loop](#looping) and [transform](https://github.com/karatelabs/karate#json-transforms) data for more ideas.
 
 ### `locateAll()` with filter
 `locateAll()` can take a second argument which has to be a JavaScript "predicate" function, that returns a boolean `true` or `false`. This is very useful to "filter" the results that match a desired condition - typically a text comparison.
