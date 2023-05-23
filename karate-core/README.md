@@ -38,6 +38,8 @@
     | <a href="#chaining">Chaining</a> 
     | <a href="#function-composition">Function Composition</a>
     | <a href="#script">Browser JavaScript</a>
+    | <a href="#looping">Looping</a>
+    | <a href="#dropdowns">Drop Downs</a>
     | <a href="#debugging">Debugging</a>
     | <a href="#retry">Retries</a>
     | <a href="#wait-api">Waits</a>
@@ -1015,6 +1017,8 @@ The rare need to "double-click" is supported as a `doubleClick()` method:
 * mouse('#myBtn').doubleClick()
 ```
 
+Note that you can chain `mouse()` off an [`Element`](#chaining) which can be really convenient. Refer to the section on handling [drop downs](#drop-downs) for an example.
+
 ## `close()`
 Close the page / tab.
 
@@ -1673,6 +1677,66 @@ This can be convenient in some cases, for example as an alternative to [Friendly
 ```
 
 Also note that [`locate()`](#locate) and [`locateAll()`](#locateall) can be called *on* an [`Element`](#chaining), so that the "search scope" is limited to that `Element` and it's children.
+
+# Looping
+
+Looping over data is easy in Karate because of the natural way in which you can loop over JS arrays. And the API for UI testing is designed to return arrays, for example [`scriptAll()`](#scriptall) and [`locateAll()`](#locateall) turn out to be very useful.
+
+For example, if you had a list of rows shown on the screen, and you wanted to click on all of them, you could do this:
+
+```cucumber
+* def rows = locateAll('.my-table tr button')
+* rows.forEach(row => row.click())
+```
+
+If you wanted to do multiple actions per iteration of the loop, refer the next example for drop-downs.
+
+# Drop Downs
+
+This section exists here in the documentation because it is a frequently asked question, and most drop-down "select" experiences in the wild are powered by JavaScript which makes it harder. These are cases where [`select`](#select) will not work. Instead, most JS-powered drop-down components can be handled by using [`mouse()`](#mouse).
+
+For example, consider this HTML which is using [Bootstrap](https://getbootstrap.com):
+
+```html
+    <div class="dropdown">
+      <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+        Dropdown button
+      </button>
+      <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="#">First</a></li>
+        <li><a class="dropdown-item" href="#">Second</a></li>
+        <li><a class="dropdown-item" href="#">Third</a></li>
+      </ul>
+    </div>
+```
+
+The way to handle this is in two steps, first to click on the button to show the list of items, and then to click on one of the items:
+
+```cucumber
+* mouse('button').click()
+* mouse('a.dropdown-item').click()
+```
+
+## Looping Over Elements
+
+In the above example, what if we wanted to loop over each drop-down item and select each one. Here's how we can do it. Note how we can have multiple actions within the loop.
+
+```cucumber
+* def list = locateAll('a.dropdown-item')
+* def fun =
+"""
+function(e) {
+    mouse('button').click();
+    e.mouse().click();
+    delay(2000);
+}
+"""
+* list.forEach(fun)
+```
+
+Note how we could chain the `mouse()` method off an [`Element`](#chaining) instance, which is really convenient.
+
+For the full working expanded example that shows all the concepts you need for looping over elements and handling drop-downs, refer to [this example](../karate-e2e-tests/src/test/java/driver/99_bootstrap.feature) and the [corresponding HTML](../karate-e2e-tests/src/test/java/driver/html/99_bootstrap.html).
 
 # Debugging
 You can use the [Visual Studio Karate entension](https://github.com/karatelabs/karate/wiki/IDE-Support#vs-code-karate-plugin) for stepping through and debugging a test. You can see a [demo video here](https://twitter.com/KarateDSL/status/1167533484560142336). We recommend that you get comfortable with this because it is going to save you lots of time. And creating tests may actually turn out to be fun !
