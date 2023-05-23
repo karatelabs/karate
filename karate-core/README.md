@@ -1682,7 +1682,7 @@ Also note that [`locate()`](#locate) and [`locateAll()`](#locateall) can be call
 
 # Looping
 
-Looping over data is easy in Karate because of the natural way in which you can loop over JS arrays. And the API for UI testing is designed to return arrays, for example [`scriptAll()`](#scriptall) and [`locateAll()`](#locateall) turn out to be very useful.
+Looping over data is easy in Karate because of the natural way in which you can [loop over JS arrays](https://stackoverflow.com/a/76091034/143475). And the API for UI testing is designed to return arrays, for example [`scriptAll()`](#scriptall) and [`locateAll()`](#locateall) turn out to be very useful.
 
 For example, if you had a list of rows shown on the screen, and you wanted to click on all of them, you could do this:
 
