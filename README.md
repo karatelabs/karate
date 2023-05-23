@@ -3279,6 +3279,8 @@ You usually won't need this, but the second-last line above shows how the `karat
 ## JSON Transforms
 Karate supports the following [functional-style](https://en.wikipedia.org/wiki/Functional_programming) operations via the JS API -  [`karate.map()`](#karate-map), [`karate.filter()`](#karate-filter) and [`karate.forEach()`](#karate-foreach). They can be very useful in some situations. A [good example](https://stackoverflow.com/a/53120851/143475) is when you have the *expected* data available as ready-made JSON but it is in a different "shape" from the *actual* data or HTTP `response`. There is also a [`karate.mapWithKey()`](#karate-mapwithkey) for a common need - which is to convert an array of primitives into an array of objects, which is the form that [data driven features](#data-driven-features) expect.
 
+The Graal JS engine that Karate uses supports the full ES6 spec, which means that JSON variables are first-class JS objects, and arrays can be *directly* looped over or manipulated using [`map()`, `filter()` and `forEach()`](https://stackoverflow.com/a/76091034/143475). And JS "arrow functions" are supported, which makes code much more concise.
+
 A few more useful "transforms" are to select a sub-set of key-value pairs using [`karate.filterKeys()`](#karate-filterkeys), merging 2 or more JSON-s using [`karate.merge()`](#karate-merge) and combining 2 or more arrays (or objects) into a single array using [`karate.append()`](#karate-append). And [`karate.appendTo()`](#karate-appendto) is for updating an existing variable (the equivalent of `array.push()` in JavaScript), which is especially useful in the body of a `karate.forEach()`.
 
 You can also sort arrays of arbitrary JSON using [`karate.sort()`](#karate-sort). Simple arrays of strings or numbers can be stripped of duplicates using [`karate.distinct()`](#karate-distinct). All JS "native" array operations can be used, such as `someName.reverse()`.
@@ -3290,6 +3292,11 @@ Scenario: karate map operation
     * def fun = function(x){ return x * x }
     * def list = [1, 2, 3]
     * def res = karate.map(list, fun)
+    * match res == [1, 4, 9]
+
+Scenario: js style map operation
+    * def list = [1, 2, 3]
+    * def res = list.map(list, x => x * x)
     * match res == [1, 4, 9]
 
 Scenario: convert an array into a different shape
@@ -3309,7 +3316,12 @@ Scenario: karate filter operation
     * def res = karate.filter(list, fun)
     * match res == [2, 4]
 
-Scenario: forEach works even on object key-values, not just arrays
+Scenario: js style filter operation
+    * def list = [1, 2, 3, 4]
+    * def res = list.filter(list, x => x % 2 == 0)
+    * match res == [2, 4]    
+
+Scenario: karate.forEach() works even on object key-values, not just arrays
     * def keys = []
     * def vals = []
     * def idxs = []
