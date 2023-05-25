@@ -26,7 +26,8 @@ package com.intuit.karate;
 import com.intuit.karate.core.AssignType;
 import com.intuit.karate.core.Action;
 import com.intuit.karate.core.ScenarioEngine;
-import com.intuit.karate.core.When;
+import cucumber.api.DataTable;
+import cucumber.api.java.en.When;
 import java.util.List;
 import java.util.Map;
 
@@ -153,14 +154,24 @@ public class ScenarioActions implements Actions {
         engine.request(body);
     }
 
-    @Override
     @When("^table (.+)")
+    public void table(String name, DataTable table) {
+        table(name, table.asMaps(String.class, String.class));
+    }
+
+    @Override
+    @Action("^table (.+)")
     public void table(String name, List<Map<String, String>> table) {
         engine.table(name, table);
     }
 
-    @Override
     @When("^replace (\\w+)$")
+    public void replace(String name, DataTable table) {
+        replace(name, table.asMaps(String.class, String.class));
+    }
+
+    @Override
+    @Action("^replace (\\w+)$")
     public void replace(String name, List<Map<String, String>> table) {
         engine.replaceTable(name, table);
     }
@@ -176,7 +187,7 @@ public class ScenarioActions implements Actions {
     public void def(String name, String exp) {
         engine.assign(AssignType.AUTO, name, exp, false);
     }
-    
+
     @Override
     @When("^def (.+) =$")
     public void defDocString(String name, String exp) {
@@ -194,12 +205,12 @@ public class ScenarioActions implements Actions {
     public void yaml(String name, String exp) {
         engine.assign(AssignType.YAML, name, exp, false);
     }
-    
+
     @Override
     @When("^yaml (.+) =$")
     public void yamlDocString(String name, String exp) {
         engine.assign(AssignType.YAML, name, exp, true);
-    }    
+    }
 
     @Override
     @When("^copy (.+) = (.+)")
@@ -330,8 +341,13 @@ public class ScenarioActions implements Actions {
         engine.set(name, path, value);
     }
 
-    @Override
     @When("^set ([^\\s]+)( [^=]+)?$")
+    public void set(String name, String path, DataTable table) {
+        set(name, path, table.asMaps(String.class, String.class));
+    }
+
+    @Override
+    @Action("^set ([^\\s]+)( [^=]+)?$")
     public void set(String name, String path, List<Map<String, String>> table) {
         engine.setViaTable(name, path, table);
     }

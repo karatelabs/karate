@@ -29,6 +29,7 @@ import com.intuit.karate.JsonUtils;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.StringUtils;
+import cucumber.api.java.en.When;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
