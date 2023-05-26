@@ -210,6 +210,13 @@ public class StepRuntime {
                 String keyword = method.getName().equalsIgnoreCase("eval") ? "eval" : methodPattern.keyword;
                 Collection<Method> keywordMethods = KEYWORDS_METHODS.computeIfAbsent(keyword, k -> new HashSet<>());
                 keywordMethods.add(methodPattern.method);
+            } else {
+                Action action = method.getDeclaredAnnotation(Action.class);
+                if (action != null) {
+                    String regex = action.value();
+                    MethodPattern methodPattern = new MethodPattern(method, regex);
+                    overwrite.add(methodPattern);
+                }
             }
         }
         for (MethodPattern mp : overwrite) {
