@@ -515,7 +515,7 @@ Assuming you use JUnit, there are some good reasons for the recommended (best pr
 For details on what actually goes into a script or `*.feature` file, refer to the [syntax guide](#syntax-guide).
 
 ## JUnit 5
-Karate supports JUnit 5 and the advantage is that you can have multiple methods in a test-class. Only 1 `import` is needed, and instead of a class-level annotation, you use a nice [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) and [fluent-api](https://en.wikipedia.org/wiki/Fluent_interface) to express which tests and tags you want to use.
+Karate supports [JUnit 5](https://junit.org/junit5) and the advantage is that you can have multiple methods in a test-class. Only 1 `import` is needed, and instead of a class-level annotation, you use a nice [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) and [fluent-api](https://en.wikipedia.org/wiki/Fluent_interface) to express which tests and tags you want to use.
 
 Note that the Java class does not need to be `public` and even the test methods do not need to be `public` - so tests end up being very concise.
 
@@ -715,7 +715,7 @@ Karate can run tests in parallel, and dramatically cut down execution time. This
 
 ### JUnit 5 Parallel Execution
 
-The example below assumes that JUnit 5 is available on the classpath, and uses the `@Test` annotation and the `assertEquals()` method.
+The example below assumes that [JUnit 5](https://junit.org/junit5) is available on the classpath, and uses the `@Test` annotation and the `assertEquals()` method.
 
 > But if you really want, you could use the `Runner` and `Results` API directly in *any* Java class, and even a "main" method.
 
