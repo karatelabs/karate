@@ -715,6 +715,10 @@ Karate can run tests in parallel, and dramatically cut down execution time. This
 
 ### JUnit 5 Parallel Execution
 
+The example below assumes that JUnit 5 is available on the classpath, and uses the `@Test` annotation and the `assertEquals()` method. But if you really want, you could use the `Runner` and `Results` API directly in any Java class, and even a "main" method.
+
+Use the [`karate-template`](https://github.com/karatelabs/karate-template) project if you want to get an [example](https://github.com/karatelabs/karate-template/blob/main/src/test/java/examples/ExamplesTest.java) as part of a working, "skeleton" project.
+
 ```java
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
