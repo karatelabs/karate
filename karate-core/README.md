@@ -1830,6 +1830,33 @@ Best-practice would be to implement [Hybrid Tests](#hybrid-tests) where the valu
 
 Also see [Looping Over Elements](#looping-over-elements).
 
+## JavaScript Function Reuse
+
+As described in the section above on [Methods](#methods) - functions on the `driver` object will be auto-injected as variables, but the important thing to note is that this will happen only *after* the driver is instantiated via the [`driver`](#driver) keyword.
+
+If you need to wrap a sequence of UI actions into a re-usable unit, JavaScript is convenient. A good example of doing this in the section on [Looping Over Elements](#loop-until). Here, the function is declared in-line, and after the `driver` was instantiated.
+
+But if you wanted to take JS function re-use to the next-level, you may choose to keep them in a separate file and follow the pattern described [here](https://github.com/karatelabs/karate#multiple-functions-in-one-file). If this common feature file is called before the `driver` is initialized, you will need to modify the JS code to:
+* get the `driver` instance using [`karate.get()`](https://github.com/karatelabs/karate#karate-get). 
+* and call methods on the `driver` instance (instead of directly)
+
+Here is an example:
+
+```cucumber
+* def deleteFirstRow = 
+"""
+function() {
+  var driver = karate.get('driver');
+  if (!driver.exists('.border-bottom div')) {
+    return true;
+  }
+  driver.click('.text-end button');
+}
+"""
+```
+
+You can compare the above with the example in the section on [Looping Over Elements](#loop-until) to appreciate the difference.
+
 # Locator Lookup
 Other UI automation frameworks spend a lot of time encouraging you to follow a so-called "[Page Object Model](https://martinfowler.com/bliki/PageObject.html)" for your tests. The Karate project team is of the opinion that things can be made simpler.
 
