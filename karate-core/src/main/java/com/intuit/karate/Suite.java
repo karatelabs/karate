@@ -34,6 +34,7 @@ import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioCall;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.ScenarioRuntime;
+import com.intuit.karate.core.Step;
 import com.intuit.karate.core.SyncExecutorService;
 import com.intuit.karate.core.Tags;
 import com.intuit.karate.http.HttpClientFactory;
@@ -55,8 +56,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.LoggerFactory;
+
+import static java.util.function.Predicate.not;
 
 /**
  *
@@ -341,6 +345,8 @@ public class Suite implements Runnable {
     }
 
     public ScenarioResult retryScenario(Scenario scenario) {
+        // remove any "fake" steps that might have been added before retrying
+        scenario.setSteps(scenario.getSteps().stream().filter(not(Step::isFake)).collect(Collectors.toList()));
         FeatureRuntime fr = FeatureRuntime.of(this, new FeatureCall(scenario.getFeature()));
         ScenarioRuntime runtime = new ScenarioRuntime(fr, scenario);
         runtime.run();
