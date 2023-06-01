@@ -167,59 +167,41 @@ It is worth calling out *why* Karate on the 'other side of the fence' (*handling
 If you think about it, all the above are *sufficient* to implement *any* micro-service. Karate's DSL syntax is *focused* on exactly these aspects, thus opening up interesting possibilities. It may be hard to believe that you can spin-up a 'usable' micro-service in minutes with Karate - but do try it and see !
 
 # Standalone JAR
-*All* of Karate (core API testing, parallel-runner / HTML reports, the debugger-UI, mocks and web / UI automation) is available as a *single*, executable JAR file. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE. The official [Visual Studio Code plugin](https://marketplace.visualstudio.com/items?itemName=karatelabs.karate) embeds the Karate JAR and runtime for your convenience.
-
-## jbang
-Note that you can easily run Karate or even install applications based on Karate using [`jbang`](https://www.jbang.dev). It will take care of setting up a local Java runtime, which is really convenient. Note that jbang itself is [super-easy to install](https://www.jbang.dev/documentation/guide/latest/installation.html) and there is even a "[Zero Install](https://www.jbang.dev/documentation/guide/latest/installation.html#zero-install)" option.
-
-With jbang installed, you can do this (since a [`jbang-catalog.json`](https://www.jbang.dev/documentation/guide/latest/alias_catalogs.html) is present within the [karatelabs/jbang-catalog](https://github.com/karatelabs/jbang-catalog) GitHub repository :
-
-```
-jbang karate@karatelabs -h
-```
-
-What's *really* interesting is that you can install `karate` as a local command-line application !
-
-> please replace `RELEASE` with the exact / version of Karate you intend to use if applicable
-
-```
- jbang app install --name karate com.intuit.karate:karate-core:RELEASE:all
-```
-
-And now the command `karate` will be available in your terminal (after opening a new one or having re-loaded environment settings).
-
-Which would make using Karate as easy as this !
-
-```
-karate -h
-```
-
-You can script complex automation, using the [Java API](https://github.com/karatelabs/karate#java-api) that Karate makes available. So if you have a file called `myscript.java` written as a jbang script, you can install it as a system-wide command called `myscript` like this:
-
-```
- jbang app install --name myscript myscript.java
-```
-
-Refer to the [jbang documentation](https://github.com/jbangdev/jbang) for more options.
+*All* of Karate (core API testing, parallel-runner / HTML reports, mocks and web / UI automation) is available as a *single*, executable JAR file.
 
 ## Downloading
 The only pre-requisite (if not using [jbang](#jbang)) is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the full-blown JDK (Java Development Kit). At least Java 11 is required, and there's a good chance you already have it installed. You can confirm this by typing `java -version` on the command line.
 
-> Tip: Rename the file to `karate.jar` to make the [commands](#usage) easier to type !
-
-Look for the [latest release](https://github.com/karatelabs/karate/releases) on GitHub and scroll down to find the "Assets". And look for the file with the name: `karate-<version>.jar`:
-
-## Quick Start
-Just use the official [IDE plugins](https://github.com/karatelabs/karate/wiki/IDE-Support).
-
-Also try the ["World's Smallest MicroService"](#the-worlds-smallest-microservice-) !
+Look for the [latest release](https://github.com/karatelabs/karate/releases) on GitHub and scroll down to find the "Assets". Look for the file with the name: `karate-<version>.jar`. Download it to the root of your project folder, and rename the file to `karate.jar` to make commands easier to type.
 
 ## Usage
+
 ### Help
 You can view the command line help with the `-h` option:
 ```
 java -jar karate.jar -h
 ```
+
+### Running Tests
+Feature files (or search paths) to be tested don't need command-line flags or options and can be just listed at the end of the command.
+
+Here is how you can run a single feature file:
+
+```
+java -jar karate.jar my-test.feature
+```
+
+You can run all tests within a directory if you provide a directory path:
+
+```
+java -jar karate.jar some/folder
+```
+
+You can have multiple features (separated by spaces) or even folder paths as the last part of the command. Karate will run all feature files found in sub-directories.
+
+For filtering tests to run, see the [tags](#tags) and [scenario name](#scenario-name) options below.
+
+Also see [custom classpath](#custom-classpath) and how to [use a batch file](#using-a-batch-file) for convenience.
 
 ### Mock Server
 To start a mock server, the 2 mandatory arguments are the path of the feature file 'mocks' `-m` and the port `-p`
@@ -247,27 +229,6 @@ java -jar karate.jar -m my-mock.feature -p 8443 -s -c my-cert.crt -k my-key.key
 You can hot-reload a mock feature file for changes by adding the -W or --watch option.
 
 Note that if you are loading from the `classpath:` your build system may need to update the file in the `target` (or `build`) folder when the source file changes. Or you could load the mock from the file-system using something like `file:src/test/java/some/folder/my.feature`.
-
-### Running Tests
-Convenient to run standard [Karate](https://github.com/karatelabs/karate) tests on the command-line without needing to mess around with Java or the IDE ! Great for demos or exploratory testing. Even HTML reports are generated !
-
-Feature files (or search paths) to be tested don't need command-line flags or options and can be just listed at the end of the command.
-
-```
-java -jar karate.jar my-test.feature
-```
-#### Custom Classpath
-Karate allows you to use custom Java code or 3rd party Java libraries using [Java interop](https://github.com/karatelabs/karate#calling-java). Normally those who do this use Karate in the context of [Maven](https://maven.apache.org) or [Gradle](https://gradle.org) - and the [classpath](https://github.com/karatelabs/karate#classpath) would be set automatically.
-
-You can use the standalone JAR and still depend on external Java code - but you have to set the classpath for this to work. The entry-point for the Karate command-line app is `com.intuit.karate.Main`.
-
-```
-java -cp karate.jar:karate-robot.jar com.intuit.karate.Main test.feature
-```
-
-If on Windows, note that the path-separator is `;` instead of `:` as seen above for Mac / Linux. Refer this [post](https://stackoverflow.com/a/56458094/143475) for more details.
-
-This approach is useful if you are trying to point the standalone Karate JAR file to a project structure that comes from the Java / Maven world. And the [`karate-config.js`](https://github.com/karatelabs/karate#configuration) will be looked for in the classpath itself.
 
 #### Scenario Name
 If you only want to run a single `Scenario` by name, use the `-n` or `--name` option:
@@ -361,6 +322,73 @@ java -jar karate.jar -T 5 -C src/features
 #### Debug Server
 The `-d` or `--debug` option will start a debug server. See the [Debug Server wiki](https://github.com/karatelabs/karate/wiki/Debug-Server#standalone-jar) for more details.
 
+## Custom Classpath
+Karate allows you to use custom Java code or 3rd party Java libraries using [Java interop](https://github.com/karatelabs/karate#calling-java). Normally those who do this use Karate in the context of [Maven](https://maven.apache.org) or [Gradle](https://gradle.org) - and the [classpath](https://github.com/karatelabs/karate#classpath) would be set automatically.
+
+You can use the standalone JAR and still depend on external Java code - but you have to set the classpath for this to work. The entry-point for the Karate command-line app is `com.intuit.karate.Main`.
+
+```
+java -cp karate.jar:karate-robot.jar com.intuit.karate.Main test.feature
+```
+
+If on Windows, note that the path-separator is `;` instead of `:` as seen above for Mac / Linux. Refer this [post](https://stackoverflow.com/a/56458094/143475) for more details.
+
+This approach is useful if you are trying to point the standalone Karate JAR file to a project structure that comes from the Java / Maven world. And the [`karate-config.js`](https://github.com/karatelabs/karate#configuration) will be looked for in the classpath itself.
+
+### Using A Batch File
+When using the standalone JAR, you can create a batch file (or shell script) to make it easier to run tests. This is useful especially if you need to manage a [custom classpath](#custom-classpath) as desribed above.
+
+Here is an example for Windows systems, name it as `karate.bat` for convenience:
+
+```bat
+java -cp karate.jar;. com.intuit.karate.Main %*
+```
+
+Then you can just do `karate my-test.feature` on the command-line. All options and arguments after `karate` will be processed as explained in [usage](#usage).
+
+And here is an example for Linux / Mac systems, name it as `karate` for convenience, and give it executable permissions by running (once): `chmod +x karate`
+
+```sh
+#!/bin/bash
+java -cp "$(dirname "$0")/karate.jar":. com.intuit.karate.Main "$@"
+```
+
+Then you can just do `./karate my-test.feature` on the command-line. All options and arguments after `./karate` will be processed as explained in [usage](#usage).
+
+Both batch-file examples above add the current directory to the classpath (as `.`), which is useful if you want to load a `karate-config.js` file from the current directory. You can easily customize which `java` executable is used, and the location of not just the Karate JAR, but any other JAR files containing even custom code.
+
+## jbang
+Note that you can easily run Karate or even install applications based on Karate using [`jbang`](https://www.jbang.dev). It will take care of setting up a local Java runtime, which is really convenient. Note that jbang itself is [super-easy to install](https://www.jbang.dev/documentation/guide/latest/installation.html) and there is even a "[Zero Install](https://www.jbang.dev/documentation/guide/latest/installation.html#zero-install)" option.
+
+With jbang installed, you can do this (since a [`jbang-catalog.json`](https://www.jbang.dev/documentation/guide/latest/alias_catalogs.html) is present within the [karatelabs/jbang-catalog](https://github.com/karatelabs/jbang-catalog) GitHub repository):
+
+```
+jbang karate@karatelabs -h
+```
+
+What's *really* interesting is that you can install `karate` as a local command-line application !
+
+> please replace `RELEASE` with the exact / version of Karate you intend to use if applicable
+
+```
+ jbang app install --name karate com.intuit.karate:karate-core:RELEASE:all
+```
+
+And now the command `karate` will be available in your terminal (after opening a new one or having re-loaded environment settings).
+
+Which would make using Karate as easy as this !
+
+```
+karate -h
+```
+
+You can script complex automation, using the [Java API](https://github.com/karatelabs/karate#java-api) that Karate makes available. So if you have a file called `myscript.java` written as a jbang script, you can install it as a system-wide command called `myscript` like this:
+
+```
+ jbang app install --name myscript myscript.java
+```
+
+Refer to the [jbang documentation](https://github.com/jbangdev/jbang) for more options.
 
 ## Logging
 A default [logback configuration file](https://logback.qos.ch/manual/configuration.html) (named [`logback-fatjar.xml`](../karate-core/src/main/java/logback-fatjar.xml)) is present within the stand-alone JAR.
