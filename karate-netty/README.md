@@ -166,12 +166,12 @@ It is worth calling out *why* Karate on the 'other side of the fence' (*handling
 If you think about it, all the above are *sufficient* to implement *any* micro-service. Karate's DSL syntax is *focused* on exactly these aspects, thus opening up interesting possibilities. It may be hard to believe that you can spin-up a 'usable' micro-service in minutes with Karate - but do try it and see !
 
 # Standalone JAR
-*All* of Karate (core API testing, parallel-runner / HTML reports, the debugger-UI, mocks and web / UI automation) is available as a *single*, executable JAR file. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE. The official [Visual Studio Code plugin](https://marketplace.visualstudio.com/items?itemName=karatelabs.karate) embeds the Karate JAR and runtime for your convenience.
+*All* of Karate (core API testing, parallel-runner / HTML reports, mocks and web / UI automation) is available as a *single*, executable JAR file. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE. The official [Visual Studio Code plugin](https://marketplace.visualstudio.com/items?itemName=karatelabs.karate) embeds the Karate JAR and runtime for your convenience.
 
 ## jbang
 Note that you can easily run Karate or even install applications based on Karate using [`jbang`](https://www.jbang.dev). It will take care of setting up a local Java runtime, which is really convenient. Note that jbang itself is [super-easy to install](https://www.jbang.dev/documentation/guide/latest/installation.html) and there is even a "[Zero Install](https://www.jbang.dev/documentation/guide/latest/installation.html#zero-install)" option.
 
-With jbang installed, you can do this (since a [`jbang-catalog.json`](https://www.jbang.dev/documentation/guide/latest/alias_catalogs.html) is present within the [karatelabs/jbang-catalog](https://github.com/karatelabs/jbang-catalog) GitHub repository :
+With jbang installed, you can do this (since a [`jbang-catalog.json`](https://www.jbang.dev/documentation/guide/latest/alias_catalogs.html) is present within the [karatelabs/jbang-catalog](https://github.com/karatelabs/jbang-catalog) GitHub repository):
 
 ```
 jbang karate@karatelabs -h
@@ -207,11 +207,6 @@ The only pre-requisite (if not using [jbang](#jbang)) is the [Java Runtime Envir
 > Tip: Rename the file to `karate.jar` to make the [commands](#usage) easier to type !
 
 Look for the [latest release](https://github.com/karatelabs/karate/releases) on GitHub and scroll down to find the "Assets". And look for the file with the name: `karate-<version>.jar`:
-
-## Quick Start
-Just use the official [IDE plugins](https://github.com/karatelabs/karate/wiki/IDE-Support).
-
-Also try the ["World's Smallest MicroService"](#the-worlds-smallest-microservice-) !
 
 ## Usage
 
