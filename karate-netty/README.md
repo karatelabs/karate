@@ -381,7 +381,7 @@ Here is an example for Windows systems, name it as `karate.bat` for convenience:
 java -cp karate.jar;. com.intuit.karate.Main %*
 ```
 
-Then you can just do `karate my-test.feature` on the command-line. You can even run all tests within a directory.
+Then you can just do `karate my-test.feature` on the command-line. All options and arguments after `karate` will be processed as explained in [usage](#usage).
 
 And here is an example for Linux / Mac systems, name it as `karate` for convenience, and give it executable permissions by running (once): `chmod +x karate`
 
@@ -390,7 +390,7 @@ And here is an example for Linux / Mac systems, name it as `karate` for convenie
 java -cp "$(dirname "$0")/karate.jar":. com.intuit.karate.Main "$@"
 ```
 
-Then you can just do `./karate my-test.feature` on the command-line. You can even run all tests within a directory.
+Then you can just do `./karate my-test.feature` on the command-line. All options and arguments after `./karate` will be processed as explained in [usage](#usage).
 
 Both batch-file examples above add the current directory to the classpath (as `.`), which is useful if you want to load a `karate-config.js` file from the current directory. You can easily customize which `java` executable is used, and the location of not just the Karate JAR, but any other JAR files containing even custom code.
 
