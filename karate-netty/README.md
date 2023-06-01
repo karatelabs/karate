@@ -214,11 +214,23 @@ Just use the official [IDE plugins](https://github.com/karatelabs/karate/wiki/ID
 Also try the ["World's Smallest MicroService"](#the-worlds-smallest-microservice-) !
 
 ## Usage
+
 ### Help
 You can view the command line help with the `-h` option:
 ```
 java -jar karate.jar -h
 ```
+
+### Running Tests
+Convenient to run standard [Karate](https://github.com/karatelabs/karate) tests on the command-line without needing to mess around with Java or the IDE ! Great for demos or exploratory testing. Even HTML reports are generated !
+
+Feature files (or search paths) to be tested don't need command-line flags or options and can be just listed at the end of the command.
+
+```
+java -jar karate.jar my-test.feature
+```
+
+Also see [custom classpath](#custom-classpath) and how to [use a batch file](#using-a-batch-file) for convenience.
 
 ### Mock Server
 To start a mock server, the 2 mandatory arguments are the path of the feature file 'mocks' `-m` and the port `-p`
@@ -246,45 +258,6 @@ java -jar karate.jar -m my-mock.feature -p 8443 -s -c my-cert.crt -k my-key.key
 You can hot-reload a mock feature file for changes by adding the -W or --watch option.
 
 Note that if you are loading from the `classpath:` your build system may need to update the file in the `target` (or `build`) folder when the source file changes. Or you could load the mock from the file-system using something like `file:src/test/java/some/folder/my.feature`.
-
-### Running Tests
-Convenient to run standard [Karate](https://github.com/karatelabs/karate) tests on the command-line without needing to mess around with Java or the IDE ! Great for demos or exploratory testing. Even HTML reports are generated !
-
-Feature files (or search paths) to be tested don't need command-line flags or options and can be just listed at the end of the command.
-
-```
-java -jar karate.jar my-test.feature
-```
-#### Custom Classpath
-Karate allows you to use custom Java code or 3rd party Java libraries using [Java interop](https://github.com/karatelabs/karate#calling-java). Normally those who do this use Karate in the context of [Maven](https://maven.apache.org) or [Gradle](https://gradle.org) - and the [classpath](https://github.com/karatelabs/karate#classpath) would be set automatically.
-
-You can use the standalone JAR and still depend on external Java code - but you have to set the classpath for this to work. The entry-point for the Karate command-line app is `com.intuit.karate.Main`.
-
-```
-java -cp karate.jar:karate-robot.jar com.intuit.karate.Main test.feature
-```
-
-If on Windows, note that the path-separator is `;` instead of `:` as seen above for Mac / Linux. Refer this [post](https://stackoverflow.com/a/56458094/143475) for more details.
-
-This approach is useful if you are trying to point the standalone Karate JAR file to a project structure that comes from the Java / Maven world. And the [`karate-config.js`](https://github.com/karatelabs/karate#configuration) will be looked for in the classpath itself.
-
-#### Using A Batch File
-When using the standalone JAR, you can create a batch file (or shell script) to make it easier to run tests. This is useful especially if you need to manage a [custom classpath](#custom-classpath) as desribed above.
-
-Here is an example for Windows systems:
-
-```bat
-java -cp karate.jar;. com.intuit.karate.Main %*
-```
-
-And here is an example for Linux / Mac systems:
-
-```sh
-#!/bin/bash
-java -cp "$(dirname "$0")/karate.jar":. com.intuit.karate.Main "$@"
-```
-
-Both examples above add the current directory to the classpath (as `.`), which is useful if you want to load a `karate-config.js` file from the current directory. You can easily customize which `java` executable is used, and the location of not just the Karate JAR, but any other JAR files containing even custom code.
 
 #### Scenario Name
 If you only want to run a single `Scenario` by name, use the `-n` or `--name` option:
@@ -378,6 +351,40 @@ java -jar karate.jar -T 5 -C src/features
 #### Debug Server
 The `-d` or `--debug` option will start a debug server. See the [Debug Server wiki](https://github.com/karatelabs/karate/wiki/Debug-Server#standalone-jar) for more details.
 
+## Custom Classpath
+Karate allows you to use custom Java code or 3rd party Java libraries using [Java interop](https://github.com/karatelabs/karate#calling-java). Normally those who do this use Karate in the context of [Maven](https://maven.apache.org) or [Gradle](https://gradle.org) - and the [classpath](https://github.com/karatelabs/karate#classpath) would be set automatically.
+
+You can use the standalone JAR and still depend on external Java code - but you have to set the classpath for this to work. The entry-point for the Karate command-line app is `com.intuit.karate.Main`.
+
+```
+java -cp karate.jar:karate-robot.jar com.intuit.karate.Main test.feature
+```
+
+If on Windows, note that the path-separator is `;` instead of `:` as seen above for Mac / Linux. Refer this [post](https://stackoverflow.com/a/56458094/143475) for more details.
+
+This approach is useful if you are trying to point the standalone Karate JAR file to a project structure that comes from the Java / Maven world. And the [`karate-config.js`](https://github.com/karatelabs/karate#configuration) will be looked for in the classpath itself.
+
+### Using A Batch File
+When using the standalone JAR, you can create a batch file (or shell script) to make it easier to run tests. This is useful especially if you need to manage a [custom classpath](#custom-classpath) as desribed above.
+
+Here is an example for Windows systems, name it as `karate.bat` for convenience:
+
+```bat
+java -cp karate.jar;. com.intuit.karate.Main %*
+```
+
+Then you can just do `karate my-test.feature` on the command-line. You can even run all tests within a directory.
+
+And here is an example for Linux / Mac systems, name it as `karate` for convenience, and give it executable permissions by running (once): `chmod +x karate`
+
+```sh
+#!/bin/bash
+java -cp "$(dirname "$0")/karate.jar":. com.intuit.karate.Main "$@"
+```
+
+Then you can just do `./karate my-test.feature` on the command-line. You can even run all tests within a directory.
+
+Both batch-file examples above add the current directory to the classpath (as `.`), which is useful if you want to load a `karate-config.js` file from the current directory. You can easily customize which `java` executable is used, and the location of not just the Karate JAR, but any other JAR files containing even custom code.
 
 ## Logging
 A default [logback configuration file](https://logback.qos.ch/manual/configuration.html) (named [`logback-fatjar.xml`](../karate-core/src/main/java/logback-fatjar.xml)) is present within the stand-alone JAR.
