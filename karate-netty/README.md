@@ -268,6 +268,24 @@ If on Windows, note that the path-separator is `;` instead of `:` as seen above 
 
 This approach is useful if you are trying to point the standalone Karate JAR file to a project structure that comes from the Java / Maven world. And the [`karate-config.js`](https://github.com/karatelabs/karate#configuration) will be looked for in the classpath itself.
 
+#### Using A Batch File
+When using the standalone JAR, you can create a batch file (or shell script) to make it easier to run tests. This is useful especially if you need to manage a [custom classpath](#custom-classpath) as desribed above.
+
+Here is an example for Windows systems:
+
+```bat
+java -cp karate.jar;. com.intuit.karate.Main %*
+```
+
+And here is an example for Linux / Mac systems:
+
+```sh
+#!/bin/bash
+java -cp "$(dirname "$0")/karate.jar":. com.intuit.karate.Main "$@"
+```
+
+Both examples above add the current directory to the classpath (as `.`), which is useful if you want to load a `karate-config.js` file from the current directory. You can easily customize which `java` executable is used, and the location of not just the Karate JAR, but any other JAR files containing even custom code.
+
 #### Scenario Name
 If you only want to run a single `Scenario` by name, use the `-n` or `--name` option:
 
