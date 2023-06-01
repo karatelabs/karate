@@ -198,6 +198,8 @@ You can run all tests within a directory if you provide a directory path:
 java -jar karate.jar some/folder
 ```
 
+You can have multiple features (separated by spaces) or even folder paths as the last part of the command. Karate will run all feature files found in sub-directories.
+
 For filtering tests to run, see the [tags](#tags) and [scenario name](#scenario-name) options below.
 
 Also see [custom classpath](#custom-classpath) and how to [use a batch file](#using-a-batch-file) for convenience.
