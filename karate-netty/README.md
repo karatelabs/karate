@@ -168,39 +168,6 @@ If you think about it, all the above are *sufficient* to implement *any* micro-s
 # Standalone JAR
 *All* of Karate (core API testing, parallel-runner / HTML reports, mocks and web / UI automation) is available as a *single*, executable JAR file. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE. The official [Visual Studio Code plugin](https://marketplace.visualstudio.com/items?itemName=karatelabs.karate) embeds the Karate JAR and runtime for your convenience.
 
-## jbang
-Note that you can easily run Karate or even install applications based on Karate using [`jbang`](https://www.jbang.dev). It will take care of setting up a local Java runtime, which is really convenient. Note that jbang itself is [super-easy to install](https://www.jbang.dev/documentation/guide/latest/installation.html) and there is even a "[Zero Install](https://www.jbang.dev/documentation/guide/latest/installation.html#zero-install)" option.
-
-With jbang installed, you can do this (since a [`jbang-catalog.json`](https://www.jbang.dev/documentation/guide/latest/alias_catalogs.html) is present within the [karatelabs/jbang-catalog](https://github.com/karatelabs/jbang-catalog) GitHub repository):
-
-```
-jbang karate@karatelabs -h
-```
-
-What's *really* interesting is that you can install `karate` as a local command-line application !
-
-> please replace `RELEASE` with the exact / version of Karate you intend to use if applicable
-
-```
- jbang app install --name karate com.intuit.karate:karate-core:RELEASE:all
-```
-
-And now the command `karate` will be available in your terminal (after opening a new one or having re-loaded environment settings).
-
-Which would make using Karate as easy as this !
-
-```
-karate -h
-```
-
-You can script complex automation, using the [Java API](https://github.com/karatelabs/karate#java-api) that Karate makes available. So if you have a file called `myscript.java` written as a jbang script, you can install it as a system-wide command called `myscript` like this:
-
-```
- jbang app install --name myscript myscript.java
-```
-
-Refer to the [jbang documentation](https://github.com/jbangdev/jbang) for more options.
-
 ## Downloading
 The only pre-requisite (if not using [jbang](#jbang)) is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the full-blown JDK (Java Development Kit). At least Java 11 is required, and there's a good chance you already have it installed. You can confirm this by typing `java -version` on the command line.
 
@@ -388,6 +355,39 @@ java -cp "$(dirname "$0")/karate.jar":. com.intuit.karate.Main "$@"
 Then you can just do `./karate my-test.feature` on the command-line. All options and arguments after `./karate` will be processed as explained in [usage](#usage).
 
 Both batch-file examples above add the current directory to the classpath (as `.`), which is useful if you want to load a `karate-config.js` file from the current directory. You can easily customize which `java` executable is used, and the location of not just the Karate JAR, but any other JAR files containing even custom code.
+
+## jbang
+Note that you can easily run Karate or even install applications based on Karate using [`jbang`](https://www.jbang.dev). It will take care of setting up a local Java runtime, which is really convenient. Note that jbang itself is [super-easy to install](https://www.jbang.dev/documentation/guide/latest/installation.html) and there is even a "[Zero Install](https://www.jbang.dev/documentation/guide/latest/installation.html#zero-install)" option.
+
+With jbang installed, you can do this (since a [`jbang-catalog.json`](https://www.jbang.dev/documentation/guide/latest/alias_catalogs.html) is present within the [karatelabs/jbang-catalog](https://github.com/karatelabs/jbang-catalog) GitHub repository):
+
+```
+jbang karate@karatelabs -h
+```
+
+What's *really* interesting is that you can install `karate` as a local command-line application !
+
+> please replace `RELEASE` with the exact / version of Karate you intend to use if applicable
+
+```
+ jbang app install --name karate com.intuit.karate:karate-core:RELEASE:all
+```
+
+And now the command `karate` will be available in your terminal (after opening a new one or having re-loaded environment settings).
+
+Which would make using Karate as easy as this !
+
+```
+karate -h
+```
+
+You can script complex automation, using the [Java API](https://github.com/karatelabs/karate#java-api) that Karate makes available. So if you have a file called `myscript.java` written as a jbang script, you can install it as a system-wide command called `myscript` like this:
+
+```
+ jbang app install --name myscript myscript.java
+```
+
+Refer to the [jbang documentation](https://github.com/jbangdev/jbang) for more options.
 
 ## Logging
 A default [logback configuration file](https://logback.qos.ch/manual/configuration.html) (named [`logback-fatjar.xml`](../karate-core/src/main/java/logback-fatjar.xml)) is present within the stand-alone JAR.
