@@ -166,14 +166,12 @@ It is worth calling out *why* Karate on the 'other side of the fence' (*handling
 If you think about it, all the above are *sufficient* to implement *any* micro-service. Karate's DSL syntax is *focused* on exactly these aspects, thus opening up interesting possibilities. It may be hard to believe that you can spin-up a 'usable' micro-service in minutes with Karate - but do try it and see !
 
 # Standalone JAR
-*All* of Karate (core API testing, parallel-runner / HTML reports, mocks and web / UI automation) is available as a *single*, executable JAR file. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE. The official [Visual Studio Code plugin](https://marketplace.visualstudio.com/items?itemName=karatelabs.karate) embeds the Karate JAR and runtime for your convenience.
+*All* of Karate (core API testing, parallel-runner / HTML reports, mocks and web / UI automation) is available as a *single*, executable JAR file.
 
 ## Downloading
 The only pre-requisite (if not using [jbang](#jbang)) is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the full-blown JDK (Java Development Kit). At least Java 11 is required, and there's a good chance you already have it installed. You can confirm this by typing `java -version` on the command line.
 
-> Tip: Rename the file to `karate.jar` to make the [commands](#usage) easier to type !
-
-Look for the [latest release](https://github.com/karatelabs/karate/releases) on GitHub and scroll down to find the "Assets". And look for the file with the name: `karate-<version>.jar`:
+Look for the [latest release](https://github.com/karatelabs/karate/releases) on GitHub and scroll down to find the "Assets". Look for the file with the name: `karate-<version>.jar`. Download it to the root of your project folder, and rename the file to `karate.jar` to make commands easier to type.
 
 ## Usage
 
