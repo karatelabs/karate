@@ -202,7 +202,7 @@ You can script complex automation, using the [Java API](https://github.com/karat
 Refer to the [jbang documentation](https://github.com/jbangdev/jbang) for more options.
 
 ## Downloading
-The only pre-requisite (if not using [jbang](#jbang)) is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the full-blown JDK (Java Development Kit). At least Java 8 is required, and there's a good chance you already have it installed. You can confirm this by typing `java -version` on the command line.
+The only pre-requisite (if not using [jbang](#jbang)) is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the full-blown JDK (Java Development Kit). At least Java 11 is required, and there's a good chance you already have it installed. You can confirm this by typing `java -version` on the command line.
 
 > Tip: Rename the file to `karate.jar` to make the [commands](#usage) easier to type !
 
@@ -222,13 +222,21 @@ java -jar karate.jar -h
 ```
 
 ### Running Tests
-Convenient to run standard [Karate](https://github.com/karatelabs/karate) tests on the command-line without needing to mess around with Java or the IDE ! Great for demos or exploratory testing. Even HTML reports are generated !
-
 Feature files (or search paths) to be tested don't need command-line flags or options and can be just listed at the end of the command.
+
+Here is how you can run a single feature file:
 
 ```
 java -jar karate.jar my-test.feature
 ```
+
+You can run all tests within a directory if you provide a directory path:
+
+```
+java -jar karate.jar some/folder
+```
+
+For filtering tests to run, see the [tags](#tags) and [scenario name](#scenario-name) options below.
 
 Also see [custom classpath](#custom-classpath) and how to [use a batch file](#using-a-batch-file) for convenience.
 
