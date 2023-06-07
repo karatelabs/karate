@@ -404,6 +404,7 @@ For example when using Maven:
   <artifactId>karate-core</artifactId>
   <version>${karate.version}</version>
   <classifier>all</classifier>
+  <scope>test</scope>
 </dependency>
 ```
 
