@@ -58,7 +58,17 @@
    <td>
      Examples and demos of integrations with other frameworks
    </td>
-  </tr>  
+  </tr>
+  <tr> 
+    <th>
+      <h3>
+          <a href="https://www.youtube.com/playlist?list=PLnONaB4tNFOkxwM3dOvXLXJstSg_wMJSs">Kick Start Videos</a>
+      </h3>
+   </th>
+   <td>
+     Beginner-friendly step-by-step guides to starting from scratch
+   </td>
+  </tr>    
 </table>
 
 # Karate
