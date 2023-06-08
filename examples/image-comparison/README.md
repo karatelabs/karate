@@ -1,6 +1,9 @@
 # Karate Image Comparison
 This project is designed to demonstrate basic usage of the [Image Comparison](https://github.com/karatelabs/karate/#compare-image) feature. You can also watch a video explanation [here](https://youtu.be/wlvmNBraP60).
 
+A more detailed video deep-dive can be viewed by skipping to 33:30 of this video: [Karate Version 1.3.0 Release Webinar
+](https://youtu.be/oMsKNE_ctaM?t=2009)
+
 ## Overview
 The [Image Comparison](https://github.com/karatelabs/karate/#compare-image) feature was introduced in [Karate 1.3.0](https://github.com/karatelabs/karate/wiki/1.3.0-Upgrade-Guide).
 As a new feature with a number of options and a new UI component we wanted to provide a simple introduction to help users get started.
