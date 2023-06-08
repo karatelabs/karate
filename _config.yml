@@ -12,3 +12,5 @@ search_enabled: true
 aux_links:
     "Karate on Github":
         - "//github.com/karatelabs/karate"
+    "Karate Labs":
+        - "//karatelabs.io"        
