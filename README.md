@@ -98,7 +98,7 @@
   </a>
 </div>
 
-<a><img src="karate-core/src/test/resources/karate-map.jpg" height="650" /></a>
+<a href="https://karatelabs.io"><img src="karate-core/src/test/resources/karate-map.jpg" height="650" /></a>
 
 Karate is the only open-source tool to combine API test-automation, [mocks](karate-netty), [performance-testing](karate-gatling) and even [UI automation](karate-core) into a **single**, *unified* framework. The syntax is language-neutral, and easy for even non-programmers. Assertions and HTML reports are built-in, and you can run tests in parallel for speed.
 
