@@ -2,7 +2,7 @@
   <tr> 
     <th>
       <h4>
-          <a href="https://github.com/karatelabs/karate/wiki/Get-Started">:fast_forward: <br/> Get Started</a>
+          <a href="https://github.com/karatelabs/karate/wiki/Get-Started">⏩ <br/> Get Started</a>
       </h4>
    </th>
    <td>
@@ -12,7 +12,7 @@
   <tr> 
     <th>
       <h4>
-          <a href="https://github.com/karatelabs/karate-examples/blob/main/README.md">:bulb: <br/> Examples</a>
+          <a href="https://github.com/karatelabs/karate-examples/blob/main/README.md">💡 <br/> Examples</a>
       </h4>
    </th>
    <td>
@@ -22,7 +22,7 @@
   <tr> 
     <th>
       <h4>
-          <a href="https://www.youtube.com/playlist?list=PLnONaB4tNFOkxwM3dOvXLXJstSg_wMJSs">:tv: <br/> Kick Start Videos</a>
+          <a href="https://www.youtube.com/playlist?list=PLnONaB4tNFOkxwM3dOvXLXJstSg_wMJSs">📺 <br/> Kick Start Videos</a>
       </h4>
    </th>
    <td>
