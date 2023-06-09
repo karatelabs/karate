@@ -4,7 +4,7 @@
       <h3>
           <a href="https://github.com/karatelabs/karate/wiki/Get-Started">Get Started</a>
       </h3>
-      <p>&nbsp;</p>
+      <br/>
    </th>
    <td>
      Get started using VS Code, IntelliJ, Maven, Gradle, NPM, GitHub Codespaces, Docker or the command-line
@@ -15,7 +15,7 @@
       <h3>
           <a href="https://github.com/karatelabs/karate-examples/blob/main/README.md">Examples</a>
       </h3>
-      <p>&nbsp;</p>
+      <br/>
    </th>
    <td>
      Examples and demos of integrations with other frameworks
@@ -26,7 +26,7 @@
       <h3>
           <a href="https://www.youtube.com/playlist?list=PLnONaB4tNFOkxwM3dOvXLXJstSg_wMJSs">Kick Start Videos</a>
       </h3>
-      <p>&nbsp;</p>
+      <br/>
    </th>
    <td>
      Beginner-friendly step-by-step guides to starting from scratch
