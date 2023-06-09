@@ -2,51 +2,12 @@
   <tr> 
     <th>
       <h3>
-          <a href="https://github.com/karatelabs/karate/wiki/Get-Started:-Visual-Studio-Code">Visual Studio Code</a>
+          <a href="https://github.com/karatelabs/karate/wiki/Get-Started">Get Started</a>
       </h3>
+      <p>&nbsp;</p>
    </th>
    <td>
-     Easy setup, recommended if you don't have programming experience
-   </td>
-  </tr>
-  <tr> 
-    <th>
-      <h3>
-          <a href="https://github.com/karatelabs/karate/wiki/Get-Started:-JetBrains-IntelliJ">JetBrains IntelliJ</a>
-      </h3>
-   </th>
-   <td>
-     Recommended for teams using IntelliJ and working with Maven / Gradle
-   </td>
-  </tr>
-  <tr> 
-    <th>
-      <h3>
-          <a href="https://github.com/karatelabs/karate/wiki/Get-Started:-Maven-and-Gradle">Maven and Gradle</a>
-      </h3>
-   </th>
-   <td>
-     Generic Maven and Gradle for Java teams, get started on the command-line
-   </td>
-  </tr>
-  <tr> 
-    <th>
-      <h3>
-          <a href="https://github.com/karatelabs/karate/wiki/Get-Started:-GitHub-Codespaces">GitHub Codespaces</a>
-      </h3>
-   </th>
-   <td>
-     No need to install any software, just a browser will do
-   </td>
-  </tr>
-  <tr> 
-    <th>
-      <h3>
-          <a href="https://github.com/karatelabs/karate/wiki/Get-Started:-Other-Runtime-Options">Other Runtime Options</a>
-      </h3>
-   </th>
-   <td>
-     Get started with the Standalone JAR, JBang, NPM or Docker
+     Get started using VS Code, IntelliJ, Maven, Gradle, NPM, GitHub Codespaces, Docker or the command-line
    </td>
   </tr>
   <tr> 
@@ -54,6 +15,7 @@
       <h3>
           <a href="https://github.com/karatelabs/karate-examples/blob/main/README.md">Examples</a>
       </h3>
+      <p>&nbsp;</p>
    </th>
    <td>
      Examples and demos of integrations with other frameworks
@@ -64,6 +26,7 @@
       <h3>
           <a href="https://www.youtube.com/playlist?list=PLnONaB4tNFOkxwM3dOvXLXJstSg_wMJSs">Kick Start Videos</a>
       </h3>
+      <p>&nbsp;</p>
    </th>
    <td>
      Beginner-friendly step-by-step guides to starting from scratch
