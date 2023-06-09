@@ -1,9 +1,9 @@
 <table>
   <tr> 
     <th>
-      <h4>
+      <h3>
           <a href="https://github.com/karatelabs/karate/wiki/Get-Started">⏩ <br/> Get Started</a>
-      </h4>
+      </h3>
    </th>
    <td>
      Get started using VS Code, IntelliJ, Maven, Gradle, NPM, <br/> GitHub Codespaces, Docker or the command-line
@@ -11,9 +11,9 @@
   </tr>
   <tr> 
     <th>
-      <h4>
+      <h3>
           <a href="https://github.com/karatelabs/karate-examples/blob/main/README.md">💡 <br/> Examples</a>
-      </h4>
+      </h3>
    </th>
    <td>
      Examples and demos of integrations with other frameworks
@@ -21,9 +21,9 @@
   </tr>
   <tr> 
     <th>
-      <h4>
+      <h3>
           <a href="https://www.youtube.com/playlist?list=PLnONaB4tNFOkxwM3dOvXLXJstSg_wMJSs">📺 <br/> Kick Start Videos</a>
-      </h4>
+      </h3>
    </th>
    <td>
      Beginner-friendly step-by-step guides to starting from scratch
