@@ -6,7 +6,7 @@
       </h4>
    </th>
    <td>
-     Get started using VS Code, IntelliJ, Maven, Gradle, NPM, GitHub Codespaces, Docker or the command-line
+     Get started using VS Code, IntelliJ, Maven, Gradle, NPM, <br/> GitHub Codespaces, Docker or the command-line
    </td>
   </tr>
   <tr> 
