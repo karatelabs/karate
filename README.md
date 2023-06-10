@@ -323,13 +323,15 @@ A set of real-life examples can be found here: [Karate Demos](karate-demo)
 For teams familiar with or currently using [REST-assured](http://rest-assured.io), this detailed comparison of [Karate vs REST-assured](http://tinyurl.com/karatera) - can help you evaluate Karate. Do note that if you prefer a pure Java API - Karate has [that covered](#java-api), and with far more capabilities.
 
 ## References
-* [Intro to all features of Karate](https://youtu.be/yu3uupBZyxc) - video + demos (with subtitles) by [Peter Thomas](https://twitter.com/ptrthomas) (creator / lead dev of Karate)
+* [API Testing with Karate](https://youtu.be/WT4gg7Jutzg) - video + demos by [Peter Thomas](https://twitter.com/ptrthomas) (creator / lead dev of Karate)
+* [Intro to all features of Karate](https://youtu.be/yu3uupBZyxc) - video + demos by [Peter Thomas](https://twitter.com/ptrthomas) (creator / lead dev of Karate)
 * [Karate entered the ThoughtWorks Tech Radar](https://twitter.com/KarateDSL/status/1120985060843249664) in 2019 and was [upgraded in ranking](https://twitter.com/KarateDSL/status/1262719979104817152) in May 2020
 * [マイクロサービスにおけるテスト自動化 with Karate](https://speakerdeck.com/takanorig/microservices-testing-automation-with-karate) - (*Microservices Test Automation with Karate*) presentation by [Takanori Suzuki](https://twitter.com/takanorig)
-* [7 New Features in Karate Test Automation Version 1.0](https://software-that-matters.com/2021/01/27/7-new-features-in-karate-test-automation-version-1_0/) - by [Peter Quiel](https://twitter.com/peter_quiel)
 * [Writing API Tests with Karate](https://www.softwaretester.blog/writing-api-tests-with-karate) - book by [Benjamin Bischoff](https://www.softwaretester.blog/about), Packt Publishing, 2023
 
-You can find a lot more references, tutorials and blog-posts [in the wiki](https://github.com/karatelabs/karate/wiki/Community-News). Karate also has a dedicated "tag", and a very active and supportive community at [Stack Overflow](https://stackoverflow.com/questions/tagged/karate) - where you can get support and ask questions.
+Karate also has a dedicated "tag", and a very active and supportive community at [Stack Overflow](https://stackoverflow.com/questions/tagged/karate) - where you can get support and ask questions.
+
+You can find a lot more references, tutorials and blog-posts at [karatelabs.io](https://karatelabs.io).
 
 # Getting Started
 If you are a Java developer - Karate requires at least [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 11 and then either [Maven](http://maven.apache.org), [Gradle](https://gradle.org), or a Java IDE that embeds either to be installed. Note that Karate works fine on OpenJDK.
