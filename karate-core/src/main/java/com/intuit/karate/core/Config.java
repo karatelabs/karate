@@ -108,6 +108,13 @@ public class Config {
     // image comparison config
     private Map<String, Object> imageComparisonOptions;
 
+    // ntlm authentication
+    private boolean ntlmEnabled = false;
+    private String ntlmUsername;
+    private String ntlmPassword;
+    private String ntlmDomain;
+    private String ntlmWorkstation;
+
     public Config() {
         // zero arg constructor
     }
@@ -299,6 +306,18 @@ public class Config {
             case "localAddress":
                 localAddress = value.getAsString();
                 return true;
+            case "ntlmAuthentication":
+                if (value.isNull()) {
+                    ntlmEnabled = false;
+                } else {
+                    Map<String, Object> map = value.getValue();
+                    ntlmEnabled = true;
+                    ntlmUsername = (String) map.get("username");
+                    ntlmPassword = (String) map.get("password");
+                    ntlmDomain = (String) map.get("domain");
+                    ntlmWorkstation = (String) map.get("workstation");
+                }
+                return true;
             default:
                 throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
         }
@@ -352,6 +371,11 @@ public class Config {
         continueAfterContinueOnStepFailure = parent.continueAfterContinueOnStepFailure;
         abortSuiteOnFailure = parent.abortSuiteOnFailure;
         imageComparisonOptions = parent.imageComparisonOptions;
+        ntlmEnabled = parent.ntlmEnabled;
+        ntlmUsername = parent.ntlmUsername;
+        ntlmPassword = parent.ntlmPassword;
+        ntlmDomain = parent.ntlmDomain;
+        ntlmWorkstation = parent.ntlmWorkstation;
     }
 
     public void setUrl(String url) {
@@ -588,6 +612,46 @@ public class Config {
 
     public Map<String, Object> getImageComparisonOptions() {
         return imageComparisonOptions;
+    }
+
+    public boolean isNtlmEnabled() {
+        return ntlmEnabled;
+    }
+
+    public void setNtlmEnabled(boolean ntlmEnabled) {
+        this.ntlmEnabled = ntlmEnabled;
+    }
+
+    public String getNtlmUsername() {
+        return ntlmUsername;
+    }
+
+    public void setNtlmUsername(String ntlmUsername) {
+        this.ntlmUsername = ntlmUsername;
+    }
+
+    public String getNtlmPassword() {
+        return ntlmPassword;
+    }
+
+    public void setNtlmPassword(String ntlmPassword) {
+        this.ntlmPassword = ntlmPassword;
+    }
+
+    public String getNtlmDomain() {
+        return ntlmDomain;
+    }
+
+    public void setNtlmDomain(String ntlmDomain) {
+        this.ntlmDomain = ntlmDomain;
+    }
+
+    public String getNtlmWorkstation() {
+        return ntlmWorkstation;
+    }
+
+    public void setNtlmWorkstation(String ntlmWorkstation) {
+        this.ntlmWorkstation = ntlmWorkstation;
     }
 
 }

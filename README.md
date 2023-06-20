@@ -2270,6 +2270,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `pauseIfNotPerf` | boolean | defaults to `false`, relevant only for performance-testing, see [`karate.pause()`](#karate-pause) and [`karate-gatling`](karate-gatling#think-time)
 `xmlNamespaceAware` | boolean | defaults to `false`, to handle XML namespaces in [some special circumstances](https://github.com/karatelabs/karate/issues/1587)
 `abortSuiteOnFailure` | boolean | defaults to `false`, to not attempt to run any more tests upon a failure
+`ntlmAuthentication` | JSON | See [NTLM Authentication](#ntlm-authentication)
 
 Examples:
 ```cucumber
@@ -2407,6 +2408,33 @@ karate.configure('ssl', { trustAll: true });
 ```
 
 For end-to-end examples in the Karate demos, look at the files in [this folder](karate-demo/src/test/java/ssl).
+
+### NTLM Authentication
+Karate provides support for NTLM authentication using the Apache NTLMEngine implementation.
+
+| Key           | Type   | Required? | Description                                                    |
+|---------------|--------|-----------|----------------------------------------------------------------|
+| `username`    | string | required  | NTLM username                                                  |
+| `password`    | string | required  | NTLM password                                                  |
+| `workstation` | string | optional  | The workstation the authentication request is originating from |
+| `domain`      | string | optional  | The domain to authenticate within                              |
+
+Example:
+```cucumber
+# enable NTLM authentication for the remaining scenario requests
+* configure ntlmAuthentication = { username: 'admin', password: 'secret', domain: 'my.domain', workstation: 'my-pc' }
+
+# enable NTLM authentication with only credentials
+* configure ntlmAuthentication = { username: 'admin', password: 'secret' }
+
+# disable NTLM authentication
+* configure ntlmAuthentication = null
+```
+
+```js
+// enable NTLM authentication within js
+karate.confgure('ntlmAuthentication', { username: 'admin', password: 'secret', domain: 'my.domain', workstation: 'my-pc' })
+```
 
 # Payload Assertions
 ## Prepare, Mutate, Assert.
