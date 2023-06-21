@@ -306,7 +306,7 @@ public class Config {
             case "localAddress":
                 localAddress = value.getAsString();
                 return true;
-            case "ntlmAuthentication":
+            case "ntlmAuth":
                 if (value.isNull()) {
                     ntlmEnabled = false;
                 } else {

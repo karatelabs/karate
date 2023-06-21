@@ -2270,7 +2270,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `pauseIfNotPerf` | boolean | defaults to `false`, relevant only for performance-testing, see [`karate.pause()`](#karate-pause) and [`karate-gatling`](karate-gatling#think-time)
 `xmlNamespaceAware` | boolean | defaults to `false`, to handle XML namespaces in [some special circumstances](https://github.com/karatelabs/karate/issues/1587)
 `abortSuiteOnFailure` | boolean | defaults to `false`, to not attempt to run any more tests upon a failure
-`ntlmAuthentication` | JSON | See [NTLM Authentication](#ntlm-authentication)
+`ntlmAuth` | JSON | See [NTLM Authentication](#ntlm-authentication)
 
 Examples:
 ```cucumber
@@ -2422,18 +2422,18 @@ Karate provides support for NTLM authentication using the Apache NTLMEngine impl
 Example:
 ```cucumber
 # enable NTLM authentication for the remaining scenario requests
-* configure ntlmAuthentication = { username: 'admin', password: 'secret', domain: 'my.domain', workstation: 'my-pc' }
+* configure ntlmAuth = { username: 'admin', password: 'secret', domain: 'my.domain', workstation: 'my-pc' }
 
 # enable NTLM authentication with only credentials
-* configure ntlmAuthentication = { username: 'admin', password: 'secret' }
+* configure ntlmAuth = { username: 'admin', password: 'secret' }
 
 # disable NTLM authentication
-* configure ntlmAuthentication = null
+* configure ntlmAuth = null
 ```
 
 ```js
 // enable NTLM authentication within js
-karate.confgure('ntlmAuthentication', { username: 'admin', password: 'secret', domain: 'my.domain', workstation: 'my-pc' })
+karate.confgure('ntlmAuth', { username: 'admin', password: 'secret', domain: 'my.domain', workstation: 'my-pc' })
 ```
 
 # Payload Assertions
