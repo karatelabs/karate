@@ -15,11 +15,14 @@
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-core</artifactId>
             <version>${project.version}</version>
+            <scope>test</scope>
+            <classifier>all</classifier>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <version>${junit5.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
