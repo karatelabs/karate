@@ -100,7 +100,10 @@
                     <plugin>
                         <groupId>org.owasp</groupId>
                         <artifactId>dependency-check-maven</artifactId>
-                        <version>6.5.0</version>
+                        <version>8.3.1</version>
+                        <configuration>
+                            <skipProvidedScope>true</skipProvidedScope>
+                        </configuration>                        
                         <executions>
                             <execution>
                                 <goals>
