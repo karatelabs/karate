@@ -16,6 +16,8 @@
             <artifactId>karate-core</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
+            <!-- next line is normally not required, but is here for testing karate release process -->
+            <classifier>all</classifier>            
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

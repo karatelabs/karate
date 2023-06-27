@@ -22,6 +22,8 @@
             <artifactId>karate-core</artifactId>
             <version>${karate.version}</version>
             <scope>test</scope>
+            <!-- next line is normally not required, but is here for testing karate release process -->
+            <classifier>all</classifier>            
         </dependency>        
         <dependency>
             <groupId>com.intuit.karate</groupId>
