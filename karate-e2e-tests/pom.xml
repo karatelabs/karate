@@ -16,7 +16,6 @@
             <artifactId>karate-core</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
-            <classifier>all</classifier>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

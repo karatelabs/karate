@@ -25,11 +25,12 @@ jobs:
         key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-maven-
     - name: build with maven
-      run: mvn -B clean install -P pre-release -Djavacpp.platform=linux-x86_64
+      run: mvn -B clean install -Djavacpp.platform=linux-x86_64
     - name: build and test with docker
       run: ./build-docker.sh
     - name: upload workspace if build fails
-      if: ${{ failure() }}
+      # if: ${{ failure() }}
+      if: ${{ false }}
       uses: actions/upload-artifact@v3
       with:
         name: build-results
