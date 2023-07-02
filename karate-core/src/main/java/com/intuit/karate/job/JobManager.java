@@ -73,7 +73,7 @@ public class JobManager<T> implements ServerHandler {
         ZIP_FILE = new File(basePath + ".zip");
         JobUtils.zip(new File(config.getSourcePath()), ZIP_FILE);
         logger.info("created zip archive: {}", ZIP_FILE);
-        server = HttpServer.handler(this).http(config.getPort()).build();
+        server = HttpServer.handler(this).http(config.getPort()).local(false).build();
         jobUrl = "http://" + config.getHost() + ":" + server.getPort();
         queue = new LinkedBlockingQueue();
     }
