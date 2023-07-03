@@ -35,7 +35,7 @@
         <dependency>
             <groupId>com.linecorp.armeria</groupId>
             <artifactId>armeria</artifactId>
-            <version>1.23.1</version>
+            <version>1.24.2</version>
         </dependency>              
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
@@ -180,7 +180,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-shade-plugin</artifactId>
-                        <version>${maven.shade.version}</version>
+                        <version>${maven.shade.version}</version>                       
                         <executions>
                             <execution>
                                 <phase>package</phase>
@@ -190,6 +190,7 @@
                                 <configuration>
                                     <shadedArtifactAttached>true</shadedArtifactAttached>
                                     <shadedClassifierName>all</shadedClassifierName>
+                                    <createDependencyReducedPom>false</createDependencyReducedPom>
                                     <artifactSet>
                                         <includes>
                                             <include>com.linecorp.armeria:*</include>
