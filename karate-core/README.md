@@ -39,7 +39,7 @@
     | <a href="#function-composition">Function Composition</a>
     | <a href="#script">Browser JavaScript</a>
     | <a href="#looping">Looping</a>
-    | <a href="#dropdowns">Drop Downs</a>
+    | <a href="#drop-downs">Drop Downs</a>
     | <a href="#debugging">Debugging</a>
     | <a href="#retry">Retries</a>
     | <a href="#wait-api">Waits</a>
