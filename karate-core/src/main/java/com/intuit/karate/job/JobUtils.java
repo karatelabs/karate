@@ -78,7 +78,7 @@ public class JobUtils {
         }
         ZipEntry zipEntry = new ZipEntry(fileName);
         zipOut.putNextEntry(zipEntry);
-        RandomAccessFile reader = new RandomAccessFile(fileToZip, "r");
+        RandomAccessFile reader = new RandomAccessFile(fileToZip.getAbsolutePath(), "r");
         FileChannel fc = reader.getChannel();
         int bufferSize = 1024;
         if (bufferSize > fc.size()) {
