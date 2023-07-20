@@ -27,6 +27,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.function.Predicate;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -76,10 +78,15 @@ public class JobUtils {
         ZipEntry zipEntry = new ZipEntry(fileName);
         zipOut.putNextEntry(zipEntry);
         FileInputStream fis = new FileInputStream(fileToZip);
-        byte[] bytes = new byte[1024];
-        int length;
-        while ((length = fis.read(bytes)) >= 0) {
-            zipOut.write(bytes, 0, length);
+        FileChannel fc = fis.getChannel();
+        int bufferSize = 1024;
+        if (bufferSize > fc.size()) {
+            bufferSize = (int) fc.size();
+        }
+        ByteBuffer bb = ByteBuffer.allocate(bufferSize);
+        while (fc.read(bb) > 0) {
+            zipOut.write(bb.array(), 0, bb.position());
+            bb.clear();
         }
         fis.close();
     }
