@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.function.Predicate;
@@ -77,8 +78,8 @@ public class JobUtils {
         }
         ZipEntry zipEntry = new ZipEntry(fileName);
         zipOut.putNextEntry(zipEntry);
-        FileInputStream fis = new FileInputStream(fileToZip);
-        FileChannel fc = fis.getChannel();
+        RandomAccessFile reader = new RandomAccessFile(fileToZip, "r");
+        FileChannel fc = reader.getChannel();
         int bufferSize = 1024;
         if (bufferSize > fc.size()) {
             bufferSize = (int) fc.size();
@@ -88,7 +89,7 @@ public class JobUtils {
             zipOut.write(bb.array(), 0, bb.position());
             bb.clear();
         }
-        fis.close();
+        reader.close();
     }
 
     public static void unzip(File src, File dest) {
