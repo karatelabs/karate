@@ -71,6 +71,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     protected final Map<Long, Stack<Map<String, Variable>>> FRAME_VARS = new ConcurrentHashMap();
     protected final Map<Long, Entry<String, Variable>> VARIABLES = new ConcurrentHashMap();
 
+    private List<String> launchArgs;
     private String launchCommand;
     private String preStep;
 
@@ -262,9 +263,16 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             case "launch":
                 // normally a single feature full path, but can be set with any valid karate.options
                 // for e.g. "-t @smoke -T 5 classpath:demo.feature"
-                String karateOptions = StringUtils.trimToEmpty(req.getArgument("karateOptions", String.class));
-                String feature = StringUtils.trimToEmpty(req.getArgument("feature", String.class));
-                launchCommand = StringUtils.trimToEmpty(karateOptions + " " + feature);
+                launchArgs = req.getArgument("karateArgs", List.class);
+                launchCommand = StringUtils.trimToEmpty(req.getArgument("karateOptions", String.class));
+                String feature = StringUtils.trimToNull(req.getArgument("feature", String.class));
+                if (feature != null) {
+                    if (launchArgs != null) {
+                        launchArgs.add(feature);
+                    } else {
+                        launchCommand = launchCommand + " " + feature;
+                    }
+                } 
                 preStep = StringUtils.trimToNull(req.getArgument("debugPreStep", String.class));
                 if (preStep != null) {
                     logger.debug("using pre-step: {}", preStep);
@@ -413,8 +421,14 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     }
 
     private void start() {
-        logger.debug("command line: {}", launchCommand);
-        Main options = IdeMain.parseIdeCommandLine(launchCommand);
+        Main options;
+        if (launchArgs != null) {
+            logger.debug("command args: {}", launchArgs);
+            options = Main.parseKarateArgs(launchArgs);
+        } else {
+            logger.debug("command line: {}", launchCommand);
+            options = IdeMain.parseIdeCommandLine(launchCommand);
+        }        
         if (runnerThread != null) {
             runnerThread.interrupt();
         }

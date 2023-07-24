@@ -204,6 +204,10 @@ public class Main implements Callable<Void> {
         String[] args = Command.tokenize(line);
         return CommandLine.populateCommand(new Main(), args);
     }
+    
+    public static Main parseKarateArgs(List<String> args) {
+        return CommandLine.populateCommand(new Main(), args.toArray(new String[args.size()]));
+    }    
 
     // matches ( -X XXX )* (XXX)
     private static final Pattern CLI_ARGS = Pattern.compile("(\\s*-{1,2}\\w\\s\\S*\\s*)*(.*)$");
