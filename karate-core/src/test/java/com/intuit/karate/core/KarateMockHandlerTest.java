@@ -391,6 +391,23 @@ class KarateMockHandlerTest {
     }
 
     @Test
+    void testMultiPartFiles() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestParts");
+        run(
+                URL_STEP,
+                "def file1 = { name: 'file', filename: 'file1.txt', value: 'Hello 1' }", 
+                "def file2 = { name: 'file', filename: 'file2.txt', value: 'Hello 2' }", 
+                "multipart files ([file1, file2])",
+                "path 'hello'",
+                "method post"
+        );
+        runtime.engine.assign(AssignType.STRING, "prevReqBody", "karate.prevRequest.body", false);
+        notContains(get("prevReqBody"), "multipart/mixed");
+    }
+
+    @Test
     void testMultiPartFileNullCharset() {
         background().scenario(
                 "pathMatches('/hello')",
