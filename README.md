@@ -4645,6 +4645,8 @@ Scenario Outline: cat name: ${name}
 
 The result of `karate.setup()` will be a JSON of all the variables created within the `Scenario` tagged with `@setup`. Note how we "unpack" the `kittens` and use it to "data drive" the `Scenario Outline`. You can get really creative and use [JS functions to filter data](https://github.com/karatelabs/karate/issues/1905#issuecomment-1207342290) for different needs.
 
+Note that `@setup` is designed specifically to create data for a [dynamic `Scenario Outline`](#dynamic-scenario-outline) and it is the first thing to execute within a `Feature`. In other words, it *cannot* depend on the `Background`. The `Background` will be used for each `Scenario` that is spawned from a `Scenario Outline`.
+
 Though not really recommended, you can have multiple `Scenario`-s within a `Feature` tagged with `@setup`. But in that case you should de-dupe them using a name:
 
 ```cucumber
