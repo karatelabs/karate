@@ -12,7 +12,7 @@
     <script type="text/javascript" src="res/bootstrap.min.js"></script>
     <script type="text/javascript" src="res/karate-report.js"></script>
     <script type="text/javascript" src="res/Resemble.js"></script>
-    <th:block th:insert="karate-posthog.html" th:with="karateEvent: 'report_feature'"></th:block>
+    <th:block th:insert="~{karate-posthog.html}" th:with="karateEvent: 'report_feature'"></th:block>
     <title th:text="results.packageQualifiedName"></title>
   </head>
   <body>
@@ -28,7 +28,7 @@
           };
           var repeat = n => Array.from({length: n}, (v, k) => k);
         </script>
-        <div th:replace="karate-leftnav.html"></div>
+        <div th:replace="~{karate-leftnav.html}"></div>
         <div class="nav-container">
           <div class="nav-item" th:each="scenario: results.scenarioResults" th:classappend="scenario.failed ? 'failed' : 'passed'">
             <a th:href="'#' + scenario.refId"><span th:text="scenario.refId"></span> <span th:text="scenario.name"></span></a>
@@ -71,7 +71,7 @@
                th:unless="sr.hidden"
                th:attr="'data-parent': sr.step.background ? scenario.refId + 'bg' : null"
                th:with="callDepth: 0, parentId: null, isBackground: sr.step.background"
-               th:include="karate-step.html">
+               th:insert="~{karate-step.html}">
           </div>
         </div>
       </div>
