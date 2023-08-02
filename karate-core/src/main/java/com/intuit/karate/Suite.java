@@ -281,8 +281,6 @@ public class Suite implements Runnable {
     }
 
     public void saveFeatureResults(FeatureResult fr) {
-        System.out.println("*** workDir: " + workingDir);
-        System.out.println("*** reportDir: " + reportDir);
         File file = ReportUtils.saveKarateJson(reportDir, fr, null);
         synchronized (featureResultFiles) {
             featureResultFiles.add(file);
