@@ -281,6 +281,8 @@ public class Suite implements Runnable {
     }
 
     public void saveFeatureResults(FeatureResult fr) {
+        System.out.println("*** workDir: " + workingDir);
+        System.out.println("*** reportDir: " + reportDir);
         File file = ReportUtils.saveKarateJson(reportDir, fr, null);
         synchronized (featureResultFiles) {
             featureResultFiles.add(file);
@@ -306,6 +308,7 @@ public class Suite implements Runnable {
             } catch (Throwable t) {
                 logger.error("<<error>> unable to write report file(s): {} - {}", fr.getFeature(), t + "");
                 fr.printStats();
+                return; // don't attempt to save progress that might fail as well
             }
         } else {
             skippedCount++;
