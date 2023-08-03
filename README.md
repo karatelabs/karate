@@ -3376,7 +3376,7 @@ Don't forget that Karate's [data-driven testing capabilities](#data-driven-tests
 When handling XML, you sometimes need to call [XPath functions](https://docs.oracle.com/javase/tutorial/jaxp/xslt/xpath.html), for example to get the count of a node-set. Any valid XPath expression is allowed on the left-hand-side of a [`match`](#match) statement.
 
 ```cucumber
-* def myXml =
+* def foo =
   """
   <records>
     <record index="1">a</record>
