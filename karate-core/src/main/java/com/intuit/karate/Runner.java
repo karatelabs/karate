@@ -179,7 +179,7 @@ public class Runner {
                 if (ko.paths != null) {
                     paths = ko.paths;
                 }
-                if (ko.threads != 1) {
+                if (ko.threads > 0) {
                     threadCount = ko.threads;
                 }
                 dryRun = ko.dryRun || dryRun;
