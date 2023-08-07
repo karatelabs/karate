@@ -95,7 +95,7 @@ public class Runner {
         File workingDir;
         String buildDir;
         String configDir;
-        int threadCount;
+        int threadCount = 1;
         int timeoutMinutes;
         String reportDir;
         String scenarioName;
@@ -180,6 +180,9 @@ public class Runner {
                 }
                 if (ko.paths != null) {
                     paths = ko.paths;
+                }
+                if (ko.threads != threadCount) { // 1 by default
+                    threadCount = ko.threads;
                 }
                 dryRun = ko.dryRun || dryRun;
             }
