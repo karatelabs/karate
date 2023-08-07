@@ -373,6 +373,7 @@ public class Main implements Callable<Void> {
         if (serve) {
             ServerConfig config = new ServerConfig(workingDir.getPath())
                     .noCache(true)
+                    .devMode(true)
                     .autoCreateSession(true);
             RequestHandler handler = new RequestHandler(config);
             HttpServer.Builder builder = HttpServer
