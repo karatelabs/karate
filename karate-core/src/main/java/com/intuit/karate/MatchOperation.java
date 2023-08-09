@@ -159,7 +159,10 @@ public class MatchOperation {
             case EACH_CONTAINS_DEEP:
                 if (actual.isList()) {
                     List list = actual.getValue();
-                    Match.Type nestedMatchType = fromMatchEach();
+                    if (list.isEmpty()) {
+                        return fail("match each failed, empty array / list");
+                    }
+                    Match.Type nestedMatchType = fromMatchEach();                    
                     int count = list.size();
                     for (int i = 0; i < count; i++) {
                         Object o = list.get(i);
