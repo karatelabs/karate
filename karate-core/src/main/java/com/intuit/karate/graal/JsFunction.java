@@ -41,12 +41,10 @@ public abstract class JsFunction implements ProxyObject {
 
     public static final Object LOCK = new Object();
 
-    protected final Value value;
-    protected final CharSequence source;
+    protected final Value value;    
 
     protected JsFunction(Value v) {
-        this.value = v;
-        source = "(" + value.getSourceLocation().getCharacters() + ")";
+        this.value = v;        
     }
 
     public static ProxyExecutable wrap(Value value) {
@@ -85,14 +83,16 @@ public abstract class JsFunction implements ProxyObject {
     protected static class Executable extends JsFunction implements ProxyExecutable {
 
         private final boolean lock;
+        private final String source;
 
         protected Executable(Value value) {
             this(value, false);
         }
 
         protected Executable(Value value, boolean lock) {
-            super(value);
+            super(value);            
             this.lock = lock;
+            source = "(" + value.getSourceLocation().getCharacters() + ")";
         }
 
         @Override
@@ -111,7 +111,7 @@ public abstract class JsFunction implements ProxyObject {
             if (je == null || je.context.equals(value.getContext())) {
                 return new JsValue(value.execute(newArgs)).value;
             }
-            Value attached = je.evalForValue("(" + source + ")");
+            Value attached = je.evalForValue(source);
             return new JsValue(attached.execute(newArgs)).value;
         }
 
