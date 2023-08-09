@@ -33,8 +33,6 @@ import java.util.function.Function;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.Proxy;
 import org.graalvm.polyglot.proxy.ProxyExecutable;
-import org.graalvm.polyglot.proxy.ProxyInstantiable;
-import org.graalvm.polyglot.proxy.ProxyObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
@@ -59,7 +57,7 @@ public class JsValue {
     public static final JsValue NULL = new JsValue(Value.asValue(null));
 
     private final Value original;
-    private final Object value;
+    protected final Object value;
     public final Type type;
 
     public JsValue(Value v) {
@@ -109,9 +107,10 @@ public class JsValue {
                 if (v.canExecute()) {
                     if (v.canInstantiate()) {
                         // js functions have members, can be executed and are instantiable
-                        value = new SharableMembersAndInstantiable(v);
+                        value = new JsFunction.Instantiable(v);
                     } else {
-                        value = new SharableMembersAndExecutable(v);
+                        // js, but anonymous / arrow function
+                        value = new JsFunction.Executable(v);
                     }
                     type = Type.FUNCTION;
                 } else {
@@ -254,80 +253,6 @@ public class JsValue {
             return ((Number) o).doubleValue() != 0.0;
         }
         return true;
-    }
-
-    static class SharableMembers implements ProxyObject {
-
-        final Value v;
-
-        SharableMembers(Value v) {
-            this.v = v;
-        }
-
-        @Override
-        public void putMember(String key, Value value) {
-            v.putMember(key, new JsValue(value).value);
-        }
-
-        @Override
-        public boolean hasMember(String key) {
-            return v.hasMember(key);
-        }
-
-        @Override
-        public Object getMemberKeys() {
-            return v.getMemberKeys().toArray(new String[0]);
-        }
-
-        @Override
-        public Object getMember(String key) {
-            return new JsValue(v.getMember(key)).value;
-        }
-
-        @Override
-        public boolean removeMember(String key) {
-            return v.removeMember(key);
-        }
-    }
-
-    public static final Object LOCK = new Object();
-
-    static class SharableMembersAndExecutable extends SharableMembers implements ProxyExecutable {
-
-        SharableMembersAndExecutable(Value v) {
-            super(v);
-        }
-
-        @Override
-        public Object execute(Value... args) {
-            Object[] newArgs = new Object[args.length];
-            for (int i = 0; i < newArgs.length; i++) {
-                newArgs[i] = JsValue.fromJava(args[i]);
-            }
-            synchronized (LOCK) {
-                return new JsValue(v.execute(newArgs)).value;
-            }
-        }
-
-    }
-
-    static class SharableMembersAndInstantiable extends SharableMembersAndExecutable implements ProxyInstantiable {
-
-        SharableMembersAndInstantiable(Value v) {
-            super(v);
-        }
-
-        @Override
-        public Object newInstance(Value... args) {
-            Object[] newArgs = new Object[args.length];
-            for (int i = 0; i < newArgs.length; i++) {
-                newArgs[i] = JsValue.fromJava(args[i]);
-            }
-            synchronized (LOCK) {
-                return new JsValue(v.execute(newArgs)).value;
-            }
-        }
-
     }
 
 }

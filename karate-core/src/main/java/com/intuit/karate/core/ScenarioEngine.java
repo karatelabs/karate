@@ -38,6 +38,7 @@ import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Key;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.graal.JsLambda;
+import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.*;
 import com.intuit.karate.resource.Resource;
@@ -792,7 +793,7 @@ public class ScenarioEngine {
             logger.error("listen timed out: {}", e + "");
         }
         SIGNAL = new CompletableFuture();
-        synchronized (JsValue.LOCK) {
+        synchronized (JsFunction.LOCK) {
             setHiddenVariable(LISTEN_RESULT, listenResult);
             logger.debug("exit listen state with result: {}", listenResult);
         }
