@@ -85,6 +85,15 @@ class ScenarioRuntimeTest {
         );
         assertEquals(5, get("arrSize"));
     }
+    
+    @Test
+    void testSizeOfForByteArrays() {
+        run(
+                "bytes data = 'foo'",
+                "def arrSize = karate.sizeOf(data)"
+        );
+        assertEquals(3, get("arrSize"));        
+    }
 
     @Test
     void testConfigAndEnv() {

@@ -862,6 +862,8 @@ public class ScenarioBridge implements PerfContext {
             return v.<List>getValue().size();
         } else if (v.isMap()) {
             return v.<Map>getValue().size();
+        } else if (v.isBytes()) {
+            return v.<byte[]>getValue().length;
         } else {
             return -1;
         }
