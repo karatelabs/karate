@@ -26,16 +26,12 @@ package com.intuit.karate.graal;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.graalvm.polyglot.Value;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public class JsLambda extends JsFunction.Instantiable implements Consumer, Function, Runnable {
-
-    private static final Logger logger = LoggerFactory.getLogger(JsLambda.class);
+public class JsLambda extends JsFunction.Instantiable implements Consumer, Function, Runnable {    
 
     public JsLambda(Value v) {
         super(v);

@@ -125,7 +125,7 @@ public class JsEngine {
         return temp;
     }
 
-    private Value attach(Value value) {
+    public Value attach(Value value) {
         try {
             return context.asValue(value);
         } catch (Exception e) {

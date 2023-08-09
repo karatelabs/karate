@@ -146,6 +146,10 @@ public class ScenarioEngine {
     protected static void remove() {
         THREAD_LOCAL.remove();
     }
+    
+    public JsEngine getJsEngine() {
+        return JS;
+    }
 
     // engine ==================================================================
     //

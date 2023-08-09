@@ -34,6 +34,7 @@ import com.intuit.karate.PerfContext;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.graal.JsFunction;
 import com.intuit.karate.graal.JsLambda;
 import com.intuit.karate.graal.JsList;
 import com.intuit.karate.graal.JsMap;
@@ -1128,6 +1129,20 @@ public class ScenarioBridge implements PerfContext {
         WebSocketOptions options = new WebSocketOptions(url, value == null ? null : new JsValue(value).getValue());
         options.setBinaryHandler(handler);
         return engine.webSocket(options);
+    }
+    
+    public Object wrapFunction(Value value) {
+        if (value.isProxyObject()) {
+            Object o = value.asProxyObject();
+            if (o instanceof JsFunction) {
+                JsFunction fun = (JsFunction) o;
+                return JsFunction.wrap(fun.getValue());
+            }
+        }
+        if (value.canExecute()) {
+            return JsFunction.wrap(value);
+        }
+        throw new RuntimeException("js function expected");
     }
 
     public File write(Object o, String path) {

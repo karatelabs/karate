@@ -23,10 +23,13 @@
  */
 package com.intuit.karate.graal;
 
+import com.intuit.karate.core.ScenarioEngine;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyExecutable;
 import org.graalvm.polyglot.proxy.ProxyInstantiable;
 import org.graalvm.polyglot.proxy.ProxyObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -34,12 +37,20 @@ import org.graalvm.polyglot.proxy.ProxyObject;
  */
 public abstract class JsFunction implements ProxyObject {
 
+    protected static final Logger logger = LoggerFactory.getLogger(JsFunction.class);
+
     public static final Object LOCK = new Object();
 
     protected final Value value;
+    protected final CharSequence source;
 
     protected JsFunction(Value v) {
         this.value = v;
+        source = "(" + value.getSourceLocation().getCharacters() + ")";
+    }
+
+    public static ProxyExecutable wrap(Value value) {
+        return new Executable(value, true);
     }
 
     public Value getValue() {
@@ -73,8 +84,15 @@ public abstract class JsFunction implements ProxyObject {
 
     protected static class Executable extends JsFunction implements ProxyExecutable {
 
+        private final boolean lock;
+
         protected Executable(Value value) {
+            this(value, false);
+        }
+
+        protected Executable(Value value, boolean lock) {
             super(value);
+            this.lock = lock;
         }
 
         @Override
@@ -83,9 +101,18 @@ public abstract class JsFunction implements ProxyObject {
             for (int i = 0; i < newArgs.length; i++) {
                 newArgs[i] = JsValue.fromJava(args[i]);
             }
-            synchronized (LOCK) {
+            if (lock) {
+                synchronized (LOCK) {
+                    return new JsValue(value.execute(newArgs)).value;
+                }
+            }
+            ScenarioEngine se = ScenarioEngine.get();
+            JsEngine je = se == null ? null : se.getJsEngine();
+            if (je == null || je.context.equals(value.getContext())) {
                 return new JsValue(value.execute(newArgs)).value;
             }
+            Value attached = je.evalForValue("(" + source + ")");
+            return new JsValue(attached.execute(newArgs)).value;
         }
 
     }
@@ -102,9 +129,7 @@ public abstract class JsFunction implements ProxyObject {
             for (int i = 0; i < newArgs.length; i++) {
                 newArgs[i] = JsValue.fromJava(args[i]);
             }
-            synchronized (LOCK) {
-                return new JsValue(value.execute(newArgs)).value;
-            }
+            return new JsValue(value.execute(newArgs)).value;
         }
 
     }
