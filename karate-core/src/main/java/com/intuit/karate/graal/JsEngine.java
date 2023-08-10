@@ -134,11 +134,11 @@ public class JsEngine {
             return evalForValue("(" + source + ")");
         }
     }
-    
+
     public Object attachAll(Object o) {
         if (o instanceof List) {
             List list = (List) o;
-            List result = new ArrayList(list.size());    
+            List result = new ArrayList(list.size());
             list.forEach(v -> result.add(attachAll(v)));
             return result;
         } else if (o instanceof Map) {
@@ -151,7 +151,7 @@ public class JsEngine {
         } else {
             return o;
         }
-    }    
+    }
 
     public JsValue eval(InputStream is) {
         return eval(FileUtils.toString(is));
@@ -182,11 +182,10 @@ public class JsEngine {
     }
 
     public JsValue get(String key) {
-        Value value = bindings.getMember(key);
-        if (value == null) {
-            throw new RuntimeException("no such variable: " + key);
+        if (bindings.hasMember(key)) {
+            return new JsValue(bindings.getMember(key));
         }
-        return new JsValue(value);
+        throw new RuntimeException("no such variable: " + key);
     }
 
     public static Object execute(ProxyExecutable function, Object... args) {

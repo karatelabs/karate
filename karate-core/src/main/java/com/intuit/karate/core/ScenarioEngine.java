@@ -95,7 +95,7 @@ public class ScenarioEngine {
     public static final String REQUEST = "request";
     public static final String REQUEST_URL_BASE = "requestUrlBase";
     public static final String REQUEST_URI = "requestUri";
-    public static final String REQUEST_PATH = "requesPath";
+    public static final String REQUEST_PATH = "requestPath";
     private static final String REQUEST_PARAMS = "requestParams";
     public static final String REQUEST_METHOD = "requestMethod";
     public static final String REQUEST_HEADERS = "requestHeaders";
@@ -1223,6 +1223,10 @@ public class ScenarioEngine {
 
     public Object getVariable(String key) {
         return JS.get(key).getValue();
+    }
+    
+    public boolean hasVariable(String key) {
+        return JS.bindings.hasMember(key);
     }
 
     public void setVariable(String key, Object value) {
