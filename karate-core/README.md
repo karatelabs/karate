@@ -1964,6 +1964,35 @@ The entire example can be found [here](../karate-demo/src/test/java/driver/mock/
 
 The Karate [regression test-suite](https://stackoverflow.com/a/66005331/143475) that runs in GitHub actions (effectively our CI) - includes another [example](../karate-e2e-tests/src/test/java/driver/05.feature), and you can find a good explanation [here](https://twitter.com/KarateDSL/status/1350743622312894466).
 
+## Inspecting Intercepted Requests
+The `driver.intercept()` API returns an object on which you can call `get(variableName)`. This comes in useful if you want to get information on what requests were intercepted. If you really want, you can write a complex mock that calls an external API, saves the response, and returns a modified response to the browser. Since you can store ["global" variables in a mock in the `Background`](https://github.com/karatelabs/karate/tree/master/karate-netty#background), you can save any arbitrary data or "state", and unpack them from your main test flow. Here is an example.
+
+First the mock. Any time we handle an incoming request, we append some JSON data to the `savedRequests` array. Note that [`requestPath`](https://github.com/karatelabs/karate/tree/master/karate-netty#requestpath) and [`requestParams`](https://github.com/karatelabs/karate/tree/master/karate-netty#requestparams) are built-in variables.
+
+```cucumber
+Feature:
+
+Background:
+* def savedRequests = []
+
+Scenario: pathMatches('/api/05')
+* savedRequests.push({ path: requestPath, params: requestParams })
+* print 'saved:', savedRequests
+* def response = { message: 'hello faked' }
+```
+
+And in the main UI test, note how we get the value of `savedRequests`, and do a normal [`match`](https://github.com/karatelabs/karate#match) on it !
+
+```cucumber
+* def mock = driver.intercept({ patterns: [{ urlPattern: '*/api/*' }], mock: '05_mock.feature' })
+
+* click('button')
+* waitForText('#containerDiv', 'hello faked')
+
+* def requests = mock.get('savedRequests')
+* match requests == [{ path: '/api/05', params: { foo: ['bar'] } }]
+```
+
 ## Intercepting All Requests
 If you use `*` as the `urlPattern` *every* request can be routed to the mock ! And if you use the following mock, it will actually act as a ["pass-through" proxy](https://github.com/karatelabs/karate/tree/master/karate-netty#karateproceed) - but with the advantage that every single request and response will be emitted to `target/karate.log`. You may be able to turn this into a custom "record-replay" framework, or do other interesting things. Yes, you can modify the request or response if needed !
 
