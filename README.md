@@ -669,7 +669,9 @@ And most importantly - you can run tests in parallel without having to depend on
 
 > Please note that some [user analytics is tracked](karate-core/src/test/resources/analytics.md) only when you view the built-in Karate HTML report.
 
-Karate can run tests in parallel, and dramatically cut down execution time. This is a 'core' feature and does not depend on JUnit, Maven or Gradle. 
+Karate can run tests in parallel, and dramatically cut down execution time. This is a 'core' feature and does not depend on JUnit, Maven or Gradle.
+
+> For those running Karate in non-Java projects via the command-line, note that you can set the number of threads via `--threads` or `-T` as explained [here](https://karatelabs.github.io/karate/karate-netty/#parallel-execution).
 
 * You can easily "choose" features and tags to run and compose test-suites in a very flexible manner.
 * You can use the returned `Results` object to check if any scenarios failed, and to even summarize the errors
