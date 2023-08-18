@@ -146,7 +146,7 @@ public class MockHandler implements ServerHandler {
         return runtime;
     }
 
-    private static final Result PASSED = Result.passed(0);
+    private static final Result PASSED = Result.passed(0, 0);
     private static final String ALLOWED_METHODS = "GET, HEAD, POST, PUT, DELETE, PATCH";
 
     @Override
