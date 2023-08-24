@@ -299,6 +299,10 @@ public class ScenarioBridge implements PerfContext {
     public void configure(String key, Value value) {
         getEngine().configure(key, new Variable(value));
     }
+    
+    public Object consume(String type, String topic) {
+        return getEngine().consume(type, topic);
+    }
 
     public Object distinct(Value o) {
         if (!o.hasArrayElements()) {

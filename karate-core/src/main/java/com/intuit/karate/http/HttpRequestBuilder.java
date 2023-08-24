@@ -93,6 +93,9 @@ public class HttpRequestBuilder implements ProxyObject {
 
     private String url;
     private String method;
+    private String topic;
+    private String key;
+    private String schema;
     private List<String> paths;
     private Map<String, List<String>> params;
     private Map<String, List<String>> headers;
@@ -105,7 +108,7 @@ public class HttpRequestBuilder implements ProxyObject {
 
     public HttpRequestBuilder(HttpClient client) {
         this.client = client;
-    }       
+    }
 
     public HttpRequestBuilder reset() {
         // url will be retained
@@ -272,6 +275,54 @@ public class HttpRequestBuilder implements ProxyObject {
         }
         paths.add(path);
         return this;
+    }
+
+    public List<String> getPaths() {
+        return paths;
+    }
+
+    public void setSchema(String schema) {
+        this.schema = schema;
+    }
+
+    public String getSchema() {
+        return schema;
+    }
+
+    public String getTopic() {
+        return topic;
+    }
+
+    public void setTopic(String topic) {
+        this.topic = topic;
+    }
+
+    public String getKey() {
+        return key;
+    }
+
+    public void setKey(String key) {
+        this.key = key;
+    }
+
+    public Object getBody() {
+        return body;
+    }
+
+    public Map<String, String> getHeaders() {
+        if (headers == null) {
+            return new LinkedHashMap(0);
+        }
+        Map<String, String> map = new LinkedHashMap(headers.size());
+        headers.forEach((k, v) -> {
+            if (v != null && !v.isEmpty()) {
+                Object value = v.get(0);
+                if (value != null) {
+                    map.put(k, value.toString());
+                }
+            }
+        });
+        return map;
     }
 
     public String getUri() {
@@ -630,7 +681,7 @@ public class HttpRequestBuilder implements ProxyObject {
         String url = getUri();
         if (!StringUtils.isBlank(url)) {
             sb.append(getUri()).append(' ');
-        }        
+        }
         if (multiPart != null) {
             sb.append("\\\n");
             sb.append(multiPart.toCurlCommand());

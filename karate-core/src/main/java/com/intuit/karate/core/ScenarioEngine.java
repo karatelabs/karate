@@ -78,8 +78,6 @@ public class ScenarioEngine {
 
     private static final String KARATE = "karate";
     private static final String READ = "read";
-    private static final String DRIVER = "driver";
-    private static final String ROBOT = "robot";
     private static final String KEY = "Key";
 
     public static final String RESPONSE = "response";
@@ -146,7 +144,7 @@ public class ScenarioEngine {
     protected static void remove() {
         THREAD_LOCAL.remove();
     }
-    
+
     public JsEngine getJsEngine() {
         return JS;
     }
@@ -730,12 +728,71 @@ public class ScenarioEngine {
         }
     }
 
+    // non-http ================================================================
+    //
+    private static String getFactory(String channelType) {
+        switch (channelType) {
+            case Config.KAFKA:
+                return "io.karatelabs.karate.kafka.KafkaChannelFactory";
+            default:
+                throw new RuntimeException("unknown channel type");
+        }
+    }
+        
+    private Channel channel(String type) {
+        String factoryClass = getFactory(type);
+        try {
+            Class clazz = Class.forName(factoryClass);
+            ChannelFactory factory = (ChannelFactory) clazz.getDeclaredConstructor().newInstance();
+            Map<String, Object> options = config.getCustomOptions().get(type);
+            return factory.create(runtime, options);
+        } catch (KarateException ke) {
+            throw ke;
+        } catch (Exception e) {
+            String message = "cannot instantiate " + type + ", is 'karate-" + type + "' included as a maven / gradle dependency ? " + e.getMessage();
+            logger.error(message);
+            throw new RuntimeException(message, e);
+        }        
+    }
+        
+    public void produce(String type) {
+        Channel channel = channel(type);
+        channel.produce(runtime);
+    }
+    
+    public ChannelSession consume(String type, String topic) {
+        Channel channel = channel(type);
+        return channel.consume(runtime, topic);        
+    }
+    
+    public void register(String expression) {
+        Variable v = evalKarateExpression(expression);
+        Channel channel = channel("kafka");
+        Map<String, Object> map = v.getValue();
+        channel.register(runtime, map);
+    }       
+    
+    public void schema(String exp) {
+        Variable v = evalKarateExpression(exp);
+        requestBuilder.setSchema(v.getAsString());
+    }
+    
+    public void topic(String exp) {
+        Variable v = evalKarateExpression(exp);
+        requestBuilder.setTopic(v.getAsString());
+    }
+    
+    public void key(String exp) {
+        Variable v = evalKarateExpression(exp);
+        requestBuilder.setKey(v.getAsString());
+    }    
+
     // http mock ===============================================================
     //
     public void mockProceed(String requestUrlBase) {
         String urlBase;
         if (requestUrlBase == null) {
-            urlBase = vars.get(REQUEST_URL_BASE).getValue();             
+            urlBase = vars.get(REQUEST_URL_BASE).getValue();
         } else {
             urlBase = requestUrlBase;
         }
@@ -881,7 +938,7 @@ public class ScenarioEngine {
         // re-create driver within a test if needed
         // but user is expected to call quit() OR use the driver keyword with a JSON argument
         if (driver == null || driver.isTerminated() || v.isMap()) {
-            Map<String, Object> options = config.getDriverOptions();
+            Map<String, Object> options = config.getCustomOptions().get(Config.DRIVER);
             if (options == null) {
                 options = new HashMap();
             }
@@ -899,7 +956,7 @@ public class ScenarioEngine {
     public void robot(String exp) {
         Variable v = evalKarateExpression(exp);
         if (robot == null) {
-            Map<String, Object> options = config.getRobotOptions();
+            Map<String, Object> options = config.getCustomOptions().get(Config.ROBOT);
             if (options == null) {
                 options = new HashMap();
             }
@@ -910,7 +967,7 @@ public class ScenarioEngine {
             }
             try {
                 Class clazz = Class.forName("com.intuit.karate.robot.RobotFactory");
-                PluginFactory factory = (PluginFactory) clazz.newInstance();
+                PluginFactory factory = (PluginFactory) clazz.getDeclaredConstructor().newInstance();
                 robot = factory.create(runtime, options);
             } catch (KarateException ke) {
                 throw ke;
@@ -929,24 +986,24 @@ public class ScenarioEngine {
 
     public void setDriver(Driver driver) {
         this.driver = driver;
-        setHiddenVariable(DRIVER, driver);
+        setHiddenVariable(Config.DRIVER, driver);
         if (robot != null) {
             logger.warn("'robot' is active, use 'driver.' prefix for driver methods");
             return;
         }
-        autoDef(driver, DRIVER);
+        autoDef(driver, Config.DRIVER);
         setHiddenVariable(KEY, Key.INSTANCE);
     }
 
     public void setRobot(Plugin robot) { // TODO unify
         this.robot = robot;
         // robot.setContext(this);
-        setHiddenVariable(ROBOT, robot);
+        setHiddenVariable(Config.ROBOT, robot);
         if (driver != null) {
             logger.warn("'driver' is active, use 'robot.' prefix for robot methods");
             return;
         }
-        autoDef(robot, ROBOT);
+        autoDef(robot, Config.ROBOT);
         setHiddenVariable(KEY, Key.INSTANCE);
     }
 
@@ -1224,7 +1281,7 @@ public class ScenarioEngine {
     public Object getVariable(String key) {
         return JS.get(key).getValue();
     }
-    
+
     public boolean hasVariable(String key) {
         return JS.bindings.hasMember(key);
     }

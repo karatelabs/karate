@@ -41,10 +41,10 @@ public abstract class JsFunction implements ProxyObject {
 
     public static final Object LOCK = new Object();
 
-    protected final Value value;    
+    protected final Value value;
 
     protected JsFunction(Value v) {
-        this.value = v;        
+        this.value = v;
     }
 
     public static ProxyExecutable wrap(Value value) {
@@ -80,7 +80,7 @@ public abstract class JsFunction implements ProxyObject {
         return value.removeMember(key);
     }
 
-    protected static class Executable extends JsFunction implements ProxyExecutable {
+    public static class Executable extends JsFunction implements ProxyExecutable {
 
         private final boolean lock;
         private final String source;
@@ -90,9 +90,18 @@ public abstract class JsFunction implements ProxyObject {
         }
 
         protected Executable(Value value, boolean lock) {
-            super(value);            
+            super(value);
             this.lock = lock;
             source = "(" + value.getSourceLocation().getCharacters() + ")";
+        }
+
+        public Object execute(JsEngine je, Object... args) {
+            Object[] newArgs = new Object[args.length];
+            for (int i = 0; i < newArgs.length; i++) {
+                newArgs[i] = JsValue.fromJava(args[i]);
+            }            
+            Value attached = je.evalForValue(source);
+            return new JsValue(attached.execute(newArgs)).value;
         }
 
         @Override

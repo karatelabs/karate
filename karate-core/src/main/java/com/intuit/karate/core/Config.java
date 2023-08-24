@@ -36,6 +36,7 @@ import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -50,6 +51,12 @@ public class Config {
     public static final int DEFAULT_RETRY_COUNT = 3;
     public static final int DEFAULT_TIMEOUT = 30000;
     public static final int DEFAULT_HIGHLIGHT_DURATION = 3000;
+    
+    public static final String DRIVER = "driver";
+    public static final String ROBOT = "robot";
+    public static final String KAFKA = "kafka";
+    public static final String GRPC = "grpc";
+    public static final String WEBSOCKET = "websocket";
 
     private String url;
     private boolean sslEnabled = false;
@@ -80,8 +87,7 @@ public class Config {
     private boolean pauseIfNotPerf = false;
     private boolean abortedStepsShouldPass = false;
     private Target driverTarget;
-    private Map<String, Object> driverOptions;
-    private Map<String, Object> robotOptions; // TODO make generic plugin model
+    private Map<String, Map<String, Object>> customOptions = new HashMap();
     private HttpLogModifier logModifier;
 
     private Variable afterScenario = Variable.NULL;
@@ -182,11 +188,12 @@ public class Config {
                     showAllSteps = false;
                 }
                 return false;
-            case "driver":
-                driverOptions = value.getValue();
-                return false;
-            case "robot":
-                robotOptions = value.getValue();
+            case DRIVER:
+            case ROBOT:
+            case KAFKA:
+            case GRPC:
+            case WEBSOCKET:
+                customOptions.put(key, value.getValue());
                 return false;
             case "driverTarget":
                 if (value.isMap()) {
@@ -350,9 +357,8 @@ public class Config {
         logPrettyRequest = parent.logPrettyRequest;
         logPrettyResponse = parent.logPrettyResponse;
         printEnabled = parent.printEnabled;
-        driverOptions = parent.driverOptions;
-        robotOptions = parent.robotOptions;
         driverTarget = parent.driverTarget;
+        customOptions = parent.customOptions;
         showLog = parent.showLog;
         showAllSteps = parent.showAllSteps;
         retryInterval = parent.retryInterval;
@@ -502,13 +508,9 @@ public class Config {
         return printEnabled;
     }
 
-    public Map<String, Object> getDriverOptions() {
-        return driverOptions;
-    }
-
-    public Map<String, Object> getRobotOptions() {
-        return robotOptions;
-    }
+    public Map<String, Map<String, Object>> getCustomOptions() {
+        return customOptions;
+    }    
 
     public Variable getAfterScenario() {
         return afterScenario;
