@@ -1549,10 +1549,11 @@ There are two forms. The first takes a single boolean argument - whether to "acc
 * dialog(true, 'some text')
 ```
 
-Also works as a "getter" to retrieve the text of the currently visible dialog:
+## `driver.dialogText`
+After using [`dialog()`](#dialog) you can retrieve the text of the currently visible dialog:
 
 ```cucumber
-* match driver.dialog == 'Please enter your name:'
+* match driver.dialogText == 'Please enter your name:'
 ```
 
 ## `switchPage()`
