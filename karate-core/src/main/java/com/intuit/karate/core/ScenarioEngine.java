@@ -65,6 +65,9 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import org.graalvm.polyglot.proxy.ProxyExecutable;
 import org.slf4j.LoggerFactory;
 
@@ -593,9 +596,8 @@ public class ScenarioEngine {
         }
         long startTime = System.currentTimeMillis();
         httpRequest.setStartTime(startTime); // this may be fine-adjusted by actual http client
-        if (hooks != null) {
-            hooks.forEach(h -> h.beforeHttpCall(httpRequest, runtime));
-        }
+        Collection<RuntimeHook> allHooks = getRuntimeHooks();
+        allHooks.forEach(h -> h.beforeHttpCall(httpRequest, runtime));
         try {
             response = requestBuilder.client.invoke(httpRequest);
         } catch (Exception e) {
@@ -619,9 +621,7 @@ public class ScenarioEngine {
         final long endTime = httpRequest.getEndTime();
         final long responseTime = endTime - startTime;
         response.setResponseTime(responseTime);
-        if (hooks != null) {
-            hooks.forEach(h -> h.afterHttpCall(httpRequest, response, runtime));
-        }
+        allHooks.forEach(h -> h.afterHttpCall(httpRequest, response, runtime));
         byte[] bytes = response.getBody();
         Object body;
         String responseType;
@@ -662,6 +662,12 @@ public class ScenarioEngine {
             PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, response.getStatus());
             capturePerfEvent(pe);
         }
+    }
+
+    private List<RuntimeHook> getRuntimeHooks() {
+        return Stream.concat(hooks.stream(), Stream.of(requestBuilder.hook()))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 
     private void httpInvokeWithRetries() {
