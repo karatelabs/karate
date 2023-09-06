@@ -25,6 +25,7 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsArray;
 import com.intuit.karate.graal.JsValue;
@@ -103,7 +104,7 @@ public class HttpRequestBuilder implements ProxyObject {
     private Object body;
     private Set<Cookie> cookies;
     private String retryUntil;
-
+    private RuntimeHook hook;
     public final HttpClient client;
 
     public HttpRequestBuilder(HttpClient client) {
@@ -517,6 +518,15 @@ public class HttpRequestBuilder implements ProxyObject {
         }
         multiPart.part(map);
         return this;
+    }
+
+    public HttpRequestBuilder hook(RuntimeHook hook) {
+        this.hook = hook;
+        return this;
+    }
+
+    public RuntimeHook hook() {
+        return hook;
     }
 
     //==========================================================================
