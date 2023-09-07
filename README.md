@@ -564,6 +564,8 @@ The [`Runner.Builder`](#parallel-execution) API has a `dryRun()` method to switc
 
 ## Command Line
 
+If you are using Karate via the [VS Code Plugin](https://marketplace.visualstudio.com/items?itemName=karatelabs.karate) or the stand-alone JAR, refer to the [CLI usage guide](https://github.com/karatelabs/karate/wiki/Get-Started:-Other-Runtime-Options). 
+
 ### Command Line - Maven
 Normally in dev mode, you will use your IDE to run a `*.feature` file directly or via the companion 'runner' JUnit Java class. When you have a 'runner' class in place, it would be possible to run it from the command-line as well.
 
