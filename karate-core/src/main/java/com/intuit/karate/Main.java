@@ -31,7 +31,6 @@ import com.intuit.karate.http.RequestHandler;
 import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.http.ServerContext;
 import com.intuit.karate.http.SslContextFactory;
-import com.intuit.karate.job.JobExecutor;
 import com.intuit.karate.resource.ResourceUtils;
 import com.intuit.karate.shell.Command;
 import java.io.File;
@@ -132,9 +131,6 @@ public class Main implements Callable<Void> {
 
     @Option(names = {"-D", "--dryrun"}, description = "dry run, generate html reports only")
     boolean dryRun;
-
-    @Option(names = {"-j", "--jobserver"}, description = "job server url")
-    String jobServerUrl;
 
     @Option(names = {"-H", "--hook"}, split = ",", description = "class name of a RuntimeHook (or RuntimeHookFactory) to add")
     List<String> hookFactoryClassNames;
@@ -324,10 +320,6 @@ public class Main implements Callable<Void> {
         if (clean) {
             FileUtils.deleteDirectory(new File(output));
             logger.info("deleted directory: {}", output);
-        }
-        if (jobServerUrl != null) {
-            JobExecutor.run(jobServerUrl);
-            return null;
         }
         if (debugPort != -1) {
             DapServer server = new DapServer(debugPort, !keepDebugServerAlive);

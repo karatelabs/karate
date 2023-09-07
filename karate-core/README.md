@@ -43,7 +43,6 @@
     | <a href="#debugging">Debugging</a>
     | <a href="#retry">Retries</a>
     | <a href="#wait-api">Waits</a>
-    | <a href="#distributed-testing">Distributed Testing</a>
     | <a href="#proxy">Proxy</a>
     | <a href="#intercepting-http-requests">Intercepting HTTP Requests</a>
     | <a href="#file-upload">File Upload</a>
@@ -189,7 +188,6 @@
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
 * [Playwright](https://playwright.dev) support (experimental) for even more cross-browser and headless options, that can connect to a server or Docker container using the Playwright wire-protocol
 * [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI environment or [Docker](#configure-drivertarget) - without needing a "master node" or "grid"
-* You can even run tests in parallel across [different machines](#distributed-testing) - and Karate will aggregate the results
 * Embed [video-recordings of tests](#karate-chrome) into the HTML report from a Docker container
 * [experimental] [Android and iOS mobile support](https://github.com/karatelabs/karate/issues/743) via [Appium](http://appium.io)
 * Seamlessly mix API and UI tests within the same script, for example [sign-in using an API](https://github.com/karatelabs/karate#http-basic-authentication-example) and speed-up your tests

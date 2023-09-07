@@ -32,7 +32,6 @@ import com.intuit.karate.core.ScenarioCall;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.DriverRunner;
 import com.intuit.karate.http.HttpClientFactory;
-import com.intuit.karate.job.JobConfig;
 import com.intuit.karate.report.SuiteReports;
 import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
@@ -117,7 +116,6 @@ public class Runner {
         Map<String, Object> callSingleCache;
         Map<String, ScenarioCall.Result> callOnceCache;
         SuiteReports suiteReports;
-        JobConfig jobConfig;
         Map<String, DriverRunner> drivers;
 
         // synchronize because the main user is karate-gatling
@@ -151,7 +149,6 @@ public class Runner {
             b.callSingleCache = callSingleCache;
             b.callOnceCache = callOnceCache;
             b.suiteReports = suiteReports;
-            b.jobConfig = jobConfig;
             b.drivers = drivers;
             return b;
         }
@@ -265,13 +262,6 @@ public class Runner {
                 drivers.putAll(customDrivers); // allows override of Karate drivers (e.g. custom 'chrome')
             } else {
                 drivers = DriverOptions.driverRunners();
-            }
-            if (jobConfig != null) {
-                reportDir = jobConfig.getExecutorDir();
-                if (threadCount < 1) {
-                    threadCount = jobConfig.getExecutorCount();
-                }
-                timeoutMinutes = jobConfig.getTimeoutMinutes();
             }
             if (threadCount < 1) {
                 threadCount = 1;
@@ -486,13 +476,6 @@ public class Runner {
         public T customDrivers(Map<String, DriverRunner> customDrivers) {
             drivers = customDrivers;
             return (T) this;
-        }
-
-        public Results jobManager(JobConfig value) {
-            jobConfig = value;
-            Suite suite = new Suite(this);
-            suite.run();
-            return suite.buildResults();
         }
 
         public Results parallel(int threadCount) {

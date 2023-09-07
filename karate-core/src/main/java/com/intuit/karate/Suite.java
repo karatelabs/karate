@@ -38,7 +38,6 @@ import com.intuit.karate.core.Step;
 import com.intuit.karate.core.SyncExecutorService;
 import com.intuit.karate.core.Tags;
 import com.intuit.karate.http.HttpClientFactory;
-import com.intuit.karate.job.JobManager;
 import com.intuit.karate.report.SuiteReports;
 import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceUtils;
@@ -103,8 +102,6 @@ public class Suite implements Runnable {
     public final boolean parallel;
     public final ExecutorService scenarioExecutor;
     public final ExecutorService pendingTasks;
-
-    public final JobManager jobManager;
 
     public final String karateBase;
     public final String karateConfig;
@@ -173,7 +170,6 @@ public class Suite implements Runnable {
             callSingleCache = null;
             callOnceCache = null;
             suiteReports = null;
-            jobManager = null;
             progressFileLock = null;
             drivers = null;
         } else {
@@ -207,11 +203,6 @@ public class Suite implements Runnable {
                 karateConfigEnv = read(rb.configDir + "karate-config-" + env + ".js");
             } else {
                 karateConfigEnv = null;
-            }
-            if (rb.jobConfig != null) {
-                jobManager = new JobManager(rb.jobConfig);
-            } else {
-                jobManager = null;
             }
             drivers = rb.drivers;
             threadCount = rb.threadCount;
@@ -250,9 +241,6 @@ public class Suite implements Runnable {
             if (featuresFound > 1) {
                 logger.debug("waiting for {} features to complete", featuresFound);
             }
-            if (jobManager != null) {
-                jobManager.start();
-            }
             CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
             if (timeoutMinutes > 0) {
                 CompletableFuture.allOf(futuresArray).get(timeoutMinutes, TimeUnit.MINUTES);
@@ -265,9 +253,6 @@ public class Suite implements Runnable {
         } finally {
             scenarioExecutor.shutdownNow();
             pendingTasks.shutdownNow();
-            if (jobManager != null) {
-                jobManager.server.stop();
-            }
             hooks.forEach(h -> h.afterSuite(this));
         }
     }
