@@ -563,6 +563,8 @@ The “dry run” report is useful to review the tag "coverage" of what will be 
 The [`Runner.Builder`](#parallel-execution) API has a `dryRun()` method to switch this on. Note that this mode can be also triggered via the command-line by adding `-D` or `--dryrun` to the [`karate.options`](#karateoptions).
 
 ## Command Line
+
+### Command Line - Maven
 Normally in dev mode, you will use your IDE to run a `*.feature` file directly or via the companion 'runner' JUnit Java class. When you have a 'runner' class in place, it would be possible to run it from the command-line as well.
 
 Note that the `mvn test` command only runs test classes that follow the `*Test.java` [naming convention](#naming-conventions) by default. But you can choose a single test to run like this:
