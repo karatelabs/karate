@@ -676,9 +676,9 @@ public class ScenarioEngine {
                     throw new RuntimeException(e);
                 }
             }
-            httpInvokeOnce();
             Variable v;
             try {
+                httpInvokeOnce();
                 v = evalKarateExpression(requestBuilder.getRetryUntil());
             } catch (Exception e) {
                 logger.warn("retry condition evaluation failed: {}", e.getMessage());
