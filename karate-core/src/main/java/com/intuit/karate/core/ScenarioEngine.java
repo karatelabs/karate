@@ -676,6 +676,7 @@ public class ScenarioEngine {
                     throw new RuntimeException(e);
                 }
             }
+
             Variable v;
             try {
                 httpInvokeOnce();
