@@ -12,7 +12,7 @@
     
     <properties>
         <antlr.version>4.11.1</antlr.version>
-        <graal.version>22.3.0</graal.version>
+        <graal.version>23.0.1</graal.version>
     </properties>
 
     <dependencies>
@@ -30,12 +30,12 @@
         <dependency>
             <groupId>org.thymeleaf</groupId>
             <artifactId>thymeleaf</artifactId>
-            <version>3.0.14.RELEASE</version>
+            <version>3.1.2.RELEASE</version>
         </dependency>    
         <dependency>
             <groupId>com.linecorp.armeria</groupId>
             <artifactId>armeria</artifactId>
-            <version>1.24.3</version>
+            <version>1.25.2</version>
         </dependency>              
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
