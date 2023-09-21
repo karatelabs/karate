@@ -328,6 +328,7 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 * [Karate entered the ThoughtWorks Tech Radar](https://twitter.com/KarateDSL/status/1120985060843249664) in 2019 and was [upgraded in ranking](https://twitter.com/KarateDSL/status/1262719979104817152) in May 2020
 * [マイクロサービスにおけるテスト自動化 with Karate](https://speakerdeck.com/takanorig/microservices-testing-automation-with-karate) - (*Microservices Test Automation with Karate*) presentation by [Takanori Suzuki](https://twitter.com/takanorig)
 * [Writing API Tests with Karate](https://www.softwaretester.blog/writing-api-tests-with-karate) - book by [Benjamin Bischoff](https://www.softwaretester.blog/about), Packt Publishing, 2023
+* [Karate Webinar](https://www.youtube.com/watch?v=cXDIYpT6zck&t=4333s) - Simplificando automação de API com Karate Framework by [Luana Assis](https://www.linkedin.com/in/luanapassis/) from [Base2 Tecnologia](https://www.base2.com.br/)
 
 Karate also has a dedicated "tag", and a very active and supportive community at [Stack Overflow](https://stackoverflow.com/questions/tagged/karate) - where you can get support and ask questions.
 
