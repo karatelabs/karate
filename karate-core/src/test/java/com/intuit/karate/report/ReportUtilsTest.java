@@ -5,6 +5,7 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.Suite;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Results;
 import com.intuit.karate.core.FeatureCall;
 import org.junit.jupiter.api.Test;
 
@@ -41,7 +42,14 @@ class ReportUtilsTest {
         System.setOut(new PrintStream(outContent)); // Capture console output
         fr.suite.buildResults();
         assertFalse(outContent.toString().contains(" | env: "));
-        System.setOut(originalOut); // restore console output      
+        System.setOut(originalOut); // restore console output
+        // render summary report
+        Runner.Builder builder = new Runner.Builder();
+        builder.reportDir("target/report-test");
+        Suite suite = new Suite(builder);
+        File jsonFile = ReportUtils.saveKarateJson("target/report-test", fr.result, null);
+        suite.featureResultFiles.add(jsonFile);
+        Results results = Results.of(suite);  // this will render summary via constructor TODO improve        
     }
 
     @Test
