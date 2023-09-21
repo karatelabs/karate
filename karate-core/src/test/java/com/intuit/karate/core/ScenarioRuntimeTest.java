@@ -773,7 +773,9 @@ class ScenarioRuntimeTest {
         run(
                 "def temp = { foo: '#string' }",
                 "def schema = '#[] temp'",
-                "match [{ foo: 'bar' }] == schema"
+                "match [{ foo: 'bar' }] == schema",
+                "configure matchEachEmptyAllowed = true",
+                "match [] == schema"
         );
     }
 

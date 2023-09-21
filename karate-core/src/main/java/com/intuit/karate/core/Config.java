@@ -86,6 +86,7 @@ public class Config {
     private boolean printEnabled = true;
     private boolean pauseIfNotPerf = false;
     private boolean abortedStepsShouldPass = false;
+    private boolean matchEachEmptyAllowed = false;
     private Target driverTarget;
     private Map<String, Map<String, Object>> customOptions = new HashMap();
     private HttpLogModifier logModifier;
@@ -237,6 +238,9 @@ public class Config {
             case "imageComparison":
                 imageComparisonOptions = value.getValue();
                 return false;
+            case "matchEachEmptyAllowed":
+                matchEachEmptyAllowed = value.getValue();
+                return false;
             case "continueOnStepFailure":
                 continueOnStepFailureMethods.clear(); // clears previous configuration - in case someone is trying to chain these and forgets resetting the previous one
                 boolean enableContinueOnStepFailureFeature = false;
@@ -377,6 +381,7 @@ public class Config {
         continueAfterContinueOnStepFailure = parent.continueAfterContinueOnStepFailure;
         abortSuiteOnFailure = parent.abortSuiteOnFailure;
         imageComparisonOptions = parent.imageComparisonOptions;
+        matchEachEmptyAllowed = parent.matchEachEmptyAllowed;
         ntlmEnabled = parent.ntlmEnabled;
         ntlmUsername = parent.ntlmUsername;
         ntlmPassword = parent.ntlmPassword;
@@ -615,6 +620,10 @@ public class Config {
     public Map<String, Object> getImageComparisonOptions() {
         return imageComparisonOptions;
     }
+
+    public boolean isMatchEachEmptyAllowed() {
+        return matchEachEmptyAllowed;
+    }        
 
     public boolean isNtlmEnabled() {
         return ntlmEnabled;

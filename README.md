@@ -2276,6 +2276,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `xmlNamespaceAware` | boolean | defaults to `false`, to handle XML namespaces in [some special circumstances](https://github.com/karatelabs/karate/issues/1587)
 `abortSuiteOnFailure` | boolean | defaults to `false`, to not attempt to run any more tests upon a failure
 `ntlmAuth` | JSON | See [NTLM Authentication](#ntlm-authentication)
+`matchEachEmptyAllowed` | boolean | defaults to `false`, [`match each`](#match-each) by default expects the array to be non-empty, refer to [this issue](https://github.com/karatelabs/karate/issues/2364) to understand why you may want to over-ride this.
 
 Examples:
 ```cucumber
