@@ -2,7 +2,7 @@ name: jdk-compat
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ develop, jdk17 ]
 
 jobs:
   build:
