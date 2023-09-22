@@ -31,7 +31,6 @@ import com.intuit.karate.http.RequestHandler;
 import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.http.ServerContext;
 import com.intuit.karate.http.SslContextFactory;
-import com.intuit.karate.job.JobExecutor;
 import com.intuit.karate.resource.ResourceUtils;
 import com.intuit.karate.shell.Command;
 import java.io.File;
@@ -133,9 +132,6 @@ public class Main implements Callable<Void> {
     @Option(names = {"-D", "--dryrun"}, description = "dry run, generate html reports only")
     boolean dryRun;
 
-    @Option(names = {"-j", "--jobserver"}, description = "job server url")
-    String jobServerUrl;
-
     @Option(names = {"-H", "--hook"}, split = ",", description = "class name of a RuntimeHook (or RuntimeHookFactory) to add")
     List<String> hookFactoryClassNames;
 
@@ -204,6 +200,10 @@ public class Main implements Callable<Void> {
         String[] args = Command.tokenize(line);
         return CommandLine.populateCommand(new Main(), args);
     }
+    
+    public static Main parseKarateArgs(List<String> args) {
+        return CommandLine.populateCommand(new Main(), args.toArray(new String[args.size()]));
+    }    
 
     // matches ( -X XXX )* (XXX)
     private static final Pattern CLI_ARGS = Pattern.compile("(\\s*-{1,2}\\w\\s\\S*\\s*)*(.*)$");
@@ -321,10 +321,6 @@ public class Main implements Callable<Void> {
             FileUtils.deleteDirectory(new File(output));
             logger.info("deleted directory: {}", output);
         }
-        if (jobServerUrl != null) {
-            JobExecutor.run(jobServerUrl);
-            return null;
-        }
         if (debugPort != -1) {
             DapServer server = new DapServer(debugPort, !keepDebugServerAlive);
             server.waitSync();
@@ -369,6 +365,7 @@ public class Main implements Callable<Void> {
         if (serve) {
             ServerConfig config = new ServerConfig(workingDir.getPath())
                     .noCache(true)
+                    .devMode(true)
                     .autoCreateSession(true);
             RequestHandler handler = new RequestHandler(config);
             HttpServer.Builder builder = HttpServer

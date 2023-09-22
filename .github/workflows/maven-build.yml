@@ -29,7 +29,8 @@ jobs:
     - name: build and test with docker
       run: ./build-docker.sh
     - name: upload workspace if build fails
-      if: ${{ failure() }}
+      # if: ${{ failure() }}
+      if: ${{ false }}
       uses: actions/upload-artifact@v3
       with:
         name: build-results

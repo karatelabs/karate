@@ -486,4 +486,4 @@ akka {
 So now the system can go up to 100 threads waiting for responses. You can experiment with more settings as [described here](https://doc.akka.io/docs/akka/current/typed/dispatchers.html). Of course a lot will depend on the compute resources (CPU, RAM) available on the machine on which you are running a test.
 
 ## Distributed Testing
-See wiki: [Distributed Testing](https://github.com/karatelabs/karate/wiki/Distributed-Testing#gatling)
+See wiki: [Distributed Testing](https://github.com/karatelabs/karate/wiki/Distributed-Testing)

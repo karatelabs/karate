@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2022 Karate Labs Inc.
+ * Copyright 2023 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,35 +21,20 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.graal;
+package com.intuit.karate.core;
 
-import java.util.function.Consumer;
-import java.util.function.Function;
-import org.graalvm.polyglot.Value;
+import java.util.Map;
 
 /**
  *
- * @author pthomas3
+ * @author peter
  */
-public class JsLambda extends JsFunction.Instantiable implements Consumer, Function, Runnable {    
-
-    public JsLambda(Value v) {
-        super(v);
-    }
-
-    @Override
-    public void accept(Object arg) {
-        JsEngine.execute(this, arg);
-    }
-
-    @Override
-    public Object apply(Object arg) {
-        return JsEngine.execute(this, arg);
-    }
-
-    @Override
-    public void run() {
-        JsEngine.execute(this);
-    }
-
+public interface Channel {
+    
+    void produce(ScenarioRuntime runtime);
+    
+    ChannelSession consume(ScenarioRuntime runtime, String topic);
+    
+    void register(ScenarioRuntime runtime, Map<String, Object> data);
+    
 }

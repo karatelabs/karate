@@ -43,7 +43,6 @@
     | <a href="#debugging">Debugging</a>
     | <a href="#retry">Retries</a>
     | <a href="#wait-api">Waits</a>
-    | <a href="#distributed-testing">Distributed Testing</a>
     | <a href="#proxy">Proxy</a>
     | <a href="#intercepting-http-requests">Intercepting HTTP Requests</a>
     | <a href="#file-upload">File Upload</a>
@@ -189,7 +188,6 @@
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
 * [Playwright](https://playwright.dev) support (experimental) for even more cross-browser and headless options, that can connect to a server or Docker container using the Playwright wire-protocol
 * [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI environment or [Docker](#configure-drivertarget) - without needing a "master node" or "grid"
-* You can even run tests in parallel across [different machines](#distributed-testing) - and Karate will aggregate the results
 * Embed [video-recordings of tests](#karate-chrome) into the HTML report from a Docker container
 * [experimental] [Android and iOS mobile support](https://github.com/karatelabs/karate/issues/743) via [Appium](http://appium.io)
 * Seamlessly mix API and UI tests within the same script, for example [sign-in using an API](https://github.com/karatelabs/karate#http-basic-authentication-example) and speed-up your tests
@@ -1964,6 +1962,35 @@ Scenario:
 The entire example can be found [here](../karate-demo/src/test/java/driver/mock/demo-01.feature) - and here is a [video](https://twitter.com/KarateDSL/status/1248996522357739521). Note how the "fake" [`response.json`](../karate-demo/src/test/java/driver/mock/response.json) is tiny compared to the "real" JSON, because we know that only a few data-elements are needed for the UI to work in this case.
 
 The Karate [regression test-suite](https://stackoverflow.com/a/66005331/143475) that runs in GitHub actions (effectively our CI) - includes another [example](../karate-e2e-tests/src/test/java/driver/05.feature), and you can find a good explanation [here](https://twitter.com/KarateDSL/status/1350743622312894466).
+
+## Inspecting Intercepted Requests
+The `driver.intercept()` API returns an object on which you can call `get(variableName)`. This comes in useful if you want to get information on what requests were intercepted. If you really want, you can write a complex mock that calls an external API, saves the response, and returns a modified response to the browser. Since you can store ["global" variables in a mock in the `Background`](https://github.com/karatelabs/karate/tree/master/karate-netty#background), you can save any arbitrary data or "state", and unpack them from your main test flow. Here is an example.
+
+First the mock. Any time we handle an incoming request, we append some JSON data to the `savedRequests` array. Note that [`requestPath`](https://github.com/karatelabs/karate/tree/master/karate-netty#requestpath) and [`requestParams`](https://github.com/karatelabs/karate/tree/master/karate-netty#requestparams) are built-in variables.
+
+```cucumber
+Feature:
+
+Background:
+* def savedRequests = []
+
+Scenario: pathMatches('/api/05')
+* savedRequests.push({ path: requestPath, params: requestParams })
+* print 'saved:', savedRequests
+* def response = { message: 'hello faked' }
+```
+
+And in the main UI test, note how we get the value of `savedRequests`, and do a normal [`match`](https://github.com/karatelabs/karate#match) on it !
+
+```cucumber
+* def mock = driver.intercept({ patterns: [{ urlPattern: '*/api/*' }], mock: '05_mock.feature' })
+
+* click('button')
+* waitForText('#containerDiv', 'hello faked')
+
+* def requests = mock.get('savedRequests')
+* match requests == [{ path: '/api/05', params: { foo: ['bar'] } }]
+```
 
 ## Intercepting All Requests
 If you use `*` as the `urlPattern` *every* request can be routed to the mock ! And if you use the following mock, it will actually act as a ["pass-through" proxy](https://github.com/karatelabs/karate/tree/master/karate-netty#karateproceed) - but with the advantage that every single request and response will be emitted to `target/karate.log`. You may be able to turn this into a custom "record-replay" framework, or do other interesting things. Yes, you can modify the request or response if needed !

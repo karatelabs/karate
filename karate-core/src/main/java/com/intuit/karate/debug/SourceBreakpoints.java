@@ -28,7 +28,6 @@ import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Variable;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -43,26 +42,26 @@ public class SourceBreakpoints {
     public final List<Breakpoint> breakpoints;
     public final boolean sourceModified;
     
-    public boolean isBreakpoint(int line, ScenarioRuntime context) {
+    public Breakpoint resolveBreakpoint(int line, ScenarioRuntime context) {
         if (breakpoints == null || breakpoints.isEmpty()) {
-            return false;
+            return null;
         }
         for (Breakpoint b : breakpoints) {
             if (b.line == line) {
-                if (b.condition == null) {
-                    return true;
+                if (b.condition == null) {                    
+                    return b;
                 } else {
                     Variable evalCondition = context.engine.evalKarateExpression(b.condition);
                     if (evalCondition != null && evalCondition.type != Variable.Type.BOOLEAN) {
-                        // if the condition is not a boolean then what are you doing trying to use it as a condition?
-                        return true;
+                        return b;
                     }
-
-                    return evalCondition != null && evalCondition.isTrue();
+                    if (evalCondition != null && evalCondition.isTrue()) {
+                        return b;
+                    }                    
                 }
             }
         }
-        return false;
+        return null;
     }
 
     public SourceBreakpoints(Map<String, Object> map) {

@@ -236,7 +236,7 @@ public class ScenarioRuntime implements Runnable {
         try {
             evalStep.parseAndUpdateFrom(expression);
         } catch (Exception e) {
-            return Result.failed(0, e, evalStep);
+            return Result.failed(System.currentTimeMillis(), 0, e, evalStep);
         }
         return StepRuntime.execute(evalStep, actions);
     }
@@ -436,14 +436,14 @@ public class ScenarioRuntime implements Runnable {
         final boolean executed = !stopped;
         if (stopped) {
             if (aborted && engine.getConfig().isAbortedStepsShouldPass()) {
-                stepResult = Result.passed(0);
+                stepResult = Result.passed(System.currentTimeMillis(), 0);
             } else if (configFailed) {
-                stepResult = Result.failed(0, error, step);
+                stepResult = Result.failed(System.currentTimeMillis(), 0, error, step);
             } else {
-                stepResult = Result.skipped();
+                stepResult = Result.skipped(System.currentTimeMillis());
             }
         } else if (dryRun) {
-            stepResult = Result.passed(0);
+            stepResult = Result.passed(System.currentTimeMillis(), 0);
         } else {
             stepResult = StepRuntime.execute(step, actions);
         }

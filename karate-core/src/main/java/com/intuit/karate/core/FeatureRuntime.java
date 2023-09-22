@@ -190,14 +190,7 @@ public class FeatureRuntime implements Runnable {
     private void processScenario(ScenarioRuntime sr) {
         if (beforeHook()) {
             lastExecutedScenario = sr;
-            if (suite.jobManager != null) {
-                CompletableFuture future = suite.jobManager.addChunk(sr);
-                logger.info("waiting for job executor to process: {}", sr);
-                future.join();
-                logger.info("job executor completed processing: {}", sr);
-            } else {
-                sr.run();
-            }
+            sr.run();
             // can be empty for distributed / job-server flows
             if (!sr.result.getStepResults().isEmpty()) {
                 synchronized (result) {

@@ -259,10 +259,10 @@ public class StepRuntime {
         List<MethodMatch> matches = findMethodsMatching(text);
         if (matches.isEmpty()) {
             KarateException e = new KarateException("no step-definition method match found for: " + text);
-            return Result.failed(0, e, step);
+            return Result.failed(System.currentTimeMillis(), 0, e, step);
         } else if (matches.size() > 1) {
             KarateException e = new KarateException("more than one step-definition method matched: " + text + " - " + matches);
-            return Result.failed(0, e, step);
+            return Result.failed(System.currentTimeMillis(), 0, e, step);
         }
         MethodMatch match = matches.get(0);
         Object last;
@@ -278,22 +278,24 @@ public class StepRuntime {
             args = match.convertArgs(last);
         } catch (Exception ignored) { // edge case where user error causes [request =] to match [request docstring]
             KarateException e = new KarateException("no step-definition method match found for: " + text);
-            return Result.failed(0, e, step);
+            return Result.failed(System.currentTimeMillis(), 0, e, step);
         }
-        long startTime = System.nanoTime();
+        final long startTime = System.currentTimeMillis();
+        final long startTimeNanos = System.nanoTime();
         try {
             match.method.invoke(actions, args);
+            final long elapsedTimeNanos = getElapsedTimeNanos(startTimeNanos);
             if (actions.isAborted()) {
-                return Result.aborted(getElapsedTimeNanos(startTime), match);
+                return Result.aborted(startTime, elapsedTimeNanos, match);
             } else if (actions.isFailed()) {
-                return Result.failed(getElapsedTimeNanos(startTime), actions.getFailedReason(), step, match);
+                return Result.failed(startTime, elapsedTimeNanos, actions.getFailedReason(), step, match);
             } else {
-                return Result.passed(getElapsedTimeNanos(startTime), match);
+                return Result.passed(startTime, elapsedTimeNanos, match);
             }
         } catch (InvocationTargetException e) {
-            return Result.failed(getElapsedTimeNanos(startTime), e.getTargetException(), step, match);
+            return Result.failed(startTime, getElapsedTimeNanos(startTimeNanos), e.getTargetException(), step, match);
         } catch (Exception e) {
-            return Result.failed(getElapsedTimeNanos(startTime), e, step, match);
+            return Result.failed(startTime, getElapsedTimeNanos(startTimeNanos), e, step, match);
         }
     }
 

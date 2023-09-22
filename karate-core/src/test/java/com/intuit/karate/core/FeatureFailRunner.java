@@ -1,7 +1,6 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.TestUtils;
-import com.intuit.karate.Match;
 import com.intuit.karate.report.Report;
 import com.intuit.karate.report.SuiteReports;
 import java.io.File;

@@ -99,6 +99,34 @@ class KarateMockHandlerTest {
         );
         matchVar("response", "{ foo: ['bar'] }");
     }
+    
+    @Test
+    void testRequestUri() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestUri");
+        run(
+                URL_STEP,
+                "param foo = 'bar'",
+                "path 'hello'",
+                "method get"
+        );
+        matchVar("response", "/hello?foo=bar");
+    }    
+    
+    @Test
+    void testRequestPath() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestPath");
+        run(
+                URL_STEP,
+                "param foo = 'bar'",
+                "path 'hello'",
+                "method get"
+        );
+        matchVar("response", "/hello");
+    }     
 
     @Test
     void testParams() {
@@ -377,6 +405,23 @@ class KarateMockHandlerTest {
     }
 
     @Test
+    void testMultiPartFiles() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestParts");
+        run(
+                URL_STEP,
+                "def file1 = { name: 'file', filename: 'file1.txt', value: 'Hello 1' }", 
+                "def file2 = { name: 'file', filename: 'file2.txt', value: 'Hello 2' }", 
+                "multipart files ([file1, file2])",
+                "path 'hello'",
+                "method post"
+        );
+        runtime.engine.assign(AssignType.STRING, "prevReqBody", "karate.prevRequest.body", false);
+        notContains(get("prevReqBody"), "multipart/mixed");
+    }
+
+    @Test
     void testMultiPartFileNullCharset() {
         background().scenario(
                 "pathMatches('/hello')",
@@ -576,7 +621,7 @@ class KarateMockHandlerTest {
                 URL_STEP,
                 "path '/hello\\\\/world'",
                 "method get",
-                "match response == '/hello/world'"
+                "match response == '/hello%2Fworld'"
         );
     }
 

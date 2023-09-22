@@ -28,6 +28,7 @@ import com.intuit.karate.core.Step;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  *
@@ -35,7 +36,7 @@ import java.util.Map;
  */
 public class Breakpoint {        
     
-    private static int nextId;
+    private static final AtomicInteger NEXT = new AtomicInteger();
     
     public final int id;
     public final int line;
@@ -43,13 +44,12 @@ public class Breakpoint {
     public final String condition;
     
     public Breakpoint(Map<String, Object> map) {
-        id = ++nextId;
+        id = NEXT.incrementAndGet();
         line = (Integer) map.get("line");
         verified = true;
-
         String breakpointCondition = (String) map.get("condition");
         if (breakpointCondition != null) {
-            // remove Cucumber prefix
+            // remove cucumber prefix
             String conditionText = breakpointCondition.trim();
             for (String prefix : Step.PREFIXES) {
                 if (conditionText.startsWith(prefix)) {
@@ -58,7 +58,6 @@ public class Breakpoint {
                 }
             }
             conditionText = conditionText.trim();
-
             // if docstring to get the syntax highlight, remove the triple quotes
             if (conditionText.startsWith(FeatureParser.TRIPLE_QUOTES) && conditionText.endsWith(FeatureParser.TRIPLE_QUOTES)) {
                 conditionText = conditionText.substring(FeatureParser.TRIPLE_QUOTES.length());
@@ -68,7 +67,6 @@ public class Breakpoint {
         } else {
             condition = null;
         }
-
     }
 
     public int getId() {
@@ -77,11 +75,7 @@ public class Breakpoint {
 
     public int getLine() {
         return line;
-    }
-
-    public static int getNextId() {
-        return nextId;
-    }        
+    }       
 
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap();

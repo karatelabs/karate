@@ -3,8 +3,8 @@ Feature:
 @setup
 Scenario:
 * def data = read('data.csv')
-* def exclude = x => data.filter(y => y.id != x)
-* def include = x => data.filter(y => y.id == x)
+* def exclude = karate.wrapFunction(x => data.filter(y => y.id != x))
+* def include = karate.wrapFunction(x => data.filter(y => y.id == x))
 
 Scenario Outline:
 * assert id != '0'

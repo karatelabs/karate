@@ -2,7 +2,7 @@
 set -x -e
 
 # assume that karate jars are installed in maven local repo
-# mvn clean install -P pre-release -DskipTests
+# mvn clean install -DskipTests -P pre-release
 
 KARATE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
 

@@ -10,7 +10,7 @@
     <script type="text/javascript" src="res/jquery.tablesorter.min.js"></script>
     <script type="text/javascript" src="res/bootstrap.min.js"></script>
     <script type="text/javascript" src="res/karate-report.js"></script>
-    <th:block th:insert="karate-posthog.html" th:with="karateEvent: 'report_summary'"></th:block>
+    <th:block th:insert="~{karate-posthog.html}" th:with="karateEvent: 'report_summary'"></th:block>
     <title>Karate Summary Report</title>
   </head>
   <body>
@@ -25,7 +25,7 @@
             reportDate: results.resultDate
           };
         </script>
-        <div th:replace="karate-leftnav.html"></div>
+        <div th:replace="~{karate-leftnav.html}"></div>
       </div>
       <div id="content">
         <div class="page-heading alert alert-primary">

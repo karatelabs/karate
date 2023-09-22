@@ -301,7 +301,6 @@ And you don't need to create additional Java classes for any of the payloads tha
 * Option to invoke via a [Java API](#java-api),  which means that you can easily [mix Karate into Java projects or legacy UI-automation suites](https://stackoverflow.com/q/47795762/143475)
 * [Save significant effort](https://twitter.com/ptrthomas/status/986463717465391104) by re-using Karate test-suites as [Gatling performance tests](karate-gatling) that *deeply* assert that server responses are accurate under load
 * Gatling integration can hook into [*any* custom Java code](https://github.com/karatelabs/karate/tree/master/karate-gatling#custom) - which means that you can perf-test even non-HTTP protocols such as [gRPC](https://github.com/thinkerou/karate-grpc)
-* Built-in [distributed-testing capability](https://github.com/karatelabs/karate/wiki/Distributed-Testing) that works for API, UI and even [load-testing](https://github.com/karatelabs/karate/wiki/Distributed-Testing#gatling) - without needing any complex "grid" infrastructure
 * [API mocks](karate-netty) or test-doubles that even [maintain CRUD 'state'](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) across multiple calls - enabling TDD for micro-services and [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
 * [Async](#async) support that allows you to seamlessly integrate the handling of custom events or listening to message-queues
 * Built-in [HTML templating](https://twitter.com/KarateDSL/status/1338892932691070976) so that you can extend your test-reports into readable specifications
@@ -328,6 +327,7 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 * [Karate entered the ThoughtWorks Tech Radar](https://twitter.com/KarateDSL/status/1120985060843249664) in 2019 and was [upgraded in ranking](https://twitter.com/KarateDSL/status/1262719979104817152) in May 2020
 * [マイクロサービスにおけるテスト自動化 with Karate](https://speakerdeck.com/takanorig/microservices-testing-automation-with-karate) - (*Microservices Test Automation with Karate*) presentation by [Takanori Suzuki](https://twitter.com/takanorig)
 * [Writing API Tests with Karate](https://www.softwaretester.blog/writing-api-tests-with-karate) - book by [Benjamin Bischoff](https://www.softwaretester.blog/about), Packt Publishing, 2023
+* [Karate Webinar](https://www.youtube.com/watch?v=cXDIYpT6zck&t=4333s) - Simplificando automação de API com Karate Framework by [Luana Assis](https://www.linkedin.com/in/luanapassis/) from [Base2 Tecnologia](https://www.base2.com.br/)
 
 Karate also has a dedicated "tag", and a very active and supportive community at [Stack Overflow](https://stackoverflow.com/questions/tagged/karate) - where you can get support and ask questions.
 
@@ -2276,6 +2276,8 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `pauseIfNotPerf` | boolean | defaults to `false`, relevant only for performance-testing, see [`karate.pause()`](#karate-pause) and [`karate-gatling`](karate-gatling#think-time)
 `xmlNamespaceAware` | boolean | defaults to `false`, to handle XML namespaces in [some special circumstances](https://github.com/karatelabs/karate/issues/1587)
 `abortSuiteOnFailure` | boolean | defaults to `false`, to not attempt to run any more tests upon a failure
+`ntlmAuth` | JSON | See [NTLM Authentication](#ntlm-authentication)
+`matchEachEmptyAllowed` | boolean | defaults to `false`, [`match each`](#match-each) by default expects the array to be non-empty, refer to [this issue](https://github.com/karatelabs/karate/issues/2364) to understand why you may want to over-ride this.
 
 Examples:
 ```cucumber
@@ -2413,6 +2415,33 @@ karate.configure('ssl', { trustAll: true });
 ```
 
 For end-to-end examples in the Karate demos, look at the files in [this folder](karate-demo/src/test/java/ssl).
+
+### NTLM Authentication
+Karate provides support for NTLM authentication using the Apache NTLMEngine implementation.
+
+| Key           | Type   | Required? | Description                                                    |
+|---------------|--------|-----------|----------------------------------------------------------------|
+| `username`    | string | required  | NTLM username                                                  |
+| `password`    | string | required  | NTLM password                                                  |
+| `workstation` | string | optional  | The workstation the authentication request is originating from |
+| `domain`      | string | optional  | The domain to authenticate within                              |
+
+Example:
+```cucumber
+# enable NTLM authentication for the remaining scenario requests
+* configure ntlmAuth = { username: 'admin', password: 'secret', domain: 'my.domain', workstation: 'my-pc' }
+
+# enable NTLM authentication with only credentials
+* configure ntlmAuth = { username: 'admin', password: 'secret' }
+
+# disable NTLM authentication
+* configure ntlmAuth = null
+```
+
+```js
+// enable NTLM authentication within js
+karate.confgure('ntlmAuth', { username: 'admin', password: 'secret', domain: 'my.domain', workstation: 'my-pc' })
+```
 
 # Payload Assertions
 ## Prepare, Mutate, Assert.

@@ -71,7 +71,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     protected final Map<Long, Stack<Map<String, Variable>>> FRAME_VARS = new ConcurrentHashMap();
     protected final Map<Long, Entry<String, Variable>> VARIABLES = new ConcurrentHashMap();
 
-    private boolean singleFeature;
+    private List<String> launchArgs;
     private String launchCommand;
     private String preStep;
 
@@ -103,11 +103,11 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         return null;
     }
 
-    protected boolean isBreakpoint(Step step, int line, ScenarioRuntime context) {
+    protected Breakpoint resolveBreakpoint(Step step, int line, ScenarioRuntime context) {
         Feature feature = step.getFeature();
         File file = feature.getResource().getFile();
         if (file == null) {
-            return false;
+            return null;
         }
         String path = normalizePath(file.getPath());
         int pos = findPos(path);
@@ -118,9 +118,9 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             sb = BREAKPOINTS.get(path);
         }
         if (sb == null) {
-            return false;
+            return null;
         }
-        return sb.isBreakpoint(line, context);
+        return sb.resolveBreakpoint(line, context);
     }
 
     protected String normalizePath(String path) {
@@ -263,10 +263,16 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             case "launch":
                 // normally a single feature full path, but can be set with any valid karate.options
                 // for e.g. "-t @smoke -T 5 classpath:demo.feature"
-                String karateOptions = StringUtils.trimToEmpty(req.getArgument("karateOptions", String.class));
-                String feature = StringUtils.trimToEmpty(req.getArgument("feature", String.class));
-                launchCommand = StringUtils.trimToEmpty(karateOptions + " " + feature);
-                singleFeature = karateOptions.length() == 0;
+                launchArgs = req.getArgument("karateArgs", List.class);
+                launchCommand = StringUtils.trimToEmpty(req.getArgument("karateOptions", String.class));
+                String feature = StringUtils.trimToNull(req.getArgument("feature", String.class));
+                if (feature != null) {
+                    if (launchArgs != null) {
+                        launchArgs.add(feature);
+                    } else {
+                        launchCommand = launchCommand + " " + feature;
+                    }
+                } 
                 preStep = StringUtils.trimToNull(req.getArgument("debugPreStep", String.class));
                 if (preStep != null) {
                     logger.debug("using pre-step: {}", preStep);
@@ -415,14 +421,14 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     }
 
     private void start() {
-        logger.debug("command line: {}", launchCommand);
         Main options;
-        if (singleFeature) {
-            options = new Main();
-            options.addPath(launchCommand);
+        if (launchArgs != null) {
+            logger.debug("command args: {}", launchArgs);
+            options = Main.parseKarateArgs(launchArgs);
         } else {
+            logger.debug("command line: {}", launchCommand);
             options = IdeMain.parseIdeCommandLine(launchCommand);
-        }
+        }        
         if (runnerThread != null) {
             runnerThread.interrupt();
         }
@@ -445,13 +451,16 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         runnerThread.start();
     }
 
-    protected void stopEvent(long threadId, String reason, String description) {
+    protected void stopEvent(long threadId, String reason, String description, List<Integer> breakPointIds) {
         channel.eventLoop().execute(() -> {
             DapMessage message = event("stopped")
                     .body("reason", reason)
                     .body("threadId", threadId);
             if (description != null) {
                 message.body("description", description);
+            }
+            if (breakPointIds != null) {
+                message.body("hitBreakpointIds", breakPointIds);
             }
             channel.writeAndFlush(message);
         });
@@ -471,7 +480,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                         .body("exitCode", 0)));
         if (server.isKeepAlive()) {
             server.stop();
-            System.exit(0);
+            // System.exit(0);
         } else {
             logger.debug("Disconnecting current debug session. Debug server listening on port {}", this.server.getPort());
             this.clearDebugSession();

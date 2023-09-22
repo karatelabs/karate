@@ -31,6 +31,11 @@ public class TestUtils {
         Match.Result mr = Match.evaluate(actual).contains(expected);
         assertTrue(mr.pass, mr.message);
     }
+    
+    public static void notContains(Object actual, Object expected) {
+        Match.Result mr = Match.evaluate(actual).isNotContaining(expected);
+        assertTrue(mr.pass, mr.message);
+    }
 
     public static ScenarioEngine engine() {
         return new ScenarioEngine(new Config(), runtime(), new HashMap(), new Logger());

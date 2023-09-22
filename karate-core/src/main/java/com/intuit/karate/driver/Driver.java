@@ -381,7 +381,7 @@ public interface Driver extends Plugin {
     }
 
     @AutoDef
-    default Mouse mouse(int x, int y) {
+    default Mouse mouse(Number x, Number y) {
         return new DriverMouse(this).move(x, y);
     }
 

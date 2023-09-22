@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.intuit.karate</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>1.4.0</version>
+        <version>1.5.0-SNAPSHOT</version>
     </parent>
     <artifactId>karate-core</artifactId>
     <packaging>jar</packaging>   
@@ -93,7 +93,7 @@
         <dependency>
             <groupId>io.github.classgraph</groupId>
             <artifactId>classgraph</artifactId>
-            <version>4.8.152</version>
+            <version>4.8.160</version>
         </dependency>
         <dependency>
             <groupId>io.github.t12y</groupId>
@@ -180,7 +180,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-shade-plugin</artifactId>
-                        <version>${maven.shade.version}</version>
+                        <version>${maven.shade.version}</version>                       
                         <executions>
                             <execution>
                                 <phase>package</phase>
@@ -190,6 +190,7 @@
                                 <configuration>
                                     <shadedArtifactAttached>true</shadedArtifactAttached>
                                     <shadedClassifierName>all</shadedClassifierName>
+                                    <createDependencyReducedPom>false</createDependencyReducedPom>
                                     <artifactSet>
                                         <includes>
                                             <include>com.linecorp.armeria:*</include>

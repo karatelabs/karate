@@ -155,8 +155,9 @@ public class Match {
         final String path;
         final String name;
         final int index;
+        final boolean matchEachEmptyAllowed;
 
-        Context(JsEngine js, MatchOperation root, boolean xml, int depth, String path, String name, int index) {
+        Context(JsEngine js, MatchOperation root, boolean xml, int depth, String path, String name, int index, boolean matchEachEmptyAllowed) {
             this.JS = js;
             this.root = root;
             this.xml = xml;
@@ -164,24 +165,25 @@ public class Match {
             this.path = path;
             this.name = name;
             this.index = index;
+            this.matchEachEmptyAllowed = matchEachEmptyAllowed;
         }
 
         Context descend(String name) {
             if (xml) {
                 String childPath = path.endsWith("/@") ? path + name : (depth == 0 ? "" : path) + "/" + name;
-                return new Context(JS, root, xml, depth + 1, childPath, name, -1);
+                return new Context(JS, root, xml, depth + 1, childPath, name, -1, matchEachEmptyAllowed);
             } else {
                 boolean needsQuotes = name.indexOf('-') != -1 || name.indexOf(' ') != -1 || name.indexOf('.') != -1;
                 String childPath = needsQuotes ? path + "['" + name + "']" : path + '.' + name;
-                return new Context(JS, root, xml, depth + 1, childPath, name, -1);
+                return new Context(JS, root, xml, depth + 1, childPath, name, -1, matchEachEmptyAllowed);
             }
         }
 
         Context descend(int index) {
             if (xml) {
-                return new Context(JS, root, xml, depth + 1, path + "[" + (index + 1) + "]", name, index);
+                return new Context(JS, root, xml, depth + 1, path + "[" + (index + 1) + "]", name, index, matchEachEmptyAllowed);
             } else {
-                return new Context(JS, root, xml, depth + 1, path + "[" + index + "]", name, index);
+                return new Context(JS, root, xml, depth + 1, path + "[" + index + "]", name, index, matchEachEmptyAllowed);
             }
         }
 
@@ -363,7 +365,7 @@ public class Match {
         }
 
         public Result is(Type matchType, Object expected) {
-            MatchOperation mo = new MatchOperation(matchType, this, new Value(parseIfJsonOrXmlString(expected), exceptionOnMatchFailure));
+            MatchOperation mo = new MatchOperation(matchType, this, new Value(parseIfJsonOrXmlString(expected), exceptionOnMatchFailure), false);
             mo.execute();
             if (mo.pass) {
                 return Match.PASS;
@@ -439,8 +441,8 @@ public class Match {
 
     }
 
-    public static Result execute(JsEngine js, Type matchType, Object actual, Object expected) {
-        MatchOperation mo = new MatchOperation(js, matchType, new Value(actual), new Value(expected));
+    public static Result execute(JsEngine js, Type matchType, Object actual, Object expected, boolean matchEachEmptyAllowed) {
+        MatchOperation mo = new MatchOperation(js, matchType, new Value(actual), new Value(expected), matchEachEmptyAllowed);
         mo.execute();
         if (mo.pass) {
             return PASS;

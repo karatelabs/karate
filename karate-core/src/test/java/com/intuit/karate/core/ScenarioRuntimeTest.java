@@ -85,6 +85,15 @@ class ScenarioRuntimeTest {
         );
         assertEquals(5, get("arrSize"));
     }
+    
+    @Test
+    void testSizeOfForByteArrays() {
+        run(
+                "bytes data = 'foo'",
+                "def arrSize = karate.sizeOf(data)"
+        );
+        assertEquals(3, get("arrSize"));        
+    }
 
     @Test
     void testConfigAndEnv() {
@@ -764,8 +773,9 @@ class ScenarioRuntimeTest {
         run(
                 "def temp = { foo: '#string' }",
                 "def schema = '#[] temp'",
-                "match [] == schema",
-                "match [{ foo: 'bar' }] == schema"
+                "match [{ foo: 'bar' }] == schema",
+                "configure matchEachEmptyAllowed = true",
+                "match [] == schema"
         );
     }
 

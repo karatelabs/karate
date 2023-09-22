@@ -52,40 +52,43 @@ public class MatchOperation {
     final Match.Value actual;
     final Match.Value expected;
     final List<MatchOperation> failures;
+    // TODO merge this with Match.Type which should be a complex object not an enum
+    final boolean matchEachEmptyAllowed;
 
     boolean pass = true;
     private String failReason;
 
-    MatchOperation(Match.Type type, Match.Value actual, Match.Value expected) {
-        this(JsEngine.global(), null, type, actual, expected);
+    MatchOperation(Match.Type type, Match.Value actual, Match.Value expected, boolean matchEachEmptyAllowed) {
+        this(JsEngine.global(), null, type, actual, expected, matchEachEmptyAllowed);
     }
 
-    MatchOperation(JsEngine js, Match.Type type, Match.Value actual, Match.Value expected) {
-        this(js, null, type, actual, expected);
+    MatchOperation(JsEngine js, Match.Type type, Match.Value actual, Match.Value expected, boolean matchEachEmptyAllowed) {
+        this(js, null, type, actual, expected, matchEachEmptyAllowed);
     }
 
-    MatchOperation(Match.Context context, Match.Type type, Match.Value actual, Match.Value expected) {
-        this(null, context, type, actual, expected);
+    MatchOperation(Match.Context context, Match.Type type, Match.Value actual, Match.Value expected, boolean matchEachEmptyAllowed) {
+        this(null, context, type, actual, expected, matchEachEmptyAllowed);
     }
 
-    private MatchOperation(JsEngine js, Match.Context context, Match.Type type, Match.Value actual, Match.Value expected) {
+    private MatchOperation(JsEngine js, Match.Context context, Match.Type type, Match.Value actual, Match.Value expected, boolean matchEachEmptyAllowed) {
         this.type = type;
         this.actual = actual;
         this.expected = expected;
+        this.matchEachEmptyAllowed = matchEachEmptyAllowed;
         if (context == null) {
             if (js == null) {
                 js = JsEngine.global();
             }
             this.failures = new ArrayList();
             if (actual.isXml()) {
-                this.context = new Match.Context(js, this, true, 0, "/", "", -1);
+                this.context = new Match.Context(js, this, true, 0, "/", "", -1, matchEachEmptyAllowed);
             } else {
-                this.context = new Match.Context(js, this, false, 0, "$", "", -1);
+                this.context = new Match.Context(js, this, false, 0, "$", "", -1, matchEachEmptyAllowed);
             }
         } else {
             this.context = context;
             this.failures = context.root.failures;
-        }
+        }        
     }
 
     private Match.Type fromMatchEach() {
@@ -159,12 +162,15 @@ public class MatchOperation {
             case EACH_CONTAINS_DEEP:
                 if (actual.isList()) {
                     List list = actual.getValue();
-                    Match.Type nestedMatchType = fromMatchEach();
+                    if (list.isEmpty() && !matchEachEmptyAllowed) {
+                        return fail("match each failed, empty array / list");
+                    }
+                    Match.Type nestedMatchType = fromMatchEach();                    
                     int count = list.size();
                     for (int i = 0; i < count; i++) {
                         Object o = list.get(i);
                         context.JS.put("_$", o);
-                        MatchOperation mo = new MatchOperation(context.descend(i), nestedMatchType, new Match.Value(o), expected);
+                        MatchOperation mo = new MatchOperation(context.descend(i), nestedMatchType, new Match.Value(o), expected, matchEachEmptyAllowed);
                         mo.execute();
                         context.JS.bindings.removeMember("_$");
                         if (!mo.pass) {
@@ -195,7 +201,7 @@ public class MatchOperation {
                 case CONTAINS_ANY_DEEP:
                     // don't tamper with strings on the RHS that represent arrays or objects
                     if (!expected.isList() && !(expected.isString() && expected.isArrayObjectOrReference())) {
-                        MatchOperation mo = new MatchOperation(context, type, actual, new Match.Value(Collections.singletonList(expected.getValue())));
+                        MatchOperation mo = new MatchOperation(context, type, actual, new Match.Value(Collections.singletonList(expected.getValue())), matchEachEmptyAllowed);
                         mo.execute();
                         return mo.pass ? pass() : fail(mo.failReason);
                     }
@@ -205,7 +211,7 @@ public class MatchOperation {
             }
             if (expected.isXml() && actual.isMap()) {
                 // special case, auto-convert rhs                
-                MatchOperation mo = new MatchOperation(context, type, actual, new Match.Value(XmlUtils.toObject(expected.getValue(), true)));
+                MatchOperation mo = new MatchOperation(context, type, actual, new Match.Value(XmlUtils.toObject(expected.getValue(), true)), matchEachEmptyAllowed);
                 mo.execute();
                 return mo.pass ? pass() : fail(mo.failReason);
             }
@@ -281,7 +287,7 @@ public class MatchOperation {
                 JsValue jv = context.JS.eval(macro);
                 context.JS.bindings.removeMember("$");
                 context.JS.bindings.removeMember("_");
-                MatchOperation mo = new MatchOperation(context, nestedType, actual, new Match.Value(jv.getValue()));
+                MatchOperation mo = new MatchOperation(context, nestedType, actual, new Match.Value(jv.getValue()), matchEachEmptyAllowed);
                 return mo.execute();
             } else if (macro.startsWith("[")) {
                 int closeBracketPos = macro.indexOf(']');
@@ -318,7 +324,7 @@ public class MatchOperation {
                                 macro = "#" + macro;
                             }
                             if (macro.startsWith("#")) {
-                                MatchOperation mo = new MatchOperation(context, Match.Type.EACH_EQUALS, actual, new Match.Value(macro));
+                                MatchOperation mo = new MatchOperation(context, Match.Type.EACH_EQUALS, actual, new Match.Value(macro), matchEachEmptyAllowed);
                                 mo.execute();
                                 return mo.pass ? pass() : fail("all array elements matched");
                             } else { // schema reference
@@ -326,7 +332,7 @@ public class MatchOperation {
                                 int startPos = matchTypeToStartPos(nestedType);
                                 macro = macro.substring(startPos);
                                 JsValue jv = context.JS.eval(macro);
-                                MatchOperation mo = new MatchOperation(context, nestedType, actual, new Match.Value(jv.getValue()));
+                                MatchOperation mo = new MatchOperation(context, nestedType, actual, new Match.Value(jv.getValue()), matchEachEmptyAllowed);
                                 return mo.execute();
                             }
                         }
@@ -442,7 +448,7 @@ public class MatchOperation {
                 for (int i = 0; i < actListCount; i++) {
                     Match.Value actListValue = new Match.Value(actList.get(i));
                     Match.Value expListValue = new Match.Value(expList.get(i));
-                    MatchOperation mo = new MatchOperation(context.descend(i), Match.Type.EQUALS, actListValue, expListValue);
+                    MatchOperation mo = new MatchOperation(context.descend(i), Match.Type.EQUALS, actListValue, expListValue, matchEachEmptyAllowed);
                     mo.execute();
                     if (!mo.pass) {
                         return fail("array match failed at index " + i);
@@ -507,7 +513,7 @@ public class MatchOperation {
             } else {
                 childMatchType = Match.Type.EQUALS;
             }
-            MatchOperation mo = new MatchOperation(context.descend(key), childMatchType, childActValue, new Match.Value(childExp));
+            MatchOperation mo = new MatchOperation(context.descend(key), childMatchType, childActValue, new Match.Value(childExp), matchEachEmptyAllowed);
             mo.execute();
             if (mo.pass) {
                 if (type == Match.Type.CONTAINS_ANY || type == Match.Type.CONTAINS_ANY_DEEP) {
@@ -582,7 +588,7 @@ public class MatchOperation {
                             default:
                                 childMatchType = Match.Type.EQUALS;
                         }
-                        MatchOperation mo = new MatchOperation(context.descend(i), childMatchType, actListValue, expListValue);
+                        MatchOperation mo = new MatchOperation(context.descend(i), childMatchType, actListValue, expListValue, matchEachEmptyAllowed);
                         mo.execute();
                         if (mo.pass) {
                             if (type == Match.Type.CONTAINS_ANY || type == Match.Type.CONTAINS_ANY_DEEP) {

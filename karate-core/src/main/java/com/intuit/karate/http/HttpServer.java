@@ -96,6 +96,7 @@ public class HttpServer {
         public HttpServer build() {
             ServerBuilder sb = Server.builder();
             sb.requestTimeoutMillis(0);
+            sb.maxRequestLength(0);
             if (ssl) {
                 if (local) {
                     sb.localPort(port, SessionProtocol.HTTPS);
@@ -118,7 +119,7 @@ public class HttpServer {
             if (corsEnabled) {
                 service = service.decorate(CorsService.builderForAnyOrigin().allowAllRequestHeaders(true).newDecorator());
             }
-            sb.service("prefix:/", service);
+            sb.service("prefix:/", service);            
             return new HttpServer(sb);
         }
 
