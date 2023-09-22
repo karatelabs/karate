@@ -1,12 +1,15 @@
-FROM maven:3-jdk-17
+FROM maven:3-amazoncorretto-17-debian
 
 LABEL maintainer="Peter Thomas"
 LABEL url="https://github.com/karatelabs/karate/tree/master/karate-docker/karate-chrome"
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    gnupg2
+
 RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
   && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
-  && apt-get update \
-  && apt-get install -y --no-install-recommends \
+  && apt-get update && apt-get install -y --no-install-recommends \
     google-chrome-stable
 
 RUN useradd chrome --shell /bin/bash --create-home \
