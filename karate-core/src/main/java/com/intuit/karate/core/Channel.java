@@ -33,7 +33,7 @@ public interface Channel {
     
     void produce(ScenarioRuntime runtime);
     
-    ChannelSession consume(ScenarioRuntime runtime, String topic);
+    ChannelSession consume(ScenarioRuntime runtime);
     
     void register(ScenarioRuntime runtime, Map<String, Object> data);
     
