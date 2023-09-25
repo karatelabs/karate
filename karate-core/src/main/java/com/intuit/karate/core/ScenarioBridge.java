@@ -300,8 +300,8 @@ public class ScenarioBridge implements PerfContext {
         getEngine().configure(key, new Variable(value));
     }
     
-    public Object consume(String type, String topic) {
-        return getEngine().consume(type, topic);
+    public Object consume(String type) {
+        return getEngine().consume(type);
     }
 
     public Object distinct(Value o) {
