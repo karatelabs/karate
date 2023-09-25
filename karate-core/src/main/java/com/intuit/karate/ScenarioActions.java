@@ -450,6 +450,12 @@ public class ScenarioActions implements Actions {
     @When("^value (.+)")
     public void value(String exp) {
         engine.value(exp);
-    }     
+    }   
+    
+    @Override
+    @When("^value$")
+    public void valueDocString(String exp) {
+        engine.value(exp);
+    }    
     
 }
