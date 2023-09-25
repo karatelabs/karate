@@ -167,5 +167,7 @@ public interface Actions {
     void key(String exp);
     
     void value(String exp);
+    
+    void valueDocString(String exp);
 
 }
