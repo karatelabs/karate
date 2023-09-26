@@ -444,6 +444,18 @@ public class ScenarioActions implements Actions {
     @When("^key (.+)")
     public void key(String exp) {
         engine.key(exp);
+    }
+
+    @Override
+    @When("^value (.+)")
+    public void value(String exp) {
+        engine.value(exp);
+    }   
+    
+    @Override
+    @When("^value$")
+    public void valueDocString(String exp) {
+        engine.value(exp);
     }    
     
 }

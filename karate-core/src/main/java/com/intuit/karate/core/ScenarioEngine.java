@@ -740,7 +740,11 @@ public class ScenarioEngine {
     private static String getFactory(String channelType) {
         switch (channelType) {
             case Config.KAFKA:
-                return "io.karatelabs.karate.kafka.KafkaChannelFactory";
+                return "io.karatelabs.kafka.KafkaChannelFactory";
+            case Config.GRPC:
+                return "io.karatelabs.grpc.GrpcChannelFactory";
+            case Config.WEBSOCKET:
+                return "io.karatelabs.websocket.WebsocketChannelFactory";
             default:
                 throw new RuntimeException("unknown channel type");
         }
@@ -767,9 +771,9 @@ public class ScenarioEngine {
         channel.produce(runtime);
     }
     
-    public ChannelSession consume(String type, String topic) {
+    public ChannelSession consume(String type) {
         Channel channel = channel(type);
-        return channel.consume(runtime, topic);        
+        return channel.consume(runtime);        
     }
     
     public void register(String expression) {
@@ -793,6 +797,10 @@ public class ScenarioEngine {
         Variable v = evalKarateExpression(exp);
         requestBuilder.setKey(v.getAsString());
     }    
+    
+    public void value(String exp) {
+        request(exp);
+    }     
 
     // http mock ===============================================================
     //
