@@ -67,12 +67,15 @@ class ReportUtilsTest {
 
     @Test
     void testCustomTags() {
-        String expectedCustomTags = "<properties><property name=\"requirement\" value=\"CALC-2\"/><property name=\"test_key\" value=\"CALC-2\"/></properties>";
+        String expectedCustomTagsOption1 = "<properties><property name=\"requirement\" value=\"CALC-2\"/><property name=\"test_key\" value=\"CALC-2\"/></properties>";
+        String expectedCustomTagsOption2 = "<properties><property name=\"test_key\" value=\"CALC-2\"/><property name=\"requirement\" value=\"CALC-2\"/></properties>";
+
         Feature feature = Feature.read("classpath:com/intuit/karate/report/customTags.feature");
         FeatureRuntime fr = FeatureRuntime.of(new Suite(), new FeatureCall(feature));
         fr.run();
         File file = ReportUtils.saveJunitXml("target", fr.result, null);
-        assertTrue(FileUtils.toString(file).contains(expectedCustomTags));
+        String xmlString = FileUtils.toString(file);
+        assertTrue(xmlString.contains(expectedCustomTagsOption1) || xmlString.contains(expectedCustomTagsOption2));
     }
 
 }
