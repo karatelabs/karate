@@ -12,12 +12,12 @@
         <java.version>11</java.version>
         <maven.compiler.version>3.11.0</maven.compiler.version>
         <maven.surefire.version>3.0.0</maven.surefire.version>
-        <karate.version>1.4.0</karate.version>
+        <karate.version>1.5.0.RC1</karate.version>
     </properties>    
 
     <dependencies>         
         <dependency>
-            <groupId>com.intuit.karate</groupId>
+            <groupId>io.karatelabs</groupId>
             <artifactId>karate-junit5</artifactId>
             <version>${karate.version}</version>
             <scope>test</scope>
