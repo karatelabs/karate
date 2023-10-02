@@ -2278,6 +2278,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `abortSuiteOnFailure` | boolean | defaults to `false`, to not attempt to run any more tests upon a failure
 `ntlmAuth` | JSON | See [NTLM Authentication](#ntlm-authentication)
 `matchEachEmptyAllowed` | boolean | defaults to `false`, [`match each`](#match-each) by default expects the array to be non-empty, refer to [this issue](https://github.com/karatelabs/karate/issues/2364) to understand why you may want to over-ride this.
+`httpRetryEnabled` | boolean | defaults to `false`, retry when the http requests fails with an exception `org.apache.httpNoHttpResponseException`.  For details see [this issue](https://github.com/karatelabs/karate/issues/2408)
 
 Examples:
 ```cucumber

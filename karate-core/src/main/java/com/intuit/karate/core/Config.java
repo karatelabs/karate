@@ -117,6 +117,7 @@ public class Config {
 
     // ntlm authentication
     private boolean ntlmEnabled = false;
+    private boolean httpRetryEnabled = false;
     private String ntlmUsername;
     private String ntlmPassword;
     private String ntlmDomain;
@@ -383,6 +384,7 @@ public class Config {
         imageComparisonOptions = parent.imageComparisonOptions;
         matchEachEmptyAllowed = parent.matchEachEmptyAllowed;
         ntlmEnabled = parent.ntlmEnabled;
+        httpRetryEnabled = parent.httpRetryEnabled;
         ntlmUsername = parent.ntlmUsername;
         ntlmPassword = parent.ntlmPassword;
         ntlmDomain = parent.ntlmDomain;
@@ -512,6 +514,12 @@ public class Config {
     public boolean isPrintEnabled() {
         return printEnabled;
     }
+
+    public boolean isHttpRetryEnabled()
+    {
+        return httpRetryEnabled;
+    }
+
 
     public Map<String, Map<String, Object>> getCustomOptions() {
         return customOptions;
@@ -665,4 +673,8 @@ public class Config {
         this.ntlmWorkstation = ntlmWorkstation;
     }
 
+    public void setHttpRetryEnabled(boolean httpRetryEnabled)
+    {
+        this.httpRetryEnabled = httpRetryEnabled;
+    }
 }
