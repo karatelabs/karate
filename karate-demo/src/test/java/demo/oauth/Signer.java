@@ -41,7 +41,7 @@ public static void sign(String token, Map<String, String> params) {
         String tokenClientSlat = "";
         for (Map.Entry<String, String> entry : params.entrySet()) {
             String key = entry.getKey();
-            if (key.equals("token_client_salt")) {
+            if ("token_client_salt".equals(key)) {
                 tokenClientSlat = entry.getValue();
             }
             String paramString = key + "=" + entry.getValue();

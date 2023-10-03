@@ -62,7 +62,7 @@ public class HeadersController {
             @RequestParam String url) {
         String temp = tokens.get(token);
         String auth = authorization[0];
-        if (auth.equals("dummy")) {
+        if ("dummy".equals(auth)) {
             auth = authorization[1];
         }
         if (temp.equals(time) && auth.equals(token + time + url)) {

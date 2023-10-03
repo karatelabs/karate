@@ -77,7 +77,7 @@ public class EchoController {
     
     @PostMapping("/binary")
     public Binary create(@RequestBody Binary bin) {
-        if (!bin.getMessage().equals("hello")) {
+        if (!"hello".equals(bin.getMessage())) {
             throw new RuntimeException("expected message 'hello' but was: " + bin.getMessage());
         }
         if (!Arrays.equals("hello".getBytes(), bin.getData())) {
