@@ -516,6 +516,7 @@ Scenario: Xml whitespace trim after print bug fix
 * match setForecastRequestXml //myelement == 'T '
 * print setForecastRequestXml
 * match setForecastRequestXml //myelement == 'T '
+* match setForecastRequestXml //myelement != 'T'
 
 Scenario: Xml whitespace trim after karate.log bug fix
 * def setForecastRequestXml =
@@ -527,3 +528,4 @@ Scenario: Xml whitespace trim after karate.log bug fix
 * match setForecastRequestXml //myelement == ' T '
 * karate.log(setForecastRequestXml)
 * match setForecastRequestXml //myelement == ' T '
+* match setForecastRequestXml //myelement != 'T'
