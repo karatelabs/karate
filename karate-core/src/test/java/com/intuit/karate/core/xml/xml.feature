@@ -505,3 +505,25 @@ Scenario: xml matching involving karate-schema substitutions
 </root>
 """
 * match test2 == schema
+
+Scenario: Xml whitespace trim after print bug fix
+* def setForecastRequestXml =
+    """
+    <myroot>
+        <myelement>T </myelement>
+    </myroot>
+    """
+* match setForecastRequestXml //myelement == 'T '
+* print setForecastRequestXml
+* match setForecastRequestXml //myelement == 'T '
+
+Scenario: Xml whitespace trim after karate.log bug fix
+* def setForecastRequestXml =
+    """
+    <myroot>
+        <myelement> T </myelement>
+    </myroot>
+    """
+* match setForecastRequestXml //myelement == ' T '
+* karate.log(setForecastRequestXml)
+* match setForecastRequestXml //myelement == ' T '
