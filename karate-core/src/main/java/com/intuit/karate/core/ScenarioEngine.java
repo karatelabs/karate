@@ -760,7 +760,12 @@ public class ScenarioEngine {
         } catch (KarateException ke) {
             throw ke;
         } catch (Exception e) {
-            String message = "cannot instantiate " + type + ", is 'karate-" + type + "' included as a maven / gradle dependency ? " + e.getMessage();
+            String message;
+            if (e instanceof ClassNotFoundException) {
+                message = "cannot instantiate [" + type + "], is 'karate-" + type + "' included as a maven / gradle dependency ?";
+            } else {
+                message = e.getMessage();
+            }
             logger.error(message);
             throw new RuntimeException(message, e);
         }        

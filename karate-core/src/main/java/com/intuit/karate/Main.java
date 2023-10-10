@@ -25,7 +25,6 @@ package com.intuit.karate;
 
 import com.intuit.karate.core.MockServer;
 import com.intuit.karate.core.RuntimeHookFactory;
-import com.intuit.karate.debug.DapServer;
 import com.intuit.karate.http.HttpServer;
 import com.intuit.karate.http.RequestHandler;
 import com.intuit.karate.http.ServerConfig;
@@ -126,9 +125,6 @@ public class Main implements Callable<Void> {
             description = "debug mode (optional port else dynamically chosen)")
     int debugPort;
 
-    @Option(names = {"--debug-keepalive"}, defaultValue = "false", arity = "0..1", fallbackValue = "true", description = "keep debug server open for connections after disconnect")
-    boolean keepDebugServerAlive;
-
     @Option(names = {"-D", "--dryrun"}, description = "dry run, generate html reports only")
     boolean dryRun;
 
@@ -200,10 +196,10 @@ public class Main implements Callable<Void> {
         String[] args = Command.tokenize(line);
         return CommandLine.populateCommand(new Main(), args);
     }
-    
+
     public static Main parseKarateArgs(List<String> args) {
         return CommandLine.populateCommand(new Main(), args.toArray(new String[args.size()]));
-    }    
+    }
 
     // matches ( -X XXX )* (XXX)
     private static final Pattern CLI_ARGS = Pattern.compile("(\\s*-{1,2}\\w\\s\\S*\\s*)*(.*)$");
@@ -322,8 +318,15 @@ public class Main implements Callable<Void> {
             logger.info("deleted directory: {}", output);
         }
         if (debugPort != -1) {
-            DapServer server = new DapServer(debugPort, !keepDebugServerAlive);
-            server.waitSync();
+            try {
+                Class clazz = Class.forName("io.karatelabs.debug.Main");
+                Method method = clazz.getMethod("main", String[].class);
+                String[] params = new String[]{debugPort + ""};
+                method.invoke(null, (Object) params);
+            } catch (Exception e) {
+                String message = "error: debug server failed, is 'karate-debugserver' added as a dependency ?";
+                System.out.println(message);
+            }
             return null;
         }
         if (paths != null) {
