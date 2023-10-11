@@ -72,10 +72,13 @@ public class XmlUtils {
     }
 
     public static String toString(Node node, boolean pretty) {
+        Node nodeToSerialize = node;
+        // In case of pretty string, we clone the node so that we don't modify the original node while trimming whitespaces
         if (pretty) {
-            trimWhiteSpace(node);
+            nodeToSerialize = node.cloneNode(true);
+            trimWhiteSpace(nodeToSerialize);
         }
-        DOMSource domSource = new DOMSource(node);
+        DOMSource domSource = new DOMSource(nodeToSerialize);
         StringWriter writer = new StringWriter();
         StreamResult result = new StreamResult(writer);
         TransformerFactory tf = TransformerFactory.newInstance();
