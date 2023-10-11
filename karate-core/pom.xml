@@ -48,6 +48,12 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- can be removed once httpclient is upgraded -->
+        <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+            <version>1.16.0</version>
+        </dependency>        
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
