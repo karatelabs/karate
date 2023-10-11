@@ -39,10 +39,10 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
     - name: docker push
       run: |        
-        docker tag karate-chrome ptrthomas/karate-chrome:${{ github.event.inputs.version }}
-        docker tag karate-chrome ptrthomas/karate-chrome:latest
-        docker push ptrthomas/karate-chrome:${{ github.event.inputs.version }}
-        docker push ptrthomas/karate-chrome:latest
+        docker tag karate-chrome karatelabs/karate-chrome:${{ github.event.inputs.version }}
+        docker tag karate-chrome karatelabs/karate-chrome:latest
+        docker push karatelabs/karate-chrome:${{ github.event.inputs.version }}
+        docker push karatelabs/karate-chrome:latest
     - name: maven deploy to central
       env:
         MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
