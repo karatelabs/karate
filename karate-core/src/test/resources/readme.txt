@@ -14,7 +14,6 @@ mvn versions:set versions:commit -DnewVersion=@@@
 # edit archetype karate.version
 # edit README.md maven 3 places
 # edit examples/gatling/build.gradle
-# edit examples/jobserver/build.gradle
 # edit examples/*/pom.xml
 # edit jbang-catalog.json
 
