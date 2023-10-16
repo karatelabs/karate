@@ -433,7 +433,7 @@ Combined with Docker, headless Chrome and Karate's [parallel-execution capabilit
 Karate has a built-in implementation for Docker ([`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarget.java)) that supports 2 existing Docker images out of the box:
 
 * [`justinribeiro/chrome-headless`](https://hub.docker.com/r/justinribeiro/chrome-headless/) - for Chrome "native" in [headless mode](https://developers.google.com/web/updates/2017/04/headless-chrome)
-* [`ptrthomas/karate-chrome`](#karate-chrome) - for Chrome "native" but with an option to connect to the container and view via VNC, and with video-recording
+* [`karatelabs/karate-chrome`](#karate-chrome) - for Chrome "native" but with an option to connect to the container and view via VNC, and with video-recording
 
 To use either of the above, you do this in a Karate test:
 
@@ -449,7 +449,7 @@ function fn() {
         baseUrl: 'https://qa.mycompany.com'
     };
     if (karate.env == 'ci') {
-        karate.configure('driverTarget', { docker: 'ptrthomas/karate-chrome' });
+        karate.configure('driverTarget', { docker: 'karatelabs/karate-chrome' });
     }
     return config;
 }
@@ -458,7 +458,7 @@ function fn() {
 To use the [recommended `--security-opt seccomp=chrome.json` Docker option](https://hub.docker.com/r/justinribeiro/chrome-headless/), add a `secComp` property to the `driverTarget` configuration. And if you need to view the container display via VNC, set the `vncPort` to map the port exposed by Docker.
 
 ```javascript
-karate.configure('driverTarget', { docker: 'ptrthomas/karate-chrome', secComp: 'src/test/java/chrome.json', vncPort: 5900 });
+karate.configure('driverTarget', { docker: 'karatelabs/karate-chrome', secComp: 'src/test/java/chrome.json', vncPort: 5900 });
 ```
 
 ### Custom `Target`
@@ -487,7 +487,7 @@ If the machine where you are running Karate is not the same as your target host 
 Another (simple) example of a custom `Target` you can use as a reference is this one: [`karate-devicefarm-demo`](https://github.com/ptrthomas/karate-devicefarm-demo) - which demonstrates how Karate can be used to drive tests on [AWS DeviceFarm](https://docs.aws.amazon.com/devicefarm/latest/testgrid/what-is-testgrid.html). The same approach should apply to any Selenium "grid" provider such as [Zalenium](https://opensource.zalando.com/zalenium/).
 
 ### `karate-chrome`
-The [`karate-chrome`](https://hub.docker.com/r/ptrthomas/karate-chrome) Docker is an image created from scratch, using a Java / Maven image as a base and with the following features:
+The [`karate-chrome`](https://hub.docker.com/r/karatelabs/karate-chrome) Docker is an image created from scratch, using a Java / Maven image as a base and with the following features:
 
 * Chrome in "full" mode (non-headless)
 * [Chrome DevTools protocol](https://chromedevtools.github.io/devtools-protocol/) exposed on port 9222
@@ -498,7 +498,7 @@ The [`karate-chrome`](https://hub.docker.com/r/ptrthomas/karate-chrome) Docker i
 To try this or especially when you need to investigate why a test is not behaving properly when running within Docker, these are the steps:
 
 * start the container:
-  * `docker run --name karate --rm -p 9222:9222 -p 5900:5900 -e KARATE_SOCAT_START=true --cap-add=SYS_ADMIN ptrthomas/karate-chrome`
+  * `docker run --name karate --rm -p 9222:9222 -p 5900:5900 -e KARATE_SOCAT_START=true --cap-add=SYS_ADMIN karatelabs/karate-chrome`
   * it is recommended to use [`--security-opt seccomp=chrome.json`](https://hub.docker.com/r/justinribeiro/chrome-headless/) instead of `--cap-add=SYS_ADMIN`
 * point your VNC client to `localhost:5900` (password: `karate`)
   * for example on a Mac you can use this command: `open vnc://localhost:5900`
