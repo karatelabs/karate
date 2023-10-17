@@ -51,7 +51,7 @@
     <img src="https://img.shields.io/maven-central/v/com.intuit.karate/karate-core.svg"/>
   </a>
   <a href="https://github.com/karatelabs/karate/actions?query=workflow%3Amaven-build">
-    <img src="https://github.com/karatelabs/karate/workflows/maven-build/badge.svg"/>
+    <img src="https://github.com/karatelabs/karate/actions/workflows/maven-build.yml/badge.svg?branch=develop"/>
   </a>
   <a href="https://github.com/karatelabs/karate/releases">
     <img src="https://img.shields.io/github/release/karatelabs/karate.svg"/>
