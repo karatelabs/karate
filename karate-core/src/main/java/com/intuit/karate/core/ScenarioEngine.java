@@ -491,6 +491,9 @@ public class ScenarioEngine {
         if (name != null) {
             map.put("name", name);
         }
+        if(value instanceof Integer || value instanceof Float || value instanceof Double) {
+            value = value.toString();
+        }
         if (value instanceof Map) {
             map.putAll((Map) value);
             String toRead = (String) map.get("read");

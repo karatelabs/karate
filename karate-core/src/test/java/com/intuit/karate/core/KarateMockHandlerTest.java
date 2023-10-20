@@ -391,6 +391,36 @@ class KarateMockHandlerTest {
     }
 
     @Test
+    void testMultiPartFieldWithInteger() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestParams");
+        run(
+                URL_STEP,
+                "def data = { foo: 'a', bar: 1}",
+                "multipart fields data",
+                "path 'hello'",
+                "method post"
+        );
+        matchVar("response", "{  foo: ['a'], bar: ['1'] } }");
+    }
+
+    @Test
+    void testMultiPartFieldWithFloat() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def response = requestParams");
+        run(
+                URL_STEP,
+                "def data = { foo: 1, bar: 2.0}",
+                "multipart fields data",
+                "path 'hello'",
+                "method post"
+        );
+        matchVar("response", "{ foo: ['1'], bar: ['2.0'] } }");
+    }
+
+    @Test
     void testMultiPartFile() {
         background().scenario(
                 "pathMatches('/hello')",
