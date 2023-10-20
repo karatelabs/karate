@@ -491,7 +491,7 @@ public class ScenarioEngine {
         if (name != null) {
             map.put("name", name);
         }
-        if(value instanceof Integer || value instanceof Float || value instanceof Double) {
+        if(value instanceof Number) {
             value = value.toString();
         }
         if (value instanceof Map) {
