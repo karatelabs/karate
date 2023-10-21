@@ -2,9 +2,9 @@ name: maven-build
 
 on:
   push:
-    branches: [ master, develop, jdk17 ]
+    branches: [ master, develop ]
   pull_request:
-    branches: [ master, develop, jdk17 ]
+    branches: [ master, develop ]
 
 jobs:
   build:

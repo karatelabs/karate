@@ -2,7 +2,7 @@ name: jdk-compat
 
 on:
   push:
-    branches: [ develop, jdk17 ]
+    branches: [ develop ]
 
 jobs:
   build:
@@ -15,7 +15,7 @@ jobs:
       uses: oracle-actions/setup-java@v1
       with:
         website: jdk.java.net
-        release: 21
+        release: 22
     - name: cache maven packages
       uses: actions/cache@v3
       with:
