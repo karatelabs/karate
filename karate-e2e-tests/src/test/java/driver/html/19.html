@@ -12,7 +12,10 @@
     <tr>
         <td><span id="w">Span <b id="w_nested">West</b></span></td><td><i>Center</i></td><td><span id="e">Span <b>East</b></span></td>        
     </tr>
-
+    <tr>
+        <!-- Addind an extra line so that near() unambigiously points to north (without it, north and south would be equally close to center) -->
+        <td>&nbsp;</td>
+    </tr>
     <tr>
         <td><span id="sw">Span <b>South West</b></span></td><td><span id="s">Span <b>South</b></span></td><td><span id="se">Span <b>South East</b></span></td>
     </tr>

@@ -9,7 +9,7 @@ Scenario: try out iframe scenarios
   * switchFrame("#myiframe")
   ## matching Wikipedia page title
   ## hopefully won't change often :)
-#  * match driver.title == "Office Space - Wikipedia"
+   * match driver.title == "Office Space - Wikipedia"
 #  * click('#p-search a')
 #  * input('body', 'karate' + Key.ENTER)
 #  * waitFor('a[title=Karate]').click()
