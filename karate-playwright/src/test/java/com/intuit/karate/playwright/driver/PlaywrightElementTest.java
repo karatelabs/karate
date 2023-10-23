@@ -3,7 +3,6 @@ package com.intuit.karate.playwright.driver;
 import com.intuit.karate.driver.Key;
 import com.microsoft.playwright.Locator;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -17,7 +16,6 @@ class PlaywrightElementTest {
     private PlaywrightDriver driver;
     private PlaywrightElement element;
 
-
     @BeforeEach
     void beforeEach() {
         Locator rootLocator = Mockito.mock(Locator.class);
@@ -30,18 +28,19 @@ class PlaywrightElementTest {
 
     @Test
     void textEnter() {
-        element.input("Karate"+ Key.INSTANCE.ENTER);
+        element.input("Karate" + Key.INSTANCE.ENTER);
         Mockito.verify(locator).pressSequentially(eq("Karate"), argThat(matchesDelay(0)));
         Mockito.verify(locator).press(Mockito.eq("Enter"), any());
     }
 
     @Test
     void shiftTextEnter() {
-        element.input(Key.INSTANCE.SHIFT+"karate"+ Key.INSTANCE.ENTER);
+        element.input(Key.INSTANCE.SHIFT + "karate" + Key.INSTANCE.ENTER);
         Mockito.verify(locator).press(eq("Shift+k"), any());
         Mockito.verify(locator).pressSequentially(eq("arate"), argThat(matchesDelay(0)));
         Mockito.verify(locator).press(eq("Enter"), any());
     }
+
     @Test
     void ctrlShiftText() {
         element.input(new StringBuilder().append(Key.INSTANCE.CONTROL).append(Key.INSTANCE.SHIFT).append("karate").toString());
@@ -56,7 +55,6 @@ class PlaywrightElementTest {
         Mockito.verify(locator).pressSequentially(eq("Karate"), argThat(matchesDelay(10)));
 
     }
-
 
     private ArgumentMatcher<Locator.PressSequentiallyOptions> matchesDelay(int delay) {
         return options -> delay == options.delay.intValue();

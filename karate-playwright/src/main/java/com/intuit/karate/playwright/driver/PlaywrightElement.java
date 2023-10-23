@@ -1,3 +1,26 @@
+/*
+ * The MIT License
+ *
+ * Copyright 2023 Karate Labs Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 package com.intuit.karate.playwright.driver;
 
 import com.intuit.karate.driver.*;
@@ -92,7 +115,6 @@ public class PlaywrightElement implements Element {
         return this;
     }
 
-
     @Override
     public Element input(String value) {
         return input(new String[]{value});
@@ -165,12 +187,11 @@ public class PlaywrightElement implements Element {
         resolveLocator().scrollIntoViewIfNeeded(new ScrollIntoViewIfNeededOptions().setTimeout(driver.retryTimeout));
         return this;
     }
-    
+
     @Override
     public void setValue(String value) {
         resolveLocator().fill(value, new FillOptions().setTimeout(driver.retryTimeout));
     }
-
 
     @Override
     public Element submit() {
@@ -327,7 +348,7 @@ public class PlaywrightElement implements Element {
     @Override
     public List<Element> getChildren() {
         // todo test
-        return findAll(driver, token, i -> "nth-child("+i+")");
+        return findAll(driver, token, i -> "nth-child(" + i + ")");
     }
 
     @Override
@@ -355,7 +376,6 @@ public class PlaywrightElement implements Element {
         return new PlaywrightFinder(driver, token, "near");
     }
 
-
     private MissingElement missingElement() {
         return new MissingElement(driver, token.getPlaywrightToken());
     }
@@ -363,7 +383,7 @@ public class PlaywrightElement implements Element {
     // Will fail immediately if the element is not found. Same as waitFor but without the "wait" part
     static Element locate(PlaywrightDriver driver, PlaywrightToken token) {
         if (isPresent(driver, token)) {
-           return new PlaywrightElement(driver, token, true);
+            return new PlaywrightElement(driver, token, true);
         }
         throw new RuntimeException(token + " not found");
     }

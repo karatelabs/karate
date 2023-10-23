@@ -45,10 +45,11 @@
     </properties>
 
     <modules>
-        <module>karate-core</module>
+        <module>karate-core</module>        
         <module>karate-junit5</module>
-        <module>karate-demo</module>
+        <module>karate-demo</module>        
         <module>karate-gatling</module>
+        <module>karate-playwright</module>
         <module>karate-robot</module>        
         <module>karate-e2e-tests</module>
         <module>karate-archetype</module>
