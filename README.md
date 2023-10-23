@@ -51,7 +51,7 @@
     <img src="https://img.shields.io/maven-central/v/com.intuit.karate/karate-core.svg"/>
   </a>
   <a href="https://github.com/karatelabs/karate/actions?query=workflow%3Amaven-build">
-    <img src="https://github.com/karatelabs/karate/workflows/maven-build/badge.svg"/>
+    <img src="https://github.com/karatelabs/karate/actions/workflows/maven-build.yml/badge.svg?branch=develop"/>
   </a>
   <a href="https://github.com/karatelabs/karate/releases">
     <img src="https://img.shields.io/github/release/karatelabs/karate.svg"/>
@@ -301,7 +301,6 @@ And you don't need to create additional Java classes for any of the payloads tha
 * Option to invoke via a [Java API](#java-api),  which means that you can easily [mix Karate into Java projects or legacy UI-automation suites](https://stackoverflow.com/q/47795762/143475)
 * [Save significant effort](https://twitter.com/ptrthomas/status/986463717465391104) by re-using Karate test-suites as [Gatling performance tests](karate-gatling) that *deeply* assert that server responses are accurate under load
 * Gatling integration can hook into [*any* custom Java code](https://github.com/karatelabs/karate/tree/master/karate-gatling#custom) - which means that you can perf-test even non-HTTP protocols such as [gRPC](https://github.com/thinkerou/karate-grpc)
-* Built-in [distributed-testing capability](https://github.com/karatelabs/karate/wiki/Distributed-Testing) that works for API, UI and even [load-testing](https://github.com/karatelabs/karate/wiki/Distributed-Testing#gatling) - without needing any complex "grid" infrastructure
 * [API mocks](karate-netty) or test-doubles that even [maintain CRUD 'state'](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) across multiple calls - enabling TDD for micro-services and [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
 * [Async](#async) support that allows you to seamlessly integrate the handling of custom events or listening to message-queues
 * Built-in [HTML templating](https://twitter.com/KarateDSL/status/1338892932691070976) so that you can extend your test-reports into readable specifications
@@ -350,7 +349,7 @@ All you need is available in the [`karate-core`](https://search.maven.org/artifa
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit5</artifactId>
-    <version>1.4.0</version>
+    <version>1.4.1</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -359,7 +358,7 @@ All you need is available in the [`karate-core`](https://search.maven.org/artifa
 Alternatively for [Gradle](https://gradle.org):
 
 ```yml
-    testCompile 'com.intuit.karate:karate-junit5:1.4.0'
+    testCompile 'com.intuit.karate:karate-junit5:1.4.1'
 ```
 
 Also refer to the wiki for using [Karate with Gradle](https://github.com/karatelabs/karate/wiki/Gradle).
@@ -394,7 +393,7 @@ You can replace the values of `com.mycompany` and `myproject` as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=1.4.0 \
+-DarchetypeVersion=1.4.1 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -2277,6 +2276,9 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `pauseIfNotPerf` | boolean | defaults to `false`, relevant only for performance-testing, see [`karate.pause()`](#karate-pause) and [`karate-gatling`](karate-gatling#think-time)
 `xmlNamespaceAware` | boolean | defaults to `false`, to handle XML namespaces in [some special circumstances](https://github.com/karatelabs/karate/issues/1587)
 `abortSuiteOnFailure` | boolean | defaults to `false`, to not attempt to run any more tests upon a failure
+`ntlmAuth` | JSON | See [NTLM Authentication](#ntlm-authentication)
+`matchEachEmptyAllowed` | boolean | defaults to `false`, [`match each`](#match-each) by default expects the array to be non-empty, refer to [this issue](https://github.com/karatelabs/karate/issues/2364) to understand why you may want to over-ride this.
+`httpRetryEnabled` | boolean | defaults to `false`, retry when the http requests fails with an exception `org.apache.httpNoHttpResponseException`.  For details see [this issue](https://github.com/karatelabs/karate/issues/2408)
 
 Examples:
 ```cucumber
@@ -2414,6 +2416,33 @@ karate.configure('ssl', { trustAll: true });
 ```
 
 For end-to-end examples in the Karate demos, look at the files in [this folder](karate-demo/src/test/java/ssl).
+
+### NTLM Authentication
+Karate provides support for NTLM authentication using the Apache NTLMEngine implementation.
+
+| Key           | Type   | Required? | Description                                                    |
+|---------------|--------|-----------|----------------------------------------------------------------|
+| `username`    | string | required  | NTLM username                                                  |
+| `password`    | string | required  | NTLM password                                                  |
+| `workstation` | string | optional  | The workstation the authentication request is originating from |
+| `domain`      | string | optional  | The domain to authenticate within                              |
+
+Example:
+```cucumber
+# enable NTLM authentication for the remaining scenario requests
+* configure ntlmAuth = { username: 'admin', password: 'secret', domain: 'my.domain', workstation: 'my-pc' }
+
+# enable NTLM authentication with only credentials
+* configure ntlmAuth = { username: 'admin', password: 'secret' }
+
+# disable NTLM authentication
+* configure ntlmAuth = null
+```
+
+```js
+// enable NTLM authentication within js
+karate.confgure('ntlmAuth', { username: 'admin', password: 'secret', domain: 'my.domain', workstation: 'my-pc' })
+```
 
 # Payload Assertions
 ## Prepare, Mutate, Assert.

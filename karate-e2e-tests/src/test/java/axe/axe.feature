@@ -5,10 +5,12 @@ Feature: axe accessibility native
 
   Scenario:
     # get axe script
-    * def axeJs = karate.http('https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.0.2/axe.min.js').get().body
-    * driver 'https://www.seleniumeasy.com/test/dynamic-data-loading-demo.html'
+    * def axeJs = karate.http('https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.7.0/axe.min.js').get().body
+    * driver 'https://dequeuniversity.com/demo/dream'
+    * waitFor('.submit-search')
     # inject axe script
-    * driver.script(axeJs);
+    * driver.script(axeJs)
     # execute axe
     * def axeResponse = driver.scriptAwait('axe.run()')
+    * karate.write(axeResponse, 'axe-response.json')
     * doc { read: 'axe-report.html' }    

@@ -223,6 +223,10 @@ public class Step {
         this.comments = comments;
     }
 
+    public boolean isFake() {
+        return getIndex() == -1;
+    }
+
     @Override
     public String toString() {
         String temp = prefix + " " + text;

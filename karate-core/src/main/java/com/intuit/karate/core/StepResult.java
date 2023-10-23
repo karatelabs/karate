@@ -280,7 +280,7 @@ public class StepResult {
 
     public void setFailedReason(Throwable failedReason) {
         this.failedReason = failedReason;
-    }
+    }        
 
     @Override
     public String toString() {

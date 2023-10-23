@@ -18,4 +18,4 @@ if [ -z "$KARATE_SOCAT_START" ]
 fi
 [ -z "$KARATE_WIDTH" ] && export KARATE_WIDTH="1280"
 [ -z "$KARATE_HEIGHT" ] && export KARATE_HEIGHT="720"
-exec /usr/bin/supervisord
+exec /usr/bin/supervisord -c /etc/supervisord.conf

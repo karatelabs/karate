@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2022 Karate Labs Inc.
+ * Copyright 2023 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,39 +21,20 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.job;
+package com.intuit.karate.core;
 
-import com.intuit.karate.Http;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.Map;
 
 /**
  *
- * @author pthomas3
+ * @author peter
  */
-public class JobExecutorPulse extends TimerTask {
-
-    private final JobExecutor executor;
-    private final Http http;
-    private static final int PERIOD = 15000; // fifteen seconds
-
-    public JobExecutorPulse(JobExecutor executor) {
-        this.executor = executor;
-        http = Http.to(executor.serverUrl);
-    }
-
-    public void start() {
-        Timer timer = new Timer(true);
-        timer.schedule(this, PERIOD, PERIOD);
-    }
-
-    @Override
-    public void run() {
-        JobMessage jm = new JobMessage("heartbeat");
-        jm.setJobId(executor.jobId);
-        jm.setExecutorId(executor.executorId);
-        jm.setChunkId(executor.chunkId.get());
-        JobExecutor.invokeServer(http, jm);
-    }
-
+public interface Channel {
+    
+    void produce(ScenarioRuntime runtime);
+    
+    ChannelSession consume(ScenarioRuntime runtime);
+    
+    void register(ScenarioRuntime runtime, Map<String, Object> data);
+    
 }

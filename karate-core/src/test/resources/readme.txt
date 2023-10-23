@@ -5,6 +5,7 @@ mvn versions:set versions:commit -DnewVersion=2.0.0
 cve check
 =========
 mvn clean verify -P depcheck
+(save the above report)
 
 prod:
 =====
@@ -13,7 +14,6 @@ mvn versions:set versions:commit -DnewVersion=@@@
 # edit archetype karate.version
 # edit README.md maven 3 places
 # edit examples/gatling/build.gradle
-# edit examples/jobserver/build.gradle
 # edit examples/*/pom.xml
 # edit jbang-catalog.json
 
@@ -25,6 +25,8 @@ mvn versions:set versions:commit -DnewVersion=@@@
     karate-core/target/karate-XXX.zip
     karate-core/target/karate-XXX.jar
     karate-robot/target/karate-robot-XXX.jar
+
+(save the sonatype report)
 
 release radar
 =============

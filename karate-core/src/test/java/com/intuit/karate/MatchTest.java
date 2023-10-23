@@ -233,6 +233,12 @@ class MatchTest {
         match("[{ a: 1 }, { a: 2 }]", EACH_EQUALS, "#object");
         match("[{ a: 1 }, { a: 2 }]", EACH_EQUALS, "{ a: '#number' }");
     }
+    
+    @Test
+    void testEachEmpty() {
+        match("[]", EACH_EQUALS, "#number", FAILS);
+        message("match each failed, empty array / list");
+    }
 
     @Test
     void testEachWithMagicVariables() {

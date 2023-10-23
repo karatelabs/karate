@@ -70,7 +70,7 @@ public class MockHandler implements ServerHandler {
     private static final String PATH_PARAMS = "pathParams";
     private static final String BODY_PATH = "bodyPath";
 
-    private final LinkedHashMap<Feature, ScenarioRuntime> featureRuntimes = new LinkedHashMap<>(); // feature + holds global config and vars
+    private final LinkedHashMap<Feature, ScenarioRuntime> scenarioRuntimes = new LinkedHashMap<>(); // feature + holds global config and vars
     private final Map<String, Variable> globals = new HashMap<>();
     private boolean corsEnabled;
 
@@ -96,8 +96,18 @@ public class MockHandler implements ServerHandler {
             corsEnabled = corsEnabled || runtime.engine.getConfig().isCorsEnabled();
             globals.putAll(runtime.engine.shallowCloneVariables());
             runtime.logger.info("mock server initialized: {}", feature);
-            featureRuntimes.put(feature, runtime);            
+            scenarioRuntimes.put(feature, runtime);            
         });
+    }
+    
+    public Object getVariable(String name) {
+        if (globals.containsKey(name)) {
+            Variable v = globals.get(name);
+            if (v != null) {
+                return JsValue.fromJava(v.getValue());
+            }
+        }
+        return null;
     }
 
     private ScenarioRuntime initRuntime(Feature feature, Map<String, Object> args) {
@@ -136,7 +146,7 @@ public class MockHandler implements ServerHandler {
         return runtime;
     }
 
-    private static final Result PASSED = Result.passed(0);
+    private static final Result PASSED = Result.passed(0, 0);
     private static final String ALLOWED_METHODS = "GET, HEAD, POST, PUT, DELETE, PATCH";
 
     @Override
@@ -158,7 +168,7 @@ public class MockHandler implements ServerHandler {
         // rare case when http-client is active within same jvm
         // snapshot existing thread-local to restore
         ScenarioEngine prevEngine = ScenarioEngine.get();
-        for (Map.Entry<Feature, ScenarioRuntime> entry : featureRuntimes.entrySet()) {
+        for (Map.Entry<Feature, ScenarioRuntime> entry : scenarioRuntimes.entrySet()) {
             Feature feature = entry.getKey();
             ScenarioRuntime runtime = entry.getValue();
             // important for graal to work properly
@@ -230,7 +240,8 @@ public class MockHandler implements ServerHandler {
         ScenarioEngine engine = new ScenarioEngine(runtime.engine.getConfig(), runtime, new HashMap(globals), runtime.logger);        
         engine.init();
         engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
-        engine.setVariable(ScenarioEngine.REQUEST_URI, req.getPath());
+        engine.setVariable(ScenarioEngine.REQUEST_PATH, req.getPath());
+        engine.setVariable(ScenarioEngine.REQUEST_URI, req.getPathRaw());
         engine.setVariable(ScenarioEngine.REQUEST_METHOD, req.getMethod());
         engine.setVariable(ScenarioEngine.REQUEST_HEADERS, req.getHeaders());
         engine.setVariable(ScenarioEngine.REQUEST, req.getBodyConverted());

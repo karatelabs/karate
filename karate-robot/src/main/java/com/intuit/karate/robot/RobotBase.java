@@ -277,7 +277,7 @@ public abstract class RobotBase implements Robot, Plugin {
 
     @Override
     public Robot rightClick() {
-        return click(3);
+        return click(2);
     }
 
     @Override
@@ -299,9 +299,20 @@ public abstract class RobotBase implements Robot, Plugin {
 
     @Override
     public Robot doubleClick() {
-        click();
-        delay(40);
-        click();
+        if (highlight) {
+            getLocation().highlight(highlightDuration);
+            int toDelay = highlightDuration;
+            if (toDelay > 0) {
+                RobotUtils.delay(toDelay);
+            }
+        }
+        int clickType = mask(1);
+        robot.mousePress(clickType);
+        robot.mouseRelease(clickType);
+        RobotUtils.delay(100);
+        robot.mousePress(clickType);
+        robot.mouseRelease(clickType);
+
         return this;
     }
 

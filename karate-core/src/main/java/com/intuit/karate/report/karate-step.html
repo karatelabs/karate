@@ -60,7 +60,7 @@
       <div th:each="sr: scenario.stepResults"
            th:unless="sr.hidden"
            th:with="callDepth: cr.callDepth, parentId: callerId, isBackground: isBackground"
-           th:include="karate-step.html">
+           th:insert="~{karate-step.html}">
       </div>
     </div>    
   </div>

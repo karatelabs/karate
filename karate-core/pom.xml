@@ -3,16 +3,16 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.intuit.karate</groupId>
+        <groupId>io.karatelabs</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>1.4.0</version>
+        <version>1.6.0-SNAPSHOT</version>
     </parent>
     <artifactId>karate-core</artifactId>
     <packaging>jar</packaging>   
     
     <properties>
         <antlr.version>4.11.1</antlr.version>
-        <graal.version>22.3.0</graal.version>
+        <graal.version>23.0.1</graal.version>
     </properties>
 
     <dependencies>
@@ -30,12 +30,12 @@
         <dependency>
             <groupId>org.thymeleaf</groupId>
             <artifactId>thymeleaf</artifactId>
-            <version>3.0.14.RELEASE</version>
+            <version>3.1.2.RELEASE</version>
         </dependency>    
         <dependency>
             <groupId>com.linecorp.armeria</groupId>
             <artifactId>armeria</artifactId>
-            <version>1.24.3</version>
+            <version>1.25.2</version>
         </dependency>              
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
@@ -48,16 +48,22 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- can be removed once httpclient is upgraded -->
+        <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+            <version>1.16.0</version>
+        </dependency>        
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.2.9</version>
+            <version>1.4.11</version>
         </dependency>         
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jcl-over-slf4j</artifactId>
             <!-- this is tied to logback-classic -->
-            <version>1.7.32</version>
+            <version>2.0.9</version>
             <scope>runtime</scope>
         </dependency>                      
         <dependency>
@@ -93,7 +99,7 @@
         <dependency>
             <groupId>io.github.classgraph</groupId>
             <artifactId>classgraph</artifactId>
-            <version>4.8.152</version>
+            <version>4.8.160</version>
         </dependency>
         <dependency>
             <groupId>io.github.t12y</groupId>
@@ -180,7 +186,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-shade-plugin</artifactId>
-                        <version>${maven.shade.version}</version>
+                        <version>${maven.shade.version}</version>                       
                         <executions>
                             <execution>
                                 <phase>package</phase>
@@ -190,6 +196,7 @@
                                 <configuration>
                                     <shadedArtifactAttached>true</shadedArtifactAttached>
                                     <shadedClassifierName>all</shadedClassifierName>
+                                    <createDependencyReducedPom>false</createDependencyReducedPom>
                                     <artifactSet>
                                         <includes>
                                             <include>com.linecorp.armeria:*</include>

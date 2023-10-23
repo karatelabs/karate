@@ -6,7 +6,9 @@
                     "result": {
                         "nanos": "#number",
                         "millis": "#number",
-                        "status": "passed"
+                        "status": "passed",
+                        "startTime": "#number",
+                        "endTime": "#number"
                     },
                     "step": {
                         "background": true,
@@ -21,7 +23,9 @@
                     "result": {
                         "nanos": "#number",
                         "millis": "#number",
-                        "status": "passed"
+                        "status": "passed",
+                        "startTime": "#number",
+                        "endTime": "#number"                        
                     },
                     "step": {
                         "comments": [
@@ -39,7 +43,9 @@
                     "result": {
                         "nanos": "#number",
                         "millis": "#number",
-                        "status": "passed"
+                        "status": "passed",
+                        "startTime": "#number",
+                        "endTime": "#number"                        
                     },
                     "step": {
                         "line": 13,
@@ -56,7 +62,9 @@
                                             "result": {
                                                 "nanos": "#number",
                                                 "millis": "#number",
-                                                "status": "passed"
+                                                "status": "passed",
+                                                "startTime": "#number",
+                                                "endTime": "#number"                                                
                                             },
                                             "step": {
                                                 "line": 4,
@@ -70,7 +78,9 @@
                                             "result": {
                                                 "nanos": "#number",
                                                 "millis": "#number",
-                                                "status": "passed"
+                                                "status": "passed",
+                                                "startTime": "#number",
+                                                "endTime": "#number"                                                
                                             },
                                             "step": {
                                                 "line": 5,
@@ -90,7 +100,9 @@
                                             "result": {
                                                 "nanos": "#number",
                                                 "millis": "#number",
-                                                "status": "passed"
+                                                "status": "passed",
+                                                "startTime": "#number",
+                                                "endTime": "#number"                                                
                                             },
                                             "step": {
                                                 "line": 6,
@@ -132,7 +144,9 @@
                     "result": {
                         "nanos": "#number",
                         "millis": "#number",
-                        "status": "passed"
+                        "status": "passed",
+                        "startTime": "#number",
+                        "endTime": "#number"                        
                     },
                     "step": {
                         "line": 14,
@@ -165,7 +179,9 @@
                     "result": {
                         "nanos": "#number",
                         "millis": "#number",
-                        "status": "passed"
+                        "status": "passed",
+                        "startTime": "#number",
+                        "endTime": "#number"                        
                     },
                     "step": {
                         "background": true,
@@ -180,7 +196,9 @@
                     "result": {
                         "nanos": "#number",
                         "millis": "#number",
-                        "status": "passed"
+                        "status": "passed",
+                        "startTime": "#number",
+                        "endTime": "#number"                        
                     },
                     "step": {
                         "line": 17,
@@ -215,7 +233,9 @@
                     "result": {
                         "nanos": "#number",
                         "millis": "#number",
-                        "status": "passed"
+                        "status": "passed",
+                        "startTime": "#number",
+                        "endTime": "#number"                        
                     },
                     "step": {
                         "background": true,
@@ -230,7 +250,9 @@
                     "result": {
                         "nanos": "#number",
                         "millis": "#number",
-                        "status": "passed"
+                        "status": "passed",
+                        "startTime": "#number",
+                        "endTime": "#number"                        
                     },
                     "step": {
                         "line": 17,

@@ -75,7 +75,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         step.setLine(scenario.getLine());
         step.setPrefix("*");
         step.setText(message);
-        Result result = error == null ? Result.passed(0) : Result.failed(0, error, step);
+        Result result = error == null ? Result.passed(System.currentTimeMillis(), 0) : Result.failed(System.currentTimeMillis(), 0, error, step);
         StepResult sr = new StepResult(step, result);
         if (error != null) {
             sr.setStepLog(error.getMessage());
@@ -107,7 +107,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
                 call.setPrefix(StringUtils.repeat('>', depth));
                 call.setText(fr.getCallNameForReport());
                 // call.setDocString(fr.getCallArgPretty());                
-                StepResult callResult = new StepResult(call, Result.passed(0));
+                StepResult callResult = new StepResult(call, Result.passed(stepResult.getResult().getStartTime(), 0));
                 callResult.setHidden(stepResult.isHidden());
                 list.add(callResult.toCucumberJson());
                 for (StepResult sr : fr.getAllScenarioStepResultsNotHidden()) {

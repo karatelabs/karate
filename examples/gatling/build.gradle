@@ -3,11 +3,11 @@ plugins {
 }
 
 ext {
-    karateVersion = '1.4.0'
+    karateVersion = '1.5.0.RC1'
 }
 
 dependencies {
-    testImplementation "com.intuit.karate:karate-gatling:${karateVersion}"
+    testImplementation "io.karatelabs:karate-gatling:${karateVersion}"
 }
 
 repositories {

@@ -2,7 +2,7 @@
 set -x -e
 
 # assume that karate jars are installed in maven local repo
-# mvn clean install -P pre-release -DskipTests
+# mvn clean install -DskipTests -P pre-release
 
 KARATE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
 
@@ -11,9 +11,9 @@ mvn versions:set versions:commit -B -ntp -DnewVersion=${KARATE_VERSION} -f examp
 mvn clean test -B -ntp -f examples/gatling/pom.xml
 
 # copy only karate jars to a place where the docker image build can add from
-KARATE_REPO=karate-docker/karate-chrome/target/repository/com/intuit
+KARATE_REPO=karate-docker/karate-chrome/target/repository/io/karatelabs
 mkdir -p ${KARATE_REPO}
-cp -r ~/.m2/repository/com/intuit/karate ${KARATE_REPO}
+cp -r ~/.m2/repository/io/karatelabs ${KARATE_REPO}
 
 # create / copy the karate fatjar so that the docker image build can add it
 mvn package -B -ntp -P fatjar -DskipTests -f karate-core/pom.xml

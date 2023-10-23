@@ -36,6 +36,7 @@ import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -50,6 +51,12 @@ public class Config {
     public static final int DEFAULT_RETRY_COUNT = 3;
     public static final int DEFAULT_TIMEOUT = 30000;
     public static final int DEFAULT_HIGHLIGHT_DURATION = 3000;
+    
+    public static final String DRIVER = "driver";
+    public static final String ROBOT = "robot";
+    public static final String KAFKA = "kafka";
+    public static final String GRPC = "grpc";
+    public static final String WEBSOCKET = "websocket";
 
     private String url;
     private boolean sslEnabled = false;
@@ -79,9 +86,9 @@ public class Config {
     private boolean printEnabled = true;
     private boolean pauseIfNotPerf = false;
     private boolean abortedStepsShouldPass = false;
+    private boolean matchEachEmptyAllowed = false;
     private Target driverTarget;
-    private Map<String, Object> driverOptions;
-    private Map<String, Object> robotOptions; // TODO make generic plugin model
+    private Map<String, Map<String, Object>> customOptions = new HashMap();
     private HttpLogModifier logModifier;
 
     private Variable afterScenario = Variable.NULL;
@@ -107,6 +114,14 @@ public class Config {
 
     // image comparison config
     private Map<String, Object> imageComparisonOptions;
+
+    // ntlm authentication
+    private boolean ntlmEnabled = false;
+    private boolean httpRetryEnabled = false;
+    private String ntlmUsername;
+    private String ntlmPassword;
+    private String ntlmDomain;
+    private String ntlmWorkstation;
 
     public Config() {
         // zero arg constructor
@@ -175,11 +190,12 @@ public class Config {
                     showAllSteps = false;
                 }
                 return false;
-            case "driver":
-                driverOptions = value.getValue();
-                return false;
-            case "robot":
-                robotOptions = value.getValue();
+            case DRIVER:
+            case ROBOT:
+            case KAFKA:
+            case GRPC:
+            case WEBSOCKET:
+                customOptions.put(key, value.getValue());
                 return false;
             case "driverTarget":
                 if (value.isMap()) {
@@ -222,6 +238,9 @@ public class Config {
                 return false;
             case "imageComparison":
                 imageComparisonOptions = value.getValue();
+                return false;
+            case "matchEachEmptyAllowed":
+                matchEachEmptyAllowed = value.getValue();
                 return false;
             case "continueOnStepFailure":
                 continueOnStepFailureMethods.clear(); // clears previous configuration - in case someone is trying to chain these and forgets resetting the previous one
@@ -299,6 +318,18 @@ public class Config {
             case "localAddress":
                 localAddress = value.getAsString();
                 return true;
+            case "ntlmAuth":
+                if (value.isNull()) {
+                    ntlmEnabled = false;
+                } else {
+                    Map<String, Object> map = value.getValue();
+                    ntlmEnabled = true;
+                    ntlmUsername = (String) map.get("username");
+                    ntlmPassword = (String) map.get("password");
+                    ntlmDomain = (String) map.get("domain");
+                    ntlmWorkstation = (String) map.get("workstation");
+                }
+                return true;
             default:
                 throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
         }
@@ -331,9 +362,8 @@ public class Config {
         logPrettyRequest = parent.logPrettyRequest;
         logPrettyResponse = parent.logPrettyResponse;
         printEnabled = parent.printEnabled;
-        driverOptions = parent.driverOptions;
-        robotOptions = parent.robotOptions;
         driverTarget = parent.driverTarget;
+        customOptions = parent.customOptions;
         showLog = parent.showLog;
         showAllSteps = parent.showAllSteps;
         retryInterval = parent.retryInterval;
@@ -352,6 +382,13 @@ public class Config {
         continueAfterContinueOnStepFailure = parent.continueAfterContinueOnStepFailure;
         abortSuiteOnFailure = parent.abortSuiteOnFailure;
         imageComparisonOptions = parent.imageComparisonOptions;
+        matchEachEmptyAllowed = parent.matchEachEmptyAllowed;
+        ntlmEnabled = parent.ntlmEnabled;
+        httpRetryEnabled = parent.httpRetryEnabled;
+        ntlmUsername = parent.ntlmUsername;
+        ntlmPassword = parent.ntlmPassword;
+        ntlmDomain = parent.ntlmDomain;
+        ntlmWorkstation = parent.ntlmWorkstation;
     }
 
     public void setUrl(String url) {
@@ -478,13 +515,15 @@ public class Config {
         return printEnabled;
     }
 
-    public Map<String, Object> getDriverOptions() {
-        return driverOptions;
+    public boolean isHttpRetryEnabled()
+    {
+        return httpRetryEnabled;
     }
 
-    public Map<String, Object> getRobotOptions() {
-        return robotOptions;
-    }
+
+    public Map<String, Map<String, Object>> getCustomOptions() {
+        return customOptions;
+    }    
 
     public Variable getAfterScenario() {
         return afterScenario;
@@ -590,4 +629,52 @@ public class Config {
         return imageComparisonOptions;
     }
 
+    public boolean isMatchEachEmptyAllowed() {
+        return matchEachEmptyAllowed;
+    }        
+
+    public boolean isNtlmEnabled() {
+        return ntlmEnabled;
+    }
+
+    public void setNtlmEnabled(boolean ntlmEnabled) {
+        this.ntlmEnabled = ntlmEnabled;
+    }
+
+    public String getNtlmUsername() {
+        return ntlmUsername;
+    }
+
+    public void setNtlmUsername(String ntlmUsername) {
+        this.ntlmUsername = ntlmUsername;
+    }
+
+    public String getNtlmPassword() {
+        return ntlmPassword;
+    }
+
+    public void setNtlmPassword(String ntlmPassword) {
+        this.ntlmPassword = ntlmPassword;
+    }
+
+    public String getNtlmDomain() {
+        return ntlmDomain;
+    }
+
+    public void setNtlmDomain(String ntlmDomain) {
+        this.ntlmDomain = ntlmDomain;
+    }
+
+    public String getNtlmWorkstation() {
+        return ntlmWorkstation;
+    }
+
+    public void setNtlmWorkstation(String ntlmWorkstation) {
+        this.ntlmWorkstation = ntlmWorkstation;
+    }
+
+    public void setHttpRetryEnabled(boolean httpRetryEnabled)
+    {
+        this.httpRetryEnabled = httpRetryEnabled;
+    }
 }

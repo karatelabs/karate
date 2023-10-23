@@ -399,6 +399,11 @@ class FeatureRuntimeTest {
     @Test
     void testTypeConv() {
         run("type-conv.feature");
-    }     
+    }
+
+    @Test
+    void testConfigureNtlmAuthentication() {
+        run("ntlm-authentication.feature");
+    }
 
 }

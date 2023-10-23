@@ -23,16 +23,11 @@
  */
 package com.intuit.karate.graal;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  *
  * @author pthomas3
  */
 public class Methods {
-
-    private static final Logger logger = LoggerFactory.getLogger(Methods.class);
 
     private Methods() {
         // only static methods

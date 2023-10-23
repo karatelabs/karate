@@ -5,6 +5,7 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.Suite;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Results;
 import com.intuit.karate.core.FeatureCall;
 import org.junit.jupiter.api.Test;
 
@@ -26,15 +27,14 @@ class ReportUtilsTest {
 
     @Test
     void testReport() {
-        final ByteArrayOutputStream     outContent = new ByteArrayOutputStream();
-        final PrintStream               originalOut = System.out;
-        Feature         feature = Feature.read("classpath:com/intuit/karate/report/test.feature");
-        FeatureRuntime  fr = FeatureRuntime.of(feature);
+        final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+        final PrintStream originalOut = System.out;
+        Feature feature = Feature.read("classpath:com/intuit/karate/report/test.feature");
+        FeatureRuntime fr = FeatureRuntime.of(feature);
         fr.run();
-        Report          report = SuiteReports.DEFAULT.featureReport(fr.suite, fr.result);
-        File            file = report.render("target/report-test");
-        String          html = FileUtils.toString(file);
-
+        Report report = SuiteReports.DEFAULT.featureReport(fr.suite, fr.result);
+        File file = report.render("target/report-test");
+        String html = FileUtils.toString(file);
         assertTrue(html.contains("<title>com.intuit.karate.report.test</title>"));
         assertTrue(html.contains("<img src=\"karate-labs-logo-ring.svg\" alt=\"Karate Labs\"/>"));
         assertTrue(html.contains("<div>Scenarios</div>"));
@@ -42,27 +42,34 @@ class ReportUtilsTest {
         System.setOut(new PrintStream(outContent)); // Capture console output
         fr.suite.buildResults();
         assertFalse(outContent.toString().contains(" | env: "));
-        System.setOut(originalOut);                 // restore console output
+        System.setOut(originalOut); // restore console output
+        // render summary report
+        Runner.Builder builder = new Runner.Builder();
+        builder.reportDir("target/report-test");
+        Suite suite = new Suite(builder);
+        File jsonFile = ReportUtils.saveKarateJson("target/report-test", fr.result, null);
+        suite.featureResultFiles.add(jsonFile);
+        Results results = Results.of(suite);  // this will render summary via constructor TODO improve        
     }
+
     @Test
     void testReportWithEnv() {
-        final String                sEnv = "TestEnv";
+        final String sEnv = "TestEnv";
         final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-        final PrintStream           originalOut = System.out;
-        Feature         oFeature = Feature.read("classpath:com/intuit/karate/report/test.feature");
-        Suite           oSuite = new Suite(Runner.builder().karateEnv(sEnv));
-        FeatureRuntime  fr = FeatureRuntime.of(oSuite, new FeatureCall(oFeature));
+        final PrintStream originalOut = System.out;
+        Feature oFeature = Feature.read("classpath:com/intuit/karate/report/test.feature");
+        Suite oSuite = new Suite(Runner.builder().karateEnv(sEnv));
+        FeatureRuntime fr = FeatureRuntime.of(oSuite, new FeatureCall(oFeature));
         fr.run();
-        Report          oReport = SuiteReports.DEFAULT.featureReport(fr.suite, fr.result);
-        File            oFile = oReport.render("target/report-test-env");
-        String          sHtml = FileUtils.toString(oFile);
-
+        Report oReport = SuiteReports.DEFAULT.featureReport(fr.suite, fr.result);
+        File oFile = oReport.render("target/report-test-env");
+        String sHtml = FileUtils.toString(oFile);
         assertTrue(sHtml.contains("<div id=\"nav-env\">"));
         assertTrue(sHtml.contains(sEnv));
         System.setOut(new PrintStream(outContent)); // Capture console output
         fr.suite.buildResults();
         assertTrue(outContent.toString().contains(" | env: " + sEnv));
-        System.setOut(originalOut);                 // restore console output
+        System.setOut(originalOut);  // restore console output
     }
 
     @Test

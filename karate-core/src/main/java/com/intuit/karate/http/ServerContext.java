@@ -519,9 +519,9 @@ public class ServerContext implements ProxyObject {
         if (args.length > 2 && args[0] != null) {
             String type = args[0].toString();
             Match.Type matchType = Match.Type.valueOf(type.toUpperCase());
-            return JsValue.fromJava(Match.execute(getEngine(), matchType, args[1], args[2]));
+            return JsValue.fromJava(Match.execute(getEngine(), matchType, args[1], args[2], false));
         } else if (args.length == 2) {
-            return JsValue.fromJava(Match.execute(getEngine(), Match.Type.EQUALS, args[0], args[1]));
+            return JsValue.fromJava(Match.execute(getEngine(), Match.Type.EQUALS, args[0], args[1], false));
         } else {
              logger.warn("at least two arguments needed for match");
              return null;

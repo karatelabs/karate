@@ -15,11 +15,11 @@ jobs:
     steps:
     - name: git checkout
       uses: actions/checkout@v4
-    - name: set up jdk 11
+    - name: set up jdk 17
       uses: actions/setup-java@v3
       with:
         distribution: adopt
-        java-version: 11
+        java-version: 17
         server-id: ossrh
         server-username: MAVEN_USERNAME
         server-password: MAVEN_PASSWORD
@@ -39,14 +39,14 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
     - name: docker push
       run: |        
-        docker tag karate-chrome ptrthomas/karate-chrome:${{ github.event.inputs.version }}
-        docker tag karate-chrome ptrthomas/karate-chrome:latest
-        docker push ptrthomas/karate-chrome:${{ github.event.inputs.version }}
-        docker push ptrthomas/karate-chrome:latest
+        docker tag karate-chrome karatelabs/karate-chrome:${{ github.event.inputs.version }}
+        docker tag karate-chrome karatelabs/karate-chrome:latest
+        docker push karatelabs/karate-chrome:${{ github.event.inputs.version }}
+        docker push karatelabs/karate-chrome:latest
     - name: maven deploy to central
       env:
         MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-        MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
+        MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
         MAVEN_GPG_PASSPHRASE: ${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }}
       run: |
         mvn -B -ntp deploy -DskipTests -P pre-release,release
@@ -61,5 +61,4 @@ jobs:
         retention-days: 5 
         path: |
           karate-core/target/*.jar
-          karate-core/target/*.zip
           karate-robot/target/*.jar  
