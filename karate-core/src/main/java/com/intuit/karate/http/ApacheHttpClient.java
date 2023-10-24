@@ -55,10 +55,12 @@ import org.apache.http.HttpHost;
 import org.apache.http.HttpMessage;
 import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.NTCredentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.CookieStore;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.config.AuthSchemes;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.EntityBuilder;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -135,7 +137,12 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
 
     private void configure(Config config) {
         clientBuilder = HttpClientBuilder.create();
-        clientBuilder.disableAutomaticRetries();
+        if (config.isHttpRetryEnabled()) {
+            clientBuilder.setRetryHandler(new CustomHttpRequestRetryHandler(logger));
+        } else {
+            clientBuilder.disableAutomaticRetries();
+        }
+
         if (!config.isFollowRedirects()) {
             clientBuilder.disableRedirectHandling();
         } else { // support redirect on POST by default
@@ -191,6 +198,16 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             } catch (Exception e) {
                 logger.warn("failed to resolve local address: {} - {}", config.getLocalAddress(), e.getMessage());
             }
+        }
+        if (config.isNtlmEnabled()) {
+            List<String> authSchemes = new ArrayList<>();
+            authSchemes.add(AuthSchemes.NTLM);
+            CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+            NTCredentials ntCredentials = new NTCredentials(
+                config.getNtlmUsername(), config.getNtlmPassword(), config.getNtlmWorkstation(), config.getNtlmDomain());
+            credentialsProvider.setCredentials(AuthScope.ANY, ntCredentials);
+            clientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+            configBuilder.setTargetPreferredAuthSchemes(authSchemes);
         }
         clientBuilder.setDefaultRequestConfig(configBuilder.build());
         SocketConfig.Builder socketBuilder = SocketConfig.custom().setSoTimeout(config.getConnectTimeout());

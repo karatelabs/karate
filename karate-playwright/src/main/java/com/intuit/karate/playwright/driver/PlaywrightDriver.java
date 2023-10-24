@@ -1,3 +1,26 @@
+/*
+ * The MIT License
+ *
+ * Copyright 2023 Karate Labs Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 package com.intuit.karate.playwright.driver;
 
 import com.intuit.karate.core.*;
@@ -28,27 +51,37 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 
 /**
  * Implementation of a Karate Driver for Playwright.
- * 
- * Unlike the original PlaywrightDriver living in karate-core which was based on the internal wire protocol, this one uses the public Playwright APIs.
- * To use it, make sure the karate-playwright dependency is added in your pom.xml, and located before karate-core.
- * 
- * It supports:
- * - xpath, css, wildcard locators as well as friendly locators (through custom locators which we believe are better suited to Karate than the 'right-of' pseudo selectors offered by PW)
- * - headless tests
- * - http requests intercepting (basic support, only urlPatterns are matched)
- * - and of course all the browsers supported by Playwright.
- * 
- * This driver will start up a Playwright engine unless the playwrightUrl is specified, in which case the driver will try to connect to that url.
- * 
- * A couple of additional options may be specified in the playwrightOptions property:
- * - installBrowsers ("true"/"false"): whether PW will automatically download and install the browsers
- * - channel (e.g. "chrome"): for the "chromium" browserType, Playwright allows us to pick the underlying engine.
- * 
- * The following points are not 100% identical to the other Drivers
- * - Cookies are supported but a domain/path or url key is mandatory
- * - Retries are supported but, per doc, drivers should wait the specified <pre>interval</pre> number of milliseconds before retrying. This driver will however wait <i>at most</i><pre>interval</pre> milliseconds, but it leverages Playwright's auto-wait/auto-retry to return as soon as the element is available and won't wait for the full specified interval.But ig(count: 3, interval: 3000 milliseconds) means try three times, and wait for 3 seconds before the next re-try attempt.
- *   In fact, if slowDiv takes 2 seconds to load, retry(3, 1500).click('#slowDiv') will return in roughly 2s. So will retry(2, 2000), and retry(5, 800).
- *   Of course, retry(3, 500) will fail.  
+ *
+ * Unlike the original PlaywrightDriver living in karate-core which was based on
+ * the internal wire protocol, this one uses the public Playwright APIs. To use
+ * it, make sure the karate-playwright dependency is added in your pom.xml, and
+ * located before karate-core.
+ *
+ * It supports: - xpath, css, wildcard locators as well as friendly locators
+ * (through custom locators which we believe are better suited to Karate than
+ * the 'right-of' pseudo selectors offered by PW) - headless tests - http
+ * requests intercepting (basic support, only urlPatterns are matched) - and of
+ * course all the browsers supported by Playwright.
+ *
+ * This driver will start up a Playwright engine unless the playwrightUrl is
+ * specified, in which case the driver will try to connect to that url.
+ *
+ * A couple of additional options may be specified in the playwrightOptions
+ * property: - installBrowsers ("true"/"false"): whether PW will automatically
+ * download and install the browsers - channel (e.g. "chrome"): for the
+ * "chromium" browserType, Playwright allows us to pick the underlying engine.
+ *
+ * The following points are not 100% identical to the other Drivers - Cookies
+ * are supported but a domain/path or url key is mandatory - Retries are
+ * supported but, per doc, drivers should wait the specified
+ * <pre>interval</pre> number of milliseconds before retrying. This driver will
+ * however wait <i>at most</i><pre>interval</pre> milliseconds, but it leverages
+ * Playwright's auto-wait/auto-retry to return as soon as the element is
+ * available and won't wait for the full specified interval.But ig(count: 3,
+ * interval: 3000 milliseconds) means try three times, and wait for 3 seconds
+ * before the next re-try attempt. In fact, if slowDiv takes 2 seconds to load,
+ * retry(3, 1500).click('#slowDiv') will return in roughly 2s. So will retry(2,
+ * 2000), and retry(5, 800). Of course, retry(3, 500) will fail.
  */
 /*
  * Possible improvements:
@@ -61,51 +94,51 @@ public class PlaywrightDriver implements Driver {
     // Revert back to options.timeout
     private static final Integer DEFAULT_TIMEOUT = null;
 
-   private static final String FRIENDLY_ENGINE = "{\n" +
-           "  queryAll(root,args) {\n" +
-           "    function retain_right(rootRect, itemRect) {\n"+
-           "       return itemRect.x >= (rootRect.x + rootRect.width) && itemRect.y <= (rootRect.y + rootRect.height) && (itemRect.y + itemRect.height) >=rootRect.y;\n"+
-           "    }\n"+
-           "    function retain_left(rootRect, itemRect) {\n"+
-           "       return (itemRect.x + itemRect.width) <= rootRect.x && itemRect.y <= (rootRect.y + rootRect.height) && (itemRect.y + itemRect.height) >=rootRect.y;\n"+
-           "    }\n"+
-           "    function retain_below(rootRect, itemRect) {\n"+
-           "       return itemRect.y >= (rootRect.y + rootRect.height) && itemRect.x <= (rootRect.x + rootRect.width) && (itemRect.x + itemRect.width) >=rootRect.x;\n"+
-           "    }\n"+
-           "    function retain_above(rootRect, itemRect) {\n"+
-           "       return (itemRect.y + itemRect.height) <= rootRect.y && itemRect.x <= (rootRect.x + rootRect.width) && (itemRect.x + itemRect.width) >=rootRect.x;\n"+
-           "    }\n"+
-           "    function retain_near(rootRect, itemRect) {\n"+
-           "       return true;\n"+
-           "    }\n"+
-           "    function items_list(selector) {\n"+
-           "       if (selector.startsWith('/') || selector.startsWith('xpath=')) {\n"+
-           "            let items_list = [];\n"+
-           "            let query = document.evaluate(argsParts[1],document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);\n" +
-           "            for (let i = 0; i<query.snapshotLength; i++) {\n" +
-           "                items_list.push(query.snapshotItem(i));\n"+
-           "            }\n"+
-           "            return items_list;\n"+
-           "       } else {\n"+
-           "            return Array.from(document.querySelectorAll(selector));\n"+
-           "       }\n"+           
-           "    }\n"+
-           "    let rootRect = root.getBoundingClientRect();\n"+
-           "    let argsParts = args.split(':');\n"+
-           "    let itemsByDistance = new Map();\n" +
-           "    let items = items_list(argsParts[1]);\n" +
-           "    for (let i = 0; i<items.length; i++) {\n" +
-           "      let item = items[i];\n"+
-           "      let itemRect = item.getBoundingClientRect();\n"+
-           "      if (eval('retain_'+argsParts[0])(rootRect, itemRect)){\n"+
-           // distance between root's center and item's. This is actually the squared distance but the actual values do not matter, as long as they are comparable with each other, which squared distances are.
-           "        let distance = Math.pow(rootRect.x+rootRect.width/2-(itemRect.x+itemRect.width/2), 2) + Math.pow(rootRect.y+rootRect.height/2-(itemRect.y+itemRect.height/2), 2);\n" +
-           "        itemsByDistance.set(item, distance);\n" +
-           "      }\n" +
-           "    }\n" +
-           "    return [...itemsByDistance].sort((a, b) => a[1] - b[1]).map(item => item[0]);\n" +
-           "  }\n" +
-           "}";
+    private static final String FRIENDLY_ENGINE = "{\n"
+            + "  queryAll(root,args) {\n"
+            + "    function retain_right(rootRect, itemRect) {\n"
+            + "       return itemRect.x >= (rootRect.x + rootRect.width) && itemRect.y <= (rootRect.y + rootRect.height) && (itemRect.y + itemRect.height) >=rootRect.y;\n"
+            + "    }\n"
+            + "    function retain_left(rootRect, itemRect) {\n"
+            + "       return (itemRect.x + itemRect.width) <= rootRect.x && itemRect.y <= (rootRect.y + rootRect.height) && (itemRect.y + itemRect.height) >=rootRect.y;\n"
+            + "    }\n"
+            + "    function retain_below(rootRect, itemRect) {\n"
+            + "       return itemRect.y >= (rootRect.y + rootRect.height) && itemRect.x <= (rootRect.x + rootRect.width) && (itemRect.x + itemRect.width) >=rootRect.x;\n"
+            + "    }\n"
+            + "    function retain_above(rootRect, itemRect) {\n"
+            + "       return (itemRect.y + itemRect.height) <= rootRect.y && itemRect.x <= (rootRect.x + rootRect.width) && (itemRect.x + itemRect.width) >=rootRect.x;\n"
+            + "    }\n"
+            + "    function retain_near(rootRect, itemRect) {\n"
+            + "       return true;\n"
+            + "    }\n"
+            + "    function items_list(selector) {\n"
+            + "       if (selector.startsWith('/') || selector.startsWith('xpath=')) {\n"
+            + "            let items_list = [];\n"
+            + "            let query = document.evaluate(argsParts[1],document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);\n"
+            + "            for (let i = 0; i<query.snapshotLength; i++) {\n"
+            + "                items_list.push(query.snapshotItem(i));\n"
+            + "            }\n"
+            + "            return items_list;\n"
+            + "       } else {\n"
+            + "            return Array.from(document.querySelectorAll(selector));\n"
+            + "       }\n"
+            + "    }\n"
+            + "    let rootRect = root.getBoundingClientRect();\n"
+            + "    let argsParts = args.split(':');\n"
+            + "    let itemsByDistance = new Map();\n"
+            + "    let items = items_list(argsParts[1]);\n"
+            + "    for (let i = 0; i<items.length; i++) {\n"
+            + "      let item = items[i];\n"
+            + "      let itemRect = item.getBoundingClientRect();\n"
+            + "      if (eval('retain_'+argsParts[0])(rootRect, itemRect)){\n"
+            + // distance between root's center and item's. This is actually the squared distance but the actual values do not matter, as long as they are comparable with each other, which squared distances are.
+            "        let distance = Math.pow(rootRect.x+rootRect.width/2-(itemRect.x+itemRect.width/2), 2) + Math.pow(rootRect.y+rootRect.height/2-(itemRect.y+itemRect.height/2), 2);\n"
+            + "        itemsByDistance.set(item, distance);\n"
+            + "      }\n"
+            + "    }\n"
+            + "    return [...itemsByDistance].sort((a, b) => a[1] - b[1]).map(item => item[0]);\n"
+            + "  }\n"
+            + "}";
 
     final PlaywrightDriverOptions options;
     private final Playwright playwright;
@@ -121,11 +154,12 @@ public class PlaywrightDriver implements Driver {
     double retryTimeout;
 
     public interface PlaywrightDriverFactory<T extends PlaywrightDriver> {
+
         T create(PlaywrightDriverOptions options, Browser browser, Playwright playwright);
     }
 
     public static PlaywrightDriver start(Map<String, Object> map, ScenarioRuntime sr) {
-        return start(map,sr, PlaywrightDriver::new);
+        return start(map, sr, PlaywrightDriver::new);
     }
 
     public static <T extends PlaywrightDriver> T start(Map<String, Object> map, ScenarioRuntime sr, PlaywrightDriverFactory<T> factory) {
@@ -164,7 +198,7 @@ public class PlaywrightDriver implements Driver {
                 browser = browserType.connect(playwrightUrl);
             }
             return factory.create(options, browser, playwright);
-        }catch (NoSuchMethodException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+        } catch (NoSuchMethodException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
             throw new RuntimeException(e);
         }
     }
@@ -194,17 +228,14 @@ public class PlaywrightDriver implements Driver {
         }
     }
 
-
     @Override
     public String getDialogText() {
         return dialogText;
     }
 
-
-   // private Locator locator(String locator) {
-   //     return this.locator.locatorFor(locator);
-   // }
-
+    // private Locator locator(String locator) {
+    //     return this.locator.locatorFor(locator);
+    // }
     @Override
     public void dialog(boolean accept) {
         dialog(accept, Dialog::accept);
@@ -216,8 +247,8 @@ public class PlaywrightDriver implements Driver {
     }
 
     private void dialog(boolean accept, Consumer<Dialog> onAccept) {
-            page.onDialog(dialog -> {
-            if ("alert".equals(dialog.type()) || ! accept) {
+        page.onDialog(dialog -> {
+            if ("alert".equals(dialog.type()) || !accept) {
                 dialog.dismiss();
                 dialogText = null;
             } else {
@@ -253,7 +284,7 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public Element waitForAny(String locator1, String locator2) {
-        return waitForAny(new String[] {locator1, locator2});
+        return waitForAny(new String[]{locator1, locator2});
     }
 
     @Override
@@ -261,7 +292,7 @@ public class PlaywrightDriver implements Driver {
         List<Locator> pwLocators = Arrays.stream(locators).map(token -> rootLocator(token)).collect(Collectors.toList());
 
         Locator orLocators = pwLocators.get(0);
-        for (int i = 1; i<pwLocators.size(); i++) {
+        for (int i = 1; i < pwLocators.size(); i++) {
             orLocators = orLocators.or(pwLocators.get(i));
         }
         orLocators.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
@@ -269,7 +300,7 @@ public class PlaywrightDriver implements Driver {
         // Find which locator is available, and return it.
         // This is on par with waitForAny specs. However, I wonder if just returning orLocators and let PW work out which one is available in the subsequent calls (click, ...) would work.
         // Im not completely sold it would ( and that''s without even touching on how to create an element from a locator...)
-        for (int i=0; i<pwLocators.size(); i++) {
+        for (int i = 0; i < pwLocators.size(); i++) {
             if (pwLocators.get(i).isVisible()) {
                 return new PlaywrightElement(this, ofRoot(locators[i]));
             }
@@ -305,10 +336,9 @@ public class PlaywrightDriver implements Driver {
         }
     }
 
-
     public List<Object> waitForResultCount(String locator, int count, String expression) {
         String jsExpression = toJsExpression(expression);
-        List<Element> elements = waitForResultCount(locator,count);
+        List<Element> elements = waitForResultCount(locator, count);
         return elements.stream().map(element -> element.script(jsExpression)).collect(Collectors.toList());
     }
 
@@ -341,7 +371,7 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public Element input(String locator, String value, int delay) {
-        String[] array = value.chars().mapToObj(ch -> String.valueOf((char)ch)).toArray(String[]::new);
+        String[] array = value.chars().mapToObj(ch -> String.valueOf((char) ch)).toArray(String[]::new);
         return new PlaywrightElement(this, ofRoot(locator)).input(array, delay);
     }
 
@@ -429,7 +459,6 @@ public class PlaywrightDriver implements Driver {
         return new PlaywrightElement(this, ofRoot(locator)).highlight();
     }
 
-
     public void highlightAll(String locator, int millis) {
         // todo millis not taken into account.
         locateAll(locator).forEach(Element::highlight);
@@ -448,7 +477,6 @@ public class PlaywrightDriver implements Driver {
     public Element locate(String locator) {
         return PlaywrightElement.locate(this, ofRoot(locator).first());
     }
-
 
     @Override
     public Element optional(String locator) {
@@ -482,7 +510,7 @@ public class PlaywrightDriver implements Driver {
         if (!relative) {
             return position(locator);
         }
-        return (Map<String, Object>)script(DriverOptions.getPositionJs(locator));
+        return (Map<String, Object>) script(DriverOptions.getPositionJs(locator));
     }
 
     @Override
@@ -490,7 +518,7 @@ public class PlaywrightDriver implements Driver {
         return new PlaywrightElement(this, ofRoot(locator)).scroll();
     }
 
-        @Override
+    @Override
     public byte[] screenshot(String locator, boolean embed) {
         byte[] screenshot = this.screenshot(rootLocator(locator));
         if (embed) {
@@ -502,8 +530,6 @@ public class PlaywrightDriver implements Driver {
     /////////////////////////////////////////////////////
     // Page based-operations
     /////////////////////////////////////////////////////
-
-
     @Override
     public void activate() {
         page.bringToFront();
@@ -550,7 +576,6 @@ public class PlaywrightDriver implements Driver {
     public void close() {
         page.close();
     }
-
 
     @Override
     public String getUrl() {
@@ -606,24 +631,19 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public String waitForUrl(String url) {
-        page.waitForURL("**"+url);
+        page.waitForURL("**" + url);
         return getUrl();
     }
-
-
 
     ///////////////////////////////////////////////////////
     // Page(s), cookies, timeouts and other context-based operations
     // (also contains swtichFrames method altough arguably they shoul be somewhere else)
     ///////////////////////////////////////////////////////
-
-
-
     // Sets PWs NAVIGATION timeout.
     // See also retryTimeout
     @Override
     public Driver timeout(Integer millis) {
-        browserContext.setDefaultNavigationTimeout(millis == DEFAULT_TIMEOUT? options.timeout : millis.doubleValue());
+        browserContext.setDefaultNavigationTimeout(millis == DEFAULT_TIMEOUT ? options.timeout : millis.doubleValue());
         return this;
     }
 
@@ -697,8 +717,8 @@ public class PlaywrightDriver implements Driver {
         browserContext.addCookies(Arrays.asList(
                 new Cookie((String) cookieMap.get("name"), (String) cookieMap.get("value"))
                         .setDomain((String) cookieMap.get("domain"))
-                        .setPath((String)cookieMap.get("path"))
-                        .setUrl((String)cookieMap.get("url")))
+                        .setPath((String) cookieMap.get("path"))
+                        .setUrl((String) cookieMap.get("url")))
         );
     }
 
@@ -742,7 +762,7 @@ public class PlaywrightDriver implements Driver {
 
         Object o = getRuntime().engine.fileReader.readFile(mock);
         if (!(o instanceof FeatureCall)) {
-            throw new IllegalArgumentException("'mock' is not a feature file: "+mock);
+            throw new IllegalArgumentException("'mock' is not a feature file: " + mock);
         }
         FeatureCall fc = (FeatureCall) o;
         MockHandler mockHandler = new MockHandler(fc.feature);
@@ -760,7 +780,7 @@ public class PlaywrightDriver implements Driver {
     }
 
     private boolean matches(String url, List<Pattern> urlPatterns) {
-        for (Pattern urlPattern: urlPatterns) {
+        for (Pattern urlPattern : urlPatterns) {
             if (urlPattern.matcher(url).matches()) {
                 return true;
             }
@@ -771,7 +791,6 @@ public class PlaywrightDriver implements Driver {
     /////////////////////////////////////////////////
     // Chaining stuff
     /////////////////////////////////////////////////
-
     private Driver driverProxy(InvocationHandler h) {
         return (Driver) Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[]{Driver.class}, h);
     }
@@ -801,14 +820,13 @@ public class PlaywrightDriver implements Driver {
     }
 
     @Override
-    public Mouse mouse(int x, int y) {
+    public Mouse mouse(Number x, Number y) {
         return mouse().move(x, y);
     }
 
     /////////////////////////////////////////////////
     // Driver APIs that probably should not be public
     ////////////////////////////////////////////////
-
     @Override
     public boolean isTerminated() {
         return terminated;
@@ -818,7 +836,6 @@ public class PlaywrightDriver implements Driver {
     public DriverOptions getOptions() {
         return options;
     }
-
 
     @Override
     public void actions(List<Map<String, Object>> actions) {
@@ -852,7 +869,7 @@ public class PlaywrightDriver implements Driver {
         page.waitForTimeout(millis);
     }
 
-     WaitForPageLoaded getWaitingForPage() {
+    WaitForPageLoaded getWaitingForPage() {
         return new WaitForPageLoaded(page, browserContext);
     }
 
@@ -860,12 +877,12 @@ public class PlaywrightDriver implements Driver {
         return page.mouse();
     }
 
-
     private static String toJsExpression(String expression) {
-        return expression.startsWith("_.")? ("el => el."+expression.substring(2)) :
-                expression.startsWith("!_.") ? ("el => !el."+expression.substring(3)) :
-                        expression;
+        return expression.startsWith("_.") ? ("el => el." + expression.substring(2))
+                : expression.startsWith("!_.") ? ("el => !el." + expression.substring(3))
+                : expression;
     }
+
     void waitForFunction(String expression, ElementHandle elementHandle) {
         page.waitForFunction(toJsExpression(expression), elementHandle);
     }
@@ -883,16 +900,17 @@ public class PlaywrightDriver implements Driver {
         return this.root.locator(locator);
     }
 
-
     /**
      * <p>
-     * A Frame has a title and can create {@link FrameLocator}s as well as regular {@link Locator}s.
-     * So have other Frame-like classes.
+     * A Frame has a title and can create {@link FrameLocator}s as well as
+     * regular {@link Locator}s. So have other Frame-like classes.
      * </p>
-     * This class acts as a common interface for different Playwright classes providing these capabilities.
+     * This class acts as a common interface for different Playwright classes
+     * providing these capabilities.
      *
      */
-    public static interface FrameTrait  {
+    public static interface FrameTrait {
+
         public String getTitle();
 
         public FrameLocator frameLocator(String token);
@@ -969,7 +987,6 @@ public class PlaywrightDriver implements Driver {
             this.browserContext = browserContext;
         }
 
-
         @Override
         public void run() {
             // from the doc, my understanding is that submit() applies when navigating within the same page rather than in a new page.
@@ -987,4 +1004,5 @@ public class PlaywrightDriver implements Driver {
             page.offDOMContentLoaded(listener);
         }
     }
+    
 }

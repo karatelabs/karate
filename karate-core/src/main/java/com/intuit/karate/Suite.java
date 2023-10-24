@@ -34,10 +34,10 @@ import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioCall;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.ScenarioRuntime;
+import com.intuit.karate.core.Step;
 import com.intuit.karate.core.SyncExecutorService;
 import com.intuit.karate.core.Tags;
 import com.intuit.karate.http.HttpClientFactory;
-import com.intuit.karate.job.JobManager;
 import com.intuit.karate.report.SuiteReports;
 import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceUtils;
@@ -55,8 +55,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.LoggerFactory;
+
+import static java.util.function.Predicate.not;
 
 /**
  *
@@ -99,8 +102,6 @@ public class Suite implements Runnable {
     public final boolean parallel;
     public final ExecutorService scenarioExecutor;
     public final ExecutorService pendingTasks;
-
-    public final JobManager jobManager;
 
     public final String karateBase;
     public final String karateConfig;
@@ -169,7 +170,6 @@ public class Suite implements Runnable {
             callSingleCache = null;
             callOnceCache = null;
             suiteReports = null;
-            jobManager = null;
             progressFileLock = null;
             drivers = null;
         } else {
@@ -203,11 +203,6 @@ public class Suite implements Runnable {
                 karateConfigEnv = read(rb.configDir + "karate-config-" + env + ".js");
             } else {
                 karateConfigEnv = null;
-            }
-            if (rb.jobConfig != null) {
-                jobManager = new JobManager(rb.jobConfig);
-            } else {
-                jobManager = null;
             }
             drivers = rb.drivers;
             threadCount = rb.threadCount;
@@ -246,9 +241,6 @@ public class Suite implements Runnable {
             if (featuresFound > 1) {
                 logger.debug("waiting for {} features to complete", featuresFound);
             }
-            if (jobManager != null) {
-                jobManager.start();
-            }
             CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
             if (timeoutMinutes > 0) {
                 CompletableFuture.allOf(futuresArray).get(timeoutMinutes, TimeUnit.MINUTES);
@@ -261,9 +253,6 @@ public class Suite implements Runnable {
         } finally {
             scenarioExecutor.shutdownNow();
             pendingTasks.shutdownNow();
-            if (jobManager != null) {
-                jobManager.server.stop();
-            }
             hooks.forEach(h -> h.afterSuite(this));
         }
     }
@@ -302,6 +291,7 @@ public class Suite implements Runnable {
             } catch (Throwable t) {
                 logger.error("<<error>> unable to write report file(s): {} - {}", fr.getFeature(), t + "");
                 fr.printStats();
+                return; // don't attempt to save progress that might fail as well
             }
         } else {
             skippedCount++;
@@ -341,6 +331,8 @@ public class Suite implements Runnable {
     }
 
     public ScenarioResult retryScenario(Scenario scenario) {
+        // remove any "fake" steps that might have been added before retrying
+        scenario.setSteps(scenario.getSteps().stream().filter(not(Step::isFake)).collect(Collectors.toList()));
         FeatureRuntime fr = FeatureRuntime.of(this, new FeatureCall(scenario.getFeature()));
         ScenarioRuntime runtime = new ScenarioRuntime(fr, scenario);
         runtime.run();

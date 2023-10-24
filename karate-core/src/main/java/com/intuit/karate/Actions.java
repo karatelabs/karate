@@ -114,7 +114,7 @@ public interface Actions {
 
     void path(String exp);
 
-    void print(String exp);
+    void print(String exp);        
 
     void remove(String name, String path);
 
@@ -155,5 +155,19 @@ public interface Actions {
     void driver(String exp);
 
     void robot(String exp);
+    
+    void produce(String type);
+    
+    void register(String exp);
+    
+    void schema(String exp);
+    
+    void topic(String exp);
+    
+    void key(String exp);
+    
+    void value(String exp);
+    
+    void valueDocString(String exp);
 
 }

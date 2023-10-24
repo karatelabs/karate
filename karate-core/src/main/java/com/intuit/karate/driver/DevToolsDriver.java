@@ -1117,13 +1117,13 @@ public abstract class DevToolsDriver implements Driver {
         method("Runtime.enable").send();
     }
 
-    public void intercept(Value value) {
+    public DevToolsMock intercept(Value value) {
         Map<String, Object> config = (Map) JsValue.toJava(value);
         config = new Variable(config).getValue();
-        intercept(config);
+        return intercept(config);
     }
 
-    public void intercept(Map<String, Object> config) {
+    public DevToolsMock intercept(Map<String, Object> config) {
         List<String> patterns = (List) config.get("patterns");
         if (patterns == null) {
             throw new RuntimeException("missing array argument 'patterns': " + config);
@@ -1142,6 +1142,7 @@ public abstract class DevToolsDriver implements Driver {
         FeatureCall fc = (FeatureCall) o;
         mockHandler = new MockHandler(fc.feature);
         method("Fetch.enable").param("patterns", patterns).send();
+        return new DevToolsMock(mockHandler);
     }
 
     public void inputFile(String locator, String... relativePaths) {

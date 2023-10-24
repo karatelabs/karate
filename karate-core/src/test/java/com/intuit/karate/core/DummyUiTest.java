@@ -2,17 +2,10 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.Runner;
 import com.intuit.karate.Suite;
-import com.intuit.karate.TestUtils;
 import com.intuit.karate.core.runner.NoopDriver;
 import com.intuit.karate.driver.DriverRunner;
-import com.intuit.karate.http.HttpClient;
-import com.intuit.karate.http.HttpRequest;
-import com.intuit.karate.http.Response;
-import com.intuit.karate.report.Report;
-import com.intuit.karate.report.SuiteReports;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 

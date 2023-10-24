@@ -25,13 +25,11 @@ package com.intuit.karate;
 
 import com.intuit.karate.core.MockServer;
 import com.intuit.karate.core.RuntimeHookFactory;
-import com.intuit.karate.debug.DapServer;
 import com.intuit.karate.http.HttpServer;
 import com.intuit.karate.http.RequestHandler;
 import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.http.ServerContext;
 import com.intuit.karate.http.SslContextFactory;
-import com.intuit.karate.job.JobExecutor;
 import com.intuit.karate.resource.ResourceUtils;
 import com.intuit.karate.shell.Command;
 import java.io.File;
@@ -127,14 +125,8 @@ public class Main implements Callable<Void> {
             description = "debug mode (optional port else dynamically chosen)")
     int debugPort;
 
-    @Option(names = {"--debug-keepalive"}, defaultValue = "false", arity = "0..1", fallbackValue = "true", description = "keep debug server open for connections after disconnect")
-    boolean keepDebugServerAlive;
-
     @Option(names = {"-D", "--dryrun"}, description = "dry run, generate html reports only")
     boolean dryRun;
-
-    @Option(names = {"-j", "--jobserver"}, description = "job server url")
-    String jobServerUrl;
 
     @Option(names = {"-H", "--hook"}, split = ",", description = "class name of a RuntimeHook (or RuntimeHookFactory) to add")
     List<String> hookFactoryClassNames;
@@ -203,6 +195,10 @@ public class Main implements Callable<Void> {
     public static Main parseKarateOptions(String line) {
         String[] args = Command.tokenize(line);
         return CommandLine.populateCommand(new Main(), args);
+    }
+
+    public static Main parseKarateArgs(List<String> args) {
+        return CommandLine.populateCommand(new Main(), args.toArray(new String[args.size()]));
     }
 
     // matches ( -X XXX )* (XXX)
@@ -321,13 +317,16 @@ public class Main implements Callable<Void> {
             FileUtils.deleteDirectory(new File(output));
             logger.info("deleted directory: {}", output);
         }
-        if (jobServerUrl != null) {
-            JobExecutor.run(jobServerUrl);
-            return null;
-        }
         if (debugPort != -1) {
-            DapServer server = new DapServer(debugPort, !keepDebugServerAlive);
-            server.waitSync();
+            try {
+                Class clazz = Class.forName("io.karatelabs.debug.Main");
+                Method method = clazz.getMethod("main", String[].class);
+                String[] params = new String[]{debugPort + ""};
+                method.invoke(null, (Object) params);
+            } catch (Exception e) {
+                String message = "error: debug server failed, is 'karate-debugserver' added as a dependency ?";
+                System.out.println(message);
+            }
             return null;
         }
         if (paths != null) {
@@ -369,6 +368,7 @@ public class Main implements Callable<Void> {
         if (serve) {
             ServerConfig config = new ServerConfig(workingDir.getPath())
                     .noCache(true)
+                    .devMode(true)
                     .autoCreateSession(true);
             RequestHandler handler = new RequestHandler(config);
             HttpServer.Builder builder = HttpServer

@@ -11,7 +11,10 @@ Scenario:
 * click('button')
 * waitForText('#containerDiv', 'hello world')
 
-* driver.intercept({ patterns: [{ urlPattern: '*/api/*' }], mock: '05_mock.feature' })
+* def mock = driver.intercept({ patterns: [{ urlPattern: '*/api/*' }], mock: '05_mock.feature' })
 
 * click('button')
 * waitForText('#containerDiv', 'hello faked')
+
+* def requests = mock.get('savedRequests')
+* match requests == [{ path: '/api/05', params: { foo: ['bar'] } }]

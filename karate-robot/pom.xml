@@ -3,9 +3,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.intuit.karate</groupId>
+        <groupId>io.karatelabs</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>1.4.0</version>
+        <version>1.6.0-SNAPSHOT</version>
     </parent>
     <artifactId>karate-robot</artifactId>
     <packaging>jar</packaging>  
@@ -19,7 +19,7 @@
 
     <dependencies>                         
         <dependency>
-            <groupId>com.intuit.karate</groupId>
+            <groupId>io.karatelabs</groupId>
             <artifactId>karate-core</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -87,7 +87,7 @@
             <version>${ffmpeg.version}-${javacpp.version}</version>          
         </dependency>      
         <dependency>
-            <groupId>com.intuit.karate</groupId>
+            <groupId>io.karatelabs</groupId>
             <artifactId>karate-junit5</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>

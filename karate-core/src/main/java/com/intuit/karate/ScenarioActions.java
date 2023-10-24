@@ -107,15 +107,15 @@ public class ScenarioActions implements Actions {
 
     @Override
     @When("^csv (.+) = (.+)")
-    public void csv(String name, String exp) {        
+    public void csv(String name, String exp) {
         engine.assign(AssignType.CSV, name, exp, false);
     }
-    
+
     @Override
     @When("^csv (.+) =$")
     public void csvDocString(String name, String exp) {
         engine.assign(AssignType.CSV, name, exp, true);
-    }    
+    }
 
     @Override
     @When("^header\\h+([^\\s]+)\\h+= (.+)")
@@ -176,7 +176,7 @@ public class ScenarioActions implements Actions {
     public void def(String name, String exp) {
         engine.assign(AssignType.AUTO, name, exp, false);
     }
-    
+
     @Override
     @When("^def (.+) =$")
     public void defDocString(String name, String exp) {
@@ -194,12 +194,12 @@ public class ScenarioActions implements Actions {
     public void yaml(String name, String exp) {
         engine.assign(AssignType.YAML, name, exp, false);
     }
-    
+
     @Override
     @When("^yaml (.+) =$")
     public void yamlDocString(String name, String exp) {
         engine.assign(AssignType.YAML, name, exp, true);
-    }    
+    }
 
     @Override
     @When("^copy (.+) = (.+)")
@@ -377,19 +377,19 @@ public class ScenarioActions implements Actions {
     public void evalIf(String exp) {
         engine.evalJs("if " + exp);
     }
-    
+
     @Override
     @When("^delete (.+)")
     public void evalDelete(String exp) {
         engine.evalJs("delete " + exp);
-    }    
+    }
 
     @Override
     @When("^listen (.+)")
     public void listen(String body) {
         engine.listen(body);
     }
-    
+
     @Override
     @When("^doc (.+)")
     public void doc(String exp) {
@@ -416,4 +416,46 @@ public class ScenarioActions implements Actions {
         engine.robot(exp);
     }
 
+    @Override
+    @When("^produce (.+)")
+    public void produce(String type) {
+        engine.produce(type);
+    }
+
+    @Override
+    @When("^register (.+)")
+    public void register(String exp) {
+        engine.register(exp);
+    }
+
+    @Override
+    @When("^schema (.+)")
+    public void schema(String exp) {
+        engine.schema(exp);
+    }   
+    
+    @Override
+    @When("^topic (.+)")
+    public void topic(String exp) {
+        engine.topic(exp);
+    } 
+
+    @Override
+    @When("^key (.+)")
+    public void key(String exp) {
+        engine.key(exp);
+    }
+
+    @Override
+    @When("^value (.+)")
+    public void value(String exp) {
+        engine.value(exp);
+    }   
+    
+    @Override
+    @When("^value$")
+    public void valueDocString(String exp) {
+        engine.value(exp);
+    }    
+    
 }

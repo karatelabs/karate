@@ -75,6 +75,11 @@ public class Http {
         return this;
     }
 
+    public Http hook(RuntimeHook hook) {
+        builder.hook(hook);
+        return this;
+    }
+
     public Response method(String method, Object body) {        
         if (body != null) {
             builder.body(body instanceof Json ? ((Json) body).value() : body);

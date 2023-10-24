@@ -48,6 +48,9 @@ public class Result {
     private final Throwable error;
     private final boolean skipped;
     private final StepRuntime.MethodMatch matchingMethod;
+    
+    private final long startTime;
+    private final long endTime;
 
     public Map<String, Object> toCucumberJson() {
         Map<String, Object> map = new HashMap(error == null ? 2 : 3);
@@ -60,9 +63,13 @@ public class Result {
     }
 
     public static Result fromKarateJson(Map<String, Object> map) {
+        Long startTime = (Long) map.get("startTime");
+        if (startTime == null) {
+            startTime = System.currentTimeMillis();
+        }
         String status = (String) map.get("status");
         Number num = (Number) map.get("nanos");
-        long durationNanos = num == null ? 0 : num.longValue();
+        long durationNanos = num == null ? 0 : num.longValue();        
         String errorMessage = (String) map.get("errorMessage");
         Throwable error = errorMessage == null ? null : new KarateException(errorMessage);
         Boolean aborted = (Boolean) map.get("aborted");
@@ -76,7 +83,7 @@ public class Result {
                 matchingMethod = StepRuntime.MethodMatch.getBySignatureAndArgs(jsonMatchingMethod);
             }
         }
-        return new Result(status, durationNanos, error, aborted, matchingMethod);
+        return new Result(startTime, status, durationNanos, error, aborted, matchingMethod);
     }
 
     public Map<String, Object> toKarateJson() {
@@ -84,6 +91,8 @@ public class Result {
         map.put("status", status);
         map.put("millis", getDurationMillis()); // not used in fromKarateJson()
         map.put("nanos", durationNanos);
+        map.put("startTime", startTime);
+        map.put("endTime", endTime);
         if (error != null) {
             map.put("errorMessage", error.getMessage());
         }
@@ -96,9 +105,11 @@ public class Result {
         return map;
     }
 
-    private Result(String status, long nanos, Throwable error, boolean aborted, StepRuntime.MethodMatch matchingMethod) {
+    private Result(long startTime, String status, long nanos, Throwable error, boolean aborted, StepRuntime.MethodMatch matchingMethod) {
+        this.startTime = startTime;
         this.status = status;
         this.durationNanos = nanos;
+        this.endTime = startTime + Math.round(ReportUtils.nanosToMillis(nanos));
         this.error = error;
         this.aborted = aborted;
         this.matchingMethod = matchingMethod;
@@ -125,18 +136,18 @@ public class Result {
         return error == null ? null : error.getMessage();
     }
 
-    public static Result passed(long nanos) {
-        return passed(nanos, null);
+    public static Result passed(long startTime, long nanos) {
+        return passed(startTime, nanos, null);
     }
-    public static Result passed(long nanos, StepRuntime.MethodMatch matchingMethod) {
-        return new Result(PASSED, nanos, null, false, matchingMethod);
-    }
-
-    public static Result failed(long nanos, Throwable error, Step step) {
-        return failed(nanos, error, step, null);
+    public static Result passed(long startTime, long nanos, StepRuntime.MethodMatch matchingMethod) {
+        return new Result(startTime, PASSED, nanos, null, false, matchingMethod);
     }
 
-    public static Result failed(long nanos, Throwable error, Step step, StepRuntime.MethodMatch matchingMethod) {
+    public static Result failed(long startTime, long nanos, Throwable error, Step step) {
+        return failed(startTime, nanos, error, step, null);
+    }
+
+    public static Result failed(long startTime, long nanos, Throwable error, Step step, StepRuntime.MethodMatch matchingMethod) {
         String message = error.getMessage();
         if (message == null) {
             message = error + ""; // make sure we show something meaningful
@@ -146,19 +157,19 @@ public class Result {
             new StackTraceElement("<feature>", ": " + step.getPrefix() + " " + step.getText() + " ", step.getDebugInfo(), step.getLine())
         };
         error.setStackTrace(newTrace);
-        return new Result(FAILED, nanos, error, false, matchingMethod);
+        return new Result(startTime, FAILED, nanos, error, false, matchingMethod);
     }
 
-    public static Result skipped() {
-        return new Result(SKIPPED, 0, null, false, null);
+    public static Result skipped(long startTime) {
+        return new Result(startTime, SKIPPED, 0, null, false, null);
     }
 
-    public static Result aborted(long nanos) {
-        return aborted(nanos, null);
+    public static Result aborted(long startTime, long nanos) {
+        return aborted(startTime, nanos, null);
     }
 
-    public static Result aborted(long nanos, StepRuntime.MethodMatch matchingMethod) {
-        return new Result(PASSED, nanos, null, true, matchingMethod);
+    public static Result aborted(long startTime, long nanos, StepRuntime.MethodMatch matchingMethod) {
+        return new Result(startTime, PASSED, nanos, null, true, matchingMethod);
     }
 
     public String getStatus() {
@@ -172,6 +183,14 @@ public class Result {
     public double getDurationMillis() {
         return ReportUtils.nanosToMillis(durationNanos);
     }
+
+    public long getStartTime() {
+        return startTime;
+    }
+
+    public long getEndTime() {
+        return endTime;
+    }    
 
     public StepRuntime.MethodMatch getMatchingMethod() {
         return matchingMethod;

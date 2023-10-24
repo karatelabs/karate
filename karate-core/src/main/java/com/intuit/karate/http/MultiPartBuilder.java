@@ -34,7 +34,10 @@ import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.multipart.Attribute;
+import io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
 import io.netty.handler.codec.http.multipart.HttpPostRequestEncoder;
+import io.netty.handler.codec.http.multipart.HttpPostRequestEncoder.EncoderMode;
+import io.netty.util.CharsetUtil;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.handler.codec.http.multipart.MemoryFileUpload;
 import java.io.File;
@@ -92,7 +95,7 @@ public class MultiPartBuilder {
         this.multipart = multipart;
         DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.valueOf("POST"), "/");
         try {
-            encoder = new HttpPostRequestEncoder(request, multipart);
+            encoder = new HttpPostRequestEncoder(new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE), request, multipart, CharsetUtil.UTF_8, EncoderMode.HTML5);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

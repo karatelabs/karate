@@ -36,6 +36,22 @@ class RetryTest {
         assertFalse(sr.isFailed());
         results = results.getSuite().updateResults(sr);
         assertEquals(0, results.getFailCount());
-    }    
+    }
+
+    @Test
+    void testSetup() {
+        System.setProperty("CURRENT_VALUE", "a");
+        Results results = Runner.path("classpath:com/intuit/karate/core/retry/retry-with-setup.feature").parallel(1);
+
+        System.setProperty("CURRENT_VALUE", "b");
+        for (ScenarioResult scenarioResult : results.getScenarioResults().collect(Collectors.toList())) {
+            if (scenarioResult.isFailed()) {
+                ScenarioResult retryScenarioResult = results.getSuite().retryScenario(scenarioResult.getScenario());
+                results = results.getSuite().updateResults(retryScenarioResult);
+            }
+        }
+
+        assertEquals(0, results.getFailCount(), results.getErrorMessages());
+    }
     
 }

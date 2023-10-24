@@ -142,9 +142,7 @@ Scenario: complex nested arrays
 {
   "foo": {
     "bars": [
-      { "barOne": "dc", "barTwos": [] },
       { "barOne": "dc", "barTwos": [{ title: 'blah' }] },
-      { "barOne": "dc", "barTwos": [{ title: 'blah' }], barThrees: [] },
       { "barOne": "dc", "barTwos": [{ title: 'blah' }], barThrees: [{ num: 1 }] }
     ]
   }
