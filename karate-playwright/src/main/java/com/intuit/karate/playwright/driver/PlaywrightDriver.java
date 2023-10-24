@@ -136,10 +136,15 @@ public class PlaywrightDriver implements Driver {
         String browserTypeOption = (String) pwOptions.getOrDefault("browserType", "chromium");
 
         Browser browser;
-        if (Boolean.valueOf(pwOptions.getOrDefault("installBrowsers", "true") == Boolean.FALSE)) {
+        if (Boolean.valueOf(pwOptions.getOrDefault("installBrowsers", true) == Boolean.FALSE)) {
+            options.driverLogger.debug("Playwright browsers will not be installed.");
             // ensureDriverInstalled is called by Playwright.create, but the installBrowsers is forced to true.
             // We call it here with a falsy installBrowsers, the singleton will be created and subsequent call from Playwright.create will have no effect
+			// Disabling auto install might be useful when behind a firewall. playwrightOptions.channel might then need to be specified for Playwright to run the locally installed browser, else it will complain.
             com.microsoft.playwright.impl.driver.Driver.ensureDriverInstalled(Collections.emptyMap(), false);
+        } else {
+            // Will actually be installed by the Playwright.create call below 
+            options.driverLogger.info("Installing Playwright browsers (this may take some time)...");
         }
         try {
             Playwright playwright = Playwright.create();
