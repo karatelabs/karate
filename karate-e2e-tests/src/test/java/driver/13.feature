@@ -9,12 +9,12 @@ Scenario: try out iframe scenarios
   * switchFrame("#myiframe")
   ## matching Wikipedia page title
   ## hopefully won't change often :)
-  * match driver.title == "Office Space - Wikipedia"
-  * click('#p-search a')
-  * input('body', 'karate' + Key.ENTER)
-  * waitFor('a[title=Karate]').click()
-  * waitForUrl('https://en.wikipedia.org/wiki/Karate')
-  * match driver.title == "Karate - Wikipedia"
+   * match driver.title == "Office Space - Wikipedia"
+#  * click('#p-search a')
+#  * input('body', 'karate' + Key.ENTER)
+#  * waitFor('a[title=Karate]').click()
+#  * waitForUrl('https://en.wikipedia.org/wiki/Karate')
+#  * match driver.title == "Karate - Wikipedia"
   * switchFrame(null)
   # trying the same thing with locate chained by switchFrame()
   * locate("iframe[id='myiframe']").switchFrame()

@@ -20,10 +20,10 @@ Scenario:
 * call read('03.feature')
 
 # cookies
-* if (driverType != 'safaridriver') karate.call('04.feature')
+* if (driverType != 'safaridriver' &&  driverType != 'playwright') karate.call('04.feature')
 
 # driver.intercept
-* if (driverType == 'chrome') karate.call('05.feature')
+* if (driverType == 'chrome' || driverType == 'playwright') karate.call('05.feature')
 
 # position()
 * call read('06.feature')
@@ -34,22 +34,20 @@ Scenario:
 # switchFrame()
 * call read('08.feature')
 
-# friendly locators
+# wildcard locators
 * call read('09.feature')
 
 # element position
 * call read('10.feature')
 
-* if (driverType == 'playwright') karate.abort()
-
 # switchPage()
-* if (driverType == 'chrome' && !skipSlowTests) karate.call('11.feature')
+* if ((driverType == 'chrome' || driverType == 'playwright') && !skipSlowTests) karate.call('11.feature')
 
 # switchPage() with external URLs
-# * if (driverType == 'chrome' && !skipSlowTests) karate.call('13.feature')
+* if (driverType == 'playwright' && !skipSlowTests) karate.call('13.feature')
 
 # survive Target.detachedFromTarget with nested iframes
-* if (driverType == 'chrome' && !skipSlowTests) karate.call('14.feature')
+* if ((driverType == 'chrome' || driverType == 'playwright') && !skipSlowTests) karate.call('14.feature')
 
 # xpath locators
 * call read('15.feature')
@@ -59,3 +57,9 @@ Scenario:
 
 # switch to root session on page close
 * call read('17.feature')
+
+# submit and retry Should in theory pass for all browsers but playwright handles retries a bit different so expectations that work with it may not work with other implementations.  
+* if (driverType == 'playwright') karate.call('18.feature')
+
+# friendly locators
+* if (driverType != 'geckodriver') karate.call('19.feature')

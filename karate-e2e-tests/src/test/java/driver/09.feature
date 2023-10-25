@@ -3,7 +3,7 @@ Feature:
 Background:
 * driver serverUrl + '/09'
 
-Scenario: friendly locators
+Scenario: Wildcard locators
 * def parent = waitFor('.div-02')
 # make sure the find-by-text works relative to search node and not from document root
 * def found = parent.locate('{}Some Text')
