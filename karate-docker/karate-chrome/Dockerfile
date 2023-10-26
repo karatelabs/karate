@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gnupg2
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    chromium-browser
+    chromium
 
 RUN useradd chrome --shell /bin/bash --create-home \
   && usermod -a -G sudo chrome \
