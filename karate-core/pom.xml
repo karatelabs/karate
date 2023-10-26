@@ -84,22 +84,22 @@
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
-            <version>2.0</version>
+            <version>2.2</version>
         </dependency>
         <dependency>
             <groupId>de.siegmar</groupId>
             <artifactId>fastcsv</artifactId>
-            <version>2.2.1</version>
+            <version>2.2.2</version>
         </dependency>        
         <dependency>
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
-            <version>4.7.1</version>
+            <version>4.7.5</version>
         </dependency>
         <dependency>
             <groupId>io.github.classgraph</groupId>
             <artifactId>classgraph</artifactId>
-            <version>4.8.160</version>
+            <version>4.8.163</version>
         </dependency>
         <dependency>
             <groupId>io.github.t12y</groupId>
