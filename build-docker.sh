@@ -19,14 +19,13 @@ cp -r ~/.m2/repository/io/karatelabs ${KARATE_REPO}
 mvn package -B -ntp -P fatjar -DskipTests -f karate-core/pom.xml
 cp karate-core/target/karate-${KARATE_VERSION}.jar karate-docker/karate-chrome/target/karate.jar
 
-# hack for apple silicon
-# export DOCKER_DEFAULT_PLATFORM=linux/amd64
-
-# build karate-chrome docker image that includes karate fatjar + maven jars for convenience
-#docker build -t karate-chrome karate-docker/karate-chrome
+# setup multiplatform build
 docker buildx create --name multiplatform-builder
 docker buildx use multiplatform-builder
-docker buildx build --platform linux/amd64,linux/arm64 -t karate-chrome karate-docker/karate-chrome
+
+# build karate-chrome docker image that includes karate fatjar + maven jars for convenience
+# build for current platform and push for local test
+docker buildx build --load -t karate-chrome karate-docker/karate-chrome
 
 # just in case a previous run had hung (likely only in local dev)
 docker stop karate || true
@@ -46,3 +45,7 @@ docker exec -w /karate karate mvn test -B -ntp -f karate-e2e-tests/pom.xml -Dtes
 
 docker stop karate
 wait
+
+# finish multiplatform build adding missing platform as test is working
+docker buildx build --platform linux/amd64,linux/arm64 -t karate-chrome karate-docker/karate-chrome
+# -> still to check how to push to final repo
