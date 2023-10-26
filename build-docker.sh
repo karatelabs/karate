@@ -23,7 +23,12 @@ cp karate-core/target/karate-${KARATE_VERSION}.jar karate-docker/karate-chrome/t
 # export DOCKER_DEFAULT_PLATFORM=linux/amd64
 
 # build karate-chrome docker image that includes karate fatjar + maven jars for convenience
-docker build -t karate-chrome karate-docker/karate-chrome
+#docker build -t karate-chrome karate-docker/karate-chrome
+
+docker buildx create --name multiplatform-builder
+docker buildx use multiplatform-builder
+#docker buildx inspect --bootstrap
+docker buildx build --platform=linux/amd64,linux/arm64 -t karate-chrome karate-docker/karate-chrome
 
 # just in case a previous run had hung (likely only in local dev)
 docker stop karate || true
