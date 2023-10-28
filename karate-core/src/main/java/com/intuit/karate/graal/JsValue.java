@@ -66,9 +66,14 @@ public class JsValue {
         }
         this.original = v;
         try {
-            if (v.isNull()) {
+            if (v.isNull() && v.toString().equals("null")) {
                 value = null;
                 type = Type.NULL;
+            } else if (v.isNull() && v.toString().equals("undefined")) {
+                // if v is undefined, convert it to #notpresent,
+                // which semantically matches to undefined
+                type = Type.OTHER;
+                value = "#notpresent";
             } else if (v.isHostObject()) {
                 if (v.isMetaObject()) { // java.lang.Class !
                     value = v; // special case, keep around as graal value

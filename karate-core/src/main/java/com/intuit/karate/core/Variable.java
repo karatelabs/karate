@@ -49,6 +49,8 @@ public class Variable {
     
     public static enum Type {
         NULL,
+        // add undefined (to differ from null)
+        UNDEFINED,
         BOOLEAN,
         NUMBER,
         STRING,
