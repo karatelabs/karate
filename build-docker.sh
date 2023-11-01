@@ -1,5 +1,5 @@
 #!/bin/bash
-set -x -e
+#set -x -e
 
 # assume that karate jars are installed in maven local repo
 # mvn clean install -DskipTests -P pre-release
@@ -34,9 +34,9 @@ docker buildx build --platform linux/amd64,linux/arm64 --cache-from=type=local,s
 # Select image for test depending current OS
 if [[ "$OSTYPE" == "darwin"* ]]; then
   # chromium only solution on Mac darwin
-  IMAGE=karate-chromium
+  IMAGE=chromium
 else
-  IMAGE=karate-chrome
+  IMAGE=chrome
 fi
 # Load image image for local
 docker buildx build --load --cache-from=type=local,src=./target/docker -t karate-$IMAGE karate-docker/karate-$IMAGE
@@ -45,7 +45,7 @@ docker buildx build --load --cache-from=type=local,src=./target/docker -t karate
 docker stop karate || true
 
 # note that this command is run as a background process
-docker run --name karate --rm --cap-add=SYS_ADMIN -v "$PWD":/karate -v "$HOME"/.m2:/root/.m2 karate-chromium &
+docker run --name karate --rm --cap-add=SYS_ADMIN -v "$PWD":/karate -v "$HOME"/.m2:/root/.m2 karate-$IMAGE &
 
 # just ensure that the docker container named "karate" exists after the above command
 # it does not have to have completed startup, the command / karate test below will wait
