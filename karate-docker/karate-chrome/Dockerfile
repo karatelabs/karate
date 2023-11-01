@@ -18,7 +18,7 @@ RUN useradd chrome --shell /bin/bash --create-home \
 RUN apt-get install -y --no-install-recommends \
   xvfb \
   x11vnc \
-  xterm \    
+  xterm \
   fluxbox \
   wmctrl \
   supervisor \
