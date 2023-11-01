@@ -20,18 +20,32 @@ mvn package -B -ntp -P fatjar -DskipTests -f karate-core/pom.xml
 cp karate-core/target/karate-${KARATE_VERSION}.jar karate-docker/karate-chrome/target/karate.jar
 
 # setup multiplatform build
+docker buildx rm multiplatform-builder
 docker buildx create --name multiplatform-builder
 docker buildx use multiplatform-builder
 
 # build karate-chrome docker image that includes karate fatjar + maven jars for convenience
-# build for current platform and push for local test
-docker buildx build --load -t karate-chrome karate-docker/karate-chrome
+# Only possible for linux/amd64 as chrome not available on linux/arm64
+docker buildx build --platform linux/amd64 --cache-from=type=local,src=./target/docker --cache-to=type=local,dest=./target/docker -t karate-chrome -t karate-chrome:latest karate-docker/karate-chrome
+# build karate-chromium docker image that includes karate fatjar + maven jars for convenience
+# Both platform
+docker buildx build --platform linux/amd64,linux/arm64 --cache-from=type=local,src=./target/docker --cache-to=type=local,dest=./target/docker -t karate-chromium karate-docker/karate-chromium
+
+# Select image for test depending current OS
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  # chromium only solution on Mac darwin
+  IMAGE=karate-chromium
+else
+  IMAGE=karate-chrome
+fi
+# Load image image for local
+docker buildx build --load --cache-from=type=local,src=./target/docker -t karate-$IMAGE karate-docker/karate-$IMAGE
 
 # just in case a previous run had hung (likely only in local dev)
 docker stop karate || true
 
 # note that this command is run as a background process
-docker run --name karate --rm --cap-add=SYS_ADMIN -v "$PWD":/karate -v "$HOME"/.m2:/root/.m2 karate-chrome &
+docker run --name karate --rm --cap-add=SYS_ADMIN -v "$PWD":/karate -v "$HOME"/.m2:/root/.m2 karate-chromium &
 
 # just ensure that the docker container named "karate" exists after the above command
 # it does not have to have completed startup, the command / karate test below will wait
@@ -46,6 +60,3 @@ docker exec -w /karate karate mvn test -B -ntp -f karate-e2e-tests/pom.xml -Dtes
 docker stop karate
 wait
 
-# finish multiplatform build adding missing platform as test is working
-docker buildx build --platform linux/amd64,linux/arm64 -t karate-chrome karate-docker/karate-chrome
-# -> still to check how to push to final repo
