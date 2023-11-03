@@ -315,6 +315,9 @@ public class Config {
                     nonProxyHosts = (List) map.get("nonProxyHosts");
                 }
                 return true;
+            case "httpRetryEnabled":
+                httpRetryEnabled = value.isTrue();
+                return true;
             case "localAddress":
                 localAddress = value.getAsString();
                 return true;
