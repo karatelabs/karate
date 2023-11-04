@@ -6,7 +6,7 @@ import io.gatling.core.Predef._
 
 import scala.concurrent.duration._
 
-class CatsSimulation extends Simulation {
+class CatsScalaSimulation extends Simulation {
 
   MockUtils.startServer(0)
 
