@@ -122,6 +122,7 @@ public class RequestCycle {
             if (context.isClosed()) {
                 // note that session cookie is deleted in response-builder
                 context.getConfig().getSessionStore().delete(session.getId());
+                session.getData().clear();
                 logger.debug("session deleted: {}", session.getId());
             } else {
                 JsValue sessionValue = engine.get(SESSION);
