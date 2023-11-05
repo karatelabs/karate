@@ -286,6 +286,7 @@ public class Response implements ProxyObject {
         map.put(STATUS, status);
         map.put(HEADERS, JsonUtils.simplify(headers));
         map.put(BODY, getBodyConverted());
+        map.put(RESPONSE_TIME, responseTime);
         return map;
     }
 

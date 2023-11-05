@@ -141,6 +141,7 @@ public class HttpLogger {
     public void logResponse(Config config, HttpRequest request, Response response) {
         long startTime = request.getStartTime();
         long elapsedTime = request.getEndTime() - startTime;
+        response.setResponseTime(elapsedTime);
         StringBuilder sb = new StringBuilder();
         String uri = request.getUrl();
         HttpLogModifier responseModifier = logModifier(config, uri);
