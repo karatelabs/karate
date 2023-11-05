@@ -7,16 +7,17 @@ import com.intuit.karate.http.ProxyServer;
 import com.intuit.karate.core.MockServer;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.classic.methods.HttpUriRequest;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.HttpHost;
+import org.apache.hc.core5.http.HttpResponse;
+import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -37,11 +38,14 @@ class ProxyServerTest {
     @BeforeAll
     static void beforeAll() {
         proxy = new ProxyServer(0, null, null);
+        System.out.println("-3");
         server = MockServer
                 .feature("classpath:com/intuit/karate/fatjar/server.feature")
                 .pathPrefix("/v1")
                 .http(0).build();
+        System.out.println("-2");                
         int port = server.getPort();
+        System.out.println("-1");
         System.setProperty("karate.server.port", port + "");
         System.setProperty("karate.server.ssl", ""); // for ci
         System.setProperty("karate.server.proxy", "http://localhost:" + proxy.getPort());
@@ -55,9 +59,13 @@ class ProxyServerTest {
 
     @Test
     void testProxy() throws Exception {
+        System.out.println("0");
         String url = "http://localhost:" + server.getPort() + "/v1/cats";
+        System.out.println("1");
         assertEquals(200, http(get(url)));
+        System.out.println("2");
         assertEquals(200, http(post(url, "{ \"name\": \"Billie\" }")));
+        System.out.println("3");
         Results results = Runner
                 .path("classpath:com/intuit/karate/fatjar/client.feature")
                 .configDir("classpath:com/intuit/karate/fatjar")
@@ -81,10 +89,9 @@ class ProxyServerTest {
                 .setProxy(new HttpHost("localhost", proxy.getPort()))
                 .build();
         HttpResponse response = client.execute(request);
-        InputStream is = response.getEntity().getContent();
-        String responseString = FileUtils.toString(is);
+        String responseString = response.getReasonPhrase();
         logger.debug("response: {}", responseString);
-        return response.getStatusLine().getStatusCode();
+        return response.getCode();
     }
 
 }
