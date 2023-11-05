@@ -195,7 +195,44 @@ Also note that the [`logback-test.xml`](../examples/gatling/src/test/java/logbac
 
 ## Usage
 
-Let's look at an [example](src/test/scala/mock/CatsSimulation.scala):
+Let's look at an [example](src/test/java/mock/CatsSimulation.java):
+
+```java
+package mock;
+
+import com.intuit.karate.gatling.javaapi.KarateProtocolBuilder;
+
+import io.gatling.javaapi.core.ScenarioBuilder;
+import io.gatling.javaapi.core.Simulation;
+
+import static io.gatling.javaapi.core.CoreDsl.*;
+import static com.intuit.karate.gatling.javaapi.KarateDsl.*;
+
+public class CatsSimulation extends Simulation {
+
+  public CatsSimulation() {
+      
+    KarateProtocolBuilder protocol = karateProtocol(
+      uri("/cats/{id}").nil(),
+      uri("/cats").pauseFor(method("get", 15), method("post", 25)
+    ));
+
+    protocol.nameResolver = (req, ctx) -> req.getHeader("karate-name");
+    protocol.runner.karateEnv("perf");
+
+    ScenarioBuilder create = scenario("create").exec(karateFeature("classpath:mock/cats-create.feature"));
+
+    ScenarioBuilder delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature@name=delete"));
+
+    setUp(
+      create.injectOpen(rampUsers(10).during(5)).protocols(protocol),
+      delete.injectOpen(rampUsers(5).during(5)).protocols(protocol)
+    );
+  }
+}
+```
+
+or using the [Scala api](src/test/scala/mock/CatsSimulation.scala):
 
 ```scala
 package mock
