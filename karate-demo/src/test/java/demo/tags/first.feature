@@ -1,7 +1,7 @@
 @smoke
 Feature: tags demo - first
     run the following example from the command line:
-    mvn test -Dcucumber.options="--tags @smoke" -Dtest=TagsRunner
+    mvn test -Dkarate.options="--tags @smoke" -Dtest=TagsRunner
 
 Scenario: f1 - s1
     * print 'first feature:@smoke, first scenario'
