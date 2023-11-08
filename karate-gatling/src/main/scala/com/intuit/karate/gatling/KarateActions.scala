@@ -43,7 +43,7 @@ import scala.concurrent.duration.{Duration, MILLISECONDS}
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 
 class KarateFeatureAction(val name: String, val tags: Seq[String], val protocol: KarateProtocol, val system: ActorSystem,
-                          val statsEngine: StatsEngine, val clock: Clock, val next: Action, val isSilent: Boolean = FALSE) extends ExitableAction {
+                          val statsEngine: StatsEngine, val clock: Clock, val next: Action, val isSilent: Boolean = false) extends ExitableAction {
 
   override def execute(session: Session) = {
 
