@@ -73,6 +73,9 @@ class KarateFeatureAction(val name: String, val tags: Seq[String], val protocol:
       }
 
       override def reportPerfEvent(event: PerfEvent): Unit = {
+        if(isSilent){
+          return
+        }
         val okOrNot = if (event.isFailed) KO else OK
         val message = if (event.getMessage == null) None else Option(event.getMessage)
         statsEngine.logResponse(session.scenario, session.groups, event.getName, event.getStartTime, event.getEndTime, okOrNot, Option(event.getStatusCode.toString), message)
