@@ -6,7 +6,7 @@ import io.gatling.core.Predef._
 
 import scala.concurrent.duration._
 
-class CatsSimulation extends Simulation {
+class CatsSimulationWithSilentWarmUp extends Simulation {
 
   MockUtils.startServer(0)
 
@@ -34,13 +34,13 @@ class CatsSimulation extends Simulation {
   val custom = scenario("custom").exec(karateFeature("classpath:mock/custom-rpc.feature"))
 
   setUp(
-    createWarmup.inject(rampUsers(1) during (5 seconds)).AndThen(
+    createWarmup.inject(rampUsers(1) during (5 seconds)).andThen(
       create.inject(rampUsers(10) during (5 seconds))
     ),
-    deleteWarmup.inject(rampUsers(1) during (5 seconds)).AndThen(
+    deleteWarmup.inject(rampUsers(1) during (5 seconds)).andThen(
       delete.inject(rampUsers(5) during (5 seconds))
     ),
-    customWarmup.inject(rampUsers(1) during (5 seconds)).AndThen(
+    customWarmup.inject(rampUsers(1) during (5 seconds)).andThen(
       custom.inject(rampUsers(10) during (5 seconds))
     )
   ).protocols(protocol)

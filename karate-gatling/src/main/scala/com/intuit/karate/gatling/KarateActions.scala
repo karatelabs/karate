@@ -127,7 +127,7 @@ class KarateFeatureActionBuilder(name: String, tags: Seq[String]) extends Action
 
   private var isSilent = false
   
-  def silent(): SilentKarateFeatureActionBuilder = {
+  def silent(): KarateFeatureActionBuilder = {
       this.isSilent = true;
       this;
   }
