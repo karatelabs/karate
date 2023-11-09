@@ -116,14 +116,6 @@ public class ScenarioEngine {
 
     protected JsEngine JS;
 
-    /**
-     * Return current JsEngine
-     * @return Js engine
-     */
-    public JsEngine getJS() {
-        return JS;
-    }
-
     public ScenarioEngine(Config config, ScenarioRuntime runtime, Map<String, Variable> vars, Logger logger) {
         this.config = config;
         this.runtime = runtime;

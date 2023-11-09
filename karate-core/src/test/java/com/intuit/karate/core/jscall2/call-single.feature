@@ -1,5 +1,3 @@
-
-#@ignore
 Feature:: common setup
 
   Scenario: common setup

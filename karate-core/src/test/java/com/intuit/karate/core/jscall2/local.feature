@@ -16,7 +16,7 @@ Feature: responseStatus callOnce test
 
     # if comment out callOnce the local js test will pass
 
-    * callonce read('classpath:responseStatus/call-once.feature')
+    * callonce read('classpath:com/intuit/karate/core/jscall2/call-once.feature')
 
 
 
@@ -27,10 +27,9 @@ Feature: responseStatus callOnce test
 
   Scenario: callOnce test
 
-
-    Given url 'https://www.google.com'
-    When method GET
-    Then status 200
+    * url serverUrl
+    * method get
+    * status 200
 
     * print 'responseStatus: ' + responseStatus
     * assert isResponseStatus200_callOnce()
@@ -39,10 +38,9 @@ Feature: responseStatus callOnce test
   #fails from callOnce
   Scenario: local js test
 
-
-    Given url 'https://www.google.com'
-    When method GET
-    Then status 200
+    * url serverUrl
+    * method get
+    * status 200
 
     * print 'responseStatus: ' + responseStatus
     * assert isResponseStatus200()
