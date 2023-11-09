@@ -338,6 +338,9 @@ And to run scenarios tagged `foo` AND `bar`
   val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature", "@foo", "@bar"))
 ```
 
+#### Silent execution
+It is possible to set a `karateFeature()` to be silent, this allows the request executions to not be counter towards the gatling statistics, this is specially useful if you are planning to execute a warm-up process that could call the possible flows before the performance test starts, making sure all the flows will be compiled on the server before counting statistics like request time.
+
 ### Karate Variables
 On the Scala side, after a `scenario` involving a [`karateFeature()`](#karatefeature) completes, the Karate variables that were part of the feature will be added to the [Gatling session](#gatling-session).
 
