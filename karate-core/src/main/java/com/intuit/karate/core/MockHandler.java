@@ -77,20 +77,23 @@ public class MockHandler implements ServerHandler {
     protected static final ThreadLocal<Request> LOCAL_REQUEST = new ThreadLocal<>();
     private final String prefix;
 
+    private final MockInterceptor mockInterceptor;
+
     public MockHandler(Feature feature) {
         this(feature, null);
     }
 
     public MockHandler(Feature feature, Map<String, Object> args) {
-        this(null, Collections.singletonList(feature), args);
+        this(null, Collections.singletonList(feature), args, null);
     }
 
     public MockHandler(List<Feature> features) {
-        this(null, features, null);
+        this(null, features, null, null);
     }
 
-    public MockHandler(String prefix, List<Feature> features, Map<String, Object> args) {
+    public MockHandler(String prefix, List<Feature> features, Map<String, Object> args, MockInterceptor interceptor) {
         this.prefix = "/".equals(prefix) ? null : prefix;
+        this.mockInterceptor = interceptor;
         features.forEach(feature -> {
             ScenarioRuntime runtime = initRuntime(feature, args);
             corsEnabled = corsEnabled || runtime.engine.getConfig().isCorsEnabled();
@@ -224,6 +227,9 @@ public class MockHandler implements ServerHandler {
                     }
                     if (prevEngine != null) {
                         ScenarioEngine.set(prevEngine);
+                    }
+                    if (mockInterceptor != null) {
+                        mockInterceptor.intercept(req, res, scenario);
                     }
                     return res;
                 }
