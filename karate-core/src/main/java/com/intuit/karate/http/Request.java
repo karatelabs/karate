@@ -604,7 +604,7 @@ public class Request implements ProxyObject {
         map.put(PATH_RAW, getPathRaw());
         map.put(METHOD, method);
         map.put(HEADERS, JsonUtils.simplify(headers));
-        map.put(PARAMS, params);
+        map.put(PARAMS, JsonUtils.simplify(params));
         map.put(BODY, getBodyConverted());
         return map;
     }
