@@ -35,7 +35,7 @@
         <dependency>
             <groupId>com.linecorp.armeria</groupId>
             <artifactId>armeria</artifactId>
-            <version>1.25.2</version>
+            <version>1.26.2</version>
         </dependency>              
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
