@@ -33,12 +33,14 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.zip.CRC32;
+import java.util.zip.Checksum;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -56,7 +58,8 @@ public class FileUtils {
     public static final boolean KARATE_TELEMETRY;
     public static final String KARATE_VERSION;
     public static final String KARATE_META;
-    public static final String USER_UUID;    
+    public static final String USER_UUID;
+    public static final String USER_HASH;
 
     static {
         Properties props = new Properties();
@@ -68,28 +71,39 @@ public class FileUtils {
             version = (String) props.get("karate.version");
         } catch (IOException e) {
             version = "(unknown)";
-        }        
-        KARATE_VERSION = version;      
+        }
+        KARATE_VERSION = version;
         KARATE_META = System.getenv("KARATE_META");
         String telemetryEnv = System.getenv("KARATE_TELEMETRY"); // "true" / "false"
-        KARATE_TELEMETRY = telemetryEnv == null ? true : telemetryEnv.trim().equals("true"); 
+        KARATE_TELEMETRY = telemetryEnv == null ? true : telemetryEnv.trim().equals("true");
         String userHome = System.getProperty("user.home", "");
         String uuid;
+        String hash;
         try {
-            File file = new File(userHome + File.separator + ".karate" + File.separator + "uuid.txt");
-            if (file.exists()) {
-                uuid = toString(file);
+            File uuidFile = new File(userHome + File.separator + ".karate" + File.separator + "uuid.txt");
+            if (uuidFile.exists()) {
+                uuid = toString(uuidFile);
             } else {
                 uuid = UUID.randomUUID().toString();
-                writeToFile(file, uuid);
+                writeToFile(uuidFile, uuid);
             }
+            hash = checksum(userHome) + "";
         } catch (Exception e) {
+            hash = "unknown";
             uuid = "unknown";
         }
+        USER_HASH = hash;
         USER_UUID = uuid;
     }
 
     public static final File WORKING_DIR = new File("").getAbsoluteFile();
+
+    public static long checksum(String src) {
+        byte[] bytes = src.getBytes(UTF_8);
+        Checksum crc32 = new CRC32();
+        crc32.update(bytes, 0, bytes.length);
+        return crc32.getValue();
+    }
 
     public static StringUtils.Pair parsePathAndTags(String text) {
         int pos = text.indexOf('@');
@@ -119,7 +133,7 @@ public class FileUtils {
 
     public static String toString(InputStream is) {
         try {
-            return toByteStream(is).toString(StandardCharsets.UTF_8.name());
+            return toByteStream(is).toString(UTF_8.name());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -155,14 +169,14 @@ public class FileUtils {
         if (bytes == null) {
             return null;
         }
-        return new String(bytes, StandardCharsets.UTF_8);
+        return new String(bytes, UTF_8);
     }
 
     public static byte[] toBytes(String string) {
         if (string == null) {
             return null;
         }
-        return string.getBytes(StandardCharsets.UTF_8);
+        return string.getBytes(UTF_8);
     }
 
     public static void copy(File src, File dest) {
@@ -183,17 +197,17 @@ public class FileUtils {
             try (FileOutputStream fos = new FileOutputStream(file)) {
                 fos.write(data);
             }
-        } catch (IOException e) {            
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     public static void writeToFile(File file, String data) {
-        writeToFile(file, data.getBytes(StandardCharsets.UTF_8));
+        writeToFile(file, data.getBytes(UTF_8));
     }
 
     public static InputStream toInputStream(String text) {
-        return new ByteArrayInputStream(text.getBytes(StandardCharsets.UTF_8));
+        return new ByteArrayInputStream(text.getBytes(UTF_8));
     }
 
     public static void deleteDirectory(File file) {
