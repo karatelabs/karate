@@ -228,18 +228,27 @@ class XmlUtilsTest {
 
     @Test
     void testPrettyPrintWithWhiteSpace() {
-        String xml = "<foo><bar>baz</bar><ban><goo>moo   </goo></ban></foo>";
+        String xml = "<foo><bar>baz</bar><ban><goo> moo   </goo></ban></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
         String temp = XmlUtils.toString(doc, true);
         String expected
                 = "<foo>\n"
                 + "  <bar>baz</bar>\n"
                 + "  <ban>\n"
-                + "    <goo>moo</goo>\n"
+                + "    <goo> moo   </goo>\n"
                 + "  </ban>\n"
                 + "</foo>\n";
 
         expected = expected.replace("\n", System.lineSeparator());
+        assertEquals(temp, expected);
+    }
+
+    @Test
+    void testNonPrettyPrintWithWhiteSpace() {
+        String xml = "<foo><bar>baz</bar><ban><goo> moo   </goo></ban></foo>";
+        Document doc = XmlUtils.toXmlDoc(xml);
+        String temp = XmlUtils.toString(doc, false);
+        String expected = "<foo><bar>baz</bar><ban><goo> moo   </goo></ban></foo>";
         assertEquals(temp, expected);
     }
 
