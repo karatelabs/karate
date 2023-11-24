@@ -92,18 +92,6 @@ public class XmlUtils {
         }
     }
 
-    public static void trimWhiteSpace(Node node) {
-        NodeList children = node.getChildNodes();
-        int count = children.getLength();
-        for (int i = 0; i < count; ++i) {
-            Node child = children.item(i);
-            if (child.getNodeType() == Node.TEXT_NODE) {
-                child.setTextContent(child.getTextContent() == null ? "" : child.getTextContent().trim());
-            }
-            trimWhiteSpace(child);
-        }
-    }
-
     private static class DtdEntityResolver implements EntityResolver {
 
         protected boolean dtdPresent;
