@@ -101,11 +101,12 @@ public class ServerContext implements ProxyObject {
     private static final String IS_JSON = "isJson";
     private static final String MATCH = "match";
     private static final String JOIN_PATHS = "joinPaths";
+    private static final String FLASH = "flash";
 
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, SET, LOG, UUID, REMOVE, REDIRECT, SWITCH, SWITCHED, AJAX, HTTP, NEXT_ID, SESSION_ID,
         INIT, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_STRING, TO_JSON, TO_JS, TO_JSON_PRETTY, FROM_JSON,
-        CALLER, TEMPLATE, TYPE_OF, IS_PRIMITIVE, IS_JSON, MATCH, JOIN_PATHS};
+        CALLER, TEMPLATE, TYPE_OF, IS_PRIMITIVE, IS_JSON, MATCH, JOIN_PATHS, FLASH};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -124,6 +125,7 @@ public class ServerContext implements ProxyObject {
     private int nextId;
 
     private final Map<String, Object> variables;
+    private Object flash;
     private String redirectPath;
     private List<String> bodyAppends;
     private LogAppender logAppender;
@@ -614,6 +616,8 @@ public class ServerContext implements ProxyObject {
                 return MATCH_FUNCTION;
             case JOIN_PATHS:
                 return JOIN_PATHS_FUNCTION;
+            case FLASH:
+                return flash;
             default:
                 logger.warn("no such property on context object: {}", key);
                 return null;
@@ -632,7 +636,13 @@ public class ServerContext implements ProxyObject {
 
     @Override
     public void putMember(String key, Value value) {
-        logger.warn("put not supported on context object: {} - {}", key, value);
+        switch (key) {
+            case FLASH:
+                flash = JsValue.toJava(value);
+                break;
+            default:
+                logger.warn("put not supported on context object: {} - {}", key, value);
+        }
     }
 
     static class LogWrapper { // TODO code duplication with ScenarioBridge
