@@ -47,8 +47,8 @@
   </a>
 </div>
 <div>
-  <a href="https://central.sonatype.com/namespace/com.intuit.karate">
-    <img src="https://img.shields.io/maven-central/v/com.intuit.karate/karate-core.svg"/>
+  <a href="https://central.sonatype.com/namespace/io.karatelabs">
+    <img src="https://img.shields.io/maven-central/v/io.karatelabs/karate-core.svg"/>
   </a>
   <a href="https://github.com/karatelabs/karate/actions?query=workflow%3Amaven-build">
     <img src="https://github.com/karatelabs/karate/actions/workflows/maven-build.yml/badge.svg?branch=develop"/>
