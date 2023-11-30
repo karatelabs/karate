@@ -34,6 +34,7 @@ jobs:
       run: |
         mvn versions:set versions:commit -B -ntp -DnewVersion=${{ github.event.inputs.version }}
     - name: docker build
+      if: ( github.event.inputs.docker == 'enabled' )
       run: |
         mvn clean install -B -ntp -DskipTests -P pre-release
         ./build-docker.sh
