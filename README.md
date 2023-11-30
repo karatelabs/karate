@@ -1790,6 +1790,8 @@ This can be easily solved by using `java.math.BigDecimal`:
 * match json == '{"num":123123123123}'
 ```
 
+For more tips, refer [here](https://stackoverflow.com/a/77576066/143475).
+
 ## `doc`
 Karate has a built-in HTML templating engine that can be used to insert additional custom HTML into the test-reports. Here is an [example](karate-core/src/test/java/com/intuit/karate/core/users-doc.feature):
 
