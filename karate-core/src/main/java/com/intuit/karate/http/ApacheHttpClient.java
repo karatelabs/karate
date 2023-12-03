@@ -65,6 +65,7 @@ import org.apache.hc.client5.http.cookie.CookieSpecFactory;
 import org.apache.hc.client5.http.cookie.CookieStore;
 import org.apache.hc.client5.http.cookie.MalformedCookieException;
 import org.apache.hc.client5.http.entity.EntityBuilder;
+import org.apache.hc.client5.http.impl.DefaultHttpRequestRetryStrategy;
 import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
 import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -74,12 +75,14 @@ import org.apache.hc.client5.http.impl.cookie.CookieSpecBase;
 import org.apache.hc.client5.http.impl.cookie.RFC6265StrictSpec;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
+import org.apache.hc.client5.http.io.HttpClientConnectionManager;
 import org.apache.hc.client5.http.routing.HttpRoutePlanner;
 import org.apache.hc.client5.http.ssl.LenientSslConnectionSocketFactory;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
 import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
 import org.apache.hc.client5.http.ssl.TrustAllStrategy;
 import org.apache.hc.client5.http.ssl.TrustSelfSignedStrategy;
+import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.EntityDetails;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpEntity;
@@ -87,15 +90,20 @@ import org.apache.hc.core5.http.HttpException;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpMessage;
 import org.apache.hc.core5.http.HttpRequestInterceptor;
+import org.apache.hc.core5.http.HttpResponse;
 import org.apache.hc.core5.http.config.Registry;
 import org.apache.hc.core5.http.config.RegistryBuilder;
 import org.apache.hc.core5.http.io.SocketConfig;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.support.ClassicRequestBuilder;
 import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.net.URIBuilder;
+import org.apache.hc.core5.pool.PoolConcurrencyPolicy;
+import org.apache.hc.core5.pool.PoolReusePolicy;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.apache.hc.core5.ssl.SSLContexts;
 import org.apache.http.client.config.AuthSchemes;
+import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 
 /**
  *
@@ -219,7 +227,10 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 throw new RuntimeException(e);
             }
         }
-        connectionManagerBuilder.setDefaultConnectionConfig(ConnectionConfig.custom()
+        connectionManagerBuilder
+            .setPoolConcurrencyPolicy(PoolConcurrencyPolicy.STRICT)        
+            .setConnPoolPolicy(PoolReusePolicy.LIFO)
+            .setDefaultConnectionConfig(ConnectionConfig.custom()
                 .setSocketTimeout(config.getReadTimeout(), TimeUnit.MILLISECONDS)
                 .setConnectTimeout(config.getConnectTimeout(), TimeUnit.MILLISECONDS).build());   
         RequestConfig.Builder configBuilder = RequestConfig.custom()
@@ -234,14 +245,18 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             clientBuilder.setDefaultCredentialsProvider(credentialsProvider);
             configBuilder.setTargetPreferredAuthSchemes(authSchemes);
         }
-        clientBuilder.setDefaultRequestConfig(configBuilder.build());
-        SocketConfig.Builder socketBuilder = SocketConfig.custom().setSoTimeout(config.getConnectTimeout(), TimeUnit.MILLISECONDS);
-        connectionManagerBuilder.setDefaultSocketConfig(socketBuilder.build());
+        connectionManagerBuilder.setDefaultSocketConfig(SocketConfig.custom()
+                .setSoTimeout(config.getConnectTimeout(), TimeUnit.MILLISECONDS).build());
 
-        clientBuilder.setRoutePlanner(buildRoutePlanner(config));
-        clientBuilder.setConnectionManager(connectionManagerBuilder.build());
-
-        clientBuilder.addRequestInterceptorLast(this);
+        clientBuilder.setRoutePlanner(buildRoutePlanner(config))
+            .setDefaultRequestConfig(configBuilder.build())
+            .setConnectionManager(connectionManagerBuilder.build())
+            // Not sure about this. With the default reuseStrategy, ProxyServerTest fails with a SocketConnection(client.feature#11).
+            // Could not work out the exact reason. But the same SocketHandler was being used for the first two calls and was failing the second time.
+            // By setting a no reuse strategy, the connections are closed and the test passes.
+            // Impact on performance to be checked.
+            .setConnectionReuseStrategy((req, resp, ctx) -> false)
+            .addRequestInterceptorLast(this);
     }
 
     // Differences with httpclient4 implementation:
@@ -335,20 +350,16 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         }
         if (request.getHeaders() != null) {
             request.getHeaders().forEach((k, vals) -> vals.forEach(v -> requestBuilder.addHeader(k, v)));
-        }        
-        CloseableHttpResponse httpResponse;
-        byte[] bytes;
-        try (CloseableHttpClient client = clientBuilder.build()) {
-            httpResponse = client.execute(requestBuilder.build());
-            HttpEntity responseEntity = httpResponse.getEntity();
-            if (responseEntity == null || responseEntity.getContent() == null) {
-                bytes = Constants.ZERO_BYTES;
-            } else {
-                InputStream is = responseEntity.getContent();
-                bytes = FileUtils.toBytes(is);
-            }
+        }   
+        try {
+            // client  can not be closed/autoclosed as it is referenced accross multiple calls by ScenarioEngine 
+            // (requestBuilder.client.invoke(httpRequest))
+            CloseableHttpClient client = clientBuilder.build();
+
+            Response response = client.execute(requestBuilder.build(), this::buildResponse);
             request.setEndTime(System.currentTimeMillis());
-            httpResponse.close();
+            httpLogger.logResponse(getConfig(), request, response);
+            return response;
         } catch (Exception e) {
             if (e instanceof ClientProtocolException && e.getCause() != null) { // better error message                
                 throw new RuntimeException(e.getCause());
@@ -356,6 +367,11 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    private Response buildResponse(ClassicHttpResponse httpResponse) throws IOException{
+        HttpEntity entity = httpResponse.getEntity();
+        byte[] bytes = entity != null ? EntityUtils.toByteArray(entity) : Constants.ZERO_BYTES;
         int statusCode = httpResponse.getCode();
         Map<String, List<String>> headers = toHeaders(httpResponse);
         List<Cookie> storedCookies = cookieStore.getCookies();

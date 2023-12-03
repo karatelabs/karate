@@ -38,14 +38,11 @@ class ProxyServerTest {
     @BeforeAll
     static void beforeAll() {
         proxy = new ProxyServer(0, null, null);
-        System.out.println("-3");
         server = MockServer
                 .feature("classpath:com/intuit/karate/fatjar/server.feature")
                 .pathPrefix("/v1")
                 .http(0).build();
-        System.out.println("-2");                
         int port = server.getPort();
-        System.out.println("-1");
         System.setProperty("karate.server.port", port + "");
         System.setProperty("karate.server.ssl", ""); // for ci
         System.setProperty("karate.server.proxy", "http://localhost:" + proxy.getPort());
@@ -59,13 +56,9 @@ class ProxyServerTest {
 
     @Test
     void testProxy() throws Exception {
-        System.out.println("0");
         String url = "http://localhost:" + server.getPort() + "/v1/cats";
-        System.out.println("1");
         assertEquals(200, http(get(url)));
-        System.out.println("2");
         assertEquals(200, http(post(url, "{ \"name\": \"Billie\" }")));
-        System.out.println("3");
         Results results = Runner
                 .path("classpath:com/intuit/karate/fatjar/client.feature")
                 .configDir("classpath:com/intuit/karate/fatjar")
