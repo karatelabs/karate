@@ -32,6 +32,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Collections;
+import java.util.Comparator;
 
 /**
  *
@@ -184,6 +186,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         // note that they are not involved in the reverse fromKarateJson()
         map.put("durationMillis", getDurationMillis());
         List<String> tags = scenario.getTagsEffective().getTags();
+        Collections.sort(tags);
         if (tags != null && !tags.isEmpty()) {
             map.put("tags", tags);
         }
@@ -235,6 +238,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             tagMap.put("name", '@' + tag.getText());
             list.add(tagMap);
         }
+        Collections.sort(list, Comparator.comparing(m -> m.get("name").toString()));
         return list;
     }
 
