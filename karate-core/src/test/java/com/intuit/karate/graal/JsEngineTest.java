@@ -5,6 +5,7 @@ import com.intuit.karate.core.MockUtils;
 import com.intuit.karate.http.Request;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -256,7 +257,7 @@ class JsEngineTest {
     
     @Test
     void testObjectsWithinFunction() {
-        Map<String, Object> map = new HashMap();
+        Map<String, Object> map = new LinkedHashMap<>();
         map.put("a", 1);
         map.put("b", 2);
         je.put("o", map);
