@@ -16,3 +16,6 @@ Scenario: Wildcard locators
 # find all, contains match
 * def list2 = locateAll('{^}Text')
 * assert list2.length == 2
+
+# works with exists too
+* match exists('{}Some Text') == true

@@ -25,6 +25,7 @@
     | <a href="#karate-chrome">Docker / <code>karate-chrome</code></a>
     | <a href="#driver-types">Driver Types</a> 
     | <a href="#playwright">Playwright</a> 
+    | <a href="#playwright-legacy">Playwright Legacy</a> 
     | <a href="#timeout"><code>timeout()</code></a>
     | <a href="#driversessionid"><code>driver.sessionId</code></a>
   </td>
@@ -346,7 +347,36 @@ Note that some capabilities such as "headless" may be possible via the command-l
 
 Also see [`driver.sessionId`](#driversessionid).
 
+
 ### Playwright
+
+Driver that leverages [Playwright](https://playwright.dev) java native APIs.
+
+To use it, add the following dependency:
+```xml
+<dependency>
+    <groupId>io.karate</groupId>
+    <artifactId>karate-playwright</artifactId>
+    <scope>test</scope>
+</dependency>
+```
+
+And make sure it is declared before `io.karate:karate-core`.
+
+A server will be automatically started and made available to Karate without any extra-script. If you have one pre-started, you can still use the [`playwrightUrl`](#configure-driver) driver config.
+
+### `playwrightOptions`
+When using [Playwright](#playwright) you can omit this in which case Karate will default to Chrome (within Playwright) and the default browser window size.
+
+This can take the following keys:
+* `browserType` - defaults to `chromium`, can be set to the other [types that Playwright supports](https://playwright.dev/docs/core-concepts#browser), e.g. `firefox` and `webkit`
+* `context` - JSON which will be passed as the argument of the Playwright [`browser.newContext()`](https://playwright.dev/docs/api/class-browser#browsernewcontextoptions) call, needed typically to set the page dimensions
+* `channel` - defaults to chrome, for the `chromium` browserType, allows to specify which [flavor](https://playwright.dev/docs/browsers#google-chrome--microsoft-edge) to use
+* `installBrowsers` - defaults to `true`, whether or not all the supported browsers will be downloaded and installed by Playwright (once).  
+
+Note that there is a top-level config flag for `headless` mode. The default is: `* configure driver = { headless: false }`
+
+### Playwright Legacy
 To use [Playwright](https://playwright.dev), you need to start a Playwright server. If you have one pre-started, you need to use the [`playwrightUrl`](#configure-driver) driver config.
 
 Or you can set up an executable that can do it and log the URL to the console when the server is ready. The websocket URL will look like this: `ws://127.0.0.1:4444/0e0bd1c0bb2d4eb550d02c91046dd6e0`.
@@ -399,14 +429,6 @@ For convenience, Karate assumes by default that the executable name is `playwrig
 
 Based on the above details, you should be able to come up with a custom strategy to connect Karate to Playwright. And you can consider a [`driverTarget`](#custom-target) approach for complex needs such as using a Docker container for CI.
 
-### `playwrightOptions`
-When using [Playwright](#playwright) you can omit this in which case Karate will default to Chrome (within Playwright) and the default browser window size.
-
-This can take the following keys:
-* `browserType` - defaults to `chromium`, can be set to the other [types that Playwright supports](https://playwright.dev/docs/core-concepts#browser), e.g. `firefox` and `webkit`
-* `context` - JSON which will be passed as the argument of the Playwright [`browser.newContext()`](https://playwright.dev/docs/api/class-browser#browsernewcontextoptions) call, needed typically to set the page dimensions
-
-Note that there is a top-level config flag for `headless` mode. The default is: `* configure driver = { headless: false }`
 
 ## `configure driverTarget`
 The [`configure driver`](#configure-driver) options are fine for testing on "`localhost`" and when not in `headless` mode. But when the time comes for running your web-UI automation tests on a continuous integration server, things get interesting. To support all the various options such as Docker, headless Chrome, cloud-providers etc., Karate introduces the concept of a pluggable [`Target`](src/main/java/com/intuit/karate/driver/Target.java) where you just have to implement two methods:
@@ -1950,7 +1972,7 @@ Scenario:
 * screenshot()
 ```
 
-* `driver.intercept()` is supported only for the driver type `chrome`
+* `driver.intercept()` is fully supported only for the driver type `chrome`. [`Playwright`](#playwright) supports only [urlPatterns](https://chromedevtools.github.io/devtools-protocol/tot/Fetch/#type-RequestPattern)
 * you can route multiple URL patterns to the same Karate mock-feature, the format of each array-element under `patterns` can be found [here](https://chromedevtools.github.io/devtools-protocol/tot/Fetch/#type-RequestPattern).
   * the `*` wildcard (most likely what you need) will match any number of characters, e.g. `*myhost/some/path/*`
   * `?` will match any single character

@@ -31,9 +31,15 @@ import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.Response;
 import com.microsoft.playwright.Frame;
+import com.microsoft.playwright.BrowserContext.WaitForConditionOptions;
+import com.microsoft.playwright.Page.NavigateOptions;
+import com.microsoft.playwright.Page.WaitForFunctionOptions;
+import com.microsoft.playwright.assertions.LocatorAssertions.HasCountOptions;
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.*;
 import org.graalvm.polyglot.Value;
+
+import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat;
 
 import java.io.Closeable;
 import java.lang.reflect.InvocationHandler;
@@ -46,8 +52,6 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat;
 
 /**
  * Implementation of a Karate Driver for Playwright.
@@ -67,7 +71,7 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
  * specified, in which case the driver will try to connect to that url.
  *
  * A couple of additional options may be specified in the playwrightOptions
- * property: - installBrowsers ("true"/"false"): whether PW will automatically
+ * property: - installBrowsers (true/false): whether PW will automatically
  * download and install the browsers - channel (e.g. "chrome"): for the
  * "chromium" browserType, Playwright allows us to pick the underlying engine.
  *
@@ -93,6 +97,10 @@ public class PlaywrightDriver implements Driver {
 
     // Revert back to options.timeout
     private static final Integer DEFAULT_TIMEOUT = null;
+
+    // Per doc, unless retry(int, int) is explicitely called, actions by default will not be retried and should fail immediately if the element is not available.
+    // Not sure how to tell PW "ignore timeout and fail immediately". 0 does not do that, so using an arbitrary very small timeout.
+    private static final int DEFAULT_ACTION_WAIT_TIMEOUT = 100;
 
     private static final String FRIENDLY_ENGINE = "{\n"
             + "  queryAll(root,args) {\n"
@@ -151,18 +159,16 @@ public class PlaywrightDriver implements Driver {
     private boolean terminated = false;
     private String dialogText;
 
-    double retryTimeout;
-
-    public interface PlaywrightDriverFactory<T extends PlaywrightDriver> {
+    public interface PlaywrightDriverFactory<T extends Driver> {
 
         T create(PlaywrightDriverOptions options, Browser browser, Playwright playwright);
     }
 
-    public static PlaywrightDriver start(Map<String, Object> map, ScenarioRuntime sr) {
+    public static Driver start(Map<String, Object> map, ScenarioRuntime sr) {
         return start(map, sr, PlaywrightDriver::new);
     }
 
-    public static <T extends PlaywrightDriver> T start(Map<String, Object> map, ScenarioRuntime sr, PlaywrightDriverFactory<T> factory) {
+    public static <T extends Driver> T start(Map<String, Object> map, ScenarioRuntime sr, PlaywrightDriverFactory<T> factory) {
 
         PlaywrightDriverOptions options = new PlaywrightDriverOptions(map, sr, 4444, "playwright");
 
@@ -197,7 +203,8 @@ public class PlaywrightDriver implements Driver {
                 }
                 browser = browserType.connect(playwrightUrl);
             }
-            return factory.create(options, browser, playwright);
+            T driver = factory.create(options, browser, playwright);
+            return driver;
         } catch (NoSuchMethodException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
             throw new RuntimeException(e);
         }
@@ -295,7 +302,7 @@ public class PlaywrightDriver implements Driver {
         for (int i = 1; i < pwLocators.size(); i++) {
             orLocators = orLocators.or(pwLocators.get(i));
         }
-        orLocators.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
+        orLocators.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(waitTimeout()));
 
         // Find which locator is available, and return it.
         // This is on par with waitForAny specs. However, I wonder if just returning orLocators and let PW work out which one is available in the subsequent calls (click, ...) would work.
@@ -329,7 +336,7 @@ public class PlaywrightDriver implements Driver {
     public List<Element> waitForResultCount(String locator, int count) {
         Locator allLocators = rootLocator(locator);
         try {
-            assertThat(allLocators).hasCount(count);
+            assertThat(allLocators).hasCount(count, new HasCountOptions().setTimeout(waitTimeout()));
             return locateAll(locator);
         } catch (Exception e) {
             return null;
@@ -416,17 +423,17 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public boolean enabled(String locator) {
-        return rootLocator(locator).isEnabled();
+        return resolveLocator(ofRoot(locator)).isEnabled();
     }
 
     public boolean exists(String locator) {
-        return exists(rootLocator(locator));
+        return exists(ofRoot(locator));
     }
 
-    boolean exists(Locator locator) {
+    boolean exists(PlaywrightToken token) {
         // Implemented using isVisible, which seems to be the general view per https://stackoverflow.com/questions/64784781/how-to-check-if-an-element-exists-on-the-page-in-playwright-js
         // although, if isAttached was available, it probably would have made more sense.
-        return locator.isVisible();
+        return resolveLocator(token).isVisible();
     }
 
     @Override
@@ -475,14 +482,37 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public Element locate(String locator) {
-        return PlaywrightElement.locate(this, ofRoot(locator).first());
+        return locate(ofRoot(locator));
+    }
+ 
+    // Will fail immediately if the element is not found. Same as waitFor but without the "wait" part
+    Element locate(PlaywrightToken token) {
+        if (isPresent(token)) {
+            return new PlaywrightElement(this, token.first(), true);
+        }
+        throw new RuntimeException(token + " not found");
     }
 
     @Override
     public Element optional(String locator) {
-        return PlaywrightElement.optional(this, ofRoot(locator).first());
+        return optional(ofRoot(locator));
     }
 
+
+    Element optional(PlaywrightToken token) {
+        try {
+            return locate(token);
+        } catch (RuntimeException e) {
+            return new MissingElement(this, null);
+        }
+    }
+
+    boolean isPresent(PlaywrightToken token) {
+        Locator locator = resolveLocator(token);
+        // Per doc, isVisible does not wait and returns immediately, exactly what we need!
+        return locator.isVisible();
+    }
+       
     ////////////////////////////////////////////////////////////
     // Position, scroll, screenshot locator based-operations
     ///////////////////////////////////////////////////////////
@@ -584,7 +614,7 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public void setUrl(String url) {
-        page.navigate(url);
+        page.navigate(url, new NavigateOptions().setTimeout(waitTimeout()));
     }
 
     @Override
@@ -637,22 +667,14 @@ public class PlaywrightDriver implements Driver {
 
     ///////////////////////////////////////////////////////
     // Page(s), cookies, timeouts and other context-based operations
-    // (also contains swtichFrames method altough arguably they shoul be somewhere else)
+    // (also contains swtichFrames method altough arguably they should be somewhere else)
     ///////////////////////////////////////////////////////
     // Sets PWs NAVIGATION timeout.
-    // See also retryTimeout
+    // See also waitTimeout()
     @Override
     public Driver timeout(Integer millis) {
         browserContext.setDefaultNavigationTimeout(millis == DEFAULT_TIMEOUT ? options.timeout : millis.doubleValue());
         return this;
-    }
-
-    // sets the value used to implement Karate's retries.
-    // It will be passed to the timeout field of action's (click, input, select, ...) options.
-    // It is not possible to completely disable PW's autowait - and in fact we probably dont want to do that as it causes lots of errors -
-    // so we (arbitrarily) set a default of 100ms
-    void retryTimeout(Double millis) {
-        this.retryTimeout = millis == null ? 100 : millis;
     }
 
     @Override
@@ -660,9 +682,27 @@ public class PlaywrightDriver implements Driver {
         return timeout(DEFAULT_TIMEOUT);
     }
 
+    /**
+     * Timeout to be used for actions.
+     * 
+     * By default, actions don't retry and don't wait. Note that global retry settings do NOT apply either for actions.
+     * Only explicit calls to retry() will set a timeout. 
+     * 
+     * Implementation note: I could not find how to tell PW don't wait (0 means never times out) so I'm using an arbitrary small timeout value.
+     * 
+     */
+    int actionWaitTimeout() {
+        return options.isRetryEnabled() ? waitTimeout() : DEFAULT_ACTION_WAIT_TIMEOUT;
+    }
+
+    int waitTimeout() {
+        return options.getRetryInterval() * options.getRetryCount();
+    }
+
+
     @Override
     public void switchPage(String titleOrUrl) {
-        browserContext.waitForCondition(() -> findPage(titleOrUrl).isPresent());
+        browserContext.waitForCondition(() -> findPage(titleOrUrl).isPresent(), new WaitForConditionOptions().setTimeout(waitTimeout()));
         findPage(titleOrUrl).ifPresent(this::setPage);
     }
 
@@ -749,13 +789,13 @@ public class PlaywrightDriver implements Driver {
         return map;
     }
 
-    public void intercept(Value value) {
+    public DevToolsMock intercept(Value value) {
         Map<String, Object> config = (Map) JsValue.toJava(value);
         config = new Variable(config).getValue();
-        intercept(config);
+        return intercept(config);
     }
 
-    public void intercept(Map<String, Object> config) {
+    public DevToolsMock intercept(Map<String, Object> config) {
         List<Map<String, String>> patterns = (List<Map<String, String>>) Objects.requireNonNull(config.get("patterns"), "missing array argument 'patterns'");
         List<Pattern> urlPatterns = patterns.stream().map(pattern -> Pattern.compile(pattern.get("urlPattern").replace("*", ".*").replace("?", ".?"))).collect(Collectors.toList());
         String mock = (String) Objects.requireNonNull(config.get("mock"), "missing argument 'mock'");
@@ -777,6 +817,7 @@ public class PlaywrightDriver implements Driver {
             karateResponse.getHeaders().forEach((k, v) -> responseHeaders.put(k, v.get(0)));
             route.fulfill(new Route.FulfillOptions().setStatus(karateResponse.getStatus()).setBodyBytes(karateResponse.getBody()).setHeaders(responseHeaders));
         });
+        return new DevToolsMock(mockHandler);
     }
 
     private boolean matches(String url, List<Pattern> urlPatterns) {
@@ -803,7 +844,7 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public Driver retry(Integer count, Integer interval) {
-        return driverProxy(InvocationHandlers.retryHandler(this, count, interval, options.driverLogger, this));
+        return driverProxy(InvocationHandlers.retryHandler(this, count, interval, options));
     }
 
     /////////////////////////////////////////////////
@@ -884,7 +925,7 @@ public class PlaywrightDriver implements Driver {
     }
 
     void waitForFunction(String expression, ElementHandle elementHandle) {
-        page.waitForFunction(toJsExpression(expression), elementHandle);
+        page.waitForFunction(toJsExpression(expression), elementHandle, new WaitForFunctionOptions().setTimeout(waitTimeout()));
     }
 
     Object script(Locator locator, String karateExpression) {
@@ -900,6 +941,9 @@ public class PlaywrightDriver implements Driver {
         return this.root.locator(locator);
     }
 
+    Locator resolveLocator(PlaywrightToken token) {
+        return token.toLocator().first();    
+    }
     /**
      * <p>
      * A Frame has a title and can create {@link FrameLocator}s as well as
@@ -975,7 +1019,7 @@ public class PlaywrightDriver implements Driver {
         }
     }
 
-    public static class WaitForPageLoaded implements Runnable, Closeable {
+    public class WaitForPageLoaded implements Runnable, Closeable {
 
         private final Page page;
 
@@ -997,7 +1041,7 @@ public class PlaywrightDriver implements Driver {
             listener = page -> pageIsLoaded.set(true);
             page.onDOMContentLoaded(listener);
 
-            browserContext.waitForCondition(pageIsLoaded::get);
+            browserContext.waitForCondition(pageIsLoaded::get, new WaitForConditionOptions().setTimeout(waitTimeout()));
         }
 
         public void close() {

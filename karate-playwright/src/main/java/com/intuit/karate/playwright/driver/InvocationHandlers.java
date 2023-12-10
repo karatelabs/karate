@@ -31,31 +31,26 @@ import java.lang.reflect.InvocationTargetException;
 
 public class InvocationHandlers {
 
-    static InvocationHandler retryHandler(Object delegate, int count, int interval, Logger logger, PlaywrightDriver driver) {
-        driver.retryTimeout((double) interval);
+
+    /**
+     * Handler that may be used with retry action operations.
+     * Retries for actions must be signaled specifically by retry() and are disabled when the operation returns. 
+     * 
+     * @param delegate
+     * @param options
+     * @return
+     */
+    static InvocationHandler retryHandler(Object delegate, Integer count, Integer interval, PlaywrightDriverOptions options) {
+        options.enableRetry(count, interval);
         return (proxy, method, args) -> {
-            long start = System.currentTimeMillis();
             try {
-                for (int i = 0; i < count; i++) {
-                    try {
-                        logger.debug("{} - retry #{}", method.getName(), i);
-
-                        Object response = method.invoke(delegate, args);
-                        if (response != null) {
-                            return response;
-                        }
-                    } catch (IllegalAccessException e) {
-                        throw new RuntimeException(e);
-                    } catch (InvocationTargetException e) {
-
-                    }
-                }
+                // no for (int i=0; i<options.getRetryCount()  loop. We will leverage PW's autowait and perform just one call with timeout count * interval)
+                return method.invoke(delegate, args);
+            } catch (InvocationTargetException ite) {
+                throw ite.getCause();
             } finally {
-                driver.retryTimeout(null);
+                options.disableRetry();
             }
-            String message = method + ": failed after " + (count - 1) + " retries and " + (System.currentTimeMillis() - start) + " milliseconds";
-            logger.warn(message);
-            throw new RuntimeException(message);
         };
     }
 

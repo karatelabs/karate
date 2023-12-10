@@ -98,8 +98,7 @@ public class PlaywrightFinder implements Finder {
     @Override
     public Element retry(Integer count, Integer interval) {
         PlaywrightElement element = new PlaywrightElement(driver, token);
-        PlaywrightDriverOptions options = driver.options;
-        return (Element) Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[]{Element.class}, InvocationHandlers.retryHandler(element, count == null ? options.getRetryCount() : count, interval == null ? options.getRetryInterval() : interval, options.driverLogger, driver));
+        return (Element) Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[]{Element.class}, InvocationHandlers.retryHandler(element, count, interval, driver.options));
     }
 
 }
