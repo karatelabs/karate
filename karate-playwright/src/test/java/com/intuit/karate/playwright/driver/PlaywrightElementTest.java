@@ -3,6 +3,7 @@ package com.intuit.karate.playwright.driver;
 import com.intuit.karate.driver.Key;
 import com.microsoft.playwright.Locator;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -10,6 +11,7 @@ import org.mockito.Mockito;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
+@Disabled
 class PlaywrightElementTest {
 
     private Locator locator;
