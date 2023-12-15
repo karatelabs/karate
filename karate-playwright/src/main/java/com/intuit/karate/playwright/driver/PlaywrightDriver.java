@@ -98,10 +98,6 @@ public class PlaywrightDriver implements Driver {
     // Revert back to options.timeout
     private static final Integer DEFAULT_TIMEOUT = null;
 
-    // Per doc, unless retry(int, int) is explicitely called, actions by default will not be retried and should fail immediately if the element is not available.
-    // Not sure how to tell PW "ignore timeout and fail immediately". 0 does not do that, so using an arbitrary very small timeout.
-    private static final int DEFAULT_ACTION_WAIT_TIMEOUT = 100;
-
     private static final String FRIENDLY_ENGINE = "{\n"
             + "  queryAll(root,args) {\n"
             + "    function retain_right(rootRect, itemRect) {\n"
@@ -685,14 +681,10 @@ public class PlaywrightDriver implements Driver {
     /**
      * Timeout to be used for actions.
      * 
-     * By default, actions don't retry and don't wait. Note that global retry settings do NOT apply either for actions.
-     * Only explicit calls to retry() will set a timeout. 
-     * 
-     * Implementation note: I could not find how to tell PW don't wait (0 means never times out) so I'm using an arbitrary small timeout value.
-     * 
+     * See https://github.com/karatelabs/karate/issues/2291 for a discussion on its implementation.
      */
     int actionWaitTimeout() {
-        return options.isRetryEnabled() ? waitTimeout() : DEFAULT_ACTION_WAIT_TIMEOUT;
+        return options.isRetryEnabled() ? waitTimeout() : options.getRetryInterval();
     }
 
     int waitTimeout() {

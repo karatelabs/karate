@@ -105,7 +105,7 @@ public class PlaywrightDriverTest {
             ScenarioEngine.set(scenarioEngine);
         }
 
-        // Per doc and other driver implementations, global retry settings are not taken into account for actions, only explicit retry(count, interval) settings are.
+        // Per doc and other driver implementations, global retry count is not taken into account for actions, but retry interval is (and defines the wait timeout in PW).
         @Test
         void actionWithGlobalRetry() {
 
@@ -113,7 +113,7 @@ public class PlaywrightDriverTest {
             driver.setUrl("file://"+System.getProperty("user.dir")+"/src/test/resources/html/02.html");
 
             TimeoutError te = assertThrows(TimeoutError.class, () -> driver.click("#slowDiv"));
-            assertTrue(te.getMessage().contains("Timeout 100ms exceeded"), te.getMessage());
+            assertTrue(te.getMessage().contains("Timeout "+RETRY_INTERVAL+"ms exceeded"), te.getMessage());
         }
 
 
