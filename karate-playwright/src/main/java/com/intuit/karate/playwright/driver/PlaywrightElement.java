@@ -32,6 +32,7 @@ import com.microsoft.playwright.Locator.FillOptions;
 import com.microsoft.playwright.Locator.FocusOptions;
 import com.microsoft.playwright.Locator.PressOptions;
 import com.microsoft.playwright.Locator.ScrollIntoViewIfNeededOptions;
+import com.microsoft.playwright.Locator.WaitForOptions;
 import com.microsoft.playwright.options.SelectOption;
 import com.microsoft.playwright.options.WaitForSelectorState;
 
@@ -71,7 +72,7 @@ public class PlaywrightElement implements Element {
     @Override
     public boolean isPresent() {
         if (present == null) {
-            present = isPresent(driver, token);
+            present = driver.isPresent(token);
         }
         return present;
     }
@@ -99,19 +100,19 @@ public class PlaywrightElement implements Element {
 
     @Override
     public Element focus() {
-        resolveLocator().focus(new FocusOptions().setTimeout(driver.retryTimeout));
+        resolveLocator().focus(new FocusOptions().setTimeout(driver.actionWaitTimeout()));
         return this;
     }
 
     @Override
     public Element clear() {
-        resolveLocator().clear(new ClearOptions().setTimeout(driver.retryTimeout));
+        resolveLocator().clear(new ClearOptions().setTimeout(driver.actionWaitTimeout()));
         return this;
     }
 
     @Override
     public Element click() {
-        resolveLocator().click(new ClickOptions().setTimeout(driver.retryTimeout));
+        resolveLocator().click(new ClickOptions().setTimeout(driver.actionWaitTimeout()));
         return this;
     }
 
@@ -135,7 +136,7 @@ public class PlaywrightElement implements Element {
                 String charValue = Keys.keyValue(c);
                 if (charValue != null) {// special value, handle it
                     if (standardChars > 0) {
-                        resolveLocator().pressSequentially(input.substring(i - standardChars, i), new Locator.PressSequentiallyOptions().setDelay(delay).setTimeout(driver.retryTimeout));
+                        resolveLocator().pressSequentially(input.substring(i - standardChars, i), new Locator.PressSequentiallyOptions().setDelay(delay).setTimeout(driver.actionWaitTimeout()));
                         standardChars = 0;
                     }
                     if (press.length() > 0) {
@@ -144,12 +145,12 @@ public class PlaywrightElement implements Element {
                     press.append(charValue);
                     if (!Keys.isModifier(c)) {
                         // send it straight away
-                        resolveLocator().press(press.toString(), new PressOptions().setTimeout(driver.retryTimeout));
+                        resolveLocator().press(press.toString(), new PressOptions().setTimeout(driver.actionWaitTimeout()));
                         press.setLength(0);
                     }
                 } else {
                     if (press.length() > 0) {
-                        resolveLocator().press(press.append("+").append(c).toString(), new PressOptions().setTimeout(driver.retryTimeout));
+                        resolveLocator().press(press.append("+").append(c).toString(), new PressOptions().setTimeout(driver.actionWaitTimeout()));
                         press.setLength(0);
                     } else {
                         standardChars++;
@@ -158,7 +159,7 @@ public class PlaywrightElement implements Element {
             }
 
             if (standardChars > 0) {
-                resolveLocator().pressSequentially(input.substring(input.length() - standardChars), new Locator.PressSequentiallyOptions().setDelay(delay).setTimeout(driver.retryTimeout));
+                resolveLocator().pressSequentially(input.substring(input.length() - standardChars), new Locator.PressSequentiallyOptions().setDelay(delay).setTimeout(driver.actionWaitTimeout()));
             }
         }
         return this;
@@ -184,13 +185,13 @@ public class PlaywrightElement implements Element {
 
     @Override
     public Element scroll() {
-        resolveLocator().scrollIntoViewIfNeeded(new ScrollIntoViewIfNeededOptions().setTimeout(driver.retryTimeout));
+        resolveLocator().scrollIntoViewIfNeeded(new ScrollIntoViewIfNeededOptions().setTimeout(driver.actionWaitTimeout()));
         return this;
     }
 
     @Override
     public void setValue(String value) {
-        resolveLocator().fill(value, new FillOptions().setTimeout(driver.retryTimeout));
+        resolveLocator().fill(value, new FillOptions().setTimeout(driver.actionWaitTimeout()));
     }
 
     @Override
@@ -232,14 +233,12 @@ public class PlaywrightElement implements Element {
 
     @Override
     public Element retry(Integer count, Integer interval) {
-        int retryCount = count == null ? driver.options.getRetryCount() : count;
-        int retryInterval = interval == null ? driver.options.getRetryInterval() : interval;
-        return elementProxy(InvocationHandlers.retryHandler(this, retryCount, retryInterval, driver.options.driverLogger, driver));
+        return elementProxy(InvocationHandlers.retryHandler(this, count, interval, driver.options));
     }
 
     @Override
     public Element waitFor() {
-        resolveLocator().waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.ATTACHED));
+        resolveLocator().waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(driver.waitTimeout()));
         return this;
     }
 
@@ -251,7 +250,7 @@ public class PlaywrightElement implements Element {
 
     @Override
     public Element waitForText(String text) {
-        resolveLocator().filter(new FilterOptions().setHasText(text)).waitFor();
+        resolveLocator().filter(new FilterOptions().setHasText(text)).waitFor(new WaitForOptions().setTimeout(driver.waitTimeout()));
         return this;
     }
 
@@ -267,17 +266,17 @@ public class PlaywrightElement implements Element {
 
     @Override
     public Element optional(String locator) {
-        return optional(driver, token.child(locator));
+        return driver.optional(token.child(locator));
     }
 
     @Override
     public boolean exists(String locator) {
-        return driver.exists(token.child(locator).toLocator());
+        return driver.exists(token.child(locator));
     }
 
     @Override
     public Element locate(String locator) {
-        return locate(driver, token.child(locator));
+        return driver.locate(token.child(locator));
     }
 
     @Override
@@ -379,15 +378,7 @@ public class PlaywrightElement implements Element {
     private MissingElement missingElement() {
         return new MissingElement(driver, token.getPlaywrightToken());
     }
-
-    // Will fail immediately if the element is not found. Same as waitFor but without the "wait" part
-    static Element locate(PlaywrightDriver driver, PlaywrightToken token) {
-        if (isPresent(driver, token)) {
-            return new PlaywrightElement(driver, token, true);
-        }
-        throw new RuntimeException(token + " not found");
-    }
-
+    
     static List<Element> locateAll(PlaywrightDriver driver, PlaywrightToken token) {
         return findAll(driver, token, i -> "nth=" + i);
 
@@ -404,22 +395,8 @@ public class PlaywrightElement implements Element {
         return elements;
     }
 
-    static Element optional(PlaywrightDriver driver, PlaywrightToken token) {
-        try {
-            return locate(driver, token);
-        } catch (RuntimeException e) {
-            return new MissingElement(driver, null);
-        }
-    }
-
-    static boolean isPresent(PlaywrightDriver driver, PlaywrightToken token) {
-        Locator locator = token.toLocator().first();
-        // Per doc, isVisible does not wait and returns immediately, exactly what we need!
-        return locator.isVisible();
-    }
-
     private Locator resolveLocator() {
-        return token.toLocator().first();
+        return driver.resolveLocator(token);
     }
 
 }
