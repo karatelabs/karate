@@ -53,6 +53,7 @@ import javax.net.ssl.SSLContext;
 import org.apache.hc.client5.http.ClientProtocolException;
 import org.apache.hc.client5.http.auth.AuthScope;
 import org.apache.hc.client5.http.auth.NTCredentials;
+import org.apache.hc.client5.http.auth.StandardAuthScheme;
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
@@ -96,7 +97,6 @@ import org.apache.hc.core5.pool.PoolConcurrencyPolicy;
 import org.apache.hc.core5.pool.PoolReusePolicy;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.apache.hc.core5.ssl.SSLContexts;
-import org.apache.http.client.config.AuthSchemes;
 
 /**
  *
@@ -228,9 +228,10 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 .setConnectTimeout(config.getConnectTimeout(), TimeUnit.MILLISECONDS).build());   
         RequestConfig.Builder configBuilder = RequestConfig.custom()
                 .setCookieSpec(LenientCookieSpec.KARATE);                
-        if (config.isNtlmEnabled()) {
+        if (config.isNtlmEnabled()) { 
+            //Will not be supported as of 5.3. See https://hc.apache.org/httpcomponents-client-5.3.x/current/httpclient5/apidocs/index.html?org/apache/hc/client5/http/auth/NTCredentials.html
             List<String> authSchemes = new ArrayList<>();
-            authSchemes.add(AuthSchemes.NTLM);
+            authSchemes.add(StandardAuthScheme.NTLM);
             BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
             NTCredentials ntCredentials = new NTCredentials(
                 config.getNtlmUsername(), config.getNtlmPassword().toCharArray(), config.getNtlmWorkstation(), config.getNtlmDomain());
