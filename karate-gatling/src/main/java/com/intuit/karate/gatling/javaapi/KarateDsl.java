@@ -59,7 +59,7 @@ public class KarateDsl {
   }
   
     public static ActionBuilder karateFeature(String name, String... tags) {
-       return () -> PreDef.karateFeature(name, Converters.toScalaSeq(tags));
+       return new KarateFeatureBuilder(name, tags);
     }
 
 
