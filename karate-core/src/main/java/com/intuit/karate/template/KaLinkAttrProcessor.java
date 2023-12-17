@@ -60,10 +60,11 @@ public class KaLinkAttrProcessor extends AbstractAttributeTagProcessor {
         String href = hostContextPath == null ? av : hostContextPath + av;
         String noCache = tag.getAttributeValue(getDialectPrefix(), KaScriptElemProcessor.NOCACHE);
         if (noCache != null) {
-            Resource resource = resourceResolver.resolve(href);
-            if (resource.isFile()) {
-                File file = resource.getFile();
-                href = href + "?ts=" + file.lastModified();
+            try {
+                Resource resource = resourceResolver.resolve(href);
+                href = href + "?ts=" + resource.getLastModified();
+            } catch (Exception e) {
+                logger.warn("nocache failed: {}", e.getMessage());
             }
             sh.removeAttribute(getDialectPrefix(), KaScriptElemProcessor.NOCACHE);
         }

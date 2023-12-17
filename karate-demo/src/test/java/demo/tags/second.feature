@@ -1,6 +1,6 @@
 Feature: tags demo - second
     run the following example from the command line:
-    mvn test -Dcucumber.options="--tags @smoke" -Dtest=TagsRunner
+    mvn test -Dkarate.options="--tags @smoke" -Dtest=TagsRunner
 
 Scenario: f2 - s1
     * print 'second feature, first scenario'

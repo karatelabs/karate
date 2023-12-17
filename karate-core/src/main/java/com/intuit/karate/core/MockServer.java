@@ -68,6 +68,7 @@ public class MockServer extends HttpServer {
         File keyFile;
         Map<String, Object> args;
         String prefix = null;
+        MockInterceptor interceptor = null;
 
         public Builder watch(boolean value) {
             watch = value;
@@ -116,6 +117,11 @@ public class MockServer extends HttpServer {
             return this;
         }
 
+        public Builder interceptor(MockInterceptor value) {
+            interceptor = value;
+            return this;
+        }
+
         public MockServer build() {
             ServerBuilder sb = Server.builder();
             sb.requestTimeoutMillis(0);
@@ -129,7 +135,7 @@ public class MockServer extends HttpServer {
             } else {
                 sb.http(port);
             }
-            ServerHandler handler = watch ? new ReloadingMockHandler(features, args, prefix) : new MockHandler(prefix, features, args);
+            ServerHandler handler = watch ? new ReloadingMockHandler(features, args, prefix, interceptor) : new MockHandler(prefix, features, args, interceptor);
             HttpService service = new HttpServerHandler(handler);
             sb.service("prefix:" + (prefix == null ? "/" : prefix), service);
             return new MockServer(sb);
@@ -143,15 +149,17 @@ public class MockServer extends HttpServer {
         private MockHandler handler;
         private final LinkedHashMap<File, Long> files = new LinkedHashMap<>();
         private final String prefix;
+        private final MockInterceptor interceptor;
 
-        public ReloadingMockHandler(List<Feature> features, Map<String, Object> args, String prefix) {
+        public ReloadingMockHandler(List<Feature> features, Map<String, Object> args, String prefix, MockInterceptor interceptor) {
             this.args = args;
             this.prefix = prefix;
+            this.interceptor = interceptor;
             for (Feature f : features) {
                 this.files.put(f.getResource().getFile(), f.getResource().getFile().lastModified());
             }
             logger.debug("watch mode init - {}", files);
-            handler = new MockHandler(prefix, features, args);
+            handler = new MockHandler(prefix, features, args, this.interceptor);
         }
 
         @Override
@@ -159,7 +167,7 @@ public class MockServer extends HttpServer {
             boolean reload = files.entrySet().stream().reduce(false, (modified, entry) -> entry.getKey().lastModified() > entry.getValue(), (a, b) -> a || b);
             if (reload) {
                 List<Feature> features = files.keySet().stream().map(f -> Feature.read(f)).collect(Collectors.toList());
-                handler = new MockHandler(prefix, features, args);
+                handler = new MockHandler(prefix, features, args, interceptor);
             }
             return handler.handle(request);
         }

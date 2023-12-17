@@ -32,7 +32,7 @@ import java.net.URI;
  * @author pthomas3
  */
 public interface Resource {
-    
+
     public static final String CLASSPATH_COLON = "classpath:";
     public static final String FILE_COLON = "file:";
     public static final String THIS_COLON = "this:"; // used only in html templating
@@ -79,5 +79,16 @@ public interface Resource {
     }
 
     InputStream getStream();
+
+    default long getLastModified() {
+        if (isFile()) {
+            return getFile().lastModified();
+        }
+        try {
+            return getUri().toURL().openConnection().getLastModified();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
 
 }
