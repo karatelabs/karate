@@ -229,15 +229,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         RequestConfig.Builder configBuilder = RequestConfig.custom()
                 .setCookieSpec(LenientCookieSpec.KARATE);                
         if (config.isNtlmEnabled()) { 
-            //Will not be supported as of 5.3. See https://hc.apache.org/httpcomponents-client-5.3.x/current/httpclient5/apidocs/index.html?org/apache/hc/client5/http/auth/NTCredentials.html
-            List<String> authSchemes = new ArrayList<>();
-            authSchemes.add(StandardAuthScheme.NTLM);
-            BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-            NTCredentials ntCredentials = new NTCredentials(
-                config.getNtlmUsername(), config.getNtlmPassword().toCharArray(), config.getNtlmWorkstation(), config.getNtlmDomain());
-            credentialsProvider.setCredentials(ANY_AUTH_SCOPE, ntCredentials);
-            clientBuilder.setDefaultCredentialsProvider(credentialsProvider);
-            configBuilder.setTargetPreferredAuthSchemes(authSchemes);
+            //No longer supported since 5.3. See https://hc.apache.org/httpcomponents-client-5.3.x/current/httpclient5/apidocs/index.html?org/apache/hc/client5/http/auth/NTCredentials.html
+            throw new UnsupportedOperationException("NTLM is not supported any more. Please consider using Basic or Bearer authentication with TLS instead.");
         }
         connectionManagerBuilder.setDefaultSocketConfig(SocketConfig.custom()
                 .setSoTimeout(config.getConnectTimeout(), TimeUnit.MILLISECONDS).build());
