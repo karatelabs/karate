@@ -230,7 +230,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 .setCookieSpec(LenientCookieSpec.KARATE);                
         if (config.isNtlmEnabled()) { 
             //No longer supported since 5.3. See https://hc.apache.org/httpcomponents-client-5.3.x/current/httpclient5/apidocs/index.html?org/apache/hc/client5/http/auth/NTCredentials.html
-            throw new UnsupportedOperationException("NTLM is not supported any more. Please consider using Basic or Bearer authentication with TLS instead.");
+            throw new UnsupportedOperationException("NTLM authentication is not supported any more. Please consider using Basic or Bearer authentication with TLS instead.");
         }
         connectionManagerBuilder.setDefaultSocketConfig(SocketConfig.custom()
                 .setSoTimeout(config.getConnectTimeout(), TimeUnit.MILLISECONDS).build());
