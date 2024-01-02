@@ -261,28 +261,9 @@ public class PlaywrightDriver implements Driver {
         });
     }
 
-    private PlaywrightToken ofRoot(String locator) {
-        return PlaywrightToken.root(this, locator);
-    }
-
-    @Override
-    public Object script(String expression) {
-        return page.evaluate(toJsExpression(expression));
-    }
-
-    @Override
-    public Object script(String locator, String expression) {
-        return script(rootLocator(locator).first(), expression);
-    }
-
-    @Override
-    public List<Object> scriptAll(String locator, String expression) {
-        return scriptAll(rootLocator(locator), expression);
-    }
-
     @Override
     public Element waitFor(String locator) {
-        return new PlaywrightElement(this, ofRoot(locator)).waitFor();
+        return rootElement(locator).waitFor();
     }
 
     @Override
@@ -292,7 +273,7 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public Element waitForAny(String[] locators) {
-        List<Locator> pwLocators = Arrays.stream(locators).map(token -> rootLocator(token)).collect(Collectors.toList());
+        List<Locator> pwLocators = Arrays.stream(locators).map(token -> root.locator(token)).collect(Collectors.toList());
 
         Locator orLocators = pwLocators.get(0);
         for (int i = 1; i < pwLocators.size(); i++) {
@@ -305,7 +286,7 @@ public class PlaywrightDriver implements Driver {
         // Im not completely sold it would ( and that''s without even touching on how to create an element from a locator...)
         for (int i = 0; i < pwLocators.size(); i++) {
             if (pwLocators.get(i).isVisible()) {
-                return new PlaywrightElement(this, ofRoot(locators[i]));
+                return rootElement(locators[i]);
             }
         }
 
@@ -316,21 +297,22 @@ public class PlaywrightDriver implements Driver {
     public Element waitForEnabled(String locator) {
         // Per https://playwright.dev/java/docs/actionability, Playwright will auto-wait for enabled when the next action (click, ...) is invoked.
         // Nothing to do here.
-        return new PlaywrightElement(this, ofRoot(locator));
+        // TODO test this
+        return rootElement(locator);
     }
 
     @Override
     public Element waitForText(String locator, String text) {
-        return new PlaywrightElement(this, ofRoot(locator)).waitForText(text);
+        return rootElement(locator).waitForText(text);
     }
 
     @Override
     public Element waitUntil(String locator, String expression) {
-        return new PlaywrightElement(this, ofRoot(locator)).waitUntil(expression);
+        return rootElement(locator).waitUntil(expression);
     }
 
     public List<Element> waitForResultCount(String locator, int count) {
-        Locator allLocators = rootLocator(locator);
+        Locator allLocators = root.locator(locator);
         try {
             assertThat(allLocators).hasCount(count, new HasCountOptions().setTimeout(waitTimeout()));
             return locateAll(locator);
@@ -347,119 +329,127 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public Element focus(String locator) {
-        return new PlaywrightElement(this, ofRoot(locator)).focus();
+        return rootElement(locator).focus();
     }
 
     @Override
     public Element clear(String locator) {
-        return new PlaywrightElement(this, ofRoot(locator)).clear();
+        return rootElement(locator).clear();
     }
 
     @Override
     public Element click(String locator) {
-        return new PlaywrightElement(this, ofRoot(locator)).click();
+        return rootElement(locator).click();
     }
 
     @Override
     public Element value(String locator, String value) {
-        PlaywrightElement element = new PlaywrightElement(this, ofRoot(locator));
+        PlaywrightElement element = rootElement(locator);
         element.setValue(value);
         return element;
     }
 
     @Override
     public Element input(String locator, String value) {
-        return new PlaywrightElement(this, ofRoot(locator)).input(value);
+        return rootElement(locator).input(value);
     }
 
     @Override
     public Element input(String locator, String value, int delay) {
         String[] array = value.chars().mapToObj(ch -> String.valueOf((char) ch)).toArray(String[]::new);
-        return new PlaywrightElement(this, ofRoot(locator)).input(array, delay);
+        return rootElement(locator).input(array, delay);
     }
 
     public Element input(String locator, String[] values, int delay) {
-        return new PlaywrightElement(this, ofRoot(locator)).input(values, delay);
+        return rootElement(locator).input(values, delay);
     }
 
     @Override
     public Element select(String locator, String text) {
-        return new PlaywrightElement(this, ofRoot(locator)).select(text);
+        return rootElement(locator).select(text);
     }
 
     @Override
     public Element select(String locator, int index) {
-        return new PlaywrightElement(this, ofRoot(locator)).select(index);
+        return rootElement(locator).select(index);
     }
 
     @Override
     public String html(String locator) {
-        return (String) rootLocator(locator).evaluate("el => el.outerHTML", null);
+        return rootElement(locator).getHtml();
     }
 
     @Override
     public String text(String locator) {
-        return rootLocator(locator).textContent();
+        return rootElement(locator).getText();
     }
 
     @Override
     public String value(String locator) {
-        return rootLocator(locator).inputValue(new Locator.InputValueOptions());
+        return rootElement(locator).getValue();
     }
 
     @Override
     public String attribute(String locator, String name) {
-        return rootLocator(locator).getAttribute(name);
+        return rootElement(locator).attribute(name);
     }
 
     @Override
     public String property(String locator, String name) {
-        return String.valueOf(rootLocator(locator).elementHandle().getProperty(name));
+        return rootElement(locator).property(name);
     }
 
     @Override
     public boolean enabled(String locator) {
-        return resolveLocator(ofRoot(locator)).isEnabled();
+        return rootElement(locator).isEnabled();
     }
 
-    public boolean exists(String locator) {
-        return exists(ofRoot(locator));
+    @Override
+    public Object script(String expression) {
+        return page.evaluate(toJsExpression(expression));
     }
 
-    boolean exists(PlaywrightToken token) {
-        // Implemented using isVisible, which seems to be the general view per https://stackoverflow.com/questions/64784781/how-to-check-if-an-element-exists-on-the-page-in-playwright-js
-        // although, if isAttached was available, it probably would have made more sense.
-        return resolveLocator(token).isVisible();
+    @Override
+    public Object script(String locator, String expression) {
+        return rootElement(locator).script(expression);
+    }
+
+    @Override
+    public List<Object> scriptAll(String locator, String expression) {
+        // element.script most likely convert expression so we will pay the conversion price for every item in the list.
+        // But this makes the code consistently working with Element. 
+        return locateAll(locator).stream().map(element -> element.script(expression)).toList();
     }
 
     @Override
     public Finder rightOf(String locator) {
-        return new PlaywrightFinder(this, ofRoot(locator), "right-of");
+        return rootElement(locator).rightOf();
+//        return new PlaywrightFinder(this, ofRoot(locator), "right-of");
     }
 
     @Override
     public Finder leftOf(String locator) {
-        return new PlaywrightFinder(this, ofRoot(locator), "left-of");
+        return rootElement(locator).leftOf();
     }
 
     @Override
     public Finder near(String locator) {
-        return new PlaywrightFinder(this, ofRoot(locator), "near");
+        return rootElement(locator).near();        
     }
 
     @Override
     public Finder above(String locator) {
-        return new PlaywrightFinder(this, ofRoot(locator), "above");
+        return rootElement(locator).above();
     }
 
     @Override
     public Finder below(String locator) {
-        return new PlaywrightFinder(this, ofRoot(locator), "below");
+        return rootElement(locator).below();
     }
 
     public Element highlight(String locator, int millis) {
         // todo millis not taken into account.
-        return new PlaywrightElement(this, ofRoot(locator)).highlight();
+        return rootElement(locator).highlight();
     }
 
     public void highlightAll(String locator, int millis) {
@@ -472,57 +462,36 @@ public class PlaywrightDriver implements Driver {
     //////////////////////////////////////////////
     @Override
     public List<Element> locateAll(String locator) {
-        return PlaywrightElement.locateAll(this, ofRoot(locator));
+        return rootToken(locator).findAll(this);
 
     }
 
     @Override
     public Element locate(String locator) {
-        return locate(ofRoot(locator));
+        return rootToken(locator).find(this).orElseThrow(() -> new IllegalArgumentException(locator+" not found"));
     }
- 
-    // Will fail immediately if the element is not found. Same as waitFor but without the "wait" part
-    Element locate(PlaywrightToken token) {
-        if (isPresent(token)) {
-            return new PlaywrightElement(this, token.first(), true);
-        }
-        throw new RuntimeException(token + " not found");
-    }
+
 
     @Override
     public Element optional(String locator) {
-        return optional(ofRoot(locator));
+        return rootToken(locator).find(this).orElseGet(() -> new MissingElement(this, locator));
     }
 
-
-    Element optional(PlaywrightToken token) {
-        try {
-            return locate(token);
-        } catch (RuntimeException e) {
-            return new MissingElement(this, null);
-        }
+    @Override
+    public boolean exists(String locator) {
+        return rootToken(locator).find(this).isPresent();
     }
 
-    boolean isPresent(PlaywrightToken token) {
-        Locator locator = resolveLocator(token);
-        // Per doc, isVisible does not wait and returns immediately, exactly what we need!
-        return locator.isVisible();
-    }
        
     ////////////////////////////////////////////////////////////
     // Position, scroll, screenshot locator based-operations
     ///////////////////////////////////////////////////////////
     @Override
     public Map<String, Object> position(String locator) {
-        BoundingBox boundingBox = rootLocator(locator).boundingBox();
-        return asCoordinatesMap(boundingBox);
+        return rootElement(locator).getPosition();
     }
 
-    static Map<String, Object> asCoordinatesMap(BoundingBox boundingBox) {
-        return asCoordinatesMap(boundingBox.x, boundingBox.y, boundingBox.width, boundingBox.height);
-    }
-
-    private static Map<String, Object> asCoordinatesMap(double x, double y, double width, double height) {
+    static Map<String, Object> asCoordinatesMap(double x, double y, double width, double height) {
         Map<String, Object> position = new HashMap<>();
         position.put("x", x);
         position.put("y", y);
@@ -541,12 +510,12 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public Element scroll(String locator) {
-        return new PlaywrightElement(this, ofRoot(locator)).scroll();
+        return rootElement(locator).scroll();
     }
 
     @Override
     public byte[] screenshot(String locator, boolean embed) {
-        byte[] screenshot = this.screenshot(rootLocator(locator));
+        byte[] screenshot = rootElement(locator).screenshot();
         if (embed) {
             getRuntime().embed(screenshot, ResourceType.PNG);
         }
@@ -849,7 +818,7 @@ public class PlaywrightDriver implements Driver {
 
     @Override
     public Mouse mouse(String locator) {
-        return new PlaywrightMouse(this, ofRoot(locator));
+        return rootElement(locator).mouse();
     }
 
     @Override
@@ -893,9 +862,6 @@ public class PlaywrightDriver implements Driver {
     /////////////////////////////////////////////////
     // PlaywrightDriver protected APIs
     ////////////////////////////////////////////////
-    byte[] screenshot(Locator locator) {
-        return locator.screenshot(new Locator.ScreenshotOptions().setType(ScreenshotType.PNG));
-    }
 
     // Cannot call Thread.sleep or else no messages will be sent.
     void sleep(int millis) {
@@ -910,7 +876,7 @@ public class PlaywrightDriver implements Driver {
         return page.mouse();
     }
 
-    private static String toJsExpression(String expression) {
+    static String toJsExpression(String expression) {
         return expression.startsWith("_.") ? ("el => el." + expression.substring(2))
                 : expression.startsWith("!_.") ? ("el => !el." + expression.substring(3))
                 : expression;
@@ -920,22 +886,15 @@ public class PlaywrightDriver implements Driver {
         page.waitForFunction(toJsExpression(expression), elementHandle, new WaitForFunctionOptions().setTimeout(waitTimeout()));
     }
 
-    Object script(Locator locator, String karateExpression) {
-        return locator.evaluate(toJsExpression(karateExpression));
+    private PlaywrightToken rootToken(String locator) {
+        return PlaywrightToken.root(root, locator);
     }
 
-    List<Object> scriptAll(Locator locator, String expression) {
-        String jsExpression = toJsExpression(expression);
-        return locator.all().stream().map(loc -> loc.evaluate(jsExpression)).collect(Collectors.toList());
-    }
+    private PlaywrightElement rootElement(String locator) {
+        return rootToken(locator).create(this);
+    }    
 
-    Locator rootLocator(String locator) {
-        return this.root.locator(locator);
-    }
 
-    Locator resolveLocator(PlaywrightToken token) {
-        return token.toLocator().first();    
-    }
     /**
      * <p>
      * A Frame has a title and can create {@link FrameLocator}s as well as

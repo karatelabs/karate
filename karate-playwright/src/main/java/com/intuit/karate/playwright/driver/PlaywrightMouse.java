@@ -24,6 +24,7 @@
 package com.intuit.karate.playwright.driver;
 
 import com.intuit.karate.driver.Mouse;
+import com.microsoft.playwright.Locator;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
@@ -42,7 +43,7 @@ public class PlaywrightMouse implements Mouse {
     @Override
     public Mouse move(String locator) {
         // IS hover exactly what move() is about?
-        this.token.toLocator().hover();
+        resolveLocator().hover();
         if (duration != null) {
             pause(duration);
         }
@@ -80,13 +81,13 @@ public class PlaywrightMouse implements Mouse {
 
     @Override
     public Mouse click() {
-        token.toLocator().click();
+        resolveLocator().click();
         return this;
     }
 
     @Override
     public Mouse doubleClick() {
-        token.toLocator().dblclick();
+        resolveLocator().dblclick();
         return this;
     }
 
@@ -110,5 +111,8 @@ public class PlaywrightMouse implements Mouse {
     private com.microsoft.playwright.Mouse getMouse() {
         return driver.getMouse();
     }
-    
+
+    private Locator resolveLocator() {
+        return token.resolveLocator();
+    }    
 }

@@ -19,7 +19,7 @@ import com.intuit.karate.driver.Driver;
 import com.microsoft.playwright.TimeoutError;
 
 /** Run actions and waits with global /specific retry settings and measure 
-* Almost all tests (the one exception being ) within this class are configured with 2 retries of 200ms each, so 0.4s, but the div takes 2.5 to be visible, so they are expected to timeout.
+* Almost all tests (the one exception being {@link #actionWithWait}) within this class are configured with 2 retries of 200ms each, so 0.4s, but the div takes 2.5 to be visible, so they are expected to timeout.
 * However, this will validate that the specified settings are correctly taken into account.
 *
 * Compare that with a test configured with 3 * 1500, it will pass and will take 2.5s but we can't tell if the settings were used or if it's just PW's autowait returning as soon as the div is visible.

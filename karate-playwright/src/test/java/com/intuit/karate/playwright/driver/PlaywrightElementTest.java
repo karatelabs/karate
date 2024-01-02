@@ -19,9 +19,10 @@ class PlaywrightElementTest {
     @BeforeEach
     void beforeEach() {
         locator = Mockito.mock(Locator.class);
+        Locator rootLocator = Mockito.mock(Locator.class);        
+        when(rootLocator.first()).thenReturn(locator);        
         driver = Mockito.mock(PlaywrightDriver.class);
-        PlaywrightToken token = new PlaywrightToken(driver, "root", null);
-        when(driver.resolveLocator(token)).thenReturn(locator);
+        PlaywrightToken token = new PlaywrightToken(rootLocator);
         element = new PlaywrightElement(driver, token);
     }
 
