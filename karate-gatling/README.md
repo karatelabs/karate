@@ -55,8 +55,7 @@
 * Option to scale out by [distributing a test](#distributed-testing) over multiple hardware nodes or Docker containers
 
 ## Demo Video
-Refer: https://twitter.com/ptrthomas/status/986463717465391104
-
+Refer to this [webinar recording](https://www.youtube.com/watch?v=WT4gg7Jutzg&t=714s).
 
 ### Maven
 
