@@ -287,9 +287,9 @@ Scenario: alternative notpresent check using json-path
     * match foo.nope == '#notpresent'
 
 Scenario: regression test for edge case in fuzzy matches
-    * def answer = { foo: 'foo', bar: 'bar', baz': 'baz' }
-    * match answer != { foo: '#string', foobar: '#notpresent', foobaz': '#notpresent' }
-    * match answer != { foo: '#string', foobar: '##string', foobaz': '##string' }
+    * def answer = { foo: 'foo', bar: 'bar', baz: 'baz' }
+    * match answer != { foo: '#string', foobar: '#notpresent', foobaz: '#notpresent' }
+    * match answer != { foo: '#string', foobar: '##string', foobaz: '##string' }
 
 Scenario: get and json path
     * def foo = { bar: { baz: 'ban' } }

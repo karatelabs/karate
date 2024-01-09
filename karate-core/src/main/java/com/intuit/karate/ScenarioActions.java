@@ -24,7 +24,6 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.AssignType;
-import com.intuit.karate.core.Action;
 import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.When;
 import java.util.List;
