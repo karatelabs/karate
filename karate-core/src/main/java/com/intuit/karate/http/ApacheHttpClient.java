@@ -70,6 +70,7 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.cookie.CookieSpecBase;
 import org.apache.hc.client5.http.impl.cookie.RFC6265StrictSpec;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
 import org.apache.hc.client5.http.routing.HttpRoutePlanner;
@@ -103,8 +104,6 @@ import org.apache.hc.core5.ssl.SSLContexts;
  * @author pthomas3
  */
 public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
-
-    private static final AuthScope ANY_AUTH_SCOPE = new AuthScope(null, null, -1, null, null);
 
     private final ScenarioEngine engine;
     private final Logger logger;
@@ -235,9 +234,14 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         connectionManagerBuilder.setDefaultSocketConfig(SocketConfig.custom()
                 .setSoTimeout(config.getConnectTimeout(), TimeUnit.MILLISECONDS).build());
 
+        connManager = connectionManagerBuilder.build();
         clientBuilder.setRoutePlanner(buildRoutePlanner(config))
             .setDefaultRequestConfig(configBuilder.build())
-            .setConnectionManager(connectionManagerBuilder.build())
+            // set shared flag to true so that we can close the client.
+            //ConnectionManager won't be closed automatically by Apache, it is now our responsability to do so.
+            // See comments in https://github.com/karatelabs/karate/pull/2471
+            .setConnectionManagerShared(true)
+            .setConnectionManager(connManager)
             // Not sure about this. With the default reuseStrategy, ProxyServerTest fails with a SocketConnection(client.feature#11).
             // Could not work out the exact reason. But the same SocketHandler was being used for the first two calls and was failing the second time.
             // By setting a no reuse strategy, the connections are closed and the test passes.
@@ -311,6 +315,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     }
 
     private HttpRequest request;
+    private PoolingHttpClientConnectionManager connManager;
 
     @Override
     public Response invoke(HttpRequest request) {
@@ -338,11 +343,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         if (request.getHeaders() != null) {
             request.getHeaders().forEach((k, vals) -> vals.forEach(v -> requestBuilder.addHeader(k, v)));
         }   
-        try {
-            // client  can not be closed/autoclosed as it is referenced accross multiple calls by ScenarioEngine 
-            // (requestBuilder.client.invoke(httpRequest))
-            CloseableHttpClient client = clientBuilder.build();
-
+        try (CloseableHttpClient client = clientBuilder.build()) {
             Response response = client.execute(requestBuilder.build(), this::buildResponse);
             request.setEndTime(System.currentTimeMillis());
             httpLogger.logResponse(getConfig(), request, response);
@@ -419,6 +420,10 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             map.put(name, list);
         }
         return map;
+    }
+
+    public void close() {
+        connManager.close();
     }
 
     private static class CustomRoutePlanner extends SystemDefaultRoutePlanner {

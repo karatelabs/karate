@@ -24,6 +24,11 @@ public class DummyClient implements HttpClient {
     @Override
     public Response invoke(HttpRequest request) {
         throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void close() {
+        // No op. close() was introduced mainly for ApacheHttpClient, see https://github.com/karatelabs/karate/pull/2471
     }   
 
 }
