@@ -30,7 +30,6 @@ import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.StringLogAppender;
 
@@ -282,8 +281,8 @@ public class ScenarioRuntime implements Runnable {
     protected void logError(String message) {
         if (currentStep != null) {
             message = currentStep.getDebugInfo()
-                    + "\n" + currentStep.toString()
-                    + "\n" + message;
+                + "\n" + currentStep.toString()
+                + "\n" + message;
         }
         logger.error("{}", message);
     }
@@ -357,6 +356,7 @@ public class ScenarioRuntime implements Runnable {
     public void beforeRun() {
         if (featureRuntime.caller.isNone() && featureRuntime.suite.isAborted()) {
             skipped = true;
+            featureRuntime.incrementSkippedCount();
             return;
         }
         steps = skipBackground ? scenario.getSteps() : scenario.getStepsIncludingBackground();
@@ -372,9 +372,10 @@ public class ScenarioRuntime implements Runnable {
                 evalConfigJs(featureRuntime.suite.karateConfigEnv, "karate-config-" + featureRuntime.suite.env + ".js");
             }
             skipped = !featureRuntime.suite.hooks.stream()
-                    .map(h -> h.beforeScenario(this))
-                    .reduce(Boolean.TRUE, Boolean::logicalAnd);
+                .map(h -> h.beforeScenario(this))
+                .reduce(Boolean.TRUE, Boolean::logicalAnd);
             if (skipped) {
+                featureRuntime.incrementSkippedCount();
                 logger.debug("beforeScenario hook returned false, will skip scenario: {}", scenario);
             } else {
                 evaluateScenarioName();
@@ -544,9 +545,9 @@ public class ScenarioRuntime implements Runnable {
     public void evaluateScenarioName() {
         String scenarioName = scenario.getName();
         boolean wrappedByBackTick = scenarioName != null
-                && scenarioName.length() > 1
-                && '`' == scenarioName.charAt(0)
-                && '`' == scenarioName.charAt((scenarioName.length() - 1));
+            && scenarioName.length() > 1
+            && '`' == scenarioName.charAt(0)
+            && '`' == scenarioName.charAt((scenarioName.length() - 1));
         boolean hasJavascriptPlaceholder = ScenarioEngine.hasJavaScriptPlacehoder(scenarioName);
         if (wrappedByBackTick || hasJavascriptPlaceholder) {
             String eval = scenarioName;

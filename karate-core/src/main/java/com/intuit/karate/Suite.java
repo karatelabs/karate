@@ -283,7 +283,7 @@ public class Suite implements Runnable {
     }
 
     private void onFeatureDone(FeatureResult fr, int index) {
-        if (fr.getScenarioCount() > 0) { // possible that zero scenarios matched tags
+        if (fr.getRunCount() > 0) { // possible that zero scenarios matched tags
             try { // edge case that reports are not writable     
                 saveFeatureResults(fr);
                 String status = fr.isFailed() ? "fail" : "pass";

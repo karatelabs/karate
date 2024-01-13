@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
     <link rel="stylesheet" href="res/bootstrap.min.css" type="text/css"/>
@@ -12,10 +12,10 @@
     <script type="text/javascript" src="res/karate-report.js"></script>
     <th:block th:insert="~{karate-posthog.html}" th:with="karateEvent: 'report_summary'"></th:block>
     <title>Karate Summary Report</title>
-  </head>
-  <body>
-    <div id="root-container">
-      <div id="leftnav">
+</head>
+<body>
+<div id="root-container">
+    <div id="leftnav">
         <script ka:scope="global">
           var reportMeta = {
             passedCount: results.featuresPassed,
@@ -24,40 +24,58 @@
             reportType: 'Features',
             reportDate: results.resultDate
           };
+
+
         </script>
         <div th:replace="~{karate-leftnav.html}"></div>
-      </div>
-      <div id="content">
+    </div>
+    <div id="content">
         <div class="page-heading alert alert-primary">
-          <a href="karate-tags.html">Tags</a><span class="feature-label">|</span>
-          <a href="karate-timeline.html">Timeline</a>
+            <a href="karate-tags.html">Tags</a><span class="feature-label">|</span>
+            <a href="karate-timeline.html">Timeline</a>
         </div>
         <table class="features-table table table-sm">
-          <thead>
+            <thead>
             <tr>
-              <th>Feature</th>
-              <th>Title</th>
-              <th class="num">Passed</th>
-              <th class="num">Failed</th>
-              <th class="num">Scenarios</th>
-              <th class="num">Time (ms)</th>
+                <th>Feature</th>
+                <th>Title</th>
+                <th class="num">Passed</th>
+                <th class="num">Failed</th>
+                <th class="num">Skipped</th>
+                <th class="num">Scenarios</th>
+                <th class="num">Pass (%)</th>
+                <th class="num">Time (ms)</th>
             </tr>
-          </thead>
-          <tbody>
+            </thead>
+            <tbody>
             <tr th:each="fr: results.featureSummary" th:classappend="fr.failed ? 'failed' : 'passed'">
-              <td>
-                <a th:href="fr.packageQualifiedName + '.html'" th:text="fr.relativePath"></a>
-              </td>
-              <td th:title="fr.description" th:text="fr.name"></td>
-              <td class="num" th:text="fr.passedCount"></td>
-              <td class="num" th:text="fr.failedCount"></td>
-              <td class="num" th:text="fr.scenarioCount"></td>
-              <td class="num" th:text="Math.round(fr.durationMillis)"></td>
+                <td>
+                    <a th:href="fr.packageQualifiedName + '.html'" th:text="fr.relativePath"></a>
+                </td>
+                <td th:title="fr.description" th:text="fr.name"></td>
+                <td class="num" th:text="fr.passedCount"></td>
+                <td class="num" th:text="fr.failedCount"></td>
+                <td class="num" th:text="fr.skippedCount"></td>
+                <td class="num" th:text="fr.totalCount"></td>
+                <td class="num" th:text="Math.round((fr.passedCount/ fr.totalCount) * 100)"></td>
+                <td class="num" th:text="Math.round(fr.durationMillis)"></td>
             </tr>
-          </tbody>
+            <tr>
+                <td>
+                </td>
+                <td class="font-weight-bold">Totals:</td>
+                <td class="num font-weight-bold" th:text="results.scenariosPassed"></td>
+                <td class="num font-weight-bold" th:text="results.scenariosFailed"></td>
+                <td class="num font-weight-bold" th:text="results.scenariosSkipped"></td>
+                <td class="num font-weight-bold" th:text="results.scenariosTotal"></td>
+                <td class="num font-weight-bold"
+                    th:text="Math.round((results.scenariosPassed/ results.scenariosTotal) * 100)"></td>
+                <td class="num font-weight-bold" th:text="Math.round(results.totalTime)"></td>
+            </tr>
+            </tbody>
         </table>
-      </div>
     </div>
-  </body>
+</div>
+</body>
 </html>
 
