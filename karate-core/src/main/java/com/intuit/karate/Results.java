@@ -28,6 +28,7 @@ import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.TagResults;
 import com.intuit.karate.core.TimelineResults;
 import com.intuit.karate.report.ReportUtils;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -37,7 +38,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 /**
- *
  * @author pthomas3
  */
 public class Results {
@@ -48,6 +48,8 @@ public class Results {
     private final int featuresSkipped;
     private final int scenariosPassed;
     private final int scenariosFailed;
+    private final int scenariosSkipped;
+    private final int scenariosTotal;
     private final double timeTakenMillis;
     private final long endTime;
     private final List<String> errors = new ArrayList();
@@ -66,6 +68,8 @@ public class Results {
         AtomicInteger ff = new AtomicInteger();
         AtomicInteger sp = new AtomicInteger();
         AtomicInteger sf = new AtomicInteger();
+        AtomicInteger ss = new AtomicInteger();
+        AtomicInteger st = new AtomicInteger();
         AtomicInteger time = new AtomicInteger();
         TimelineResults timeline = new TimelineResults();
         TagResults tags = new TagResults();
@@ -84,12 +88,17 @@ public class Results {
             }
             sp.addAndGet(fr.getPassedCount());
             sf.addAndGet(fr.getFailedCount());
+            st.addAndGet(fr.getTotalCount());
+            ss.addAndGet(fr.getSkippedCount());
+
             errors.addAll(fr.getErrors());
         });
         featuresPassed = fp.get();
         featuresFailed = ff.get();
         scenariosPassed = sp.get();
         scenariosFailed = sf.get();
+        scenariosSkipped = ss.get();
+        scenariosTotal = st.get();
         timeTakenMillis = time.get();
         saveStatsJson();
         printStats();
@@ -100,9 +109,9 @@ public class Results {
             // last so that path can be printed to the console
             File file = suite.suiteReports.summaryReport(suite, this).render();
             System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
-                    + FileUtils.KARATE_VERSION + displayEnv
-                    + file.toPath().toUri()
-                    + "\n===================================================================\n");
+                + FileUtils.KARATE_VERSION + displayEnv
+                + file.toPath().toUri()
+                + "\n===================================================================\n");
         }
     }
 
@@ -125,10 +134,10 @@ public class Results {
         System.out.println("Karate version: " + FileUtils.KARATE_VERSION + displayEnv);
         System.out.println("======================================================");
         System.out.println(String.format("elapsed: %6.2f | threads: %4d | thread time: %.2f ",
-                getElapsedTime() / 1000, suite.threadCount, timeTakenMillis / 1000));
+            getElapsedTime() / 1000, suite.threadCount, timeTakenMillis / 1000));
         System.out.println(String.format("features: %5d | skipped: %4d | efficiency: %.2f", getFeaturesTotal(), featuresSkipped, getEfficiency()));
         System.out.println(String.format("scenarios: %4d | passed: %5d | failed: %d",
-                getScenariosTotal(), scenariosPassed, scenariosFailed));
+            getRunScenariosTotal(), scenariosPassed, scenariosFailed));
         System.out.println("======================================================");
         if (!errors.isEmpty()) {
             System.out.println(">>> failed features:");
@@ -146,7 +155,9 @@ public class Results {
         map.put("featuresFailed", featuresFailed);
         map.put("featuresSkipped", featuresSkipped);
         map.put("scenariosPassed", scenariosPassed);
-        map.put("scenariosfailed", errors.size());
+        map.put("scenariosFailed", getScenariosFailed());
+        map.put("scenariosSkipped", scenariosSkipped);
+        map.put("scenariosTotal", scenariosTotal);
         map.put("elapsedTime", getElapsedTime());
         map.put("totalTime", getTimeTakenMillis());
         map.put("efficiency", getEfficiency());
@@ -179,7 +190,7 @@ public class Results {
         return scenariosFailed;
     }
 
-    public int getScenariosTotal() {
+    public int getRunScenariosTotal() {
         return scenariosPassed + scenariosFailed;
     }
 

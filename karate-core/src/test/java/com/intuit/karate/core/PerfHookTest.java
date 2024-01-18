@@ -2,13 +2,19 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.PerfHook;
 import com.intuit.karate.Runner;
+
 import static com.intuit.karate.TestUtils.*;
+
 import com.intuit.karate.http.HttpRequest;
+
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
+
 import org.junit.jupiter.api.AfterAll;
+
 import static org.junit.jupiter.api.Assertions.*;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,7 +22,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- *
  * @author pthomas3
  */
 class PerfHookTest {
@@ -28,8 +33,8 @@ class PerfHookTest {
     @BeforeAll
     static void beforeAll() {
         server = MockServer
-                .feature("classpath:com/intuit/karate/core/perf-mock.feature")
-                .http(0).build();
+            .feature("classpath:com/intuit/karate/core/perf-mock.feature")
+            .http(0).build();
         System.setProperty("karate.server.port", server.getPort() + "");
     }
 
@@ -54,9 +59,9 @@ class PerfHookTest {
         assertNotNull(featureResult);
         assertFalse(featureResult.isEmpty());
         assertFalse(featureResult.isFailed());
-        assertEquals(featureResult.getScenarioCount(), 1);
-        assertEquals(featureResult.getPassedCount(), 1);
-        assertEquals(featureResult.getFailedCount(), 0);
+        assertEquals(1, featureResult.getRunCount());
+        assertEquals(1, featureResult.getPassedCount());
+        assertEquals(0, featureResult.getFailedCount());
         matchContains(featureResult.getVariables(), "{ configSource: 'normal', responseStatus: 200, response: { foo: ['" + bar + "'] } }");
     }
 
@@ -70,9 +75,9 @@ class PerfHookTest {
         assertNotNull(featureResult);
         assertFalse(featureResult.isEmpty());
         assertTrue(featureResult.isFailed());
-        assertEquals(featureResult.getScenarioCount(), 1);
-        assertEquals(featureResult.getPassedCount(), 0);
-        assertEquals(featureResult.getFailedCount(), 1);
+        assertEquals(1, featureResult.getRunCount());
+        assertEquals(0, featureResult.getPassedCount());
+        assertEquals(1, featureResult.getFailedCount());
         matchContains(featureResult.getVariables(), "{ configSource: 'normal', responseStatus: 200, response: { foo: ['" + bar + "'] } }");
     }
 
@@ -86,9 +91,9 @@ class PerfHookTest {
         assertNotNull(featureResult);
         assertFalse(featureResult.isEmpty());
         assertTrue(featureResult.isFailed());
-        assertEquals(featureResult.getScenarioCount(), 1);
-        assertEquals(featureResult.getPassedCount(), 0);
-        assertEquals(featureResult.getFailedCount(), 1);
+        assertEquals(1, featureResult.getRunCount());
+        assertEquals(0, featureResult.getPassedCount());
+        assertEquals(1, featureResult.getFailedCount());
         matchContains(featureResult.getVariables(), "{ configSource: 'normal', responseStatus: 200, response: { foo: ['" + bar + "'] } }");
     }
 
@@ -100,9 +105,9 @@ class PerfHookTest {
         assertNotNull(featureResult);
         assertFalse(featureResult.isEmpty());
         assertTrue(featureResult.isFailed());
-        assertEquals(featureResult.getScenarioCount(), 1);
-        assertEquals(featureResult.getPassedCount(), 0);
-        assertEquals(featureResult.getFailedCount(), 1);
+        assertEquals(1, featureResult.getRunCount());
+        assertEquals(0, featureResult.getPassedCount());
+        assertEquals(1, featureResult.getFailedCount());
         match(featureResult.getVariables(), "{ configSource: 'normal', functionFromKarateBase: '#notnull' }");
     }
 
@@ -114,9 +119,9 @@ class PerfHookTest {
         assertNotNull(featureResult);
         assertTrue(featureResult.isEmpty());
         assertFalse(featureResult.isFailed());
-        assertEquals(featureResult.getScenarioCount(), 0);
-        assertEquals(featureResult.getPassedCount(), 0);
-        assertEquals(featureResult.getFailedCount(), 0);
+        assertEquals(0, featureResult.getRunCount());
+        assertEquals(0, featureResult.getPassedCount());
+        assertEquals(0, featureResult.getFailedCount());
         assertEquals(featureResult.getVariables(), Collections.emptyMap());
     }
 
@@ -163,9 +168,7 @@ class PerfHookTest {
 
         @Override
         public void pause(Number millis) {
-            
-        }                
 
+        }
     };
-
 }

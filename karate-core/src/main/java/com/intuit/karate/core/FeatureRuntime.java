@@ -29,16 +29,17 @@ import com.intuit.karate.Suite;
 import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.resource.MemoryResource;
 import com.intuit.karate.resource.Resource;
+
 import java.io.File;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- *
  * @author pthomas3
  */
 public class FeatureRuntime implements Runnable {
@@ -63,6 +64,7 @@ public class FeatureRuntime implements Runnable {
     public final Map<String, Map<String, Object>> SETUPONCE_CACHE = new HashMap();
 
     private Runnable next;
+    private AtomicInteger skippedCount = new AtomicInteger(0);
 
     public Resource resolveFromThis(String path) {
         return featureCall.feature.getResource().resolve(path);
@@ -208,6 +210,7 @@ public class FeatureRuntime implements Runnable {
             result.setVariables(lastExecutedScenario.engine.getAllVariablesAsMap());
             result.setConfig(lastExecutedScenario.engine.getConfig());
         }
+        result.setSkippedCount(this.skippedCount.get());
         if (!result.isEmpty()) {
             for (RuntimeHook hook : suite.hooks) {
                 hook.afterFeature(this);
@@ -216,6 +219,9 @@ public class FeatureRuntime implements Runnable {
         if (next != null) {
             next.run();
         }
+    }
+    public void incrementSkippedCount() {
+        this.skippedCount.incrementAndGet();
     }
 
     @Override
