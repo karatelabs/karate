@@ -32,7 +32,7 @@ class CatsSimulationWithSilentWarmUp extends Simulation {
     exec(karateFeature("classpath:mock/cats-delete.feature@name=delete"))
   }
   
-  val customWarmup: ScenarioBuilder = scenario("custom warm-up").exec(karateFeature("classpath:mock/cats-rpc.feature").silent())
+  val customWarmup: ScenarioBuilder = scenario("custom warm-up").exec(karateFeature("classpath:mock/custom-rpc.feature").silent())
   val custom: ScenarioBuilder = scenario("custom").exec(karateFeature("classpath:mock/custom-rpc.feature"))
 
   setUp(
