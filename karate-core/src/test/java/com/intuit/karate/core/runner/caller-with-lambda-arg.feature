@@ -37,7 +37,7 @@ Scenario:
 
   * def left = 1
   * def right = 2
-  * def payload = { "leftSide": #(left), "rightSide": #(right), "sum": '#(data[0].sum(left, right))' }
+  * def payload = { "leftSide": '#(left)', "rightSide": '#(right)', "sum": '#(data[0].sum(left, right))' }
   * match payload == { "leftSide": 1, "rightSide": 2, "sum": '#? _ == 1+2' }
   * match payload == { "leftSide": 1, "rightSide": 2, "sum": '#? _ == data[0].sum( $.leftSide, $.rightSide)' }
 

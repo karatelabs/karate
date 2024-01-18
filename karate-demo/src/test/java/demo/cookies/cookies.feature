@@ -86,7 +86,7 @@ Scenario: non-expired cookie is in response
 
 Scenario: max-age is -1, cookie should persist.
     Given path 'search', 'cookies'
-    And cookie foo = {value:'bar', max-age:'-1', path:'/search'}
+    And cookie foo = { value: 'bar', 'max-age': '-1', path: '/search' }
     And param domain = '.abc.com'
     When method get
     Then status 200

@@ -6,7 +6,7 @@ Feature:: common setup
     * def isResponseStatus200_call =
     """
     function() {
-      if( responseStatus != 200){
+      if (responseStatus != 200) {
         karate.log("Retry since expectedStatus 200 != actual responseStatus: " + responseStatus);
         return false;
       }
