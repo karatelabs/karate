@@ -316,25 +316,6 @@ public class Runner {
             return (T) this;
         }
 
-        /**
-         * @see com.intuit.karate.Runner#builder()
-         * @deprecated
-         */
-        @Deprecated
-        public T fromKarateAnnotation(Class<?> clazz) {
-            KarateOptions ko = clazz.getAnnotation(KarateOptions.class);
-            if (ko != null) {
-                LOGGER.warn("the @KarateOptions annotation is deprecated, please use Runner.builder()");
-                if (ko.tags().length > 0) {
-                    tags = Arrays.asList(ko.tags());
-                }
-                if (ko.features().length > 0) {
-                    paths = Arrays.asList(ko.features());
-                }
-            }
-            return relativeTo(clazz);
-        }
-
         public T path(String... value) {
             path(Arrays.asList(value));
             return (T) this;
