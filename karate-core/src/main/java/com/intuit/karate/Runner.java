@@ -176,7 +176,7 @@ public class Runner {
                 if (ko.paths != null) {
                     paths = ko.paths;
                 }
-                if (ko.threads != threadCount) { // 1 by default
+                if (ko.threads != null) {
                     threadCount = ko.threads;
                 }
                 dryRun = ko.dryRun || dryRun;
