@@ -94,7 +94,7 @@ public class Main implements Callable<Void> {
     List<String> tags;
 
     @Option(names = {"-T", "--threads"}, description = "number of threads when running tests")
-    int threads = 1;
+    Integer threads;
 
     @Option(names = {"-o", "--output"}, description = "directory where logs and reports are output (default 'target')")
     String output = FileUtils.getBuildDir();
@@ -328,6 +328,9 @@ public class Main implements Callable<Void> {
                 System.out.println(message);
             }
             return null;
+        }
+        if (threads == null) {
+            threads = 1;
         }
         if (paths != null) {
             Results results = Runner
