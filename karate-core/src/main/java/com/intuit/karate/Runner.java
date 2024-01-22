@@ -94,7 +94,7 @@ public class Runner {
         File workingDir;
         String buildDir;
         String configDir;
-        int threadCount = 1;
+        int threadCount;
         int timeoutMinutes;
         String reportDir;
         String scenarioName;
@@ -176,7 +176,7 @@ public class Runner {
                 if (ko.paths != null) {
                     paths = ko.paths;
                 }
-                if (ko.threads != null) {
+                if (ko.threads != 0) {
                     threadCount = ko.threads;
                 }
                 dryRun = ko.dryRun || dryRun;
@@ -288,6 +288,7 @@ public class Runner {
             if (systemProperties == null) {
                 systemProperties = new HashMap();
             }
+            System.setProperty(key, value);
             systemProperties.put(key, value);
             return (T) this;
         }
@@ -441,11 +442,11 @@ public class Runner {
             callSingleCache = value;
             return (T) this;
         }
-        
+
         public T callOnceCache(Map<String, ScenarioCall.Result> value) {
             callOnceCache = value;
             return (T) this;
-        }        
+        }
 
         public T suiteReports(SuiteReports value) {
             suiteReports = value;
@@ -457,8 +458,51 @@ public class Runner {
             return (T) this;
         }
 
+        private Integer getDebugPort() {
+            String debugPortString = StringUtils.trimToNull(System.getProperty(Constants.KARATE_DEBUG_PORT));
+            if (debugPortString == null) {
+                return null;
+            }
+            int debugPort = 0;
+            try {
+                debugPort = Integer.valueOf(debugPortString);
+            } catch (Exception e) {
+                // ignore
+            }
+            return debugPort;
+        }
+
+        private String[] getDebugArgs(int debugPort) {
+            List<String> args = new ArrayList();
+            args.add("-d");
+            args.add(debugPort + "");
+            if (env != null) {
+                args.add("-e");
+                args.add(env);
+            }
+            if (tags != null) {
+                for (String tag : tags) {
+                    args.add("-t");
+                    args.add(tag);
+                }
+            }
+            if (threadCount != 1) {
+                args.add("-T");
+                args.add(threadCount + "");
+            }
+            if (paths != null) {
+                args.addAll(paths);
+            }
+            return args.toArray(new String[]{});
+        }
+
         public Results parallel(int threadCount) {
             threads(threadCount);
+            Integer debugPort = getDebugPort();
+            if (debugPort != null && !debugMode) {
+                String[] args = getDebugArgs(debugPort);
+                return Main.startDebugServer(args);
+            }
             Suite suite = new Suite(this);
             suite.run();
             return suite.buildResults();

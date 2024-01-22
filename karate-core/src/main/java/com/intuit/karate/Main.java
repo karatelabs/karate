@@ -39,8 +39,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.LoggerFactory;
@@ -94,7 +92,7 @@ public class Main implements Callable<Void> {
     List<String> tags;
 
     @Option(names = {"-T", "--threads"}, description = "number of threads when running tests")
-    Integer threads;
+    int threads;
 
     @Option(names = {"-o", "--output"}, description = "directory where logs and reports are output (default 'target')")
     String output = FileUtils.getBuildDir();
@@ -123,7 +121,7 @@ public class Main implements Callable<Void> {
 
     @Option(names = {"-d", "--debug"}, arity = "0..1", defaultValue = "-1", fallbackValue = "0",
             description = "debug mode (optional port else dynamically chosen)")
-    int debugPort;
+    int debugPort = -1;
 
     @Option(names = {"-D", "--dryrun"}, description = "dry run, generate html reports only")
     boolean dryRun;
@@ -201,30 +199,9 @@ public class Main implements Callable<Void> {
         return CommandLine.populateCommand(new Main(), args.toArray(new String[args.size()]));
     }
 
-    // matches ( -X XXX )* (XXX)
-    private static final Pattern CLI_ARGS = Pattern.compile("(\\s*-{1,2}\\w\\s\\S*\\s*)*(.*)$");
-
-    // adds double-quotes to last positional parameter (path) in case it contains white-spaces and un-quoted
-    // only if line contains just one positional parameter (path) and it is the last one in line.
-    // needed for intelli-j and vs-code generated cli invocations
-    public static Main parseKarateOptionsAndQuotePath(String line) {
-        Matcher matcher = CLI_ARGS.matcher(line);
-        if (matcher.find()) {
-            String path = matcher.group(2).trim();
-            if (path.contains(" ")) {
-                // unquote if necessary
-                String options = line.substring(0, line.lastIndexOf(path));
-                path = path.replaceAll("^\"|^'|\"$|\'$", "");
-                line = String.format("%s \"%s\"", options, path);
-            }
-        }
-        return Main.parseKarateOptions(line.trim());
-    }
-
     public Collection<RuntimeHook> createHooks() {
         if (this.hookFactoryClassNames != null) {
-            return this.hookFactoryClassNames.stream()
-                    .map(c -> createHook(c)).collect(Collectors.toList());
+            return this.hookFactoryClassNames.stream().map(c -> createHook(c)).collect(Collectors.toList());
         }
         return Collections.emptyList();
     }
@@ -232,12 +209,11 @@ public class Main implements Callable<Void> {
     private RuntimeHook createHook(String hookClassName) {
         if (hookClassName != null) {
             try {
-                Class hookClass = Class.forName(hookClassName);
-                if (RuntimeHookFactory.class.isAssignableFrom(hookClass)) {
-                    return ((RuntimeHookFactory) hookClass.newInstance()).create();
-                } else if (RuntimeHook.class.isAssignableFrom(hookClass)) {
-                    return (RuntimeHook) hookClass.newInstance();
-
+                Class clazz = Class.forName(hookClassName);
+                if (RuntimeHookFactory.class.isAssignableFrom(clazz)) {;
+                    return ((RuntimeHookFactory) clazz.getDeclaredConstructor().newInstance()).create();
+                } else if (RuntimeHook.class.isAssignableFrom(clazz)) {
+                    return (RuntimeHook) clazz.getDeclaredConstructor().newInstance();
                 }
             } catch (Exception e) {
                 logger.error("error instantiating RuntimeHook: {}", hookClassName, e);
@@ -311,6 +287,25 @@ public class Main implements Callable<Void> {
         }
     }
 
+    public static Results startDebugServer(String[] args) {
+        try {
+            Class clazz = Class.forName("io.karatelabs.debug.Main");
+            if (args.length > 1) {
+                Method method = clazz.getMethod("run", String[].class);
+                Object results = method.invoke(null, (Object) args);
+                return (Results) results;
+            } else {
+                Method method = clazz.getMethod("main", String[].class);
+                method.invoke(null, (Object) args);
+                return null;
+            }
+        } catch (Exception e) {
+            String message = "debug server failed to start";
+            System.out.println(message);
+            throw new RuntimeException(message);
+        }
+    }
+
     @Override
     public Void call() throws Exception {
         if (clean) {
@@ -318,19 +313,8 @@ public class Main implements Callable<Void> {
             logger.info("deleted directory: {}", output);
         }
         if (debugPort != -1) {
-            try {
-                Class clazz = Class.forName("io.karatelabs.debug.Main");
-                Method method = clazz.getMethod("main", String[].class);
-                String[] params = new String[]{debugPort + ""};
-                method.invoke(null, (Object) params);
-            } catch (Exception e) {
-                String message = "error: debug server failed, is 'karate-debugserver' added as a dependency ?";
-                System.out.println(message);
-            }
+            startDebugServer(new String[]{debugPort + ""});
             return null;
-        }
-        if (threads == null) {
-            threads = 1;
         }
         if (paths != null) {
             Results results = Runner

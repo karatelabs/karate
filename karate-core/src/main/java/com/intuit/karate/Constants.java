@@ -34,6 +34,7 @@ public class Constants {
     }
 
     public static final String KARATE_ENV = "karate.env";
+    public static final String KARATE_DEBUG_PORT = "karate.debug.port";
     public static final String KARATE_CONFIG_DIR = "karate.config.dir";
     public static final String KARATE_CONFIG_INCL_RESULT_METHOD = "karate.config.result.result-method.include";
     public static final String KARATE_OUTPUT_DIR = "karate.output.dir";

@@ -109,7 +109,6 @@ public class Suite implements Runnable {
 
     public final Map<String, Object> callSingleCache;
     public final Map<String, ScenarioCall.Result> callOnceCache;
-    private final ReentrantLock progressFileLock;
 
     public final Map<String, DriverRunner> drivers;
 
@@ -170,7 +169,6 @@ public class Suite implements Runnable {
             callSingleCache = null;
             callOnceCache = null;
             suiteReports = null;
-            progressFileLock = null;
             drivers = null;
         } else {
             startTime = System.currentTimeMillis();
@@ -215,7 +213,6 @@ public class Suite implements Runnable {
                 scenarioExecutor = SyncExecutorService.INSTANCE;
                 pendingTasks = SyncExecutorService.INSTANCE;
             }
-            progressFileLock = new ReentrantLock();
         }
     }
 
@@ -299,10 +296,6 @@ public class Suite implements Runnable {
                 logger.trace("<<skip>> feature {} of {}: {}", index, featuresFound, fr.getFeature());
             }
         }
-        if (progressFileLock.tryLock()) {
-            saveProgressJson();
-            progressFileLock.unlock();
-        }
     }
 
     static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -383,15 +376,6 @@ public class Suite implements Runnable {
 
     public long getFeaturesRemaining() {
         return futures.stream().filter(f -> !f.isDone()).count();
-    }
-
-    private File saveProgressJson() {
-        long remaining = getFeaturesRemaining() - 1;
-        Map<String, Object> map = Collections.singletonMap("featuresRemaining", remaining);
-        String json = JsonUtils.toJson(map);
-        File file = new File(reportDir + File.separator + "karate-progress-json.txt");
-        FileUtils.writeToFile(file, json);
-        return file;
     }
 
     public Results buildResults() {
