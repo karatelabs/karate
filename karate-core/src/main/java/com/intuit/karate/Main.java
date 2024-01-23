@@ -154,6 +154,10 @@ public class Main implements Callable<Void> {
         return threads;
     }
 
+    public int getDebugPort() {
+        return debugPort;
+    }        
+
     public String getName() {
         return name;
     }
