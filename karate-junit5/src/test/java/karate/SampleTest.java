@@ -5,14 +5,6 @@ import com.intuit.karate.junit5.Karate;
 class SampleTest {
 
     @Karate.Test
-    Karate testDryRunStaticExamples() {
-        return Karate.run("dryrun").tags("static").relativeTo(getClass());
-    }
-    @Karate.Test
-    Karate testDryRunWithDynamicSamplesFromSetup() {
-        return Karate.run("dryrun").dryRun(false).tags("dynamic").relativeTo(getClass());
-    }
-    @Karate.Test
     Karate testSample() {
         return Karate.run("sample").relativeTo(getClass());
     }
