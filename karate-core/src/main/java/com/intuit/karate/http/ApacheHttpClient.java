@@ -37,6 +37,7 @@ import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.SocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -52,8 +53,6 @@ import javax.net.ssl.SSLContext;
 
 import org.apache.hc.client5.http.ClientProtocolException;
 import org.apache.hc.client5.http.auth.AuthScope;
-import org.apache.hc.client5.http.auth.NTCredentials;
-import org.apache.hc.client5.http.auth.StandardAuthScheme;
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
@@ -72,6 +71,7 @@ import org.apache.hc.client5.http.impl.cookie.CookieSpecBase;
 import org.apache.hc.client5.http.impl.cookie.RFC6265StrictSpec;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.impl.routing.DefaultRoutePlanner;
 import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
 import org.apache.hc.client5.http.routing.HttpRoutePlanner;
 import org.apache.hc.client5.http.ssl.LenientSslConnectionSocketFactory;
@@ -252,46 +252,17 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
 
     // Differences with httpclient4 implementation:
     // - RequestBuilder.setLocalAddress does not exist any more, so instead, RoutePlanner.determineLocalAddress is overridden
-    // - clientBuilder.setProxy is not set any more. I'm probably misreading the code, but looking at DefaultRoutePanner.determineRoute, if proxy exists, my understanding is that determineProxy is not called and therefore proxySelector will NOT be used.
-    // so ProxySelector has been redesigned to handle both the specified proxy, and the nonProxyhosts if specified.
-    // Note that the route planner must now handle:
-    // - localaddress
-    // - proxy (set or not)
-    // - nonProxy hosts (set or not)
-    // Only SystemDefaultRoutePlanner supports proxy/nonProxy host so we subclass that class. However, SystemDefaultRoutePlanner does not have a "no proxy" mode so determineProxy is overridden to opt out if needed. 
-    private HttpRoutePlanner buildRoutePlanner(Config config) {
-        ProxySelector proxySelector = null;
-        if (config.getProxyUri() != null) {
-            try {
-                URI proxyUri = new URIBuilder(config.getProxyUri()).build();
-                
-                proxySelector = new ProxySelector() {
-                    private final List<String> proxyExceptions = config.getNonProxyHosts() == null ? Collections.emptyList() : config.getNonProxyHosts();
+    // - clientBuilder.setProxy does not exist any more.
+    // Instead, the new RoutePlanner exposes determineProxy and determineLocalAddress methods that may be overridden.
+    // Karate actually uses two flavors of RoutePlanner's which both implement those methods:
+    // - one that leverages ProxySelector when the nonProxyHosts property is specified
+    // - a default one in all other cases, whether a proxy is specified or not.
+ 
+    protected HttpRoutePlanner buildRoutePlanner(Config config) {
 
-                    @Override
-                    public List<Proxy> select(URI uri) {
-                        return Collections.singletonList(proxyExceptions.contains(uri.getHost())
-                                ? Proxy.NO_PROXY
-                                : new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyUri.getHost(), proxyUri.getPort())));
-                    }
-
-                    @Override
-                    public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
-                        logger.info("connect failed to uri: {}", uri, ioe);
-                    }
-                };
-
-                if (config.getProxyUsername() != null && config.getProxyPassword() != null) {
-                    BasicCredentialsProvider credsProvider = new BasicCredentialsProvider();
-                    credsProvider.setCredentials(
-                            new AuthScope(proxyUri.getHost(), proxyUri.getPort()),
-                            new UsernamePasswordCredentials(config.getProxyUsername(), config.getProxyPassword().toCharArray()));
-                    clientBuilder.setDefaultCredentialsProvider(credsProvider);
-                }
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
+        // Handle localAddress.
+        // From a Karate perspective, localAddress is primarily designed to be used with Gatling and is not related to proxy.
+        // However, in apache client 5, it is handled by the RoutePlanner too. 
         InetAddress localAddress = null;
         if (config.getLocalAddress() != null) {            
             try {
@@ -300,8 +271,51 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 logger.warn("failed to resolve local address: {} - {}", config.getLocalAddress(), e.getMessage());
             }
         }
+        HttpHost proxy;        
+        if (config.getProxyUri() != null) {
+            URI proxyUri;            
+            try {
+                proxyUri = new URIBuilder(config.getProxyUri()).build();
+            } catch (URISyntaxException e) {
+                throw new RuntimeException(e);
+            }
 
-        return new CustomRoutePlanner(proxySelector, localAddress);
+            // Manage proxy authenticator.
+            // Unfortunately, default credentials are part of the clientBuilder, not routePlanner, so there's a side effect on clientBuilder here.
+            if (config.getProxyUsername() != null && config.getProxyPassword() != null) {
+                BasicCredentialsProvider credsProvider = new BasicCredentialsProvider();
+                credsProvider.setCredentials(
+                        new AuthScope(proxyUri.getHost(), proxyUri.getPort()),
+                        new UsernamePasswordCredentials(config.getProxyUsername(), config.getProxyPassword().toCharArray()));
+                clientBuilder.setDefaultCredentialsProvider(credsProvider);
+            }
+
+            if (config.getNonProxyHosts() != null) {
+            // Create ProxySelector and its associated route planner
+                ProxySelector proxySelector = new ProxySelector() {
+        
+                    @Override
+                    public List<Proxy> select(URI uri) {
+                        return Collections.singletonList(proxyUri == null || config.getNonProxyHosts().contains(uri.getHost())
+                                ? Proxy.NO_PROXY
+                                : new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyUri.getHost(), proxyUri.getPort())));
+                    }
+        
+                    @Override
+                    public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+                        logger.info("connect failed to uri: {}", uri, ioe);
+                    }
+                };
+                return new ProxySelectorRoutePlanner(proxySelector, localAddress);        
+            } else {
+                // use simple proxy
+                proxy = new HttpHost(proxyUri.getScheme(), proxyUri.getHost(), proxyUri.getPort());
+            }
+        } else {
+            // NO proxy at all
+            proxy = null;
+        }
+        return new ProxyableRoutePlanner(proxy, localAddress);        
     }
 
     @Override
@@ -426,37 +440,53 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         connManager.close();
     }
 
-    private static class CustomRoutePlanner extends SystemDefaultRoutePlanner {
+    /**
+     * Extends SystemDefaultRoutePlanner to add support for localAddress.
+     * To be used when nonProxyHosts are specified
+     */
+    private static class ProxySelectorRoutePlanner extends SystemDefaultRoutePlanner {
 
         private final InetAddress localAddress;
-        private ProxySelector proxySelector;
 
-        public CustomRoutePlanner(ProxySelector proxySelector, InetAddress localAddress) {
+        public ProxySelectorRoutePlanner(ProxySelector proxySelector, InetAddress localAddress) {
             super(proxySelector);
-            // ProxySelector in SystemDefaultRoutePlanner is private;
-            this.proxySelector = proxySelector;
+            this.localAddress = localAddress;
+        }
+    
+        protected InetAddress determineLocalAddress(
+                final HttpHost firstHop,
+                final HttpContext context) throws HttpException {
+            return localAddress;
+        }        
+    }
+
+    /**
+     * Default Route planner that supports localAddress.
+     * May be used with or without a Proxy, but not with a ProxySelector.
+     */
+    private static class ProxyableRoutePlanner extends DefaultRoutePlanner {
+
+        private HttpHost proxy;
+        private InetAddress localAddress;
+
+        public ProxyableRoutePlanner(HttpHost proxy, InetAddress localAddress) {
+            super(null);
+            this.proxy = proxy;
             this.localAddress = localAddress;
         }
 
-          @Override
-            protected HttpHost determineProxy(
-                final HttpHost target,
+        @Override
+        protected HttpHost determineProxy(
+            final HttpHost target,
+            final HttpContext context) throws HttpException {
+            return proxy;
+        }
+
+        @Override
+        protected InetAddress determineLocalAddress(
+                final HttpHost firstHop,
                 final HttpContext context) throws HttpException {
-                if (proxySelector == null) {
-                    //SystemDefaultRoutePlanner will default to some system-wide proxySelector.
-                    //However, the expected behavior here is to ignore proxy altogether if no selector is supplied.
-                    return null; 
-                }
-                return super.determineProxy(target, context);
-            }
-    
-            protected InetAddress determineLocalAddress(
-                    final HttpHost firstHop,
-                    final HttpContext context) throws HttpException {
-                return localAddress;
-            }        
-
-
-
+            return localAddress;
+        }        
     }
 }
