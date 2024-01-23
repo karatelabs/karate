@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 
 /**
- *
  * @author pthomas3
  */
 public class Scenario {
@@ -38,7 +37,7 @@ public class Scenario {
     private final Feature feature;
     private final FeatureSection section;
     private final int exampleIndex;
-    
+
     private int line;
     private List<Tag> tags;
     private String name;
@@ -52,7 +51,7 @@ public class Scenario {
         this.section = section;
         this.exampleIndex = exampleIndex;
     }
-    
+
     public boolean isEqualTo(Scenario other) {
         return other.section.getIndex() == section.getIndex() && other.exampleIndex == exampleIndex;
     }
@@ -188,7 +187,7 @@ public class Scenario {
 
     public void setLine(int line) {
         this.line = line;
-    }        
+    }
 
     public List<Tag> getTags() {
         return tags;
@@ -259,4 +258,11 @@ public class Scenario {
         return URI.create(feature.getResource().getUri() + "?line=" + line);
     }
 
+    public boolean isSetup() {
+        return getTags() == null ? false :
+            getTags()
+                .stream()
+                .map(Tag::getName)
+                .anyMatch((t)->t.equals(Tag.SETUP));
+    }
 }
