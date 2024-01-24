@@ -43,7 +43,7 @@ class ApacheHttpServerTest {
 
     @Test
     void noProxy() {
-        HttpRoute route = determineRoute(client, host);
+        HttpRoute route = determineRoute(host);
         Assertions.assertNull(route.getProxyHost());
         assertNull(route.getLocalAddress());
     }
@@ -51,7 +51,7 @@ class ApacheHttpServerTest {
     @Test
     void proxy() {
         config.configure("proxy", new Variable("http://proxy:80"));
-        HttpRoute route =  determineRoute(client, host);
+        HttpRoute route =  determineRoute(host);
         assertEquals("http://proxy:80", route.getProxyHost().toURI());
     }
 
@@ -62,10 +62,10 @@ class ApacheHttpServerTest {
         proxyConfiguration.put("nonProxyHosts", Collections.singletonList("foo.com"));
         config.configure("proxy", new Variable(proxyConfiguration));
 
-        HttpRoute nonProxiedRoute = determineRoute(client, host);
+        HttpRoute nonProxiedRoute = determineRoute(host);
         assertNull(nonProxiedRoute.getProxyHost());
 
-        HttpRoute proxiedRoute = determineRoute(client, new HttpHost("bar.com"));
+        HttpRoute proxiedRoute = determineRoute(new HttpHost("bar.com"));
         assertEquals("http://proxy:80", proxiedRoute.getProxyHost().toURI());
     }
 
@@ -75,13 +75,13 @@ class ApacheHttpServerTest {
     void localAddress() {
         config.configure("localAddress", new Variable("localhost"));
 
-        HttpRoute route = determineRoute(client, host);
+        HttpRoute route = determineRoute(host);
 
         assertNull(route.getProxyHost());
         assertEquals("localhost", route.getLocalAddress().getHostName());
     }
 
-    private HttpRoute determineRoute(ApacheHttpClient client, HttpHost host) {
+    private HttpRoute determineRoute(HttpHost host) {
         try {
             return client.buildRoutePlanner(config).determineRoute(host, context);
         } catch (HttpException e) {
