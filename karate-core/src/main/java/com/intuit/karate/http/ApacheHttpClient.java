@@ -89,6 +89,7 @@ import org.apache.hc.core5.http.HttpMessage;
 import org.apache.hc.core5.http.HttpRequestInterceptor;
 import org.apache.hc.core5.http.config.Registry;
 import org.apache.hc.core5.http.config.RegistryBuilder;
+import org.apache.hc.core5.http.impl.DefaultConnectionReuseStrategy;
 import org.apache.hc.core5.http.io.SocketConfig;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.support.ClassicRequestBuilder;
@@ -242,11 +243,11 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             // See comments in https://github.com/karatelabs/karate/pull/2471
             .setConnectionManagerShared(true)
             .setConnectionManager(connManager)
-            // Not sure about this. With the default reuseStrategy, ProxyServerTest fails with a SocketConnection(client.feature#11).
-            // Could not work out the exact reason. But the same SocketHandler was being used for the first two calls and was failing the second time.
-            // By setting a no reuse strategy, the connections are closed and the test passes.
-            // Impact on performance to be checked.
-            .setConnectionReuseStrategy((req, resp, ctx) -> false)
+            // When using a proxy (with or without nonProxyHosts), requests are ultimately sent to ProxyRemoteHandler which closes the stream upon sending the response (see ProxyRemoteHandler.channelRead0).
+            // However, the connection manager is not notified and will by default keep the connection open, resulting in a SocketConnection/NoHttpResponseException insubsequent calls (ProxyServerTest is a good example).
+            // So, if a proxy is used (i.e. when config.getProxyUri() is not null), we disable connection persistence.
+            // Otherwise, we delegate to the default strategy.
+            .setConnectionReuseStrategy(config.getProxyUri() != null ? (req, resp, ctx) -> false : DefaultConnectionReuseStrategy.INSTANCE)
             .addRequestInterceptorLast(this);
     }
 
