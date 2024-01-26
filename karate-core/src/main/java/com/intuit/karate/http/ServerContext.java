@@ -25,7 +25,6 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.LogAppender;
 import com.intuit.karate.Match;
 import com.intuit.karate.core.Variable;
 import com.intuit.karate.graal.JsArray;
@@ -121,15 +120,13 @@ public class ServerContext implements ProxyObject {
     private Session session; // can be pre-resolved, else will be set by RequestCycle.init()
     private boolean switched;
     private boolean closed;
-    private Supplier<Response> customHandler;
     private int nextId;
 
     private final Map<String, Object> variables;
     private Object flash;
     private String redirectPath;
     private List<String> bodyAppends;
-    private LogAppender logAppender;
-    private RequestCycle mockRequestCycle;
+    private Function<ServerContext, Boolean> requestValidator;
 
     public ServerContext(ServerConfig config, Request request) {
         this(config, request, null);
@@ -348,21 +345,13 @@ public class ServerContext implements ProxyObject {
         this.httpGetAllowed = httpGetAllowed;
     }
 
-    public Supplier<Response> getCustomHandler() {
-        return customHandler;
+    public void setRequestValidator(Function<ServerContext, Boolean> requestValidator) {
+        this.requestValidator = requestValidator;
     }
 
-    public void setCustomHandler(Supplier<Response> customHandler) {
-        this.customHandler = customHandler;
-    }
-
-    public void setMockRequestCycle(RequestCycle mockRequestCycle) {
-        this.mockRequestCycle = mockRequestCycle;
-    }
-
-    public RequestCycle getMockRequestCycle() {
-        return mockRequestCycle;
-    }
+    public Function<ServerContext, Boolean> getRequestValidator() {
+        return requestValidator;
+    }    
 
     public boolean isSwitched() {
         return switched;
@@ -383,20 +372,9 @@ public class ServerContext implements ProxyObject {
         bodyAppends.add(body);
     }
 
-    public LogAppender getLogAppender() {
-        return logAppender;
-    }
-
-    public void setLogAppender(LogAppender logAppender) {
-        this.logAppender = logAppender;
-    }
-
     public void log(Object... args) {
         String log = new LogWrapper(args).toString();
         logger.info(log);
-        if (logAppender != null) {
-            logAppender.append(log);
-        }
     }
 
     private final Methods.FunVar GET_FUNCTION = args -> {
