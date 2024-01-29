@@ -37,8 +37,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
-import static com.intuit.karate.StringUtils.repeat;
-
 /**
  * @author pthomas3
  */
@@ -134,15 +132,13 @@ public class Results {
     private void printStats() {
         String displayEnv = StringUtils.isBlank(suite.env) ? "" : " | env: " + suite.env;
         System.out.println("Karate version: " + FileUtils.KARATE_VERSION + displayEnv);
-        String scenarioStats = String.format("scenarios: %4d | skipped: %4d | passed:     %5d | failed: %d | pass (%%): %2d",
-            getRunScenariosTotal(), scenariosSkipped, scenariosPassed, scenariosFailed, getPassPercentage());
-        String sectionSeparator = repeat('=', scenarioStats.length() + 2);
-        System.out.println(sectionSeparator);
+        System.out.println("======================================================");
         System.out.println(String.format("elapsed: %6.2f | threads: %4d | thread time: %.2f ",
             getElapsedTime() / 1000, suite.threadCount, timeTakenMillis / 1000));
-        System.out.println(String.format("features: %5d | skipped: %4d | efficiency:  %.2f", getFeaturesTotal(), featuresSkipped, getEfficiency()));
-        System.out.println(scenarioStats);
-        System.out.println(sectionSeparator);
+        System.out.println(String.format("features: %5d | skipped: %4d | efficiency: %.2f", getFeaturesTotal(), featuresSkipped, getEfficiency()));
+        System.out.println(String.format("scenarios: %4d | passed: %5d | failed: %d",
+            getRunScenariosTotal(), scenariosPassed, scenariosFailed));
+        System.out.println("======================================================");
         if (!errors.isEmpty()) {
             System.out.println(">>> failed features:");
             System.out.println(getErrorMessages());
@@ -212,10 +208,6 @@ public class Results {
 
     public int getFailCount() {
         return errors.size();
-    }
-
-    private int getPassPercentage() {
-        return getRunScenariosTotal() == 0 ? 100 : scenariosPassed * 100 / getRunScenariosTotal();
     }
 
     public double getTimeTakenMillis() {
