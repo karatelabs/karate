@@ -36,6 +36,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.intuit.karate.StringUtils.repeat;
+
 /**
  * @author pthomas3
  */
@@ -62,10 +64,13 @@ public class FeatureResult {
     public void printStats() {
         String featureName = feature.getResource().getPrefixedPath();
         StringBuilder sb = new StringBuilder();
-        sb.append("---------------------------------------------------------\n");
+        String scenarioStats = String.format("scenarios: %2d | skipped: %2d | passed: %2d | failed: %2d | pass (%%): %2d | time: %.4f",
+            getRunCount(), getSkippedCount(), getPassedCount(), getFailedCount(), getPassPercentage(), getDurationMillis() / 1000);
+        String sectionSeparator = repeat( '-', scenarioStats.length() + 2);
+        sb.append(sectionSeparator).append('\n');
         sb.append("feature: ").append(featureName).append('\n');
-        sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", getRunCount(), getPassedCount(), getFailedCount(), getDurationMillis() / 1000));
-        sb.append("---------------------------------------------------------\n");
+        sb.append(scenarioStats).append('\n');
+        sb.append(sectionSeparator).append('\n');
         System.out.println(sb);
     }
 
@@ -346,5 +351,9 @@ public class FeatureResult {
 
     public void setSkippedCount(int skippedCount) {
         this.skippedCount = skippedCount;
+    }
+
+    private int getPassPercentage() {
+        return getRunCount() ==0 ? 100: getPassedCount() * 100 / getRunCount();
     }
 }

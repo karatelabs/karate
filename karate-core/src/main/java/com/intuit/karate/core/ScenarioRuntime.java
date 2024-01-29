@@ -443,7 +443,7 @@ public class ScenarioRuntime implements Runnable {
             } else {
                 stepResult = Result.skipped(System.currentTimeMillis());
             }
-        } else if (dryRun) {
+        } else if (dryRun && !step.isSetup()) {
             stepResult = Result.passed(System.currentTimeMillis(), 0);
         } else {
             stepResult = StepRuntime.execute(step, actions);
