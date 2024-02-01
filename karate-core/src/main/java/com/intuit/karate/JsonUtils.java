@@ -31,7 +31,7 @@ import com.jayway.jsonpath.spi.json.JsonSmartJsonProvider;
 import com.jayway.jsonpath.spi.mapper.JsonSmartMappingProvider;
 import com.jayway.jsonpath.spi.mapper.MappingProvider;
 import de.siegmar.fastcsv.reader.CsvReader;
-import de.siegmar.fastcsv.reader.CsvRow;
+import de.siegmar.fastcsv.reader.CsvRecord;
 import de.siegmar.fastcsv.writer.CsvWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
@@ -165,12 +165,12 @@ public class JsonUtils {
     }
 
     public static List<Map> fromCsv(String raw) {
-        CsvReader reader = CsvReader.builder().build(raw);
+        CsvReader<CsvRecord> reader = CsvReader.builder().ofCsvRecord(raw);
         List<String> header = new ArrayList();
         List<Map> rows = new ArrayList();
         try {
             boolean first = true;
-            for (CsvRow row : reader) {
+            for (CsvRecord row : reader) {
                 if (first) {
                     for (String field : row.getFields()) {
                         header.add(field.replace("\ufeff", "")); // remove byte order mark
@@ -197,14 +197,14 @@ public class JsonUtils {
         CsvWriter writer = CsvWriter.builder().build(sw);
         // header row
         if (!list.isEmpty()) {
-            writer.writeRow(list.get(0).keySet());
+            writer.writeRecord(list.get(0).keySet());
         }
         for (Map<String, Object> map : list) {
             List<String> row = new ArrayList(map.size());
             for (Object value : map.values()) {
                 row.add(value == null ? null : value.toString());
             }
-            writer.writeRow(row);
+            writer.writeRecord(row);
         }
         return sw.toString();
     }
