@@ -9,6 +9,7 @@
   <td>
       <a href="#maven">Maven</a>
     | <a href="#gradle">Gradle</a>
+    | <a href="#java-dsl">Java DSL</a>
     | <a href="#logging">Logging</a>
     | <a href="#limitations">Limitations</a>
     | <a href="#usage">Usage</a>    
@@ -191,6 +192,9 @@ As of now the Gatling concept of ["throttle" and related syntax](https://gatling
 Once you have your performance tests working, you may want to tune the logging config. Note that there are options to [reduce or completely suppress](https://github.com/karatelabs/karate#logging) the console logging.
 
 Also note that the [`logback-test.xml`](../examples/gatling/src/test/java/logback-test.xml) in the examples project uses [`<immediateFlush>false</immediateFlush>`](http://logback.qos.ch/manual/appenders.html#OutputStreamAppender).
+
+## Java DSL
+The Gatling project now gives you the option to script performance tests in [Java instead of Scala](https://gatling.io/2021/11/gatling-3-7-java-dsl-kotlin-and-much-more/). This was [recently added to Karate](https://github.com/karatelabs/karate/pull/2434) as well, so please look at [this example](src/test/java/mock/CatsSimulation.java) until the documentation is updated.
 
 ## Usage
 
