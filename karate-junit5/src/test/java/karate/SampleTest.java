@@ -3,6 +3,11 @@ package karate;
 import com.intuit.karate.junit5.Karate;
 
 class SampleTest {
+    @Karate.Test
+    // Uncomment @ignore on embed.feature for development verification
+    Karate testScreenshotIsEmbeddedOnTheCorrectStepOnFailure() {
+        return Karate.run("embed").relativeTo(getClass());
+    }
 
     @Karate.Test
     Karate testSample() {
