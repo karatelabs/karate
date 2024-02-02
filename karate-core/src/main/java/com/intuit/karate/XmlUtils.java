@@ -111,6 +111,7 @@ public class XmlUtils {
     public static Document toXmlDoc(String xml, boolean namespaceAware) {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         factory.setNamespaceAware(namespaceAware);
+        factory.setIgnoringElementContentWhitespace(false);
         try {
             DocumentBuilder builder = factory.newDocumentBuilder();
             DtdEntityResolver dtdEntityResolver = new DtdEntityResolver();
@@ -294,7 +295,9 @@ public class XmlUtils {
     private static Object getElementAsObject(Node node, boolean removeNamespace) {
         int childElementCount = getChildElementCount(node);
         if (childElementCount == 0) {
-            return StringUtils.trimToNull(node.getTextContent());
+            String textContent = node.getTextContent();
+            return StringUtils.isBlank(textContent) ? null:
+                textContent;
         }
         Map<String, Object> map = new LinkedHashMap<>(childElementCount);
         NodeList nodes = node.getChildNodes();
