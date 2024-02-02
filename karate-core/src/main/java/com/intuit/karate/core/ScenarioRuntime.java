@@ -44,7 +44,6 @@ import java.util.Map;
  * @author pthomas3
  */
 public class ScenarioRuntime implements Runnable {
-
     public final Logger logger;
     public final FeatureRuntime featureRuntime;
     public final ScenarioCall caller;
@@ -558,5 +557,4 @@ public class ScenarioRuntime implements Runnable {
             scenario.setName(evaluatedScenarioName);
         }
     }
-
 }
