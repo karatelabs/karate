@@ -232,6 +232,11 @@ public class ScenarioEngineTest {
         matchEquals("temp", "<foo><bar>baz</bar></foo>");
         assign("temp", "get myMap /root/foo");
         matchEquals("temp", "<foo><bar>baz</bar></foo>");
+
+        // preserves whitespace in content
+        assign("myXml", "<root><foo><bar> baz </bar></foo></root>");
+        value = engine.evalKarateExpression("$myXml/root/foo/bar");
+        matchEval(value.getValue(), " baz ");
     }
 
     @Test
