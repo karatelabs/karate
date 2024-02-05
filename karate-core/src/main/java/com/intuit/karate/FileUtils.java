@@ -39,8 +39,6 @@ import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.Properties;
 import java.util.UUID;
-import java.util.zip.CRC32;
-import java.util.zip.Checksum;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -59,7 +57,6 @@ public class FileUtils {
     public static final String KARATE_VERSION;
     public static final String KARATE_META;
     public static final String USER_UUID;
-    public static final String USER_HASH;
 
     static {
         Properties props = new Properties();
@@ -78,7 +75,6 @@ public class FileUtils {
         KARATE_TELEMETRY = telemetryEnv == null ? true : telemetryEnv.trim().equals("true");
         String userHome = System.getProperty("user.home", "");
         String uuid;
-        String hash;
         try {
             File uuidFile = new File(userHome + File.separator + ".karate" + File.separator + "uuid.txt");
             if (uuidFile.exists()) {
@@ -87,23 +83,13 @@ public class FileUtils {
                 uuid = UUID.randomUUID().toString();
                 writeToFile(uuidFile, uuid);
             }
-            hash = checksum(userHome) + "";
         } catch (Exception e) {
-            hash = "unknown";
             uuid = "unknown";
         }
-        USER_HASH = hash;
         USER_UUID = uuid;
     }
 
     public static final File WORKING_DIR = new File("").getAbsoluteFile();
-
-    public static long checksum(String src) {
-        byte[] bytes = src.getBytes(UTF_8);
-        Checksum crc32 = new CRC32();
-        crc32.update(bytes, 0, bytes.length);
-        return crc32.getValue();
-    }
 
     public static StringUtils.Pair parsePathAndTags(String text) {
         int pos = text.indexOf('@');
