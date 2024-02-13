@@ -1,9 +1,6 @@
 package com.intuit.karate.core;
 
-import com.intuit.karate.Match;
-import com.intuit.karate.Results;
-import com.intuit.karate.Runner;
-import com.intuit.karate.TestUtils;
+import com.intuit.karate.*;
 import com.intuit.karate.report.Report;
 import com.intuit.karate.report.SuiteReports;
 import org.junit.jupiter.api.BeforeEach;
@@ -406,4 +403,14 @@ class FeatureRuntimeTest {
         run("ntlm-authentication.feature");
     }
 
+    @Test
+    void testSingleScenario() {
+        Feature feature = Feature.read("classpath:com/intuit/karate/core/single-scenario.feature");
+        FeatureCall featureCall = new FeatureCall(feature, "@Scenario2", -1, null);
+        FeatureRuntime featureRuntime = FeatureRuntime.of(new Suite(), featureCall, null);
+        featureRuntime.run();
+
+        FeatureResult result = featureRuntime.result;
+        matchContains(result.getVariables(), "{ result2: 'Two' }");
+    }
 }
