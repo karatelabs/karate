@@ -1,4 +1,4 @@
-Feature: A feature file with multiple scenarios
+Feature: sample feature with distinct signature for each scenario
 
   @Scenario1
   Scenario: Set a Variable to "One"
