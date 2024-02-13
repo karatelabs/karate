@@ -1,13 +1,13 @@
 Feature: A feature file with multiple scenarios
 
   @Scenario1
-  Scenario: Set to "One"
-    * def result = 'One'
+  Scenario: Set a Variable to "One"
+    * def result1 = 'One'
 
   @Scenario2
-  Scenario: Set to "Two"
-    * def result = 'Two'
+  Scenario: Set a Variable to "Two"
+    * def result2 = 'Two'
 
   @Scenario3
-  Scenario: Set to "Three"
-    * def result = 'Three'
+  Scenario: Set a Variable to "Three"
+    * def result3 = 'Three'

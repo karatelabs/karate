@@ -411,6 +411,6 @@ class FeatureRuntimeTest {
         featureRuntime.run();
 
         FeatureResult result = featureRuntime.result;
-        matchContains(result.getVariables(), "{ result: 'Two' }");
+        matchContains(result.getVariables(), "{ result2: 'Two' }");
     }
 }
