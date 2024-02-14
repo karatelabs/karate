@@ -410,7 +410,7 @@ class FeatureRuntimeTest {
         FeatureRuntime featureRuntime = FeatureRuntime.of(new Suite(), featureCall, null);
         featureRuntime.run();
 
-        FeatureResult result = featureRuntime.result;
-        matchContains(result.getVariables(), "{ result2: 'Two' }");
+        var resultVars = featureRuntime.result.getVariables();
+        matchContains(resultVars, "{ result1: '#notpresent', result2: 'Two', result3: '#notpresent' }");
     }
 }
