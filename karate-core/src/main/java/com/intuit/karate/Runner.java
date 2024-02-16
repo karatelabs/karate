@@ -288,7 +288,6 @@ public class Runner {
             if (systemProperties == null) {
                 systemProperties = new HashMap();
             }
-            System.setProperty(key, value);
             systemProperties.put(key, value);
             return (T) this;
         }

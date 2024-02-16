@@ -21,6 +21,8 @@ public class SystemPropertiesTest {
         builder.resolveAll();
         String propertyValue = builder.systemProperties.get(TEST_PROP);
         assertEquals(propertyValue, "setOnRunner");
+        String jvmValue = System.getProperty(TEST_PROP);
+        assertEquals(jvmValue, null);
     }
 
     @Test
@@ -30,6 +32,8 @@ public class SystemPropertiesTest {
         builder.resolveAll();
         String propertyValue = builder.systemProperties.get(TEST_PROP);
         assertEquals(propertyValue, "setOnJVM");
+        String jvmValue = System.getProperty(TEST_PROP);
+        assertEquals(jvmValue, "setOnJVM");
     }
 
     @Test
@@ -38,9 +42,9 @@ public class SystemPropertiesTest {
         Builder<?> builder = Runner.builder().systemProperty(TEST_PROP, "setOnRunner");
         builder.resolveAll();
         String propertyValue = builder.systemProperties.get(TEST_PROP);        
-        assertEquals(propertyValue, "setOnRunner");
+        assertEquals(propertyValue, "setOnJVM");
         String jvmValue = System.getProperty(TEST_PROP);
-        assertEquals(jvmValue, "setOnRunner");
+        assertEquals(jvmValue, "setOnJVM");
     }
     
 }
