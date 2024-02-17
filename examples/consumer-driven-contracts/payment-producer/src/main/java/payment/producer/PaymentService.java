@@ -44,7 +44,7 @@ public class PaymentService {
         }
 
         @PutMapping("/{id:.+}")
-        public Payment update(@PathVariable int id, @RequestBody Payment payment) {
+        public Payment update(@PathVariable("id") int id, @RequestBody Payment payment) {
             payments.put(id, payment);
             return payment;
         }
@@ -55,7 +55,7 @@ public class PaymentService {
         }
 
         @GetMapping("/{id:.+}")
-        public Payment get(@PathVariable int id) {
+        public Payment get(@PathVariable("id") int id) {
             Payment payment = payments.get(id);
             if (payment == null) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND);
@@ -64,7 +64,7 @@ public class PaymentService {
         }
 
         @DeleteMapping("/{id:.+}")
-        public void delete(@PathVariable int id) {
+        public void delete(@PathVariable("id") int id) {
             Payment payment = payments.remove(id);
             if (payment == null) {
                 throw new RuntimeException("payment not found, id: " + id);
