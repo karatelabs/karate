@@ -500,6 +500,9 @@ public class Runner {
             Integer debugPort = getDebugPort();
             if (debugPort != null && !debugMode) {
                 String[] args = getDebugArgs(debugPort);
+                if (systemProperties != null) {
+                    systemProperties.forEach((k, v) -> System.setProperty(k, v));
+                }
                 return Main.startDebugServer(args);
             }
             Suite suite = new Suite(this);
