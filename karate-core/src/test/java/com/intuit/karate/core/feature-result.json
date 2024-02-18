@@ -135,9 +135,6 @@
                             "resultDate": "#string",
                             "passedCount": 1,
                             "failedCount": 0,
-                            "skippedCount": 0,
-                            "totalRunCount":1,
-                            "totalCount": 1,
                             "callDepth": 1,
                             "loopIndex": -1
                         }
@@ -294,9 +291,6 @@
     "resultDate": "#string",
     "passedCount": 3,
     "failedCount": 0,
-    "skippedCount": 0,
-    "totalRunCount":3,
-    "totalCount":3,
     "callDepth": 0,
     "loopIndex": -1
 }

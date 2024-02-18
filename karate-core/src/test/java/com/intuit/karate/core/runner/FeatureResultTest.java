@@ -7,14 +7,11 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureCall;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
-
 import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.function.IntBinaryOperator;
-
 import static org.junit.jupiter.api.Assertions.*;
-
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,9 +39,7 @@ public class FeatureResultTest {
     void testFailureMultiScenarioFeature() throws Exception {
         FeatureResult result = result("failed.feature");
         assertEquals(2, result.getFailedCount());
-        assertEquals(0, result.getSkippedCount());
-        assertEquals(3, result.getRunCount());
-        assertEquals(3, result.getTotalCount());
+        assertEquals(3, result.getScenarioCount());
         String contents = xml(result);
         assertTrue(contents.contains("did not evaluate to 'true': a != 1"));
         assertTrue(contents.contains("did not evaluate to 'true': a == 3"));
@@ -68,9 +63,7 @@ public class FeatureResultTest {
     void testAbortMultiScenarioFeature() throws Exception {
         FeatureResult result = result("aborted.feature");
         assertEquals(0, result.getFailedCount());
-        assertEquals(0, result.getSkippedCount());
-        assertEquals(4, result.getRunCount());
-        assertEquals(4, result.getTotalCount());
+        assertEquals(4, result.getScenarioCount());
         String contents = xml(result);
 
         // skip-pass and skip-fail both should have all steps as skipped
@@ -103,7 +96,7 @@ public class FeatureResultTest {
     // @Test // TODO fails in jdk 17
     void testStackOverFlowError() {
         FeatureResult result = result("stackoverflow-error.feature");
-        assertTrue(result.isFailed());
+        assertTrue(result.isFailed()); 
         assertTrue(result.getScenarioResults().get(0).getErrorMessage().contains("StackOverflowError"));
     }
 

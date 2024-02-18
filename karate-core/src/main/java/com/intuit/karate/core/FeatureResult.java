@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ *
  * @author pthomas3
  */
 public class FeatureResult {
@@ -52,7 +53,6 @@ public class FeatureResult {
     private Config config;
     private int loopIndex = -1;
     private int callDepth;
-    private int skippedCount;
 
     public FeatureResult(Feature feature) {
         this.feature = feature;
@@ -64,7 +64,7 @@ public class FeatureResult {
         StringBuilder sb = new StringBuilder();
         sb.append("---------------------------------------------------------\n");
         sb.append("feature: ").append(featureName).append('\n');
-        sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", getRunCount(), getPassedCount(), getFailedCount(), getDurationMillis() / 1000));
+        sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", getScenarioCount(), getPassedCount(), getFailedCount(), getDurationMillis() / 1000));
         sb.append("---------------------------------------------------------\n");
         System.out.println(sb);
     }
@@ -92,14 +92,13 @@ public class FeatureResult {
         fr.loopIndex = (Integer) map.get("loopIndex");
         fr.resultDate = (String) map.get("resultDate");
         fr.callDepth = (Integer) map.get("callDepth");
-        fr.setSkippedCount((Integer) map.get("skippedCount"));
         List<Map<String, Object>> list = (List) map.get("scenarioResults");
         if (list != null) {
             for (Map<String, Object> srMap : list) {
                 ScenarioResult sr = ScenarioResult.fromKarateJson(workingDir, feature, srMap);
                 if (!sr.getStepResults().isEmpty()) {
                     fr.addResult(sr);
-                }
+                }                
             }
         }
         return fr;
@@ -126,10 +125,7 @@ public class FeatureResult {
         map.put("durationMillis", getDurationMillis());
         map.put("passedCount", getPassedCount());
         map.put("failedCount", getFailedCount());
-        map.put("skippedCount", getSkippedCount());
-        map.put("totalRunCount", getRunCount());
-        map.put("totalCount", getTotalCount());
-        map.put("scenarioCount", getRunCount());
+        map.put("scenarioCount", getScenarioCount());
         map.put("packageQualifiedName", feature.getPackageQualifiedName());
         map.put("relativePath", feature.getResource().getRelativePath());
         return map;
@@ -144,9 +140,6 @@ public class FeatureResult {
         map.put("durationMillis", getDurationMillis());
         map.put("passedCount", getPassedCount());
         map.put("failedCount", getFailedCount());
-        map.put("skippedCount", getSkippedCount());
-        map.put("totalRunCount", getRunCount());
-        map.put("totalCount", getTotalCount());
         map.put("packageQualifiedName", feature.getPackageQualifiedName());
         map.put("relativePath", feature.getResource().getRelativePath());
         //======================================================================
@@ -280,12 +273,12 @@ public class FeatureResult {
         return scenarioResults.isEmpty();
     }
 
-    public int getRunCount() {
+    public int getScenarioCount() {
         return scenarioResults.size();
     }
 
     public int getPassedCount() {
-        return getRunCount() - getFailedCount();
+        return getScenarioCount() - getFailedCount();
     }
 
     public boolean isFailed() {
@@ -336,15 +329,4 @@ public class FeatureResult {
         return displayName;
     }
 
-    public int getTotalCount() {
-        return getRunCount() + getSkippedCount();
-    }
-
-    public int getSkippedCount() {
-        return skippedCount;
-    }
-
-    public void setSkippedCount(int skippedCount) {
-        this.skippedCount = skippedCount;
-    }
 }
