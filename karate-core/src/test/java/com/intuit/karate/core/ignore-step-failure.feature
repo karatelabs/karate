@@ -4,15 +4,15 @@ Background:
   * configure continueOnStepFailure = true
 
 Scenario: test
-  * def var = 'foo'
+  * def tmp = 'foo'
   * configure continueOnStepFailure = true
-  * match var == 'bar'
-  * match var == 'pub'
-  * match var == 'crawl'
-  * match var == 'foo'
+  * match tmp == 'bar'
+  * match tmp == 'pub'
+  * match tmp == 'crawl'
+  * match tmp == 'foo'
   * configure continueOnStepFailure = false
-  * match var == 'foo'
-  * match var == 'bar2'
+  * match tmp == 'foo'
+  * match tmp == 'bar2'
 
 Scenario Outline: hello <name>
   * print 'name:', name

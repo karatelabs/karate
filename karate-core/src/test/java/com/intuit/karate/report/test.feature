@@ -15,7 +15,7 @@ Scenario: second one
 * print 'in second one'
 # some comment
 * def bar = 'no log'
-* table data =
+* table data
     | foo | bar |
     |   1 |   2 |
     |   3 |   4 |
