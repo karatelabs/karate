@@ -224,6 +224,7 @@ public class Suite implements Runnable {
             }
             hooks.forEach(h -> h.beforeSuite(this));
             int index = 0;
+            List<FeatureRuntime> featureRuntimes = new ArrayList<>(featuresFound);
             for (FeatureCall feature : features) {
                 final int featureNum = ++index;
                 FeatureRuntime fr = FeatureRuntime.of(this, feature);
@@ -233,11 +234,12 @@ public class Suite implements Runnable {
                     onFeatureDone(fr.result, featureNum);
                     future.complete(Boolean.TRUE);
                 });
-                pendingTasks.submit(fr);
+                featureRuntimes.add(fr);
             }
             if (featuresFound > 1) {
                 logger.debug("waiting for {} features to complete", featuresFound);
             }
+            featureRuntimes.forEach(pendingTasks::submit);
             CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[futures.size()]);
             if (timeoutMinutes > 0) {
                 CompletableFuture.allOf(futuresArray).get(timeoutMinutes, TimeUnit.MINUTES);
