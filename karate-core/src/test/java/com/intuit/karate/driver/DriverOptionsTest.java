@@ -36,4 +36,59 @@ class DriverOptionsTest {
         options.retry(() -> 1, x -> x < 5, "not 5", false);
     }
 
+    @Test
+    void testSelectorWithLocatorThatStartWithLeftParentheses() {
+
+        String locator = "(test string)";
+        String contextNode = "test string";
+
+        String result = DriverOptions.selector(locator, contextNode);
+
+        assertEquals("(test string)", result);
+    }
+
+    @Test
+    void testSelectorWithLoctorThatsStartsWithOtherParentheses() {
+
+        String locator = "{}";
+        String contextNode = "test string";
+
+        String result = DriverOptions.selector(locator, contextNode);
+
+        assertFalse(result.contains(locator));
+    }
+
+    @Test
+    void testSelectorWithForwardSlash() {
+
+        String locator = "/tester";
+        String contextNode = "document";
+
+        String result = DriverOptions.selector(locator, contextNode);
+
+        assertTrue(result.startsWith("document.evaluate"));
+    }
+
+    @Test
+    void testSelectorWithContextNodeEqualToDocument() {
+
+        String locator = "/(tester";
+        String contextNode = "document";
+
+        String result = DriverOptions.selector(locator, contextNode);
+
+        assertTrue(result.startsWith("document.evaluate"));
+    }
+
+    @Test
+    void testSelectorWithContextNodeNotEqualToDocument() {
+
+        String locator = "/(tester";
+        String contextNode = "notdocument";
+
+        String result = DriverOptions.selector(locator, contextNode);
+
+        assertTrue(result.startsWith("document.evaluate"));
+    }
+
 }
