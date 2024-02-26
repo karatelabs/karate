@@ -1,5 +1,8 @@
 Feature: names
 
+Background:
+    * print 'background'
+
 @setup
 Scenario: first hello world
     * def names = [{"name": "dynamic_1"}, {"name": "dynamic_2"}]
