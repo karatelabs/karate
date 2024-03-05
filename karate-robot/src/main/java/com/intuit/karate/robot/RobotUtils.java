@@ -245,7 +245,7 @@ public class RobotUtils {
         key(',', KeyEvent.VK_COMMA);
         key('<', KeyEvent.VK_SHIFT, KeyEvent.VK_COMMA);
         key('.', KeyEvent.VK_PERIOD);
-        key('|', KeyEvent.VK_SHIFT, KeyEvent.VK_PERIOD);
+        key('>', KeyEvent.VK_SHIFT, KeyEvent.VK_PERIOD);
         key('/', KeyEvent.VK_SLASH);
         key('?', KeyEvent.VK_SHIFT, KeyEvent.VK_SLASH);
         //======================================================================
