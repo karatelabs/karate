@@ -46,9 +46,14 @@ public class KarateProtocolBuilder implements ProtocolBuilder {
 
     private final Map<String, Seq<MethodPause>> uriPatterns;
 
-    // Takes a JAVA Map (easier for testing) containaing SCALA MethodPauses (easier to read, save an extra Java MethodPause class and another conversion)
+    // Takes a JAVA Map (easier for testing) containaing SCALA MethodPauses (easier to read, saves an extra Java MethodPause class and another conversion)
     public KarateProtocolBuilder(java.util.Map<String, Seq<MethodPause>> uriPatterns) {
         this.uriPatterns = Converters.toScalaMap(uriPatterns);
+    }
+
+    public KarateProtocolBuilder nameResolver(BiFunction<HttpRequest, ScenarioRuntime, String> nameResolver) {
+        this.nameResolver = nameResolver;
+        return this;
     }
 
     @Override
