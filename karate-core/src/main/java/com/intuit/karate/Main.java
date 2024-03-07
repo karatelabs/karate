@@ -390,6 +390,7 @@ public class Main implements Callable<Void> {
                 return context;
             });
             HttpServer.Builder builder = HttpServer.config(config)
+                    .local(false)
                     .corsEnabled(true);
             if (ssl) {
                 builder.https(port);
