@@ -463,7 +463,7 @@ public class HttpRequestBuilder implements ProxyObject {
 
     public HttpRequestBuilder param(String name, List<String> values) {
         if (params == null) {
-            params = new HashMap<>();
+            params = new LinkedHashMap<>();
         }
         List<String> notNullValues = values.stream().filter(v -> v != null).collect(Collectors.toList());
         if (!notNullValues.isEmpty()) {
