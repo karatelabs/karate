@@ -67,7 +67,7 @@ public class Karate extends Runner.Builder<Karate> implements Iterable<DynamicNo
             DynamicNode node = DynamicContainer.dynamicContainer(testName, featureNode);
             list.add(node);
         }
-        if (!suite.ignoreJunitNoScenariosAssertion && list.isEmpty()) {
+        if (suite.failWhenNoScenariosFound && list.isEmpty()) {
             Assertions.fail("no features or scenarios found: " + this);
         }
         return list.iterator();

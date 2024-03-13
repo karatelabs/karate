@@ -72,7 +72,7 @@ public class Suite implements Runnable {
     public final String tagSelector;
     public final boolean dryRun;
     public final boolean debugMode;
-    public final boolean ignoreJunitNoScenariosAssertion;
+    public final boolean failWhenNoScenariosFound;
     public final File workingDir;
     public final String buildDir;
     public final String reportDir;
@@ -130,7 +130,7 @@ public class Suite implements Runnable {
         if (rb.forTempUse) {
             dryRun = false;
             debugMode = false;
-            ignoreJunitNoScenariosAssertion = false;
+            failWhenNoScenariosFound = false;
             backupReportDir = false;
             outputHtmlReport = false;
             outputCucumberJson = false;
@@ -175,7 +175,7 @@ public class Suite implements Runnable {
             outputJunitXml = rb.outputJunitXml;
             dryRun = rb.dryRun;
             debugMode = rb.debugMode;
-            ignoreJunitNoScenariosAssertion = rb.ignoreJunitNoScenariosAssertion;
+            failWhenNoScenariosFound = rb.failWhenNoScenariosFound;
             classLoader = rb.classLoader;
             clientFactory = rb.clientFactory;
             env = rb.env;

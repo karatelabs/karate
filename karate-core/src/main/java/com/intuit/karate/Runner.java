@@ -113,7 +113,7 @@ public class Runner {
         boolean outputCucumberJson;
         boolean dryRun;
         boolean debugMode;
-        boolean ignoreJunitNoScenariosAssertion;
+        boolean failWhenNoScenariosFound;
         Map<String, String> systemProperties;
         Map<String, Object> callSingleCache;
         Map<String, ScenarioCall.Result> callOnceCache;
@@ -147,7 +147,7 @@ public class Runner {
             b.outputCucumberJson = outputCucumberJson;
             b.dryRun = dryRun;
             b.debugMode = debugMode;
-            b.ignoreJunitNoScenariosAssertion = ignoreJunitNoScenariosAssertion;
+            b.failWhenNoScenariosFound = failWhenNoScenariosFound;
             b.systemProperties = systemProperties;
             b.callSingleCache = callSingleCache;
             b.callOnceCache = callOnceCache;
@@ -439,10 +439,12 @@ public class Runner {
             debugMode = value;
             return (T) this;
         }
-        public T ignoreJunitNoScenariosAssertion(boolean value) {
-            ignoreJunitNoScenariosAssertion = value;
+        
+        public T failWhenNoScenariosFound(boolean value) {
+            failWhenNoScenariosFound = value;
             return (T) this;
         }
+
         public T callSingleCache(Map<String, Object> value) {
             callSingleCache = value;
             return (T) this;
