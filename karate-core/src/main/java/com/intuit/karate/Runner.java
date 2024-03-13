@@ -34,10 +34,11 @@ import com.intuit.karate.driver.DriverRunner;
 import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.report.SuiteReports;
 import com.intuit.karate.resource.ResourceUtils;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -112,6 +113,7 @@ public class Runner {
         boolean outputCucumberJson;
         boolean dryRun;
         boolean debugMode;
+        boolean failWhenNoScenariosFound;
         Map<String, String> systemProperties;
         Map<String, Object> callSingleCache;
         Map<String, ScenarioCall.Result> callOnceCache;
@@ -145,6 +147,7 @@ public class Runner {
             b.outputCucumberJson = outputCucumberJson;
             b.dryRun = dryRun;
             b.debugMode = debugMode;
+            b.failWhenNoScenariosFound = failWhenNoScenariosFound;
             b.systemProperties = systemProperties;
             b.callSingleCache = callSingleCache;
             b.callOnceCache = callOnceCache;
@@ -434,6 +437,11 @@ public class Runner {
 
         public T debugMode(boolean value) {
             debugMode = value;
+            return (T) this;
+        }
+        
+        public T failWhenNoScenariosFound(boolean value) {
+            failWhenNoScenariosFound = value;
             return (T) this;
         }
 

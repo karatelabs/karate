@@ -25,7 +25,6 @@ package com.intuit.karate.junit5;
 
 import com.intuit.karate.Runner;
 import com.intuit.karate.Suite;
-import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureCall;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DynamicContainer;
@@ -68,7 +67,7 @@ public class Karate extends Runner.Builder<Karate> implements Iterable<DynamicNo
             DynamicNode node = DynamicContainer.dynamicContainer(testName, featureNode);
             list.add(node);
         }
-        if (list.isEmpty()) {
+        if (suite.failWhenNoScenariosFound && list.isEmpty()) {
             Assertions.fail("no features or scenarios found: " + this);
         }
         return list.iterator();
