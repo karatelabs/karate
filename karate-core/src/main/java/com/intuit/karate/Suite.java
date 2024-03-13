@@ -28,8 +28,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intuit.karate.core.FeatureCall;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
-import com.intuit.karate.driver.DriverRunner;
-import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioCall;
 import com.intuit.karate.core.ScenarioResult;
@@ -37,27 +35,23 @@ import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.SyncExecutorService;
 import com.intuit.karate.core.Tags;
+import com.intuit.karate.driver.DriverRunner;
 import com.intuit.karate.http.HttpClientFactory;
+import com.intuit.karate.report.ReportUtils;
 import com.intuit.karate.report.SuiteReports;
 import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceUtils;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.slf4j.LoggerFactory;
 
 import static java.util.function.Predicate.not;
 
@@ -78,6 +72,7 @@ public class Suite implements Runnable {
     public final String tagSelector;
     public final boolean dryRun;
     public final boolean debugMode;
+    public final boolean ignoreJunitNoScenariosAssertion;
     public final File workingDir;
     public final String buildDir;
     public final String reportDir;
@@ -135,6 +130,7 @@ public class Suite implements Runnable {
         if (rb.forTempUse) {
             dryRun = false;
             debugMode = false;
+            ignoreJunitNoScenariosAssertion = false;
             backupReportDir = false;
             outputHtmlReport = false;
             outputCucumberJson = false;
@@ -179,6 +175,7 @@ public class Suite implements Runnable {
             outputJunitXml = rb.outputJunitXml;
             dryRun = rb.dryRun;
             debugMode = rb.debugMode;
+            ignoreJunitNoScenariosAssertion = rb.ignoreJunitNoScenariosAssertion;
             classLoader = rb.classLoader;
             clientFactory = rb.clientFactory;
             env = rb.env;
