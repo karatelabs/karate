@@ -48,6 +48,8 @@ public class Logger {
 
     private boolean appendOnly;
 
+    private boolean logOnly;
+
     public void setAppender(LogAppender appender) {
         this.appender = appender;
     }
@@ -68,6 +70,14 @@ public class Logger {
         return appendOnly;
     }
 
+    public void setLogOnly(boolean logOnly) {
+        this.logOnly = logOnly;
+    }
+
+    public boolean isLogOnly() {
+        return logOnly;
+    }
+
     public Logger(Class clazz) {
         LOGGER = LoggerFactory.getLogger(clazz);
     }
@@ -85,7 +95,9 @@ public class Logger {
             if (!appendOnly) {
                 LOGGER.trace(format, arguments);
             }
-            formatAndAppend(format, arguments);
+            if (!logOnly) {
+                formatAndAppend(format, arguments);
+            }
         }
     }
 
@@ -94,7 +106,9 @@ public class Logger {
             if (!appendOnly) {
                 LOGGER.debug(format, arguments);
             }
-            formatAndAppend(format, arguments);
+            if (!logOnly) {
+                formatAndAppend(format, arguments);
+            }
         }
     }
 
@@ -103,7 +117,9 @@ public class Logger {
             if (!appendOnly) {
                 LOGGER.info(format, arguments);
             }
-            formatAndAppend(format, arguments);
+            if (!logOnly) {
+                formatAndAppend(format, arguments);
+            }
         }
     }
 
@@ -112,7 +128,9 @@ public class Logger {
             if (!appendOnly) {
                 LOGGER.warn(format, arguments);
             }
-            formatAndAppend(format, arguments);
+            if (!logOnly) {
+                formatAndAppend(format, arguments);
+            }
         }
     }
 
@@ -121,7 +139,9 @@ public class Logger {
             if (!appendOnly) {
                 LOGGER.error(format, arguments);
             }
-            formatAndAppend(format, arguments);
+            if (!logOnly) {
+                formatAndAppend(format, arguments);
+            }
         }
     }
 
