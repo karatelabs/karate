@@ -37,4 +37,5 @@ public interface HttpClient {
 
     Response invoke(HttpRequest request);
 
+    void close();
 }

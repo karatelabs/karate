@@ -33,4 +33,9 @@ public class MockClient implements HttpClient {
         return handler.handle(request.toRequest());
     }
 
+    @Override
+    public void close() {
+        // No op. close() was introduced mainly for ApacheHttpClient, see https://github.com/karatelabs/karate/pull/2471
+    }
+
 }

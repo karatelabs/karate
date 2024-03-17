@@ -24,20 +24,20 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.Constants;
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.Config;
 import com.intuit.karate.core.ScenarioEngine;
+
 import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.SocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -47,47 +47,58 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
 import javax.net.ssl.SSLContext;
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpException;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpMessage;
-import org.apache.http.HttpRequestInterceptor;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.NTCredentials;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.CookieStore;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.config.AuthSchemes;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.entity.EntityBuilder;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.RequestBuilder;
-import org.apache.http.client.utils.URIBuilder;
-import org.apache.http.config.Registry;
-import org.apache.http.config.RegistryBuilder;
-import org.apache.http.config.SocketConfig;
-import org.apache.http.conn.ssl.LenientSslConnectionSocketFactory;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.conn.ssl.TrustAllStrategy;
-import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
-import org.apache.http.cookie.Cookie;
-import org.apache.http.cookie.CookieOrigin;
-import org.apache.http.cookie.CookieSpecProvider;
-import org.apache.http.cookie.MalformedCookieException;
-import org.apache.http.impl.client.BasicCookieStore;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.LaxRedirectStrategy;
-import org.apache.http.impl.conn.SystemDefaultRoutePlanner;
-import org.apache.http.impl.cookie.DefaultCookieSpec;
-import org.apache.http.protocol.HttpContext;
-import org.apache.http.ssl.SSLContextBuilder;
-import org.apache.http.ssl.SSLContexts;
+
+import org.apache.hc.client5.http.ClientProtocolException;
+import org.apache.hc.client5.http.auth.AuthScope;
+import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
+import org.apache.hc.client5.http.config.ConnectionConfig;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.cookie.BasicCookieStore;
+import org.apache.hc.client5.http.cookie.Cookie;
+import org.apache.hc.client5.http.cookie.CookieOrigin;
+import org.apache.hc.client5.http.cookie.CookieSpecFactory;
+import org.apache.hc.client5.http.cookie.CookieStore;
+import org.apache.hc.client5.http.cookie.MalformedCookieException;
+import org.apache.hc.client5.http.entity.EntityBuilder;
+import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
+import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
+import org.apache.hc.client5.http.impl.cookie.CookieSpecBase;
+import org.apache.hc.client5.http.impl.cookie.RFC6265StrictSpec;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.impl.routing.DefaultRoutePlanner;
+import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
+import org.apache.hc.client5.http.routing.HttpRoutePlanner;
+import org.apache.hc.client5.http.ssl.LenientSslConnectionSocketFactory;
+import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
+import org.apache.hc.client5.http.ssl.TrustAllStrategy;
+import org.apache.hc.client5.http.ssl.TrustSelfSignedStrategy;
+import org.apache.hc.core5.http.ClassicHttpResponse;
+import org.apache.hc.core5.http.EntityDetails;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.HttpException;
+import org.apache.hc.core5.http.HttpHost;
+import org.apache.hc.core5.http.HttpMessage;
+import org.apache.hc.core5.http.HttpRequestInterceptor;
+import org.apache.hc.core5.http.config.Registry;
+import org.apache.hc.core5.http.config.RegistryBuilder;
+import org.apache.hc.core5.http.impl.DefaultConnectionReuseStrategy;
+import org.apache.hc.core5.http.io.SocketConfig;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.apache.hc.core5.http.io.support.ClassicRequestBuilder;
+import org.apache.hc.core5.http.protocol.HttpContext;
+import org.apache.hc.core5.net.URIBuilder;
+import org.apache.hc.core5.pool.PoolConcurrencyPolicy;
+import org.apache.hc.core5.pool.PoolReusePolicy;
+import org.apache.hc.core5.ssl.SSLContextBuilder;
+import org.apache.hc.core5.ssl.SSLContexts;
 
 /**
  *
@@ -102,12 +113,19 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     private HttpClientBuilder clientBuilder;
     private CookieStore cookieStore;
 
-    public static class LenientCookieSpec extends DefaultCookieSpec {
+    // Not sure what the rationale was behind this class.
+    // But the httpclient4 ApacheHttpClient, based on DefaultCookieSpec, supported:
+    // - set-cookie2 which is now deprecated https://stackoverflow.com/questions/9462180/difference-between-set-cookie2-and-set-cookie
+    // - "netscape style cookies" and versioned cookies... whatever that was, I'm asusming its not widely used any more
+    // - other than that, it defaulted to a RFC2965Strict Spec.
+    // So as part of the httpclient5 migration, we directly default to RFC6265StrictSpec 
+    public static class LenientCookieSpec extends CookieSpecBase {
 
         static final String KARATE = "karate";
 
+        final RFC6265StrictSpec strict = new RFC6265StrictSpec();
+
         public LenientCookieSpec() {
-            super(new String[]{"EEE, dd-MMM-yy HH:mm:ss z", "EEE, dd MMM yyyy HH:mm:ss Z"}, false);
         }
 
         @Override
@@ -120,12 +138,22 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             // do nothing
         }
 
-        public static Registry<CookieSpecProvider> registry() {
-            CookieSpecProvider specProvider = (HttpContext hc) -> new LenientCookieSpec();
-            return RegistryBuilder.<CookieSpecProvider>create()
-                    .register(KARATE, specProvider).build();
+
+        @Override
+        public List<Cookie> parse(Header header, CookieOrigin origin) throws MalformedCookieException {
+            return strict.parse(header, origin);
         }
 
+        @Override
+        public List<Header> formatCookies(List<Cookie> cookies) {
+            return strict.formatCookies(cookies);
+        }
+
+        public static Registry<CookieSpecFactory> registry() {
+            CookieSpecFactory specProvider = (HttpContext hc) -> new LenientCookieSpec();
+            return RegistryBuilder.<CookieSpecFactory>create()
+                    .register(KARATE, specProvider).build();
+        }
     }
 
     public ApacheHttpClient(ScenarioEngine engine) {
@@ -136,17 +164,22 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     }
 
     private void configure(Config config) {
+        PoolingHttpClientConnectionManagerBuilder connectionManagerBuilder = PoolingHttpClientConnectionManagerBuilder.create();                
+
         clientBuilder = HttpClientBuilder.create();
+        
         if (config.isHttpRetryEnabled()) {
-            clientBuilder.setRetryHandler(new CustomHttpRequestRetryHandler(logger));
+            clientBuilder.setRetryStrategy(new CustomHttpRequestRetryHandler(logger));
         } else {
             clientBuilder.disableAutomaticRetries();
         }
 
         if (!config.isFollowRedirects()) {
             clientBuilder.disableRedirectHandling();
-        } else { // support redirect on POST by default
-            clientBuilder.setRedirectStrategy(LaxRedirectStrategy.INSTANCE);
+        } else { 
+            clientBuilder.setRedirectStrategy(DefaultRedirectStrategy.INSTANCE);
+            // httpclient4 was using LaxRedirectStrategy.INSTANCE as it supported redirect on POST methods.
+            // httpclient5 seems to be status code based, not method based, so default strategy should be fine.
         }
         cookieStore = new BasicCookieStore();
         clientBuilder.setDefaultCookieStore(cookieStore);
@@ -181,71 +214,109 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 } else {
                     socketFactory = new LenientSslConnectionSocketFactory(sslContext, new NoopHostnameVerifier());
                 }
-                clientBuilder.setSSLSocketFactory(socketFactory);
+                connectionManagerBuilder.setSSLSocketFactory(socketFactory);                
             } catch (Exception e) {
                 logger.error("ssl context init failed: {}", e.getMessage());
                 throw new RuntimeException(e);
             }
         }
+        connectionManagerBuilder
+            .setPoolConcurrencyPolicy(PoolConcurrencyPolicy.STRICT)        
+            .setConnPoolPolicy(PoolReusePolicy.LIFO)
+            .setDefaultConnectionConfig(ConnectionConfig.custom()
+                .setSocketTimeout(config.getReadTimeout(), TimeUnit.MILLISECONDS)
+                .setConnectTimeout(config.getConnectTimeout(), TimeUnit.MILLISECONDS).build());   
         RequestConfig.Builder configBuilder = RequestConfig.custom()
-                .setCookieSpec(LenientCookieSpec.KARATE)
-                .setConnectTimeout(config.getConnectTimeout())
-                .setSocketTimeout(config.getReadTimeout());
-        if (config.getLocalAddress() != null) {
+                .setCookieSpec(LenientCookieSpec.KARATE);                
+        if (config.isNtlmEnabled()) { 
+            //No longer supported since 5.3. See https://hc.apache.org/httpcomponents-client-5.3.x/current/httpclient5/apidocs/index.html?org/apache/hc/client5/http/auth/NTCredentials.html
+            throw new UnsupportedOperationException("NTLM authentication is not supported any more. Please consider using Basic or Bearer authentication with TLS instead.");
+        }
+        connectionManagerBuilder.setDefaultSocketConfig(SocketConfig.custom()
+                .setSoTimeout(config.getConnectTimeout(), TimeUnit.MILLISECONDS).build());
+
+        connManager = connectionManagerBuilder.build();
+        clientBuilder.setRoutePlanner(buildRoutePlanner(config))
+            .setDefaultRequestConfig(configBuilder.build())
+            // set shared flag to true so that we can close the client.
+            //ConnectionManager won't be closed automatically by Apache, it is now our responsability to do so.
+            // See comments in https://github.com/karatelabs/karate/pull/2471
+            .setConnectionManagerShared(true)
+            .setConnectionManager(connManager)
+            // When using a proxy (with or without nonProxyHosts), requests are ultimately sent to ProxyRemoteHandler which closes the stream upon sending the response (see ProxyRemoteHandler.channelRead0).
+            // However, the connection manager is not notified and will by default keep the connection open, resulting in a SocketConnection/NoHttpResponseException insubsequent calls (ProxyServerTest is a good example).
+            // So, if a proxy is used (i.e. when config.getProxyUri() is not null), we disable connection persistence.
+            // Otherwise, we delegate to the default strategy.
+            .setConnectionReuseStrategy(config.getProxyUri() != null ? (req, resp, ctx) -> false : DefaultConnectionReuseStrategy.INSTANCE)
+            .addRequestInterceptorLast(this);
+    }
+
+    // Differences with httpclient4 implementation:
+    // - RequestBuilder.setLocalAddress does not exist any more, so instead, RoutePlanner.determineLocalAddress is overridden
+    // - clientBuilder.setProxy does not exist any more.
+    // Instead, the new RoutePlanner exposes determineProxy and determineLocalAddress methods that may be overridden.
+    // Karate actually uses two flavors of RoutePlanner's which both implement those methods:
+    // - one that leverages ProxySelector when the nonProxyHosts property is specified
+    // - a default one in all other cases, whether a proxy is specified or not.
+ 
+    protected HttpRoutePlanner buildRoutePlanner(Config config) {
+
+        // Handle localAddress.
+        // From a Karate perspective, localAddress is primarily designed to be used with Gatling and is not related to proxy.
+        // However, in apache client 5, it is handled by the RoutePlanner too. 
+        InetAddress localAddress = null;
+        if (config.getLocalAddress() != null) {            
             try {
-                InetAddress localAddress = InetAddress.getByName(config.getLocalAddress());
-                configBuilder.setLocalAddress(localAddress);
+                localAddress = InetAddress.getByName(config.getLocalAddress());
             } catch (Exception e) {
                 logger.warn("failed to resolve local address: {} - {}", config.getLocalAddress(), e.getMessage());
             }
         }
-        if (config.isNtlmEnabled()) {
-            List<String> authSchemes = new ArrayList<>();
-            authSchemes.add(AuthSchemes.NTLM);
-            CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-            NTCredentials ntCredentials = new NTCredentials(
-                config.getNtlmUsername(), config.getNtlmPassword(), config.getNtlmWorkstation(), config.getNtlmDomain());
-            credentialsProvider.setCredentials(AuthScope.ANY, ntCredentials);
-            clientBuilder.setDefaultCredentialsProvider(credentialsProvider);
-            configBuilder.setTargetPreferredAuthSchemes(authSchemes);
-        }
-        clientBuilder.setDefaultRequestConfig(configBuilder.build());
-        SocketConfig.Builder socketBuilder = SocketConfig.custom().setSoTimeout(config.getConnectTimeout());
-        clientBuilder.setDefaultSocketConfig(socketBuilder.build());
+        HttpHost proxy;        
         if (config.getProxyUri() != null) {
+            URI proxyUri;            
             try {
-                URI proxyUri = new URIBuilder(config.getProxyUri()).build();
-                clientBuilder.setProxy(new HttpHost(proxyUri.getHost(), proxyUri.getPort(), proxyUri.getScheme()));
-                if (config.getProxyUsername() != null && config.getProxyPassword() != null) {
-                    CredentialsProvider credsProvider = new BasicCredentialsProvider();
-                    credsProvider.setCredentials(
-                            new AuthScope(proxyUri.getHost(), proxyUri.getPort()),
-                            new UsernamePasswordCredentials(config.getProxyUsername(), config.getProxyPassword()));
-                    clientBuilder.setDefaultCredentialsProvider(credsProvider);
-                }
-                if (config.getNonProxyHosts() != null) {
-                    ProxySelector proxySelector = new ProxySelector() {
-                        private final List<String> proxyExceptions = config.getNonProxyHosts();
-
-                        @Override
-                        public List<Proxy> select(URI uri) {
-                            return Collections.singletonList(proxyExceptions.contains(uri.getHost())
-                                    ? Proxy.NO_PROXY
-                                    : new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyUri.getHost(), proxyUri.getPort())));
-                        }
-
-                        @Override
-                        public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
-                            logger.info("connect failed to uri: {}", uri, ioe);
-                        }
-                    };
-                    clientBuilder.setRoutePlanner(new SystemDefaultRoutePlanner(proxySelector));
-                }
-            } catch (Exception e) {
+                proxyUri = new URIBuilder(config.getProxyUri()).build();
+            } catch (URISyntaxException e) {
                 throw new RuntimeException(e);
             }
+
+            // Manage proxy authenticator.
+            // Unfortunately, default credentials are part of the clientBuilder, not routePlanner, so there's a side effect on clientBuilder here.
+            if (config.getProxyUsername() != null && config.getProxyPassword() != null) {
+                BasicCredentialsProvider credsProvider = new BasicCredentialsProvider();
+                credsProvider.setCredentials(
+                        new AuthScope(proxyUri.getHost(), proxyUri.getPort()),
+                        new UsernamePasswordCredentials(config.getProxyUsername(), config.getProxyPassword().toCharArray()));
+                clientBuilder.setDefaultCredentialsProvider(credsProvider);
+            }
+
+            if (config.getNonProxyHosts() != null) {
+            // Create ProxySelector and its associated route planner
+                ProxySelector proxySelector = new ProxySelector() {
+        
+                    @Override
+                    public List<Proxy> select(URI uri) {
+                        return Collections.singletonList(proxyUri == null || config.getNonProxyHosts().contains(uri.getHost())
+                                ? Proxy.NO_PROXY
+                                : new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyUri.getHost(), proxyUri.getPort())));
+                    }
+        
+                    @Override
+                    public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+                        logger.info("connect failed to uri: {}", uri, ioe);
+                    }
+                };
+                return new ProxySelectorRoutePlanner(proxySelector, localAddress);        
+            } else {
+                // use simple proxy
+                proxy = new HttpHost(proxyUri.getScheme(), proxyUri.getHost(), proxyUri.getPort());
+            }
+        } else {
+            // NO proxy at all
+            proxy = null;
         }
-        clientBuilder.addInterceptorLast(this);
+        return new ProxyableRoutePlanner(proxy, localAddress);        
     }
 
     @Override
@@ -259,11 +330,12 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     }
 
     private HttpRequest request;
+    private PoolingHttpClientConnectionManager connManager;
 
     @Override
     public Response invoke(HttpRequest request) {
         this.request = request;
-        RequestBuilder requestBuilder = RequestBuilder.create(request.getMethod()).setUri(request.getUrl());
+        ClassicRequestBuilder requestBuilder = ClassicRequestBuilder.create(request.getMethod()).setUri(request.getUrl());
         if (request.getBody() != null) {
             EntityBuilder entityBuilder = EntityBuilder.create().setBinary(request.getBody());
             List<String> transferEncoding = request.getHeaderValues(HttpConstants.HDR_TRANSFER_ENCODING);
@@ -276,7 +348,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                         entityBuilder.chunked();
                     }
                     if (te.contains("gzip")) {
-                        entityBuilder.gzipCompress();
+                        entityBuilder.gzipCompressed();
                     }
                 }
                 request.removeHeader(HttpConstants.HDR_TRANSFER_ENCODING);
@@ -285,20 +357,12 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         }
         if (request.getHeaders() != null) {
             request.getHeaders().forEach((k, vals) -> vals.forEach(v -> requestBuilder.addHeader(k, v)));
-        }        
-        CloseableHttpResponse httpResponse;
-        byte[] bytes;
+        }   
         try (CloseableHttpClient client = clientBuilder.build()) {
-            httpResponse = client.execute(requestBuilder.build());
-            HttpEntity responseEntity = httpResponse.getEntity();
-            if (responseEntity == null || responseEntity.getContent() == null) {
-                bytes = Constants.ZERO_BYTES;
-            } else {
-                InputStream is = responseEntity.getContent();
-                bytes = FileUtils.toBytes(is);
-            }
+            Response response = client.execute(requestBuilder.build(), this::buildResponse);
             request.setEndTime(System.currentTimeMillis());
-            httpResponse.close();
+            httpLogger.logResponse(getConfig(), request, response);
+            return response;
         } catch (Exception e) {
             if (e instanceof ClientProtocolException && e.getCause() != null) { // better error message                
                 throw new RuntimeException(e.getCause());
@@ -306,14 +370,19 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 throw new RuntimeException(e);
             }
         }
-        int statusCode = httpResponse.getStatusLine().getStatusCode();
+    }
+
+    private Response buildResponse(ClassicHttpResponse httpResponse) throws IOException{
+        HttpEntity entity = httpResponse.getEntity();
+        byte[] bytes = entity != null ? EntityUtils.toByteArray(entity) : Constants.ZERO_BYTES;
+        int statusCode = httpResponse.getCode();
         Map<String, List<String>> headers = toHeaders(httpResponse);
         List<Cookie> storedCookies = cookieStore.getCookies();
         Header[] requestCookieHeaders = httpResponse.getHeaders(HttpConstants.HDR_SET_COOKIE);
         // edge case where the apache client
         // auto-followed a redirect where cookies were involved
-        List<String> mergedCookieValues = new ArrayList(requestCookieHeaders.length);
-        Set<String> alreadyMerged = new HashSet(requestCookieHeaders.length);
+        List<String> mergedCookieValues = new ArrayList<>(requestCookieHeaders.length);
+        Set<String> alreadyMerged = new HashSet<>(requestCookieHeaders.length);
         for (Header ch : requestCookieHeaders) {
             String requestCookieValue = ch.getValue();
             io.netty.handler.codec.http.cookie.Cookie c = ClientCookieDecoder.LAX.decode(requestCookieValue);            
@@ -326,7 +395,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 if (alreadyMerged.contains(name)) {
                     continue;
                 }                
-                Map<String, Object> map = new HashMap();
+                Map<String, Object> map = new HashMap<>();
                 map.put(Cookies.NAME, name);
                 map.put(Cookies.VALUE, c.getValue());
                 map.put(Cookies.DOMAIN, c.getDomain());
@@ -347,19 +416,19 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     }
 
     @Override
-    public void process(org.apache.http.HttpRequest hr, HttpContext hc) throws HttpException, IOException {
+    public void process(org.apache.hc.core5.http.HttpRequest hr, EntityDetails entity, HttpContext context) throws HttpException, IOException {
         request.setHeaders(toHeaders(hr));
         httpLogger.logRequest(getConfig(), request);
         request.setStartTime(System.currentTimeMillis());
     }
 
     private static Map<String, List<String>> toHeaders(HttpMessage msg) {
-        Header[] headers = msg.getAllHeaders();
-        Map<String, List<String>> map = new LinkedHashMap(headers.length);
+        Header[] headers = msg.getHeaders();
+        Map<String, List<String>> map = new LinkedHashMap<>(headers.length);
         for (Header outer : headers) {
             String name = outer.getName();
             Header[] inner = msg.getHeaders(name);
-            List<String> list = new ArrayList(inner.length);
+            List<String> list = new ArrayList<>(inner.length);
             for (Header h : inner) {
                 list.add(h.getValue());
             }
@@ -368,4 +437,57 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         return map;
     }
 
+    public void close() {
+        connManager.close();
+    }
+
+    /**
+     * Extends SystemDefaultRoutePlanner to add support for localAddress.
+     * To be used when nonProxyHosts are specified
+     */
+    private static class ProxySelectorRoutePlanner extends SystemDefaultRoutePlanner {
+
+        private final InetAddress localAddress;
+
+        public ProxySelectorRoutePlanner(ProxySelector proxySelector, InetAddress localAddress) {
+            super(proxySelector);
+            this.localAddress = localAddress;
+        }
+    
+        protected InetAddress determineLocalAddress(
+                final HttpHost firstHop,
+                final HttpContext context) throws HttpException {
+            return localAddress;
+        }        
+    }
+
+    /**
+     * Default Route planner that supports localAddress.
+     * May be used with or without a Proxy, but not with a ProxySelector.
+     */
+    private static class ProxyableRoutePlanner extends DefaultRoutePlanner {
+
+        private HttpHost proxy;
+        private InetAddress localAddress;
+
+        public ProxyableRoutePlanner(HttpHost proxy, InetAddress localAddress) {
+            super(null);
+            this.proxy = proxy;
+            this.localAddress = localAddress;
+        }
+
+        @Override
+        protected HttpHost determineProxy(
+            final HttpHost target,
+            final HttpContext context) throws HttpException {
+            return proxy;
+        }
+
+        @Override
+        protected InetAddress determineLocalAddress(
+                final HttpHost firstHop,
+                final HttpContext context) throws HttpException {
+            return localAddress;
+        }        
+    }
 }
