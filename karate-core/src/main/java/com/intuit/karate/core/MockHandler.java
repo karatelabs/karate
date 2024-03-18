@@ -119,7 +119,8 @@ public class MockHandler implements ServerHandler {
         section.setIndex(-1); // TODO util for creating dummy scenario
         Scenario dummy = new Scenario(feature, section, -1);
         section.setScenario(dummy);
-        ScenarioRuntime runtime = new ScenarioRuntime(featureRuntime, dummy);        
+        ScenarioRuntime runtime = new ScenarioRuntime(featureRuntime, dummy);
+        runtime.logger.setLogOnly(true);
         runtime.engine.setVariable(PATH_MATCHES, (Function<String, Boolean>) this::pathMatches);
         runtime.engine.setVariable(PARAM_EXISTS, (Function<String, Boolean>) this::paramExists);
         runtime.engine.setVariable(PARAM_VALUE, (Function<String, String>) this::paramValue);
