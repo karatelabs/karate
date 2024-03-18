@@ -10,17 +10,20 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.classic.methods.HttpUriRequest;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.HttpHost;
+import org.apache.hc.core5.http.HttpResponse;
+import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -81,15 +84,18 @@ class ProxyServerSslTest {
         SSLContext sc = SSLContext.getInstance("SSL");
         sc.init(null, new TrustManager[]{LenientTrustManager.INSTANCE}, null);
         CloseableHttpClient client = HttpClients.custom()
-                .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
-                .setSSLContext(sc)
+                .setConnectionManager(PoolingHttpClientConnectionManagerBuilder.create()
+                        .setSSLSocketFactory(SSLConnectionSocketFactoryBuilder.create()
+                                .setSslContext(sc)
+                                .setHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+                                .build())
+                        .build())
                 .setProxy(new HttpHost("localhost", proxy.getPort()))
                 .build();
         HttpResponse response = client.execute(request);
-        InputStream is = response.getEntity().getContent();
-        String responseString = FileUtils.toString(is);
+        String responseString = response.getReasonPhrase();
         logger.debug("response: {}", responseString);
-        return response.getStatusLine().getStatusCode();
+        return response.getCode();
     }
 
 }
