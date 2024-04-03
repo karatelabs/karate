@@ -228,7 +228,7 @@ public class Step {
     }
 
     public boolean isSetup() {
-        return scenario.isSetup();
+        return scenario !=null && scenario.isSetup();
     }
 
     @Override
