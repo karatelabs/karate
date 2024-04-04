@@ -21,13 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.apache.http.conn.ssl;
+package org.apache.hc.client5.http.ssl;
 
 import java.io.IOException;
 import java.net.Socket;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
-import org.apache.http.protocol.HttpContext;
+
+import org.apache.hc.core5.http.protocol.HttpContext;
 
 /**
  * in a separate package just for log level config consistency

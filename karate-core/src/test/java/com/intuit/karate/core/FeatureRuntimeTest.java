@@ -398,10 +398,11 @@ class FeatureRuntimeTest {
         run("type-conv.feature");
     }
 
-    @Test
-    void testConfigureNtlmAuthentication() {
-        run("ntlm-authentication.feature");
-    }
+    // NTLM not supported in apache client 5.3
+    // @Test
+    // void testConfigureNtlmAuthentication() {
+    //     run("ntlm-authentication.feature");
+    // }
 
     @Test
     void testSingleScenario() {

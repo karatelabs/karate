@@ -134,4 +134,9 @@ public class ArmeriaHttpClient implements HttpClient, DecoratingHttpClientFuncti
         return delegate.execute(ctx, req);
     }
 
+    @Override
+    public void close() {
+        // No op. close() was introduced mainly for ApacheHttpClient, see https://github.com/karatelabs/karate/pull/2471
+    }
+
 }
