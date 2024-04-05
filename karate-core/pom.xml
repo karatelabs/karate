@@ -22,10 +22,9 @@
             <version>${graal.version}</version>
         </dependency>        
         <dependency>
-            <groupId>org.graalvm.polyglot</groupId>
-            <artifactId>js</artifactId>
+            <groupId>org.graalvm.js</groupId>
+            <artifactId>js-language</artifactId>
             <version>${graal.version}</version>
-            <type>pom</type>
             <scope>runtime</scope>
         </dependency>  
         <dependency>
@@ -190,7 +189,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-dependency-plugin</artifactId>
-                        <version>3.1.2</version>
+                        <version>3.6.1</version>
                         <executions>
                             <execution>
                                 <id>unpack-dependencies</id>
