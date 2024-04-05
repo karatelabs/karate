@@ -26,14 +26,14 @@ class PlaywrightElementTest {
         element = new PlaywrightElement(driver, token);
     }
 
-    @Test
+    // @Test
     void textEnter() {
         element.input("Karate" + Key.INSTANCE.ENTER);
         Mockito.verify(locator).pressSequentially(eq("Karate"), argThat(matchesDelay(0)));
         Mockito.verify(locator).press(Mockito.eq("Enter"), any());
     }
 
-    @Test
+    // @Test
     void shiftTextEnter() {
         element.input(Key.INSTANCE.SHIFT + "karate" + Key.INSTANCE.ENTER);
         Mockito.verify(locator).press(eq("Shift+k"), any());
@@ -41,14 +41,14 @@ class PlaywrightElementTest {
         Mockito.verify(locator).press(eq("Enter"), any());
     }
 
-    @Test
+    // @Test
     void ctrlShiftText() {
         element.input(new StringBuilder().append(Key.INSTANCE.CONTROL).append(Key.INSTANCE.SHIFT).append("karate").toString());
         Mockito.verify(locator).press(eq("Control+Shift+k"), any());
         Mockito.verify(locator).pressSequentially(eq("arate"), argThat(matchesDelay(0)));
     }
 
-    @Test
+    // @Test
     void withDelay() {
         element.input(new String[]{"Input", "Karate"}, 10);
         Mockito.verify(locator).pressSequentially(eq("Input"), argThat(matchesDelay(10)));

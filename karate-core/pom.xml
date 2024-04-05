@@ -12,7 +12,7 @@
     
     <properties>
         <antlr.version>4.13.1</antlr.version>
-        <graal.version>23.0.3</graal.version>
+        <graal.version>24.0.0</graal.version>
     </properties>
 
     <dependencies>
@@ -22,9 +22,10 @@
             <version>${graal.version}</version>
         </dependency>        
         <dependency>
-            <groupId>org.graalvm.js</groupId>
+            <groupId>org.graalvm.polyglot</groupId>
             <artifactId>js</artifactId>
             <version>${graal.version}</version>
+            <type>pom</type>
             <scope>runtime</scope>
         </dependency>  
         <dependency>
