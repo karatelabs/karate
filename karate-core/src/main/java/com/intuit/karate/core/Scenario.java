@@ -35,62 +35,56 @@ import java.util.Map;
  */
 public class Scenario {
 
-    private final Feature feature;
-    private final FeatureSection section;
     private final int exampleIndex;
-    
-    private int line;
-    private List<Tag> tags;
-    private String name;
-    private String description;
-    private List<Step> steps;
+
     private Map<String, Object> exampleData;
     private String dynamicExpression;
+    TestScenario testScenario = new TestScenario(null, null, 0, null, null, null, null);
 
     public Scenario(Feature feature, FeatureSection section, int exampleIndex) {
-        this.feature = feature;
-        this.section = section;
+        this.testScenario.setFeature(feature);
+        this.testScenario.setSection(section);
         this.exampleIndex = exampleIndex;
     }
     
     public boolean isEqualTo(Scenario other) {
-        return other.section.getIndex() == section.getIndex() && other.exampleIndex == exampleIndex;
+        return other.testScenario.getSection().getIndex() == testScenario.getSection().getIndex() && other.exampleIndex == exampleIndex;
     }
 
     public String getNameAndDescription() {
         String temp = "";
-        if (name != null) {
-            temp = temp + name;
+        if (testScenario.getName() != null) {
+            temp = temp + testScenario.getName();
         }
-        if (description != null) {
+        if (testScenario.getDescription() != null) {
             if (!temp.isEmpty()) {
                 temp = temp + " ";
             }
-            temp = temp + description;
+            temp = temp + testScenario.getDescription();
         }
         return temp;
     }
 
     public String getRefIdAndName() {
-        if (name == null) {
+        if (testScenario.getName() == null) {
             return getRefId();
         } else {
-            return getRefId() + " " + name;
+            return getRefId() + " " + testScenario.getName();
         }
     }
 
     // only called for dynamic scenarios
     public Scenario copy(int exampleIndex) {
-        Scenario s = new Scenario(feature, section, exampleIndex);
-        s.name = name;
-        s.description = description;
-        s.tags = tags;
-        s.line = line;
+        Scenario s = new Scenario(testScenario.getFeature(), testScenario.getSection(), exampleIndex);
+        s.testScenario.setName(getName());
+        s.testScenario.setDescription(getDescription());
+        s.testScenario.setTags(getTags());
+        s.testScenario.setLine(getLine());
         s.dynamicExpression = dynamicExpression;
-        s.steps = new ArrayList(steps.size());
-        for (Step step : steps) {
+        s.testScenario.setSteps(new ArrayList(getSteps().size()));
+        for (Step step : testScenario.getSteps()) {
             Step temp = new Step(s, step.getIndex());
-            s.steps.add(temp);
+            s.testScenario.getSteps().add(temp);
             temp.setLine(step.getLine());
             temp.setEndLine(step.getEndLine());
             temp.setPrefix(step.getPrefix());
@@ -108,8 +102,8 @@ public class Scenario {
             // user should be fine with karate-style plain-old variables
             return;
         }
-        name = name.replace(token, value);
-        for (Step step : steps) {
+        testScenario.setName(getName().replace(token, value));
+        for (Step step : testScenario.getSteps()) {
             String text = step.getText();
             step.setText(text.replace(token, value));
             String docString = step.getDocString();
@@ -133,35 +127,35 @@ public class Scenario {
     }
 
     public String getRefId() {
-        int num = section.getIndex() + 1;
+        int num = testScenario.getSection().getIndex() + 1;
         String meta = "[" + num;
         if (exampleIndex != -1) {
             meta = meta + "." + (exampleIndex + 1);
         }
-        return meta + ":" + line + "]";
+        return meta + ":" + testScenario.getLine() + "]";
     }
 
     public String getDebugInfo() {
-        return feature + ":" + line;
+        return testScenario.getFeature() + ":" + testScenario.getLine();
     }
 
     public String getUniqueId() {
-        String id = feature.getResource().getPackageQualifiedName() + "_" + (section.getIndex() + 1);
+        String id = testScenario.getFeature().getResource().getPackageQualifiedName() + "_" + (testScenario.getSection().getIndex() + 1);
         return exampleIndex == -1 ? id : id + "_" + (exampleIndex + 1);
     }
 
     public List<Step> getBackgroundSteps() {
-        return feature.isBackgroundPresent() ? feature.getBackground().getSteps() : Collections.EMPTY_LIST;
+        return testScenario.getFeature().isBackgroundPresent() ? testScenario.getFeature().getBackground().getSteps() : Collections.EMPTY_LIST;
     }
 
     public List<Step> getStepsIncludingBackground() {
-        List<Step> background = feature.isBackgroundPresent() ? feature.getBackground().getSteps() : null;
-        int count = background == null ? steps.size() : steps.size() + background.size();
+        List<Step> background = testScenario.getFeature().isBackgroundPresent() ? testScenario.getFeature().getBackground().getSteps() : null;
+        int count = background == null ? testScenario.getSteps().size() : testScenario.getSteps().size() + background.size();
         List<Step> temp = new ArrayList(count);
         if (background != null) {
             temp.addAll(background);
         }
-        temp.addAll(steps);
+        temp.addAll(testScenario.getSteps());
         return temp;
     }
 
@@ -169,57 +163,57 @@ public class Scenario {
 
     public Tags getTagsEffective() {
         if (tagsEffective == null) {
-            tagsEffective = Tags.merge(feature.getTags(), tags);
+            tagsEffective = Tags.merge(testScenario.getFeature().getTags(), testScenario.getTags());
         }
         return tagsEffective;
     }
 
     public FeatureSection getSection() {
-        return section;
+        return testScenario.getSection();
     }
 
     public Feature getFeature() {
-        return feature;
+        return testScenario.getFeature();
     }
 
     public int getLine() {
-        return line;
+        return testScenario.getLine();
     }
 
     public void setLine(int line) {
-        this.line = line;
+        this.testScenario.setLine(line);
     }        
 
     public List<Tag> getTags() {
-        return tags;
+        return testScenario.getTags();
     }
 
     public void setTags(List<Tag> tags) {
-        this.tags = tags;
+        this.testScenario.setTags(tags);
     }
 
     public String getName() {
-        return name;
+        return testScenario.getName();
     }
 
     public void setName(String name) {
-        this.name = name;
+        this.testScenario.setName(name);
     }
 
     public String getDescription() {
-        return description;
+        return testScenario.getDescription();
     }
 
     public void setDescription(String description) {
-        this.description = description;
+        this.testScenario.setDescription(description);
     }
 
     public List<Step> getSteps() {
-        return steps;
+        return testScenario.getSteps();
     }
 
     public void setSteps(List<Step> steps) {
-        this.steps = steps;
+        this.testScenario.setSteps(steps);
     }
 
     public boolean isOutlineExample() {
@@ -252,11 +246,11 @@ public class Scenario {
 
     @Override
     public String toString() {
-        return feature.toString() + getRefId();
+        return testScenario.getFeature().toString() + getRefId();
     }
 
     public URI getUriToLineNumber() {
-        return URI.create(feature.getResource().getUri() + "?line=" + line);
+        return URI.create(testScenario.getFeature().getResource().getUri() + "?line=" + testScenario.getLine());
     }
 
 }

@@ -31,40 +31,33 @@ import java.util.List;
  */
 public class ScenarioOutline {
     
-    private final Feature feature;
-    private final FeatureSection section;
-    
-    private int line;
-    private List<Tag> tags;
-    private String name;
-    private String description;
-    private List<Step> steps;
+    private TestScenario testScenario = new TestScenario(null, null, 0, null, null, null, null);
     private List<ExamplesTable> examplesTables;
     
     public ScenarioOutline(Feature feature, FeatureSection section) {
-        this.feature = feature;
-        this.section = section;
+        this.testScenario.setFeature(feature);
+        this.testScenario.setSection(section);
     }
     
     public Scenario toScenario(String dynamicExpression, int exampleIndex, int updateLine, List<Tag> tagsForExamples) {
-        Scenario s = new Scenario(feature, section, exampleIndex);
-        s.setName(name);
-        s.setDescription(description);
+        Scenario s = new Scenario(testScenario.getFeature(), testScenario.getSection(), exampleIndex);
+        s.setName(getName());
+        s.setDescription(getDescription());
         s.setLine(updateLine);
         s.setDynamicExpression(dynamicExpression);
-        if (tags != null || tagsForExamples != null) {
+        if (getTags() != null || tagsForExamples != null) {
             List<Tag> temp = new ArrayList();
-            if (tags != null) {
-                temp.addAll(tags);
+            if (getTags() != null) {
+                temp.addAll(getTags());
             }
             if (tagsForExamples != null) {
                 temp.addAll(tagsForExamples);
             }
             s.setTags(temp);
         }
-        List<Step> temp = new ArrayList(steps.size());
+        List<Step> temp = new ArrayList(getSteps().size());
         s.setSteps(temp);
-        for (Step original : steps) {
+        for (Step original : getSteps()) {
             Step step = new Step(s, original.getIndex());
             temp.add(step);
             step.setLine(original.getLine());
@@ -90,7 +83,7 @@ public class ScenarioOutline {
             if (fr != null && examplesHaveTags && fr.caller.isNone()) {
                 // getting examples in the context of an execution
                 // if the examples do not have any tagged example, do not worry about selecting
-                Tags tableTags = Tags.merge(fr.featureCall.feature.getTags(), tags, examples.getTags());
+                Tags tableTags = Tags.merge(fr.featureCall.feature.getTags(), getTags(), examples.getTags());
                 boolean executeForTable = tableTags.evaluate(fr.suite.tagSelector, fr.suite.env);
                 if (executeForTable) {
                     selectedForExecution = true;
@@ -121,47 +114,47 @@ public class ScenarioOutline {
     }
     
     public FeatureSection getSection() {
-        return section;
+        return testScenario.getSection();
     }
     
     public int getLine() {
-        return line;
+        return testScenario.getLine();
     }
     
     public void setLine(int line) {
-        this.line = line;
+        testScenario.setLine(line);
     }
     
     public List<Tag> getTags() {
-        return tags;
+        return testScenario.getTags();
     }
     
     public void setTags(List<Tag> tags) {
-        this.tags = tags;
+        testScenario.setTags(tags);
     }
     
     public String getName() {
-        return name;
+        return testScenario.getName();
     }
     
     public void setName(String name) {
-        this.name = name;
+        testScenario.setName(name);
     }
     
     public String getDescription() {
-        return description;
+        return testScenario.getDescription();
     }
     
     public void setDescription(String description) {
-        this.description = description;
+        testScenario.setDescription(description);
     }
     
     public List<Step> getSteps() {
-        return steps;
+        return testScenario.getSteps();
     }
     
     public void setSteps(List<Step> steps) {
-        this.steps = steps;
+        testScenario.setSteps(steps);
     }
     
     public List<ExamplesTable> getExamplesTables() {
