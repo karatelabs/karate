@@ -23,31 +23,15 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.ScenarioActions;
-import com.intuit.karate.Suite;
-import com.intuit.karate.StringUtils;
-import com.intuit.karate.Json;
-import com.intuit.karate.KarateException;
-import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.http.HttpClientFactory;
-import com.intuit.karate.http.HttpUtils;
-import com.intuit.karate.http.Request;
-import com.intuit.karate.http.ResourceType;
-import com.intuit.karate.http.Response;
-import com.intuit.karate.http.ServerHandler;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-import java.util.function.BiFunction;
-import java.util.function.Function;
+import com.intuit.karate.*;
+import com.intuit.karate.http.*;
+import io.karatelabs.js.Invokable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.*;
+
 /**
- *
  * @author pthomas3
  */
 public class MockHandler implements ServerHandler {
@@ -99,36 +83,36 @@ public class MockHandler implements ServerHandler {
             corsEnabled = corsEnabled || runtime.engine.getConfig().isCorsEnabled();
             globals.putAll(runtime.engine.shallowCloneVariables());
             runtime.logger.info("mock server initialized: {}", feature);
-            scenarioRuntimes.put(feature, runtime);            
+            scenarioRuntimes.put(feature, runtime);
         });
     }
-    
+
     public Object getVariable(String name) {
         if (globals.containsKey(name)) {
             Variable v = globals.get(name);
             if (v != null) {
-                return JsValue.fromJava(v.getValue());
+                return v.getValue();
             }
         }
         return null;
     }
 
-    private ScenarioRuntime initRuntime(Feature feature, Map<String, Object> args) {
-        FeatureRuntime featureRuntime = FeatureRuntime.of(Suite.forTempUse(HttpClientFactory.DEFAULT), new FeatureCall(feature), args);
+    private ScenarioRuntime initRuntime(Feature feature, Map<String, Object> initArgs) {
+        FeatureRuntime featureRuntime = FeatureRuntime.of(Suite.forTempUse(HttpClientFactory.DEFAULT), new FeatureCall(feature), initArgs);
         FeatureSection section = new FeatureSection();
         section.setIndex(-1); // TODO util for creating dummy scenario
         Scenario dummy = new Scenario(feature, section, -1);
         section.setScenario(dummy);
         ScenarioRuntime runtime = new ScenarioRuntime(featureRuntime, dummy);
         runtime.logger.setLogOnly(true);
-        runtime.engine.setVariable(PATH_MATCHES, (Function<String, Boolean>) this::pathMatches);
-        runtime.engine.setVariable(PARAM_EXISTS, (Function<String, Boolean>) this::paramExists);
-        runtime.engine.setVariable(PARAM_VALUE, (Function<String, String>) this::paramValue);
-        runtime.engine.setVariable(METHOD_IS, (Function<String, Boolean>) this::methodIs);
-        runtime.engine.setVariable(TYPE_CONTAINS, (Function<String, Boolean>) this::typeContains);
-        runtime.engine.setVariable(ACCEPT_CONTAINS, (Function<String, Boolean>) this::acceptContains);
-        runtime.engine.setVariable(HEADER_CONTAINS, (BiFunction<String, String, Boolean>) this::headerContains);
-        runtime.engine.setVariable(BODY_PATH, (Function<String, Object>) this::bodyPath);
+        runtime.engine.setVariable(PATH_MATCHES, (Invokable) args -> this.pathMatches((String) args[0]));
+        runtime.engine.setVariable(PARAM_EXISTS, (Invokable) args -> this.paramExists((String) args[0]));
+        runtime.engine.setVariable(PARAM_VALUE, (Invokable) args-> this.paramValue((String) args[0]));
+        runtime.engine.setVariable(METHOD_IS, (Invokable) args -> this.methodIs((String) args[0]));
+        runtime.engine.setVariable(TYPE_CONTAINS, (Invokable) args -> this.typeContains((String) args[0]));
+        runtime.engine.setVariable(ACCEPT_CONTAINS, (Invokable) args -> this.acceptContains((String) args[0]));
+        runtime.engine.setVariable(HEADER_CONTAINS, (Invokable) args -> this.headerContains((String) args[0], (String) args[1]));
+        runtime.engine.setVariable(BODY_PATH, (Invokable) args -> this.bodyPath((String) args[0]));
         runtime.engine.init();
         if (feature.isBackgroundPresent()) {
             // if we are within a scenario already e.g. karate.start(), preserve context
@@ -146,7 +130,7 @@ public class MockHandler implements ServerHandler {
             } finally {
                 ScenarioEngine.set(prevEngine);
             }
-        }        
+        }
         return runtime;
     }
 
@@ -176,7 +160,7 @@ public class MockHandler implements ServerHandler {
             Feature feature = entry.getKey();
             ScenarioRuntime runtime = entry.getValue();
             // important for graal to work properly
-            Thread.currentThread().setContextClassLoader(runtime.featureRuntime.suite.classLoader);            
+            Thread.currentThread().setContextClassLoader(runtime.featureRuntime.suite.classLoader);
             LOCAL_REQUEST.set(req);
             req.processBody();
             ScenarioEngine engine = initEngine(runtime, globals, req);
@@ -242,9 +226,9 @@ public class MockHandler implements ServerHandler {
         }
         return new Response(404);
     }
-    
+
     private static ScenarioEngine initEngine(ScenarioRuntime runtime, Map<String, Variable> globals, Request req) {
-        ScenarioEngine engine = new ScenarioEngine(runtime.engine.getConfig(), runtime, new HashMap(globals), runtime.logger);        
+        ScenarioEngine engine = new ScenarioEngine(runtime.engine.getConfig(), runtime, new HashMap(globals), runtime.logger);
         engine.init();
         engine.setVariable(ScenarioEngine.REQUEST_URL_BASE, req.getUrlBase());
         engine.setVariable(ScenarioEngine.REQUEST_PATH, req.getPath());
@@ -363,7 +347,7 @@ public class MockHandler implements ServerHandler {
             if (v.isNotPresent()) {
                 return null;
             } else {
-                return JsValue.fromJava(v.getValue());
+                return v.getValue();
             }
         } else {
             Json json = Json.of(body);
@@ -373,7 +357,7 @@ public class MockHandler implements ServerHandler {
             } catch (Exception e) {
                 return null;
             }
-            return JsValue.fromJava(result);
+            return result;
         }
     }
 

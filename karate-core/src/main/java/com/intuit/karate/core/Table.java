@@ -25,7 +25,7 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.js.JsEngine;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -182,7 +182,7 @@ public class Table {
                     if (JsonUtils.isJson(raw)) {
                         raw = '(' + raw + ')';
                     }
-                    return JsEngine.evalGlobal(raw).getValue();
+                    return JsEngine.evalGlobal(raw);
                 default:
                     if (StringUtils.isBlank(raw)) {
                         return null;

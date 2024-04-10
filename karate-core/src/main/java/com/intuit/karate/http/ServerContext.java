@@ -27,40 +27,28 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Match;
 import com.intuit.karate.core.Variable;
-import com.intuit.karate.graal.JsArray;
-import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.graal.Methods;
+import com.intuit.karate.js.JsEngine;
 import com.intuit.karate.resource.Resource;
 import com.intuit.karate.template.KarateEngineContext;
 import com.intuit.karate.template.TemplateUtils;
+import io.karatelabs.js.Invokable;
+import io.karatelabs.js.ObjectLike;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
-import java.io.File;
-import java.io.InputStream;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import org.graalvm.polyglot.Value;
-import org.graalvm.polyglot.proxy.ProxyObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.InputStream;
+import java.time.Instant;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
 /**
- *
  * @author pthomas3
  */
-public class ServerContext implements ProxyObject {
+public class ServerContext implements ObjectLike {
 
     private static final Logger logger = LoggerFactory.getLogger(ServerContext.class);
 
@@ -90,7 +78,6 @@ public class ServerContext implements ProxyObject {
     private static final String DELAY = "delay";
     private static final String TO_STRING = "toString";
     private static final String TO_JSON = "toJson";
-    private static final String TO_JS = "toJs";
     private static final String TO_JSON_PRETTY = "toJsonPretty";
     private static final String FROM_JSON = "fromJson";
     private static final String CALLER = "caller";
@@ -103,11 +90,10 @@ public class ServerContext implements ProxyObject {
     private static final String FLASH = "flash";
 
     private static final String[] KEYS = new String[]{
-        READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, SET, LOG, UUID, REMOVE, REDIRECT, SWITCH, SWITCHED, AJAX, HTTP, NEXT_ID, SESSION_ID,
-        INIT, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_STRING, TO_JSON, TO_JS, TO_JSON_PRETTY, FROM_JSON,
-        CALLER, TEMPLATE, TYPE_OF, IS_PRIMITIVE, IS_JSON, MATCH, JOIN_PATHS, FLASH};
+            READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, SET, LOG, UUID, REMOVE, REDIRECT, SWITCH, SWITCHED, AJAX, HTTP, NEXT_ID, SESSION_ID,
+            INIT, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_STRING, TO_JSON, TO_JSON_PRETTY, FROM_JSON,
+            CALLER, TEMPLATE, TYPE_OF, IS_PRIMITIVE, IS_JSON, MATCH, JOIN_PATHS, FLASH};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
-    private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
     private final ServerConfig config;
     private final Request request;
@@ -144,15 +130,15 @@ public class ServerContext implements ProxyObject {
             }
             return http;
         };
-        RENDER_FUNCTION = o -> {
-            if (o instanceof String) {
-                return TemplateUtils.renderHtmlResource((String) o, getEngine(), config.getResourceResolver(), config.isDevMode());
+        RENDER_FUNCTION = args -> {
+            if (args[0] instanceof String) {
+                return TemplateUtils.renderHtmlResource((String) args[0], getEngine(), config.getResourceResolver(), config.isDevMode());
             }
             Map<String, Object> map;
-            if (o instanceof Map) {
-                map = (Map) o;
+            if (args[0] instanceof Map) {
+                map = (Map) args[0];
             } else {
-                logger.warn("invalid argument to render: {}", o);
+                logger.warn("invalid argument to render: {}", args[0]);
                 return null;
             }
             Map<String, Object> vars = (Map) map.get("vars");
@@ -166,12 +152,12 @@ public class ServerContext implements ProxyObject {
             }
             JsEngine je;
             if (fork != null && fork) {
-                je = JsEngine.local();
+                je = new JsEngine();
             } else {
                 je = getEngine().copy();
             }
             if (vars != null) {
-                je.putAll(vars);
+                vars.forEach((k, v) -> je.put(k, v));
             }
             String body;
             if (path != null) {
@@ -241,7 +227,7 @@ public class ServerContext implements ProxyObject {
         if (resourceType == ResourceType.JS) {
             return eval(raw);
         } else {
-            return JsValue.fromJava(JsonUtils.fromString(raw, false, resourceType));
+            return JsonUtils.fromString(raw, false, resourceType);
         }
     }
 
@@ -251,26 +237,21 @@ public class ServerContext implements ProxyObject {
     }
 
     public Object eval(String source) {
-        return getEngine().evalForValue(source);
+        return getEngine().eval(source);
     }
 
     public Object evalWith(Object o, String source) {
-        Value value = Value.asValue(o);
-        return getEngine().evalWith(value, source, true);
+        return getEngine().evalWith((Map) o, source, true);
     }
 
     public String toJson(Object o) {
-        Value value = Value.asValue(o);
-        return new JsValue(value).toJsonOrXmlString(false);
-    }
-
-    public Object toJs(Object o) {
-        return JsValue.fromJava(o);
+        Variable v = new Variable(o);
+        return v.getAsString();
     }
 
     public String toJsonPretty(Object o) {
-        Value value = Value.asValue(o);
-        String pretty = new JsValue(value).toJsonOrXmlString(true);
+        Variable v = new Variable(o);
+        String pretty = v.getAsPrettyString();
         return pretty == null ? null : pretty.trim();
     }
 
@@ -351,7 +332,7 @@ public class ServerContext implements ProxyObject {
 
     public Function<ServerContext, Boolean> getRequestValidator() {
         return requestValidator;
-    }    
+    }
 
     public boolean isSwitched() {
         return switched;
@@ -377,7 +358,7 @@ public class ServerContext implements ProxyObject {
         logger.info(log);
     }
 
-    private final Methods.FunVar GET_FUNCTION = args -> {
+    private final Invokable GET_FUNCTION = args -> {
         if (args.length == 0 || args[0] == null) {
             return null;
         }
@@ -388,8 +369,8 @@ public class ServerContext implements ProxyObject {
             value = kec.getVariable(name);
         } else {
             JsEngine je = getEngine();
-            if (je.bindings.hasMember(name)) {
-                value = je.get(name).getValue();
+            if (je.has(name)) {
+                value = je.get(name);
             } else if (args.length > 1) {
                 value = args[1];
             } else {
@@ -404,35 +385,35 @@ public class ServerContext implements ProxyObject {
         return null;
     }
 
-    private static final Supplier<String> UUID_FUNCTION = () -> java.util.UUID.randomUUID().toString();
+    private static final Invokable UUID_FUNCTION = args -> java.util.UUID.randomUUID().toString();
     private static final Function<String, Object> FROM_JSON_FUNCTION = s -> JsonUtils.fromString(s, false, null);
 
-    private final Methods.FunVar HTTP_FUNCTION; // set in constructor
-    private final Function<Object, String> RENDER_FUNCTION; // set in constructor  
+    private final Invokable HTTP_FUNCTION; // set in constructor
+    private final Invokable RENDER_FUNCTION; // set in constructor
 
-    private final Methods.FunVar LOG_FUNCTION = args -> {
+    private final Invokable LOG_FUNCTION = args -> {
         log(args);
         return null;
     };
 
-    private final Function<Object, Object> COPY_FUNCTION = o -> {
-        return JsValue.fromJava(JsonUtils.deepCopy(o));
-    };
+    private final Invokable COPY_FUNCTION = args -> JsonUtils.deepCopy(args[0]);
 
-    private final Consumer<Number> DELAY_FUNCTION = v -> {
+    private final Invokable DELAY_FUNCTION = args -> {
         try {
-            Thread.sleep(v.longValue());
+            Number num = (Number) args[0];
+            Thread.sleep(num.longValue());
         } catch (Exception e) {
             logger.error("delay failed: {}", e.getMessage());
         }
+        return null;
     };
 
-    private final Function<Object, Object> TO_STRING_FUNCTION = o -> {
-        Variable v = new Variable(o);
+    private final Invokable TO_STRING_FUNCTION = args -> {
+        Variable v = new Variable(args[0]);
         return v.getAsString();
     };
 
-    private final Methods.FunVar SWITCH_FUNCTION = args -> {
+    private final Invokable SWITCH_FUNCTION = args -> {
         if (switched) {
             logger.warn("context.switch() can be called only once during a request, ignoring: {}", args[0]);
         } else {
@@ -440,10 +421,9 @@ public class ServerContext implements ProxyObject {
             KarateEngineContext.get().setRedirect(true); // flag for template engine
             RequestCycle rc = RequestCycle.get();
             if (args.length > 1) {
-                Value value = Value.asValue(args[1]);
-                if (value.hasMembers()) {
-                    JsValue jv = new JsValue(value);
-                    rc.setSwitchParams(jv.getAsMap());
+                Object value = args[1];
+                if (value instanceof Map) {
+                    rc.setSwitchParams((Map) value);
                 }
             }
             String template;
@@ -458,82 +438,83 @@ public class ServerContext implements ProxyObject {
         return null;
     };
 
-    private final Supplier<String> CLOSE_FUNCTION = () -> {
+    private final Invokable CLOSE_FUNCTION = args -> {
         closed = true;
         return null;
     };
 
-    private final Supplier<Object> INIT_FUNCTION = () -> {
+    private final Invokable INIT_FUNCTION = args -> {
         init();
         getEngine().put(RequestCycle.SESSION, session.getData());
         logger.debug("init session: {}", session);
         return null;
     };
 
-    private final Function<String, Object> REDIRECT_FUNCTION = (path) -> {
-        redirectPath = path;
+    private final Invokable REDIRECT_FUNCTION = args -> {
+        redirectPath = (String) args[0];
         logger.debug("redirect requested to: {}", redirectPath);
         return null;
     };
 
-    private static final BiFunction<Object, Object, Object> REMOVE_FUNCTION = (o, k) -> {
-        if (o instanceof Map && k != null) {
-            Map in = (Map) o;
+    private static final Invokable REMOVE_FUNCTION = args -> {
+        if (args[0] instanceof Map && args[1] != null) {
+            Map in = (Map) args[0];
             Map out = new HashMap(in);
-            Object removed = out.remove(k.toString());
+            String k = args[1].toString();
+            Object removed = out.remove(k);
             if (removed == null) {
                 logger.warn("nothing removed, key not present: {}", k);
-                return o;
+                return in;
             } else {
-                return JsValue.fromJava(out);
+                return out;
             }
-        } else if (o != null) {
-            logger.warn("unable to cast to map: {} - {}", o.getClass(), o);
+        } else if (args[0] != null) {
+            logger.warn("unable to cast to map: {} - {}", args[0].getClass(), args[0]);
         }
-        return o;
+        return args[0];
     };
 
-    private final Supplier<String> NEXT_ID_FUNCTION = () -> ++nextId + "-" + System.currentTimeMillis();
+    private final Invokable NEXT_ID_FUNCTION = args -> ++nextId + "-" + System.currentTimeMillis();
 
-    private final Function<String, Object> TYPE_OF_FUNCTION = o -> new Variable(o).getTypeString();
+    private final Invokable TYPE_OF_FUNCTION = args -> new Variable(args[0]).getTypeString();
 
-    private final Function<Object, Object> IS_PRIMITIVE_FUNCTION = o -> !new Variable(o).isMapOrList();
+    private final Invokable IS_PRIMITIVE_FUNCTION = args -> !new Variable(args[0]).isMapOrList();
 
-    private final Function<Object, Object> IS_JSON_FUNCTION = o -> new Variable(o).isMapOrList();
+    private final Invokable IS_JSON_FUNCTION = args -> new Variable(args[0]).isMapOrList();
 
-    private final Methods.FunVar MATCH_FUNCTION = args -> {
+    private final Invokable MATCH_FUNCTION = args -> {
         if (args.length > 2 && args[0] != null) {
             String type = args[0].toString();
             Match.Type matchType = Match.Type.valueOf(type.toUpperCase());
-            return JsValue.fromJava(Match.execute(getEngine(), matchType, args[1], args[2], false));
+            return Match.execute(getEngine(), matchType, args[1], args[2], false);
         } else if (args.length == 2) {
-            return JsValue.fromJava(Match.execute(getEngine(), Match.Type.EQUALS, args[0], args[1], false));
+            return Match.execute(getEngine(), Match.Type.EQUALS, args[0], args[1], false);
         } else {
             logger.warn("at least two arguments needed for match");
             return null;
         }
     };
 
-    private final Methods.FunVar JOIN_PATHS_FUNCTION = args -> {
+    private final Invokable JOIN_PATHS_FUNCTION = args -> {
         List<String> temp = Arrays.asList(args).stream().filter(x -> x != null).map(Object::toString).collect(Collectors.toList());
         return String.join(File.separator, temp);
     };
 
     @Override
-    public Object getMember(String key) {
+    public Object get(String key) {
         switch (key) {
             case READ:
-                return (Function<String, Object>) this::read;
+                return (Invokable) args -> read((String) args[0]);
             case READ_AS_STRING:
-                return (Function<String, String>) this::readAsString;
+                return (Invokable) args -> readAsString((String) args[0]);
             case EVAL:
-                return (Function<String, Object>) this::eval;
+                return (Invokable) args-> eval((String) args[0]);
             case EVAL_WITH:
-                return (BiFunction<Object, String, Object>) this::evalWith;
+                return (Invokable) args -> evalWith(args[0], (String) args[1]);
             case GET:
                 return GET_FUNCTION;
             case SET:
-                return (BiFunction<String, Object, Void>) this::setVariable;
+                return (Invokable) args -> setVariable((String) args[0], args[1]);
             case LOG:
                 return LOG_FUNCTION;
             case UUID:
@@ -545,11 +526,9 @@ public class ServerContext implements ProxyObject {
             case TO_STRING:
                 return TO_STRING_FUNCTION;
             case TO_JSON:
-                return (Function<Object, String>) this::toJson;
-            case TO_JS:
-                return (Function<Object, Object>) this::toJs;
+                return (Invokable) args -> toJson(args[0]);
             case TO_JSON_PRETTY:
-                return (Function<Object, String>) this::toJsonPretty;
+                return (Invokable) args -> toJsonPretty(args[0]);
             case FROM_JSON:
                 return FROM_JSON_FUNCTION;
             case REMOVE:
@@ -577,7 +556,10 @@ public class ServerContext implements ProxyObject {
             case RENDER:
                 return RENDER_FUNCTION;
             case BODY_APPEND:
-                return (Consumer<String>) this::bodyAppend;
+                return (Invokable) args -> {
+                    bodyAppend((String) args[0]);
+                    return null;
+                };
             case RESOLVER:
                 return config.getResourceResolver();
             case CALLER:
@@ -603,24 +585,43 @@ public class ServerContext implements ProxyObject {
     }
 
     @Override
-    public Object getMemberKeys() {
-        return KEY_ARRAY;
+    public Collection<String> keys() {
+        return KEY_SET;
     }
 
     @Override
-    public boolean hasMember(String key) {
+    public void remove(String name) {
+        logger.warn("remove not supported on context object: {}", name);
+    }
+
+    @Override
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap<>();
+        for (String key : keys()) {
+            map.put(key, get(key));
+        }
+        return map;
+    }
+
+    @Override
+    public boolean hasKey(String key) {
         return KEY_SET.contains(key);
     }
 
     @Override
-    public void putMember(String key, Value value) {
+    public void put(String key, Object value) {
         switch (key) {
             case FLASH:
-                flash = JsValue.toJava(value);
+                flash = value;
                 break;
             default:
                 logger.warn("put not supported on context object: {} - {}", key, value);
         }
+    }
+
+    @Override
+    public void putAll(Map<String, Object> values) {
+        values.forEach((k, v) -> put(k, v));
     }
 
     static class LogWrapper { // TODO code duplication with ScenarioBridge
@@ -629,7 +630,7 @@ public class ServerContext implements ProxyObject {
 
         LogWrapper(Object... values) {
             // sometimes a null array gets passed in, graal weirdness
-            this.values = values == null ? new Value[0] : values;
+            this.values = values == null ? new Object[0] : values;
         }
 
         @Override

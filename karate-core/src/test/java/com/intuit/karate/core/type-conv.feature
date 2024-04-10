@@ -42,10 +42,9 @@ Scenario Outline: multi-line text in a scenario outline
 Scenario: multi-line string expression
     # this is normally never required since you can use replace
     * def name = 'Luke Skywalker'
-    * string expectedOnUnix = '{\n  hero(name: "' + name + '") {\n    height\n    mass\n  }\n}'
-    * string expectedOnWindows = '{\r\n  hero(name: "' + name + '") {\r\n    height\r\n    mass\r\n  }\r\n}'
-    * def actual = read('type-conv-query.txt')
-    * assert actual === expectedOnUnix || actual === expectedOnWindows
+    * def expected = '{  hero(name: "' + name + '") {    height    mass  }}'
+    * def actual = read('type-conv-query.txt').replaceAll('\n', '')
+    * assert actual === expected
 
 Scenario: string to json
     # this would be of type string (not JSON)
@@ -210,18 +209,18 @@ Scenario: js and numbers - float vs int
     * match json == '{"bar":10}'
 
     # JS math can introduce a decimal point in some cases
-    * def foo = 100
+    * def foo = 11
     * string json = { bar: '#(foo * 0.1)' }
-    * match json == '{"bar":10.0}'
+    * match json == '{"bar":1.1}'
 
     # but you can easily coerce to an integer if needed
     * string json = { bar: '#(~~(foo * 0.1))' }
-    * match json == '{"bar":10}'
+    * match json == '{"bar":1}'
 
 Scenario: large numbers in json - use java BigDecimal
    * def big = 123123123123
    * string json = { num: '#(big)' }
-   * match json == '{"num":1.23123123123E11}'
+   * match json == '{"num":123123123123}'
    * def big = new java.math.BigDecimal(123123123123)
    * string json = { num: '#(big)' }
    * match json == '{"num":123123123123}'

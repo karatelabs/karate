@@ -51,10 +51,10 @@ Scenario: pathMatches('/v1/encoding/{raw}')
     * def response = { success: true }
 
 Scenario: pathMatches('/v1/linefeed')
-    * def response = '\n{ "success": true }'
+    * def response = ' { "success": true }'
 
 Scenario: pathMatches('/v1/spaces')
-    * def response = '\n    \n'
+    * def response = '   '
 
 Scenario: pathMatches('/v1/noheaders')    
     * def responseStatus = 404

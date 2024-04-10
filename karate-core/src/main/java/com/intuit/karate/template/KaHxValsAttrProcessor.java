@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.core.Variable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.context.ITemplateContext;
@@ -33,6 +33,8 @@ import org.thymeleaf.model.IProcessableElementTag;
 import org.thymeleaf.processor.element.AbstractAttributeTagProcessor;
 import org.thymeleaf.processor.element.IElementTagStructureHandler;
 import org.thymeleaf.templatemode.TemplateMode;
+
+import java.util.Map;
 
 /**
  *
@@ -48,11 +50,12 @@ public class KaHxValsAttrProcessor extends AbstractAttributeTagProcessor {
 
     @Override
     protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag, AttributeName an, String av, IElementTagStructureHandler sh) {
-        JsValue jv = KarateEngineContext.get().evalLocalAsObject(av);
-        if (!jv.isObject()) {
+        Object jv = KarateEngineContext.get().evalLocalAsObject(av);
+        if (!(jv instanceof Map)) {
             logger.warn("value did not evaluate to json: {}", av);
         } else {
-            sh.setAttribute("hx-vals", jv.toJsonOrXmlString(false), AttributeValueQuotes.SINGLE);
+            Variable v = new Variable(jv);
+            sh.setAttribute("hx-vals", v.getAsString(), AttributeValueQuotes.SINGLE);
         }
     }
 

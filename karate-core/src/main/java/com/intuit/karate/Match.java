@@ -23,7 +23,7 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.js.JsEngine;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashMap;

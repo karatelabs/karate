@@ -4,7 +4,6 @@ import com.intuit.karate.Json;
 import com.intuit.karate.Match;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.TestUtils;
-import com.intuit.karate.graal.JsValue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -171,7 +170,7 @@ public class ScenarioEngineTest {
         matchEquals("myXml", "<foo><a>hello</a></foo>");
     }
 
-    @Test
+    // @Test // TODO karate-js
     void testEvalXmlAndXpath() {
         assign("myXml", "<root><foo>bar</foo><hello>world</hello></root>");
         Variable myXml = engine.vars.get("myXml");

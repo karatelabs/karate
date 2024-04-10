@@ -29,12 +29,10 @@ import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureCall;
 import com.intuit.karate.core.MockHandler;
 import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.Variable;
-import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.Response;
@@ -53,7 +51,6 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 import com.jayway.jsonpath.PathNotFoundException;
-import org.graalvm.polyglot.Value;
 
 /**
  *
@@ -1117,8 +1114,8 @@ public abstract class DevToolsDriver implements Driver {
         method("Runtime.enable").send();
     }
 
-    public DevToolsMock intercept(Value value) {
-        Map<String, Object> config = (Map) JsValue.toJava(value);
+    public DevToolsMock intercept(Object value) {
+        Map<String, Object> config = (Map) value;
         config = new Variable(config).getValue();
         return intercept(config);
     }

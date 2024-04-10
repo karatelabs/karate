@@ -6,9 +6,9 @@ Background:
 
 Scenario: json with byte-array
     Given path 'echo', 'binary'
-    And def encoded = Base64.encoder.encodeToString('hello'.getBytes())
+    And def encoded = Base64.getEncoder().encodeToString('hello'.getBytes())
     And request { message: 'hello', data: '#(encoded)' }
     When method post
     Then status 200
-    And def expected = Base64.encoder.encodeToString('world'.getBytes())
+    And def expected = Base64.getEncoder().encodeToString('world'.getBytes())
     And match response == { message: 'world', data: '#(expected)' }

@@ -29,8 +29,7 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.js.JsEngine;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.StringLogAppender;
 

@@ -12,21 +12,14 @@
     
     <properties>
         <antlr.version>4.13.1</antlr.version>
-        <graal.version>24.0.0</graal.version>
     </properties>
 
     <dependencies>
         <dependency>
-            <groupId>org.graalvm.js</groupId>
-            <artifactId>js-scriptengine</artifactId>
-            <version>${graal.version}</version>
-        </dependency>        
-        <dependency>
-            <groupId>org.graalvm.js</groupId>
-            <artifactId>js-language</artifactId>
-            <version>${graal.version}</version>
-            <scope>runtime</scope>
-        </dependency>  
+            <groupId>io.karatelabs.js</groupId>
+            <artifactId>karate-js</artifactId>
+            <version>0.1.0</version>
+        </dependency>
         <dependency>
             <groupId>org.thymeleaf</groupId>
             <artifactId>thymeleaf</artifactId>

@@ -96,4 +96,4 @@ Scenario: scenario execution (env = ${karate.env})
 Scenario: math scenario: should return ${java.lang.Math.pow(2, 2)}
   * def powResult = java.lang.Math.pow(2, 2)
   * match karate.scenario.name == "math scenario: should return " + powResult
-  * match karate.scenario.name == "math scenario: should return 4"
+  * match karate.scenario.name == "math scenario: should return 4.0"

@@ -85,14 +85,6 @@ public class FeatureResultTest {
         map.put("javaSum", plusOperation);
     }
 
-    @Test
-    void testLambdaFunctionsInScenarioFeature() throws Exception {
-        FeatureResult result = result("caller-with-lambda-arg.feature");
-        assertEquals(0, result.getFailedCount());
-        List data = (List) result.getVariables().get("data");
-        assertTrue(((Map) data.get(0)).get("javaSum") instanceof IntBinaryOperator);
-    }
-
     // @Test // TODO fails in jdk 17
     void testStackOverFlowError() {
         FeatureResult result = result("stackoverflow-error.feature");

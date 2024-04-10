@@ -52,7 +52,7 @@ Scenario: set header
     Then status 200
 
 Scenario: multi-value headers
-    * header Authorization = 'dummy', token + time + demoBaseUrl
+    * header Authorization = (['dummy', token + time + demoBaseUrl])
     Given path 'headers', token
     And param url = demoBaseUrl
     When method get

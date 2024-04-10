@@ -23,14 +23,12 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.graal.JsValue;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.context.IEngineContext;
 import org.thymeleaf.context.ITemplateContext;
 import org.thymeleaf.engine.AttributeName;
-import org.thymeleaf.model.AttributeValueQuotes;
 import org.thymeleaf.model.IProcessableElementTag;
 import org.thymeleaf.processor.element.AbstractAttributeTagProcessor;
 import org.thymeleaf.processor.element.IElementTagStructureHandler;
@@ -57,12 +55,12 @@ public class KarateWithTagProcessor extends AbstractAttributeTagProcessor {
             final IProcessableElementTag tag,
             final AttributeName attributeName, String av,
             final IElementTagStructureHandler structureHandler) {
-        JsValue jv = KarateEngineContext.get().evalLocalAsObject(av);
-        if (!jv.isObject()) {
+        Object jv = KarateEngineContext.get().evalLocalAsObject(av);
+        if (!(jv instanceof Map)) {
             logger.warn("value did not evaluate to json: {}", av);
             return;
         }
-        Map<String, Object> map = jv.getAsMap();
+        Map<String, Object> map = (Map) jv;
         final IEngineContext engineContext;
         if (context instanceof IEngineContext) {
             engineContext = (IEngineContext) context;

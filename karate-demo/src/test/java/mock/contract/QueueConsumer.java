@@ -1,18 +1,13 @@
 package mock.contract;
 
-import javax.jms.Connection;
-import javax.jms.Destination;
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.MessageConsumer;
-import javax.jms.MessageListener;
-import javax.jms.Session;
-import javax.jms.TextMessage;
+import com.intuit.karate.js.JsEngine;
+import io.karatelabs.js.Invokable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.jms.*;
+
 /**
- *
  * @author pthomas3
  */
 public class QueueConsumer {
@@ -36,16 +31,16 @@ public class QueueConsumer {
         }
     }
 
-    public void listen(java.util.function.Consumer<String> handler) {
+    public void listen(Invokable handler) {
         setMessageListener(message -> {
             TextMessage tm = (TextMessage) message;
             try {
-                handler.accept(tm.getText());
+                JsEngine.invoke(handler, tm.getText());
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         });
-    }   
+    }
 
     public void setMessageListener(MessageListener ml) {
         try {

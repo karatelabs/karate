@@ -1,6 +1,6 @@
 package com.intuit.karate.template;
 
-import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.js.JsEngine;
 import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.resource.ResourceUtils;
 import java.io.File;
@@ -18,7 +18,7 @@ class TemplateTest {
     static final Logger logger = LoggerFactory.getLogger(TemplateTest.class);
 
     private static String render(String resource) {
-        JsEngine je = JsEngine.local();
+        JsEngine je = new JsEngine();
         KarateTemplateEngine engine = TemplateUtils.forResourceRoot(je, "classpath:com/intuit/karate/template");
         return engine.process(resource);
     }

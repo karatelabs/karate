@@ -826,7 +826,7 @@ class ScenarioRuntimeTest {
     void testJavaInteropBase64() {
         run(
                 "def Base64 = Java.type('java.util.Base64')",
-                "def res = Base64.encoder.encodeToString('hello'.getBytes())"
+                "def res = Base64.getEncoder().encodeToString('hello'.getBytes())"
         );
         matchVar("res", java.util.Base64.getEncoder().encodeToString("hello".getBytes()));
     }

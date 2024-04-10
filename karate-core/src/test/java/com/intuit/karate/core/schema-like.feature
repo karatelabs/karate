@@ -65,7 +65,7 @@ Then match response ==
 * match foo == '##[] #string'
 
 # each item of the array should match regex (with backslash involved)
-* match foo == '#[] #regex \\w+'
+* match foo == '#[] #regex \w+'
 
 # contains
 * def actual = [{ a: 1, b: 'x' }, { a: 2, b: 'y' }]

@@ -1,10 +1,8 @@
 package com.intuit.karate.core;
 
-import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.js.JsEngine;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import org.graalvm.polyglot.Value;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,25 +32,10 @@ public class VariableTest {
 
     @Test
     void testJsFunction() {
-        JsValue jv = je.eval("(function(a, b){ return a + b })");
+        Object jv = je.eval("(function(a, b){ return a + b })");
         Variable var = new Variable(jv);
         assertTrue(var.isJsFunction());
         assertFalse(var.isJavaFunction());
-    }
-
-    @Test
-    void testPojo() {
-        JsValue jv = je.eval("new com.intuit.karate.core.SimplePojo()");
-        assertTrue(jv.isOther());
-    }
-
-    @Test
-    void testClass() {
-        JsValue jv = je.eval("Java.type('com.intuit.karate.core.MockUtils')");
-        assertTrue(jv.isOther());
-        Variable v = new Variable(jv);
-        assertEquals(v.type, Variable.Type.OTHER);
-        assertTrue(v.getValue() instanceof Value);
     }
     
     public String simpleFunction(String arg) {

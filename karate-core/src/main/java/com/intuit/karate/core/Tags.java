@@ -24,23 +24,15 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.graal.Methods;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import org.graalvm.polyglot.Value;
+import com.intuit.karate.js.JsEngine;
+import io.karatelabs.js.Invokable;
+import io.karatelabs.js.JavaInvokable;
+import io.karatelabs.js.JavaObject;
+import io.karatelabs.js.Terms;
+
+import java.util.*;
 
 /**
- *
  * @author pthomas3
  */
 public class Tags implements Iterable<Tag> {
@@ -91,13 +83,14 @@ public class Tags implements Iterable<Tag> {
             return isAllOf(args) && args.length == values.size();
         }
 
-        public boolean isEach(Value v) {
-            if (!v.canExecute()) {
+        public boolean isEach(Object v) {
+            if (!(v instanceof Invokable)) {
                 return false;
             }
-            for (String s : values) {                
-                JsValue jv = new JsValue(JsEngine.execute(v, s));
-                if (!jv.isTrue()) {
+            for (String s : values) {
+                Invokable invokable = (Invokable) v;
+                Object jv = JsEngine.invoke(invokable, s);
+                if (!Terms.isTruthy(jv)) {
                     return false;
                 }
             }
@@ -154,12 +147,13 @@ public class Tags implements Iterable<Tag> {
             return true;
         }
         JsEngine je = JsEngine.global();
-        je.put("anyOf", (Methods.FunVar) this::anyOf);
-        je.put("allOf", (Methods.FunVar) this::allOf);
-        je.put("not", (Methods.FunVar) this::not);
-        je.put("valuesFor", (Function<String, Values>) this::valuesFor);
-        JsValue jv = je.eval(tagSelector);
-        return jv.isTrue();
+        JavaObject jo = new JavaObject(this);
+        je.put("anyOf", new JavaInvokable("anyOf", jo));
+        je.put("allOf", new JavaInvokable("allOf", jo));
+        je.put("not", new JavaInvokable("not", jo));
+        je.put("valuesFor", new JavaInvokable("valuesFor", jo));
+        Object jv = je.eval(tagSelector);
+        return Terms.isTruthy(jv);
     }
 
     public boolean anyOf(Object... values) {
@@ -260,6 +254,6 @@ public class Tags implements Iterable<Tag> {
     @Override
     public String toString() {
         return tags.toString();
-    }        
+    }
 
 }

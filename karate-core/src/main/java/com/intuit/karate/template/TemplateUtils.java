@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.js.JsEngine;
 import com.intuit.karate.http.RequestCycle;
 import com.intuit.karate.http.ServerConfig;
 import com.intuit.karate.http.ServerContext;

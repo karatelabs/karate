@@ -25,7 +25,6 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.XmlUtils;
-import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
 import java.util.ArrayList;
@@ -33,8 +32,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import org.graalvm.polyglot.Value;
-import org.graalvm.polyglot.proxy.ProxyExecutable;
+
+import io.karatelabs.js.Invokable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
@@ -69,17 +68,12 @@ public class Variable {
     private final Object value;
     
     public Variable(Object o) {
-        if (o instanceof Value) {
-            o = new JsValue((Value) o).getValue();
-        } else if (o instanceof JsValue) {
-            o = ((JsValue) o).getValue();
-        }
         if (o == null) {
             type = Type.NULL;
-        } else if (o instanceof ProxyExecutable) {
+        } else if (o instanceof Invokable) {
             type = Type.JS_FUNCTION;
-        } else if (o instanceof Value) {
-            type = Type.OTHER; // java.lang.Class            
+        } else if (o instanceof Class<?>) {
+            type = Type.OTHER;
         } else if (o instanceof Function) {
             type = Type.JAVA_FUNCTION;
         } else if (o instanceof Node) {

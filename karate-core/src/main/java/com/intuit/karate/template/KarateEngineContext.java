@@ -23,14 +23,12 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.js.JsEngine;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.IEngineConfiguration;
@@ -106,7 +104,7 @@ public class KarateEngineContext implements IEngineContext {
         return redirect;
     }
 
-    public JsValue evalGlobal(String src) {
+    public Object evalGlobal(String src) {
         getVariableNames().forEach(name -> jsEngine.put(name, getVariable(name)));
         try {
             return jsEngine.eval(src);
@@ -115,7 +113,7 @@ public class KarateEngineContext implements IEngineContext {
         }
     }
 
-    public JsValue evalLocalAsObject(String src) {
+    public Object evalLocalAsObject(String src) {
         String temp;
         if (src.startsWith("${")) {
             temp = "`" + src + "`";
@@ -125,10 +123,9 @@ public class KarateEngineContext implements IEngineContext {
         return evalLocal(temp, true);
     }
 
-    public JsValue evalLocal(String src, boolean returnValue) {
+    public Object evalLocal(String src, boolean returnValue) {
         try {
-            Value value = jsEngine.evalWith(getVariableNames(), this::getVariable, src, returnValue);
-            return new JsValue(value);
+            return jsEngine.evalWith(getVariableNames(), this::getVariable, src, returnValue);
         } catch (Exception e) {
             throw JsEngine.fromJsEvalException(src, e, null);
         }

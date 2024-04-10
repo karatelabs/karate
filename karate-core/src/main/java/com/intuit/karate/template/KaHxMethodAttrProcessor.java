@@ -55,7 +55,7 @@ public class KaHxMethodAttrProcessor extends AbstractAttributeTagProcessor {
         if ("this".equals(av)) {
             av = ctx.getTemplateData().getTemplate();
         } else if (av.startsWith("${")) {
-            av = KarateEngineContext.get().evalLocal("`" + av + "`", true).getValue();
+            av = (String) KarateEngineContext.get().evalLocal("`" + av + "`", true);
         }
         if (hostContextPath != null) {
             av = hostContextPath + av;

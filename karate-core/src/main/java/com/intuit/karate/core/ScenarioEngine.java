@@ -23,24 +23,12 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.ImageComparison;
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.Json;
-import com.intuit.karate.JsonUtils;
-import com.intuit.karate.KarateException;
-import com.intuit.karate.Logger;
-import com.intuit.karate.Match;
-import com.intuit.karate.RuntimeHook;
-import com.intuit.karate.StringUtils;
-import com.intuit.karate.XmlUtils;
+import com.intuit.karate.*;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Key;
-import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsLambda;
-import com.intuit.karate.graal.JsFunction;
-import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.*;
+import com.intuit.karate.js.JsEngine;
 import com.intuit.karate.resource.Resource;
 import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.shell.Command;
@@ -48,12 +36,9 @@ import com.intuit.karate.template.KarateEngineContext;
 import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateUtils;
 import com.jayway.jsonpath.PathNotFoundException;
-import org.graalvm.polyglot.Value;
-import org.w3c.dom.Attr;
-import org.w3c.dom.Document;
-import org.w3c.dom.NamedNodeMap;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
+import io.karatelabs.js.Invokable;
+import org.slf4j.LoggerFactory;
+import org.w3c.dom.*;
 
 import java.io.File;
 import java.io.InputStream;
@@ -68,11 +53,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.graalvm.polyglot.proxy.ProxyExecutable;
-import org.slf4j.LoggerFactory;
-
 /**
- *
  * @author pthomas3
  */
 public class ScenarioEngine {
@@ -107,7 +88,7 @@ public class ScenarioEngine {
     public final Map<String, Variable> vars;
     public final Logger logger;
 
-    private final Function<String, Object> readFunction;
+    private final Invokable readFunction;
     private final ScenarioBridge bridge;
     private final Collection<RuntimeHook> hooks;
 
@@ -121,7 +102,7 @@ public class ScenarioEngine {
         this.runtime = runtime;
         hooks = runtime.featureRuntime.suite.hooks;
         fileReader = new ScenarioFileReader(this, runtime.featureRuntime);
-        readFunction = s -> JsValue.fromJava(fileReader.readFile(s));
+        readFunction = args -> fileReader.readFile((String) args[0]);
         bridge = new ScenarioBridge(this);
         this.vars = vars;
         this.logger = logger;
@@ -203,7 +184,7 @@ public class ScenarioEngine {
         List<Map<String, Object>> result = new ArrayList<>(rows.size());
         for (Map<String, String> map : rows) {
             Map<String, Object> row = new LinkedHashMap<>(map);
-            List<String> toRemove = new ArrayList(map.size());
+            List<String> toRemove = new ArrayList<>(map.size());
             for (Map.Entry<String, Object> entry : row.entrySet()) {
                 String exp = (String) entry.getValue();
                 Variable sv = evalKarateExpression(exp);
@@ -477,7 +458,7 @@ public class ScenarioEngine {
 
     public void multipartField(String name, String value) {
         Variable v = evalKarateExpression(value);
-        Map map = new HashMap();
+        Map map = new HashMap<>();
         map.put("value", v.getValue());
         multiPartInternal(name, map);
     }
@@ -487,11 +468,11 @@ public class ScenarioEngine {
     }
 
     private void multiPartInternal(String name, Object value) {
-        Map<String, Object> map = new HashMap();
+        Map<String, Object> map = new HashMap<>();
         if (name != null) {
             map.put("name", name);
         }
-        if(value instanceof Number) {
+        if (value instanceof Number) {
             value = value.toString();
         }
         if (value instanceof Map) {
@@ -752,7 +733,7 @@ public class ScenarioEngine {
                 throw new RuntimeException("unknown channel type");
         }
     }
-        
+
     private Channel channel(String type) {
         String factoryClass = getFactory(type);
         try {
@@ -771,44 +752,44 @@ public class ScenarioEngine {
             }
             logger.error(message);
             throw new RuntimeException(message, e);
-        }        
+        }
     }
-        
+
     public void produce(String type) {
         Channel channel = channel(type);
         channel.produce(runtime);
     }
-    
+
     public ChannelSession consume(String type) {
         Channel channel = channel(type);
-        return channel.consume(runtime);        
+        return channel.consume(runtime);
     }
-    
+
     public void register(String expression) {
         Variable v = evalKarateExpression(expression);
         Channel channel = channel("kafka");
         Map<String, Object> map = v.getValue();
         channel.register(runtime, map);
-    }       
-    
+    }
+
     public void schema(String exp) {
         Variable v = evalKarateExpression(exp);
         requestBuilder.setSchema(v.getAsString());
     }
-    
+
     public void topic(String exp) {
         Variable v = evalKarateExpression(exp);
         requestBuilder.setTopic(v.getAsString());
     }
-    
+
     public void key(String exp) {
         Variable v = evalKarateExpression(exp);
         requestBuilder.setKey(v.getAsString());
-    }    
-    
+    }
+
     public void value(String exp) {
         request(exp);
-    }     
+    }
 
     // http mock ===============================================================
     //
@@ -877,10 +858,8 @@ public class ScenarioEngine {
             logger.error("listen timed out: {}", e + "");
         }
         SIGNAL = new CompletableFuture();
-        synchronized (JsFunction.LOCK) {
-            setHiddenVariable(LISTEN_RESULT, listenResult);
-            logger.debug("exit listen state with result: {}", listenResult);
-        }
+        setHiddenVariable(LISTEN_RESULT, listenResult);
+        logger.debug("exit listen state with result: {}", listenResult);
     }
 
     public Command fork(boolean useLineFeed, List<String> args) {
@@ -921,13 +900,13 @@ public class ScenarioEngine {
         if (redirectErrorStream != null) {
             command.setRedirectErrorStream(redirectErrorStream);
         }
-        Value funOut = Value.asValue(options.get("listener"));
-        if (funOut.canExecute()) {
-            command.setListener(new JsLambda(funOut));
+        Object funOut = options.get("listener");
+        if (funOut instanceof Invokable) {
+            command.setListener(text -> JsEngine.invoke((Invokable) funOut, text));
         }
-        Value funErr = Value.asValue(options.get("errorListener"));
-        if (funErr.canExecute()) {
-            command.setErrorListener(new JsLambda(funErr));
+        Object funErr = options.get("errorListener");
+        if (funErr instanceof Invokable) {
+            command.setErrorListener(text -> JsEngine.invoke((Invokable) funErr, text));
         }
         Boolean start = (Boolean) options.get("start");
         if (start == null) {
@@ -1224,7 +1203,7 @@ public class ScenarioEngine {
     //==========================================================================        
     //       
     public void init() { // not in constructor because it has to be on Runnable.run() thread 
-        JS = JsEngine.local();
+        JS = new JsEngine();
         logger.trace("js context: {}", JS);
         runtime.magicVariables.forEach((k, v) -> JS.put(k, v));
         vars.forEach((k, v) -> JS.put(k, v.getValue()));
@@ -1271,14 +1250,14 @@ public class ScenarioEngine {
     public Variable executeFunction(Variable var, Object... args) {
         switch (var.type) {
             case JS_FUNCTION:
-                ProxyExecutable pe = var.getValue();
-                Object result = JsEngine.execute(pe, args);
+                Invokable invokable = var.getValue();
+                Object result = JsEngine.invoke(invokable, args);
                 return new Variable(result);
             case JAVA_FUNCTION:  // definitely a "call" with a single argument
                 Function javaFunction = var.getValue();
                 Object arg = args.length == 0 ? null : args[0];
                 Object javaResult = javaFunction.apply(arg);
-                return new Variable(JsValue.unWrap(javaResult));
+                return new Variable(javaResult);
             default:
                 throw new RuntimeException("expected function, but was: " + var);
         }
@@ -1302,11 +1281,7 @@ public class ScenarioEngine {
     }
 
     public Object getVariable(String key) {
-        return JS.get(key).getValue();
-    }
-
-    public boolean hasVariable(String key) {
-        return JS.bindings.hasMember(key);
+        return JS.get(key);
     }
 
     public void setVariable(String key, Object value) {
@@ -1484,17 +1459,17 @@ public class ScenarioEngine {
                 boolean optional = value.charAt(1) == '#';
                 value = value.substring(optional ? 2 : 1);
                 try {
-                    JsValue result = JS.eval(value);
+                    Object result = JS.evalRaw(value);
                     if (optional) {
-                        if (result.isNull()) {
+                        if (result == null) {
                             return EmbedAction.remove();
                         }
-                        if (forMatch && (result.isObject() || result.isArray())) {
+                        if (forMatch && (result instanceof Map || result instanceof List)) {
                             // preserve optional JSON chunk schema-like references as-is, they are needed for future match attempts
                             return null;
                         }
                     }
-                    return EmbedAction.update(result.getValue());
+                    return EmbedAction.update(result);
                 } catch (Exception e) {
                     logger.trace("embedded expression failed {}: {}", value, e.getMessage());
                     return null;
@@ -1520,11 +1495,11 @@ public class ScenarioEngine {
                 boolean optional = value.charAt(1) == '#';
                 value = value.substring(optional ? 2 : 1);
                 try {
-                    JsValue jv = JS.eval(value);
-                    if (optional && jv.isNull()) {
+                    Object jv = JS.evalRaw(value);
+                    if (optional && jv == null) {
                         attributesToRemove.add(attrib);
                     } else {
-                        attrib.setValue(jv.getAsString());
+                        attrib.setValue(jv.toString());
                     }
                 } catch (Exception e) {
                     logger.trace("xml-attribute embedded expression failed, {}: {}", attrib.getName(), e.getMessage());
@@ -1549,18 +1524,18 @@ public class ScenarioEngine {
                     boolean optional = value.charAt(1) == '#';
                     value = value.substring(optional ? 2 : 1);
                     try {
-                        JsValue jv = JS.eval(value);
+                        Object jv = JS.evalRaw(value);
                         if (optional) {
-                            if (jv.isNull()) {
+                            if (jv == null) {
                                 elementsToRemove.add(child);
-                            } else if (forMatch && (jv.isXml() || jv.isObject())) {
+                            } else if (forMatch && (jv instanceof Node || jv instanceof Map)) {
                                 // preserve optional XML chunk schema-like references as-is, they are needed for future match attempts
                             } else {
-                                child.setNodeValue(jv.getAsString());
+                                child.setNodeValue(jv.toString());
                             }
                         } else {
-                            if (jv.isXml() || jv.isObject()) {
-                                Node evalNode = jv.isXml() ? jv.getValue() : XmlUtils.fromMap(jv.getValue());
+                            if (jv instanceof Node || jv instanceof Map) {
+                                Node evalNode = jv instanceof Node ? (Node) jv : XmlUtils.fromMap((Map) jv);
                                 if (evalNode.getNodeType() == Node.DOCUMENT_NODE) {
                                     evalNode = evalNode.getFirstChild();
                                 }
@@ -1571,7 +1546,7 @@ public class ScenarioEngine {
                                     child.getParentNode().replaceChild(evalNode, child);
                                 }
                             } else {
-                                child.setNodeValue(jv.getAsString());
+                                child.setNodeValue(jv == null ? null : jv.toString());
                             }
                         }
                     } catch (Exception e) {
@@ -1665,7 +1640,7 @@ public class ScenarioEngine {
             name = nameAndPath.left;
             path = nameAndPath.right;
         }
-        Variable target = JS.bindings.hasMember(name) ? new Variable(JS.get(name)) : null; // should work in called features
+        Variable target = JS.has(name) ? new Variable(JS.get(name)) : null; // should work in called features
         if (isXmlPath(path)) {
             if (target == null || target.isNull()) {
                 if (viaTable) { // auto create if using set via cucumber table as a convenience
@@ -1966,7 +1941,7 @@ public class ScenarioEngine {
             result = call(called, arg, sharedScope);
         }
         // attach js functions from a different graal context
-        result = new Variable(JS.attachAll(result.getValue()));
+        result = new Variable(result.getValue());
         if (sharedScope && result.isMap()) {
             setVariables(result.getValue());
         }
@@ -2168,7 +2143,7 @@ public class ScenarioEngine {
         // don't re-evaluate if this is clearly a direct reference to a variable
         // this avoids un-necessary conversion of xml into a map in some cases
         // e.g. 'Given request foo' - where foo is a Variable of type XML      
-        if (JS.bindings.hasMember(text)) {
+        if (JS.has(text)) {
             return new Variable(JS.get(text));
         }
         boolean callOnce = isCallOnceSyntax(text);

@@ -26,7 +26,6 @@ package com.intuit.karate.playwright.driver;
 import com.intuit.karate.core.*;
 import com.intuit.karate.driver.Mouse;
 import com.intuit.karate.driver.*;
-import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.http.Response;
@@ -37,7 +36,6 @@ import com.microsoft.playwright.Page.WaitForFunctionOptions;
 import com.microsoft.playwright.assertions.LocatorAssertions.HasCountOptions;
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.*;
-import org.graalvm.polyglot.Value;
 
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat;
 
@@ -750,8 +748,8 @@ public class PlaywrightDriver implements Driver {
         return map;
     }
 
-    public DevToolsMock intercept(Value value) {
-        Map<String, Object> config = (Map) JsValue.toJava(value);
+    public DevToolsMock intercept(Object value) {
+        Map<String, Object> config = (Map) value;
         config = new Variable(config).getValue();
         return intercept(config);
     }

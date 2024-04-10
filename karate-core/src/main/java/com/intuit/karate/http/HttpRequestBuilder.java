@@ -27,41 +27,25 @@ import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.graal.JsArray;
-import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.graal.Methods;
+import io.karatelabs.js.Invokable;
+import io.karatelabs.js.ObjectLike;
 import io.netty.handler.codec.http.cookie.ClientCookieEncoder;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-
 import org.apache.http.client.utils.URIBuilder;
-import org.graalvm.polyglot.Value;
-import org.graalvm.polyglot.proxy.ProxyObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.Charset;
+import java.util.*;
+import java.util.stream.Collectors;
+
 /**
- *
  * @author pthomas3
  */
-public class HttpRequestBuilder implements ProxyObject {
+public class HttpRequestBuilder implements ObjectLike {
 
     private static final Logger logger = LoggerFactory.getLogger(HttpRequestBuilder.class);
 
@@ -86,11 +70,10 @@ public class HttpRequestBuilder implements ProxyObject {
     private static final String MULTI_PART = "multiPart";
 
     private static final String[] KEYS = new String[]{
-        URL, METHOD, PATH, PARAM, PARAMS, HEADER, HEADERS, BODY, INVOKE,
-        GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, MULTI_PART
+            URL, METHOD, PATH, PARAM, PARAMS, HEADER, HEADERS, BODY, INVOKE,
+            GET, POST, PUT, DELETE, PATCH, HEAD, CONNECT, OPTIONS, TRACE, MULTI_PART
     };
     private static final Set<String> KEY_SET = new HashSet<>(Arrays.asList(KEYS));
-    private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
     private String url;
     private String method;
@@ -433,10 +416,9 @@ public class HttpRequestBuilder implements ProxyObject {
         return this;
     }
 
-    public HttpRequestBuilder headers(Value value) {
-        JsValue jv = new JsValue(value);
-        if (jv.isObject()) {
-            headers(jv.getAsMap());
+    public HttpRequestBuilder headers(Object value) {
+        if (value instanceof Map) {
+            headers((Map) value);
         } else {
             logger.warn("unexpected headers() argument: {}", value);
         }
@@ -531,7 +513,7 @@ public class HttpRequestBuilder implements ProxyObject {
 
     //==========================================================================
     //
-    private final Methods.FunVar PATH_FUNCTION = args -> {
+    private final Invokable PATH_FUNCTION = args -> {
         if (args.length == 0) {
             return getUri();
         } else {
@@ -548,7 +530,7 @@ public class HttpRequestBuilder implements ProxyObject {
         return o == null ? null : o.toString();
     }
 
-    private final Methods.FunVar PARAM_FUNCTION = args -> {
+    private final Invokable PARAM_FUNCTION = args -> {
         if (args.length == 1) {
             List<String> list = getParam(toString(args[0]));
             if (list == null || list.isEmpty()) {
@@ -561,7 +543,7 @@ public class HttpRequestBuilder implements ProxyObject {
         }
     };
 
-    private final Methods.FunVar HEADER_FUNCTION = args -> {
+    private final Invokable HEADER_FUNCTION = args -> {
         if (args.length == 1) {
             return getHeader(toString(args[0]));
         } else {
@@ -570,7 +552,7 @@ public class HttpRequestBuilder implements ProxyObject {
         }
     };
 
-    private final Methods.FunVar INVOKE_FUNCTION = args -> {
+    private final Invokable INVOKE_FUNCTION = args -> {
         switch (args.length) {
             case 0:
                 return invoke();
@@ -581,7 +563,7 @@ public class HttpRequestBuilder implements ProxyObject {
         }
     };
 
-    private final Methods.FunVar METHOD_FUNCTION = args -> {
+    private final Invokable METHOD_FUNCTION = args -> {
         if (args.length > 0) {
             return method((String) args[0]);
         } else {
@@ -589,25 +571,26 @@ public class HttpRequestBuilder implements ProxyObject {
         }
     };
 
-    private final Methods.FunVar BODY_FUNCTION = args -> {
+    private final Invokable BODY_FUNCTION = args -> {
         if (args == null) { // can be null
             return this;
         }
         if (args.length > 0) {
             return body(args[0]);
         } else {
-            return JsValue.fromJava(body);
+            return body;
         }
     };
 
-    private final Supplier GET_FUNCTION = () -> invoke(GET);
-    private final Function POST_FUNCTION = o -> invoke(POST, o);
-    private final Function PUT_FUNCTION = o -> invoke(PUT, o);
-    private final Function PATCH_FUNCTION = o -> invoke(PATCH, o);
-    private final Supplier DELETE_FUNCTION = () -> invoke(DELETE);
+    private final Invokable GET_FUNCTION = args -> invoke(GET);
+    private final Invokable POST_FUNCTION = args -> invoke(POST, args[0]);
+    private final Invokable PUT_FUNCTION = args -> invoke(PUT, args[0]);
+    private final Invokable PATCH_FUNCTION = args -> invoke(PATCH, args[0]);
+    private final Invokable DELETE_FUNCTION = args -> invoke(DELETE);
 
+    @SuppressWarnings("unchecked")
     @Override
-    public Object getMember(String key) {
+    public Object get(String key) {
         switch (key) {
             case METHOD:
                 return METHOD_FUNCTION;
@@ -616,11 +599,11 @@ public class HttpRequestBuilder implements ProxyObject {
             case HEADER:
                 return HEADER_FUNCTION;
             case HEADERS:
-                return JsValue.fromJava(headers);
+                return headers;
             case PARAM:
                 return PARAM_FUNCTION;
             case PARAMS:
-                return JsValue.fromJava(params);
+                return params;
             case BODY:
                 return BODY_FUNCTION;
             case INVOKE:
@@ -636,9 +619,9 @@ public class HttpRequestBuilder implements ProxyObject {
             case DELETE:
                 return DELETE_FUNCTION;
             case URL:
-                return (Function<String, Object>) this::url;
+                return (Invokable) args-> url((String) args[0]);
             case MULTI_PART:
-                return (Function<Map<String, Object>, Object>) this::multiPart;
+                return (Invokable) args -> multiPart((Map<String, Object>) args[0]);
             default:
                 logger.warn("no such property on http object: {}", key);
                 return null;
@@ -646,22 +629,22 @@ public class HttpRequestBuilder implements ProxyObject {
     }
 
     @Override
-    public void putMember(String key, Value value) {
+    public void put(String key, Object value) {
         switch (key) {
             case METHOD:
-                method = value.asString();
+                method = value.toString();
                 break;
             case BODY:
-                body = JsValue.toJava(value);
+                body = value;
                 break;
             case HEADERS:
                 headers(value);
                 break;
             case PARAMS:
-                params = (Map) JsValue.toJava(value);
+                params = (Map) value;
                 break;
             case URL:
-                url = value.asString();
+                url = value.toString();
                 break;
             default:
                 logger.warn("put not supported on http object: {} - {}", key, value);
@@ -669,13 +652,23 @@ public class HttpRequestBuilder implements ProxyObject {
     }
 
     @Override
-    public Object getMemberKeys() {
-        return KEY_ARRAY;
+    public void putAll(Map<String, Object> values) {
+        values.forEach(this::put);
     }
 
     @Override
-    public boolean hasMember(String key) {
+    public boolean hasKey(String key) {
         return KEY_SET.contains(key);
+    }
+
+    @Override
+    public Collection<String> keys() {
+        return KEY_SET;
+    }
+
+    @Override
+    public void remove(String name) {
+        logger.warn("remove not supported on request-builder: {}", name);
     }
 
     @Override

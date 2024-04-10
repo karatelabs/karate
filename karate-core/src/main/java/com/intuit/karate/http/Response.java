@@ -24,31 +24,22 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.graal.JsArray;
-import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.graal.Methods;
+import com.intuit.karate.StringUtils;
+import io.karatelabs.js.Invokable;
+import io.karatelabs.js.ObjectLike;
 import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
 import io.netty.handler.codec.http.cookie.Cookie;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import org.graalvm.polyglot.Value;
-import org.graalvm.polyglot.proxy.ProxyObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.*;
+
 /**
- *
  * @author pthomas3
  */
-public class Response implements ProxyObject {
+public class Response implements ObjectLike {
 
     private static final Logger logger = LoggerFactory.getLogger(Response.class);
 
@@ -64,8 +55,7 @@ public class Response implements ProxyObject {
     private static final String RESPONSE_TIME = "responseTime";
 
     private static final String[] KEYS = new String[]{STATUS, HEADER, HEADERS, HEADER_VALUES, BODY, DATA_TYPE, BODY_BYTES, RESPONSE_TIME};
-    private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
-    private static final JsArray KEY_ARRAY = new JsArray(KEYS);
+    private static final Set<String> KEY_SET = new HashSet<>(Arrays.asList(KEYS));
 
     private int status;
     private Map<String, List<String>> headers;
@@ -112,8 +102,8 @@ public class Response implements ProxyObject {
 
     public long getResponseTime() {
         return responseTime;
-    }    
-       
+    }
+
 
     public Map<String, List<String>> getHeaders() {
         return headers;
@@ -239,7 +229,7 @@ public class Response implements ProxyObject {
         return o == null ? null : o.toString();
     }
 
-    private final Methods.FunVar HEADER_FUNCTION = args -> {
+    private final Invokable HEADER_FUNCTION = args -> {
         if (args.length == 1) {
             return getHeader(toString(args[0]));
         } else {
@@ -249,19 +239,19 @@ public class Response implements ProxyObject {
     };
 
     @Override
-    public Object getMember(String key) {
+    public Object get(String key) {
         switch (key) {
             case STATUS:
                 return status;
             case HEADER:
                 return HEADER_FUNCTION;
             case HEADERS:
-                return JsValue.fromJava(JsonUtils.simplify(headers));
+                return JsonUtils.simplify(headers);
             case BODY:
                 if (body instanceof byte[]) {
-                    return JsValue.fromJava(getBodyConverted());
+                    return getBodyConverted();
                 } else {
-                    return JsValue.fromJava(body);
+                    return body;
                 }
             case DATA_TYPE:
                 ResourceType rt = getResourceType();
@@ -270,7 +260,7 @@ public class Response implements ProxyObject {
                 }
                 return rt.name().toLowerCase();
             case HEADER_VALUES:
-                return (Function<String, List<String>>) this::getHeaderValues;
+                return (Invokable) args -> getHeaderValues((String) args[0]);
             case BODY_BYTES:
                 return getBody();
             case RESPONSE_TIME:
@@ -281,6 +271,7 @@ public class Response implements ProxyObject {
         }
     }
 
+    @Override
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap();
         map.put(STATUS, status);
@@ -291,30 +282,41 @@ public class Response implements ProxyObject {
     }
 
     @Override
-    public Object getMemberKeys() {
-        return KEY_ARRAY;
-    }
-
-    @Override
-    public boolean hasMember(String key) {
+    public boolean hasKey(String key) {
         return KEY_SET.contains(key);
     }
 
     @Override
-    public void putMember(String key, Value value) {
+    public Collection<String> keys() {
+        return KEY_SET;
+    }
+
+    @Override
+    public void remove(String key) {
+        logger.warn("remove not supported on response object: " + key);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public void put(String key, Object value) {
         switch (key) {
             case BODY:
-                body = JsValue.toJava(value);
+                body = value;
                 break;
             case STATUS:
-                status = value.asInt();
+                status = (Integer) value;
                 break;
             case HEADERS:
-                setHeaders((Map) JsValue.toJava(value));
+                setHeaders((Map<String, Object>) value);
                 break;
             default:
                 logger.warn("put not supported on response object: {} - {}", key, value);
         }
+    }
+
+    @Override
+    public void putAll(Map<String, Object> map) {
+        map.forEach(this::put);
     }
 
     @Override

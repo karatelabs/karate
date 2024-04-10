@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.intuit.karate.Match.Type;
-import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.js.JsEngine;
 import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.Map;

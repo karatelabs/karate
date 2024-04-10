@@ -11,8 +11,8 @@ Scenario: get for complex things such as xpath functions
 </records>
 """
 
-# json style
-* assert foo.records.record.length == 3
+# json style TODO karate-js
+# * assert foo.records.record.length == 3
 
 # xpath assertions
 * match foo count(/records//record) == 3

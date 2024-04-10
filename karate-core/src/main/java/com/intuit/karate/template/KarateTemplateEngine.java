@@ -24,7 +24,7 @@
 package com.intuit.karate.template;
 
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.js.JsEngine;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Map;

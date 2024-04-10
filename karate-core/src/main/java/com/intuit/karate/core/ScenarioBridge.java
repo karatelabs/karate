@@ -23,50 +23,22 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.Json;
-import com.intuit.karate.JsonUtils;
-import com.intuit.karate.KarateException;
-import com.intuit.karate.Logger;
-import com.intuit.karate.Match;
-import com.intuit.karate.MatchStep;
-import com.intuit.karate.PerfContext;
-import com.intuit.karate.StringUtils;
-import com.intuit.karate.XmlUtils;
-import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsFunction;
-import com.intuit.karate.graal.JsLambda;
-import com.intuit.karate.graal.JsList;
-import com.intuit.karate.graal.JsMap;
-import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.http.HttpClient;
-import com.intuit.karate.http.HttpRequest;
-import com.intuit.karate.http.HttpRequestBuilder;
-import com.intuit.karate.http.ResourceType;
-import com.intuit.karate.http.WebSocketClient;
-import com.intuit.karate.http.WebSocketOptions;
+import com.intuit.karate.*;
+import com.intuit.karate.http.*;
+import com.intuit.karate.js.JsEngine;
 import com.intuit.karate.shell.Command;
+import io.karatelabs.js.Invokable;
+
 import java.io.File;
 import java.io.InputStream;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.graalvm.polyglot.Value;
-import org.graalvm.polyglot.proxy.ProxyExecutable;
 
 /**
- *
  * @author pthomas3
  */
 public class ScenarioBridge implements PerfContext {
@@ -81,77 +53,74 @@ public class ScenarioBridge implements PerfContext {
         getEngine().setAborted(true);
     }
 
-    public Object append(Value... vals) {
+    public Object append(Object... vals) {
         List list = new ArrayList();
-        JsList jsList = new JsList(list);
         if (vals.length == 0) {
-            return jsList;
+            return list;
         }
-        Value val = vals[0];
-        if (val.hasArrayElements()) {
-            list.addAll(val.as(List.class));
+        Object val = vals[0];
+        if (val instanceof List) {
+            list.addAll((List) val);
         } else {
-            list.add(val.as(Object.class));
+            list.add(val);
         }
         if (vals.length == 1) {
-            return jsList;
+            return list;
         }
         for (int i = 1; i < vals.length; i++) {
-            Value v = vals[i];
-            if (v.hasArrayElements()) {
-                list.addAll(v.as(List.class));
+            Object v = vals[i];
+            if (v instanceof List) {
+                list.addAll((List) v);
             } else {
-                list.add(v.as(Object.class));
+                list.add(v);
             }
         }
-        return jsList;
+        return list;
     }
 
-    private Object appendToInternal(String varName, Value... vals) {
+    private Object appendToInternal(String varName, Object... vals) {
         ScenarioEngine engine = getEngine();
         Variable var = engine.vars.get(varName);
         if (!var.isList()) {
             return null;
         }
         List list = var.getValue();
-        for (Value v : vals) {
-            if (v.hasArrayElements()) {
-                list.addAll(v.as(List.class));
+        for (Object v : vals) {
+            if (v instanceof List) {
+                list.addAll((List) v);
             } else {
-                Object temp = v.as(Object.class);
-                list.add(temp);
+                list.add(v);
             }
         }
         engine.setVariable(varName, list);
-        return new JsList(list);
+        return list;
     }
 
-    public Object appendTo(Value ref, Value... vals) {
-        if (ref.isString()) {
-            return appendToInternal(ref.asString(), vals);
+    public Object appendTo(Object ref, Object... vals) {
+        if (ref instanceof String) {
+            return appendToInternal((String) ref, vals);
         }
         List list;
-        if (ref.hasArrayElements()) {
-            list = new JsValue(ref).getAsList(); // make sure we unwrap the "original" list
+        if (ref instanceof List) {
+            list = (List) ref;
         } else {
             list = new ArrayList();
         }
-        for (Value v : vals) {
-            if (v.hasArrayElements()) {
-                list.addAll(v.as(List.class));
+        for (Object v : vals) {
+            if (v instanceof List) {
+                list.addAll((List) v);
             } else {
-                Object temp = v.as(Object.class);
-                list.add(temp);
+                list.add(v);
             }
         }
-        return new JsList(list);
+        return list;
     }
 
     public Object call(String fileName) {
         return call(false, fileName, null);
     }
 
-    public Object call(String fileName, Value arg) {
+    public Object call(String fileName, Object arg) {
         return call(false, fileName, arg);
     }
 
@@ -159,7 +128,7 @@ public class ScenarioBridge implements PerfContext {
         return call(sharedScope, fileName, null);
     }
 
-    public Object call(boolean sharedScope, String fileName, Value arg) {
+    public Object call(boolean sharedScope, String fileName, Object arg) {
         ScenarioEngine engine = getEngine();
         Variable called = new Variable(engine.fileReader.readFile(fileName));
         Variable result = engine.call(called, arg == null ? null : new Variable(arg), sharedScope);
@@ -168,7 +137,7 @@ public class ScenarioBridge implements PerfContext {
                 engine.setVariables(result.getValue());
             }
         }
-        return JsValue.fromJava(result.getValue());
+        return result.getValue();
     }
 
     private static Object callSingleResult(ScenarioEngine engine, Object o) throws Exception {
@@ -176,17 +145,14 @@ public class ScenarioBridge implements PerfContext {
             engine.logger.warn("callSingle() cached result is an exception");
             throw (Exception) o;
         }
-        // clone so that threads see the same data snapshot
-        // we also attach js functions
-        o = engine.JS.attachAll(o);
-        return JsValue.fromJava(o);
+        return o;
     }
 
     public Object callSingle(String fileName) throws Exception {
         return callSingle(fileName, null);
     }
 
-    public Object callSingle(String fileName, Value arg) throws Exception {
+    public Object callSingle(String fileName, Object arg) throws Exception {
         ScenarioEngine engine = getEngine();
         final Map<String, Object> CACHE = engine.runtime.featureRuntime.suite.callSingleCache;
         int minutes = engine.getConfig().getCallSingleCacheMinutes();
@@ -228,7 +194,7 @@ public class ScenarioBridge implements PerfContext {
             if (result == null) {
                 Variable called = new Variable(read(fileName));
                 Variable argVar;
-                if (arg == null || arg.isNull()) {
+                if (arg == null) {
                     argVar = null;
                 } else {
                     argVar = new Variable(arg);
@@ -267,7 +233,7 @@ public class ScenarioBridge implements PerfContext {
     public Object callonce(boolean sharedScope, String path) {
         String exp = "read('" + path + "')";
         Variable v = getEngine().call(true, exp, sharedScope);
-        return JsValue.fromJava(v.getValue());
+        return v.getValue();
     }
 
     @Override
@@ -276,15 +242,15 @@ public class ScenarioBridge implements PerfContext {
         getEngine().capturePerfEvent(event);
     }
 
-    public Object compareImage(Object baseline, Object latest, Value... optionsVal) {
-        if (optionsVal.length > 0 && !optionsVal[0].hasMembers()) {
+    public Object compareImage(Object baseline, Object latest, Object... optionsVal) {
+        if (optionsVal.length > 0 && !(optionsVal[0] instanceof Map)) {
             throw new RuntimeException("invalid image comparison options: expected map");
         }
-
         Map<String, Object> options = new HashMap<>();
         if (optionsVal.length > 0) {
-            for (String k : optionsVal[0].getMemberKeys()) {
-                options.put(k, optionsVal[0].getMember(k).as(Object.class));
+            Map<String, Object> map = (Map<String, Object>) optionsVal[0];
+            for (String k : map.keySet()) {
+                options.put(k, map.get(k));
             }
         }
 
@@ -293,36 +259,37 @@ public class ScenarioBridge implements PerfContext {
         params.put("latest", latest);
         params.put("options", options);
 
-        return JsValue.fromJava(getEngine().compareImageInternal(params));
+        return getEngine().compareImageInternal(params);
     }
 
-    public void configure(String key, Value value) {
+    public void configure(String key, Object value) {
         getEngine().configure(key, new Variable(value));
     }
-    
+
     public Object consume(String type) {
         return getEngine().consume(type);
     }
 
-    public Object distinct(Value o) {
-        if (!o.hasArrayElements()) {
-            return JsList.EMPTY;
+    public Object distinct(Object o) {
+        if (!(o instanceof List)) {
+            return new ArrayList<>();
         }
-        long count = o.getArraySize();
+        List list = (List) o;
+        long count = list.size();
         Set<Object> set = new LinkedHashSet();
         for (int i = 0; i < count; i++) {
-            Object value = JsValue.toJava(o.getArrayElement(i));
+            Object value = list.get(i);
             set.add(value);
         }
-        return JsValue.fromJava(new ArrayList(set));
+        return new ArrayList(set);
     }
 
-    public String doc(Value v) {
+    public String doc(Object v) {
         Map<String, Object> arg;
-        if (v.isString()) {
-            arg = Collections.singletonMap("read", v.asString());
-        } else if (v.hasMembers()) {
-            arg = new JsValue(v).getAsMap();
+        if (v instanceof String) {
+            arg = Collections.singletonMap("read", (String) v);
+        } else if (v instanceof Map) {
+            arg = (Map) v;
         } else {
             getEngine().logger.warn("doc - unexpected argument: {}", v);
             return null;
@@ -342,17 +309,17 @@ public class ScenarioBridge implements PerfContext {
 
     public Object eval(String exp) {
         Variable result = getEngine().evalJs(exp);
-        return JsValue.fromJava(result.getValue());
+        return result.getValue();
     }
 
-    public String exec(Value value) {
-        if (value.isString()) {
-            return execInternal(Collections.singletonMap("line", value.asString()));
-        } else if (value.hasArrayElements()) {
-            List args = new JsValue(value).getAsList();
+    public String exec(Object value) {
+        if (value instanceof String) {
+            return execInternal(Collections.singletonMap("line", (String) value));
+        } else if (value instanceof List) {
+            List args = (List) value;
             return execInternal(Collections.singletonMap("args", args));
         } else {
-            return execInternal(new JsValue(value).getAsMap());
+            return execInternal((Map) value);
         }
     }
 
@@ -386,44 +353,47 @@ public class ScenarioBridge implements PerfContext {
         getEngine().setFailedReason(new KarateException(reason));
     }
 
-    public Object filter(Value o, Value f) {
-        if (!o.hasArrayElements()) {
-            return JsList.EMPTY;
+    public Object filter(Object o, Object f) {
+        if (!(o instanceof List)) {
+            return new ArrayList<>();
         }
-        assertIfJsFunction(f);
-        long count = o.getArraySize();
-        List list = new ArrayList();
+        Invokable invokable = assertIfJsFunction(f);
+        List list = (List) o;
+        long count = list.size();
+        List result = new ArrayList();
         for (int i = 0; i < count; i++) {
-            Value v = o.getArrayElement(i);
-            Value res = JsEngine.execute(f, v, i);
-            if (res.isBoolean() && res.asBoolean()) {
-                list.add(new JsValue(v).getValue());
+            Object v = list.get(i);
+            Object res = JsEngine.invoke(invokable, v, i);
+            if (res instanceof Boolean && (Boolean) res) {
+                result.add(v);
             }
         }
-        return new JsList(list);
+        return result;
     }
 
-    public Object filterKeys(Value o, Value... args) {
+    public Object filterKeys(Object o, Object... args) {
         Variable v = new Variable(o);
         if (!v.isMap()) {
-            return JsMap.EMPTY;
+            return new LinkedHashMap<>();
         }
         List<String> keys = new ArrayList();
         if (args.length == 1) {
-            if (args[0].isString()) {
-                keys.add(args[0].asString());
-            } else if (args[0].hasArrayElements()) {
-                long count = args[0].getArraySize();
+            if (args[0] instanceof String) {
+                keys.add((String) args[0]);
+            } else if (args[0] instanceof List) {
+                List argsList = (List) args[0];
+                long count = argsList.size();
                 for (int i = 0; i < count; i++) {
-                    keys.add(args[0].getArrayElement(i).toString());
+                    keys.add(argsList.get(i).toString());
                 }
-            } else if (args[0].hasMembers()) {
-                for (String s : args[0].getMemberKeys()) {
+            } else if (args[0] instanceof Map) {
+                Map<String, Object> argsMap = (Map) args[0];
+                for (String s : argsMap.keySet()) {
                     keys.add(s);
                 }
             }
         } else {
-            for (Value key : args) {
+            for (Object key : args) {
                 keys.add(key.toString());
             }
         }
@@ -437,36 +407,38 @@ public class ScenarioBridge implements PerfContext {
                 result.put(key, map.get(key));
             }
         }
-        return new JsMap(result);
+        return result;
     }
 
-    public void forEach(Value o, Value f) {
-        assertIfJsFunction(f);
-        if (o.hasArrayElements()) {
-            long count = o.getArraySize();
+    public void forEach(Object o, Object f) {
+        Invokable invokable = assertIfJsFunction(f);
+        if (o instanceof List) {
+            List list = (List) o;
+            long count = list.size();
             for (int i = 0; i < count; i++) {
-                Value v = o.getArrayElement(i);
-                f.executeVoid(v, i);
+                Object v = list.get(i);
+                JsEngine.invoke(invokable, v, i);
             }
-        } else if (o.hasMembers()) { //map
+        } else if (o instanceof Map) {
+            Map<String, Object> map = (Map) o;
             int i = 0;
-            for (String k : o.getMemberKeys()) {
-                Value v = o.getMember(k);
-                f.executeVoid(k, v, i++);
+            for (String k : map.keySet()) {
+                Object v = map.get(k);
+                JsEngine.invoke(invokable, k, v, i++);
             }
         } else {
             throw new RuntimeException("not an array or object: " + o);
         }
     }
 
-    public Command fork(Value value) {
-        if (value.isString()) {
-            return getEngine().fork(true, value.asString());
-        } else if (value.hasArrayElements()) {
-            List args = new JsValue(value).getAsList();
+    public Command fork(Object value) {
+        if (value instanceof String) {
+            return getEngine().fork(true, (String) value);
+        } else if (value instanceof List) {
+            List args = (List) value;
             return getEngine().fork(true, args);
         } else {
-            return getEngine().fork(true, new JsValue(value).getAsMap());
+            return getEngine().fork(true, (Map) value);
         }
     }
 
@@ -477,7 +449,7 @@ public class ScenarioBridge implements PerfContext {
         ScenarioEngine engine = getEngine();
         try {
             Variable result = engine.evalKarateExpression(exp);
-            return JsValue.fromJava(result.getValue());
+            return result.getValue();
         } catch (Exception e) {
             engine.setFailedReason(null); // special case
             engine.logger.warn("auto evaluation failed: {}", e.getMessage());
@@ -496,7 +468,7 @@ public class ScenarioBridge implements PerfContext {
             return null;
         }
         if (v != null) {
-            return JsValue.fromJava(v.getValue());
+            return v.getValue();
         } else {
             return null;
         }
@@ -520,11 +492,11 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object getFeature() {
-        return new JsMap(getEngine().runtime.featureRuntime.result.toInfoJson());
+        return getEngine().runtime.featureRuntime.result.toInfoJson();
     }
 
     public Object getInfo() { // TODO deprecate
-        return new JsMap(getEngine().runtime.getScenarioInfo());
+        return getEngine().runtime.getScenarioInfo();
     }
 
     private LogFacade logFacade;
@@ -542,7 +514,7 @@ public class ScenarioBridge implements PerfContext {
         Map<String, Object> map = new HashMap(2);
         map.put("name", name);
         map.put("type", type);
-        return new JsMap(map);
+        return map;
     }
 
     public Object getPrevRequest() {
@@ -555,11 +527,11 @@ public class ScenarioBridge implements PerfContext {
         map.put("url", hr.getUrl());
         map.put("headers", hr.getHeaders());
         map.put("body", hr.getBody());
-        return JsValue.fromJava(map);
+        return map;
     }
 
     public Object getProperties() {
-        return new JsMap(getEngine().runtime.featureRuntime.suite.systemProperties);
+        return getEngine().runtime.featureRuntime.suite.systemProperties;
     }
 
     public Object getResponse() {
@@ -571,15 +543,15 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object getScenario() {
-        return new JsMap(getEngine().runtime.result.toKarateJson());
+        return getEngine().runtime.result.toKarateJson();
     }
 
     public Object getTags() {
-        return JsValue.fromJava(getEngine().runtime.tags.getTags());
+        return getEngine().runtime.tags.getTags();
     }
 
     public Object getTagValues() {
-        return JsValue.fromJava(getEngine().runtime.tags.getTagValues());
+        return getEngine().runtime.tags.getTagValues();
     }
 
     //==========================================================================
@@ -592,19 +564,19 @@ public class ScenarioBridge implements PerfContext {
 
     public Object jsonPath(Object o, String exp) {
         Json json = Json.of(o);
-        return JsValue.fromJava(json.get(exp));
+        return json.get(exp);
     }
 
     public Object keysOf(Object o) {
         Variable v = new Variable(o);
         if (v.isMap()) {
-            return new JsList(v.<Map>getValue().keySet());
+            return new ArrayList<>(v.<Map>getValue().keySet());
         } else {
-            return JsList.EMPTY;
+            return new ArrayList<>();
         }
     }
 
-    public void log(Value... values) {
+    public void log(Object... values) {
         ScenarioEngine engine = getEngine();
         if (engine.getConfig().isPrintEnabled()) {
             engine.logger.info("{}", new LogWrapper(values));
@@ -613,75 +585,77 @@ public class ScenarioBridge implements PerfContext {
 
     public Object lowerCase(Object o) {
         Variable var = new Variable(o);
-        return JsValue.fromJava(var.toLowerCase().getValue());
+        return var.toLowerCase().getValue();
     }
 
-    public Object map(Value o, Value f) {
-        if (!o.hasArrayElements()) {
-            return JsList.EMPTY;
+    public Object map(Object o, Object f) {
+        if (!(o instanceof List)) {
+            return new ArrayList<>();
         }
-        assertIfJsFunction(f);
-        long count = o.getArraySize();
-        List list = new ArrayList();
+        List list = (List) o;
+        Invokable invokable = assertIfJsFunction(f);
+        long count = list.size();
+        List result = new ArrayList();
         for (int i = 0; i < count; i++) {
-            Value v = o.getArrayElement(i);
-            Value res = JsEngine.execute(f, v, i);
-            list.add(new JsValue(res).getValue());
+            Object v = list.get(i);
+            Object res = JsEngine.invoke(invokable, v, i);
+            result.add(res);
         }
-        return new JsList(list);
+        return result;
     }
 
-    public Object mapWithKey(Value v, String key) {
-        if (!v.hasArrayElements()) {
-            return JsList.EMPTY;
+    public Object mapWithKey(Object v, String key) {
+        if (!(v instanceof List)) {
+            return new ArrayList<>();
         }
-        long count = v.getArraySize();
-        List list = new ArrayList();
+        List list = (List) v;
+        long count = list.size();
+        List result = new ArrayList();
         for (int i = 0; i < count; i++) {
             Map map = new LinkedHashMap();
-            Value res = v.getArrayElement(i);
-            map.put(key, res.as(Object.class));
-            list.add(map);
+            Object res = list.get(i);
+            map.put(key, res);
+            result.add(map);
         }
-        return new JsList(list);
+        return result;
     }
 
-    public Object match(Value actual, Value expected) {
-        Match.Result mr = getEngine().match(Match.Type.EQUALS, JsValue.toJava(actual), JsValue.toJava(expected));
-        return JsValue.fromJava(mr.toMap());
+    public Object match(Object actual, Object expected) {
+        Match.Result mr = getEngine().match(Match.Type.EQUALS, actual, expected);
+        return mr.toMap();
     }
 
     public Object match(String exp) {
         MatchStep ms = new MatchStep(exp);
         Match.Result mr = getEngine().match(ms.type, ms.name, ms.path, ms.expected);
-        return JsValue.fromJava(mr.toMap());
+        return mr.toMap();
     }
 
-    public Object merge(Value... vals) {
+    public Object merge(Object... vals) {
         if (vals.length == 0) {
             return null;
         }
         if (vals.length == 1) {
             return vals[0];
         }
-        Map map = new HashMap(vals[0].as(Map.class));
+        Map map = new HashMap((Map) vals[0]);
         for (int i = 1; i < vals.length; i++) {
-            map.putAll(vals[i].as(Map.class));
+            map.putAll((Map) vals[i]);
         }
-        return new JsMap(map);
+        return map;
     }
 
-    public void pause(Value value) {
+    public void pause(Object value) {
         ScenarioEngine engine = getEngine();
-        if (!value.isNumber()) {
+        if (!(value instanceof Number)) {
             engine.logger.warn("pause argument is not a number:", value);
             return;
         }
         if (engine.runtime.perfMode) {
-            engine.runtime.featureRuntime.perfHook.pause(value.asInt());
+            engine.runtime.featureRuntime.perfHook.pause((Number) value);
         } else if (engine.getConfig().isPauseIfNotPerf()) {
             try {
-                Thread.sleep(value.asInt());
+                Thread.sleep(((Number) value).intValue());
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -724,12 +698,12 @@ public class ScenarioBridge implements PerfContext {
                 list.add(i);
             }
         }
-        return JsValue.fromJava(list);
+        return list;
     }
 
     public Object read(String path) {
         Object result = getEngine().fileReader.readFile(path);
-        return JsValue.fromJava(result);
+        return result;
     }
 
     public byte[] readAsBytes(String path) {
@@ -748,12 +722,12 @@ public class ScenarioBridge implements PerfContext {
         getEngine().remove(name, path);
     }
 
-    public String render(Value v) {
+    public String render(Object v) {
         Map<String, Object> arg;
-        if (v.isString()) {
-            arg = Collections.singletonMap("read", v.asString());
-        } else if (v.hasMembers()) {
-            arg = new JsValue(v).getAsMap();
+        if (v instanceof String) {
+            arg = Collections.singletonMap("read", (String) v);
+        } else if (v instanceof Map) {
+            arg = (Map) v;
         } else {
             getEngine().logger.warn("render - unexpected argument: {}", v);
             return null;
@@ -761,14 +735,14 @@ public class ScenarioBridge implements PerfContext {
         return getEngine().renderHtml(arg);
     }
 
-    public Object repeat(int n, Value f) {
-        assertIfJsFunction(f);
+    public Object repeat(int n, Object f) {
+        Invokable invokable = assertIfJsFunction(f);
         List list = new ArrayList(n);
         for (int i = 0; i < n; i++) {
-            Value v = JsEngine.execute(f, i);
-            list.add(new JsValue(v).getValue());
+            Object v = JsEngine.invoke(invokable, i);
+            list.add(v);
         }
-        return new JsList(list);
+        return list;
     }
 
     // set multiple variables in one shot
@@ -776,7 +750,7 @@ public class ScenarioBridge implements PerfContext {
         getEngine().setVariables(map);
     }
 
-    public void set(String name, Value value) {
+    public void set(String name, Object value) {
         getEngine().setVariable(name, new Variable(value));
     }
 
@@ -790,8 +764,7 @@ public class ScenarioBridge implements PerfContext {
     }
 
     public Object setup(String name) {
-        Map<String, Object> result = setupInternal(getEngine(), name);
-        return JsValue.fromJava(result);
+        return setupInternal(getEngine(), name);
     }
 
     private static Map<String, Object> setupInternal(ScenarioEngine engine, String name) {
@@ -845,7 +818,7 @@ public class ScenarioBridge implements PerfContext {
             Variable variable = new Variable(v);
             clone.put(k, variable.copy(false).getValue());
         });
-        return JsValue.fromJava(clone);
+        return clone;
     }
 
     public void setXml(String name, String xml) {
@@ -857,8 +830,8 @@ public class ScenarioBridge implements PerfContext {
         getEngine().set(name, path, new Variable(XmlUtils.toXmlDoc(xml)));
     }
 
-    public void signal(Value v) {
-        getEngine().signal(JsValue.toJava(v));
+    public void signal(Object v) {
+        getEngine().signal(v);
     }
 
     public Object sizeOf(Object o) {
@@ -914,39 +887,40 @@ public class ScenarioBridge implements PerfContext {
 
     }
 
-    public Object sort(Value o) {
-        return sort(o, getEngine().JS.evalForValue("x => x"));
+    public Object sort(Object o) {
+        return sort(o, getEngine().JS.eval("x => x"));
     }
 
-    public Object sort(Value o, Value f) {
-        if (!o.hasArrayElements()) {
-            return JsList.EMPTY;
+    public Object sort(Object o, Object f) {
+        if (!(o instanceof List)) {
+            return new ArrayList<>();
         }
-        assertIfJsFunction(f);
-        long count = o.getArraySize();
+        List list = (List) o;
+        Invokable invokable = assertIfJsFunction(f);
+        long count = list.size();
         List<ValueIndex> pointers = new ArrayList((int) count);
         List<Object> items = new ArrayList(pointers.size());
         for (int i = 0; i < count; i++) {
-            Object item = JsValue.toJava(o.getArrayElement(i));
+            Object item = list.get(i);
             items.add(item);
-            Value key = JsEngine.execute(f, item, i);
-            if (key.isNumber()) {
-                pointers.add(new NumberValueIndex(key.as(Number.class), i));
+            Object key = JsEngine.invoke(invokable, item, i);
+            if (key instanceof Number) {
+                pointers.add(new NumberValueIndex((Number) key, i));
             } else {
-                pointers.add(new StringValueIndex(key.asString(), i));
+                pointers.add(new StringValueIndex(key.toString(), i));
             }
         }
         Collections.sort(pointers);
         List<Object> result = new ArrayList(pointers.size());
         pointers.forEach(item -> result.add(items.get((int) item.index)));
-        return JsValue.fromJava(result);
+        return result;
     }
 
-    public MockServer start(Value value) {
-        if (value.isString()) {
-            return startInternal(Collections.singletonMap("mock", value.asString()));
+    public MockServer start(Object value) {
+        if (value instanceof String) {
+            return startInternal(Collections.singletonMap("mock", value));
         } else {
-            return startInternal(new JsValue(value).getAsMap());
+            return startInternal((Map) value);
         }
     }
 
@@ -997,8 +971,7 @@ public class ScenarioBridge implements PerfContext {
 
     public Object toBean(Object o, String className) {
         Json json = Json.of(o);
-        Object bean = JsonUtils.fromJson(json.toString(), className);
-        return JsValue.fromJava(bean);
+        return JsonUtils.fromJson(json.toString(), className);
     }
 
     public String toCsv(Object o) {
@@ -1010,40 +983,23 @@ public class ScenarioBridge implements PerfContext {
         return JsonUtils.toCsv(list);
     }
 
-    public Object toJava(Value value) {
-        return new JsValue(value).getValue();
-    }    
 
     public File toJavaFile(String path) {
         return getEngine().fileReader.toResource(path).getFile();
     }
-    
-    public Object toJs(Object value) {
-        return JsValue.fromJava(value);
-    }    
 
-    public Object toJson(Value value) {
+
+    public Object toJson(Object value) {
         return toJson(value, false);
     }
 
-    public Object toJson(Value value, boolean removeNulls) {
-        JsValue jv = new JsValue(value);
-        String json = JsonUtils.toJson(jv.getValue());
+    public Object toJson(Object value, boolean removeNulls) {
+        String json = JsonUtils.toJson(value);
         Object result = Json.of(json).value();
         if (removeNulls) {
             JsonUtils.removeKeysWithNullValues(result);
         }
-        return JsValue.fromJava(result);
-    }
-
-    // TODO deprecate
-    public Object toList(Value value) {
-        return new JsValue(value).getValue();
-    }
-
-    // TODO deprecate
-    public Object toMap(Value value) {
-        return new JsValue(value).getValue();
+        return result;
     }
 
     public String toString(Object o) {
@@ -1051,7 +1007,7 @@ public class ScenarioBridge implements PerfContext {
         return v.getAsString();
     }
 
-    public String typeOf(Value value) {
+    public String typeOf(Object value) {
         Variable v = new Variable(value);
         return v.getTypeString();
     }
@@ -1077,9 +1033,9 @@ public class ScenarioBridge implements PerfContext {
     public Object valuesOf(Object o) {
         Variable v = new Variable(o);
         if (v.isList()) {
-            return new JsList(v.<List>getValue());
+            return v.<List>getValue();
         } else if (v.isMap()) {
-            return new JsList(v.<Map>getValue().values());
+            return new ArrayList(v.<Map>getValue().values());
         } else {
             return null;
         }
@@ -1097,19 +1053,19 @@ public class ScenarioBridge implements PerfContext {
         return webSocket(url, null, null);
     }
 
-    public WebSocketClient webSocket(String url, Value value) {
+    public WebSocketClient webSocket(String url, Object value) {
         return webSocket(url, value, null);
     }
 
-    public WebSocketClient webSocket(String url, Value listener, Value value) {
+    public WebSocketClient webSocket(String url, Object listener, Object value) {
         Function<String, Boolean> handler;
         ScenarioEngine engine = getEngine();
-        if (listener == null || !listener.canExecute()) {
+        if (listener == null || !(listener instanceof Invokable)) {
             handler = m -> true;
         } else {
-            handler = new JsLambda(listener);
+            handler = text -> (Boolean) JsEngine.invoke((Invokable) listener, text);
         }
-        WebSocketOptions options = new WebSocketOptions(url, value == null ? null : new JsValue(value).getValue());
+        WebSocketOptions options = new WebSocketOptions(url, value == null ? null : (Map) value);
         options.setTextHandler(handler);
         return engine.webSocket(options);
     }
@@ -1118,35 +1074,21 @@ public class ScenarioBridge implements PerfContext {
         return webSocketBinary(url, null, null);
     }
 
-    public WebSocketClient webSocketBinary(String url, Value value) {
+    public WebSocketClient webSocketBinary(String url, Object value) {
         return webSocketBinary(url, value, null);
     }
 
-    public WebSocketClient webSocketBinary(String url, Value listener, Value value) {
+    public WebSocketClient webSocketBinary(String url, Object listener, Object value) {
         Function<byte[], Boolean> handler;
         ScenarioEngine engine = getEngine();
-        if (listener == null || !listener.canExecute()) {
+        if (listener == null || !(listener instanceof Invokable)) {
             handler = m -> true;
         } else {
-            handler = new JsLambda(listener);
+            handler = bytes -> (Boolean) JsEngine.invoke((Invokable) listener, (Object) bytes);
         }
-        WebSocketOptions options = new WebSocketOptions(url, value == null ? null : new JsValue(value).getValue());
+        WebSocketOptions options = new WebSocketOptions(url, value == null ? null : (Map) value);
         options.setBinaryHandler(handler);
         return engine.webSocket(options);
-    }
-    
-    public Object wrapFunction(Value value) {
-        if (value.isProxyObject()) {
-            Object o = value.asProxyObject();
-            if (o instanceof JsFunction) {
-                JsFunction fun = (JsFunction) o;
-                return JsFunction.wrap(fun.getValue());
-            }
-        }
-        if (value.canExecute()) {
-            return JsFunction.wrap(value);
-        }
-        throw new RuntimeException("js function expected");
     }
 
     public File write(Object o, String path) {
@@ -1161,31 +1103,32 @@ public class ScenarioBridge implements PerfContext {
     public Object xmlPath(Object o, String path) {
         Variable var = new Variable(o);
         Variable res = ScenarioEngine.evalXmlPath(var, path);
-        return JsValue.fromJava(res.getValue());
+        return res.getValue();
     }
 
     // helpers =================================================================
     //
-    private static void assertIfJsFunction(Value f) {
-        if (!f.canExecute()) {
+    private static Invokable assertIfJsFunction(Object f) {
+        if (!(f instanceof Invokable)) {
             throw new RuntimeException("not a js function: " + f);
         }
+        return (Invokable) f;
     }
 
     // make sure log() toString() is lazy
     static class LogWrapper {
 
-        final Value[] values;
+        final Object[] values;
 
-        LogWrapper(Value... values) {
+        LogWrapper(Object... values) {
             // sometimes a null array gets passed in, graal weirdness
-            this.values = values == null ? new Value[0] : values;
+            this.values = values == null ? new Object[0] : values;
         }
 
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
-            for (Value v : values) {
+            for (Object v : values) {
                 Variable var = new Variable(v);
                 sb.append(var.getAsPrettyString()).append(' ');
             }
@@ -1200,27 +1143,27 @@ public class ScenarioBridge implements PerfContext {
             return ScenarioEngine.get().logger;
         }
 
-        private static String wrap(Value... values) {
+        private static String wrap(Object... values) {
             return new LogWrapper(values).toString();
         }
 
-        public void debug(Value... values) {
+        public void debug(Object... values) {
             getLogger().debug(wrap(values));
         }
 
-        public void info(Value... values) {
+        public void info(Object... values) {
             getLogger().info(wrap(values));
         }
 
-        public void trace(Value... values) {
+        public void trace(Object... values) {
             getLogger().trace(wrap(values));
         }
 
-        public void warn(Value... values) {
+        public void warn(Object... values) {
             getLogger().warn(wrap(values));
         }
 
-        public void error(Value... values) {
+        public void error(Object... values) {
             getLogger().error(wrap(values));
         }
 

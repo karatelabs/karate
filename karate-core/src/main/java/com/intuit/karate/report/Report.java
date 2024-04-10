@@ -24,7 +24,7 @@
 package com.intuit.karate.report;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.graal.JsEngine;
+import com.intuit.karate.js.JsEngine;
 import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateUtils;
 import java.io.File;
@@ -119,9 +119,9 @@ public interface Report {
                 reportFileName = template;
             }
             if (je == null) {
-                je = JsEngine.local();
+                je = new JsEngine();
             }
-            je.putAll(variables);
+            variables.forEach((k, v) -> je.put(k, v));
             return new Report() {
 
                 @Override

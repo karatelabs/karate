@@ -23,8 +23,7 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.js.JsEngine;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -172,7 +171,7 @@ public class MatchOperation {
                         context.JS.put("_$", o);
                         MatchOperation mo = new MatchOperation(context.descend(i), nestedMatchType, new Match.Value(o), expected, matchEachEmptyAllowed);
                         mo.execute();
-                        context.JS.bindings.removeMember("_$");
+                        context.JS.remove("_$");
                         if (!mo.pass) {
                             return fail("match each failed at index " + i);
                         }
@@ -284,10 +283,10 @@ public class MatchOperation {
                 }
                 context.JS.put("$", context.root.actual.getValue());
                 context.JS.put("_", actual.getValue());
-                JsValue jv = context.JS.eval(macro);
-                context.JS.bindings.removeMember("$");
-                context.JS.bindings.removeMember("_");
-                MatchOperation mo = new MatchOperation(context, nestedType, actual, new Match.Value(jv.getValue()), matchEachEmptyAllowed);
+                Object jv = context.JS.eval(macro);
+                context.JS.remove("$");
+                context.JS.remove("_");
+                MatchOperation mo = new MatchOperation(context, nestedType, actual, new Match.Value(jv), matchEachEmptyAllowed);
                 return mo.execute();
             } else if (macro.startsWith("[")) {
                 int closeBracketPos = macro.indexOf(']');
@@ -307,10 +306,12 @@ public class MatchOperation {
                         } else { // #[5] | #[$.foo] 
                             sizeExpr = bracketContents + " == _";
                         }
-                        JsValue jv = context.JS.eval(sizeExpr);
-                        context.JS.bindings.removeMember("$");
-                        context.JS.bindings.removeMember("_");
-                        if (!jv.isTrue()) {
+                        Object jv = context.JS.eval(sizeExpr);
+                        context.JS.remove("$");
+                        context.JS.remove("_");
+                        if (jv instanceof Boolean && (Boolean) jv) {
+                            // all good
+                        } else {
                             return fail("actual array length is " + listSize);
                         }
                     }
@@ -331,8 +332,8 @@ public class MatchOperation {
                                 Match.Type nestedType = macroToMatchType(true, macro); // match each
                                 int startPos = matchTypeToStartPos(nestedType);
                                 macro = macro.substring(startPos);
-                                JsValue jv = context.JS.eval(macro);
-                                MatchOperation mo = new MatchOperation(context, nestedType, actual, new Match.Value(jv.getValue()), matchEachEmptyAllowed);
+                                Object jv = context.JS.eval(macro);
+                                MatchOperation mo = new MatchOperation(context, nestedType, actual, new Match.Value(jv), matchEachEmptyAllowed);
                                 return mo.execute();
                             }
                         }
@@ -391,10 +392,12 @@ public class MatchOperation {
                 if (macro != null && questionPos != -1) {
                     context.JS.put("$", context.root.actual.getValue());
                     context.JS.put("_", actual.getValue());
-                    JsValue jv = context.JS.eval(macro);
-                    context.JS.bindings.removeMember("$");
-                    context.JS.bindings.removeMember("_");
-                    if (!jv.isTrue()) {
+                    Object jv = context.JS.eval(macro);
+                    context.JS.remove("$");
+                    context.JS.remove("_");
+                    if (jv instanceof Boolean && (Boolean) jv) {
+                        // all good
+                    } else {
                         return fail("evaluated to 'false'");
                     }
                 }

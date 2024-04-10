@@ -4,7 +4,7 @@ Feature: testing multi param values
 
     Given url mockServerUrl
     And path 'multiparams'
-    And param foo = 'bar', 'baz'
+    And param foo = ['bar', 'baz']
     When method get
     Then status 200
     And match response == { success: true }

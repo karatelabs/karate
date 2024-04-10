@@ -23,8 +23,7 @@
  */
 package com.intuit.karate.http;
 
-import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsValue;
+import com.intuit.karate.js.JsEngine;
 import com.intuit.karate.resource.ResourceResolver;
 import com.intuit.karate.template.KarateTemplateEngine;
 import java.io.InputStream;
@@ -88,7 +87,7 @@ public class RequestCycle {
         // this has to be after the session init
         Map<String, Object> variables = context.getVariables();
         if (variables != null) {
-            engine.putAll(variables);
+            variables.forEach((k, v) -> engine.put(k, v));
         }
         request = context.getRequest();
         request.processBody();
@@ -101,7 +100,7 @@ public class RequestCycle {
     public RequestCycle copy(Request request, Map<String, Object> variables) {
         ServerContext temp = new ServerContext(config, request, variables);
         temp.setSession(context.getSession());
-        return new RequestCycle(JsEngine.local(), templateEngine, temp);
+        return new RequestCycle(new JsEngine(), templateEngine, temp);
     }
 
     public JsEngine getEngine() {
@@ -125,9 +124,9 @@ public class RequestCycle {
                 session.getData().clear();
                 logger.debug("session deleted: {}", session.getId());
             } else {
-                JsValue sessionValue = engine.get(SESSION);
-                if (sessionValue.isObject()) {
-                    session.getData().putAll(sessionValue.getAsMap());
+                Object sessionValue = engine.get(SESSION);
+                if (sessionValue instanceof Map) {
+                    session.getData().putAll((Map) sessionValue);
                     context.getConfig().getSessionStore().save(session);
                 } else {
                     logger.error("invalid session, not map-like: {}", sessionValue);

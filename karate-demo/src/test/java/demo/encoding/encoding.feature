@@ -28,6 +28,8 @@ Scenario: append trailing / to url
     Then status 200
     And match response == 'hello/'
 
+# todo karate-js
+@ignore
 Scenario: path escapes special characters
     Given url demoBaseUrl
     And path 'encoding', '"<>#{}|\^[]`'

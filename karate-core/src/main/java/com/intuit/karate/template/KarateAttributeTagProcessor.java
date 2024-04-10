@@ -23,8 +23,9 @@
  */
 package com.intuit.karate.template;
 
-import com.intuit.karate.graal.JsValue;
 import java.util.Map;
+
+import io.karatelabs.js.Terms;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.context.ITemplateContext;
@@ -67,19 +68,19 @@ abstract class KarateAttributeTagProcessor extends AbstractAttributeTagProcessor
             final IProcessableElementTag tag,
             final AttributeName attributeName, final String av,
             final IElementTagStructureHandler structureHandler) {
-        JsValue jv = KarateEngineContext.get().evalLocalAsObject(av);
-        if (!jv.isObject()) {
+        Object jv = KarateEngineContext.get().evalLocalAsObject(av);
+        if (!(jv instanceof Map)) {
             logger.warn("value did not evaluate to json: {}", av);
             return;
         }
-        Map<String, Object> map = jv.getAsMap();
+        Map<String, Object> map = (Map) jv;
         map.forEach((k, v) -> {
             if (getTemplateMode() == TemplateMode.HTML
                     && this.modificationType == ModificationType.SUBSTITUTION
                     && ArrayUtils.contains(StandardConditionalFixedValueTagProcessor.ATTR_NAMES, k)) {
                 // is a fixed-value conditional one, like "selected", which can only
                 // appear as selected="selected" or not appear at all.
-                if (JsValue.isTruthy(v)) {
+                if (Terms.isTruthy(v)) {
                     structureHandler.setAttribute(k, k);
                 } else {
                     structureHandler.removeAttribute(k);
