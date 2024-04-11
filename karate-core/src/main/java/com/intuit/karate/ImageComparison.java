@@ -24,6 +24,7 @@
 package com.intuit.karate;
 
 import io.github.t12y.resemble.Resemble;
+import io.github.t12y.resemble.Result;
 import io.github.t12y.ssim.models.MSSIMMatrix;
 import io.github.t12y.ssim.models.Matrix;
 import io.github.t12y.ssim.models.Options;
@@ -33,10 +34,11 @@ import org.slf4j.LoggerFactory;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
+import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.awt.Image;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.List;
 import java.util.*;
 
 import static io.github.t12y.ssim.SSIM.ssim;
@@ -152,7 +154,7 @@ public class ImageComparison {
     }
 
     public static Map<String, Object> compare(byte[] baselineImg, byte[] latestImg, Map<String, Object> options,
-            Map<String, Object> defaultOptions) throws MismatchException {
+                                              Map<String, Object> defaultOptions) throws MismatchException {
 
         boolean allowScaling = toBool(defaultOptions.get("allowScaling"));
         ImageComparison imageComparison = new ImageComparison(baselineImg, latestImg, options, allowScaling);
@@ -212,9 +214,9 @@ public class ImageComparison {
     }
 
     private double execResemble() {
-        double mismatchPercentage = Resemble.analyzeImages(baselinePixels, latestPixels, resembleOptions());
-        result.put("resembleMismatchPercentage", mismatchPercentage);
-        return mismatchPercentage;
+        Result resembleResult = Resemble.analyzeImages(baselinePixels, latestPixels, resembleOptions());
+        result.put("resembleMismatchPercentage", resembleResult.mismatchedPercent);
+        return resembleResult.mismatchedPercent;
     }
 
     private double execSSIM() {
@@ -408,5 +410,5 @@ public class ImageComparison {
             this.data = data;
         }
     }
-    
+
 }
