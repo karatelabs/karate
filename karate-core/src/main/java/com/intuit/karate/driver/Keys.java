@@ -237,9 +237,6 @@ public class Keys {
         CODES.put('X', 88);
         CODES.put('Y', 89);
         CODES.put('Z', 90);
-        CODES.put('[', 91);
-        CODES.put('\\', 92);
-        CODES.put(']', 93);
         CODES.put('a', 97);
         CODES.put('b', 98);
         CODES.put('c', 99);
@@ -273,7 +270,15 @@ public class Keys {
         CODES.put('>', 160);
         CODES.put('{', 161);
         CODES.put('}', 162);
+        CODES.put('~', 171);
+        CODES.put('|', 172);
+        CODES.put('%', 175);
+        CODES.put('^', 176);
+        CODES.put('?', 191);
         CODES.put('`', 192);
+        CODES.put('[', 219);
+        CODES.put('\\', 220);
+        CODES.put(']', 221);
         CODES.put('\'', 222);
         CODES.put('@', 512);
         CODES.put(':', 513);
