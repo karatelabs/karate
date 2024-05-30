@@ -748,8 +748,10 @@ public class ScenarioEngine {
                 return "io.karatelabs.grpc.GrpcChannelFactory";
             case Config.WEBSOCKET:
                 return "io.karatelabs.websocket.WebsocketChannelFactory";
+            case Config.WEBHOOK:
+                return "io.karatelabs.webhook.WebhookChannelFactory";
             default:
-                throw new RuntimeException("unknown channel type");
+                throw new RuntimeException("unknown channel type: " + channelType);
         }
     }
         

@@ -57,6 +57,7 @@ public class Config {
     public static final String KAFKA = "kafka";
     public static final String GRPC = "grpc";
     public static final String WEBSOCKET = "websocket";
+    public static final String WEBHOOK = "webhook";
 
     private String url;
     private boolean sslEnabled = false;
@@ -195,6 +196,7 @@ public class Config {
             case KAFKA:
             case GRPC:
             case WEBSOCKET:
+            case WEBHOOK:
                 customOptions.put(key, value.getValue());
                 return false;
             case "driverTarget":
