@@ -4,14 +4,23 @@ on:
   workflow_dispatch:
     inputs:
       version:
+        description: maven and docker release version
         required: true
         default: 'X.X.X.RCX'
       docker:
+        description: push to docker
         required: true
         type: choice
         options:
         - 'enabled'
         - 'disabled'
+      maven:
+        description: push to maven central
+        required: true
+        type: choice
+        options:
+          - 'enabled'
+          - 'disabled'
 
 jobs:
   build:
@@ -50,6 +59,7 @@ jobs:
         docker buildx build --push --platform linux/amd64 --cache-from=type=local,src=./target/docker -t karate-chrome -t karatelabs/karate-chrome:latest -t karatelabs/karate-chrome:${{ github.event.inputs.version }} karate-docker/karate-chrome
         docker buildx build --push --platform linux/amd64,linux/arm64 --cache-from=type=local,src=./target/docker -t karate-chromium -t karatelabs/karate-chromium:latest -t karatelabs/karate-chromium:${{ github.event.inputs.version }} karate-docker/karate-chromium
     - name: maven deploy to central
+      if: ( github.event.inputs.maven == 'enabled' )
       env:
         MAVEN_USERNAME: ${{ secrets.OSSRH_TOKEN_USER }}
         MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
