@@ -23,22 +23,13 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.ImageComparison;
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.Json;
-import com.intuit.karate.JsonUtils;
-import com.intuit.karate.KarateException;
-import com.intuit.karate.Logger;
-import com.intuit.karate.Match;
-import com.intuit.karate.RuntimeHook;
-import com.intuit.karate.StringUtils;
-import com.intuit.karate.XmlUtils;
+import com.intuit.karate.*;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Key;
 import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsLambda;
 import com.intuit.karate.graal.JsFunction;
+import com.intuit.karate.graal.JsLambda;
 import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.*;
 import com.intuit.karate.resource.Resource;
@@ -49,11 +40,9 @@ import com.intuit.karate.template.KarateTemplateEngine;
 import com.intuit.karate.template.TemplateUtils;
 import com.jayway.jsonpath.PathNotFoundException;
 import org.graalvm.polyglot.Value;
-import org.w3c.dom.Attr;
-import org.w3c.dom.Document;
-import org.w3c.dom.NamedNodeMap;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
+import org.graalvm.polyglot.proxy.ProxyExecutable;
+import org.slf4j.LoggerFactory;
+import org.w3c.dom.*;
 
 import java.io.File;
 import java.io.InputStream;
@@ -68,11 +57,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.graalvm.polyglot.proxy.ProxyExecutable;
-import org.slf4j.LoggerFactory;
-
 /**
- *
  * @author pthomas3
  */
 public class ScenarioEngine {
@@ -491,7 +476,7 @@ public class ScenarioEngine {
         if (name != null) {
             map.put("name", name);
         }
-        if(value instanceof Number) {
+        if (value instanceof Number) {
             value = value.toString();
         }
         if (value instanceof Map) {
@@ -740,6 +725,8 @@ public class ScenarioEngine {
 
     // non-http ================================================================
     //
+    List<Channel> channels;
+
     private static String getFactory(String channelType) {
         switch (channelType) {
             case Config.KAFKA:
@@ -748,18 +735,25 @@ public class ScenarioEngine {
                 return "io.karatelabs.grpc.GrpcChannelFactory";
             case Config.WEBSOCKET:
                 return "io.karatelabs.websocket.WebsocketChannelFactory";
+            case Config.WEBHOOK:
+                return "io.karatelabs.webhook.WebhookChannelFactory";
             default:
-                throw new RuntimeException("unknown channel type");
+                throw new RuntimeException("unknown channel type: " + channelType);
         }
     }
-        
-    private Channel channel(String type) {
+
+    protected Object channelSession(String type) {
         String factoryClass = getFactory(type);
         try {
-            Class clazz = Class.forName(factoryClass);
+            Class<?> clazz = Class.forName(factoryClass);
             ChannelFactory factory = (ChannelFactory) clazz.getDeclaredConstructor().newInstance();
             Map<String, Object> options = config.getCustomOptions().get(type);
-            return factory.create(runtime, options);
+            Channel channel = factory.create(runtime, options);
+            if (channels == null) {
+                channels = new ArrayList<>();
+            }
+            channels.add(channel);
+            return channel.init(this.runtime);
         } catch (KarateException ke) {
             throw ke;
         } catch (Exception e) {
@@ -771,44 +765,8 @@ public class ScenarioEngine {
             }
             logger.error(message);
             throw new RuntimeException(message, e);
-        }        
+        }
     }
-        
-    public void produce(String type) {
-        Channel channel = channel(type);
-        channel.produce(runtime);
-    }
-    
-    public ChannelSession consume(String type) {
-        Channel channel = channel(type);
-        return channel.consume(runtime);        
-    }
-    
-    public void register(String expression) {
-        Variable v = evalKarateExpression(expression);
-        Channel channel = channel("kafka");
-        Map<String, Object> map = v.getValue();
-        channel.register(runtime, map);
-    }       
-    
-    public void schema(String exp) {
-        Variable v = evalKarateExpression(exp);
-        requestBuilder.setSchema(v.getAsString());
-    }
-    
-    public void topic(String exp) {
-        Variable v = evalKarateExpression(exp);
-        requestBuilder.setTopic(v.getAsString());
-    }
-    
-    public void key(String exp) {
-        Variable v = evalKarateExpression(exp);
-        requestBuilder.setKey(v.getAsString());
-    }    
-    
-    public void value(String exp) {
-        request(exp);
-    }     
 
     // http mock ===============================================================
     //
@@ -1065,6 +1023,11 @@ public class ScenarioEngine {
             }
             if (robot != null) {
                 robot.afterScenario();
+            }
+            if (channels != null) {
+                for (Channel channel : channels) {
+                    channel.afterScenario();
+                }
             }
         }
     }

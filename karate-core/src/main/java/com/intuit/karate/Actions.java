@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 
 /**
- *
  * @author pthomas3
  */
 public interface Actions {
@@ -45,7 +44,7 @@ public interface Actions {
     void callonce(String line);
 
     void csv(String name, String exp);
-    
+
     void csvDocString(String name, String exp);
 
     void json(String name, String exp);
@@ -79,7 +78,7 @@ public interface Actions {
     void eval(String name, String dotOrParen, String exp);
 
     void evalIf(String exp);
-    
+
     void evalDelete(String exp);
 
     void formField(String name, String exp);
@@ -114,7 +113,7 @@ public interface Actions {
 
     void path(String exp);
 
-    void print(String exp);        
+    void print(String exp);
 
     void remove(String name, String path);
 
@@ -143,7 +142,7 @@ public interface Actions {
     void url(String exp);
 
     void yaml(String name, String exp);
-    
+
     void yamlDocString(String name, String exp);
 
     void doc(String exp);
@@ -155,19 +154,5 @@ public interface Actions {
     void driver(String exp);
 
     void robot(String exp);
-    
-    void produce(String type);
-    
-    void register(String exp);
-    
-    void schema(String exp);
-    
-    void topic(String exp);
-    
-    void key(String exp);
-    
-    void value(String exp);
-    
-    void valueDocString(String exp);
 
 }

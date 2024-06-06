@@ -23,109 +23,128 @@
  */
 package com.intuit.karate.playwright.driver;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
+import com.intuit.karate.driver.Element;
+import com.intuit.karate.playwright.driver.PlaywrightDriver.FrameTrait;
 import com.intuit.karate.playwright.driver.util.KarateTokenParser;
 import com.microsoft.playwright.Locator;
 
 /**
  * A (possibly chained) token, where a token is a selector or a locator, which
- * can be resolved into a {link com.microsoft.playwright.Locator}
+ * can be resolved into a {link com.microsoft.playwright.Locator}.
  *
- * Karate's friendly locators are supported and will be automatically converted
- * into Playwright compatible locators (xpath, css, pseudo or even possibly
+ * 
+ * A {@link PlaywrightToken} provides two factory methods to create {@link PlaywrightElement}
+ * {@link #create(PlaywrightDriver)}, {@link #find(PlaywrightDriver)}.
+ * which should be used over calling the constructor.
+ * 
+ * 
+ * It also provides a single place where:
+ * - Karate's friendly and wildcard locators are handled.
+ * - Playwright's strict mode is handled.
+ * 
+ * Karate's friendly and wildcard locators will be automatically converted 
+*  into Playwright compatible locators (xpath, css, pseudo or even possibly
  * custom locators).
- *
- * In essence, a PlaywrightToken could just wrap a {link
- * com.microsoft.playwright.Locator}. Since PW's Locators are by nature chained,
- * they meet all the requirements of PlaywrightToken. Current implementation,
- * however, is a bit more complicated. Locators are not stored internally but
- * only computed when requested so the chaining is implemented within the class,
- * hence the
- * <pre>parent<pre> reference.
- *
- * However, that implementation makes it possible to implement Karate's friendly locators using PW's native right-of/left-of/above/below/near pseudo locators.
- *
- * Let's consider locate('#div').rightOf().find('p')
- *
- * As far as I undertand, this would be:
- * Locator("p:right-of('#div')")
- *
- * in PW world. Note how it's a single Locator. However, by the time locate('#div') is called, Karate/PLaywrightDriver creates a first element referencing Locator('#div'),
- * and only when that element is chained with rightOf/find does PlaywrightDriver find out that locator should be replaced by Locator("p:right-of('#div')").
- * That "replaces" thing is where we need the parent to recreate the correct locator.
- *
- * Note that using PW's family of pseudo locators didn't make it to the final version, because i could not get it to work with xpath (locate('#div').rightOf().find('//p')) but maybe someone will at some point.
- *
- */
+ * 
+ * Playwright's strict mode is designed to fail when a {link com.microsoft.playwright.Locator} 
+ * references more than one element.
+ * 
+ * A solution to this problem is typically to call locator.first() to resolve the conflict.
+ * However, since Karate does not - and should not - expose such an API, {@link PlaywrightToken} 
+ * must be smart enough to do it automatically.
+ * This is done in {@link #resolveLocator()} which is expected to be called whenever:
+ * - an "action" (UI actions such as click(), scroll(), input(), or state actions such as getText(), getAttribute()) happens on the current locator
+ * - or a sub locator is created through {@link #child(String)} or {@link #friendlyLocator(String, String)}.
+ * 
+ * For example:
+ * <pre>
+ * Element first = driver.locate("foo") // Not yet resolved
+ * Element second = first.child("bar")  // first resolved, second not yet resolved
+ * second.click(); // resolved
+ * driver.click("bar"); // an internal Element is created, similar to first, and resolved when click is called.
+ * </pre>
+ * 
+ *                      
+ * Note that there is another solution to resolve the conflict, which is to call locator.all() to get a list of all the matching elements.
+ * {@link PlaywrightToken} also supports this through the {@link #findAll(PlaywrightDriver)} method.
+ *  
+ * */
 public class PlaywrightToken {
 
-    private final String playwrightToken;
+    private final Locator locator;
 
-    private final PlaywrightToken parent;
-
-    private final PlaywrightDriver driver;
-
-    private final boolean first;
-
-    PlaywrightToken(PlaywrightDriver driver, String playwrightToken, PlaywrightToken parent, boolean first) {
-        this.driver = driver;
-        this.playwrightToken = playwrightToken;
-        this.parent = parent;
-        this.first = first;
-    }
-
-    PlaywrightToken(PlaywrightDriver driver, String playwrightToken, PlaywrightToken parent) {
-        this(driver, playwrightToken, parent, false);
+    PlaywrightToken(Locator root) {
+        this.locator = Objects.requireNonNull(root);
     }
 
     public String getPlaywrightToken() {
-        return playwrightToken;
-    }
-
-    public PlaywrightToken getParent() {
-        return parent;
-    }
-
-    public PlaywrightToken first() {
-        return new PlaywrightToken(driver, playwrightToken, parent, true);
-    }
-
-    public boolean isFirst() {
-        return first;
+        return locator.toString();
     }
 
     public String toString() {
-        return playwrightToken;
+        return locator.toString();
     }
 
-    public static PlaywrightToken root(PlaywrightDriver driver, String token) {
-        return new PlaywrightToken(driver, KarateTokenParser.toPlaywrightToken(token), null);
+    public static PlaywrightToken root(FrameTrait root, String token) {
+        return of(root.locator(KarateTokenParser.toPlaywrightToken(token)));
+    }
+
+    public static PlaywrightToken of(Locator locator) {
+        return new PlaywrightToken(locator);
     }
 
     public PlaywrightToken child(String karateToken) {
         String newToken = KarateTokenParser.toPlaywrightToken(karateToken);
-        return new PlaywrightToken(driver, newToken, this);
+        return new PlaywrightToken(resolveLocator().locator(newToken));
     }
 
     public PlaywrightToken friendlyLocator(String type, String token) {
         // friendly is registered as a customer selector in PlaywrightDriver
-        return new PlaywrightToken(driver, "friendly=" + type.replace("-of", "") + ":" + KarateTokenParser.toPlaywrightToken(token), this);
+        return new PlaywrightToken(resolveLocator().locator("friendly=" + type.replace("-of", "") + ":" + KarateTokenParser.toPlaywrightToken(token)));
         // alternative implementation, using PW's native locators, which unfortunately does not seem to support xpath tokens.
         // Note that it would require KarateTokenParser to use toPplaywrightToken.
         // return new PlaywrightElement(driver, token.wrap(pwLoc -> KarateTokenParser.toPlaywrightToken(tag)+":"+type+"("+ pwLoc+")").first());
 
     }
 
-    // private PlaywrightToken wrap(Function<String, String> playwrightTokenRemapper) {
-    //     return new PlaywrightToken(driver, playwrightTokenRemapper.apply(playwrightToken), parent);
-    // }
-    public Locator toLocator() {
-        Locator locator;
-        if (getParent() == null) {
-            locator = driver.rootLocator(getPlaywrightToken());
-        } else {
-            locator = getParent().toLocator().locator(getPlaywrightToken());
-        }
-        return (isFirst()) ? locator.first() : locator;
+    public Locator resolveLocator() {
+        return locator.first();
     }
 
+    Optional<Element> find(PlaywrightDriver driver) {
+        // Per doc, isVisible does not wait and returns immediately, exactly what we need!    
+        // Also, isPresent implemented using isVisible() seems to be the general view per https://stackoverflow.com/questions/64784781/how-to-check-if-an-element-exists-on-the-page-in-playwright-js
+        // although, if isAttached was available, it probably would have made more sense.            
+        if (locator.count() > 0) {
+            // Make locator the new root. Note that any Element located is unambigously "resolved" by using the first locator.
+            return Optional.of(new PlaywrightElement(driver, of(locator), true));
+        }
+        return Optional.empty();    
+    }
+
+    List<Element> findAll(PlaywrightDriver driver) {
+        List<Locator> locators = locator.all();
+        List<Element> elements = new ArrayList<>(locators.size());
+        for (Locator locator: locators) {
+            elements.add(new PlaywrightElement(driver, of(locator), true));
+        }
+        return elements;        
+    }
+
+    /**
+     * Returns an Element, which may exist or not.
+     *
+     * If it does not exist, next call to click, text, or any action or state method, will fail.
+     * {@link Element#isPresent()}, however, will never fail and may be used to check the existence of the element. 
+     * @param driver
+     * @return
+     */
+    PlaywrightElement create(PlaywrightDriver driver) {
+        return new PlaywrightElement(driver, of(locator));
+    }
 }

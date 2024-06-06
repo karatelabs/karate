@@ -30,49 +30,83 @@
         <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
-            <version>2.13.9</version>
+            <version>2.13.13</version>
         </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit5.version}</version>
+			<scope>test</scope>
+        </dependency>
+				
+				
     </dependencies>
 
     <build>
-        <sourceDirectory>src/main/scala</sourceDirectory>
-        <!-- <testSourceDirectory>src/test/scala</testSourceDirectory> -->
-        <testResources>
+
+      <testResources>
             <testResource>
                 <directory>src/test/resources</directory>
             </testResource>
             <testResource>
-                <directory>src/test/scala</directory>
+                <directory>src/test/java</directory>
                 <excludes>
                     <exclude>**/*.java</exclude>
-                    <exclude>**/*.scala</exclude>
                 </excludes>
             </testResource>
-        </testResources>        
+        </testResources>
+
+
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-compile</id>
+                        <!-- Disable java compiler since Zinc will compile both scala and java sources -->
+                        <phase>none</phase>
+                    </execution>
+                    <execution>
+                        <id>default-testCompile</id>
+                        <!-- Disable java compiler since Zinc will compile both scala and java sources -->
+                        <phase>none</phase>
+                    </execution>
+                </executions>    
+            </plugin>
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
                 <version>4.8.1</version>
+                    <configuration>
+                        <args>
+                            <arg>-Jbackend:GenBCode</arg>
+                            <arg>-Jdelambdafy:method</arg>
+                            <arg>-release:11</arg>
+                            <arg>-deprecation</arg>
+                            <arg>-feature</arg>
+                            <arg>-unchecked</arg>
+                            <arg>-language:implicitConversions</arg>
+                            <arg>-language:postfixOps</arg>
+                        </args>
+                    </configuration>                    
                 <executions>
                     <execution>
-                        <goals>
-                            <goal>compile</goal>
-                            <goal>testCompile</goal>
-                        </goals>
-                        <configuration>
-                            <args>
-                                <arg>-Jbackend:GenBCode</arg>
-                                <arg>-Jdelambdafy:method</arg>
-                                <arg>-release:11</arg>
-                                <arg>-deprecation</arg>
-                                <arg>-feature</arg>
-                                <arg>-unchecked</arg>
-                                <arg>-language:implicitConversions</arg>
-                                <arg>-language:postfixOps</arg>
-                            </args>
-                        </configuration>
+						<id>scala-compile</id>
+						<phase>compile</phase>
+						<goals>
+							<goal>add-source</goal>
+							<goal>compile</goal>
+						</goals>
                     </execution>
+					<execution>
+						<id>scala-test-compile</id>
+						<phase>test-compile</phase>
+						<goals>                        
+							<goal>add-source</goal>
+							<goal>testCompile</goal>
+						</goals>
+					</execution>                    
                 </executions>
             </plugin>
             <plugin>
@@ -92,6 +126,35 @@
                         </goals>
                     </execution>
                 </executions>                
+            </plugin>
+            <!-- next 2 are purely for the release profile -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>${maven.javadoc.version}</version>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <executions>
+                    <execution>
+                        <id>jar-javadoc</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <configuration>
+                            <classifier>javadoc</classifier>
+                            <includes>
+                                <include>dummy.txt</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

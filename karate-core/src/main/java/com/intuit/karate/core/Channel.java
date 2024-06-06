@@ -23,18 +23,13 @@
  */
 package com.intuit.karate.core;
 
-import java.util.Map;
-
 /**
- *
  * @author peter
  */
 public interface Channel {
-    
-    void produce(ScenarioRuntime runtime);
-    
-    ChannelSession consume(ScenarioRuntime runtime);
-    
-    void register(ScenarioRuntime runtime, Map<String, Object> data);
-    
+
+    Object init(ScenarioRuntime runtime);
+
+    void afterScenario();
+
 }

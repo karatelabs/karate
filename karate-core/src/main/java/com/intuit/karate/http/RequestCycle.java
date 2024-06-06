@@ -31,7 +31,7 @@ import java.io.InputStream;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +66,7 @@ public class RequestCycle {
     private final Response response;
     private final ServerContext context;
     private final ServerConfig config;
-    private final Supplier<Response> customHandler;
+    private final Function<ServerContext, Boolean> requestValidator;
 
     private String switchTemplate;
     private Map<String, Object> switchParams;
@@ -74,9 +74,9 @@ public class RequestCycle {
     private RequestCycle(JsEngine engine, KarateTemplateEngine templateEngine, ServerContext context) {
         this.engine = engine;
         this.templateEngine = templateEngine;
+        this.requestValidator = context.getRequestValidator();
         this.context = context;
         config = context.getConfig();
-        customHandler = context.getCustomHandler();
         Session session = context.getSession();
         if (session != null && !session.isTemporary()) {
             engine.put(SESSION, session.getData());
@@ -122,6 +122,7 @@ public class RequestCycle {
             if (context.isClosed()) {
                 // note that session cookie is deleted in response-builder
                 context.getConfig().getSessionStore().delete(session.getId());
+                session.getData().clear();
                 logger.debug("session deleted: {}", session.getId());
             } else {
                 JsValue sessionValue = engine.get(SESSION);
@@ -169,9 +170,15 @@ public class RequestCycle {
 
     protected Response handle() {
         try {
-            if (customHandler != null) {
-                return customHandler.get();
-            } else if (context.isApi()) {
+            if (requestValidator != null) {
+                Boolean valid = requestValidator.apply(context);
+                if (valid == null || !valid) {
+                    logger.error("unauthorized request: {}", request);
+                    response.setStatus(401); // just for logging in finally block
+                    return response().buildWithStatus(401);
+                }
+            }
+            if (context.isApi()) {
                 InputStream is = apiResource();
                 if (context.isLockNeeded()) {
                     synchronized (config) {
@@ -186,7 +193,7 @@ public class RequestCycle {
             }
         } catch (Exception e) {
             logger.error("handle failed: {}", e.getMessage());
-            response.setStatus(500); // just for logging below
+            response.setStatus(500); // just for logging in finally block
             return response().buildWithStatus(500);
         } finally {
             close();

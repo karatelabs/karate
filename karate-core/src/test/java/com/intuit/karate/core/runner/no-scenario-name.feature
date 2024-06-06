@@ -10,11 +10,11 @@ Scenario:
 
 Scenario Outline:
 
-* assert <val> != 3
+* assert val != 3
 
 Examples:
-| val |
-| 1   |
-| 2   |
-| 3   |
+| val! |
+| 1    |
+| 2    |
+| 3    |
 

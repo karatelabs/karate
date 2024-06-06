@@ -4,9 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: version
         required: true
         default: 'X.X.X.RCX'
+      docker:
+        required: true
+        type: choice
+        options:
+        - 'enabled'
+        - 'disabled'
 
 jobs:
   build:
@@ -16,7 +21,7 @@ jobs:
     - name: git checkout
       uses: actions/checkout@v4
     - name: set up jdk 17
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         distribution: adopt
         java-version: 17
@@ -29,22 +34,25 @@ jobs:
       run: |
         mvn versions:set versions:commit -B -ntp -DnewVersion=${{ github.event.inputs.version }}
     - name: docker build
+      if: ( github.event.inputs.docker == 'enabled' )
       run: |
         mvn clean install -B -ntp -DskipTests -P pre-release
         ./build-docker.sh
     - name: docker login
-      uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d
+      if: ( github.event.inputs.docker == 'enabled' )
+      uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
     - name: docker push
+      if: ( github.event.inputs.docker == 'enabled' )
       run: |
         docker buildx build --push --platform linux/amd64 --cache-from=type=local,src=./target/docker -t karate-chrome -t karatelabs/karate-chrome:latest -t karatelabs/karate-chrome:${{ github.event.inputs.version }} karate-docker/karate-chrome
         docker buildx build --push --platform linux/amd64,linux/arm64 --cache-from=type=local,src=./target/docker -t karate-chromium -t karatelabs/karate-chromium:latest -t karatelabs/karate-chromium:${{ github.event.inputs.version }} karate-docker/karate-chromium
     - name: maven deploy to central
       env:
-        MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-        MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+        MAVEN_USERNAME: ${{ secrets.OSSRH_TOKEN_USER }}
+        MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
         MAVEN_GPG_PASSPHRASE: ${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }}
       run: |
         mvn -B -ntp deploy -DskipTests -P pre-release,release
@@ -53,7 +61,7 @@ jobs:
         mvn package -DskipTests -P fatjar -f karate-core/pom.xml
         mvn package -DskipTests -P fatjar -f karate-robot/pom.xml
     - name: upload binaries
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with: 
         name: karate-release-${{ github.event.inputs.version }}
         retention-days: 5 

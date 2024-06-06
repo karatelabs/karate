@@ -24,14 +24,13 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.AssignType;
-import com.intuit.karate.core.Action;
 import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.core.When;
+
 import java.util.List;
 import java.util.Map;
 
 /**
- *
  * @author pthomas3
  */
 public class ScenarioActions implements Actions {
@@ -416,46 +415,4 @@ public class ScenarioActions implements Actions {
         engine.robot(exp);
     }
 
-    @Override
-    @When("^produce (.+)")
-    public void produce(String type) {
-        engine.produce(type);
-    }
-
-    @Override
-    @When("^register (.+)")
-    public void register(String exp) {
-        engine.register(exp);
-    }
-
-    @Override
-    @When("^schema (.+)")
-    public void schema(String exp) {
-        engine.schema(exp);
-    }   
-    
-    @Override
-    @When("^topic (.+)")
-    public void topic(String exp) {
-        engine.topic(exp);
-    } 
-
-    @Override
-    @When("^key (.+)")
-    public void key(String exp) {
-        engine.key(exp);
-    }
-
-    @Override
-    @When("^value (.+)")
-    public void value(String exp) {
-        engine.value(exp);
-    }   
-    
-    @Override
-    @When("^value$")
-    public void valueDocString(String exp) {
-        engine.value(exp);
-    }    
-    
 }

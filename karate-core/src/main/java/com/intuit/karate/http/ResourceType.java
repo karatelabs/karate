@@ -38,6 +38,7 @@ public enum ResourceType {
     JS("text/javascript", vals("javascript"), vals("js")),
     JSON("application/json", vals("json"), vals("json")),
     CSS("text/css", vals("css"), vals("css")),
+    MAP("application/json", vals(), vals("map")),
     ICO("image/x-icon", vals("x-icon"), vals("ico")),
     PNG("image/png", vals("png"), vals("png")),
     GIF("image/gif", vals("gif"), vals("gif")),

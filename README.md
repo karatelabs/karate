@@ -47,8 +47,8 @@
   </a>
 </div>
 <div>
-  <a href="https://central.sonatype.com/namespace/com.intuit.karate">
-    <img src="https://img.shields.io/maven-central/v/com.intuit.karate/karate-core.svg"/>
+  <a href="https://central.sonatype.com/namespace/io.karatelabs">
+    <img src="https://img.shields.io/maven-central/v/io.karatelabs/karate-core.svg"/>
   </a>
   <a href="https://github.com/karatelabs/karate/actions?query=workflow%3Amaven-build">
     <img src="https://github.com/karatelabs/karate/actions/workflows/maven-build.yml/badge.svg?branch=develop"/>
@@ -1789,6 +1789,8 @@ This can be easily solved by using `java.math.BigDecimal`:
 * string json = { num: '#(big)' }
 * match json == '{"num":123123123123}'
 ```
+
+For more tips, refer [here](https://stackoverflow.com/a/77576066/143475).
 
 ## `doc`
 Karate has a built-in HTML templating engine that can be used to insert additional custom HTML into the test-reports. Here is an [example](karate-core/src/test/java/com/intuit/karate/core/users-doc.feature):

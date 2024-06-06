@@ -25,7 +25,6 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.LogAppender;
 import com.intuit.karate.Match;
 import com.intuit.karate.core.Variable;
 import com.intuit.karate.graal.JsArray;
@@ -37,6 +36,7 @@ import com.intuit.karate.template.KarateEngineContext;
 import com.intuit.karate.template.TemplateUtils;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
+import java.io.File;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -50,6 +50,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
 import org.slf4j.Logger;
@@ -96,12 +97,15 @@ public class ServerContext implements ProxyObject {
     private static final String TEMPLATE = "template";
     private static final String TYPE_OF = "typeOf";
     private static final String IS_PRIMITIVE = "isPrimitive";
+    private static final String IS_JSON = "isJson";
     private static final String MATCH = "match";
+    private static final String JOIN_PATHS = "joinPaths";
+    private static final String FLASH = "flash";
 
     private static final String[] KEYS = new String[]{
         READ, RESOLVER, READ_AS_STRING, EVAL, EVAL_WITH, GET, SET, LOG, UUID, REMOVE, REDIRECT, SWITCH, SWITCHED, AJAX, HTTP, NEXT_ID, SESSION_ID,
-        INIT, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_STRING, TO_JSON, TO_JS, TO_JSON_PRETTY, FROM_JSON, 
-        CALLER, TEMPLATE, TYPE_OF, IS_PRIMITIVE, MATCH};
+        INIT, CLOSE, CLOSED, RENDER, BODY_APPEND, COPY, DELAY, TO_STRING, TO_JSON, TO_JS, TO_JSON_PRETTY, FROM_JSON,
+        CALLER, TEMPLATE, TYPE_OF, IS_PRIMITIVE, IS_JSON, MATCH, JOIN_PATHS, FLASH};
     private static final Set<String> KEY_SET = new HashSet(Arrays.asList(KEYS));
     private static final JsArray KEY_ARRAY = new JsArray(KEYS);
 
@@ -116,18 +120,17 @@ public class ServerContext implements ProxyObject {
     private Session session; // can be pre-resolved, else will be set by RequestCycle.init()
     private boolean switched;
     private boolean closed;
-    private Supplier<Response> customHandler;
     private int nextId;
 
     private final Map<String, Object> variables;
+    private Object flash;
     private String redirectPath;
     private List<String> bodyAppends;
-    private LogAppender logAppender;
-    private RequestCycle mockRequestCycle;
+    private Function<ServerContext, Boolean> requestValidator;
 
     public ServerContext(ServerConfig config, Request request) {
         this(config, request, null);
-    }        
+    }
 
     public ServerContext(ServerConfig config, Request request, Map<String, Object> variables) {
         this.config = config;
@@ -226,7 +229,7 @@ public class ServerContext implements ProxyObject {
             int pos = path.lastIndexOf('/');
             if (pos != -1) {
                 resource = path.substring(0, pos) + resource;
-            }            
+            }
         }
         InputStream is = config.getResourceResolver().resolve(resource).getStream();
         return FileUtils.toString(is);
@@ -241,7 +244,7 @@ public class ServerContext implements ProxyObject {
             return JsValue.fromJava(JsonUtils.fromString(raw, false, resourceType));
         }
     }
-    
+
     private JsEngine getEngine() {
         KarateEngineContext kec = KarateEngineContext.get();
         return kec == null ? RequestCycle.get().getEngine() : kec.getJsEngine();
@@ -260,7 +263,7 @@ public class ServerContext implements ProxyObject {
         Value value = Value.asValue(o);
         return new JsValue(value).toJsonOrXmlString(false);
     }
-    
+
     public Object toJs(Object o) {
         return JsValue.fromJava(o);
     }
@@ -342,21 +345,13 @@ public class ServerContext implements ProxyObject {
         this.httpGetAllowed = httpGetAllowed;
     }
 
-    public Supplier<Response> getCustomHandler() {
-        return customHandler;
+    public void setRequestValidator(Function<ServerContext, Boolean> requestValidator) {
+        this.requestValidator = requestValidator;
     }
 
-    public void setCustomHandler(Supplier<Response> customHandler) {
-        this.customHandler = customHandler;
-    }
-
-    public void setMockRequestCycle(RequestCycle mockRequestCycle) {
-        this.mockRequestCycle = mockRequestCycle;
-    }
-
-    public RequestCycle getMockRequestCycle() {
-        return mockRequestCycle;
-    }
+    public Function<ServerContext, Boolean> getRequestValidator() {
+        return requestValidator;
+    }    
 
     public boolean isSwitched() {
         return switched;
@@ -377,20 +372,9 @@ public class ServerContext implements ProxyObject {
         bodyAppends.add(body);
     }
 
-    public LogAppender getLogAppender() {
-        return logAppender;
-    }
-
-    public void setLogAppender(LogAppender logAppender) {
-        this.logAppender = logAppender;
-    }
-
     public void log(Object... args) {
         String log = new LogWrapper(args).toString();
         logger.info(log);
-        if (logAppender != null) {
-            logAppender.append(log);
-        }
     }
 
     private final Methods.FunVar GET_FUNCTION = args -> {
@@ -419,7 +403,7 @@ public class ServerContext implements ProxyObject {
         getEngine().put(name, value);
         return null;
     }
-    
+
     private static final Supplier<String> UUID_FUNCTION = () -> java.util.UUID.randomUUID().toString();
     private static final Function<String, Object> FROM_JSON_FUNCTION = s -> JsonUtils.fromString(s, false, null);
 
@@ -514,7 +498,9 @@ public class ServerContext implements ProxyObject {
     private final Function<String, Object> TYPE_OF_FUNCTION = o -> new Variable(o).getTypeString();
 
     private final Function<Object, Object> IS_PRIMITIVE_FUNCTION = o -> !new Variable(o).isMapOrList();
-    
+
+    private final Function<Object, Object> IS_JSON_FUNCTION = o -> new Variable(o).isMapOrList();
+
     private final Methods.FunVar MATCH_FUNCTION = args -> {
         if (args.length > 2 && args[0] != null) {
             String type = args[0].toString();
@@ -523,9 +509,14 @@ public class ServerContext implements ProxyObject {
         } else if (args.length == 2) {
             return JsValue.fromJava(Match.execute(getEngine(), Match.Type.EQUALS, args[0], args[1], false));
         } else {
-             logger.warn("at least two arguments needed for match");
-             return null;
+            logger.warn("at least two arguments needed for match");
+            return null;
         }
+    };
+
+    private final Methods.FunVar JOIN_PATHS_FUNCTION = args -> {
+        List<String> temp = Arrays.asList(args).stream().filter(x -> x != null).map(Object::toString).collect(Collectors.toList());
+        return String.join(File.separator, temp);
     };
 
     @Override
@@ -597,8 +588,14 @@ public class ServerContext implements ProxyObject {
                 return TYPE_OF_FUNCTION;
             case IS_PRIMITIVE:
                 return IS_PRIMITIVE_FUNCTION;
+            case IS_JSON:
+                return IS_JSON_FUNCTION;
             case MATCH:
                 return MATCH_FUNCTION;
+            case JOIN_PATHS:
+                return JOIN_PATHS_FUNCTION;
+            case FLASH:
+                return flash;
             default:
                 logger.warn("no such property on context object: {}", key);
                 return null;
@@ -617,7 +614,13 @@ public class ServerContext implements ProxyObject {
 
     @Override
     public void putMember(String key, Value value) {
-        logger.warn("put not supported on context object: {} - {}", key, value);
+        switch (key) {
+            case FLASH:
+                flash = JsValue.toJava(value);
+                break;
+            default:
+                logger.warn("put not supported on context object: {} - {}", key, value);
+        }
     }
 
     static class LogWrapper { // TODO code duplication with ScenarioBridge

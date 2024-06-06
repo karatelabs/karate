@@ -68,10 +68,7 @@ public class KaScriptAttrProcessor extends AbstractAttributeTagProcessor {
             if (noCache != null) {
                 try {
                     Resource resource = resourceResolver.resolve(src);
-                    if (resource.isFile()) {
-                        File file = resource.getFile();
-                        src = src + "?ts=" + file.lastModified();
-                    }
+                    src = src + "?ts=" + resource.getLastModified();
                 } catch (Exception e) {
                     logger.warn("nocache failed: {}", e.getMessage());
                 }

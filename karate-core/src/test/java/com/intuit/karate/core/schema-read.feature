@@ -1,8 +1,9 @@
 Feature:
 
-Scenario:
-* def schema = "#[] read('schema-read.json')"
-* print schema
-* match [{ foo: 'bar', items: [{ a: 1 }] }] == schema
-* configure matchEachEmptyAllowed = true
-* match [{ foo: 'bar', items: [] }] == schema
+  Scenario:
+    * def schema = "#[] read('schema-read.json')"
+    * def response = [{ foo: 'bar', items: [{ a: 1 }] }]
+    * match response == schema
+    * configure matchEachEmptyAllowed = true
+    * def response = [{ foo: 'bar', items: [] }]
+    * match response == schema

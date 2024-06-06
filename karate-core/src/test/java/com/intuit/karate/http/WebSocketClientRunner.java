@@ -15,7 +15,7 @@ class WebSocketClientRunner {
 
     @Test
     void testWebSockets() throws Exception {
-        String url = "ws://echo.websocket.org";
+        String url = "wss://ws.postman-echo.com/raw";
         WebSocketOptions options = new WebSocketOptions(url);
         options.setTextConsumer(text -> {
             synchronized (this) {

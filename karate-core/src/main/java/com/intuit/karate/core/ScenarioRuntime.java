@@ -161,7 +161,7 @@ public class ScenarioRuntime implements Runnable {
         return scenario.getUniqueId() + "_" + System.currentTimeMillis() + (extension == null ? "" : "." + extension);
     }
 
-    public Embed saveToFileAndCreateEmbed(byte[] bytes, ResourceType resourceType) {
+    private Embed saveToFileAndCreateEmbed(byte[] bytes, ResourceType resourceType) {
         File file = new File(featureRuntime.suite.reportDir + File.separator + getEmbedFileName(resourceType));
         FileUtils.writeToFile(file, bytes);
         return new Embed(file, resourceType);
@@ -331,14 +331,14 @@ public class ScenarioRuntime implements Runnable {
             return false;
         }
         String callTag = fr.featureCall.callTag;
-        if (callTag != null && (!fr.caller.isNone() || fr.perfHook != null)) {
-            // only if this is a legit "call" or a gatling "call by tag"
+        if (callTag != null) {
             if (tags.contains(callTag)) {
                 logger.info("{} - call by tag at line {}: {}", fr, scenario.getLine(), callTag);
                 return true;
+            } else {
+                logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
+                return false;
             }
-            logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
-            return false;
         }
         if (fr.caller.isNone()) {
             if (tags.evaluate(fr.suite.tagSelector, fr.suite.env)) {
@@ -442,7 +442,7 @@ public class ScenarioRuntime implements Runnable {
             } else {
                 stepResult = Result.skipped(System.currentTimeMillis());
             }
-        } else if (dryRun) {
+        } else if (dryRun && !step.isSetup()) {
             stepResult = Result.passed(System.currentTimeMillis(), 0);
         } else {
             stepResult = StepRuntime.execute(step, actions);
@@ -464,6 +464,12 @@ public class ScenarioRuntime implements Runnable {
                 error = stepResult.getError();
                 logError(error.getMessage());
             }
+            if (engine.driver != null) {
+                engine.driver.onFailure(currentStepResult);
+            }
+            if (engine.robot != null) {
+                engine.robot.onFailure(currentStepResult);
+            }
         } else {
             boolean hidden = reportDisabled || (step.isPrefixStar() && !step.isPrint() && !engine.getConfig().isShowAllSteps());
             currentStepResult.setHidden(hidden);
@@ -481,14 +487,6 @@ public class ScenarioRuntime implements Runnable {
                 // stop execution
                 // keep failed reason for scenario as the last failed step that was ignored
                 stopped = true;
-            }
-        }
-        if (stepResult.isFailed()) {
-            if (engine.driver != null) {
-                engine.driver.onFailure(currentStepResult);
-            }
-            if (engine.robot != null) {
-                engine.robot.onFailure(currentStepResult);
             }
         }
         if (executed && !dryRun) {

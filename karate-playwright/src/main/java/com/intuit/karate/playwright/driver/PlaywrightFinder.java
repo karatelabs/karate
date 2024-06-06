@@ -67,7 +67,7 @@ public class PlaywrightFinder implements Finder {
 
     @Override
     public Element clear() {
-        return new PlaywrightElement(driver, token).clear();
+        return token.create(driver).clear();
     }
 
     @Override
@@ -77,7 +77,7 @@ public class PlaywrightFinder implements Finder {
 
     @Override
     public Element find(String tag) {
-        return new PlaywrightElement(driver, token.friendlyLocator(type, tag));
+        return token.friendlyLocator(type, tag).create(driver);
     }
 
     @Override
@@ -97,9 +97,8 @@ public class PlaywrightFinder implements Finder {
 
     @Override
     public Element retry(Integer count, Integer interval) {
-        PlaywrightElement element = new PlaywrightElement(driver, token);
-        PlaywrightDriverOptions options = driver.options;
-        return (Element) Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[]{Element.class}, InvocationHandlers.retryHandler(element, count == null ? options.getRetryCount() : count, interval == null ? options.getRetryInterval() : interval, options.driverLogger, driver));
+        PlaywrightElement element = token.create(driver);
+        return (Element) Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[]{Element.class}, InvocationHandlers.retryHandler(element, count, interval, driver.options));
     }
 
 }

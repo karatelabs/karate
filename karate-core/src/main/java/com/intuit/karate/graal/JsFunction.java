@@ -99,7 +99,7 @@ public abstract class JsFunction implements ProxyObject {
             Object[] newArgs = new Object[args.length];
             for (int i = 0; i < newArgs.length; i++) {
                 newArgs[i] = JsValue.fromJava(args[i]);
-            }            
+            }
             Value attached = je.evalForValue(source);
             return new JsValue(attached.execute(newArgs)).value;
         }
@@ -138,7 +138,13 @@ public abstract class JsFunction implements ProxyObject {
             for (int i = 0; i < newArgs.length; i++) {
                 newArgs[i] = JsValue.fromJava(args[i]);
             }
-            return new JsValue(value.execute(newArgs)).value;
+            JsEngine je = ScenarioEngine.get().getJsEngine();
+            Value wrappedWithParentheses = je.evalForValue(
+                    "("
+                    + value.getSourceLocation().getCharacters()
+                    + ")"); // Evaluate '(function)' to get function value
+            // execute the function with arguments
+            return new JsValue(wrappedWithParentheses.execute(newArgs)).value;
         }
 
     }

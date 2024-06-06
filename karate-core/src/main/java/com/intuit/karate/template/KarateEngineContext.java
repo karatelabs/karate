@@ -94,7 +94,8 @@ public class KarateEngineContext implements IEngineContext {
     }
 
     public String getTemplateName() {
-        return wrapped.getTemplateData().getTemplate();
+        String name = wrapped.getTemplateData().getTemplate();
+        return name.startsWith("/") ? name.substring(1) : name;
     }
 
     public void setRedirect(boolean redirect) {

@@ -72,13 +72,7 @@ public class XmlUtils {
     }
 
     public static String toString(Node node, boolean pretty) {
-        Node nodeToSerialize = node;
-        // In case of pretty string, we clone the node so that we don't modify the original node while trimming whitespaces
-        if (pretty) {
-            nodeToSerialize = node.cloneNode(true);
-            trimWhiteSpace(nodeToSerialize);
-        }
-        DOMSource domSource = new DOMSource(nodeToSerialize);
+        DOMSource domSource = new DOMSource(node);
         StringWriter writer = new StringWriter();
         StreamResult result = new StreamResult(writer);
         TransformerFactory tf = TransformerFactory.newInstance();
@@ -95,18 +89,6 @@ public class XmlUtils {
             return writer.toString();
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    public static void trimWhiteSpace(Node node) {
-        NodeList children = node.getChildNodes();
-        int count = children.getLength();
-        for (int i = 0; i < count; ++i) {
-            Node child = children.item(i);
-            if (child.getNodeType() == Node.TEXT_NODE) {
-                child.setTextContent(child.getTextContent() == null ? "" : child.getTextContent().trim());
-            }
-            trimWhiteSpace(child);
         }
     }
 
@@ -129,6 +111,7 @@ public class XmlUtils {
     public static Document toXmlDoc(String xml, boolean namespaceAware) {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         factory.setNamespaceAware(namespaceAware);
+        factory.setIgnoringElementContentWhitespace(false);
         try {
             DocumentBuilder builder = factory.newDocumentBuilder();
             DtdEntityResolver dtdEntityResolver = new DtdEntityResolver();
@@ -312,7 +295,9 @@ public class XmlUtils {
     private static Object getElementAsObject(Node node, boolean removeNamespace) {
         int childElementCount = getChildElementCount(node);
         if (childElementCount == 0) {
-            return StringUtils.trimToNull(node.getTextContent());
+            String textContent = node.getTextContent();
+            return StringUtils.isBlank(textContent) ? null:
+                textContent;
         }
         Map<String, Object> map = new LinkedHashMap<>(childElementCount);
         NodeList nodes = node.getChildNodes();

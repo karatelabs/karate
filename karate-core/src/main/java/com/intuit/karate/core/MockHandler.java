@@ -77,20 +77,23 @@ public class MockHandler implements ServerHandler {
     protected static final ThreadLocal<Request> LOCAL_REQUEST = new ThreadLocal<>();
     private final String prefix;
 
+    private final MockInterceptor mockInterceptor;
+
     public MockHandler(Feature feature) {
         this(feature, null);
     }
 
     public MockHandler(Feature feature, Map<String, Object> args) {
-        this(null, Collections.singletonList(feature), args);
+        this(null, Collections.singletonList(feature), args, null);
     }
 
     public MockHandler(List<Feature> features) {
-        this(null, features, null);
+        this(null, features, null, null);
     }
 
-    public MockHandler(String prefix, List<Feature> features, Map<String, Object> args) {
+    public MockHandler(String prefix, List<Feature> features, Map<String, Object> args, MockInterceptor interceptor) {
         this.prefix = "/".equals(prefix) ? null : prefix;
+        this.mockInterceptor = interceptor;
         features.forEach(feature -> {
             ScenarioRuntime runtime = initRuntime(feature, args);
             corsEnabled = corsEnabled || runtime.engine.getConfig().isCorsEnabled();
@@ -116,7 +119,8 @@ public class MockHandler implements ServerHandler {
         section.setIndex(-1); // TODO util for creating dummy scenario
         Scenario dummy = new Scenario(feature, section, -1);
         section.setScenario(dummy);
-        ScenarioRuntime runtime = new ScenarioRuntime(featureRuntime, dummy);        
+        ScenarioRuntime runtime = new ScenarioRuntime(featureRuntime, dummy);
+        runtime.logger.setLogOnly(true);
         runtime.engine.setVariable(PATH_MATCHES, (Function<String, Boolean>) this::pathMatches);
         runtime.engine.setVariable(PARAM_EXISTS, (Function<String, Boolean>) this::paramExists);
         runtime.engine.setVariable(PARAM_VALUE, (Function<String, String>) this::paramValue);
@@ -224,6 +228,9 @@ public class MockHandler implements ServerHandler {
                     }
                     if (prevEngine != null) {
                         ScenarioEngine.set(prevEngine);
+                    }
+                    if (mockInterceptor != null) {
+                        mockInterceptor.intercept(req, res, scenario);
                     }
                     return res;
                 }

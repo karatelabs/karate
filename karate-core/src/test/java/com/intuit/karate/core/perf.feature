@@ -9,7 +9,7 @@ Scenario:
 * param foo = bar
 * method get
 * status 200
-* match response == { foo: [#(bar)] }
+* match response == { foo: ['#(bar)'] }
 
 @name=failStatus
 Scenario:

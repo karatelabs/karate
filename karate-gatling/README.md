@@ -9,6 +9,7 @@
   <td>
       <a href="#maven">Maven</a>
     | <a href="#gradle">Gradle</a>
+    | <a href="#java-dsl">Java DSL</a>
     | <a href="#logging">Logging</a>
     | <a href="#limitations">Limitations</a>
     | <a href="#usage">Usage</a>    
@@ -55,8 +56,7 @@
 * Option to scale out by [distributing a test](#distributed-testing) over multiple hardware nodes or Docker containers
 
 ## Demo Video
-Refer: https://twitter.com/ptrthomas/status/986463717465391104
-
+Refer to this [webinar recording](https://www.youtube.com/watch?v=WT4gg7Jutzg&t=714s).
 
 ### Maven
 
@@ -193,9 +193,49 @@ Once you have your performance tests working, you may want to tune the logging c
 
 Also note that the [`logback-test.xml`](../examples/gatling/src/test/java/logback-test.xml) in the examples project uses [`<immediateFlush>false</immediateFlush>`](http://logback.qos.ch/manual/appenders.html#OutputStreamAppender).
 
+## Java DSL
+The Gatling project now gives you the option to script performance tests in [Java instead of Scala](https://gatling.io/2021/11/gatling-3-7-java-dsl-kotlin-and-much-more/). This was [recently added to Karate](https://github.com/karatelabs/karate/pull/2434) as well, so please look at [this example](src/test/java/mock/CatsSimulation.java) until the documentation is updated.
+
 ## Usage
 
-Let's look at an [example](src/test/scala/mock/CatsSimulation.scala):
+Let's look at an [example](src/test/java/mock/CatsSimulation.java):
+
+```java
+package mock;
+
+import com.intuit.karate.gatling.javaapi.KarateProtocolBuilder;
+
+import io.gatling.javaapi.core.ScenarioBuilder;
+import io.gatling.javaapi.core.Simulation;
+
+import static io.gatling.javaapi.core.CoreDsl.*;
+import static com.intuit.karate.gatling.javaapi.KarateDsl.*;
+
+public class CatsSimulation extends Simulation {
+
+  public CatsSimulation() {
+      
+    KarateProtocolBuilder protocol = karateProtocol(
+      uri("/cats/{id}").nil(),
+      uri("/cats").pauseFor(method("get", 15), method("post", 25)
+    ));
+
+    protocol.nameResolver = (req, ctx) -> req.getHeader("karate-name");
+    protocol.runner.karateEnv("perf");
+
+    ScenarioBuilder create = scenario("create").exec(karateFeature("classpath:mock/cats-create.feature"));
+
+    ScenarioBuilder delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature@name=delete"));
+
+    setUp(
+      create.injectOpen(rampUsers(10).during(5)).protocols(protocol),
+      delete.injectOpen(rampUsers(5).during(5)).protocols(protocol)
+    );
+  }
+}
+```
+
+or using the [Scala api](src/test/scala/mock/CatsSimulation.scala):
 
 ```scala
 package mock
@@ -300,6 +340,9 @@ And to run scenarios tagged `foo` AND `bar`
 ```scala
   val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature", "@foo", "@bar"))
 ```
+
+#### Silent execution
+It is possible to set a `karateFeature()` to be silent, this allows the request executions to not be counter towards the gatling statistics, this is specially useful if you are planning to execute a warm-up process that could call the possible flows before the performance test starts, making sure all the flows will be compiled on the server before counting statistics like request time.
 
 ### Karate Variables
 On the Scala side, after a `scenario` involving a [`karateFeature()`](#karatefeature) completes, the Karate variables that were part of the feature will be added to the [Gatling session](#gatling-session).

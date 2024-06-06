@@ -15,12 +15,12 @@ jobs:
       uses: oracle-actions/setup-java@v1
       with:
         website: jdk.java.net
-        release: 21
+        release: 23
     - name: cache maven packages
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.m2/repository
         key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-maven-
     - name: build with maven
-      run: mvn -B clean install -P pre-release -pl '!karate-gatling' -Djavacpp.platform=linux-x86_64
+      run: mvn -B clean install -P pre-release -Djavacpp.platform=linux-x86_64

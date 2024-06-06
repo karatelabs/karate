@@ -34,10 +34,11 @@ import com.intuit.karate.driver.DriverRunner;
 import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.report.SuiteReports;
 import com.intuit.karate.resource.ResourceUtils;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -94,7 +95,7 @@ public class Runner {
         File workingDir;
         String buildDir;
         String configDir;
-        int threadCount = 1;
+        int threadCount;
         int timeoutMinutes;
         String reportDir;
         String scenarioName;
@@ -112,6 +113,7 @@ public class Runner {
         boolean outputCucumberJson;
         boolean dryRun;
         boolean debugMode;
+        boolean failWhenNoScenariosFound;
         Map<String, String> systemProperties;
         Map<String, Object> callSingleCache;
         Map<String, ScenarioCall.Result> callOnceCache;
@@ -145,6 +147,7 @@ public class Runner {
             b.outputCucumberJson = outputCucumberJson;
             b.dryRun = dryRun;
             b.debugMode = debugMode;
+            b.failWhenNoScenariosFound = failWhenNoScenariosFound;
             b.systemProperties = systemProperties;
             b.callSingleCache = callSingleCache;
             b.callOnceCache = callOnceCache;
@@ -163,9 +166,7 @@ public class Runner {
             if (systemProperties == null) {
                 systemProperties = new HashMap(System.getProperties());
             } else {
-                Map temp = new HashMap(System.getProperties());
-                temp.putAll(systemProperties); // make sure user-specified takes precedence
-                systemProperties = temp;
+                systemProperties.putAll(new HashMap(System.getProperties()));
             }
             // env
             String tempOptions = StringUtils.trimToNull(systemProperties.get(Constants.KARATE_OPTIONS));
@@ -178,7 +179,7 @@ public class Runner {
                 if (ko.paths != null) {
                     paths = ko.paths;
                 }
-                if (ko.threads != threadCount) { // 1 by default
+                if (ko.threads != 0) {
                     threadCount = ko.threads;
                 }
                 dryRun = ko.dryRun || dryRun;
@@ -318,25 +319,6 @@ public class Runner {
             return (T) this;
         }
 
-        /**
-         * @see com.intuit.karate.Runner#builder()
-         * @deprecated
-         */
-        @Deprecated
-        public T fromKarateAnnotation(Class<?> clazz) {
-            KarateOptions ko = clazz.getAnnotation(KarateOptions.class);
-            if (ko != null) {
-                LOGGER.warn("the @KarateOptions annotation is deprecated, please use Runner.builder()");
-                if (ko.tags().length > 0) {
-                    tags = Arrays.asList(ko.tags());
-                }
-                if (ko.features().length > 0) {
-                    paths = Arrays.asList(ko.features());
-                }
-            }
-            return relativeTo(clazz);
-        }
-
         public T path(String... value) {
             path(Arrays.asList(value));
             return (T) this;
@@ -457,16 +439,21 @@ public class Runner {
             debugMode = value;
             return (T) this;
         }
+        
+        public T failWhenNoScenariosFound(boolean value) {
+            failWhenNoScenariosFound = value;
+            return (T) this;
+        }
 
         public T callSingleCache(Map<String, Object> value) {
             callSingleCache = value;
             return (T) this;
         }
-        
+
         public T callOnceCache(Map<String, ScenarioCall.Result> value) {
             callOnceCache = value;
             return (T) this;
-        }        
+        }
 
         public T suiteReports(SuiteReports value) {
             suiteReports = value;
@@ -478,8 +465,54 @@ public class Runner {
             return (T) this;
         }
 
+        private Integer getDebugPort() {
+            String debugPortString = StringUtils.trimToNull(System.getProperty(Constants.KARATE_DEBUG_PORT));
+            if (debugPortString == null) {
+                return null;
+            }
+            int debugPort = 0;
+            try {
+                debugPort = Integer.valueOf(debugPortString);
+            } catch (Exception e) {
+                // ignore
+            }
+            return debugPort;
+        }
+
+        private String[] getDebugArgs(int debugPort) {
+            List<String> args = new ArrayList();
+            args.add("-d");
+            args.add(debugPort + "");
+            if (env != null) {
+                args.add("-e");
+                args.add(env);
+            }
+            if (tags != null) {
+                for (String tag : tags) {
+                    args.add("-t");
+                    args.add(tag);
+                }
+            }
+            if (threadCount != 1) {
+                args.add("-T");
+                args.add(threadCount + "");
+            }
+            if (paths != null) {
+                args.addAll(paths);
+            }
+            return args.toArray(new String[]{});
+        }
+
         public Results parallel(int threadCount) {
             threads(threadCount);
+            Integer debugPort = getDebugPort();
+            if (debugPort != null && !debugMode) {
+                String[] args = getDebugArgs(debugPort);
+                if (systemProperties != null) {
+                    systemProperties.forEach((k, v) -> System.setProperty(k, v));
+                }
+                return Main.startDebugServer(args);
+            }
             Suite suite = new Suite(this);
             suite.run();
             return suite.buildResults();

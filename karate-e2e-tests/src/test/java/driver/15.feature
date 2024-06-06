@@ -14,6 +14,8 @@ Scenario:
 
 # get first ul in entire document
 * def first = locate('//ul')
+# validates that operations other than locate also work...
+* match attribute('//ul', 'id') == 'first'
 
 # relative xpath - locate
 * def second = first.locate('./ul/li')
@@ -25,9 +27,15 @@ Scenario:
 * match (seconds[1].text) == 'item 2.2'
 
 # relative xpath - script all
+* match first.locateAll('./li').length == 3
 * def level1 = first.scriptAll('./li', '_.textContent')
 * match level1 == ['item 1', 'item 2', 'item 3']
 
 # relative xpath (any depth) script all
 * def all = first.scriptAll('.//li', '_.textContent')
 * match all == ['item 1', 'item 2', 'item 2.1', 'item 2.2', 'item 3']
+
+* def children = first.children
+* match (children.length) == 4
+* match (children[0].text) == 'item 1'
+* match (children[0].parent).attribute('id') == 'first'

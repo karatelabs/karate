@@ -227,6 +227,10 @@ public class Step {
         return getIndex() == -1;
     }
 
+    public boolean isSetup() {
+        return scenario !=null && scenario.isSetup();
+    }
+
     @Override
     public String toString() {
         String temp = prefix + " " + text;
