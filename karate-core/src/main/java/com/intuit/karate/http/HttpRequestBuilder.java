@@ -94,9 +94,6 @@ public class HttpRequestBuilder implements ProxyObject {
 
     private String url;
     private String method;
-    private String topic;
-    private String key;
-    private String schema;
     private List<String> paths;
     private Map<String, List<String>> params;
     private Map<String, List<String>> headers;
@@ -280,30 +277,6 @@ public class HttpRequestBuilder implements ProxyObject {
 
     public List<String> getPaths() {
         return paths;
-    }
-
-    public void setSchema(String schema) {
-        this.schema = schema;
-    }
-
-    public String getSchema() {
-        return schema;
-    }
-
-    public String getTopic() {
-        return topic;
-    }
-
-    public void setTopic(String topic) {
-        this.topic = topic;
-    }
-
-    public String getKey() {
-        return key;
-    }
-
-    public void setKey(String key) {
-        this.key = key;
     }
 
     public Object getBody() {

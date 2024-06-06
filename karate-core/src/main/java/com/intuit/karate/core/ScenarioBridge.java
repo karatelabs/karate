@@ -23,50 +23,22 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.Json;
-import com.intuit.karate.JsonUtils;
-import com.intuit.karate.KarateException;
-import com.intuit.karate.Logger;
-import com.intuit.karate.Match;
-import com.intuit.karate.MatchStep;
-import com.intuit.karate.PerfContext;
-import com.intuit.karate.StringUtils;
-import com.intuit.karate.XmlUtils;
-import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsFunction;
-import com.intuit.karate.graal.JsLambda;
-import com.intuit.karate.graal.JsList;
-import com.intuit.karate.graal.JsMap;
-import com.intuit.karate.graal.JsValue;
-import com.intuit.karate.http.HttpClient;
-import com.intuit.karate.http.HttpRequest;
-import com.intuit.karate.http.HttpRequestBuilder;
-import com.intuit.karate.http.ResourceType;
-import com.intuit.karate.http.WebSocketClient;
-import com.intuit.karate.http.WebSocketOptions;
+import com.intuit.karate.*;
+import com.intuit.karate.graal.*;
+import com.intuit.karate.http.*;
 import com.intuit.karate.shell.Command;
+import org.graalvm.polyglot.Value;
+
 import java.io.File;
 import java.io.InputStream;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.graalvm.polyglot.Value;
-import org.graalvm.polyglot.proxy.ProxyExecutable;
 
 /**
- *
  * @author pthomas3
  */
 public class ScenarioBridge implements PerfContext {
@@ -276,6 +248,10 @@ public class ScenarioBridge implements PerfContext {
         getEngine().capturePerfEvent(event);
     }
 
+    public Object channel(String type) {
+        return getEngine().channelSession(type);
+    }
+
     public Object compareImage(Object baseline, Object latest, Value... optionsVal) {
         if (optionsVal.length > 0 && !optionsVal[0].hasMembers()) {
             throw new RuntimeException("invalid image comparison options: expected map");
@@ -299,9 +275,10 @@ public class ScenarioBridge implements PerfContext {
     public void configure(String key, Value value) {
         getEngine().configure(key, new Variable(value));
     }
-    
+
     public Object consume(String type) {
-        return getEngine().consume(type);
+        getEngine().logger.warn("karate.consume() is deprecated, use karate.channel() instead");
+        return channel(type);
     }
 
     public Object distinct(Value o) {
@@ -1012,15 +989,15 @@ public class ScenarioBridge implements PerfContext {
 
     public Object toJava(Value value) {
         return new JsValue(value).getValue();
-    }    
+    }
 
     public File toJavaFile(String path) {
         return getEngine().fileReader.toResource(path).getFile();
     }
-    
+
     public Object toJs(Object value) {
         return JsValue.fromJava(value);
-    }    
+    }
 
     public Object toJson(Value value) {
         return toJson(value, false);
@@ -1134,7 +1111,7 @@ public class ScenarioBridge implements PerfContext {
         options.setBinaryHandler(handler);
         return engine.webSocket(options);
     }
-    
+
     public Object wrapFunction(Value value) {
         if (value.isProxyObject()) {
             Object o = value.asProxyObject();
