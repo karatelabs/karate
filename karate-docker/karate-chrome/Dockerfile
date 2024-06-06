@@ -7,8 +7,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     gnupg2
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    chromium
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+  && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
+  && apt-get update && apt-get install -y --no-install-recommends \
+    google-chrome-stable
 
 RUN useradd chrome --shell /bin/bash --create-home \
   && usermod -a -G sudo chrome \
@@ -18,7 +20,7 @@ RUN useradd chrome --shell /bin/bash --create-home \
 RUN apt-get install -y --no-install-recommends \
   xvfb \
   x11vnc \
-  xterm \
+  xterm \    
   fluxbox \
   wmctrl \
   supervisor \
