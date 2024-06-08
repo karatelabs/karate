@@ -26,10 +26,10 @@ docker buildx use multiplatform-builder
 
 # build karate-chrome docker image that includes karate fatjar + maven jars for convenience
 # Only possible for linux/amd64 as chrome not available on linux/arm64
-docker buildx build --platform linux/amd64 --cache-from=type=local,src=./target/docker --cache-to=type=local,dest=./target/docker -t karate-chrome -t karate-chrome:latest karate-docker/karate-chrome
+docker buildx build --platform linux/amd64 --cache-from=type=local,src=./target/docker --cache-to=type=local,dest=./target/docker -t karatelabs/karate-chrome:${{ github.event.inputs.version }} -t karatelabs/karate-chrome:latest karate-docker/karate-chrome
 # build karate-chromium docker image that includes karate fatjar + maven jars for convenience
 # Both platform
-docker buildx build --platform linux/amd64,linux/arm64 --cache-from=type=local,src=./target/docker --cache-to=type=local,dest=./target/docker -t karate-chromium karate-docker/karate-chromium
+docker buildx build --platform linux/amd64,linux/arm64 --cache-from=type=local,src=./target/docker --cache-to=type=local,dest=./target/docker -t karatelabs/karate-chromium:${{ github.event.inputs.version }} -t karatelabs/karate-chromium:latest karate-docker/karate-chromium
 
 # Select image for test depending current OS
 if [[ "$OSTYPE" == "darwin"* ]]; then
