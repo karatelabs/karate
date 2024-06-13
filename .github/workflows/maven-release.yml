@@ -56,13 +56,8 @@ jobs:
     - name: docker push
       if: ( github.event.inputs.docker == 'enabled' )
       run: |
-        docker tag karate-chrome karatelabs/karate-chrome:${{ github.event.inputs.version }}
-        docker tag karate-chrome karatelabs/karate-chrome:latest
-        docker push karatelabs/karate-chrome:${{ github.event.inputs.version }}
-        docker push karatelabs/karate-chrome:latest
-      # run: |
-      #  docker buildx build --push --platform linux/amd64 --cache-from=type=local,src=./target/docker -t karate-chrome -t karatelabs/karate-chrome:latest -t karatelabs/karate-chrome:${{ github.event.inputs.version }} karate-docker/karate-chrome
-      #  docker buildx build --push --platform linux/amd64,linux/arm64 --cache-from=type=local,src=./target/docker -t karate-chromium -t karatelabs/karate-chromium:latest -t karatelabs/karate-chromium:${{ github.event.inputs.version }} karate-docker/karate-chromium
+        docker buildx build --push --platform linux/amd64 --cache-from=type=local,src=./target/docker --cache-to=type=local,dest=./target/docker -t karatelabs/karate-chrome:${{ github.event.inputs.version }} -t karatelabs/karate-chrome:latest karate-docker/karate-chrome
+        docker buildx build --push --platform linux/amd64,linux/arm64 --cache-from=type=local,src=./target/docker --cache-to=type=local,dest=./target/docker -t karatelabs/karate-chromium:${{ github.event.inputs.version }} -t karatelabs/karate-chromium:latest karate-docker/karate-chromium
     - name: maven deploy to central
       if: ( github.event.inputs.maven == 'enabled' )
       env:
