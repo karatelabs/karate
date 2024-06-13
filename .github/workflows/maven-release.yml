@@ -56,6 +56,7 @@ jobs:
     - name: docker push
       if: ( github.event.inputs.docker == 'enabled' )
       run: |
+        ./build-docker.sh
         docker buildx build --push --platform linux/amd64 --cache-from=type=local,src=./target/docker --cache-to=type=local,dest=./target/docker -t karatelabs/karate-chrome:${{ github.event.inputs.version }} -t karatelabs/karate-chrome:latest karate-docker/karate-chrome
         docker buildx build --push --platform linux/amd64,linux/arm64 --cache-from=type=local,src=./target/docker --cache-to=type=local,dest=./target/docker -t karatelabs/karate-chromium:${{ github.event.inputs.version }} -t karatelabs/karate-chromium:latest karate-docker/karate-chromium
     - name: maven deploy to central
