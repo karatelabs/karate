@@ -1,5 +1,6 @@
 package mock
 
+import scala.language.postfixOps
 import com.intuit.karate.gatling.PreDef._
 import io.gatling.core.Predef._
 import scala.concurrent.duration._
