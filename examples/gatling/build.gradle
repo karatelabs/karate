@@ -28,6 +28,9 @@ sourceSets {
             exclude '**/*.java'
             exclude '**/*.scala'
         }
+        scala {
+            srcDirs = ['src/test/java']
+        }
     }
 }
 
