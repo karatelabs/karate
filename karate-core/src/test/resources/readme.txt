@@ -28,13 +28,11 @@ mvn versions:set versions:commit -DnewVersion=@@@
 
 (save the sonatype report)
 
-jbang
-=====
+github
+======
 # edit https://github.com/karatelabs/jbang-catalog
-
-release radar
-=============
-https://github.com/github/release-radar/issues/new?assignees=MishManners&labels=&template=release-radar-request.yml&title=%5BRelease+Radar+Request%5D+%3Ctitle%3E
+# edit https://github.com/karatelabs/karate-template
+# edit https://github.com/karatelabs/karate-todo
 
 docker (deprecated)
 ===================
@@ -44,8 +42,8 @@ rm -rf karate-docker/karate-chrome/target
 mvn clean install -P pre-release -DskipTests
 ./build-docker.sh
 
-docker tag karate-chrome ptrthomas/karate-chrome:@@@
-docker tag karate-chrome ptrthomas/karate-chrome:latest
+docker tag karate-chrome karatelabs/karate-chrome:@@@
+docker tag karate-chrome karatelabs/karate-chrome:latest
 
-docker push ptrthomas/karate-chrome:@@@
-docker push ptrthomas/karate-chrome:latest
+docker push karatelabs/karate-chrome:@@@
+docker push karatelabs/karate-chrome:latest
