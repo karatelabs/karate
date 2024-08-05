@@ -323,8 +323,8 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 
 ## References
 * [API Testing with Karate](https://youtu.be/WT4gg7Jutzg) - video + demos by [Peter Thomas](https://twitter.com/ptrthomas) (creator / lead dev of Karate)
-* [Intro to all features of Karate](https://youtu.be/yu3uupBZyxc) - video + demos by [Peter Thomas](https://twitter.com/ptrthomas) (creator / lead dev of Karate)
-* [Karate entered the ThoughtWorks Tech Radar](https://twitter.com/KarateDSL/status/1120985060843249664) in 2019 and was [upgraded in ranking](https://twitter.com/KarateDSL/status/1262719979104817152) in May 2020
+* [Introducing Karate: The ULTIMATE Test Automation Tool](https://youtu.be/_kMxvd37auc?si=WOEkvEUH6eWeHZUC) - video by [James Willett](https://www.linkedin.com/in/willettjames/)
+* [Karate in the ThoughtWorks Tech Radar](https://twitter.com/KarateDSL/status/1120985060843249664) and featured [a second time](https://twitter.com/KarateDSL/status/1262719979104817152)
 * [マイクロサービスにおけるテスト自動化 with Karate](https://speakerdeck.com/takanorig/microservices-testing-automation-with-karate) - (*Microservices Test Automation with Karate*) presentation by [Takanori Suzuki](https://twitter.com/takanorig)
 * [Writing API Tests with Karate](https://www.softwaretester.blog/writing-api-tests-with-karate) - book by [Benjamin Bischoff](https://www.softwaretester.blog/about), Packt Publishing, 2023
 * [Karate Webinar](https://www.youtube.com/watch?v=cXDIYpT6zck&t=4333s) - Simplificando automação de API com Karate Framework by [Luana Assis](https://www.linkedin.com/in/luanapassis/) from [Base2 Tecnologia](https://www.base2.com.br/)
@@ -334,7 +334,7 @@ Karate also has a dedicated "tag", and a very active and supportive community at
 You can find a lot more references, tutorials and blog-posts at [karatelabs.io](https://karatelabs.io).
 
 # Getting Started
-If you are a Java developer - Karate requires at least [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 11 and then either [Maven](http://maven.apache.org), [Gradle](https://gradle.org), or a Java IDE that embeds either to be installed. Note that Karate works fine on OpenJDK.
+If you are a Java developer - Karate requires at least [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 17 and then either [Maven](http://maven.apache.org), [Gradle](https://gradle.org), or a Java IDE that embeds either to be installed. Note that Karate works fine on OpenJDK.
 
 If you are new to programming or test-automation, the [official IntelliJ plugin](https://plugins.jetbrains.com/plugin/19232-karate) is recommended.
 
@@ -347,9 +347,9 @@ All you need is available in the [`karate-core`](https://search.maven.org/artifa
 
 ```xml
 <dependency>
-    <groupId>com.intuit.karate</groupId>
+    <groupId>io.karatelabs</groupId>
     <artifactId>karate-junit5</artifactId>
-    <version>1.4.1</version>
+    <version>1.5.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -358,7 +358,7 @@ All you need is available in the [`karate-core`](https://search.maven.org/artifa
 Alternatively for [Gradle](https://gradle.org):
 
 ```yml
-    testCompile 'com.intuit.karate:karate-junit5:1.4.1'
+    testCompile 'io.karatelabs:karate-junit5:1.5.0'
 ```
 
 Also refer to the wiki for using [Karate with Gradle](https://github.com/karatelabs/karate/wiki/Gradle).
@@ -372,7 +372,7 @@ For example when using Maven:
 
 ```xml
 <dependency>
-  <groupId>com.intuit.karate</groupId>
+  <groupId>io.karatelabs</groupId>
   <artifactId>karate-core</artifactId>
   <version>${karate.version}</version>
   <classifier>all</classifier>
@@ -391,9 +391,9 @@ You can replace the values of `com.mycompany` and `myproject` as per your needs.
 
 ```
 mvn archetype:generate \
--DarchetypeGroupId=com.intuit.karate \
+-DarchetypeGroupId=io.karatelabs \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=1.4.1 \
+-DarchetypeVersion=1.5.0 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -443,9 +443,6 @@ sourceSets {
 With the above in place, you don't have to keep switching between your `src/test/java` and `src/test/resources` folders, you can have all your test-code and artifacts under `src/test/java` and everything will work as expected.
 
 Once you get used to this, you may even start wondering why projects need a `src/test/resources` folder at all !
-
-### Spring Boot Example
-[Soumendra Daas](https://twitter.com/sdaas) has created a nice example and guide that you can use as a reference here: [`hello-karate`](https://github.com/Sdaas/hello-karate). This demonstrates a Java Maven + JUnit 5 project set up to test a [Spring Boot](http://projects.spring.io/spring-boot/) app.
 
 ## Naming Conventions
 Since these are tests and not production Java code, you don't need to be bound by the `com.mycompany.foo.bar` convention and the un-necessary explosion of sub-folders that ensues. We suggest that you have a folder hierarchy only one or two levels deep - where the folder names clearly identify which 'resource', 'entity' or API is the web-service under test.

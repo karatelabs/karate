@@ -28,6 +28,10 @@ mvn versions:set versions:commit -DnewVersion=@@@
 
 (save the sonatype report)
 
+jbang
+=====
+# edit https://github.com/karatelabs/jbang-catalog
+
 release radar
 =============
 https://github.com/github/release-radar/issues/new?assignees=MishManners&labels=&template=release-radar-request.yml&title=%5BRelease+Radar+Request%5D+%3Ctitle%3E

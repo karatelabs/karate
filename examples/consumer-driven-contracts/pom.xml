@@ -19,7 +19,7 @@
         <spring.boot.version>3.2.2</spring.boot.version>
         <junit5.version>5.7.0</junit5.version>
         <java.version>17</java.version>
-        <karate.version>1.5.0.RC3</karate.version>
+        <karate.version>1.5.0</karate.version>
     </properties>    
 
     <dependencies>
