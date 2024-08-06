@@ -915,12 +915,12 @@ public abstract class DevToolsDriver implements Driver {
     // chrome only
     public byte[] screenshotFull() {
         DevToolsMessage layout = method("Page.getLayoutMetrics").send();
-        Map<String, Object> size = layout.getResultVariable("contentSize").getValue();
+        Map<String, Object> size = layout.getResultVariable("cssContentSize").getValue();
         Map<String, Object> map = options.newMapWithSelectedKeys(size, "height", "width");
         map.put("x", 0);
         map.put("y", 0);
         map.put("scale", 1);
-        DevToolsMessage dtm = method("Page.captureScreenshot").param("clip", map).send();
+        DevToolsMessage dtm = method("Page.captureScreenshot").param("clip", map).param("captureBeyondViewport", true).send();
         if (dtm.isResultError()) {
             logger.error("unable to capture screenshot: {}", dtm);
             return new byte[0];
