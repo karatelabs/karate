@@ -300,7 +300,7 @@ And you don't need to create additional Java classes for any of the payloads tha
 * Cross platform [Desktop Automation](karate-robot) that can be [mixed into Web Automation flows](https://twitter.com/ptrthomas/status/1215534821234995200) if needed
 * Option to invoke via a [Java API](#java-api),  which means that you can easily [mix Karate into Java projects or legacy UI-automation suites](https://stackoverflow.com/q/47795762/143475)
 * [Save significant effort](https://twitter.com/ptrthomas/status/986463717465391104) by re-using Karate test-suites as [Gatling performance tests](karate-gatling) that *deeply* assert that server responses are accurate under load
-* Gatling integration can hook into [*any* custom Java code](https://github.com/karatelabs/karate/tree/master/karate-gatling#custom) - which means that you can perf-test even non-HTTP protocols such as [gRPC](https://github.com/thinkerou/karate-grpc)
+* Gatling integration can hook into [*any* custom Java code](https://github.com/karatelabs/karate/tree/master/karate-gatling#custom) - which means that you can perf-test even non-HTTP protocols such as [gRPC](https://github.com/karatelabs/karate-examples/blob/main/grpc/README.md)
 * [API mocks](karate-netty) or test-doubles that even [maintain CRUD 'state'](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) across multiple calls - enabling TDD for micro-services and [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
 * [Async](#async) support that allows you to seamlessly integrate the handling of custom events or listening to message-queues
 * Built-in [HTML templating](https://twitter.com/KarateDSL/status/1338892932691070976) so that you can extend your test-reports into readable specifications
@@ -4004,7 +4004,12 @@ Note that JSON gets auto-converted to `Map` (or `List`) when making the cross-ov
 
 Another example is [`dogs.feature`](karate-demo/src/test/java/demo/dogs/dogs.feature) -  which actually makes JDBC (database) calls, and since the data returned from the Java code is JSON, the last section of the test is able to use [`match`](#match) *very* effectively for data assertions.
 
-A great example of how you can extend Karate, even bypass the HTTP client but still use Karate's test-automation effectively, is this [gRPC](https://grpc.io) example by [@thinkerou](https://github.com/thinkerou): [`karate-grpc`](https://github.com/thinkerou/karate-grpc). And you can even handle asynchronous flows such as [listening to message-queues](#async).
+Good examples of how you can extend Karate, even bypass the HTTP client - but still use Karate's test-automation effectively, are the following:
+* [AWS DynamoDB](https://github.com/karatelabs/karate-examples/blob/main/aws-dynamodb/README.md)
+* [SSH](https://github.com/karatelabs/karate-examples/blob/main/ssh/README.md)
+* [Active MQ + Async](https://x.com/getkarate/status/1417023536082812935)
+* [Spring Boot + Database](https://github.com/karatelabs/karate-examples/blob/main/database/README.md)
+* [RabbitMQ](https://github.com/karatelabs/karate-examples/blob/main/rabbitmq/README.md).
 
 #### HTTP Basic Authentication Example
 This should make it clear why Karate does not provide 'out of the box' support for any particular HTTP authentication scheme. Things are designed so that you can plug-in what you need, without needing to compile Java code. You get to choose how to manage your environment-specific configuration values such as user-names and passwords.
