@@ -64,7 +64,7 @@ Refer to this [webinar recording](https://www.youtube.com/watch?v=WT4gg7Jutzg&t=
 
 ```xml
 <dependency>
-    <groupId>com.intuit.karate</groupId>
+    <groupId>io.karatelabs</groupId>
     <artifactId>karate-gatling</artifactId>
     <version>${karate.version}</version>
     <scope>test</scope>
