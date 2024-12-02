@@ -70,7 +70,7 @@ public class Chrome extends DevToolsDriver {
         }
         options.arg("--disable-popup-blocking");
         if (options.headless) {
-            options.arg("--headless");
+            options.arg("--headless=new");
         }
         Command command = options.startProcess();
         Http http = options.getHttp();        
