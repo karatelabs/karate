@@ -117,7 +117,7 @@
         <dependency>
             <groupId>io.github.classgraph</groupId>
             <artifactId>classgraph</artifactId>
-            <version>4.8.170</version>
+            <version>4.8.179</version>
         </dependency>
         <dependency>
             <groupId>io.github.t12y</groupId>
