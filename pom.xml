@@ -42,7 +42,7 @@
         <nexus.staging.plugin.version>1.6.13</nexus.staging.plugin.version>
         <spring.version>5.3.19</spring.version>
         <spring.boot.version>2.6.6</spring.boot.version>
-        <jacoco.plugin.version>0.7.9</jacoco.plugin.version>
+        <jacoco.plugin.version>0.8.12</jacoco.plugin.version>
     </properties>
 
     <modules>
