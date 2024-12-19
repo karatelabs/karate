@@ -36,6 +36,7 @@ public class Scenario {
 
     private final Feature feature;
     private final FeatureSection section;
+    private final int exampleTableIndex;
     private final int exampleIndex;
 
     private int line;
@@ -46,9 +47,10 @@ public class Scenario {
     private Map<String, Object> exampleData;
     private String dynamicExpression;
 
-    public Scenario(Feature feature, FeatureSection section, int exampleIndex) {
+    public Scenario(Feature feature, FeatureSection section, int exampleTableIndex, int exampleIndex) {
         this.feature = feature;
         this.section = section;
+        this.exampleTableIndex = exampleTableIndex;
         this.exampleIndex = exampleIndex;
     }
 
@@ -80,7 +82,7 @@ public class Scenario {
 
     // only called for dynamic scenarios
     public Scenario copy(int exampleIndex) {
-        Scenario s = new Scenario(feature, section, exampleIndex);
+        Scenario s = new Scenario(feature, section, exampleTableIndex, exampleIndex);
         s.name = name;
         s.description = description;
         s.tags = tags;
@@ -134,6 +136,9 @@ public class Scenario {
     public String getRefId() {
         int num = section.getIndex() + 1;
         String meta = "[" + num;
+        if (exampleTableIndex != -1) {
+            meta = meta + "." + (exampleTableIndex + 1);
+        }
         if (exampleIndex != -1) {
             meta = meta + "." + (exampleIndex + 1);
         }
@@ -146,7 +151,13 @@ public class Scenario {
 
     public String getUniqueId() {
         String id = feature.getResource().getPackageQualifiedName() + "_" + (section.getIndex() + 1);
-        return exampleIndex == -1 ? id : id + "_" + (exampleIndex + 1);
+        if (exampleTableIndex != -1) {
+            id += "_" + (exampleTableIndex + 1);
+        }
+        if (exampleIndex != -1) {
+            id += "_" + (exampleIndex + 1);
+        }
+        return id;
     }
 
     public List<Step> getBackgroundSteps() {
@@ -243,6 +254,10 @@ public class Scenario {
 
     public void setExampleData(Map<String, Object> exampleData) {
         this.exampleData = exampleData;
+    }
+
+    public int getExampleTableIndex() {
+        return exampleTableIndex;
     }
 
     public int getExampleIndex() {

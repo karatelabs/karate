@@ -121,6 +121,7 @@
                                     "startTime": "#number",
                                     "endTime": "#number",
                                     "exampleIndex": -1,
+                                    "exampleTableIndex": -1,
                                     "refId": "[1:3]",
                                     "durationMillis": "#number",
                                     "failed": false
@@ -165,6 +166,7 @@
             "startTime": "#number",
             "endTime": "#number",
             "exampleIndex": -1,
+            "exampleTableIndex": -1,
             "refId": "[1:9]",
             "durationMillis": "#number",
             "failed": false,
@@ -217,7 +219,8 @@
             "startTime": "#number",
             "endTime": "#number",
             "exampleIndex": 0,
-            "refId": "[2.1:21]",
+            "exampleTableIndex": 0,
+            "refId": "[2.1.1:21]",
             "durationMillis": "#number",
             "failed": false,
             "tags": [
@@ -271,7 +274,8 @@
             "startTime": "#number",
             "endTime": "#number",
             "exampleIndex": 1,
-            "refId": "[2.2:22]",
+            "exampleTableIndex": 0,
+            "refId": "[2.1.2:22]",
             "durationMillis": "#number",
             "failed": false,
             "tags": [
@@ -279,6 +283,61 @@
             ],
             "exampleData": {
                 "name": "bar"
+            }
+        },
+        {
+            "stepResults": [
+                {
+                    "result": {
+                        "nanos": "#number",
+                        "millis": "#number",
+                        "status": "passed",
+                        "startTime": "#number",
+                        "endTime": "#number"                        
+                    },
+                    "step": {
+                        "background": true,
+                        "line": 6,
+                        "prefix": "*",
+                        "index": 0,
+                        "text": "print 'in background'"
+                    },
+                    "stepLog": "#string"
+                },
+                {
+                    "result": {
+                        "nanos": "#number",
+                        "millis": "#number",
+                        "status": "passed",
+                        "startTime": "#number",
+                        "endTime": "#number"                        
+                    },
+                    "step": {
+                        "line": 17,
+                        "prefix": "*",
+                        "index": 0,
+                        "text": "print 'name:', name"
+                    },
+                    "stepLog": "#string"
+                }
+            ],
+            "executorName": "#string",
+            "name": "hello baz",
+            "description": "",
+            "line": 26,
+            "sectionIndex": 1,
+            "startTime": "#number",
+            "endTime": "#number",
+            "exampleIndex": 0,
+            "exampleTableIndex": 1,
+            "refId": "[2.2.1:26]",
+            "durationMillis": "#number",
+            "failed": false,
+            "tags": [
+                "one"
+            ],
+            "exampleData": {
+                "name": "baz"
             }
         }
     ],
@@ -289,7 +348,7 @@
     "description": "my description",
     "durationMillis": "#number",
     "resultDate": "#string",
-    "passedCount": 3,
+    "passedCount": 4,
     "failedCount": 0,
     "callDepth": 0,
     "loopIndex": -1

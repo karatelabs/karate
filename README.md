@@ -3690,6 +3690,7 @@ Operation | Description
 <a name="karate-response"><code>karate.response</code></a> | returns the last HTTP response as a JS object that enables advanced use-cases such as getting a header ignoring case: `karate.response.header('some-header')`
 <a name="karate-request"><code>karate.request</code></a> | returns the last HTTP request as a JS object that enables advanced use-cases such as getting a header ignoring case: `karate.request.header('some-header')`, which works [even in mocks](https://github.com/karatelabs/karate/tree/master/karate-netty#requestheaders)
 <a name="karate-scenario"><code>karate.scenario</code></a> | get metadata about the currently executing `Scenario` (or `Outline` - `Example`) within a test 
+<a name="karate-scenarioOutline"><code>karate.scenarioOutline</code></a> | get metadata about the currently executing scenario outline within a test
 <a name="karate-set"><code>karate.set(name, value)</code></a> | sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
 <a name="karate-setall"><code>karate.set(object)</code></a> | where the single argument is expected to be a `Map` or JSON-like, and will perform the above `karate.set()` operation for all key-value pairs in one-shot
 <a name="karate-setpath"><code>karate.set(name, path, value)</code></a> | only needed when you need to conditionally build payload elements, especially XML. This is best explained via [an example](karate-core/src/test/java/com/intuit/karate/core/xml/xml.feature#L211), and it behaves the same way as the [`set`](#set) keyword. Also see [`eval`](#eval).
@@ -4530,7 +4531,7 @@ This is great for testing boundary conditions against a single end-point, with t
 ### Scenario Outline Enhancements
 Karate has enhanced the Cucumber `Scenario Outline` as follows:
 * __Type Hints__: if the `Examples` column header has a `!` appended, each value will be evaluated as a JavaScript data-type (number, boolean, or *even* in-line JSON) - else it defaults to string.
-* __Magic Variables__: `__row` gives you the entire row as a JSON object, and `__num` gives you the row index (the first row is `0`).
+* __Magic Variables__: `__row` gives you the entire row as a JSON object, and `__num` gives you the row index (the first row is `0`). In rare cases you may have multiple `Examples` tables for a single outline, `__tableNum` will give you the index of the currently executing table.
 * __Auto Variables__: in addition to `__row`, each column key-value will be available as a separate [variable](#def), which greatly simplifies JSON manipulation - especially when you want to re-use JSON [files](#reading-files) containing [embedded expressions](#embedded-expressions).
 * Any empty cells will result in a `null` value for that column-key, and this can be useful to [remove nodes](#remove-if-null) from JSON or XML documents
 

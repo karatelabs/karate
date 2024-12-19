@@ -53,6 +53,7 @@ public class ScenarioRuntime implements Runnable {
     public final Tags tags;
     public final ScenarioActions actions;
     public final ScenarioResult result;
+    public final ScenarioOutlineResult outlineResult;
     public final ScenarioEngine engine;
     public final boolean reportDisabled;
     public final Map<String, Object> magicVariables;
@@ -91,6 +92,7 @@ public class ScenarioRuntime implements Runnable {
             magicVariables = initMagicVariables();
         }
         result = new ScenarioResult(scenario);
+        outlineResult = new ScenarioOutlineResult(scenario.getSection().getScenarioOutline(), this);
         if (featureRuntime.setupResult != null) {
             // TODO improve this and simplify report rendering code in report/karate-feature.html
             StepResult sr = result.addFakeStepResult("@setup", null);
@@ -132,6 +134,7 @@ public class ScenarioRuntime implements Runnable {
             map.putAll(exampleData);
             map.put("__row", exampleData);
             map.put("__num", scenario.getExampleIndex());
+            map.put("__tableNum", scenario.getExampleTableIndex());
         }
         return map;
     }

@@ -24,7 +24,9 @@
 package com.intuit.karate.core;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
@@ -34,11 +36,14 @@ public class ExamplesTable {
 
     private final ScenarioOutline outline;
     private final Table table;
+    private final int index;
     private List<Tag> tags;
+    
 
-    public ExamplesTable(ScenarioOutline outline, Table table) {
+    public ExamplesTable(ScenarioOutline outline, Table table, int index) {
         this.outline = outline;
         this.table = table;
+        this.index = index;
         this.tags = new ArrayList();
     }
 
@@ -56,6 +61,19 @@ public class ExamplesTable {
 
     public Table getTable() {
         return table;
+    }
+
+    public int getIndex() {
+        return index;
+    }
+
+    public Map<String, Object> toKarateJson() {
+        Map<String, Object> map = new HashMap();
+        List<String> tagStrings = new ArrayList();
+        tags.forEach(tag -> tagStrings.add(tag.toString()));
+        map.put("tags", tagStrings);
+        map.put("data", table.getRowsAsMapsConverted());
+        return map;
     }
 
 }

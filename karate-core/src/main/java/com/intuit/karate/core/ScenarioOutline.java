@@ -25,6 +25,7 @@ package com.intuit.karate.core;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author pthomas3
@@ -40,14 +41,15 @@ public class ScenarioOutline {
     private String description;
     private List<Step> steps;
     private List<ExamplesTable> examplesTables;
+    private int numScenarios = 0;
     
     public ScenarioOutline(Feature feature, FeatureSection section) {
         this.feature = feature;
         this.section = section;
     }
     
-    public Scenario toScenario(String dynamicExpression, int exampleIndex, int updateLine, List<Tag> tagsForExamples) {
-        Scenario s = new Scenario(feature, section, exampleIndex);
+    public Scenario toScenario(String dynamicExpression, int exampleTableIndex, int exampleIndex, int updateLine, List<Tag> tagsForExamples) {
+        Scenario s = new Scenario(feature, section, exampleTableIndex, exampleIndex);
         s.setName(name);
         s.setDescription(description);
         s.setLine(updateLine);
@@ -75,6 +77,7 @@ public class ScenarioOutline {
             step.setTable(original.getTable());
             step.setComments(original.getComments());
         }
+        numScenarios++;
         return s;
     }
     
@@ -101,13 +104,13 @@ public class ScenarioOutline {
             if (selectedForExecution) {
                 Table table = examples.getTable();
                 if (table.isDynamic()) {
-                    Scenario scenario = toScenario(table.getDynamicExpression(), -1, table.getLineNumberForRow(0), examples.getTags());
+                    Scenario scenario = toScenario(table.getDynamicExpression(), examples.getIndex(), -1, table.getLineNumberForRow(0), examples.getTags());
                     list.add(scenario);
                 } else {
                     int rowCount = table.getRows().size();
                     for (int i = 1; i < rowCount; i++) { // don't include header row
                         int exampleIndex = i - 1; // next line will set exampleIndex on scenario
-                        Scenario scenario = toScenario(null, exampleIndex, table.getLineNumberForRow(i), examples.getTags());
+                        Scenario scenario = toScenario(null, examples.getIndex(), exampleIndex, table.getLineNumberForRow(i), examples.getTags());
                         scenario.setExampleData(table.getExampleData(exampleIndex)); // and we set exampleData here
                         list.add(scenario);
                         for (String key : table.getKeys()) {
@@ -167,9 +170,23 @@ public class ScenarioOutline {
     public List<ExamplesTable> getExamplesTables() {
         return examplesTables;
     }
+
+    public int getNumExampleTables() {
+        return examplesTables.size();
+    }
+
+    public List<Map<String, Object>> getAllExampleData() {
+        List<Map<String, Object>> exampleData = new ArrayList();
+        examplesTables.forEach(table -> exampleData.add(table.toKarateJson()));
+        return exampleData;
+    }
     
     public void setExamplesTables(List<ExamplesTable> examplesTables) {
         this.examplesTables = examplesTables;
+    }
+
+    public int getNumScenarios() {
+        return numScenarios;
     }
     
 }
