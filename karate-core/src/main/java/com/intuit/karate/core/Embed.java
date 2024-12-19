@@ -108,15 +108,8 @@ public class Embed {
 
     public Map toMap() {
         Map map = new HashMap(2);
-        if (resourceType == ResourceType.MP4) {
-            byte[] bytes = FileUtils.toBytes(getAsHtmlTag());
-            String base64 = Base64.getEncoder().encodeToString(bytes);
-            map.put("data", base64);
-            map.put("mime_type", ResourceType.HTML.contentType);
-        } else {
-            map.put("data", getBase64());
-            map.put("mime_type", resourceType.contentType);
-        }
+        map.put("data", getBase64());
+        map.put("mime_type", resourceType.contentType);
         return map;
     }
 
