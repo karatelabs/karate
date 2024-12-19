@@ -305,6 +305,70 @@
                     "line": 1
                 }
             ]
+        },
+        {
+            "line": 5,
+            "name": "",
+            "description": "",
+            "type": "background",
+            "keyword": "Background",
+            "steps": [
+                {
+                    "name": "print 'in background'",
+                    "result": {
+                        "duration": "#number",
+                        "status": "passed"
+                    },
+                    "match": {
+                        "location": "karate",
+                        "arguments": [
+                        ]
+                    },
+                    "keyword": "*",
+                    "line": 6,
+                    "doc_string": {
+                        "content_type": "",
+                        "value": "#string",
+                        "line": 6
+                    }
+                }
+            ]
+        },
+        {
+            "line": 26,
+            "name": "hello baz",
+            "description": "",
+            "id": "hello-baz",
+            "type": "scenario",
+            "start_timestamp": "#string",
+            "keyword": "Scenario Outline",
+            "steps": [
+                {
+                    "name": "print 'name:', name",
+                    "result": {
+                        "duration": "#number",
+                        "status": "passed"
+                    },
+                    "match": {
+                        "location": "karate",
+                        "arguments": [
+                        ]
+                    },
+                    "keyword": "*",
+                    "line": 17,
+                    "doc_string": {
+                        "content_type": "",
+                        "value": "#string",
+                        "line": 17
+                    }
+                }
+            ],
+            "tags": [
+                {
+                    "name": "@one",
+                    "line": 1
+                }
+            ]
         }
     ],
     "name": "com\/intuit\/karate\/core\/feature-result.feature",    

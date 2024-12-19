@@ -25,6 +25,7 @@ package com.intuit.karate.core;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author pthomas3
@@ -40,6 +41,7 @@ public class ScenarioOutline {
     private String description;
     private List<Step> steps;
     private List<ExamplesTable> examplesTables;
+    private int numScenarios = 0;
     
     public ScenarioOutline(Feature feature, FeatureSection section) {
         this.feature = feature;
@@ -75,6 +77,7 @@ public class ScenarioOutline {
             step.setTable(original.getTable());
             step.setComments(original.getComments());
         }
+        numScenarios++;
         return s;
     }
     
@@ -167,9 +170,23 @@ public class ScenarioOutline {
     public List<ExamplesTable> getExamplesTables() {
         return examplesTables;
     }
+
+    public int getNumExampleTables() {
+        return examplesTables.size();
+    }
+
+    public List<Map<String, Object>> getAllExampleData() {
+        List<Map<String, Object>> exampleData = new ArrayList();
+        examplesTables.forEach(table -> exampleData.add(table.toKarateJson()));
+        return exampleData;
+    }
     
     public void setExamplesTables(List<ExamplesTable> examplesTables) {
         this.examplesTables = examplesTables;
+    }
+
+    public int getNumScenarios() {
+        return numScenarios;
     }
     
 }

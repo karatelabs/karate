@@ -551,6 +551,10 @@ public class ScenarioBridge implements PerfContext {
         return new JsMap(getEngine().runtime.result.toKarateJson());
     }
 
+    public Object getScenarioOutline() {
+        return new JsMap(getEngine().runtime.outlineResult.toKarateJson());
+    }
+
     public Object getTags() {
         return JsValue.fromJava(getEngine().runtime.tags.getTags());
     }
