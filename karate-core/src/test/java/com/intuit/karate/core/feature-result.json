@@ -121,7 +121,6 @@
                                     "startTime": "#number",
                                     "endTime": "#number",
                                     "exampleIndex": -1,
-                                    "exampleTableIndex": -1,
                                     "refId": "[1:3]",
                                     "durationMillis": "#number",
                                     "failed": false
@@ -166,7 +165,6 @@
             "startTime": "#number",
             "endTime": "#number",
             "exampleIndex": -1,
-            "exampleTableIndex": -1,
             "refId": "[1:9]",
             "durationMillis": "#number",
             "failed": false,
@@ -219,8 +217,7 @@
             "startTime": "#number",
             "endTime": "#number",
             "exampleIndex": 0,
-            "exampleTableIndex": 0,
-            "refId": "[2.1.1:21]",
+            "refId": "[2.1:21]",
             "durationMillis": "#number",
             "failed": false,
             "tags": [
@@ -274,8 +271,7 @@
             "startTime": "#number",
             "endTime": "#number",
             "exampleIndex": 1,
-            "exampleTableIndex": 0,
-            "refId": "[2.1.2:22]",
+            "refId": "[2.2:22]",
             "durationMillis": "#number",
             "failed": false,
             "tags": [
@@ -329,8 +325,7 @@
             "startTime": "#number",
             "endTime": "#number",
             "exampleIndex": 0,
-            "exampleTableIndex": 1,
-            "refId": "[2.2.1:26]",
+            "refId": "[2.1:26]",
             "durationMillis": "#number",
             "failed": false,
             "tags": [

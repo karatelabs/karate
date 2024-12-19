@@ -36,14 +36,12 @@ public class ExamplesTable {
 
     private final ScenarioOutline outline;
     private final Table table;
-    private final int index;
     private List<Tag> tags;
     
 
-    public ExamplesTable(ScenarioOutline outline, Table table, int index) {
+    public ExamplesTable(ScenarioOutline outline, Table table) {
         this.outline = outline;
         this.table = table;
-        this.index = index;
         this.tags = new ArrayList();
     }
 
@@ -61,10 +59,6 @@ public class ExamplesTable {
 
     public Table getTable() {
         return table;
-    }
-
-    public int getIndex() {
-        return index;
     }
 
     public Map<String, Object> toKarateJson() {

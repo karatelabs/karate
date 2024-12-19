@@ -58,10 +58,6 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         if (delta != 0) {
             return delta;
         }
-        delta = scenario.getExampleTableIndex() - sr.scenario.getExampleTableIndex();
-        if (delta != 0) {
-            return delta;
-        }
         return scenario.getExampleIndex() - sr.scenario.getExampleIndex();
     }
 
@@ -141,10 +137,9 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
 
     public static ScenarioResult fromKarateJson(File workingDir, Feature feature, Map<String, Object> map) {
         int sectionIndex = (Integer) map.get("sectionIndex");
-        int exampleTableIndex = (Integer) map.get("exampleTableIndex");
         int exampleIndex = (Integer) map.get("exampleIndex");
         FeatureSection section = feature.getSection(sectionIndex);
-        Scenario scenario = new Scenario(feature, section, exampleTableIndex, exampleIndex);
+        Scenario scenario = new Scenario(feature, section, exampleIndex);
         if (section.isOutline()) {
             scenario.setTags(section.getScenarioOutline().getTags());
             scenario.setDescription(section.getScenarioOutline().getDescription());
@@ -199,7 +194,6 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         }
         //======================================================================
         map.put("sectionIndex", scenario.getSection().getIndex());
-        map.put("exampleTableIndex", scenario.getExampleTableIndex());
         map.put("exampleIndex", scenario.getExampleIndex());
         Map<String, Object> exampleData = scenario.getExampleData();
         if (exampleData != null) {
@@ -230,7 +224,6 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         map.put("failed", isFailed());
         map.put("refId", scenario.getRefId());
         map.put("sectionIndex", scenario.getSection().getIndex());
-        map.put("exampleTableIndex", scenario.getExampleTableIndex());
         map.put("exampleIndex", scenario.getExampleIndex());
         map.put("name", scenario.getName());
         map.put("description", scenario.getDescription());

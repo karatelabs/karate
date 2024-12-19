@@ -134,7 +134,6 @@ public class ScenarioRuntime implements Runnable {
             map.putAll(exampleData);
             map.put("__row", exampleData);
             map.put("__num", scenario.getExampleIndex());
-            map.put("__tableNum", scenario.getExampleTableIndex());
         }
         return map;
     }

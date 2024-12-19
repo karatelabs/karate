@@ -240,7 +240,7 @@ public class FeatureParser extends KarateParserBaseListener {
     @Override
     public void enterScenario(KarateParser.ScenarioContext ctx) {
         FeatureSection section = new FeatureSection();
-        Scenario scenario = new Scenario(feature, section, -1, -1);
+        Scenario scenario = new Scenario(feature, section, -1);
         scenario.setLine(getActualLine(ctx.SCENARIO()));
         section.setScenario(scenario);
         feature.addSection(section);
@@ -279,10 +279,9 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         List<ExamplesTable> examples = new ArrayList(ctx.examples().size());
         outline.setExamplesTables(examples);
-        int tableIndex = 0;
         for (KarateParser.ExamplesContext ec : ctx.examples()) {
             Table table = toTable(ec.table());
-            ExamplesTable example = new ExamplesTable(outline, table, tableIndex++);
+            ExamplesTable example = new ExamplesTable(outline, table);
             examples.add(example);
             if (ec.tags() != null) {
                 example.setTags(toTags(-1, ec.tags().TAGS()));

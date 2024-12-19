@@ -48,8 +48,8 @@ public class ScenarioOutline {
         this.section = section;
     }
     
-    public Scenario toScenario(String dynamicExpression, int exampleTableIndex, int exampleIndex, int updateLine, List<Tag> tagsForExamples) {
-        Scenario s = new Scenario(feature, section, exampleTableIndex, exampleIndex);
+    public Scenario toScenario(String dynamicExpression, int exampleIndex, int updateLine, List<Tag> tagsForExamples) {
+        Scenario s = new Scenario(feature, section, exampleIndex);
         s.setName(name);
         s.setDescription(description);
         s.setLine(updateLine);
@@ -104,13 +104,13 @@ public class ScenarioOutline {
             if (selectedForExecution) {
                 Table table = examples.getTable();
                 if (table.isDynamic()) {
-                    Scenario scenario = toScenario(table.getDynamicExpression(), examples.getIndex(), -1, table.getLineNumberForRow(0), examples.getTags());
+                    Scenario scenario = toScenario(table.getDynamicExpression(), -1, table.getLineNumberForRow(0), examples.getTags());
                     list.add(scenario);
                 } else {
                     int rowCount = table.getRows().size();
                     for (int i = 1; i < rowCount; i++) { // don't include header row
                         int exampleIndex = i - 1; // next line will set exampleIndex on scenario
-                        Scenario scenario = toScenario(null, examples.getIndex(), exampleIndex, table.getLineNumberForRow(i), examples.getTags());
+                        Scenario scenario = toScenario(null, exampleIndex, table.getLineNumberForRow(i), examples.getTags());
                         scenario.setExampleData(table.getExampleData(exampleIndex)); // and we set exampleData here
                         list.add(scenario);
                         for (String key : table.getKeys()) {

@@ -117,7 +117,7 @@ public class MockHandler implements ServerHandler {
         FeatureRuntime featureRuntime = FeatureRuntime.of(Suite.forTempUse(HttpClientFactory.DEFAULT), new FeatureCall(feature), args);
         FeatureSection section = new FeatureSection();
         section.setIndex(-1); // TODO util for creating dummy scenario
-        Scenario dummy = new Scenario(feature, section, -1, -1);
+        Scenario dummy = new Scenario(feature, section, -1);
         section.setScenario(dummy);
         ScenarioRuntime runtime = new ScenarioRuntime(featureRuntime, dummy);
         runtime.logger.setLogOnly(true);

@@ -6,10 +6,6 @@ Scenario: single scenario
 Scenario Outline: outline
     description of outline
 
-    # Confirm table index
-    * match __tableNum == <table>
-    * match karate.scenario.exampleTableIndex == <table>
-
     # Confirm example index within table
     * match __num == <num>
     * match karate.scenario.exampleIndex == <num>
@@ -28,15 +24,15 @@ Scenario Outline: outline
             "exampleTables": [
                 {
                     "data": [
-                        {table: 0, num: 0, executedSoFar: 1},
-                        {table: 0, num: 1, executedSoFar: 2},
+                        {num: 0, executedSoFar: 1},
+                        {num: 1, executedSoFar: 2},
                     ],
                     "tags": ["@one", "@two"]
                 },
                 {
                     "data": [
-                        {table: 1, num: 0, executedSoFar: 3},
-                        {table: 1, num: 1, executedSoFar: 4},
+                        {num: 0, executedSoFar: 3},
+                        {num: 1, executedSoFar: 4},
                     ],
                     "tags": ["@three", "@four"]
                 },
@@ -47,12 +43,12 @@ Scenario Outline: outline
 
     @one @two
     Examples:
-    | table! | num! | executedSoFar! |
-    | 0      | 0    | 1              |
-    | 0      | 1    | 2              |
+    | num! | executedSoFar! |
+    | 0    | 1              |
+    | 1    | 2              |
 
     @three @four
     Examples:
-    | table! | num! | executedSoFar! |
-    | 1      | 0    | 3              |
-    | 1      | 1    | 4              |
+    | num! | executedSoFar! |
+    | 0    | 3              |
+    | 1    | 4              |
