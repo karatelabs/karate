@@ -4531,7 +4531,7 @@ This is great for testing boundary conditions against a single end-point, with t
 ### Scenario Outline Enhancements
 Karate has enhanced the Cucumber `Scenario Outline` as follows:
 * __Type Hints__: if the `Examples` column header has a `!` appended, each value will be evaluated as a JavaScript data-type (number, boolean, or *even* in-line JSON) - else it defaults to string.
-* __Magic Variables__: `__row` gives you the entire row as a JSON object, and `__num` gives you the row index (the first row is `0`). In rare cases you may have multiple `Examples` tables for a single outline, `__tableNum` will give you the index of the currently executing table.
+* __Magic Variables__: `__row` gives you the entire row as a JSON object, and `__num` gives you the row index (the first row is `0`).
 * __Auto Variables__: in addition to `__row`, each column key-value will be available as a separate [variable](#def), which greatly simplifies JSON manipulation - especially when you want to re-use JSON [files](#reading-files) containing [embedded expressions](#embedded-expressions).
 * Any empty cells will result in a `null` value for that column-key, and this can be useful to [remove nodes](#remove-if-null) from JSON or XML documents
 
