@@ -19,7 +19,7 @@
         <dependency>
             <groupId>io.gatling.highcharts</groupId>
             <artifactId>gatling-charts-highcharts</artifactId>
-            <version>3.9.5</version>
+            <version>3.13.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.netty</groupId>
@@ -77,7 +77,7 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>4.8.1</version>
+                <version>4.9.2</version>
                     <configuration>
                         <args>
                             <arg>-Jbackend:GenBCode</arg>
@@ -112,10 +112,10 @@
             <plugin>
                 <groupId>io.gatling</groupId>
                 <artifactId>gatling-maven-plugin</artifactId>
-                <version>4.3.4</version>
+                <version>4.12.1</version>
                 <configuration>
-                    <disableCompiler>true</disableCompiler>
-                    <skip>${skipTests}</skip>
+<!--                    <disableCompiler>true</disableCompiler>-->
+<!--                    <skip>${skipTests}</skip>-->
                     <runMultipleSimulations>true</runMultipleSimulations>
                 </configuration>
                 <executions>
