@@ -93,6 +93,7 @@ public class Config {
     private HttpLogModifier logModifier;
 
     private Variable afterScenario = Variable.NULL;
+    private Variable afterScenarioOutline = Variable.NULL;
     private Variable afterFeature = Variable.NULL;
     private Variable headers = Variable.NULL;
     private Variable cookies = Variable.NULL;
@@ -174,6 +175,9 @@ public class Config {
                 return false;
             case "afterScenario":
                 afterScenario = value;
+                return false;
+            case "afterScenarioOutline":
+                afterScenarioOutline = value;
                 return false;
             case "afterFeature":
                 afterFeature = value;
@@ -382,6 +386,7 @@ public class Config {
         cookies = parent.cookies;
         responseHeaders = parent.responseHeaders;
         afterScenario = parent.afterScenario;
+        afterScenarioOutline = parent.afterScenarioOutline;
         afterFeature = parent.afterFeature;
         continueOnStepFailureMethods = parent.continueOnStepFailureMethods;
         continueAfterContinueOnStepFailure = parent.continueAfterContinueOnStepFailure;
@@ -536,6 +541,14 @@ public class Config {
 
     public void setAfterScenario(Variable afterScenario) {
         this.afterScenario = afterScenario;
+    }
+
+    public Variable getAfterScenarioOutline() {
+        return afterScenarioOutline;
+    }
+
+    public void setAfterScenarioOutline(Variable afterScenarioOutline) {
+        this.afterScenarioOutline = afterScenarioOutline;
     }
 
     public Variable getAfterFeature() {

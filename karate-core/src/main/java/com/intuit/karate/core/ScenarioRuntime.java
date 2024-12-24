@@ -505,7 +505,7 @@ public class ScenarioRuntime implements Runnable {
                 currentStepResult = result.addFakeStepResult("no steps executed", null);
             }
             if (!dryRun) {
-                engine.invokeAfterHookIfConfigured(false);
+                engine.invokeAfterHookIfConfigured(AfterHookType.AFTER_SCENARIO);
                 featureRuntime.suite.hooks.forEach(h -> h.afterScenario(this));
                 engine.stop(currentStepResult);
             }

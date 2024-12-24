@@ -195,16 +195,38 @@ public class FeatureRuntime implements Runnable {
             if (!sr.result.getStepResults().isEmpty()) {
                 synchronized (result) {
                     result.addResult(sr.result);
+                    
+                    // Execute afterScenarioOutline if applicable
+                    // NOTE: Needs to be run after adding result, since result count is used to deterime
+                    // if the scenario is the last in the outline
+                    if (!sr.dryRun && isLastScenarioInOutline(sr.scenario)) {
+                        sr.engine.invokeAfterHookIfConfigured(AfterHookType.AFTER_OUTLINE);
+                        suite.hooks.forEach(h -> h.afterScenarioOutline(sr));
+                    }
                 }
             }
         }
+    }
+
+    private boolean isLastScenarioInOutline(Scenario scenario) {
+        // Check if scenario is part of an outline
+        if (!scenario.isOutlineExample()) return false;
+
+        // Count the number of completed scenarios with the same section ID (in same outline)
+        int completedScenarios = 0;
+        for (ScenarioResult result : result.getScenarioResults()) {
+            if (result.getScenario().getSection().getIndex() == scenario.getSection().getIndex()) {
+                completedScenarios++;
+            }
+        }
+        return completedScenarios == scenario.getSection().getScenarioOutline().getNumScenarios();
     }
 
     // extracted for junit5
     public synchronized void afterFeature() {
         result.sortScenarioResults();
         if (lastExecutedScenario != null) {
-            lastExecutedScenario.engine.invokeAfterHookIfConfigured(true);
+            lastExecutedScenario.engine.invokeAfterHookIfConfigured(AfterHookType.AFTER_FEATURE);
             result.setVariables(lastExecutedScenario.engine.getAllVariablesAsMap());
             result.setConfig(lastExecutedScenario.engine.getConfig());
         }

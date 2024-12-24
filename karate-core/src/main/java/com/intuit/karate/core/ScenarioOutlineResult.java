@@ -58,14 +58,18 @@ public class ScenarioOutlineResult {
         List<Map<String, Object>> scenarioResults = new ArrayList();
         if (runtime.featureRuntime != null && runtime.featureRuntime.result != null) {
             // Add all past results
-            runtime.featureRuntime.result.getScenarioResults().forEach(result -> {
+            boolean needToAddRecent = runtime.result != null;
+            for(ScenarioResult result : runtime.featureRuntime.result.getScenarioResults()) {
                 if (result.getScenario().getSection().getIndex() == scenarioOutline.getSection().getIndex()) {
                     scenarioResults.add(result.toInfoJson());
+                    if(result.equals(runtime.result)) {
+                        needToAddRecent = false;
+                    }
                 }
-            });
+            }
 
-            // Add most recent result
-            if (runtime.result != null) {
+            // Add most recent result if we haven't already (and it's not null)
+            if (needToAddRecent) {
                 scenarioResults.add(runtime.result.toInfoJson());
             }
         }

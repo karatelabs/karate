@@ -2252,6 +2252,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `printEnabled` | boolean | Can be used to suppress the [`print`](#print) output when not in 'dev mode' by setting as `false` (default `true`)
 `report` | JSON / boolean | see [report verbosity](#report-verbosity)
 `afterScenario` | JS function | Will be called [after every `Scenario`](#hooks) (or `Example` within a `Scenario Outline`), refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
+`afterScenarioOutline` | JS function | Will be called [after every `Scenario Outline`](#hooks). Is called after the last `afterScenario` for the last scenario in the outline. Refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 `afterFeature` | JS function | Will be called [after every `Feature`](#hooks), refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
 `ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above form internally defaults to `TLS` if simply set to `true`).
@@ -4441,6 +4442,7 @@ Before *everything* (or 'globally' once) | See [`karate.callSingle()`](#karateca
 Before every `Scenario` | Use the [`Background`](#script-structure). Note that [`karate-config.js`](#karate-configjs) is processed before *every* `Scenario` - so you can choose to put "global" config here, for example using [`karate.configure()`](#karate-configure).
 Once (or at the start of) every `Feature` | Use a [`callonce`](#callonce) in the [`Background`](#script-structure). The advantage is that you can set up variables (using [`def`](#def) if needed) which can be used in all `Scenario`-s within that `Feature`.
 After every `Scenario` | [`configure afterScenario`](#configure) (see [example](karate-demo/src/test/java/demo/hooks/hooks.feature))
+After every `Scenario Outline` | [`configure afterScenarioOutline`](#configure) (see [example](karate-demo/src/test/java/demo/hooks/hooks.feature))
 At the end of the `Feature` | [`configure afterFeature`](#configure) (see [example](karate-demo/src/test/java/demo/hooks/hooks.feature))
 
 > Note that for the `afterFeature` hook to work, you should be using the [`Runner` API](#parallel-execution) and not the JUnit runner.

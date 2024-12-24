@@ -61,6 +61,20 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         return scenario.getExampleIndex() - sr.scenario.getExampleIndex();
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        return compareTo((ScenarioResult)obj) == 0;
+    }
+
     public String getFailureMessageForDisplay() {
         if (failedStep == null) {
             return null;
