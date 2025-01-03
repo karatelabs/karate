@@ -173,6 +173,15 @@ public class Runner {
             if (tempOptions != null) {
                 LOGGER.info("using system property '{}': {}", Constants.KARATE_OPTIONS, tempOptions);
                 Main ko = Main.parseKarateOptions(tempOptions);
+                if (ko.name != null) {
+                    scenarioName = ko.name;
+                }
+                if (ko.configDir != null) {
+                    configDir = ko.configDir;
+                }
+                if (ko.env != null) {
+                    env = ko.env;
+                }
                 if (ko.reportDir != null) {
                     reportDir = ko.reportDir;
                 }
