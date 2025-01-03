@@ -61,6 +61,20 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         return scenario.getExampleIndex() - sr.scenario.getExampleIndex();
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        return compareTo((ScenarioResult)obj) == 0;
+    }
+
     public String getFailureMessageForDisplay() {
         if (failedStep == null) {
             return null;
@@ -210,6 +224,27 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         for (StepResult sr : stepResults) {
             list.add(sr.toKarateJson());
         }
+        return map;
+    }
+
+    // Paired down information for use in karate.scenarioOutline
+    public Map<String, Object> toInfoJson() {
+        Map<String, Object> map = new HashMap();
+        map.put("durationMillis", getDurationMillis());
+        List<String> tags = scenario.getTagsEffective().getTags();
+        if (tags != null && !tags.isEmpty()) {
+            map.put("tags", tags);
+        }
+        map.put("failed", isFailed());
+        map.put("refId", scenario.getRefId());
+        map.put("sectionIndex", scenario.getSection().getIndex());
+        map.put("exampleIndex", scenario.getExampleIndex());
+        map.put("name", scenario.getName());
+        map.put("description", scenario.getDescription());
+        map.put("line", scenario.getLine());
+        map.put("executorName", executorName);
+        map.put("startTime", startTime);
+        map.put("endTime", endTime);
         return map;
     }
 

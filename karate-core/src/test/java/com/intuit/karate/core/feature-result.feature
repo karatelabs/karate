@@ -20,3 +20,7 @@ Examples:
 | name |
 | foo  |
 | bar  |
+
+Examples:
+| name |
+| baz  |

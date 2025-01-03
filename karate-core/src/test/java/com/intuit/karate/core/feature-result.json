@@ -280,6 +280,60 @@
             "exampleData": {
                 "name": "bar"
             }
+        },
+        {
+            "stepResults": [
+                {
+                    "result": {
+                        "nanos": "#number",
+                        "millis": "#number",
+                        "status": "passed",
+                        "startTime": "#number",
+                        "endTime": "#number"                        
+                    },
+                    "step": {
+                        "background": true,
+                        "line": 6,
+                        "prefix": "*",
+                        "index": 0,
+                        "text": "print 'in background'"
+                    },
+                    "stepLog": "#string"
+                },
+                {
+                    "result": {
+                        "nanos": "#number",
+                        "millis": "#number",
+                        "status": "passed",
+                        "startTime": "#number",
+                        "endTime": "#number"                        
+                    },
+                    "step": {
+                        "line": 17,
+                        "prefix": "*",
+                        "index": 0,
+                        "text": "print 'name:', name"
+                    },
+                    "stepLog": "#string"
+                }
+            ],
+            "executorName": "#string",
+            "name": "hello baz",
+            "description": "",
+            "line": 26,
+            "sectionIndex": 1,
+            "startTime": "#number",
+            "endTime": "#number",
+            "exampleIndex": 0,
+            "refId": "[2.1:26]",
+            "durationMillis": "#number",
+            "failed": false,
+            "tags": [
+                "one"
+            ],
+            "exampleData": {
+                "name": "baz"
+            }
         }
     ],
     "prefixedPath": "classpath:com\/intuit\/karate\/core\/feature-result.feature",
@@ -289,7 +343,7 @@
     "description": "my description",
     "durationMillis": "#number",
     "resultDate": "#string",
-    "passedCount": 3,
+    "passedCount": 4,
     "failedCount": 0,
     "callDepth": 0,
     "loopIndex": -1

@@ -23,51 +23,23 @@
  */
 package com.intuit.karate.core;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
  *
- * @author pthomas3
+ * @author OwenK2
  */
-public class ExamplesTable {
+public enum AfterHookType {
 
-    private final ScenarioOutline outline;
-    private final Table table;
-    private List<Tag> tags;
-    
+    AFTER_SCENARIO("afterScenario"),
+    AFTER_OUTLINE("afterScenarioOutline"),
+    AFTER_FEATURE("afterFeature");
 
-    public ExamplesTable(ScenarioOutline outline, Table table) {
-        this.outline = outline;
-        this.table = table;
-        this.tags = new ArrayList();
+    private String prefix;
+
+    private AfterHookType(String prefix) {
+        this.prefix = prefix;
     }
 
-    public ScenarioOutline getOutline() {
-        return outline;
+    public String getPrefix() {
+        return prefix;
     }
-
-    public List<Tag> getTags() {
-        return tags;
-    }
-
-    public void setTags(List<Tag> tags) {
-        this.tags = tags;
-    }
-
-    public Table getTable() {
-        return table;
-    }
-
-    public Map<String, Object> toKarateJson() {
-        Map<String, Object> map = new HashMap();
-        List<String> tagStrings = new ArrayList();
-        tags.forEach(tag -> tagStrings.add(tag.toString()));
-        map.put("tags", tagStrings);
-        map.put("data", table.getRowsAsMapsConverted());
-        return map;
-    }
-
 }
