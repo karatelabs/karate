@@ -94,7 +94,7 @@ public class Main implements Callable<Void> {
     @Option(names = {"-T", "--threads"}, description = "number of threads when running tests")
     int threads;
 
-    @Option(names = {"-o", "--output"}, description = "directory where logs and reports are output (default 'target')")
+    @Option(names = {"-o", "--output"}, description = "directory where logs and report sub-folders are output (default 'target')")
     String output = FileUtils.getBuildDir();
 
     @Option(names = {"-f", "--format"}, split = ",", description = "comma separate report output formats. tilde excludes the output report. html report is included by default unless it's negated."
@@ -112,6 +112,9 @@ public class Main implements Callable<Void> {
 
     @Option(names = {"-g", "--configdir"}, description = "directory where 'karate-config.js' is expected (default 'classpath:' or <workingdir>)")
     String configDir;
+
+    @Option(names = {"-r", "--reportdir"}, description = "directory where Karate HTML and JSON reports are placed (default '<output>/karate-reports')")
+    String reportDir;
 
     @Option(names = {"-C", "--clean"}, description = "clean output directory")
     boolean clean;
@@ -192,6 +195,10 @@ public class Main implements Callable<Void> {
 
     public void setConfigDir(String configDir) {
         this.configDir = configDir;
+    }
+
+    public String getReportDir() {
+        return reportDir;
     }
 
     public static Main parseKarateOptions(String line) {
@@ -328,6 +335,7 @@ public class Main implements Callable<Void> {
                     .buildDir(output)
                     .backupReportDir(backupReportDir)
                     .configDir(configDir)
+                    .reportDir(reportDir)
                     .outputHtmlReport(isOutputHtmlReport())
                     .outputCucumberJson(isOutputCucumberJson())
                     .outputJunitXml(isOutputJunitXml())

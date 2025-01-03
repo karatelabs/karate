@@ -173,6 +173,9 @@ public class Runner {
             if (tempOptions != null) {
                 LOGGER.info("using system property '{}': {}", Constants.KARATE_OPTIONS, tempOptions);
                 Main ko = Main.parseKarateOptions(tempOptions);
+                if (ko.reportDir != null) {
+                    reportDir = ko.reportDir;
+                }
                 if (ko.tags != null) {
                     tags = ko.tags;
                 }
@@ -483,6 +486,10 @@ public class Runner {
             List<String> args = new ArrayList();
             args.add("-d");
             args.add(debugPort + "");
+            if (reportDir != null) {
+                args.add("-r");
+                args.add(reportDir);
+            }
             if (env != null) {
                 args.add("-e");
                 args.add(env);
