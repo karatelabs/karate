@@ -358,7 +358,7 @@ All you need is available in the [`karate-core`](https://search.maven.org/artifa
 Alternatively for [Gradle](https://gradle.org):
 
 ```yml
-    testCompile 'io.karatelabs:karate-junit5:1.5.0'
+    testImplementation 'io.karatelabs:karate-junit5:1.5.0'
 ```
 
 Also refer to the wiki for using [Karate with Gradle](https://github.com/karatelabs/karate/wiki/Gradle).
