@@ -61,6 +61,18 @@ class FeatureRuntimeTest {
     }
 
     @Test
+    void testFailTag() {
+        fail = false;
+        run("fail-tag.feature");
+    }
+
+    @Test
+    void testFailTagFailure() {
+        fail = true;
+        run("fail-tag-failure.feature");
+    }
+
+    @Test
     void testFail1() {
         fail = true;
         run("fail1.feature");
