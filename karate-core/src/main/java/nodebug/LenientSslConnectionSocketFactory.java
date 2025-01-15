@@ -21,16 +21,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.apache.http.conn.ssl;
+package nodebug;
 
 import java.io.IOException;
 import java.net.Socket;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
+
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.protocol.HttpContext;
 
 /**
- * in a separate package just for log level config consistency
+ * in a package that is NOT in the karate package, else it will add un-necessary debug logging
+ * the parent class is third-party code that unfortunately calls getClass() for logger name
  * 
  * @author pthomas3
  */
