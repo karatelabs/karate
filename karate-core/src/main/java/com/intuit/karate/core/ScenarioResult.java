@@ -39,7 +39,7 @@ import java.util.Map;
  */
 public class ScenarioResult implements Comparable<ScenarioResult> {
 
-    private final List<StepResult> stepResults = new ArrayList();
+    private final List<StepResult> stepResults = new ArrayList<>();
     private final Scenario scenario;
 
     private StepResult failedStep;
@@ -363,4 +363,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         return failedStep == null ? scenario.toString() : failedStep + "";
     }
 
+    public void ignoreFailedStep() {
+        failedStep = null;
+    }
 }

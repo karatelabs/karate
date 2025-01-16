@@ -4328,6 +4328,7 @@ For completeness, the "built-in" tags are the following:
 Tag | Description
 --- | -----------
 `@ignore` | Any `Scenario` with (or that has inherited) this tag will be skipped at run-time. This does not apply to anything that is "called" though
+`@fail` | Any `Scenario` with (or that has inherited) this tag will be expected to fail. This can be used if e.g. tests are written before fixes
 `@parallel` | See [`@parallel=false`](#parallelfalse)
 `@report` | See [`@report=false`](#reportfalse)
 `@setup` | See [`@setup`](#setup)

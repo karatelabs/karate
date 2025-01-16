@@ -46,6 +46,7 @@ import java.util.Map;
  */
 public class ScenarioRuntime implements Runnable {
 
+    public static final String EXPECT_TEST_TO_FAIL_BECAUSE_OF_FAIL_TAG = "Expect test to fail because of @fail tag";
     public final Logger logger;
     public final FeatureRuntime featureRuntime;
     public final ScenarioCall caller;
@@ -510,6 +511,15 @@ public class ScenarioRuntime implements Runnable {
                 engine.stop(currentStepResult);
             }
             addStepLogEmbedsAndCallResults();
+            if (tags.contains(Tag.FAIL)) {
+                if (result.isFailed()) {
+                    result.ignoreFailedStep();
+                    result.addFakeStepResult(EXPECT_TEST_TO_FAIL_BECAUSE_OF_FAIL_TAG, null);
+                } else {
+                    result.addFakeStepResult(EXPECT_TEST_TO_FAIL_BECAUSE_OF_FAIL_TAG,
+                            new Throwable(EXPECT_TEST_TO_FAIL_BECAUSE_OF_FAIL_TAG));
+                }
+            }
         } catch (Exception e) {
             error = e;
             logError("scenario [cleanup] failed\n" + e.getMessage());
