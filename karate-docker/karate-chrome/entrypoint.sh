@@ -16,7 +16,7 @@ if [ -z "$KARATE_SOCAT_START" ]
 	export KARATE_SOCAT_START="true"
 	export KARATE_CHROME_PORT="9223"
 fi
-[ -z "$KARATE_BROWSER_ADDITIONAL_FLAGS" ] && export KARATE_BROWSER_ADDITIONAL_FLAGS=""
+[ -z "$KARATE_CHROME_ADD_OPTIONS" ] && export KARATE_CHROME_ADD_OPTIONS=""
 [ -z "$KARATE_WIDTH" ] && export KARATE_WIDTH="1280"
 [ -z "$KARATE_HEIGHT" ] && export KARATE_HEIGHT="720"
 exec /usr/bin/supervisord -c /etc/supervisord.conf
