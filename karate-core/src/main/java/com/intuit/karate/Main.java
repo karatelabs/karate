@@ -132,6 +132,9 @@ public class Main implements Callable<Void> {
     @Option(names = {"-H", "--hook"}, split = ",", description = "class name of a RuntimeHook (or RuntimeHookFactory) to add")
     List<String> hookFactoryClassNames;
 
+    @Option(names = {"--keepOriginalHeaders"}, description = "Keeping original headers given in the mock feature or configure")
+    boolean keepOriginalHeaders;
+
     //==========================================================================
     //
     public void addPath(String path) {
@@ -372,7 +375,8 @@ public class Main implements Callable<Void> {
             RequestHandler handler = new RequestHandler(config);
             HttpServer.Builder builder = HttpServer
                     .handler(handler)
-                    .corsEnabled(true);
+                    .corsEnabled(true)
+                    .keepOriginalHeaders(keepOriginalHeaders);
             if (ssl) {
                 builder.https(port)
                         .certFile(cert)
@@ -399,7 +403,8 @@ public class Main implements Callable<Void> {
             });
             HttpServer.Builder builder = HttpServer.config(config)
                     .local(false)
-                    .corsEnabled(true);
+                    .corsEnabled(true)
+                    .keepOriginalHeaders(keepOriginalHeaders);
             if (ssl) {
                 builder.https(port);
             } else {
@@ -414,7 +419,8 @@ public class Main implements Callable<Void> {
                 .pathPrefix(prefix)
                 .certFile(cert)
                 .keyFile(key)
-                .watch(watch);
+                .watch(watch)
+                .keepOriginalHeaders(keepOriginalHeaders);
         if (ssl) {
             builder.https(port);
         } else {
