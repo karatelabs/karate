@@ -132,7 +132,7 @@ public class Main implements Callable<Void> {
     @Option(names = {"-H", "--hook"}, split = ",", description = "class name of a RuntimeHook (or RuntimeHookFactory) to add")
     List<String> hookFactoryClassNames;
 
-    @Option(names = {"--keepOriginalHeaders"}, description = "Keeping original headers given in the mock feature or configure")
+    @Option(names = {"--keep-original-headers"}, description = "keeping original headers given in the mock scenario or configure")
     boolean keepOriginalHeaders;
 
     //==========================================================================

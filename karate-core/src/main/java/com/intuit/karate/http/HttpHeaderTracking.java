@@ -2,8 +2,8 @@ package com.intuit.karate.http;
 
 public interface HttpHeaderTracking {
 
-    void putHeader(String originalHeader);
+    void putHeaderReference(String originalHeader);
 
-    String getOriginalHeader(String header);
+    String getOriginalHeader(String headerReference);
 
 }

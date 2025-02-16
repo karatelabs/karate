@@ -11,20 +11,20 @@ class GenericHttpHeaderTrackingTest {
     void testPutHeader() {
         String header = "X-Special-Header";
 
-        Assertions.assertDoesNotThrow(() -> httpHeaderTracking.putHeader(header));
+        Assertions.assertDoesNotThrow(() -> httpHeaderTracking.putHeaderReference(header));
     }
 
     @Test
     void testPutHeaderWithNull() {
         String header = null;
 
-        Assertions.assertDoesNotThrow(() -> httpHeaderTracking.putHeader(header));
+        Assertions.assertDoesNotThrow(() -> httpHeaderTracking.putHeaderReference(header));
     }
 
     @Test
     void testGetOriginalHeader() {
         String header = "X-Special-Header";
-        httpHeaderTracking.putHeader(header);
+        httpHeaderTracking.putHeaderReference(header);
 
         String result = httpHeaderTracking.getOriginalHeader(header);
         Assertions.assertEquals(header, result);

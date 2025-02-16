@@ -100,7 +100,7 @@ public class HttpServerHandler implements HttpService {
             headers.forEach((k, v) -> {
                 rhb.add(k, v);
                 if (httpHeaderTracking != null) {
-                    httpHeaderTracking.putHeader(k);
+                    httpHeaderTracking.putHeaderReference(k);
                 }
             });
         }
