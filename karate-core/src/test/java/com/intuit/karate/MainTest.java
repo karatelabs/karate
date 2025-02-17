@@ -24,7 +24,7 @@ class MainTest {
 
     @Test
     void testKeepOriginalHeaders() {
-        Main options = Main.parseKarateArgs(List.of("--keepOriginalHeaders"));
+        Main options = Main.parseKarateArgs(List.of("--keep-original-headers"));
         assertEquals(true, options.keepOriginalHeaders);
     }
 }
