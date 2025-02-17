@@ -21,5 +21,10 @@ class MainTest {
         Main options = Main.parseKarateArgs(List.of("-d"));
         assertEquals(0, options.debugPort);
     }
-    
+
+    @Test
+    void testKeepOriginalHeaders() {
+        Main options = Main.parseKarateArgs(List.of("--keep-original-headers"));
+        assertEquals(true, options.keepOriginalHeaders);
+    }
 }
