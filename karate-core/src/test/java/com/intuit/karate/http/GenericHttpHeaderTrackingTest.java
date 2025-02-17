@@ -1,11 +1,17 @@
 package com.intuit.karate.http;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class GenericHttpHeaderTrackingTest {
 
-    private final GenericHttpHeaderTracking httpHeaderTracking = new GenericHttpHeaderTracking();
+    private GenericHttpHeaderTracking httpHeaderTracking;
+
+    @BeforeEach
+    void beforeEach() {
+        httpHeaderTracking = new GenericHttpHeaderTracking();
+    }
 
     @Test
     void testPutHeader() {
