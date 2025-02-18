@@ -229,7 +229,7 @@ java -jar karate.jar -m my-mock.feature -p 8443 -s -c my-cert.crt -k my-key.key
 By default, Karate mock server converts all response headers to lowercase according to HTTP/2 standard. This option allows you to retain the original header format, enabling integration with legacy systems or HTTP/1.
 
 ```
-java -jar karate.jar -m my-mock.feature --keep-original-headers
+java -jar karate.jar -m my-mock.feature -p 8080 --keep-original-headers
 ```
 
 #### Hot Reload
