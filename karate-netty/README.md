@@ -225,6 +225,13 @@ If you have a custom certificate and private-key (in PEM format) you can specify
 java -jar karate.jar -m my-mock.feature -p 8443 -s -c my-cert.crt -k my-key.key
 ```
 
+#### Keep Original Headers
+By default, Karate mock server converts all response headers to lowercase according to HTTP/2 standard. This option allows you to retain the original header format, enabling integration with legacy systems or HTTP/1.
+
+```
+java -jar karate.jar -m my-mock.feature --keep-original-headers
+```
+
 #### Hot Reload
 You can hot-reload a mock feature file for changes by adding the -W or --watch option.
 
@@ -321,13 +328,6 @@ java -jar karate.jar -T 5 -C src/features
 
 #### Debug Server
 The `-d` or `--debug` option will start a debug server. See the [Debug Server wiki](https://github.com/karatelabs/karate/wiki/Debug-Server) for more details.
-
-#### Keep Original Headers
-By default, Karate mock server converts all response headers to lowercase according to HTTP/2 standard. This option allows you to retain the original header format, enabling integration with legacy systems or HTTP/1.
-
-```
-java -jar karate.jar --keep-original-headers
-```
 
 ## Custom Classpath
 Karate allows you to use custom Java code or 3rd party Java libraries using [Java interop](https://github.com/karatelabs/karate#calling-java). Normally those who do this use Karate in the context of [Maven](https://maven.apache.org) or [Gradle](https://gradle.org) - and the [classpath](https://github.com/karatelabs/karate#classpath) would be set automatically.
