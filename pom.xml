@@ -50,6 +50,7 @@
         <module>karate-junit5</module>
         <module>karate-demo</module>        
         <module>karate-gatling</module>
+        <module>karate-mock</module>
         <module>karate-playwright</module>
         <module>karate-robot</module>        
         <module>karate-e2e-tests</module>
