@@ -225,6 +225,13 @@ If you have a custom certificate and private-key (in PEM format) you can specify
 java -jar karate.jar -m my-mock.feature -p 8443 -s -c my-cert.crt -k my-key.key
 ```
 
+#### Keep Original Headers
+By default, Karate mock server converts all response headers to lowercase according to HTTP/2 standard. By adding the `--keep-original-headers` option it allows you to retain the original header format, enabling integration with legacy systems or HTTP/1.
+
+```
+java -jar karate.jar -m my-mock.feature -p 8080 --keep-original-headers
+```
+
 #### Hot Reload
 You can hot-reload a mock feature file for changes by adding the -W or --watch option.
 
