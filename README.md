@@ -2417,6 +2417,8 @@ karate.configure('ssl', { trustAll: true });
 
 For end-to-end examples in the Karate demos, look at the files in [this folder](karate-demo/src/test/java/ssl).
 
+There is also a minimal Spring Boot based example here: [Karate and SSL](https://github.com/karatelabs/karate-examples/blob/main/ssl/README.md)
+
 ### NTLM Authentication
 Karate provides support for NTLM authentication using the Apache NTLMEngine implementation.
 
