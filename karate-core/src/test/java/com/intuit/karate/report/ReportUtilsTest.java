@@ -81,5 +81,25 @@ class ReportUtilsTest {
         File file = ReportUtils.saveJunitXml("target", fr.result, null);
         assertTrue(FileUtils.toString(file).contains(expectedCustomTags));
     }
+    
+    @Test
+    void testFailAnnotationXML() {
+    	String expectedSystemout = "<system-out>"; 
+        Feature feature = Feature.read("classpath:com/intuit/karate/core/fail-tag.feature");
+        FeatureRuntime fr = FeatureRuntime.of(new Suite(), new FeatureCall(feature));
+        fr.run();
+        File file = ReportUtils.saveJunitXml("target", fr.result, null);
+        assertTrue(FileUtils.toString(file).contains(expectedSystemout));
+    }
+    
+    @Test
+    void testFailAnnotationXMLFailure() {
+    	String expectedSystemout = "<failure"; 
+        Feature feature = Feature.read("classpath:com/intuit/karate/core/fail-tag-failure.feature");
+        FeatureRuntime fr = FeatureRuntime.of(new Suite(), new FeatureCall(feature));
+        fr.run();
+        File file = ReportUtils.saveJunitXml("target", fr.result, null);
+        assertTrue(FileUtils.toString(file).contains(expectedSystemout));
+    }
 
 }
