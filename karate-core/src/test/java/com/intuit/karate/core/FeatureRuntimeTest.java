@@ -179,6 +179,11 @@ class FeatureRuntimeTest {
     }
 
     @Test
+    void testEvalAssign() {
+        run("eval-assign.feature");
+    }
+
+    @Test
     void testExtract() {
         run("extract.feature");
     }

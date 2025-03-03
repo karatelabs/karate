@@ -31,15 +31,7 @@ import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.StringUtils;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.StringJoiner;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.LoggerFactory;
@@ -261,8 +253,18 @@ public class StepRuntime {
             KarateException e = new KarateException("no step-definition method match found for: " + text);
             return Result.failed(System.currentTimeMillis(), 0, e, step);
         } else if (matches.size() > 1) {
-            KarateException e = new KarateException("more than one step-definition method matched: " + text + " - " + matches);
-            return Result.failed(System.currentTimeMillis(), 0, e, step);
+            boolean evalAssign = false; // special case to support foo.bar = (docstring) in cucumber syntax
+            for (MethodMatch m : matches) {
+                if (m.getMethod().getName().equalsIgnoreCase("evalAssignDocString")) {
+                    evalAssign = true;
+                    matches = Collections.singletonList(m);
+                    break;
+                }
+            }
+            if (!evalAssign) {
+                KarateException e = new KarateException("more than one step-definition method matched: " + text + " - " + matches);
+                return Result.failed(System.currentTimeMillis(), 0, e, step);
+            }
         }
         MethodMatch match = matches.get(0);
         Object last;
