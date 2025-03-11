@@ -189,6 +189,13 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             }
             scenario.setSteps(steps);
         }
+        
+		if (scenario.getTagsEffective().contains(Tag.FAIL) && sr.isFailed()) {
+			if (!sr.getErrorMessage().startsWith(ScenarioRuntime.EXPECT_TEST_TO_FAIL_BECAUSE_OF_FAIL_TAG)) {
+				sr.ignoreFailedStep();
+			}
+
+		}
         return sr;
     }
 
