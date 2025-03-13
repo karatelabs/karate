@@ -75,6 +75,18 @@ class RunnerTest {
     }
 
     @Test
+    void testRunningFeatureWithFailAnnotationFromJavaApi() {
+    	Results results = Runner.path("classpath:com/intuit/karate/core/fail-tag.feature").parallel(1);
+    	assertEquals(0, results.getFailCount());
+    }
+    
+    @Test
+    void testRunningFeatureWithFailAnnotationFailureFromJavaApi() {
+    	Results results = Runner.path("classpath:com/intuit/karate/core/fail-tag-failure.feature").parallel(1);
+    	assertEquals(1, results.getFailCount());
+    }
+    
+    @Test
     void testRunningFeatureFailureFromJavaApi() {
         try {
             Runner.runFeature(getClass(), "multi-scenario-fail.feature", null, true);
