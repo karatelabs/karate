@@ -436,13 +436,13 @@ public class DriverOptions {
     }
 
     public static String selector(String locator, String contextNode) {
-        if (locator.startsWith("(")) {
+        if (locator.startsWith("(") && !locator.startsWith("(//")) {
             return locator; // pure js !
         }
         if (locator.startsWith("{")) {
             locator = preProcessWildCard(locator);
         }
-        if (locator.startsWith("/") || locator.startsWith("./") || locator.startsWith("../")) { // XPathResult.FIRST_ORDERED_NODE_TYPE = 9
+        if (locator.startsWith("/") || locator.startsWith("./") || locator.startsWith("../") || locator.startsWith("(//"))  { // XPathResult.FIRST_ORDERED_NODE_TYPE = 9
             if (locator.startsWith("/(")) { // hack for wildcard with index (see preProcessWildCard last line)
                 if (DOCUMENT.equals(contextNode)) {
                     locator = locator.substring(1);
@@ -600,7 +600,7 @@ public class DriverOptions {
         if (locator.startsWith("{")) {
             locator = preProcessWildCard(locator);
         }
-        boolean isXpath = locator.startsWith("/") || locator.startsWith("./") || locator.startsWith("../");
+        boolean isXpath = locator.startsWith("/") || locator.startsWith("./") || locator.startsWith("../") || locator.startsWith("(//");
         String selector;
         if (isXpath) { // XPathResult.ORDERED_NODE_ITERATOR_TYPE = 5
             selector = "document.evaluate(\"" + locator + "\", " + contextNode + ", null, 5, null)";
