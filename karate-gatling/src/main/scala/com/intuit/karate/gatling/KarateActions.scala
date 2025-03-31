@@ -24,6 +24,8 @@
 package com.intuit.karate.gatling
 
 import java.util.function.Consumer
+
+import akka.actor.ActorSystem
 import com.intuit.karate.core._
 import com.intuit.karate.http.HttpRequest
 import com.intuit.karate.{PerfHook, Runner}
@@ -31,7 +33,6 @@ import io.gatling.commons.stats.{KO, OK}
 import io.gatling.commons.util.Clock
 import io.gatling.core.action.builder.ActionBuilder
 import io.gatling.core.action.{Action, ExitableAction}
-import io.gatling.core.actor.ActorSystem
 import io.gatling.core.session.Session
 import io.gatling.core.stats.StatsEngine
 import io.gatling.core.structure.ScenarioContext
@@ -39,14 +40,14 @@ import io.gatling.core.util.NameGen
 
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration, MILLISECONDS}
-import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 
 class KarateFeatureAction(val name: String, val tags: Seq[String], val protocol: KarateProtocol, val system: ActorSystem,
                           val statsEngine: StatsEngine, val clock: Clock, val next: Action, val isSilent: Boolean = false) extends ExitableAction {
 
   override def execute(session: Session) = {
 
-    implicit val executor: ExecutionContext = system.executionContext
+    implicit val executor: ExecutionContextExecutor = system.dispatcher
 
     def pauseInternal(time: Int) = {
       val duration = Duration(time, MILLISECONDS)
@@ -128,7 +129,7 @@ class KarateFeatureAction(val name: String, val tags: Seq[String], val protocol:
 class KarateFeatureActionBuilder(name: String, tags: Seq[String]) extends ActionBuilder {
 
   private var isSilent = false
-
+  
   def silent(): KarateFeatureActionBuilder = {
       this.isSilent = true;
       this;
@@ -136,9 +137,6 @@ class KarateFeatureActionBuilder(name: String, tags: Seq[String]) extends Action
 
   override def build(ctx: ScenarioContext, next: Action): Action = {
     val karateComponents = ctx.protocolComponentsRegistry.components(KarateProtocol.KarateProtocolKey)
-    ctx.protocolComponentsRegistry.components(KarateProtocol.KarateProtocolKey)
-      
-
     new KarateFeatureAction(name, tags, karateComponents.protocol, karateComponents.system, ctx.coreComponents.statsEngine, ctx.coreComponents.clock, next, isSilent)
   }
 

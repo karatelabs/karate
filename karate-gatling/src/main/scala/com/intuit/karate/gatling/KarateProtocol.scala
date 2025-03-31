@@ -23,11 +23,11 @@
  */
 package com.intuit.karate.gatling
 
+import akka.actor.ActorSystem
 import com.intuit.karate.Runner
 import com.intuit.karate.http.{HttpRequest, HttpUtils}
 import com.intuit.karate.core.{ScenarioCall, ScenarioRuntime}
 import io.gatling.core.CoreComponents
-import io.gatling.core.actor.ActorSystem
 import io.gatling.core.config.GatlingConfiguration
 import io.gatling.core.protocol.{Protocol, ProtocolComponents, ProtocolKey}
 import io.gatling.core.session.Session
