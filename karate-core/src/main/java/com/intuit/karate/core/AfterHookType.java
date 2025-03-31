@@ -21,28 +21,25 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.apache.http.conn.ssl;
-
-import java.io.IOException;
-import java.net.Socket;
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.SSLContext;
-import org.apache.http.protocol.HttpContext;
+package com.intuit.karate.core;
 
 /**
- * in a separate package just for log level config consistency
- * 
- * @author pthomas3
+ *
+ * @author OwenK2
  */
-public class LenientSslConnectionSocketFactory extends SSLConnectionSocketFactory {
-    
-    public LenientSslConnectionSocketFactory(SSLContext sslContext, HostnameVerifier hostnameVerifier) {
-        super(sslContext, hostnameVerifier);
+public enum AfterHookType {
+
+    AFTER_SCENARIO("afterScenario"),
+    AFTER_OUTLINE("afterScenarioOutline"),
+    AFTER_FEATURE("afterFeature");
+
+    private String prefix;
+
+    private AfterHookType(String prefix) {
+        this.prefix = prefix;
     }
 
-    @Override
-    public Socket createLayeredSocket(Socket socket, String target, int port, HttpContext context) throws IOException {
-        return super.createLayeredSocket(socket, "", port, context);
+    public String getPrefix() {
+        return prefix;
     }
-    
 }

@@ -366,6 +366,12 @@ public class ScenarioActions implements Actions {
     }
 
     @Override
+    @When("^([\\w]+\\.[^=]+=$)")
+    public void evalAssignDocString(String lhs, String rhs) {
+        engine.evalJs(lhs + rhs);
+    }
+
+    @Override
     @When("^([\\w]+)([^\\s^\\w])(.+)")
     public void eval(String name, String dotOrParen, String exp) {
         engine.evalJs(name + dotOrParen + exp);

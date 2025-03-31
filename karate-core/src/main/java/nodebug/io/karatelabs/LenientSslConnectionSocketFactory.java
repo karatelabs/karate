@@ -21,53 +21,31 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.core;
+package nodebug.io.karatelabs;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.IOException;
+import java.net.Socket;
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLContext;
+
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.protocol.HttpContext;
 
 /**
- *
+ * in a package that is NOT in the karate package, else it will add un-necessary debug logging
+ * the parent class is third-party code that unfortunately calls getClass() for logger name
+ * 
  * @author pthomas3
  */
-public class ExamplesTable {
-
-    private final ScenarioOutline outline;
-    private final Table table;
-    private List<Tag> tags;
+public class LenientSslConnectionSocketFactory extends SSLConnectionSocketFactory {
     
-
-    public ExamplesTable(ScenarioOutline outline, Table table) {
-        this.outline = outline;
-        this.table = table;
-        this.tags = new ArrayList();
+    public LenientSslConnectionSocketFactory(SSLContext sslContext, HostnameVerifier hostnameVerifier) {
+        super(sslContext, hostnameVerifier);
     }
 
-    public ScenarioOutline getOutline() {
-        return outline;
+    @Override
+    public Socket createLayeredSocket(Socket socket, String target, int port, HttpContext context) throws IOException {
+        return super.createLayeredSocket(socket, "", port, context);
     }
-
-    public List<Tag> getTags() {
-        return tags;
-    }
-
-    public void setTags(List<Tag> tags) {
-        this.tags = tags;
-    }
-
-    public Table getTable() {
-        return table;
-    }
-
-    public Map<String, Object> toKarateJson() {
-        Map<String, Object> map = new HashMap();
-        List<String> tagStrings = new ArrayList();
-        tags.forEach(tag -> tagStrings.add(tag.toString()));
-        map.put("tags", tagStrings);
-        map.put("data", table.getRowsAsMapsConverted());
-        return map;
-    }
-
+    
 }

@@ -235,20 +235,35 @@ public class ScenarioEngine {
         evalJs("karate.log('[print]'," + exp + ")");
     }
 
-    public void invokeAfterHookIfConfigured(boolean afterFeature) {
+    public void invokeAfterHookIfConfigured(AfterHookType hookType) {
+        // Do not call hooks on "called" scenarios/features
         if (runtime.caller.depth > 0) {
             return;
         }
-        Variable v = afterFeature ? config.getAfterFeature() : config.getAfterScenario();
+
+        // Get hook variable based on type
+        Variable v;
+        switch (hookType) {
+            case AFTER_SCENARIO: 
+                v = config.getAfterScenario();
+                break;
+            case AFTER_OUTLINE: 
+                v = config.getAfterScenarioOutline();
+                break;
+            case AFTER_FEATURE: 
+                v = config.getAfterFeature();
+                break;
+            default: return;
+        }
+        
         if (v.isJsOrJavaFunction()) {
-            if (afterFeature) {
+            if (hookType == AfterHookType.AFTER_FEATURE) {
                 ScenarioEngine.set(this); // for any bridge / js to work
             }
             try {
                 executeFunction(v);
             } catch (Exception e) {
-                String prefix = afterFeature ? "afterFeature" : "afterScenario";
-                logger.warn("{} hook failed: {}", prefix, e + "");
+                logger.warn("{} hook failed: {}", hookType.getPrefix(), e + "");
             }
         }
     }
