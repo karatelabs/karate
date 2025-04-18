@@ -17,10 +17,10 @@ public class ScenarioBridgeTest {
     private static final Logger logger        = LoggerFactory.getLogger(ScenarioBridgeTest.class);
 
     private static final String csDATA         = "data";
-    private static final String csFEATUREFILE  = "callSingleFeature.feature";
+    private static final String csFEATUREFILE  = "classpath:com/intuit/karate/core/callSingleFeature.feature";
     private static final String csKEY          = "receivedParam";
     private static final String csNOTHING      = "Nothing";
-    private static final String csSCENARIOFILE = "callSingleScenario.feature@storeValue";
+    private static final String csSCENARIOFILE = "classpath:com/intuit/karate/core/callSingleScenario.feature@storeValue";
 
     private ScenarioBridge  moTest;
     private ScenarioEngine  moEngine;
