@@ -15,7 +15,7 @@ jobs:
       uses: oracle-actions/setup-java@v1
       with:
         website: jdk.java.net
-        release: 23
+        release: 24
     - name: cache maven packages
       uses: actions/cache@v4
       with:
