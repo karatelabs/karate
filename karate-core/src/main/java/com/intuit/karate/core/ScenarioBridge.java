@@ -198,7 +198,8 @@ public class ScenarioBridge implements PerfContext {
                 }
             }
             if (result == null) {
-                Variable called = new Variable(read(fileName));
+                String sFileName = (fileName.contains("?")) ? StringUtils.split(fileName, '?', false).get(0) : fileName;
+                Variable called = new Variable(read(sFileName));
                 Variable argVar;
                 if (arg == null || arg.isNull()) {
                     argVar = null;
@@ -209,7 +210,7 @@ public class ScenarioBridge implements PerfContext {
                 try {
                     resultVar = engine.call(called, argVar, false);
                 } catch (Exception e) {
-                    // don't retain any vestiges of graal-js 
+                    // don't retain any vestiges of graal-js
                     RuntimeException re = new RuntimeException(e.getMessage());
                     // we do this so that an exception is also "cached"
                     resultVar = new Variable(re); // will be thrown at end
