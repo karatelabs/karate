@@ -14,6 +14,12 @@ Background:
       console.log('afterFeature');
    }
  """
+ * configure afterScenarioOutline =
+ """
+   function fn() {
+      console.log('afterScenarioOutline');
+   }
+ """
   * configure afterScenario =
   """
     function fn() {

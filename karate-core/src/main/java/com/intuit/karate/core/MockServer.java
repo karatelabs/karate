@@ -23,12 +23,7 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.http.HttpServer;
-import com.intuit.karate.http.HttpServerHandler;
-import com.intuit.karate.http.Request;
-import com.intuit.karate.http.Response;
-import com.intuit.karate.http.ServerHandler;
-import com.intuit.karate.http.SslContextFactory;
+import com.intuit.karate.http.*;
 import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
@@ -69,6 +64,7 @@ public class MockServer extends HttpServer {
         Map<String, Object> args;
         String prefix = null;
         MockInterceptor interceptor = null;
+        boolean keepOriginalHeaders;
 
         public Builder watch(boolean value) {
             watch = value;
@@ -122,6 +118,11 @@ public class MockServer extends HttpServer {
             return this;
         }
 
+        public Builder keepOriginalHeaders(boolean value) {
+            keepOriginalHeaders = value;
+            return this;
+        }
+
         public MockServer build() {
             ServerBuilder sb = Server.builder();
             sb.requestTimeoutMillis(0);
@@ -135,8 +136,21 @@ public class MockServer extends HttpServer {
             } else {
                 sb.http(port);
             }
+
             ServerHandler handler = watch ? new ReloadingMockHandler(features, args, prefix, interceptor) : new MockHandler(prefix, features, args, interceptor);
-            HttpService service = new HttpServerHandler(handler);
+
+            HttpServerHandler.Builder serverHandlerBuilder = HttpServerHandler.Builder.builder();
+            serverHandlerBuilder.handler(handler);
+
+            if (keepOriginalHeaders) {
+                HttpHeaderTracking headerTracking = new GenericHttpHeaderTracking();
+                sb.http1HeaderNaming(http2HeaderName ->
+                        headerTracking.getOriginalHeader(String.valueOf(http2HeaderName)));
+
+                serverHandlerBuilder.httpHeaderTracking(headerTracking);
+            }
+
+            HttpService service = serverHandlerBuilder.build();
             sb.service("prefix:" + (prefix == null ? "/" : prefix), service);
             return new MockServer(sb);
         }

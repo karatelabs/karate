@@ -349,7 +349,7 @@ All you need is available in the [`karate-core`](https://search.maven.org/artifa
 <dependency>
     <groupId>io.karatelabs</groupId>
     <artifactId>karate-junit5</artifactId>
-    <version>1.5.0</version>
+    <version>1.5.1</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -358,7 +358,7 @@ All you need is available in the [`karate-core`](https://search.maven.org/artifa
 Alternatively for [Gradle](https://gradle.org):
 
 ```yml
-    testCompile 'io.karatelabs:karate-junit5:1.5.0'
+    testImplementation 'io.karatelabs:karate-junit5:1.5.1'
 ```
 
 Also refer to the wiki for using [Karate with Gradle](https://github.com/karatelabs/karate/wiki/Gradle).
@@ -393,7 +393,7 @@ You can replace the values of `com.mycompany` and `myproject` as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=io.karatelabs \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=1.5.0 \
+-DarchetypeVersion=1.5.1 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -2252,6 +2252,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `printEnabled` | boolean | Can be used to suppress the [`print`](#print) output when not in 'dev mode' by setting as `false` (default `true`)
 `report` | JSON / boolean | see [report verbosity](#report-verbosity)
 `afterScenario` | JS function | Will be called [after every `Scenario`](#hooks) (or `Example` within a `Scenario Outline`), refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
+`afterScenarioOutline` | JS function | Will be called [after every `Scenario Outline`](#hooks). Is called after the last `afterScenario` for the last scenario in the outline. Refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 `afterFeature` | JS function | Will be called [after every `Feature`](#hooks), refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
 `ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above form internally defaults to `TLS` if simply set to `true`).
@@ -2415,6 +2416,8 @@ karate.configure('ssl', { trustAll: true });
 ```
 
 For end-to-end examples in the Karate demos, look at the files in [this folder](karate-demo/src/test/java/ssl).
+
+There is also a minimal Spring Boot based example here: [Karate and SSL](https://github.com/karatelabs/karate-examples/blob/main/ssl/README.md)
 
 ### NTLM Authentication
 Karate provides support for NTLM authentication using the Apache NTLMEngine implementation.
@@ -3690,6 +3693,7 @@ Operation | Description
 <a name="karate-response"><code>karate.response</code></a> | returns the last HTTP response as a JS object that enables advanced use-cases such as getting a header ignoring case: `karate.response.header('some-header')`
 <a name="karate-request"><code>karate.request</code></a> | returns the last HTTP request as a JS object that enables advanced use-cases such as getting a header ignoring case: `karate.request.header('some-header')`, which works [even in mocks](https://github.com/karatelabs/karate/tree/master/karate-netty#requestheaders)
 <a name="karate-scenario"><code>karate.scenario</code></a> | get metadata about the currently executing `Scenario` (or `Outline` - `Example`) within a test 
+<a name="karate-scenarioOutline"><code>karate.scenarioOutline</code></a> | get metadata about the currently executing scenario outline within a test
 <a name="karate-set"><code>karate.set(name, value)</code></a> | sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
 <a name="karate-setall"><code>karate.set(object)</code></a> | where the single argument is expected to be a `Map` or JSON-like, and will perform the above `karate.set()` operation for all key-value pairs in one-shot
 <a name="karate-setpath"><code>karate.set(name, path, value)</code></a> | only needed when you need to conditionally build payload elements, especially XML. This is best explained via [an example](karate-core/src/test/java/com/intuit/karate/core/xml/xml.feature#L211), and it behaves the same way as the [`set`](#set) keyword. Also see [`eval`](#eval).
@@ -4326,6 +4330,7 @@ For completeness, the "built-in" tags are the following:
 Tag | Description
 --- | -----------
 `@ignore` | Any `Scenario` with (or that has inherited) this tag will be skipped at run-time. This does not apply to anything that is "called" though
+`@fail` | Any `Scenario` with (or that has inherited) this tag will be expected to fail. This can be used if e.g. tests are written before fixes
 `@parallel` | See [`@parallel=false`](#parallelfalse)
 `@report` | See [`@report=false`](#reportfalse)
 `@setup` | See [`@setup`](#setup)
@@ -4440,6 +4445,7 @@ Before *everything* (or 'globally' once) | See [`karate.callSingle()`](#karateca
 Before every `Scenario` | Use the [`Background`](#script-structure). Note that [`karate-config.js`](#karate-configjs) is processed before *every* `Scenario` - so you can choose to put "global" config here, for example using [`karate.configure()`](#karate-configure).
 Once (or at the start of) every `Feature` | Use a [`callonce`](#callonce) in the [`Background`](#script-structure). The advantage is that you can set up variables (using [`def`](#def) if needed) which can be used in all `Scenario`-s within that `Feature`.
 After every `Scenario` | [`configure afterScenario`](#configure) (see [example](karate-demo/src/test/java/demo/hooks/hooks.feature))
+After every `Scenario Outline` | [`configure afterScenarioOutline`](#configure) (see [example](karate-demo/src/test/java/demo/hooks/hooks.feature))
 At the end of the `Feature` | [`configure afterFeature`](#configure) (see [example](karate-demo/src/test/java/demo/hooks/hooks.feature))
 
 > Note that for the `afterFeature` hook to work, you should be using the [`Runner` API](#parallel-execution) and not the JUnit runner.

@@ -46,6 +46,10 @@ public interface RuntimeHook {
 
     }
 
+    default void afterScenarioOutline(ScenarioRuntime sr) {
+
+    }
+
     default boolean beforeFeature(FeatureRuntime fr) {
         return true;
     }

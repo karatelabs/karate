@@ -50,8 +50,8 @@ public class Results {
     private final int scenariosFailed;
     private final double timeTakenMillis;
     private final long endTime;
-    private final List<String> errors = new ArrayList();
-    private final List<Map<String, Object>> featureSummary = new ArrayList();
+    private final List<String> errors = new ArrayList<>();
+    private final List<Map<String, Object>> featureSummary = new ArrayList<>();
 
     public static Results of(Suite suite) {
         return new Results(suite);
@@ -138,7 +138,7 @@ public class Results {
     }
 
     public Map<String, Object> toKarateJson() {
-        Map<String, Object> map = new HashMap();
+        Map<String, Object> map = new HashMap<>();
         map.put("version", FileUtils.KARATE_VERSION);
         map.put("env", suite.env);
         map.put("threads", suite.threadCount);

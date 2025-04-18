@@ -56,7 +56,8 @@ public class HttpServer {
         File keyFile;
         boolean corsEnabled;
         ServerHandler handler;
-        
+        boolean keepOriginalHeaders;
+
         public Builder local(boolean value) {
             local = value;
             return this;
@@ -93,6 +94,11 @@ public class HttpServer {
             return this;
         }
 
+        public Builder keepOriginalHeaders(boolean value) {
+            keepOriginalHeaders = value;
+            return this;
+        }
+
         public HttpServer build() {
             ServerBuilder sb = Server.builder();
             sb.requestTimeoutMillis(0);
@@ -115,11 +121,23 @@ public class HttpServer {
                     sb.http(port);
                 }
             }
-            HttpService service = new HttpServerHandler(handler);
+
+            HttpServerHandler.Builder serverHandlerBuilder = HttpServerHandler.Builder.builder();
+            serverHandlerBuilder.handler(handler);
+
+            if (keepOriginalHeaders) {
+                HttpHeaderTracking headerTracking = new GenericHttpHeaderTracking();
+                sb.http1HeaderNaming(http2HeaderName ->
+                        headerTracking.getOriginalHeader(String.valueOf(http2HeaderName)));
+
+                serverHandlerBuilder.httpHeaderTracking(headerTracking);
+            }
+
+            HttpService service = serverHandlerBuilder.build();
             if (corsEnabled) {
                 service = service.decorate(CorsService.builderForAnyOrigin().allowAllRequestHeaders(true).newDecorator());
             }
-            sb.service("prefix:/", service);            
+            sb.service("prefix:/", service);
             return new HttpServer(sb);
         }
 

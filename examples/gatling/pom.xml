@@ -4,7 +4,7 @@
  
     <groupId>io.karatelabs.examples</groupId>
     <artifactId>examples-gatling</artifactId>
-    <version>1.5.0-SNAPSHOT</version>
+    <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>       
  
     <properties>
@@ -13,7 +13,7 @@
         <maven.compiler.version>3.6.0</maven.compiler.version>
 	<!-- please change this when running locally -->
         <karate.version>${project.version}</karate.version>
-        <gatling.plugin.version>4.1.1</gatling.plugin.version>
+        <gatling.plugin.version>4.3.4</gatling.plugin.version>
     </properties>    
 
     <dependencies>

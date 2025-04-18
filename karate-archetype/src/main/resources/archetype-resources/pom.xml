@@ -12,7 +12,7 @@
         <java.version>17</java.version>
         <maven.compiler.version>3.11.0</maven.compiler.version>
         <maven.surefire.version>3.0.0</maven.surefire.version>
-        <karate.version>1.5.0</karate.version>
+        <karate.version>1.5.1</karate.version>
     </properties>    
 
     <dependencies>         

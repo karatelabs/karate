@@ -1,5 +1,5 @@
 Feature: demo karate's equivalent of before and after hooks
-    note that 'afterScenario' / 'afterFeature' if set up using 'configure'
+    note that 'afterScenario' / 'afterScenarioOutline' / 'afterFeature' if set up using 'configure'
     is not supported within features invoked using the 'call' or 'callonce' keywords 
 
 Background:
@@ -27,6 +27,17 @@ function(){
 # use the Runner API instead: https://github.com/karatelabs/karate#parallel-execution
 
 * configure afterFeature = function(){ karate.call('after-feature.feature'); }
+
+# Only runs at the end of a scenario outline after all examples have been run
+# This hook will be called after the last scenario in the outline is executed
+# It will also run after any configured 'afterScenario's for that outline
+# NOTE if using parallel, last Scenario executed may not be the last example in the outline
+* configure afterScenarioOutline = 
+"""
+function(){
+  karate.log('after scenario outline:', karate.scenarioOutline.name);
+}
+"""
 
 Scenario: first
     * print foo

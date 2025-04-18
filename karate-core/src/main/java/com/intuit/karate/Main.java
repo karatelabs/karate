@@ -94,7 +94,7 @@ public class Main implements Callable<Void> {
     @Option(names = {"-T", "--threads"}, description = "number of threads when running tests")
     int threads;
 
-    @Option(names = {"-o", "--output"}, description = "directory where logs and reports are output (default 'target')")
+    @Option(names = {"-o", "--output"}, description = "directory where logs and report sub-folders are output (default 'target')")
     String output = FileUtils.getBuildDir();
 
     @Option(names = {"-f", "--format"}, split = ",", description = "comma separate report output formats. tilde excludes the output report. html report is included by default unless it's negated."
@@ -113,6 +113,9 @@ public class Main implements Callable<Void> {
     @Option(names = {"-g", "--configdir"}, description = "directory where 'karate-config.js' is expected (default 'classpath:' or <workingdir>)")
     String configDir;
 
+    @Option(names = {"-r", "--reportdir"}, description = "directory where Karate HTML and JSON reports are placed (default '<output>/karate-reports')")
+    String reportDir;
+
     @Option(names = {"-C", "--clean"}, description = "clean output directory")
     boolean clean;
 
@@ -128,6 +131,9 @@ public class Main implements Callable<Void> {
 
     @Option(names = {"-H", "--hook"}, split = ",", description = "class name of a RuntimeHook (or RuntimeHookFactory) to add")
     List<String> hookFactoryClassNames;
+
+    @Option(names = {"--keep-original-headers"}, description = "keeping original headers given in the mock scenario or configure")
+    boolean keepOriginalHeaders;
 
     //==========================================================================
     //
@@ -192,6 +198,10 @@ public class Main implements Callable<Void> {
 
     public void setConfigDir(String configDir) {
         this.configDir = configDir;
+    }
+
+    public String getReportDir() {
+        return reportDir;
     }
 
     public static Main parseKarateOptions(String line) {
@@ -328,6 +338,7 @@ public class Main implements Callable<Void> {
                     .buildDir(output)
                     .backupReportDir(backupReportDir)
                     .configDir(configDir)
+                    .reportDir(reportDir)
                     .outputHtmlReport(isOutputHtmlReport())
                     .outputCucumberJson(isOutputCucumberJson())
                     .outputJunitXml(isOutputJunitXml())
@@ -364,7 +375,8 @@ public class Main implements Callable<Void> {
             RequestHandler handler = new RequestHandler(config);
             HttpServer.Builder builder = HttpServer
                     .handler(handler)
-                    .corsEnabled(true);
+                    .corsEnabled(true)
+                    .keepOriginalHeaders(keepOriginalHeaders);
             if (ssl) {
                 builder.https(port)
                         .certFile(cert)
@@ -391,7 +403,8 @@ public class Main implements Callable<Void> {
             });
             HttpServer.Builder builder = HttpServer.config(config)
                     .local(false)
-                    .corsEnabled(true);
+                    .corsEnabled(true)
+                    .keepOriginalHeaders(keepOriginalHeaders);
             if (ssl) {
                 builder.https(port);
             } else {
@@ -406,7 +419,8 @@ public class Main implements Callable<Void> {
                 .pathPrefix(prefix)
                 .certFile(cert)
                 .keyFile(key)
-                .watch(watch);
+                .watch(watch)
+                .keepOriginalHeaders(keepOriginalHeaders);
         if (ssl) {
             builder.https(port);
         } else {

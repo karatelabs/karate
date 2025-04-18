@@ -216,7 +216,7 @@ public class ReportUtils {
             testCase.setAttribute("name", name);
             testCase.setAttribute("time", formatter.format(sr.getDurationMillis() / 1000));
             Element stepsHolder;
-            if (error != null) {
+            if (error != null && sr.isFailed()) {
                 stepsHolder = doc.createElement("failure");
                 stepsHolder.setAttribute("message", error.getMessage());
             } else {
