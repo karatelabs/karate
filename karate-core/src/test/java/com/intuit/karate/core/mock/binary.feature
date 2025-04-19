@@ -1,6 +1,6 @@
 Feature: testing binary response handling
 
-Background: 
+Background:
     * def Utils = Java.type('com.intuit.karate.core.MockUtils')
 
 Scenario: get binary result and make sure it hasn't been corrupted

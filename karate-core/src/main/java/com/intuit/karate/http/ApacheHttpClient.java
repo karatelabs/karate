@@ -88,6 +88,7 @@ import org.apache.http.impl.cookie.DefaultCookieSpec;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
+import org.brotli.dec.BrotliInputStream;
 
 /**
  *
@@ -295,6 +296,13 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 bytes = Constants.ZERO_BYTES;
             } else {
                 InputStream is = responseEntity.getContent();
+                Header contentEncoding = httpResponse.getFirstHeader(HttpConstants.HDR_CONTENT_ENCODING);
+                if (contentEncoding != null) {
+                    String encoding = contentEncoding.getValue();
+                    if ("br".equalsIgnoreCase(encoding)) {
+                        is = new BrotliInputStream(is);
+                    }
+                }
                 bytes = FileUtils.toBytes(is);
             }
             request.setEndTime(System.currentTimeMillis());
