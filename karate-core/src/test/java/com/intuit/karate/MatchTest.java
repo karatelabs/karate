@@ -349,6 +349,28 @@ class MatchTest {
     }
 
     @Test
+    void testIssue2515() {
+
+        Json cat = Json.of(
+                """
+                        {
+                          name: 'Billie',
+                          kittens: [
+                            { id: 23, name: 'Bob', bla: [{ b: '1'}] },
+                            { id: 42, name: 'Wild' }
+                          ]
+                        }
+                        """);
+        Json expectedKittens1 = Json.of("[{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob', bla: [{ b: '1'}]}]");
+        JsEngine.global().put("expectedKittens1", expectedKittens1.asList());
+        match(cat.asMap(), EQUALS, Json.of("{ name: 'Billie', kittens: '#(^^expectedKittens1)' }").asMap());
+
+        Json expectedKittens2 = Json.of("[{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob', bla: { b: '1'}}]");
+        JsEngine.global().put("expectedKittens2", expectedKittens2.asList());
+        match(cat.asMap(), EQUALS, Json.of("{ name: 'Billie', kittens: '#(^^expectedKittens2)' }").asMap(), true);
+    }
+
+    @Test
     void testNotPresentOnLhs() {
         match("#notpresent", EQUALS, 2, FAILS);
         message("actual path does not exist");

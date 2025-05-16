@@ -46,23 +46,32 @@ public class Match {
 
     public static enum Type {
 
-        EQUALS,
-        NOT_EQUALS,
-        CONTAINS,
-        NOT_CONTAINS,
-        CONTAINS_ONLY,
-        CONTAINS_ANY,
-        CONTAINS_DEEP,
-        CONTAINS_ONLY_DEEP,
-        CONTAINS_ANY_DEEP,
-        EACH_EQUALS,
-        EACH_NOT_EQUALS,
-        EACH_CONTAINS,
-        EACH_NOT_CONTAINS,
-        EACH_CONTAINS_ONLY,
-        EACH_CONTAINS_ANY,
-        EACH_CONTAINS_DEEP
+        EQUALS(MatchOperator.CoreOperator.EQUALS),
+        NOT_EQUALS(new MatchOperator.NotOperator(MatchOperator.CoreOperator.EQUALS, "is equals")),
+        CONTAINS(MatchOperator.CoreOperator.CONTAINS),
+        NOT_CONTAINS(new MatchOperator.NotOperator(MatchOperator.CoreOperator.CONTAINS, "actual contains expected")),
+        CONTAINS_ONLY(MatchOperator.CoreOperator.CONTAINS_ONLY),
+        CONTAINS_ANY(MatchOperator.CoreOperator.CONTAINS_ANY),
+        CONTAINS_DEEP(MatchOperator.CoreOperator.CONTAINS.deep()),
+        CONTAINS_ONLY_DEEP(MatchOperator.CoreOperator.CONTAINS_ONLY.deep()),
+        CONTAINS_ANY_DEEP(MatchOperator.CoreOperator.CONTAINS_ANY.deep()),
+        EACH_EQUALS(new MatchOperator.EachOperator(MatchOperator.CoreOperator.EQUALS)),
+        EACH_NOT_EQUALS(new MatchOperator.EachOperator(NOT_EQUALS.operator())),
+        EACH_CONTAINS(new MatchOperator.EachOperator(MatchOperator.CoreOperator.CONTAINS)),
+        EACH_NOT_CONTAINS(new MatchOperator.EachOperator(NOT_CONTAINS.operator())),
+        EACH_CONTAINS_ONLY(new MatchOperator.EachOperator(MatchOperator.CoreOperator.CONTAINS_ONLY)),
+        EACH_CONTAINS_ANY(new MatchOperator.EachOperator(MatchOperator.CoreOperator.CONTAINS_ANY)),
+        EACH_CONTAINS_DEEP(new MatchOperator.EachOperator(MatchOperator.CoreOperator.CONTAINS.deep()));
 
+        final MatchOperator operator;
+
+        Type(MatchOperator operator) {
+            this.operator = operator;
+        }
+
+        MatchOperator operator() {
+            return operator;
+        }
     }
 
     static final Result PASS = new Result(true, null);
@@ -365,7 +374,7 @@ public class Match {
         }
 
         public Result is(Type matchType, Object expected) {
-            MatchOperation mo = new MatchOperation(matchType, this, new Value(parseIfJsonOrXmlString(expected), exceptionOnMatchFailure), false);
+            MatchOperation mo = new MatchOperation(matchType.operator(), this, new Value(parseIfJsonOrXmlString(expected), exceptionOnMatchFailure), false);
             mo.execute();
             if (mo.pass) {
                 return Match.PASS;
@@ -442,7 +451,7 @@ public class Match {
     }
 
     public static Result execute(JsEngine js, Type matchType, Object actual, Object expected, boolean matchEachEmptyAllowed) {
-        MatchOperation mo = new MatchOperation(js, matchType, new Value(actual), new Value(expected), matchEachEmptyAllowed);
+        MatchOperation mo = new MatchOperation(js, matchType.operator(), new Value(actual), new Value(expected), matchEachEmptyAllowed);
         mo.execute();
         if (mo.pass) {
             return PASS;
