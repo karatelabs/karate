@@ -8,6 +8,10 @@ public interface MatchOperator {
         EachOperator(MatchOperator delegate) {
             this.delegate = delegate;
         }
+
+        public String toString() {
+            return "EACH_"+delegate;
+        }
     }
 
     class NotOperator implements MatchOperator {
@@ -17,6 +21,10 @@ public interface MatchOperator {
         NotOperator(CoreOperator delegate, String failureMessage) {
             this.delegate = delegate;
             this.failureMessage = failureMessage;
+        }
+
+        public String toString() {
+            return "NOT_"+delegate;
         }
     }
 
@@ -111,6 +119,11 @@ public interface MatchOperator {
                 };
             }
             return specifiedOperator;
+        }
+
+        public String toString() {
+            String operatorString = isEquals?"EQUALS":isContains?"CONTAINS":isContainsAny?"CONTAINS_ANY":"CONTAINS_ONLY";
+            return isDeep?operatorString+"_DEEP":operatorString;
         }
 
 
