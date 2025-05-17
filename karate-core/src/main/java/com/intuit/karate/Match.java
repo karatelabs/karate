@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.MatchOperator.CoreOperator;
 import com.intuit.karate.graal.JsEngine;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -38,39 +39,63 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.w3c.dom.Node;
 
+import static com.intuit.karate.Match.MatchOperatorFactory.*;
+
 /**
  *
  * @author pthomas3
  */
 public class Match {
 
-    public static enum Type {
+    interface MatchOperatorFactory {
+        MatchOperator create(boolean matchEachEmptyAllowed);
 
-        EQUALS(MatchOperator.CoreOperator.EQUALS),
-        NOT_EQUALS(new MatchOperator.NotOperator(MatchOperator.CoreOperator.EQUALS, "is equals")),
-        CONTAINS(MatchOperator.CoreOperator.CONTAINS),
-        NOT_CONTAINS(new MatchOperator.NotOperator(MatchOperator.CoreOperator.CONTAINS, "actual contains expected")),
-        CONTAINS_ONLY(MatchOperator.CoreOperator.CONTAINS_ONLY),
-        CONTAINS_ANY(MatchOperator.CoreOperator.CONTAINS_ANY),
-        CONTAINS_DEEP(MatchOperator.CoreOperator.CONTAINS.deep()),
-        CONTAINS_ONLY_DEEP(MatchOperator.CoreOperator.CONTAINS_ONLY.deep()),
-        CONTAINS_ANY_DEEP(MatchOperator.CoreOperator.CONTAINS_ANY.deep()),
-        EACH_EQUALS(new MatchOperator.EachOperator(MatchOperator.CoreOperator.EQUALS)),
-        EACH_NOT_EQUALS(new MatchOperator.EachOperator(NOT_EQUALS.operator())),
-        EACH_CONTAINS(new MatchOperator.EachOperator(MatchOperator.CoreOperator.CONTAINS)),
-        EACH_NOT_CONTAINS(new MatchOperator.EachOperator(NOT_CONTAINS.operator())),
-        EACH_CONTAINS_ONLY(new MatchOperator.EachOperator(MatchOperator.CoreOperator.CONTAINS_ONLY)),
-        EACH_CONTAINS_ANY(new MatchOperator.EachOperator(MatchOperator.CoreOperator.CONTAINS_ANY)),
-        EACH_CONTAINS_DEEP(new MatchOperator.EachOperator(MatchOperator.CoreOperator.CONTAINS.deep()));
-
-        final MatchOperator operator;
-
-        Type(MatchOperator operator) {
-            this.operator = operator;
+        static MatchOperatorFactory not(CoreOperatorFactory delegateFactory, String failureMessage) {
+            return matchEachEmptyAllowed -> new MatchOperator.NotOperator(delegateFactory.create(matchEachEmptyAllowed), failureMessage);
         }
 
-        MatchOperator operator() {
-            return operator;
+        static MatchOperatorFactory deep(CoreOperatorFactory delegateFactory) {
+            return matchEachEmptyAllowed -> delegateFactory.create(matchEachEmptyAllowed).deep();
+        }
+
+        static MatchOperatorFactory each(MatchOperatorFactory delegateFactory) {
+            return matchEachEmptyAllowed -> new MatchOperator.EachOperator(delegateFactory.create(matchEachEmptyAllowed), matchEachEmptyAllowed);
+        }
+    }
+
+    interface CoreOperatorFactory extends MatchOperatorFactory {
+        @Override
+        CoreOperator create(boolean matchEachEmptyAllowed);
+    }
+
+    public static enum Type {
+
+
+        EQUALS(CoreOperator::equalsOperator),
+        NOT_EQUALS(not(CoreOperator::equalsOperator, "equals")),
+        CONTAINS(CoreOperator::containsOperator),
+        NOT_CONTAINS(not(CoreOperator::containsOperator, "actual contains expected")),
+        CONTAINS_ONLY(CoreOperator::containsOnlyOperator),
+        CONTAINS_ANY(CoreOperator::containsAnyOperator),
+        CONTAINS_DEEP(deep(CoreOperator::containsOperator)),
+        CONTAINS_ONLY_DEEP(deep(CoreOperator::containsOnlyOperator)),
+        CONTAINS_ANY_DEEP(deep(CoreOperator::containsAnyOperator)),
+        EACH_EQUALS(each(EQUALS.operatorFactory)),
+        EACH_NOT_EQUALS(each(NOT_EQUALS.operatorFactory)),
+        EACH_CONTAINS(each(CONTAINS.operatorFactory)),
+        EACH_NOT_CONTAINS(each(NOT_CONTAINS.operatorFactory)),
+        EACH_CONTAINS_ONLY(each(CONTAINS_ONLY.operatorFactory)),
+        EACH_CONTAINS_ANY(each(CONTAINS_ANY.operatorFactory)),
+        EACH_CONTAINS_DEEP(each(CONTAINS_DEEP.operatorFactory));
+
+        final MatchOperatorFactory operatorFactory;
+
+        Type(MatchOperatorFactory operatorFactory) {
+            this.operatorFactory = operatorFactory;
+        }
+
+        MatchOperator operator(boolean matchEachEmptyAllowed) {
+            return operatorFactory.create(matchEachEmptyAllowed);
         }
     }
 
@@ -164,9 +189,8 @@ public class Match {
         final String path;
         final String name;
         final int index;
-        final boolean matchEachEmptyAllowed;
 
-        Context(JsEngine js, MatchOperation root, boolean xml, int depth, String path, String name, int index, boolean matchEachEmptyAllowed) {
+        Context(JsEngine js, MatchOperation root, boolean xml, int depth, String path, String name, int index) {
             this.JS = js;
             this.root = root;
             this.xml = xml;
@@ -174,25 +198,24 @@ public class Match {
             this.path = path;
             this.name = name;
             this.index = index;
-            this.matchEachEmptyAllowed = matchEachEmptyAllowed;
         }
 
         Context descend(String name) {
             if (xml) {
                 String childPath = path.endsWith("/@") ? path + name : (depth == 0 ? "" : path) + "/" + name;
-                return new Context(JS, root, xml, depth + 1, childPath, name, -1, matchEachEmptyAllowed);
+                return new Context(JS, root, xml, depth + 1, childPath, name, -1);
             } else {
                 boolean needsQuotes = name.indexOf('-') != -1 || name.indexOf(' ') != -1 || name.indexOf('.') != -1;
                 String childPath = needsQuotes ? path + "['" + name + "']" : path + '.' + name;
-                return new Context(JS, root, xml, depth + 1, childPath, name, -1, matchEachEmptyAllowed);
+                return new Context(JS, root, xml, depth + 1, childPath, name, -1);
             }
         }
 
         Context descend(int index) {
             if (xml) {
-                return new Context(JS, root, xml, depth + 1, path + "[" + (index + 1) + "]", name, index, matchEachEmptyAllowed);
+                return new Context(JS, root, xml, depth + 1, path + "[" + (index + 1) + "]", name, index);
             } else {
-                return new Context(JS, root, xml, depth + 1, path + "[" + index + "]", name, index, matchEachEmptyAllowed);
+                return new Context(JS, root, xml, depth + 1, path + "[" + index + "]", name, index);
             }
         }
 
@@ -374,7 +397,7 @@ public class Match {
         }
 
         public Result is(Type matchType, Object expected) {
-            MatchOperation mo = new MatchOperation(matchType.operator(), this, new Value(parseIfJsonOrXmlString(expected), exceptionOnMatchFailure), false);
+            MatchOperation mo = new MatchOperation(matchType.operator(false), this, new Value(parseIfJsonOrXmlString(expected), exceptionOnMatchFailure));
             mo.execute();
             if (mo.pass) {
                 return Match.PASS;
@@ -451,7 +474,7 @@ public class Match {
     }
 
     public static Result execute(JsEngine js, Type matchType, Object actual, Object expected, boolean matchEachEmptyAllowed) {
-        MatchOperation mo = new MatchOperation(js, matchType.operator(), new Value(actual), new Value(expected), matchEachEmptyAllowed);
+        MatchOperation mo = new MatchOperation(js, matchType.operator(matchEachEmptyAllowed), new Value(actual), new Value(expected));
         mo.execute();
         if (mo.pass) {
             return PASS;

@@ -2,11 +2,17 @@ package com.intuit.karate;
 
 public interface MatchOperator {
 
+    public default MatchOperator each(boolean matchEachEmptyAllowed) {
+        return new EachOperator(this, matchEachEmptyAllowed);
+    }
+
     class EachOperator implements MatchOperator {
         final MatchOperator delegate;
+        final boolean matchEachEmptyAllowed;
 
-        EachOperator(MatchOperator delegate) {
+        EachOperator(MatchOperator delegate, boolean matchEachEmptyAllowed) {
             this.delegate = delegate;
+            this.matchEachEmptyAllowed = matchEachEmptyAllowed;
         }
 
         public String toString() {
@@ -30,31 +36,48 @@ public interface MatchOperator {
 
     class CoreOperator implements MatchOperator {
 
-        static final CoreOperator EQUALS = new CoreOperator(true, false, false, false, false);
-        static final CoreOperator CONTAINS = new CoreOperator(false, true, false, false, false);
-        static final CoreOperator CONTAINS_ANY = new CoreOperator(false, false, true, false, false);
-        static final CoreOperator CONTAINS_ONLY = new CoreOperator(false, false, false, true, false);
-
         private final boolean isEquals;
         private final boolean isContains;
         private final boolean isContainsAny;
         private final boolean isContainsOnly;
         private final boolean isDeep;
+        private final boolean matchEachEmptyAllowed;
+        // NOt strictly required. We could create a new instance in childOperator but keeping it as an instance field
+        // is a minor optimization.
+        private final CoreOperator equalsOperator;
 
-        private CoreOperator(boolean isEquals, boolean isContains, boolean isContainsAny, boolean isContainsOnly) {
-            this(isEquals, isContains, isContainsAny, isContainsOnly, false);
+        private CoreOperator(boolean isEquals, boolean isContains, boolean isContainsAny, boolean isContainsOnly, boolean matchEachEmptyAllowed) {
+            this(isEquals, isContains, isContainsAny, isContainsOnly, false, matchEachEmptyAllowed);
         }
 
-        private CoreOperator(boolean isEquals, boolean isContains, boolean isContainsAny, boolean isContainsOnly, boolean isDeep) {
+        private CoreOperator(boolean isEquals, boolean isContains, boolean isContainsAny, boolean isContainsOnly, boolean isDeep, boolean matchEachEmptyAllowed) {
             this.isEquals = isEquals;
             this.isContains = isContains;
             this.isContainsAny = isContainsAny;
             this.isContainsOnly = isContainsOnly;
             this.isDeep = isDeep;
+            this.matchEachEmptyAllowed = matchEachEmptyAllowed;
+            this.equalsOperator = isEquals?this:equalsOperator(matchEachEmptyAllowed);
         }
 
         CoreOperator deep() {
-            return new CoreOperator(isEquals, isContains, isContainsAny, isContainsOnly, true);
+            return new CoreOperator(isEquals, isContains, isContainsAny, isContainsOnly, true, matchEachEmptyAllowed);
+        }
+
+        static CoreOperator equalsOperator(boolean matchEachEmptyAllowed) {
+            return new CoreOperator(true, false, false, false, matchEachEmptyAllowed);
+        }
+
+        static CoreOperator containsOperator(boolean matchEachEmptyAllowed) {
+            return new CoreOperator(false, true, false, false, matchEachEmptyAllowed);
+        }
+
+        static CoreOperator containsAnyOperator(boolean matchEachEmptyAllowed) {
+            return new CoreOperator(false, false, true, false, matchEachEmptyAllowed);
+        }
+
+        static CoreOperator containsOnlyOperator(boolean matchEachEmptyAllowed) {
+            return new CoreOperator(false, false, false, true, matchEachEmptyAllowed);
         }
 
         boolean isEquals() {
@@ -77,11 +100,15 @@ public interface MatchOperator {
             return isContains() || isContainsOnly() || isContainsAny();
         }
 
+        boolean isMatchEachEmptyAllowed() {
+            return matchEachEmptyAllowed;
+        }
+
         MatchOperator childOperator(Match.Value value) {
             // TODO why force equals here?
             // match [['foo'], ['bar']] contains deep 'fo'
             // will fail if leaves are matched with equals, but should it not pass?
-            return isDeep && value.isMapOrListOrXml()?this:EQUALS;
+            return isDeep && value.isMapOrListOrXml()?this:equalsOperator;
         }
 
         /**
@@ -112,7 +139,7 @@ public interface MatchOperator {
          */
         protected MatchOperator macroOperator(MatchOperator specifiedOperator) {
             if (isContainsFamily()) {
-                return isDeep ? this : new CoreOperator(false, isContains(), isContainsAny(), isContainsOnly()) {
+                return isDeep ? this : new CoreOperator(false, isContains(), isContainsAny(), isContainsOnly(), isMatchEachEmptyAllowed()) {
                     protected MatchOperator childOperator(Match.Value actual) {
                         return specifiedOperator;
                     }
