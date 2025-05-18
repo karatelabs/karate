@@ -611,30 +611,39 @@ public interface MatchOperator {
         }
 
         /**
-         * Hook to adjust the operator used for macro.
-         * <p>
-         * Whatever operator the user specified (^, ^+, ...) will be supplied as the specifiedOperator parameter.
-         * However, the Contains operator may need to tweak it a little bit.
-         * <p>
-         * Given
-         * * def actual = [{ a: 1, b: 'x' }, { a: 2, b: 'y' }]
-         * * def part = { a: 1 }
-         * * match actual contains '#(^part)'
-         * <p>
-         * specifiedOperator will be Contains. However, in this example:
-         * - the specified operator will be applied while processing the list
-         * - child operators will be applied while processing the objects within the list.
-         * And per {@link #childOperator(Match.Value)}, Contains' child operators are Equals, so the code would end up
-         * trying to match { a: 1, b: 'x' } equals { a: 1 }, which would fail.
-         * <p>
-         * What we really want here is to keep both Contains, the one from the match instruction and the one from the macro.
-         * This method does just that by creating a custom Operator that will apply 2 contains.
-         * <p>
-         * Note that should a third processing be needed (e.g. because the objects in actual contain other objects),
-         * it would use the child operator of the child operator, which would be Equals.
-         * This behavior differs from the Legacy implementation that would force a Deep Contains which would in turn cause issue #2515.
-         * <p>
-         * However, Contains Deep may still be specified at user's discretion e.g. to handle objects in objects in lists.
+         * The operator specified by the user (^, ^+, ...) is provided as the {@code specifiedOperator} parameter.
+         * However, when using one of Contains Family operators, it may require some adjustments.
+         *
+         * <p>Example:
+         * <pre>{@code
+         * def actual = [{ a: 1, b: 'x' }, { a: 2, b: 'y' }]
+         * def part = { a: 1 }
+         * match actual contains '#(^part)'
+         * }</pre>
+         *
+         * In this example, {@code specifiedOperator} is {@code Contains}. However:
+         * <ul>
+         *   <li>The specified operator ({@code ^}) is applied when processing the list.</li>
+         *   <li>Child operators are applied when processing objects within the list.</li>
+         * </ul>
+         *
+         * According to {@link #childOperator(Match.Value)}, {@code Contains}' child operator is {@code Equals}.
+         * As a result, the code attempts to match {@code { a: 1, b: 'x' } equals { a: 1 }}, which fails.
+         *
+         * <p>What we actually want is to preserve both {@code Contains} operators:
+         * <ul>
+         *   <li>The one from the match instruction.</li>
+         *   <li>The one implied by the macro logic.</li>
+         * </ul>
+         * This method achieves that by creating a custom operator that effectively applies two {@code Contains} operations.
+         *
+         * <p>Note: If a third level of matching is required (e.g., the objects in {@code actual} contain other objects),
+         * it would fall back to the child operator of the child operator, which is {@code Equals}.
+         * This differs from the legacy implementation, which would enforce a deep {@code Contains},
+         * potentially triggering issue #2515.
+         *
+         * <p>That said, {@code Contains Deep} may still be specified explicitly by the user,
+         * for example, to handle nested structures like objects within objects within lists.
          */
         protected MatchOperator macroOperator(MatchOperator specifiedOperator) {
             if (isContainsFamily()) {
