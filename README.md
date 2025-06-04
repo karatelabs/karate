@@ -4271,6 +4271,7 @@ Karate also has built-in support for [websocket](http://www.websocket.org) that 
   * `subProtocol` - in case the server expects it
   * `headers` - another JSON of key-value pairs
   * `maxPayloadSize` - this defaults to 4194304 (bytes, around 4 MB)
+  * `useFrameAggregation` - (Boolean) defaults to `false`.  Can be enabled to aggregate multiple frames if the server sends multiple frames for a single payload.
 
 These will init a websocket client for the given `url` and optional `subProtocol`. You can call `send()` on the returned object to send a message.
 
