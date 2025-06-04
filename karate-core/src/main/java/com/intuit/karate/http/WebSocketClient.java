@@ -46,6 +46,7 @@ import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketClientHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketClientHandshakerFactory;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketFrameAggregator;
 import io.netty.handler.codec.http.websocketx.WebSocketVersion;
 import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketClientCompressionHandler;
 import io.netty.handler.ssl.SslContext;
@@ -147,6 +148,9 @@ public class WebSocketClient implements WebSocketListener {
                             p.addLast(new HttpClientCodec());
                             p.addLast(new HttpObjectAggregator(8192));
                             p.addLast(WebSocketClientCompressionHandler.INSTANCE);
+                            if (options.getUseFrameAggregation()) {
+                                p.addLast(new WebSocketFrameAggregator(options.getMaxPayloadSize()));
+                            }
                             p.addLast(handler);
                         }
                     });

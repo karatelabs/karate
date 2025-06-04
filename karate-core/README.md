@@ -2154,6 +2154,7 @@ For more control or custom options, the `start()` method takes a `Map<String, Ob
 * `executable` - (String) path to the Chrome executable or batch file that starts Chrome
 * `headless` - (Boolean) if headless
 * `maxPayloadSize` - (Integer) defaults to 4194304 (bytes, around 4 MB), but you can override it if you deal with very large output / binary payloads
+* `useFrameAggregation` - (Boolean) defaults to `false`.  Can be enabled to aggregate multiple frames if the server sends multiple frames for a single payload.
 
 ## `driver.screenshotFull()`
 Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api). This will snapshot the entire page, not just what is visible in the viewport.
