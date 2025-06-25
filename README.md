@@ -400,6 +400,8 @@ mvn archetype:generate \
 
 This will create a folder called `myproject` (or whatever you set the name to).
 
+Note, that when running the command in Windows (PowerShell) you must use quotes around each property value to prevent parsing errors.
+
 ## IDE Support
 Refer to the wiki - [IDE Support](https://github.com/karatelabs/karate/wiki/IDE-Support).
 
