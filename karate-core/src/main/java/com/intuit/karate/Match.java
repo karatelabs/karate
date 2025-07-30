@@ -47,6 +47,10 @@ import static com.intuit.karate.Match.MatchOperatorFactory.*;
  */
 public class Match {
 
+
+    // Enum constant with that value should never be returned by Match.macroToMatchType.
+    private static final int TYPE_DOES_NOT_SUPPORT_MACRO_SHORTCUT = -1;
+
     interface MatchOperatorFactory {
         MatchOperator create(boolean matchEachEmptyAllowed);
 
@@ -70,28 +74,30 @@ public class Match {
 
     public static enum Type {
 
+        EQUALS(CoreOperator::equalsOperator, 0),
+        NOT_EQUALS(not(CoreOperator::equalsOperator, "equals"), 2),
+        CONTAINS(CoreOperator::containsOperator, 1),
+        NOT_CONTAINS(not(CoreOperator::containsOperator, "actual contains expected"), 2),
+        CONTAINS_ONLY(CoreOperator::containsOnlyOperator, 2),
+        CONTAINS_ANY(CoreOperator::containsAnyOperator, 2),
+        CONTAINS_DEEP(deep(CoreOperator::containsOperator), 2),
+        CONTAINS_ONLY_DEEP(deep(CoreOperator::containsOnlyOperator), TYPE_DOES_NOT_SUPPORT_MACRO_SHORTCUT),
+        CONTAINS_ANY_DEEP(deep(CoreOperator::containsAnyOperator), TYPE_DOES_NOT_SUPPORT_MACRO_SHORTCUT),
+        EACH_EQUALS(each(EQUALS.operatorFactory), 0),
+        EACH_NOT_EQUALS(each(NOT_EQUALS.operatorFactory), 2),
+        EACH_CONTAINS(each(CONTAINS.operatorFactory), 1),
+        EACH_NOT_CONTAINS(each(NOT_CONTAINS.operatorFactory), 2),
+        EACH_CONTAINS_ONLY(each(CONTAINS_ONLY.operatorFactory), 2),
+        EACH_CONTAINS_ANY(each(CONTAINS_ANY.operatorFactory), 2),
+        EACH_CONTAINS_DEEP(each(CONTAINS_DEEP.operatorFactory), 2);
 
-        EQUALS(CoreOperator::equalsOperator),
-        NOT_EQUALS(not(CoreOperator::equalsOperator, "equals")),
-        CONTAINS(CoreOperator::containsOperator),
-        NOT_CONTAINS(not(CoreOperator::containsOperator, "actual contains expected")),
-        CONTAINS_ONLY(CoreOperator::containsOnlyOperator),
-        CONTAINS_ANY(CoreOperator::containsAnyOperator),
-        CONTAINS_DEEP(deep(CoreOperator::containsOperator)),
-        CONTAINS_ONLY_DEEP(deep(CoreOperator::containsOnlyOperator)),
-        CONTAINS_ANY_DEEP(deep(CoreOperator::containsAnyOperator)),
-        EACH_EQUALS(each(EQUALS.operatorFactory)),
-        EACH_NOT_EQUALS(each(NOT_EQUALS.operatorFactory)),
-        EACH_CONTAINS(each(CONTAINS.operatorFactory)),
-        EACH_NOT_CONTAINS(each(NOT_CONTAINS.operatorFactory)),
-        EACH_CONTAINS_ONLY(each(CONTAINS_ONLY.operatorFactory)),
-        EACH_CONTAINS_ANY(each(CONTAINS_ANY.operatorFactory)),
-        EACH_CONTAINS_DEEP(each(CONTAINS_DEEP.operatorFactory));
 
         final MatchOperatorFactory operatorFactory;
+        final int shortcutLength;
 
-        Type(MatchOperatorFactory operatorFactory) {
+        Type(MatchOperatorFactory operatorFactory, int shortcutLength) {
             this.operatorFactory = operatorFactory;
+            this.shortcutLength = shortcutLength;
         }
 
         MatchOperator operator(boolean matchEachEmptyAllowed) {
@@ -130,7 +136,7 @@ public class Match {
 
     }
 
-    static final Map<String, Validator> VALIDATORS = new HashMap(11);
+    static final Map<String, Validator> VALIDATORS = new HashMap<>(11);
 
     static {
         VALIDATORS.put("array", v -> v.isList() ? PASS : fail("not an array or list"));
@@ -172,7 +178,7 @@ public class Match {
         }
 
         public Map<String, Object> toMap() {
-            Map<String, Object> map = new HashMap(2);
+            Map<String, Object> map = new HashMap<>(2);
             map.put("pass", pass);
             map.put("message", message);
             return map;
@@ -245,11 +251,11 @@ public class Match {
         }
 
         Value(Object value, boolean exceptionOnMatchFailure) {
-            if (value instanceof Set) {
-                value = new ArrayList((Set) value);
+            if (value instanceof Set<?> set) {
+                value = new ArrayList<Object>(set);
             } else if (value != null && value.getClass().isArray()) {
                 int length = Array.getLength(value);
-                List list = new ArrayList(length);
+                List<Object> list = new ArrayList<>(length);
                 for (int i = 0; i < length; i++) {
                     list.add(Array.get(value, i));
                 }
@@ -370,8 +376,8 @@ public class Match {
             if (isMap() && other.isMap()) {
                 Map<String, Object> reference = other.getValue();
                 Map<String, Object> source = getValue();
-                Set<String> remainder = new LinkedHashSet(source.keySet());
-                Map<String, Object> result = new LinkedHashMap(source.size());
+                Set<String> remainder = new LinkedHashSet<>(source.keySet());
+                Map<String, Object> result = new LinkedHashMap<>(source.size());
                 reference.keySet().forEach(key -> {
                     if (source.containsKey(key)) {
                         result.put(key, source.get(key));
@@ -389,11 +395,9 @@ public class Match {
 
         @Override
         public String toString() {
-            StringBuilder sb = new StringBuilder();
-            sb.append("[type: ").append(type);
-            sb.append(", value: ").append(value);
-            sb.append("]");
-            return sb.toString();
+            return "[type: " + type +
+                    ", value: " + value +
+                    "]";
         }
 
         public Result is(Type matchType, Object expected) {
@@ -484,8 +488,7 @@ public class Match {
     }
 
     public static Object parseIfJsonOrXmlString(Object o) {
-        if (o instanceof String) {
-            String s = (String) o;
+        if (o instanceof String s) {
             if (s.isEmpty()) {
                 return o;
             } else if (JsonUtils.isJson(s)) {

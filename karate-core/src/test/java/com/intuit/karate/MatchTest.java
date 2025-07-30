@@ -158,8 +158,6 @@ class MatchTest {
 
     @Test
     void testList() {
-        match("[{ a: 1 }, { b: [1, 2, 3] }]", CONTAINS_DEEP, "[{ b: [2] }]");
-        match("{ a: { foo: 'bar' } }", CONTAINS_DEEP, "{ a: '#object' }");
         match("[1, 2, 3]", EQUALS, "[1, 2, 3]");
         match("[1, 2, 3]", NOT_EQUALS, "[1, 2, 4]");
         match("[1, 2]", EQUALS, "[1, 2, 4]", FAILS);
@@ -187,45 +185,16 @@ class MatchTest {
         match("[{ a: 1 }, { b: 2 }, { c: 3 }]", CONTAINS_ANY, "[{ a: 9 }, { c: 3 }]");
         match("[{ a: 1 }, { b: 2 }, { c: 3 }]", CONTAINS_ANY, "[{ a: 9 }, { c: 9 }]", FAILS);
         match("[{ a: 1 }, { b: 2 }, { c: 3 }]", CONTAINS_DEEP, "[{ a: 1 }, { c: 3 }]");
+        match("[{ a: 1 }, { b: [1, 2, 3] }]", CONTAINS_DEEP, "[{ b: [2] }]");
+        match("{ a: { foo: 'bar' } }", CONTAINS_DEEP, "{ a: '#object' }");
     }
 
-    @Test
-    void testContainsOnlyDeep() {
-        match("{ a: [1, 2, 3], b: 4  }", CONTAINS_ONLY_DEEP, "{ a: [1, 2, 3]}", FAILS);
+    @ParameterizedTest
+    @ValueSource(strings = {"CONTAINS", "CONTAINS_DEEP"})
+    void testListContains(String containsType) {
+        match("['foo', 'bar']", containsType, "baz", FAILS);
         message("""
-                match failed: CONTAINS_ONLY_DEEP
-                  $ | actual does not contain expected | actual has 1 more key(s) than expected - {"b":4} (MAP:MAP)
-                  {"a":[1,2,3],"b":4}
-                  {"a":[1,2,3]}
-                
-                """);
-        match("{ a: [1, 2, 3] }", CONTAINS_ONLY_DEEP, "{ a: [1, 2, 3], b: 4 }", FAILS);
-        message("""
-                match failed: CONTAINS_ONLY_DEEP
-                  $ | actual does not contain expected | actual does not contain key - 'b' (MAP:MAP)
-                  {"a":[1,2,3]}
-                  {"a":[1,2,3],"b":4}
-                  
-                    $.a[1] | not equal (NUMBER:NUMBER)
-                    2
-                    3
-    
-                    $.a[0] | not equal (NUMBER:NUMBER)
-                    1
-                    3
-                    
-                """);
-        // TODO Possible improvement: are the a[1] andn a[o] lines really relevant?
-
-        match("{ a: [1, 2, 3] }", CONTAINS_ONLY_DEEP, "{ a: [3, 2, 1] }");
-        match("[{a: [1, 2, 3]}]", CONTAINS_ONLY_DEEP, "[{a: [3, 2, 1]}]");
-    }
-
-    @Test
-    void testListContains() {
-        match("['foo', 'bar']", CONTAINS, "baz", FAILS);
-        message("""
-                match failed: CONTAINS
+                match failed: %s
                   $ | actual does not contain expected | actual array does not contain expected item - baz (LIST:STRING)
                   ["foo","bar"]
                   'baz'
@@ -237,10 +206,10 @@ class MatchTest {
                     $[0] | not equal (STRING:STRING)
                     'foo'
                     'baz'
-                """);
-        match("['foo', 'bar']", CONTAINS, "['baz']", FAILS);
+                """.formatted(containsType));
+        match("['foo', 'bar']", containsType, "['baz']", FAILS);
         message("""
-                match failed: CONTAINS
+                match failed: %s
                   $ | actual does not contain expected | actual array does not contain expected item - baz (LIST:LIST)
                   ["foo","bar"]
                   ["baz"]
@@ -252,54 +221,24 @@ class MatchTest {
                     $[0] | not equal (STRING:STRING)
                     'foo'
                     'baz'
-                """);
-    }
-
-    @Test
-    void testListContainsDeep() {
-        match("['foo', 'bar']", CONTAINS_DEEP, "baz", FAILS);
-        String expected = """
-                match failed: CONTAINS_DEEP
-                  $ | actual does not contain expected | actual array does not contain expected item - baz (LIST:STRING)
-                  ["foo","bar"]
-                  'baz'
-                
-                    $[1] | not equal (STRING:STRING)
-                    'bar'
-                    'baz'
-                
-                    $[0] | not equal (STRING:STRING)
-                    'foo'
-                    'baz'
-                """;
-        message(expected);
-        match("['foo', 'bar']", CONTAINS_DEEP, "['baz']", FAILS);
-        expected = """
-                match failed: CONTAINS_DEEP
-                  $ | actual does not contain expected | actual array does not contain expected item - baz (LIST:LIST)
-                  ["foo","bar"]
-                  ["baz"]
-                
-                    $[1] | not equal (STRING:STRING)
-                    'bar'
-                    'baz'
-                
-                    $[0] | not equal (STRING:STRING)
-                    'foo'
-                    'baz'
-                """;
-        message(expected);
+                """.formatted(containsType));
     }
 
     @Test
     void testListContainsRegex() {
-        // TODO This one would pass with Legacy mode but felt weird (contains and contains any behave the same??).
-        //  Does not pass with new mode, comment the test for the time being and validate this is as expected.
-        match("['foo', 'barr']", CONTAINS, "#regex .{4}");
-        match("['foo', 'barr']", CONTAINS_ANY, "#regex .{4}");
-
+        match("['foo', 'bar']", CONTAINS, "#regex .{3}");
+        match("['foo', 'bar']", CONTAINS_DEEP, "#regex .{3}");
+        match("['foo', 'bar']", CONTAINS_ANY, "#regex .{3}");
+        match("['foo', 'bar']", CONTAINS_ANY_DEEP, "#regex .{3}");
+        match("{ array: ['foo', 'bar'] }", EQUALS, "{ array: '#[] #regex .{3}' }");
+        match("{ array: ['foo', 'bar'] }", CONTAINS, "{ array: '#[] #regex .{3}' }");
+        match("{ array: ['foo', 'bar'] }", CONTAINS_DEEP, "{ array: '#[] #regex .{3}' }");
+        match("{ array: ['foo', 'bar'] }", CONTAINS_DEEP, "{ array: '#array' }");
         match("{ array: ['foo', 'bar'] }", CONTAINS_ANY, "{ array: '#[] #regex .{3}' }");
         match("{ array: ['foo', 'bar'] }", CONTAINS_ANY_DEEP, "{ array: '#[] #regex .{3}' }");
+
+        match("['foo', 'barr']", CONTAINS, "#regex .{4}");
+        match("['foo', 'barr']", CONTAINS_ANY, "#regex .{4}");
 
         match("['foo', 'bar']", CONTAINS, "#regex .{4}", FAILS);
         message("""
@@ -317,20 +256,11 @@ class MatchTest {
                     '#regex .{4}'
                 """);
 
-
-        match("{ array: ['foo', 'bar'] }", CONTAINS_DEEP, "{ array: '#array' }");
-        match("['foo', 'bar']", CONTAINS, "#regex .{3}");
-        match("['foo', 'bar']", CONTAINS_DEEP, "#regex .{3}");
-        match("['foo', 'bar']", CONTAINS_ANY, "#regex .{3}");
-        match("['foo', 'bar']", CONTAINS_ANY_DEEP, "#regex .{3}");
-        match("{ array: ['foo', 'bar'] }", EQUALS, "{ array: '#[] #regex .{3}' }");
-        match("{ array: ['foo', 'bar'] }", CONTAINS, "{ array: '#[] #regex .{3}' }");
-        match("{ array: ['foo', 'bar'] }", CONTAINS_DEEP, "{ array: '#[] #regex .{3}' }");
     }
 
     @Test
     void testListNotContains() {
-        //    match("['foo', 'bar']", NOT_CONTAINS, "baz");
+        match("['foo', 'bar']", NOT_CONTAINS, "baz");
         match("['foo', 'bar']", NOT_CONTAINS, "bar", FAILS);
         message("""
                 match failed: NOT_CONTAINS
@@ -381,6 +311,8 @@ class MatchTest {
 
     @Test
     void testEach() {
+        match("[1, 2, 3]", EACH_EQUALS, "#number");
+        match("[1, 2, 3]", EACH_EQUALS, "#number? _ > 0");
         match("[1, 2, 3]", EACH_EQUALS, "#number? _ < 2", FAILS);
         String expected = """
                 match failed: EACH_EQUALS
@@ -407,9 +339,6 @@ class MatchTest {
         message(expected);
         match("[{ a: 1 }, { a: 2 }]", EACH_EQUALS, "#object");
         match("[{ a: 1 }, { a: 2 }]", EACH_EQUALS, "{ a: '#number' }");
-        match("[1, 2, 3]", EACH_EQUALS, "#number? _ > 0");
-        match("[1, 2, 3]", EACH_EQUALS, "#number");
-
     }
 
     @Test
@@ -434,8 +363,8 @@ class MatchTest {
     @ParameterizedTest
     @ValueSource(strings = {"EQUALS", "CONTAINS", "CONTAINS_DEEP"})
     void testArray(String matchType) {
-        match("[{ a: 1 }, { a: 2 }]", matchType, "#[] #object");
         match("[{ a: 1 }, { a: 2 }]", matchType, "#[2]");
+        match("[{ a: 1 }, { a: 2 }]", matchType, "#[] #object");
     }
 
     @Test
@@ -486,23 +415,6 @@ class MatchTest {
     @Test
     void testMap() {
         match("{ a: 1, b: 2, c: 3 }", CONTAINS, "{}");
-        match("{ a: 1, b: 2, c: 3 }", NOT_CONTAINS, "{}");
-        match("{ a: 1, b: 2, c: 3 }", CONTAINS_ANY, "{ z: 9, x: 2 }", FAILS);
-        message("""
-                match failed: CONTAINS_ANY
-                  $ | actual does not contain expected | no key-values matched (MAP:MAP)
-                  {"a":1,"b":2,"c":3}
-                  {"z":9,"x":2}
-                
-                    $.x | data types don't match (NULL:NUMBER)
-                    null
-                    2
-                
-                    $.z | data types don't match (NULL:NUMBER)
-                    null
-                    9
-                """);
-
         match("{ a: 1, b: 2, c: 3 }", EQUALS, "{ b: 2, c: 3, a: 1 }");
         match("{ a: 1, b: 2, c: 3 }", CONTAINS, "{ b: 2, c: 3, a: 1 }");
         match("{ a: 1, b: 2, c: 3 }", CONTAINS_ONLY, "{ b: 2, c: 3, a: 1 }");
@@ -522,8 +434,21 @@ class MatchTest {
                   {"z":9,"x":2}
                 
                 """);
-
-
+        match("{ a: 1, b: 2, c: 3 }", CONTAINS_ANY, "{ z: 9, x: 2 }", FAILS);
+        message("""
+                match failed: CONTAINS_ANY
+                  $ | actual does not contain expected | no key-values matched (MAP:MAP)
+                  {"a":1,"b":2,"c":3}
+                  {"z":9,"x":2}
+                
+                    $.x | data types don't match (NULL:NUMBER)
+                    null
+                    2
+                
+                    $.z | data types don't match (NULL:NUMBER)
+                    null
+                    9
+                """);
         match("{ a: 1, b: 2, c: 3 }", NOT_CONTAINS, "{ a: 1 }", FAILS);
         message("""
                 match failed: NOT_CONTAINS
@@ -531,6 +456,8 @@ class MatchTest {
                   {"a":1,"b":2,"c":3}
                   {"a":1}
                 """);
+        match("{ a: 1, b: 2, c: 3 }", NOT_CONTAINS, "{}");
+
     }
 
     @Test
@@ -693,9 +620,9 @@ class MatchTest {
 
     @Test
     void testXml() {
-        match("<root>foo</root>", EQUALS, "<root>bar</root>", FAILS);
         match("<root>foo</root>", EQUALS, "<root>foo</root>");
         match("<root>foo</root>", CONTAINS, "<root>foo</root>");
+        match("<root>foo</root>", EQUALS, "<root>bar</root>", FAILS);
         match("<root>foo</root>", CONTAINS, "<root>bar</root>", FAILS);
         match("<root><a>1</a><b>2</b></root>", EQUALS, "<root><a>1</a><b>2</b></root>");
         match("<root><a>1</a><b>2</b></root>", EQUALS, "<root><b>2</b><a>1</a></root>");
@@ -765,15 +692,9 @@ class MatchTest {
     @ParameterizedTest
     @ValueSource(strings = {"EQUALS", "CONTAINS", "CONTAINS_DEEP"})
     void testOptional(String matchType) {
-
-//        match(
-//                "{ 'foo': 'test', 'bar' : [ { 'bar': 'bar' } ] }",
-//                matchType,
-//                "{ 'foo': '#string', 'bar': '##array' }");
-//
-//        match("{ number: '1234' }", matchType, "{ number: '##regex \\\\d+' }");
-//        match("{ }", matchType, "{ number: '##regex \\\\d+' }");
-//        match("{ 'foo': 'bar' }", matchType, "{ foo: '#string', number: '##regex \\\\d+' }");
+        match("{ number: '1234' }", matchType, "{ number: '##regex \\\\d+' }");
+        match("{ }", matchType, "{ number: '##regex \\\\d+' }");
+        match("{ 'foo': 'bar' }", matchType, "{ foo: '#string', number: '##regex \\\\d+' }");
         match("{ number: null }", matchType, "{ number: '##regex \\\\d+' }");
 
         match("{ number: 1234 }", matchType, "{ number: '##number' }");
@@ -806,6 +727,12 @@ class MatchTest {
 
         match("{ 'foo': [ { 'bar': 'bar' }] }", matchType, "{ 'foo': '##array' }");
         match("{ }", matchType, "{ 'foo': '##array' }");
+        match(
+                "{ 'foo': 'test', 'bar' : [ { 'bar': 'bar' } ] }",
+                matchType,
+                "{ 'foo': '#string', 'bar': '##array' }");
+
+
         match("{ 'foo': null }", matchType, "{ 'foo': '##array' }");
 
         match("{ a: null}", matchType, " { a: '##notnull' }");

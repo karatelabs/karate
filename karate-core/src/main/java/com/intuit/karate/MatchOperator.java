@@ -30,7 +30,7 @@ public interface MatchOperator {
             Match.Value actual = operation.actual;
             Match.Context context = operation.context;
             if (actual.isList()) {
-                List list = actual.getValue();
+                List<?> list = actual.getValue();
                 if (list.isEmpty() && !matchEachEmptyAllowed) {
                     return operation.fail("match each failed, empty array / list");
                 }
@@ -69,7 +69,7 @@ public interface MatchOperator {
 
         public boolean execute(MatchOperation operation) {
             Match.Value expected = operation.expected;
-            // TODO Possible regression: pre 2515 would only apply this hack to CONTAINS and not CONTAINS_DEEP
+            // Pre 2515 would only apply this hack to CONTAINS and not CONTAINS_DEEP
             if (delegate.isContains() && expected.isMap() && expected.<Map<?, ?>>getValue().isEmpty()) {
                 return true; // hack alert: support for match some_map not contains {}
             }
@@ -192,7 +192,7 @@ public interface MatchOperator {
                         }
                         if (closeBracketPos > 1) {
                             String bracketContents = macro.substring(1, closeBracketPos);
-                            List listAct = actual.getValue();
+                            List<?> listAct = actual.getValue();
                             int listSize = listAct.size();
                             context.JS.put("$", context.root.actual.getValue());
                             context.JS.put("_", listSize);
@@ -273,7 +273,7 @@ public interface MatchOperator {
                             }
                         } else if (!validatorName.startsWith(REGEX)) { // expected is a string that happens to start with "#"
                             String actualValue = actual.getValue();
-                            // TODO possible regression: pre 2515 checked only CONTAINS and not CONTAINS_DEEP.
+                            // Pre 2515 would only apply this hack to CONTAINS and not CONTAINS_DEEP
                             return isContains()?actualValue.contains(expStr):actualValue.equals(expStr);
                         }
 
@@ -324,31 +324,13 @@ public interface MatchOperator {
         }
 
         private static int matchTypeToStartPos(Match.Type mt) {
-            switch (mt) {
-                case CONTAINS_ONLY:
-                case EACH_CONTAINS_ONLY:
-                case CONTAINS_DEEP:
-                case EACH_CONTAINS_DEEP:
-                case CONTAINS_ANY:
-                case EACH_CONTAINS_ANY:
-                case NOT_CONTAINS:
-                case EACH_NOT_CONTAINS:
-                case NOT_EQUALS:
-                case EACH_NOT_EQUALS:
-                    return 2;
-                case CONTAINS:
-                case EACH_CONTAINS:
-                    return 1;
-                default:
-                    return 0;
-            }
+           return mt.shortcutLength;
         }
 
         private static BigDecimal toBigDecimal(Object o) {
             if (o instanceof BigDecimal) {
                 return (BigDecimal) o;
-            } else if (o instanceof Number) {
-                Number n = (Number) o;
+            } else if (o instanceof Number n) {
                 return BigDecimal.valueOf(n.doubleValue());
             } else {
                 throw new RuntimeException("expected number instead of: " + o);
@@ -383,8 +365,8 @@ public interface MatchOperator {
                     byte[] expBytes = expected.getValue();
                     return Arrays.equals(actBytes, expBytes);
                 case LIST:
-                    List actList = actual.getValue();
-                    List expList = expected.getValue();
+                    List<?> actList = actual.getValue();
+                    List<?> expList = expected.getValue();
                     int actListCount = actList.size();
                     int expListCount = expList.size();
                     if (actListCount != expListCount) {
@@ -418,20 +400,19 @@ public interface MatchOperator {
         private boolean matchMapValues(Map<String, Object> actMap, Map<String, Object> expMap, MatchOperation operation) { // combined logic for equals and contains
             if (actMap.size() > expMap.size() && (isEquals() || isContainsOnly())) {
                 int sizeDiff = actMap.size() - expMap.size();
-                Map<String, Object> diffMap = new LinkedHashMap(actMap);
+                Map<String, Object> diffMap = new LinkedHashMap<>(actMap);
                 for (String key : expMap.keySet()) {
                     diffMap.remove(key);
                 }
                 return operation.fail("actual has " + sizeDiff + " more key(s) than expected - " + JsonUtils.toJson(diffMap));
             }
-            Set<String> unMatchedKeysAct = new LinkedHashSet(actMap.keySet());
-            Set<String> unMatchedKeysExp = new LinkedHashSet(expMap.keySet());
+            Set<String> unMatchedKeysAct = new LinkedHashSet<>(actMap.keySet());
+            Set<String> unMatchedKeysExp = new LinkedHashSet<>(expMap.keySet());
             for (Map.Entry<String, Object> expEntry : expMap.entrySet()) {
                 String key = expEntry.getKey();
                 Object childExp = expEntry.getValue();
                 if (!actMap.containsKey(key)) {
-                    if (childExp instanceof String) {
-                        String childString = (String) childExp;
+                    if (childExp instanceof String childString) {
                         if (childString.startsWith("##") || childString.equals("#ignore") || childString.equals("#notpresent")) {
                             if (isContainsAny()) {
                                 return true; // exit early
@@ -521,7 +502,7 @@ public interface MatchOperator {
                                     return true; // exit early
                                 }
                                 // contains only : If element is found also check its occurrence in actVisitedList
-                                // TODO Possible regression: pre 2515, only contains only (and not contains only deep) was checked
+                                // Pre 2515 would only apply this hack to CONTAINS_ONLY and not CONTAINS_ONLY_DEEP
                                 else if(isContainsOnly()) {
                                     // if not yet visited
                                     if(!actVisitedList[i]) {
@@ -604,9 +585,6 @@ public interface MatchOperator {
         }
 
         MatchOperator childOperator(Match.Value value) {
-            // TODO why force equals here?
-            // match [['foo'], ['bar']] contains deep 'fo'
-            // will fail if leaves are matched with equals, but should it not pass?
             return isDeep && value.isMapOrListOrXml()?this:equalsOperator;
         }
 
