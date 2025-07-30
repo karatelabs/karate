@@ -189,6 +189,13 @@ class MatchTest {
         match("{ a: { foo: 'bar' } }", CONTAINS_DEEP, "{ a: '#object' }");
     }
 
+    @Test
+    void testContainsOnlyDeep() {
+        match("{ a: [1, 2, 3] }", CONTAINS_ONLY_DEEP, "{ a: [1, 2, 3], b: 4 }", FAILS);
+        match("{ a: [1, 2, 3] }", CONTAINS_ONLY_DEEP, "{ a: [3, 2, 1] }");
+        match("[{a: [1, 2, 3]}]", CONTAINS_ONLY_DEEP, "[{a: [3, 2, 1]}]");
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"CONTAINS", "CONTAINS_DEEP"})
     void testListContains(String containsType) {
