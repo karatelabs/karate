@@ -5,14 +5,14 @@
     <parent>
         <groupId>io.karatelabs</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>1.6.0-SNAPSHOT</version>
+        <version>1.5.1</version>
     </parent>
     <artifactId>karate-core</artifactId>
     <packaging>jar</packaging>   
     
     <properties>
-        <antlr.version>4.13.2</antlr.version>
-        <graal.version>24.1.1</graal.version>
+        <antlr.version>4.13.1</antlr.version>
+        <graal.version>24.0.0</graal.version>
     </properties>
 
     <dependencies>
@@ -69,20 +69,20 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.5.16</version>
+            <version>1.5.4</version>
         </dependency>         
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jcl-over-slf4j</artifactId>
             <!-- this is tied to logback-classic -->
-            <version>2.0.16</version>
+            <version>2.0.12</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <!-- this is tied to logback-classic -->
-            <version>2.0.16</version>
+            <version>2.0.12</version>
         </dependency>                               
         <dependency>
             <groupId>org.antlr</groupId>
@@ -97,7 +97,7 @@
         <dependency>
             <groupId>net.minidev</groupId>
             <artifactId>json-smart</artifactId>
-            <version>2.5.2</version>
+            <version>2.5.1</version>
         </dependency>                                                                                                                                                           													                      
         <dependency>
             <groupId>org.yaml</groupId>
@@ -128,11 +128,6 @@
             <groupId>io.github.t12y</groupId>
             <artifactId>ssim</artifactId>
             <version>1.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.brotli</groupId>
-            <artifactId>dec</artifactId>
-            <version>0.1.2</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
