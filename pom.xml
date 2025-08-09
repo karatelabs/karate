@@ -122,6 +122,13 @@
         </profile>        
         <profile> 
             <id>release</id>
+            <modules>
+                <module>karate-core</module>
+                <module>karate-junit5</module>
+                <module>karate-gatling</module>
+                <module>karate-playwright</module>
+                <module>karate-robot</module>
+            </modules>
             <build>
                 <plugins>
                     <plugin>
