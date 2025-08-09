@@ -13,15 +13,12 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-resources-plugin</artifactId>
-                <version>3.0.2</version>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
                 <configuration>
-                    <includeEmptyDirs>true</includeEmptyDirs>
-                    <addDefaultExcludes>false</addDefaultExcludes>
+                    <skip>true</skip>
                 </configuration>
             </plugin>
-
         </plugins>
     </build>    
     
