@@ -8,7 +8,8 @@
         <version>1.5.1</version>
     </parent>
     <artifactId>karate-core</artifactId>
-    <packaging>jar</packaging>   
+    <packaging>jar</packaging>
+    <name>${project.artifactId}</name>
     
     <properties>
         <antlr.version>4.13.1</antlr.version>

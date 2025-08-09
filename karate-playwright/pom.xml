@@ -9,6 +9,7 @@
 
     <artifactId>karate-playwright</artifactId>
     <packaging>jar</packaging>
+    <name>${project.artifactId}</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
