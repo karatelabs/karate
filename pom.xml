@@ -175,11 +175,4 @@
         </profile>
     </profiles>
 
-    <distributionManagement>
-        <repository>
-            <id>central</id>
-            <url>https://central.sonatype.com</url>
-        </repository>
-    </distributionManagement>
-
 </project>
