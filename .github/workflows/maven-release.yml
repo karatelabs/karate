@@ -34,9 +34,9 @@ jobs:
       with:
         distribution: adopt
         java-version: 17
-        server-id: ossrh
-        server-username: MAVEN_USERNAME
-        server-password: MAVEN_PASSWORD
+        server-id: central
+        server-username: CENTRAL_TOKEN_USERNAME
+        server-password: CENTRAL_TOKEN_PASSWORD
         gpg-private-key: ${{ secrets.OSSRH_GPG_SECRET_KEY }}
         gpg-passphrase: MAVEN_GPG_PASSPHRASE
     - name: set maven version
@@ -63,11 +63,11 @@ jobs:
     - name: maven deploy to central
       if: ( github.event.inputs.maven == 'enabled' )
       env:
+        CENTRAL_TOKEN_USERNAME: ${{ secrets.OSSRH_TOKEN_USER }}
+        CENTRAL_TOKEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
         MAVEN_GPG_PASSPHRASE: ${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }}
       run: |
-        mvn -B -ntp deploy -DskipTests -P pre-release,release \
-          -Dcentral.username=${{ secrets.OSSRH_TOKEN_USER }} \
-          -Dcentral.password=${{ secrets.OSSRH_TOKEN }}
+        mvn -B -ntp deploy -DskipTests -P pre-release,release
     - name: maven build binaries
       run: |
         mvn package -DskipTests -P fatjar -f karate-core/pom.xml
