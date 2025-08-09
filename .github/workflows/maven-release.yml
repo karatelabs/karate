@@ -67,7 +67,7 @@ jobs:
         CENTRAL_TOKEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
         MAVEN_GPG_PASSPHRASE: ${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }}
       run: |
-        mvn -B -ntp deploy -DskipTests -P pre-release,release -pl karate-core,karate-junit5,karate-gatling,karate-robot,karate-playwright
+        mvn -B -ntp deploy -DskipTests -P pre-release,release -pl "!karate-archetype,!karate-demo,!karate-e2e-tests"
     - name: maven build binaries
       run: |
         mvn package -DskipTests -P fatjar -f karate-core/pom.xml
