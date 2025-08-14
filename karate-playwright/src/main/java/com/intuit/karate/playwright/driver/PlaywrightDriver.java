@@ -190,7 +190,8 @@ public class PlaywrightDriver implements Driver {
             if (options.start) {
                 browser = browserType.launch(new BrowserType.LaunchOptions()
                         .setHeadless(options.headless)
-                        .setChannel((String) pwOptions.getOrDefault("channel", "chromium")));
+                        .setChannel((String) pwOptions.getOrDefault("channel", "chromium"))
+                        .setArgs(options.addOptions));
             } else {
 
                 String playwrightUrl = options.playwrightUrl;
