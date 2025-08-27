@@ -43,7 +43,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: set up jdk 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: adopt
           java-version: 17
