@@ -2,6 +2,7 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.Constants;
 import static com.intuit.karate.TestUtils.*;
+
 import com.intuit.karate.http.ApacheHttpClient;
 import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.http.HttpRequestBuilder;
@@ -11,6 +12,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.nio.charset.StandardCharsets;
 
 /**
  *
@@ -119,5 +122,15 @@ class HttpMockHandlerTest {
 
         matchContains(response.getHeaders().keySet(), "X-Special-Header");
         matchContains(response.getHeaders().keySet(), "X-Custom-Header");
+    }
+
+    @Test
+    void testResponseHavingForwardSlashes() {
+        background()
+                .scenario(
+                        "pathMatches('/hello')",
+                        "def response = { 'url': 'https://test123' }");
+        response = handleWithOriginalHeaders().path("/hello").invoke("get");
+        match(response.getBody(), "{\"url\":\"https://test123\"}".getBytes());
     }
 }

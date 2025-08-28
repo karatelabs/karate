@@ -64,6 +64,8 @@ public class JsonUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(JsonUtils.class);
 
+    private static final JSONStyle JSON_STYLE = new JSONStyle(JSONStyle.FLAG_PROTECT_4WEB);
+
     private JsonUtils() {
         // only static methods
     }
@@ -108,7 +110,7 @@ public class JsonUtils {
         JSONParser jp = new JSONParser(JSONParser.MODE_PERMISSIVE);
         try {
             Object o = jp.parse(raw);
-            return JSONValue.toJSONString(o);
+            return JSONValue.toJSONString(o, JSON_STYLE);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -121,7 +123,7 @@ public class JsonUtils {
     public static String toJson(Object o, boolean pretty) {
         if (!pretty) { // TODO use JSONStyleIdent in json-smart 2.4
             try {
-                return JSONValue.toJSONString(o);
+                return JSONValue.toJSONString(o, JSON_STYLE);
             } catch (Throwable t) {
                 logger.warn("object to json serialization failure, trying alternate approach: {}", t.getMessage());
             }
