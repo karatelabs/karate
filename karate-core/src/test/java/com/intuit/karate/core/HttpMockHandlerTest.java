@@ -2,7 +2,6 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.Constants;
 import static com.intuit.karate.TestUtils.*;
-
 import com.intuit.karate.http.ApacheHttpClient;
 import com.intuit.karate.http.HttpClientFactory;
 import com.intuit.karate.http.HttpRequestBuilder;
@@ -12,8 +11,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.nio.charset.StandardCharsets;
 
 /**
  *
