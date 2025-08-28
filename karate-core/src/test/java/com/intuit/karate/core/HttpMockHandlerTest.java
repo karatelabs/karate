@@ -130,7 +130,7 @@ class HttpMockHandlerTest {
                 .scenario(
                         "pathMatches('/hello')",
                         "def response = { 'url': 'https://test123' }");
-        response = handleWithOriginalHeaders().path("/hello").invoke("get");
+        response = handle().path("/hello").invoke("get");
         match(response.getBody(), "{\"url\":\"https://test123\"}".getBytes());
     }
 }

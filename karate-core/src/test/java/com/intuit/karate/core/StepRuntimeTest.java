@@ -27,8 +27,6 @@ public class StepRuntimeTest {
     @MethodSource("testParameters")
     public void testConversionMethodToStringAndBack(String methodSignature, Class<?> methodClass, Method method, List<String> args, String karateExpr) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         StepRuntime.MethodMatch methodMatch = StepRuntime.MethodMatch.getBySignatureAndArgs(methodSignature);
-        System.out.println("methodSignature " + methodSignature);
-        System.out.println("methodMatch " + methodMatch.toString());
 
         Assertions.assertNotNull(methodMatch);
         Assertions.assertEquals(method, methodMatch.method);
