@@ -120,4 +120,14 @@ class HttpMockHandlerTest {
         matchContains(response.getHeaders().keySet(), "X-Special-Header");
         matchContains(response.getHeaders().keySet(), "X-Custom-Header");
     }
+
+    @Test
+    void testResponseHavingForwardSlashes() {
+        background()
+                .scenario(
+                        "pathMatches('/hello')",
+                        "def response = { 'url': 'https://test123' }");
+        response = handle().path("/hello").invoke("get");
+        match(response.getBody(), "{\"url\":\"https://test123\"}".getBytes());
+    }
 }
