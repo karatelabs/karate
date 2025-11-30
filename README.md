@@ -3,7 +3,7 @@
 <td>
 
 <h2><strong>📖 Documentation:</strong>
-<a href="https://docs.karatelabs.io">dosc.karatelabs.io</a></h2>
+<a href="https://docs.karatelabs.io">docs.karatelabs.io</a></h2>
 
 <details>
 <summary>Looking for the old documentation?</summary>
