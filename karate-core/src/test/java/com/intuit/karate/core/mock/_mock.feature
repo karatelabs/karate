@@ -28,6 +28,10 @@ Scenario: pathMatches('/v1/binary/upload')
     * def success = java.util.Arrays.equals(Utils.testBytes, requestBytes)
     * def response = ({ success: success })
 
+Scenario: pathMatches('/v1/binary/brotli')
+    * def responseHeaders = { 'Content-Encoding': 'br', 'Content-Type': 'application/json' }
+    * def response = karate.readAsBytes('brotli.bin')
+
 Scenario: pathMatches('/v1/patch')
     * def responseStatus = 422
     * def response = { success: true }

@@ -73,6 +73,8 @@ public interface Actions {
 
     void eval(String exp);
 
+    void evalAssignDocString(String lhs, String rhs);
+
     void evalDocString(String exp);
 
     void eval(String name, String dotOrParen, String exp);

@@ -39,7 +39,7 @@ import java.util.Map;
  */
 public class ScenarioResult implements Comparable<ScenarioResult> {
 
-    private final List<StepResult> stepResults = new ArrayList();
+    private final List<StepResult> stepResults = new ArrayList<>();
     private final Scenario scenario;
 
     private StepResult failedStep;
@@ -189,6 +189,13 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             }
             scenario.setSteps(steps);
         }
+        
+		if (scenario.getTagsEffective().contains(Tag.FAIL) && sr.isFailed()) {
+			if (!sr.getErrorMessage().startsWith(ScenarioRuntime.EXPECT_TEST_TO_FAIL_BECAUSE_OF_FAIL_TAG)) {
+				sr.ignoreFailedStep();
+			}
+
+		}
         return sr;
     }
 
@@ -363,4 +370,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         return failedStep == null ? scenario.toString() : failedStep + "";
     }
 
+    public void ignoreFailedStep() {
+        failedStep = null;
+    }
 }

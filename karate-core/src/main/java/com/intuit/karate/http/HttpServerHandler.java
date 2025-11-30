@@ -48,8 +48,11 @@ public class HttpServerHandler implements HttpService {
 
     private final ServerHandler handler;
 
-    public HttpServerHandler(ServerHandler handler) {
+    private final HttpHeaderTracking httpHeaderTracking;
+
+    public HttpServerHandler(ServerHandler handler, HttpHeaderTracking httpHeaderTracking) {
         this.handler = handler;
+        this.httpHeaderTracking = httpHeaderTracking;
     }
 
     @Override
@@ -94,13 +97,43 @@ public class HttpServerHandler implements HttpService {
         ResponseHeadersBuilder rhb = ResponseHeaders.builder(response.getStatus());
         Map<String, List<String>> headers = response.getHeaders();
         if (headers != null) {
-            headers.forEach((k, v) -> rhb.add(k, v));
+            headers.forEach((k, v) -> {
+                rhb.add(k, v);
+                if (httpHeaderTracking != null) {
+                    httpHeaderTracking.putHeaderReference(k);
+                }
+            });
         }
         HttpResponse hr = HttpResponse.of(rhb.build(), HttpData.wrap(body));
         if (response.getDelay() > 0) {
             return HttpResponse.delayed(hr, Duration.ofMillis(response.getDelay()), ctx.eventLoop());
         } else {
             return hr;
+        }
+    }
+
+    public static class Builder {
+
+        private ServerHandler handler;
+
+        private HttpHeaderTracking httpHeaderTracking;
+
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        public Builder handler(ServerHandler value) {
+            handler = value;
+            return this;
+        }
+
+        public Builder httpHeaderTracking(HttpHeaderTracking value) {
+            httpHeaderTracking = value;
+            return this;
+        }
+
+        public HttpServerHandler build() {
+            return new HttpServerHandler(handler, httpHeaderTracking);
         }
     }
 

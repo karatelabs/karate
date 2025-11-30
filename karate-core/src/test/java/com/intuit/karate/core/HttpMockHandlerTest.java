@@ -36,6 +36,16 @@ class HttpMockHandlerTest {
         return http;
     }
 
+    HttpRequestBuilder handleWithOriginalHeaders() {
+        handler = new MockHandler(mock.build());
+        server = HttpServer.handler(handler).keepOriginalHeaders(true).build();
+        ScenarioEngine se = ScenarioEngine.forTempUse(HttpClientFactory.DEFAULT);
+        ApacheHttpClient client = new ApacheHttpClient(se);
+        http = new HttpRequestBuilder(client);
+        http.url("http://localhost:" + server.getPort());
+        return http;
+    }
+
     FeatureBuilder background(String... lines) {
         mock = FeatureBuilder.background(lines);
         return mock;
@@ -96,4 +106,28 @@ class HttpMockHandlerTest {
         match(response.getHeader("Content-Type"), "text/html");
     }
 
+    @Test
+    void testKeepOriginalResponseHeaders() {
+        background("configure responseHeaders = { 'X-Special-Header': 'test1' }")
+                .scenario(
+                        "pathMatches('/hello')",
+                        "def responseHeaders = { 'X-Custom-Header': 'test2' }",
+                        "def response = ''");
+        response = handleWithOriginalHeaders().path("/hello").invoke("get");
+        match(response.getHeader("X-Special-Header"), "test1");
+        match(response.getHeader("X-Custom-Header"), "test2");
+
+        matchContains(response.getHeaders().keySet(), "X-Special-Header");
+        matchContains(response.getHeaders().keySet(), "X-Custom-Header");
+    }
+
+    @Test
+    void testResponseHavingForwardSlashes() {
+        background()
+                .scenario(
+                        "pathMatches('/hello')",
+                        "def response = { 'url': 'https://test123' }");
+        response = handle().path("/hello").invoke("get");
+        match(response.getBody(), "{\"url\":\"https://test123\"}".getBytes());
+    }
 }

@@ -69,7 +69,7 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
 import org.apache.http.config.SocketConfig;
-import org.apache.http.conn.ssl.LenientSslConnectionSocketFactory;
+import nodebug.io.karatelabs.LenientSslConnectionSocketFactory;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustAllStrategy;
@@ -88,6 +88,7 @@ import org.apache.http.impl.cookie.DefaultCookieSpec;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
+import org.brotli.dec.BrotliInputStream;
 
 /**
  *
@@ -295,6 +296,13 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                 bytes = Constants.ZERO_BYTES;
             } else {
                 InputStream is = responseEntity.getContent();
+                Header contentEncoding = httpResponse.getFirstHeader(HttpConstants.HDR_CONTENT_ENCODING);
+                if (contentEncoding != null) {
+                    String encoding = contentEncoding.getValue();
+                    if ("br".equalsIgnoreCase(encoding)) {
+                        is = new BrotliInputStream(is);
+                    }
+                }
                 bytes = FileUtils.toBytes(is);
             }
             request.setEndTime(System.currentTimeMillis());
@@ -316,9 +324,11 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         Set<String> alreadyMerged = new HashSet(requestCookieHeaders.length);
         for (Header ch : requestCookieHeaders) {
             String requestCookieValue = ch.getValue();
-            io.netty.handler.codec.http.cookie.Cookie c = ClientCookieDecoder.LAX.decode(requestCookieValue);            
-            mergedCookieValues.add(requestCookieValue);
-            alreadyMerged.add(c.name());
+            io.netty.handler.codec.http.cookie.Cookie c = ClientCookieDecoder.LAX.decode(requestCookieValue);
+            if (c != null) {
+                mergedCookieValues.add(requestCookieValue);
+                alreadyMerged.add(c.name());
+            }
         }        
         for (Cookie c : storedCookies) {
             if (c.getValue() != null) {

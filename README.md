@@ -349,7 +349,7 @@ All you need is available in the [`karate-core`](https://search.maven.org/artifa
 <dependency>
     <groupId>io.karatelabs</groupId>
     <artifactId>karate-junit5</artifactId>
-    <version>1.5.1</version>
+    <version>1.5.2</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -358,7 +358,7 @@ All you need is available in the [`karate-core`](https://search.maven.org/artifa
 Alternatively for [Gradle](https://gradle.org):
 
 ```yml
-    testImplementation 'io.karatelabs:karate-junit5:1.5.1'
+    testImplementation 'io.karatelabs:karate-junit5:1.5.2'
 ```
 
 Also refer to the wiki for using [Karate with Gradle](https://github.com/karatelabs/karate/wiki/Gradle).
@@ -393,7 +393,7 @@ You can replace the values of `com.mycompany` and `myproject` as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=io.karatelabs \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=1.5.1 \
+-DarchetypeVersion=1.5.2 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -2419,6 +2419,8 @@ karate.configure('ssl', { trustAll: true });
 
 For end-to-end examples in the Karate demos, look at the files in [this folder](karate-demo/src/test/java/ssl).
 
+There is also a minimal Spring Boot based example here: [Karate and SSL](https://github.com/karatelabs/karate-examples/blob/main/ssl/README.md)
+
 ### NTLM Authentication
 Karate provides support for NTLM authentication using the Apache NTLMEngine implementation.
 
@@ -4271,6 +4273,7 @@ Karate also has built-in support for [websocket](http://www.websocket.org) that 
   * `subProtocol` - in case the server expects it
   * `headers` - another JSON of key-value pairs
   * `maxPayloadSize` - this defaults to 4194304 (bytes, around 4 MB)
+  * `useFrameAggregation` - (Boolean) defaults to `false`.  Can be enabled to aggregate multiple frames if the server sends multiple frames for a single payload.
 
 These will init a websocket client for the given `url` and optional `subProtocol`. You can call `send()` on the returned object to send a message.
 
@@ -4330,6 +4333,7 @@ For completeness, the "built-in" tags are the following:
 Tag | Description
 --- | -----------
 `@ignore` | Any `Scenario` with (or that has inherited) this tag will be skipped at run-time. This does not apply to anything that is "called" though
+`@fail` | Any `Scenario` with (or that has inherited) this tag will be expected to fail. This can be used if e.g. tests are written before fixes
 `@parallel` | See [`@parallel=false`](#parallelfalse)
 `@report` | See [`@report=false`](#reportfalse)
 `@setup` | See [`@setup`](#setup)

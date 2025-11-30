@@ -30,7 +30,6 @@ import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.ScenarioActions;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.graal.JsEngine;
-import com.intuit.karate.graal.JsValue;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.StringLogAppender;
 
@@ -46,6 +45,7 @@ import java.util.Map;
  */
 public class ScenarioRuntime implements Runnable {
 
+    public static final String EXPECT_TEST_TO_FAIL_BECAUSE_OF_FAIL_TAG = "Expect test to fail because of @fail tag";
     public final Logger logger;
     public final FeatureRuntime featureRuntime;
     public final ScenarioCall caller;
@@ -72,14 +72,14 @@ public class ScenarioRuntime implements Runnable {
         perfMode = featureRuntime.perfHook != null;
         if (caller.isNone()) {
             logAppender = new StringLogAppender(false);
-            engine = new ScenarioEngine(caller.getParentConfig(false), this, new HashMap(), logger);
+            engine = new ScenarioEngine(caller.getParentConfig(false), this, new HashMap<>(), logger);
         } else if (caller.isSharedScope()) {
             logAppender = caller.parentRuntime.logAppender;
             engine = new ScenarioEngine(caller.getParentConfig(false), this, caller.getParentVars(false), logger);
         } else { // new, but clone and copy data
             logAppender = caller.parentRuntime.logAppender;
             // in this case, parent variables are set via magic variables - see initMagicVariables()
-            engine = new ScenarioEngine(caller.getParentConfig(true), this, new HashMap(), logger);
+            engine = new ScenarioEngine(caller.getParentConfig(true), this, new HashMap<>(), logger);
         }
         logger.setAppender(logAppender);
         actions = new ScenarioActions(engine);
@@ -96,7 +96,7 @@ public class ScenarioRuntime implements Runnable {
         if (featureRuntime.setupResult != null) {
             // TODO improve this and simplify report rendering code in report/karate-feature.html
             StepResult sr = result.addFakeStepResult("@setup", null);
-            List<FeatureResult> list = new ArrayList(1);
+            List<FeatureResult> list = new ArrayList<>(1);
             FeatureResult fr = new FeatureResult(featureRuntime.featureCall.feature);
             fr.setCallDepth(1);
             fr.addResult(featureRuntime.setupResult);
@@ -115,7 +115,7 @@ public class ScenarioRuntime implements Runnable {
         // and not "visible" and tracked in ScenarioEngine.vars
         // one consequence is that they won't show up in the debug variables view
         // but more importantly don't get passed back to caller and float around, bloating memory        
-        Map<String, Object> map = new HashMap();
+        Map<String, Object> map = new HashMap<>();
         if (!caller.isNone()) {
             // karate principle: parent variables are always "visible"
             // so we inject the parent variables
@@ -171,7 +171,7 @@ public class ScenarioRuntime implements Runnable {
 
     public Embed embed(byte[] bytes, ResourceType resourceType) {
         if (embeds == null) {
-            embeds = new ArrayList();
+            embeds = new ArrayList<>();
         }
         Embed embed = saveToFileAndCreateEmbed(bytes, resourceType);
         embeds.add(embed);
@@ -189,7 +189,7 @@ public class ScenarioRuntime implements Runnable {
 
     public void addCallResult(FeatureResult fr) {
         if (callResults == null) {
-            callResults = new ArrayList();
+            callResults = new ArrayList<>();
         }
         callResults.add(fr);
     }
@@ -268,7 +268,7 @@ public class ScenarioRuntime implements Runnable {
     }
 
     public Map<String, Object> getScenarioInfo() {
-        Map<String, Object> info = new HashMap(5);
+        Map<String, Object> info = new HashMap<>(5);
         File featureFile = featureRuntime.featureCall.feature.getResource().getFile();
         if (featureFile != null) {
             info.put("featureDir", featureFile.getParent());
@@ -510,6 +510,15 @@ public class ScenarioRuntime implements Runnable {
                 engine.stop(currentStepResult);
             }
             addStepLogEmbedsAndCallResults();
+            if (tags.contains(Tag.FAIL)) {
+                if (result.isFailed()) {
+                    result.ignoreFailedStep();
+                    result.addFakeStepResult(EXPECT_TEST_TO_FAIL_BECAUSE_OF_FAIL_TAG, null);
+                } else {
+                    result.addFakeStepResult(EXPECT_TEST_TO_FAIL_BECAUSE_OF_FAIL_TAG,
+                            new Throwable(EXPECT_TEST_TO_FAIL_BECAUSE_OF_FAIL_TAG));
+                }
+            }
         } catch (Exception e) {
             error = e;
             logError("scenario [cleanup] failed\n" + e.getMessage());

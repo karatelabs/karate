@@ -228,11 +228,11 @@ public class Variable {
             case LIST:
             case MAP:
                 try {
-                return JsonUtils.toJson(value);
-            } catch (Throwable t) {
-                logger.warn("conversion to json string failed, will attempt to use fall-back approach: {}", t.getMessage());
-                return JsonUtils.toJsonSafe(value, false);
-            }
+                    return JsonUtils.toJson(value);
+                } catch (Throwable t) {
+                    logger.warn("conversion to json string failed, will attempt to use fall-back approach: {}", t.getMessage());
+                    return JsonUtils.toJsonSafe(value, false);
+                }
             case XML:
                 return XmlUtils.toString(getValue());
             default:

@@ -332,6 +332,52 @@ class KarateHttpMockHandlerTest {
                 "method get"
         );
         matchVar("response", "success");
-    }    
+    }
+
+    @Test
+    void testEmptyCookieNameSet() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def responseHeaders = {'Set-Cookie': ' '}"
+
+        );
+        startMockServer();
+        run(
+                urlStep(),
+                "path 'hello'",
+                "method get"
+        );
+        matchVarContains("responseHeaders", "{ set-cookie: [''] }");
+    }
+
+    @Test
+    void testEmptyCookieNameAndEmptyAttributesSet() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def responseHeaders = {'Set-Cookie': ';'}"
+
+        );
+        startMockServer();
+        run(
+                urlStep(),
+                "path 'hello'",
+                "method get"
+        );
+        matchVarContains("responseHeaders", "{ set-cookie: [';'] }");
+    }
+
+    @Test
+    void testEmptyCookieNameAndNonEmptyAttributeSet() {
+        background().scenario(
+                "pathMatches('/hello')",
+                "def responseHeaders = {'Set-Cookie': '; SameSite=Strict'}");
+        startMockServer();
+        run(
+                urlStep(),
+                "path 'hello'",
+                "method get"
+        );
+        matchVarContains("responseHeaders", "{ set-cookie: ['; SameSite=Strict'] }");
+    }
 
 }

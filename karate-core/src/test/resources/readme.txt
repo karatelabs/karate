@@ -4,7 +4,9 @@ mvn versions:set versions:commit -DnewVersion=2.0.0
 
 cve check
 =========
-mvn clean verify -P depcheck
+(do mvn versions:set to what should show in the report)
+mvn verify -P depcheck -pl karate-core -DnvdApiKey=YOUR_KEY
+
 (save the above report)
 
 prod:
@@ -15,7 +17,6 @@ mvn versions:set versions:commit -DnewVersion=@@@
 # edit README.md maven 3 places
 # edit examples/gatling/build.gradle
 # edit examples/*/pom.xml
-# edit jbang-catalog.json
 
 # make release using [develop]
 # using github action: https://github.com/karatelabs/karate/actions/workflows/maven-release.yml

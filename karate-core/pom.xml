@@ -5,10 +5,11 @@
     <parent>
         <groupId>io.karatelabs</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>1.5.1</version>
+        <version>1.5.2</version>
     </parent>
     <artifactId>karate-core</artifactId>
-    <packaging>jar</packaging>   
+    <packaging>jar</packaging>
+    <name>${project.artifactId}</name>
     
     <properties>
         <antlr.version>4.13.1</antlr.version>
@@ -41,7 +42,7 @@
         <dependency>
             <groupId>com.linecorp.armeria</groupId>
             <artifactId>armeria</artifactId>
-            <version>1.33.0</version>
+            <version>1.33.4</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -69,13 +70,13 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.5.18</version>
+            <version>1.5.20</version>
         </dependency>         
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jcl-over-slf4j</artifactId>
             <!-- this is tied to logback-classic -->
-            <version>2.0.12</version>
+            <version>2.0.17</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
@@ -128,6 +129,11 @@
             <groupId>io.github.t12y</groupId>
             <artifactId>ssim</artifactId>
             <version>1.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.brotli</groupId>
+            <artifactId>dec</artifactId>
+            <version>0.1.2</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

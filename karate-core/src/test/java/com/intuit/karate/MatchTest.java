@@ -1,15 +1,19 @@
 package com.intuit.karate;
 
 import static com.intuit.karate.Match.Type.*;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
+import com.intuit.karate.Match;
 import com.intuit.karate.Match.Type;
 import com.intuit.karate.graal.JsEngine;
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import com.intuit.karate.MatchOperation;
+import net.minidev.json.JSONArray;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -37,7 +41,7 @@ class MatchTest {
     String message;
 
     private void message(String expected) {
-        assertTrue(message != null && message.contains(expected), message);
+        assertEquals(expected, message);
     }
 
     private void log() {
@@ -67,7 +71,12 @@ class MatchTest {
     void testNull() {
         match(null, EQUALS, null);
         match("", EQUALS, null, FAILS);
-        message("data types don't match");
+        message("""
+                match failed: EQUALS
+                  $ | data types don't match (STRING:NULL)
+                  ''
+                  null
+                """);
         match("", NOT_EQUALS, null);
         match(null, NOT_EQUALS, null, FAILS);
     }
@@ -161,6 +170,7 @@ class MatchTest {
         match("[4, 4]", CONTAINS_ONLY, "[4, 4]");
         match("[1, 2, 2]", CONTAINS_ONLY, "[2, 2, 1]");
         match("[1, 2, 3]", CONTAINS_ONLY, "[2, 2, 3]", FAILS);
+        match("[2, 3, 2]", CONTAINS_ONLY, "[2, 2, 3]");
         match("[2, 2, 3]", CONTAINS_ONLY, "[1, 2, 3]", FAILS);
         match("[1, 4, 7]", CONTAINS_ONLY, "[4, 7]", FAILS);
         match("[1, 2, 3]", CONTAINS, "[1, 2, 4]", FAILS);
@@ -190,9 +200,35 @@ class MatchTest {
     @ValueSource(strings = {"CONTAINS", "CONTAINS_DEEP"})
     void testListContains(String containsType) {
         match("['foo', 'bar']", containsType, "baz", FAILS);
-        message("actual array does not contain expected item - baz");
+        message("""
+                match failed: %s
+                  $ | actual does not contain expected | actual array does not contain expected item - baz (LIST:STRING)
+                  ["foo","bar"]
+                  'baz'
+                
+                    $[1] | not equal (STRING:STRING)
+                    'bar'
+                    'baz'
+                
+                    $[0] | not equal (STRING:STRING)
+                    'foo'
+                    'baz'
+                """.formatted(containsType));
         match("['foo', 'bar']", containsType, "['baz']", FAILS);
-        message("actual array does not contain expected item - baz");
+        message("""
+                match failed: %s
+                  $ | actual does not contain expected | actual array does not contain expected item - baz (LIST:LIST)
+                  ["foo","bar"]
+                  ["baz"]
+                
+                    $[1] | not equal (STRING:STRING)
+                    'bar'
+                    'baz'
+                
+                    $[0] | not equal (STRING:STRING)
+                    'foo'
+                    'baz'
+                """.formatted(containsType));
     }
 
     @Test
@@ -207,19 +243,77 @@ class MatchTest {
         match("{ array: ['foo', 'bar'] }", CONTAINS_DEEP, "{ array: '#array' }");
         match("{ array: ['foo', 'bar'] }", CONTAINS_ANY, "{ array: '#[] #regex .{3}' }");
         match("{ array: ['foo', 'bar'] }", CONTAINS_ANY_DEEP, "{ array: '#[] #regex .{3}' }");
+
+        match("['foo', 'barr']", CONTAINS, "#regex .{4}");
+        match("['foo', 'barr']", CONTAINS_ANY, "#regex .{4}");
+
+        match("['foo', 'bar']", CONTAINS, "#regex .{4}", FAILS);
+        message("""
+                match failed: CONTAINS
+                  $ | actual does not contain expected | actual array does not contain expected item - #regex .{4} (LIST:STRING)
+                  ["foo","bar"]
+                  '#regex .{4}'
+                
+                    $[1] | regex match failed (STRING:STRING)
+                    'bar'
+                    '#regex .{4}'
+                
+                    $[0] | regex match failed (STRING:STRING)
+                    'foo'
+                    '#regex .{4}'
+                """);
+
     }
 
     @Test
     void testListNotContains() {
         match("['foo', 'bar']", NOT_CONTAINS, "baz");
         match("['foo', 'bar']", NOT_CONTAINS, "bar", FAILS);
-        message("actual contains expected");
+        message("""
+                match failed: NOT_CONTAINS
+                  $ | actual contains expected (LIST:STRING)
+                  ["foo","bar"]
+                  'bar'
+                
+                    $[0] | not equal (STRING:STRING)
+                    'foo'
+                    'bar'
+                """);
         match(
                 "[{ foo: 1 }, { foo: 2 }, { foo: 3 }]",
                 CONTAINS,
                 "[{ foo: 0 }, { foo: 2 }, { foo: 3 }]",
                 FAILS);
-        message("$[0] | not equal"); // TODO improve error message for this case
+        message("""
+                match failed: CONTAINS
+                  $ | actual does not contain expected | actual array does not contain expected item - {"foo":0} (LIST:LIST)
+                  [{"foo":1},{"foo":2},{"foo":3}]
+                  [{"foo":0},{"foo":2},{"foo":3}]
+                
+                    $[2] | not equal | match failed for name: 'foo' (MAP:MAP)
+                    {"foo":3}
+                    {"foo":0}
+                
+                      $[2].foo | not equal (NUMBER:NUMBER)
+                      3
+                      0
+                
+                        $[1] | not equal | match failed for name: 'foo' (MAP:MAP)
+                        {"foo":2}
+                        {"foo":0}
+                
+                          $[1].foo | not equal (NUMBER:NUMBER)
+                          2
+                          0
+                
+                            $[0] | not equal | match failed for name: 'foo' (MAP:MAP)
+                            {"foo":1}
+                            {"foo":0}
+                
+                              $[0].foo | not equal (NUMBER:NUMBER)
+                              1
+                              0
+                """); // TODO improve error message for this case
     }
 
     @Test
@@ -227,17 +321,42 @@ class MatchTest {
         match("[1, 2, 3]", EACH_EQUALS, "#number");
         match("[1, 2, 3]", EACH_EQUALS, "#number? _ > 0");
         match("[1, 2, 3]", EACH_EQUALS, "#number? _ < 2", FAILS);
-        message("match each failed at index 1");
+        String expected = """
+                match failed: EACH_EQUALS
+                  $ | match each failed at index 1 (LIST:STRING)
+                  [1,2,3]
+                  '#number? _ < 2'
+                
+                    $[1] | evaluated to 'false' (NUMBER:STRING)
+                    2
+                    '#number? _ < 2'
+                """;
+        message(expected);
         match("[1, 'a', 3]", EACH_EQUALS, "#number", FAILS);
-        message("$[1] | not a number");
+        expected = """
+                match failed: EACH_EQUALS
+                  $ | match each failed at index 1 (LIST:STRING)
+                  [1,"a",3]
+                  '#number'
+                
+                    $[1] | not a number (STRING:STRING)
+                    'a'
+                    '#number'
+                """;
+        message(expected);
         match("[{ a: 1 }, { a: 2 }]", EACH_EQUALS, "#object");
         match("[{ a: 1 }, { a: 2 }]", EACH_EQUALS, "{ a: '#number' }");
     }
-    
+
     @Test
     void testEachEmpty() {
         match("[]", EACH_EQUALS, "#number", FAILS);
-        message("match each failed, empty array / list");
+        message("""
+                match failed: EACH_EQUALS
+                  $ | match each failed, empty array / list (LIST:STRING)
+                  []
+                  '#number'
+                """);
     }
 
     @Test
@@ -255,11 +374,33 @@ class MatchTest {
         match("[{ a: 1 }, { a: 2 }]", matchType, "#[] #object");
     }
 
+    @Test
+    void testIssue2515() {
+
+        Json cat = Json.of(
+                """
+                        {
+                          name: 'Billie',
+                          kittens: [
+                            { id: 23, name: 'Bob', bla: [{ b: '1'}] },
+                            { id: 42, name: 'Wild' }
+                          ]
+                        }
+                        """);
+        Json expectedKittens1 = Json.of("[{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob', bla: [{ b: '1'}]}]");
+        JsEngine.global().put("expectedKittens1", expectedKittens1.asList());
+        match(cat.asMap(), EQUALS, Json.of("{ name: 'Billie', kittens: '#(^^expectedKittens1)' }").asMap());
+
+        Json expectedKittens2 = Json.of("[{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob', bla: { b: '1'}}]");
+        JsEngine.global().put("expectedKittens2", expectedKittens2.asList());
+        match(cat.asMap(), EQUALS, Json.of("{ name: 'Billie', kittens: '#(^^expectedKittens2)' }").asMap(), true);
+    }
+
     @ParameterizedTest
     @CsvSource(value = {
-        "EQUALS;EACH_EQUALS",
-        "CONTAINS;EACH_CONTAINS",
-        "CONTAINS_DEEP;EACH_CONTAINS_DEEP"}, delimiter = ';')
+            "EQUALS;EACH_EQUALS",
+            "CONTAINS;EACH_CONTAINS",
+            "CONTAINS_DEEP;EACH_CONTAINS_DEEP"}, delimiter = ';')
     void testSchema(String matchType, String matchEachType) {
         Json json = Json.of("{ a: '#number' }");
         Map map = json.asMap();
@@ -277,8 +418,10 @@ class MatchTest {
         match("{ foo: null }", matchType, "{ foo: '##(bar)' }");
     }
 
+
     @Test
     void testMap() {
+        match("{ a: 1, b: 2, c: 3 }", CONTAINS, "{}");
         match("{ a: 1, b: 2, c: 3 }", EQUALS, "{ b: 2, c: 3, a: 1 }");
         match("{ a: 1, b: 2, c: 3 }", CONTAINS, "{ b: 2, c: 3, a: 1 }");
         match("{ a: 1, b: 2, c: 3 }", CONTAINS_ONLY, "{ b: 2, c: 3, a: 1 }");
@@ -290,34 +433,110 @@ class MatchTest {
         match("{ a: 1, b: 2, c: 3 }", CONTAINS_DEEP, "{ }");
         match("{ a: 1, b: 2, c: 3 }", CONTAINS_ANY, "{ z: 9, b: 2 }");
         match("{ a: 1, b: 2, c: 3 }", CONTAINS, "{ z: 9, x: 2 }", FAILS);
-        message("$ | actual does not contain expected | actual does not contain key - 'z'");
+
+        message("""
+                match failed: CONTAINS
+                  $ | actual does not contain expected | actual does not contain key - 'z' (MAP:MAP)
+                  {"a":1,"b":2,"c":3}
+                  {"z":9,"x":2}
+                
+                """);
         match("{ a: 1, b: 2, c: 3 }", CONTAINS_ANY, "{ z: 9, x: 2 }", FAILS);
-        message("$ | actual does not contain expected | no key-values matched");
-        message("$.x | data types don't match");
-        message("$.z | data types don't match");
+        message("""
+                match failed: CONTAINS_ANY
+                  $ | actual does not contain expected | no key-values matched (MAP:MAP)
+                  {"a":1,"b":2,"c":3}
+                  {"z":9,"x":2}
+                
+                    $.x | data types don't match (NULL:NUMBER)
+                    null
+                    2
+                
+                    $.z | data types don't match (NULL:NUMBER)
+                    null
+                    9
+                """);
         match("{ a: 1, b: 2, c: 3 }", NOT_CONTAINS, "{ a: 1 }", FAILS);
-        message("$ | actual contains expected");
+        message("""
+                match failed: NOT_CONTAINS
+                  $ | actual contains expected (MAP:MAP)
+                  {"a":1,"b":2,"c":3}
+                  {"a":1}
+                """);
         match("{ a: 1, b: 2, c: 3 }", NOT_CONTAINS, "{}");
+
     }
 
     @Test
     void testJsonFailureMessages() {
         match("{ a: 1, b: 2, c: 3 }", EQUALS, "{ a: 1, b: 9, c: 3 }", FAILS);
-        message("$.b | not equal");
+        String expected = """
+                match failed: EQUALS
+                  $ | not equal | match failed for name: 'b' (MAP:MAP)
+                  {"a":1,"b":2,"c":3}
+                  {"a":1,"b":9,"c":3}
+                
+                    $.b | not equal (NUMBER:NUMBER)
+                    2
+                    9
+                """;
+        message(expected);
         match("{ a: { b: { c: 1 } } }", EQUALS, "{ a: { b: { c: 2 } } }", FAILS);
-        message("$.a.b.c | not equal");
+        expected = """
+                match failed: EQUALS
+                  $ | not equal | match failed for name: 'a' (MAP:MAP)
+                  {"a":{"b":{"c":1}}}
+                  {"a":{"b":{"c":2}}}
+                
+                    $.a | not equal | match failed for name: 'b' (MAP:MAP)
+                    {"b":{"c":1}}
+                    {"b":{"c":2}}
+                
+                      $.a.b | not equal | match failed for name: 'c' (MAP:MAP)
+                      {"c":1}
+                      {"c":2}
+                
+                        $.a.b.c | not equal (NUMBER:NUMBER)
+                        1
+                        2
+                """;
+        message(expected);
     }
 
     @Test
     void testXmlFailureMessages() {
         match("<a><b><c>1</c></b></a>", EQUALS, "<a><b><c>2</c></b></a>", FAILS);
-        message("/ | not equal | match failed for name: 'a'");
-        message("/a | not equal | match failed for name: 'b'");
-        message("/a/b | not equal | match failed for name: 'c'");
-        message("/a/b/c | not equal");
+        String expected = """
+                match failed: EQUALS
+                  / | not equal | match failed for name: 'a' (XML:XML)
+                  <a><b><c>1</c></b></a>
+                  <a><b><c>2</c></b></a>
+                
+                    /a | not equal | match failed for name: 'b' (MAP:MAP)
+                    <b><c>1</c></b>
+                    <b><c>2</c></b>
+                
+                      /a/b | not equal | match failed for name: 'c' (MAP:MAP)
+                      <c>1</c>
+                      <c>2</c>
+                
+                        /a/b/c | not equal (STRING:STRING)
+                        1
+                        2
+                """;
+        message(expected);
         match("<hello foo=\"bar\">world</hello>", EQUALS, "<hello foo=\"baz\">world</hello>", FAILS);
-        message("/ | not equal | match failed for name: 'hello'");
-        message("/hello/@foo | not equal");
+        expected = """
+                match failed: EQUALS
+                  / | not equal | match failed for name: 'hello' (XML:XML)
+                  <hello foo="bar">world</hello>
+                  <hello foo="baz">world</hello>
+                
+                    /hello/@foo | not equal (STRING:STRING)
+                    bar
+                    baz
+                """;
+        message(expected);
     }
 
     @Test
@@ -336,24 +555,74 @@ class MatchTest {
         match("{ a: 1, b: 2, c: 3 }", EQUALS, "{ b: 2, c: '#present', a: 1 }");
         match("{ a: 1, b: 2, c: 3 }", EQUALS, "{ b: 2, c: '#notnull', a: 1 }");
         match("{ a: 1, b: 2, c: 3 }", EQUALS, "{ b: 2, c: '#null', a: 1 }", FAILS);
-        message("$.c | not null");
+        String expected = """
+                match failed: EQUALS
+                  $ | not equal | match failed for name: 'c' (MAP:MAP)
+                  {"a":1,"b":2,"c":3}
+                  {"a":1,"b":2,"c":"#null"}
+                
+                    $.c | not null (NUMBER:STRING)
+                    3
+                    '#null'
+                """;
+        message(expected);
         match("{ a: 1, b: 2, c: 3 }", EQUALS, "{ b: 2, c: '#string', a: 1 }", FAILS);
-        message("$.c | not a string");
+        expected = """
+                match failed: EQUALS
+                  $ | not equal | match failed for name: 'c' (MAP:MAP)
+                  {"a":1,"b":2,"c":3}
+                  {"a":1,"b":2,"c":"#string"}
+                
+                    $.c | not a string (NUMBER:STRING)
+                    3
+                    '#string'
+                """;
+        message(expected);
         match("{ a: 1, b: 2, c: 3 }", EQUALS, "{ b: 2, c: '#notpresent', a: 1 }", FAILS);
-        message("$.c | present");
+        expected = """
+                match failed: EQUALS
+                  $ | not equal | match failed for name: 'c' (MAP:MAP)
+                  {"a":1,"b":2,"c":3}
+                  {"a":1,"b":2,"c":"#notpresent"}
+                
+                    $.c | present (NUMBER:STRING)
+                    3
+                    '#notpresent'
+                """;
+        message(expected);
         match("{ a: 1, b: 'foo', c: 2 }", EQUALS, "{ b: '#regex foo', c: 2, a: 1 }");
         match("{ a: 1, b: 'foo', c: 2 }", EQUALS, "{ b: '#regex .+', c: 2, a: 1 }");
         match("{ a: 1, b: 'foo', c: 2 }", EQUALS, "{ b: '#regex .{3}', c: 2, a: 1 }");
         match("{ a: 1, b: 'foo', c: 2 }", EQUALS, "{ b: '#regex .{2}', c: 2, a: 1 }", FAILS);
-        message("$.b | regex match failed");
+        expected = """
+                match failed: EQUALS
+                  $ | not equal | match failed for name: 'b' (MAP:MAP)
+                  {"a":1,"b":"foo","c":2}
+                  {"a":1,"b":"#regex .{2}","c":2}
+                
+                    $.b | regex match failed (STRING:STRING)
+                    'foo'
+                    '#regex .{2}'
+                """;
+        message(expected);
     }
 
     @Test
     void testNotPresentOnLhs() {
         match("#notpresent", EQUALS, 2, FAILS);
-        message("actual path does not exist");
+        message("""
+                match failed: EQUALS
+                  $ | actual path does not exist (STRING:NUMBER)
+                  '#notpresent'
+                  2
+                """);
         match("#notpresent", EQUALS, "foo", FAILS);
-        message("actual path does not exist");
+        message("""
+                match failed: EQUALS
+                  $ | actual path does not exist (STRING:STRING)
+                  '#notpresent'
+                  'foo'
+                """);
     }
 
     @Test
@@ -430,7 +699,6 @@ class MatchTest {
     @ParameterizedTest
     @ValueSource(strings = {"EQUALS", "CONTAINS", "CONTAINS_DEEP"})
     void testOptional(String matchType) {
-
         match("{ number: '1234' }", matchType, "{ number: '##regex \\\\d+' }");
         match("{ }", matchType, "{ number: '##regex \\\\d+' }");
         match("{ 'foo': 'bar' }", matchType, "{ foo: '#string', number: '##regex \\\\d+' }");
@@ -470,6 +738,8 @@ class MatchTest {
                 "{ 'foo': 'test', 'bar' : [ { 'bar': 'bar' } ] }",
                 matchType,
                 "{ 'foo': '#string', 'bar': '##array' }");
+
+
         match("{ 'foo': null }", matchType, "{ 'foo': '##array' }");
 
         match("{ a: null}", matchType, " { a: '##notnull' }");

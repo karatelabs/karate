@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.karatelabs</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>1.5.1</version>
+        <version>1.5.2</version>
     </parent>
     <artifactId>karate-e2e-tests</artifactId>
     <packaging>jar</packaging>
@@ -42,13 +42,13 @@
         </testResources>
         <plugins>
             <plugin>
-                <groupId>org.sonatype.plugins</groupId>
-                <artifactId>nexus-staging-maven-plugin</artifactId>
-                <version>${nexus.staging.plugin.version}</version>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>${central.publishing.maven.plugin.version}</version>
                 <configuration>
-                    <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
+                    <skipPublishing>true</skipPublishing>
                 </configuration>
-            </plugin>            
+            </plugin>
         </plugins>
     </build>           
     

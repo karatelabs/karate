@@ -16,7 +16,7 @@ Scenario: binary message
     And def socket = karate.webSocketBinary('ws://echo.websocket.org')
     And bytes data = read('../upload/test.pdf')
     When socket.sendBytes(data)
-    And listen (5000
+    And listen 5000
     # the result data-type is byte-array, but this comparison works
     Then match listenResult == read('../upload/test.pdf')
 

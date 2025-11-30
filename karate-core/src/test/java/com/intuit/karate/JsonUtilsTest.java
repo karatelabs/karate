@@ -22,7 +22,7 @@ class JsonUtilsTest {
     @Test
     void testParse() {
         String temp = JsonUtils.toStrictJson("{redirect:{url:'/index'}}");
-        assertEquals(temp, "{\"redirect\":{\"url\":\"\\/index\"}}");
+        assertEquals("{\"redirect\":{\"url\":\"/index\"}}", temp);
     }
 
     @Test
