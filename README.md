@@ -349,7 +349,7 @@ All you need is available in the [`karate-core`](https://search.maven.org/artifa
 <dependency>
     <groupId>io.karatelabs</groupId>
     <artifactId>karate-junit5</artifactId>
-    <version>1.5.1</version>
+    <version>1.5.2</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -358,7 +358,7 @@ All you need is available in the [`karate-core`](https://search.maven.org/artifa
 Alternatively for [Gradle](https://gradle.org):
 
 ```yml
-    testImplementation 'io.karatelabs:karate-junit5:1.5.1'
+    testImplementation 'io.karatelabs:karate-junit5:1.5.2'
 ```
 
 Also refer to the wiki for using [Karate with Gradle](https://github.com/karatelabs/karate/wiki/Gradle).
@@ -393,7 +393,7 @@ You can replace the values of `com.mycompany` and `myproject` as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=io.karatelabs \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=1.5.1 \
+-DarchetypeVersion=1.5.2 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
