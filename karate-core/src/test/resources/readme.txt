@@ -5,7 +5,7 @@ mvn versions:set versions:commit -DnewVersion=2.0.0
 cve check
 =========
 (do mvn versions:set to what should show in the report)
-mvn verify -P -pl karate-core -DnvdApiKey=YOUR_KEY
+mvn verify -P depcheck -pl karate-core -DnvdApiKey=YOUR_KEY
 
 (save the above report)
 
