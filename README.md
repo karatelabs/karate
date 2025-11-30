@@ -6,9 +6,9 @@
 <a href="https://docs.karatelabs.io">docs.karatelabs.io</a></h2>
 
 <details>
-<summary>Looking for the old documentation?</summary>
+<summary>Looking for the old README?</summary>
 
-The previous README documentation is preserved at:
+The previous README monolith is preserved at:
 
 **[github.com/karatelabs/karate/blob/v1.5.2](https://github.com/karatelabs/karate/blob/v1.5.2)**
 
