@@ -5,12 +5,17 @@ LABEL url="https://github.com/karatelabs/karate/tree/master/karate-docker/karate
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
-    gnupg2
+    gnupg2 \
+    ca-certificates
 
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-  && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
-  && apt-get update && apt-get install -y --no-install-recommends \
-    google-chrome-stable
+RUN mkdir -p /etc/apt/keyrings \
+  && wget -q -O - https://dl.google.com/linux/linux_signing_key.pub \
+     | gpg --dearmor > /etc/apt/keyrings/google-linux-signing-key.gpg \
+  && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-linux-signing-key.gpg] http://dl.google.com/linux/chrome/deb/ stable main" \
+     > /etc/apt/sources.list.d/google-chrome.list \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends \
+       google-chrome-stable
 
 RUN useradd chrome --shell /bin/bash --create-home \
   && usermod -a -G sudo chrome \
@@ -20,7 +25,7 @@ RUN useradd chrome --shell /bin/bash --create-home \
 RUN apt-get install -y --no-install-recommends \
   xvfb \
   x11vnc \
-  xterm \    
+  xterm \
   fluxbox \
   wmctrl \
   supervisor \

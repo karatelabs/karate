@@ -12,40 +12,51 @@ mvn clean test -B -ntp -f examples/gatling/pom.xml
 
 # copy only karate jars to a place where the docker image build can add from
 KARATE_REPO=karate-docker/karate-chrome/target/repository/io/karatelabs
-mkdir -p ${KARATE_REPO}
-cp -r ~/.m2/repository/io/karatelabs ${KARATE_REPO}
+mkdir -p "${KARATE_REPO}"
+cp -r ~/.m2/repository/io/karatelabs "${KARATE_REPO}"
 
 # create / copy the karate fatjar so that the docker image build can add it
 mvn package -B -ntp -P fatjar -DskipTests -f karate-core/pom.xml
-cp karate-core/target/karate-${KARATE_VERSION}.jar karate-docker/karate-chrome/target/karate.jar
+cp "karate-core/target/karate-${KARATE_VERSION}.jar" karate-docker/karate-chrome/target/karate.jar
 
-# setup multiplatform build
-docker buildx rm multiplatform-builder
+# setup multiplatform build (ignore error if builder doesn't exist)
+docker buildx rm multiplatform-builder || true
 docker buildx create --name multiplatform-builder
 docker buildx use multiplatform-builder
 
 # build karate-chrome docker image that includes karate fatjar + maven jars for convenience
-# Only possible for linux/amd64 as chrome not available on linux/arm64
-docker buildx build --platform linux/amd64 --cache-from=type=local,src=./target/docker --cache-to=type=local,dest=./target/docker -t karatelabs/karate-chrome:${{ github.event.inputs.version }} -t karatelabs/karate-chrome:latest karate-docker/karate-chrome
-# build karate-chromium docker image that includes karate fatjar + maven jars for convenience
-# Both platform
-docker buildx build --platform linux/amd64,linux/arm64 --cache-from=type=local,src=./target/docker --cache-to=type=local,dest=./target/docker -t karatelabs/karate-chromium:${{ github.event.inputs.version }} -t karatelabs/karate-chromium:latest karate-docker/karate-chromium
+# Only linux/amd64 is supported because google-chrome-stable is amd64-only
+docker buildx build \
+  --platform linux/amd64 \
+  --cache-from=type=local,src=./target/docker \
+  --cache-to=type=local,dest=./target/docker \
+  -t karatelabs/karate-chrome:${{ github.event.inputs.version }} \
+  -t karatelabs/karate-chrome:latest \
+  karate-docker/karate-chrome
 
-# Select image for test depending current OS
+# Decide platform for local "load" build
+PLATFORM_FLAG=""
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  # chromium only solution on Mac darwin
-  IMAGE=chromium
-else
-  IMAGE=chrome
+  # On Mac (including M1), force linux/amd64 so Chrome is available
+  PLATFORM_FLAG="--platform=linux/amd64"
 fi
-# Load image image for local
-docker buildx build --load --cache-from=type=local,src=./target/docker -t karate-$IMAGE karate-docker/karate-$IMAGE
+
+# Build local image (for running tests) and load into Docker
+docker buildx build \
+  --load \
+  ${PLATFORM_FLAG} \
+  --cache-from=type=local,src=./target/docker \
+  -t karate-chrome \
+  karate-docker/karate-chrome
 
 # just in case a previous run had hung (likely only in local dev)
 docker stop karate || true
 
 # note that this command is run as a background process
-docker run --name karate --rm --cap-add=SYS_ADMIN -v "$PWD":/karate -v "$HOME"/.m2:/root/.m2 karate-$IMAGE &
+docker run --name karate --rm --cap-add=SYS_ADMIN \
+  -v "$PWD":/karate \
+  -v "$HOME/.m2":/root/.m2 \
+  karate-chrome &
 
 # just ensure that the docker container named "karate" exists after the above command
 # it does not have to have completed startup, the command / karate test below will wait
@@ -59,4 +70,3 @@ docker exec -w /karate karate mvn test -B -ntp -f karate-e2e-tests/pom.xml -Dtes
 
 docker stop karate
 wait
-
