@@ -2,8 +2,8 @@
 <tr>
 <td>
 
-<h2>📖 Documentation:
-**[docs.karatelabs.io](https://docs.karatelabs.io)**</h2>
+<h2><strong>📖 Documentation:</strong>
+<a href="https://docs.karatelabs.io">dosc.karatelabs.io</a></h2>
 
 <details>
 <summary>Looking for the old documentation?</summary>
