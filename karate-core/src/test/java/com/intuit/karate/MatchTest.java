@@ -400,7 +400,7 @@ class MatchTest {
         Json pattern1 = Json.of("{ a: 1, b: [ { c: 3 } ] }");
         JsEngine.global().put("pattern1", pattern1.asMap());
         // should work
-        // match("[ { a: 1, b: [ { c: 3, d: 4 } ] } ]", CONTAINS, "#(^pattern1)");
+        match("[ { a: 1, b: [ { c: 3, d: 4 } ] } ]", CONTAINS, "#(^+pattern1)");
         // works
         Json pattern2 = Json.of("{ c: 3 }");
         JsEngine.global().put("pattern2", pattern2.asMap());
