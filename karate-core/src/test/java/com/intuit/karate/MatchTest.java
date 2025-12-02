@@ -376,7 +376,6 @@ class MatchTest {
 
     @Test
     void testIssue2515() {
-
         Json cat = Json.of(
                 """
                         {
@@ -394,6 +393,18 @@ class MatchTest {
         Json expectedKittens2 = Json.of("[{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob', bla: { b: '1'}}]");
         JsEngine.global().put("expectedKittens2", expectedKittens2.asList());
         match(cat.asMap(), EQUALS, Json.of("{ name: 'Billie', kittens: '#(^^expectedKittens2)' }").asMap(), true);
+    }
+
+    @Test
+    void testIssue2727() {
+        Json pattern1 = Json.of("{ a: 1, b: [ { c: 3 } ] }");
+        JsEngine.global().put("pattern1", pattern1.asMap());
+        // should work
+        // match("[ { a: 1, b: [ { c: 3, d: 4 } ] } ]", CONTAINS, "#(^pattern1)");
+        // works
+        Json pattern2 = Json.of("{ c: 3 }");
+        JsEngine.global().put("pattern2", pattern2.asMap());
+        match("[ { a: 1, b: [ { c: 3, d: 4 } ] } ]", CONTAINS, "{ a: 1, b: [ '#(^pattern2)' ] }");
     }
 
     @ParameterizedTest
