@@ -1,3 +1,13 @@
+# Karate
+
+**The open-source tool that combines API testing, mocks, performance testing, and UI automation into a single, unified framework.**
+
+[![Maven Central](https://img.shields.io/maven-central/v/io.karatelabs/karate-core.svg)](https://central.sonatype.com/namespace/io.karatelabs)
+[![Build Status](https://github.com/karatelabs/karate/actions/workflows/maven-build.yml/badge.svg?branch=develop)](https://github.com/karatelabs/karate/actions?query=workflow%3Amaven-build)
+[![GitHub release](https://img.shields.io/github/release/karatelabs/karate.svg)](https://github.com/karatelabs/karate/releases)
+[![Twitter Follow](https://img.shields.io/twitter/follow/getkarate?style=social)](https://twitter.com/getkarate)
+[![GitHub Stars](https://img.shields.io/github/stars/karatelabs/karate?style=social)](https://github.com/karatelabs/karate/stargazers)
+
 <table>
 <tr>
 <td>
@@ -26,5 +36,12 @@ Anchor links (e.g. `#syntax-guide`, `#configuration`) can be appended to navigat
 </td>
 </tr>
 </table>
+
+<div> 
+  <a href="https://github.com/karatelabs/karate/wiki/Support">
+    <img src="https://img.shields.io/badge/Support-Resources-red.svg"/>
+  </a>
+</div>
+
 
 
