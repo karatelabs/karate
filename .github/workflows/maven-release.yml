@@ -73,7 +73,7 @@ jobs:
         mvn package -DskipTests -P fatjar -f karate-core/pom.xml
         mvn package -DskipTests -P fatjar -f karate-robot/pom.xml
     - name: upload binaries
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with: 
         name: karate-release-${{ github.event.inputs.version }}
         retention-days: 5 
