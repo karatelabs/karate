@@ -891,10 +891,12 @@ class Interpreter {
                     found = true;
                 }
             }
-            if (found && caseNode.size() > 3) {
-                Object caseResult = eval(caseNode.get(3), context);
-                if (context.isStopped()) {
-                    return caseResult;
+            if (found) {
+                for (int i = 3; i < caseNode.size(); i++) {
+                    Object caseResult = eval(caseNode.get(i), context);
+                    if (context.isStopped()) {
+                        return caseResult;
+                    }
                 }
             }
         }

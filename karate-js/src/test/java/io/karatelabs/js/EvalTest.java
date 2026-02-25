@@ -575,6 +575,11 @@ class EvalTest extends EvalBase {
         assertEquals(2, get("b"));
         eval("var a = 1; var b; switch (a) { case 1: b = 1; default: b = 2 }");
         assertEquals(2, get("b"));
+        // multiple statements in case body
+        eval("var a = 'x'; var b; switch (a) { case 'x': var c = 1; b = c }");
+        assertEquals(1, get("b"));
+        eval("var a = 'x'; var b; switch (a) { case 'x': let c = 1; b = c }");
+        assertEquals(1, get("b"));
     }
 
     @Test
